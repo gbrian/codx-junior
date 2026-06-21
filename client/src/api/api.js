@@ -290,6 +290,9 @@ const initializeAPI = ({ project, user } = {}) => {
       branches() {
         return API.get('/api/projects/repo/branches')
       },
+      commits(branch) {
+        return API.get(`/api/projects/repo/branch/commits?branch=${branch}`)
+      },
       changes({ from_branch, to_branch }) {
         return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)
       },

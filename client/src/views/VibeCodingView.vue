@@ -10,35 +10,44 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
 <template>
   <div class="flex flex-col h-full w-full bg-base-300 overflow-hidden">
 
-    <!-- Status bar with git controls -->
     <VibeCodingHeader
       ref="vibeHeader"
-      :chat="vibeChat"
+      :chat="activeChat"
       :project-name="$project?.project_name"
       :available-branches="branches"
       :show-chat="showChat"
       :show-changes="showChanges"
       :show-preview="showPreview"
+      :active-child-chat="showChildChat"
+      :show-hidden-messages="showHidden"
       @toggle-view="toggleView"
       @reload="reloadWorkspace"
       @create-branch="showCreateBranchModal = true"
       @branch-changed="onCurrentBranchChanged"
       @compare-branch-changed="onCompareBranchChanged"
       @update:chat="onChatMetaUpdated"
+      @update:search="chatSearch = $event"
+      @update:show-hidden="showHidden = $event"
+      @navigate-to-board="navigateToBoard"
+      @navigate-to-parent="navigateToParent"
+      @new-subtask="showSubtaskModal = true"
+      @create-subtasks="onCreateSubtasks"
+      @new-tag="showTagModal = true"
+      @select-child-chat="selectChildChat"
+      @set-project="setChatProject"
+      @add-profile="onAddProfile"
     />
 
-    <!-- Main content -->
     <div class="flex grow overflow-hidden min-h-0">
 
-      <!-- LEFT: Chat panel or Kanban selector -->
+      <!-- LEFT: Chat panel -->
       <div v-if="showChat"
         class="flex flex-col h-full border-r border-base-content/10 transition-all"
         :style="{ width: chatWidth }">
 
-        <!-- Chat header -->
         <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
           <ChatIcon mode="vibe" class="text-sm" />
-          <span class="text-sm font-bold truncate grow">{{ vibeChat?.name || 'Vibe session' }}</span>
+          <span class="text-sm font-bold truncate grow">{{ workingChat?.name || 'Vibe session' }}</span>
           <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
             <i class="fa-solid fa-plus"></i>
           </button>
@@ -47,7 +56,6 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
           </button>
         </div>
 
-        <!-- Kanban selector for new chat -->
         <div v-if="showKanbanSelector" class="flex flex-col h-full overflow-hidden bg-base-100">
           <div class="flex items-center gap-2 px-2 py-2 border-b border-base-content/10 shrink-0">
             <span class="text-xs font-semibold">Select task or create new</span>
@@ -56,33 +64,42 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
             </button>
           </div>
           <div class="grow overflow-hidden">
-            <KanbanContainer
-              :params="kanbanParams"
-              @select-board="onKanbanBoardSelected"
-            />
+            <KanbanContainer :params="kanbanParams" />
           </div>
         </div>
 
-        <!-- Chat session picker dropdown -->
         <div v-else-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
           <div v-for="c in vibeSessions" :key="c.id"
             class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-base-200"
-            :class="vibeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
+            :class="activeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
             @click="selectSession(c)">
             <ChatIcon :mode="c.mode" class="opacity-60" />
             <span class="truncate grow">{{ c.name }}</span>
             <span class="text-base-content/30 shrink-0">{{ formatDate(c.updated_at) }}</span>
           </div>
-          <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content-ERROR-40 text-center">
+          <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content/40 text-center">
             No vibe sessions yet
           </div>
         </div>
 
-        <!-- Chat component -->
-        <div class="grow min-h-0 overflow-hidden" v-else-if="vibeChat">
-          <Chat :chat="vibeChat" class="h-full" @refresh-chat="reloadVibeChat" />
+        <div class="flex items-center gap-1 px-2 text-xs text-base-content/50 py-0.5" v-if="showChildChat">
+          <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
+            {{ activeChat?.name }}
+          </button>
+          <i class="fa-solid fa-chevron-right text-xs"></i>
+          <span class="text-warning font-semibold truncate">{{ showChildChat.name }}</span>
         </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content-ERROR-40">
+
+        <div class="grow min-h-0 overflow-hidden" v-else-if="workingChat">
+          <Chat
+            :chat="workingChat"
+            :showHidden="showHidden"
+            :filter="chatSearch"
+            class="h-full px-2 pb-2"
+            @refresh-chat="reloadActiveChat"
+          />
+        </div>
+        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
           <i class="fa-solid fa-wand-magic-sparkles text-4xl"></i>
           <span class="text-sm">Start a vibe coding session</span>
           <button class="btn btn-sm btn-primary" @click="newVibeChat">
@@ -96,7 +113,6 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
         class="flex flex-col h-full border-r border-base-content/10 transition-all"
         :style="{ width: changesWidth }">
 
-        <!-- Changes header -->
         <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
           <i class="fa-solid fa-code-compare text-warning text-sm"></i>
           <span class="text-sm font-bold truncate grow">Changes</span>
@@ -105,11 +121,10 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
           </button>
         </div>
 
-        <!-- PRView component -->
-        <div class="grow min-h-0 overflow-hidden" v-if="vibeChat">
+        <div class="grow min-h-0 overflow-hidden" v-if="workingChat">
           <PRView
             ref="prView"
-            :chat="vibeChat"
+            :chat="workingChat"
             :fromBranch="currentBranchFromMeta"
             :toBranch="compareBranchFromMeta"
             class="h-full"
@@ -120,7 +135,7 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
             @chat-message="onPRChatMessage"
           />
         </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content-ERROR-40">
+        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
           <i class="fa-solid fa-inbox text-4xl"></i>
           <span class="text-sm">No active session</span>
         </div>
@@ -133,8 +148,6 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
         <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 border-b border-base-content/10 shrink-0">
           <i class="fa-solid fa-display text-success text-sm"></i>
           <span class="text-sm font-bold grow">Preview</span>
-
-          <!-- App selector -->
           <select class="select select-xs select-bordered max-w-[180px]"
             v-model="selectedAppKey"
             @change="onAppSelected">
@@ -143,7 +156,6 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
               {{ app.workspaceName }} / {{ app.name }}
             </option>
           </select>
-
           <button class="btn btn-xs btn-ghost" @click="reloadPreview" title="Reload preview">
             <i class="fa-solid fa-rotate-right"></i>
           </button>
@@ -152,22 +164,15 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
           </button>
         </div>
 
-        <!-- AppWindow rendered here -->
-        <div class="grow min-h-0 relative overflow-hidden bg-base-100" v-if="selectedApp" :key="previewKey">
+        <div class="grow min-h-0 relative overflow-hidden bg-base-100" v-if="selectedApp?.app" :key="selectedAppKey">
           <AppWindow
-            :workspace="selectedApp.workspace"
             :app="selectedApp.app"
             class="w-full h-full"
           />
         </div>
-
-        <!-- Empty state -->
         <div v-else class="grow flex flex-col items-center justify-center gap-3 text-base-content/30">
           <i class="fa-solid fa-display text-5xl"></i>
           <span class="text-sm">Select a workspace app to preview</span>
-          <div class="text-xs max-w-xs text-center leading-relaxed" v-if="!projectApps?.length">
-            No workspace apps configured for this project.
-          </div>
         </div>
       </div>
     </div>
@@ -200,6 +205,54 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
         </div>
       </div>
     </modal>
+
+    <!-- New subtask modal -->
+    <modal v-if="showSubtaskModal">
+      <div class="flex flex-col gap-4 p-4">
+        <h3 class="font-bold text-lg">New Subtask</h3>
+        <input v-model="subtaskName" type="text" class="input input-bordered input-sm" placeholder="Subtask name" />
+        <select class="select select-bordered select-sm" v-model="subtaskMode">
+          <option value="task">Task</option>
+          <option value="chat">Chat</option>
+          <option value="vibe">Vibe</option>
+          <option value="topic">Topic</option>
+          <option value="prview">PR View</option>
+        </select>
+        <textarea v-model="subtaskDescription" class="textarea textarea-bordered textarea-sm" rows="3" placeholder="Description (optional)" />
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-sm" @click="showSubtaskModal = false">Cancel</button>
+          <button class="btn btn-sm btn-primary" @click="createSubTask" :disabled="!subtaskName.trim()">Create</button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- New tag modal -->
+    <modal v-if="showTagModal">
+      <div class="flex flex-col gap-3 p-4">
+        <div class="text-lg font-bold">Add tag</div>
+        <select class="select select-sm select-bordered" @change="tagInput = $event.target.value">
+          <option value="">New tag...</option>
+          <option v-for="t in $storex.projects.allTags" :key="t" :value="t">{{ t }}</option>
+        </select>
+        <input type="text" class="input input-sm input-bordered" v-model="tagInput" placeholder="Tag name" />
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-sm btn-error" @click="showTagModal = false">Cancel</button>
+          <button class="btn btn-sm" @click="addTag" :disabled="!tagInput">Add</button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- Create subtasks modal -->
+    <modal v-if="showSubtasksModal">
+      <div class="flex flex-col gap-4 p-4 min-w-96">
+        <h3 class="font-bold text-lg">Split into subtasks</h3>
+        <textarea v-model="createTasksInstructions" class="textarea textarea-bordered" rows="4" placeholder="Instructions for AI..." />
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-sm" @click="showSubtasksModal = false">Cancel</button>
+          <button class="btn btn-sm btn-primary" @click="executeCreateSubtasks">Create</button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -216,27 +269,49 @@ export default {
       showChanges: false,
       showChatPicker: false,
       showKanbanSelector: false,
-      vibeChat: null,
       selectedAppKey: '',
       selectedApp: null,
       previewKey: 0,
       branches: [],
       showCreateBranchModal: false,
       createBranchFrom: 'main',
-      newBranchName: ''
+      newBranchName: '',
+      showChildChat: null,
+      showHidden: false,
+      chatSearch: '',
+      showSubtaskModal: false,
+      subtaskName: '',
+      subtaskDescription: '',
+      subtaskMode: 'task',
+      showTagModal: false,
+      tagInput: '',
+      showSubtasksModal: false,
+      createTasksInstructions: ''
     }
   },
-  created() {
+  mounted() {
     this.init()
   },
   computed: {
+    activeChat() {
+      return this.$storex.chats.activeChat
+    },
+    workingChat() {
+      return this.$storex.chats.chats[this.showChildChat?.id] || this.activeChat
+    },
     projectApps() {
-      return this.$projects.projectApps || []
+      return this.$storex.projects?.projectApps || []
     },
     vibeSessions() {
-      return this.$chats.allChats
+      return (this.$storex.chats.allChats || [])
         .filter(c => c.mode === 'vibe')
         .sort((a, b) => (a.updated_at > b.updated_at ? -1 : 1))
+    },
+    childrenChats() {
+      if (!this.activeChat?.id) return []
+      return (this.$storex.chats.allChats || [])
+        .filter(c => c.parent_id === this.activeChat.id)
+        .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatWidth() {
       if (this.showChat && this.showChanges && this.showPreview) return '33%'
@@ -251,22 +326,34 @@ export default {
       return '100%'
     },
     currentBranchFromMeta() {
-      return this.vibeChat?.meta_data?.current_branch || 'main'
+      return this.activeChat?.meta_data?.current_branch || 'main'
     },
     compareBranchFromMeta() {
-      return this.vibeChat?.meta_data?.compare_branch || 'local'
+      return this.activeChat?.meta_data?.compare_branch || 'local'
     },
     kanbanParams() {
       return this.params || {}
     }
   },
   watch: {
-    '$projects.activeProject'() {
+    '$storex.projects.activeProject'() {
       this.init()
     },
     vibeSessions(sessions) {
-      if (!this.vibeChat && sessions.length) {
+      if (!this.activeChat && sessions.length) {
         this.selectSession(sessions[0])
+      }
+    },
+    activeChat(newVal) {
+      if (newVal) {
+        this.showKanbanSelector = false
+        this.showChildChat = null
+        this.childrenChats.forEach(c => this.$storex.chats.loadChat(c))
+      }
+    },
+    projectApps(apps) {
+      if (apps?.length && !this.selectedApp) {
+        this.autoSelectApp()
       }
     }
   },
@@ -275,26 +362,34 @@ export default {
       await this.loadProjectBranches()
       this.createBranchFrom = this.branches[0] || 'main'
       const firstSession = this.vibeSessions[0] || null
-      if (firstSession) this.selectSession(firstSession)
+      if (firstSession && !this.activeChat) {
+        this.selectSession(firstSession)
+      }
+      if (!this.activeChat) {
+        this.showKanbanSelector = true
+      }
       this.autoSelectApp()
     },
 
-    async loadProjectBranches() {
-      try {
-        const chatProject = this.$service.chat.getChatProject(this.vibeChat)
-        const projectApi = chatProject?.$api || this.$api
-        this.branches = await projectApi.repo.branches()
-      } catch (error) {
-        console.error('Error loading branches:', error)
+    loadProjectBranches() {
+      const projectApi = this.$storex.projects.activeProject?.$api || this.$api
+      if (!projectApi?.repo?.branches) {
         this.branches = ['main']
+        return Promise.resolve()
       }
+      return projectApi.repo.branches()
+        .then(result => {
+          this.branches = Array.isArray(result) && result.length ? result : ['main']
+        })
+        .catch(e => {
+          console.warn('[VibeCodingView] loadProjectBranches error:', e)
+          this.branches = ['main']
+        })
     },
 
     autoSelectApp() {
-      const vncApp = this.projectApps.find(a =>
-        a.name?.toLowerCase().includes('vnc') ||
-        a.type?.toLowerCase().includes('vnc')
-      ) || this.projectApps[0]
+      if (!this.projectApps?.length) return
+      const vncApp = this.projectApps.find(a => a.is_vnc) || this.projectApps[0]
       if (vncApp) {
         this.selectedAppKey = vncApp.key
         this.onAppSelected()
@@ -303,10 +398,12 @@ export default {
 
     onAppSelected() {
       const app = this.projectApps.find(a => a.key === this.selectedAppKey)
-      if (!app) { this.selectedApp = null; return }
-      const workspaces = this.$storex.projects.workspaces || []
-      const workspace = workspaces.find(w => w.name === app.workspaceName)
-      this.selectedApp = workspace ? { workspace, app } : null
+      if (!app) {
+        this.selectedApp = null
+        return
+      }
+      // Build proper app object for AppWindow component
+      this.selectedApp = { app }
       this.previewKey++
     },
 
@@ -316,83 +413,65 @@ export default {
       else if (view === 'preview') this.showPreview = !this.showPreview
     },
 
-    onCurrentBranchChanged(branch) {
-      // Branch state is now managed by header via meta_data
-    },
+    onCurrentBranchChanged() {},
+    onCompareBranchChanged() {},
 
-    onCompareBranchChanged(branch) {
-      // Branch state is now managed by header via meta_data
-    },
-
-    async onChatMetaUpdated(updatedChat) {
+    onChatMetaUpdated(updatedChat) {
       if (!updatedChat?.id) return
-      Object.assign(this.vibeChat, updatedChat)
-      await this.$chats.saveChat(this.vibeChat)
+      Object.assign(this.activeChat, updatedChat)
+      this.$storex.chats.saveChat(this.activeChat)
     },
 
     onPRBranchSelected({ fromBranch, toBranch }) {
-      this.$service.chat.updateChatBranches({
-        chat: this.vibeChat,
-        currentBranch: toBranch,
-        compareBranch: fromBranch
+      if (!this.activeChat) return
+      Object.assign(this.activeChat, {
+        meta_data: {
+          ...(this.activeChat.meta_data || {}),
+          current_branch: toBranch,
+          compare_branch: fromBranch
+        }
       })
       this.$refs.vibeHeader?.onBranchCreated?.(toBranch)
     },
 
-    async onCreateBranch() {
+    onCreateBranch() {
       if (!this.newBranchName.trim()) return
-      try {
-        const chatProject = this.$service.chat.getChatProject(this.vibeChat)
-        const projectApi = chatProject?.$api || this.$api
-        await projectApi.git.createBranch({
-          name: this.newBranchName,
-          from: this.createBranchFrom
+      const projectApi = this.$storex.projects.activeProject?.$api || this.$api
+      projectApi.git.createBranch({ name: this.newBranchName, from: this.createBranchFrom })
+        .then(() => this.loadProjectBranches())
+        .then(() => {
+          this.$refs.vibeHeader?.onBranchCreated?.(this.newBranchName)
+          this.$storex.ui.addNotification({ text: `Branch created: ${this.newBranchName}` })
+          this.newBranchName = ''
+          this.showCreateBranchModal = false
         })
-        await this.loadProjectBranches()
-        this.showCreateBranchModal = false
-        this.$refs.vibeHeader?.onBranchCreated(this.newBranchName)
-        this.newBranchName = ''
-        this.$ui.addNotification({ text: `Branch created: ${this.newBranchName}`, type: 'success' })
-      } catch (error) {
-        this.$ui.addNotification({ text: `Error creating branch: ${error.message}`, type: 'error' })
-      }
+        .catch(error => {
+          this.$storex.ui.addNotification({ text: `Error creating branch: ${error.message}`, type: 'error' })
+        })
     },
 
-    async newVibeChat() {
+    newVibeChat() {
       this.showChatPicker = false
       const currentBranch = this.branches[0] || 'main'
-      const chat = await this.$chats.createNewChat({
-        id: uuidv4(),
+      this.$storex.chats.createNewChat({
         name: `Vibe ${moment().format('MMM D HH:mm')}`,
         mode: 'vibe',
         board: 'codx-junior',
-        project_id: this.$project.project_id,
+        project_id: this.$storex.projects.activeProject?.project_id,
         messages: [],
-        meta_data: {
-          current_branch: currentBranch,
-          compare_branch: 'local'
-        }
-      })
-      await this.$chats.saveChat(chat)
-      this.vibeChat = chat
+        meta_data: { current_branch: currentBranch, compare_branch: 'local' }
+      }).then(chat => this.$storex.chats.setActiveChat(chat))
     },
 
     selectSession(chat) {
-      this.vibeChat = chat
+      if (!chat) return
+      this.$storex.chats.setActiveChat(chat)
       this.showChatPicker = false
       this.loadProjectBranches()
     },
 
-    // Called when user selects a task from kanban
-    onKanbanBoardSelected(board) {
-      this.showKanbanSelector = false
-      if (board) {
-        this.$chats.setActiveChat(board)
-      }
-    },
-
-    reloadVibeChat() {
-      if (this.vibeChat) this.$chats.reloadChat(this.vibeChat)
+    reloadActiveChat() {
+      if (this.workingChat) this.$storex.chats.reloadChat(this.workingChat)
     },
 
     refreshChanges() {
@@ -404,15 +483,80 @@ export default {
     },
 
     openPreviewFullscreen() {
-      if (this.selectedApp) {
-        this.$projects.openWorkspaceApp(this.selectedApp)
-      }
+      if (this.selectedApp) this.$projects?.openWorkspaceApp(this.selectedApp)
     },
 
     reloadWorkspace() {
       this.reloadPreview()
-      if (this.vibeChat) this.reloadVibeChat()
+      this.reloadActiveChat()
     },
+
+    navigateToBoard() {
+      this.$emit('chats', this.kanban?.title || this.activeChat?.board)
+    },
+
+    navigateToParent(parentChat) {
+      if (parentChat) this.$storex.chats.setActiveChat(parentChat)
+      else this.navigateToBoard()
+    },
+
+    selectChildChat(childChat) {
+      this.showChildChat = childChat
+      if (childChat && !childChat.messages?.length) this.$storex.chats.reloadChat(childChat)
+    },
+
+    createSubTask() {
+      if (!this.subtaskName.trim() || !this.activeChat) return
+      this.$storex.chats.createNewChat({
+        id: uuidv4(),
+        board: this.activeChat.board,
+        name: this.subtaskName,
+        mode: this.subtaskMode,
+        parent_id: this.activeChat.id,
+        project_id: this.activeChat.project_id,
+        owner_project_id: this.activeChat.owner_project_id,
+        messages: this.subtaskDescription
+          ? [{ role: 'user', content: this.subtaskDescription }]
+          : [],
+        column: this.activeChat.column
+      }).then(chat => {
+        this.$storex.chats.saveChat(chat)
+        this.showSubtaskModal = false
+        this.subtaskName = ''
+        this.subtaskDescription = ''
+      })
+    },
+
+    onCreateSubtasks() {
+      this.showSubtasksModal = true
+      this.createTasksInstructions = ''
+    },
+
+    executeCreateSubtasks() {
+      if (this.activeChat) {
+        this.$storex.projects.createSubtasks({
+          chat: this.activeChat,
+          instructions: this.createTasksInstructions
+        })
+      }
+      this.showSubtasksModal = false
+    },
+
+    addTag() {
+      if (!this.tagInput || !this.activeChat) return
+      this.activeChat.tags = [...new Set([...(this.activeChat.tags || []), this.tagInput])]
+      this.$storex.chats.saveChat(this.activeChat)
+      this.tagInput = ''
+      this.showTagModal = false
+    },
+
+    setChatProject(project) {
+      if (!this.activeChat) return
+      this.activeChat.project_id = project.project_id
+      this.$storex.chats.saveChat(this.activeChat)
+    },
+
+    onAddProfile(profile) {},
 
     onPRComment({ chat, title, files, description, profiles, mode, column }) {
       this.$emit('comment', { chat, title, files, description, profiles, mode, column })

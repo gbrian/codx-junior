@@ -91,6 +91,7 @@ import ChatFilePreview from './ChatFilePreview.vue'
             <!-- Input + IntelliSense wrapper -->
             <div class="relative" v-if="readOnly !== true">
               <ChatIntelliSense
+                ref="intelliSense"
                 :suggestions="intelliSenseSuggestions"
                 :active-index="intelliSenseIndex"
                 :query="intelliSenseQuery"
@@ -98,46 +99,44 @@ import ChatFilePreview from './ChatFilePreview.vue'
                 @hover="intelliSenseIndex = $event"
                 @accept-multi="onIntelliSenseAcceptMulti"
               />
-              <div class="p-2">
-                <ChatInputBox
-                  ref="inputBox"
-                  :waiting="waiting"
-                  :is-editing="!!editMessage"
-                  :is-voice-session="isVoiceSession"
-                  :searching="searchingInKnowledge"
-                  :read-only="readOnly"
-                  :has-test-script="!!API.activeProject.script_test"
-                  :show-document-search="showDocumentSearchModal"
-                  :chat-project="chatProject"
-                  :selected-user="selectedUser"
-                  :users-list="usersList"
-                  :selected-model="chat.llm_model"
-                  :ai-models="aiModels"
-                  :images="images"
-                  :cursor-word="cursorWord"
-                  :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-                  @close.knowledge="showDocumentSearchModal = false"
-                  @send="sendMessage"
-                  @add-message="addNewMessage()"
-                  @search-message="addSearchMessage"
-                  @cancel-edit="onResetEdit"
-                  @paste="onContentPaste"
-                  @keydown="onChatInputKeyDown"
-                  @drop="onDrop"
-                  @add-document="onAddDocument"
-                  @close-search="closeDocumentSearch"
-                  @replace-emoji="replaceEmoji"
-                  @user-changed="selectedUser = $event"
-                  @model-changed="onLLMModelChanged"
-                  @toggle-search="toggleDocumentSearch"
-                  @hide-all="hideAll"
-                  @attach-files="selectFile = true"
-                  @test-project="testProject"
-                  @toggle-voice="toggleVoiceSession"
-                  @remove-image="removeImage"
-                  @preview-image="imagePreview = $event"
-                />
-              </div>
+              <ChatInputBox
+                ref="inputBox"
+                :waiting="waiting"
+                :is-editing="!!editMessage"
+                :is-voice-session="isVoiceSession"
+                :searching="searchingInKnowledge"
+                :read-only="readOnly"
+                :has-test-script="!!API.activeProject.script_test"
+                :show-document-search="showDocumentSearchModal"
+                :chat-project="chatProject"
+                :selected-user="selectedUser"
+                :users-list="usersList"
+                :selected-model="chat.llm_model"
+                :ai-models="aiModels"
+                :images="images"
+                :cursor-word="cursorWord"
+                :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                @close.knowledge="showDocumentSearchModal = false"
+                @send="sendMessage"
+                @add-message="addNewMessage()"
+                @search-message="addSearchMessage"
+                @cancel-edit="onResetEdit"
+                @paste="onContentPaste"
+                @keydown="onChatInputKeyDown"
+                @drop="onDrop"
+                @add-document="onAddDocument"
+                @close-search="closeDocumentSearch"
+                @replace-emoji="replaceEmoji"
+                @user-changed="selectedUser = $event"
+                @model-changed="onLLMModelChanged"
+                @toggle-search="toggleDocumentSearch"
+                @hide-all="hideAll"
+                @attach-files="selectFile = true"
+                @test-project="testProject"
+                @toggle-voice="toggleVoiceSession"
+                @remove-image="removeImage"
+                @preview-image="imagePreview = $event"
+              />
               <ChatFileList
                 :files="files"
                 :chat-project="chatProject"
@@ -200,6 +199,7 @@ export default {
       files: [],
       images: [],
       imagePreview: null,
+      draggingOver: false,
       onDraggingOverInput: false,
       selectFile: false,
       isVoiceSession: false,
@@ -318,9 +318,6 @@ export default {
     isChannel() {
       return this.chat.mode === 'topic'
     },
-    editor() {
-      return this.$refs.inputBox?.getEditor() || this.$el?.querySelector('.editor')
-    },
     hasIntelliSense() {
       return this.intelliSenseSuggestions.length > 0
     }
@@ -358,10 +355,10 @@ export default {
     // ── IntelliSense ──────────────────────────────────────────
 
     scheduleIntelliSense() {
+      // Reset dismissed state if user typed a new word
       if (this.intelliSenseDismissed) {
-        const prev = this.intelliSenseQuery
         const { word } = this.cursorWord
-        if (word !== prev) this.intelliSenseDismissed = false
+        if (word !== this.intelliSenseQuery) this.intelliSenseDismissed = false
       }
       clearTimeout(this.intelliSenseDebounce)
       this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(), 220)
@@ -370,21 +367,23 @@ export default {
     async runIntelliSense() {
       if (this.intelliSenseDismissed) return
       const { word } = this.cursorWord
-      if (word?.startsWith('@')) {
-        const rawQuery = word.slice(1)
-        if (!rawQuery || rawQuery.trim().length < 3) {
-          this.intelliSenseSuggestions = []
-          return
-        }
-        this.intelliSenseQuery = rawQuery
-        this.intelliSenseIndex = 0
-        const results = await (this.chatProject?.$state?.searchMentions(rawQuery, 10)
-                        || this.$projects.searchMentions?.(rawQuery, 10)
-                        || Promise.resolve([]))
-        this.intelliSenseSuggestions = results
-      } else {
+      if (!word?.startsWith('@')) {
         this.intelliSenseSuggestions = []
+        return
       }
+      const rawQuery = word.slice(1)
+      if (!rawQuery || rawQuery.trim().length < 3) {
+        this.intelliSenseSuggestions = []
+        return
+      }
+      this.intelliSenseQuery = rawQuery
+      this.intelliSenseIndex = 0
+      const results = await (
+        this.chatProject?.$state?.searchMentions(rawQuery, 10)
+        || this.$projects.searchMentions?.(rawQuery, 10)
+        || Promise.resolve([])
+      )
+      this.intelliSenseSuggestions = results
     },
 
     dismissIntelliSense() {
@@ -397,22 +396,10 @@ export default {
       if (suggestion) this.onIntelliSenseSelect(suggestion)
     },
 
-    toggleIntelliSenseSelection() {
-      const suggestion = this.intelliSenseSuggestions[this.intelliSenseIndex]
-      if (!suggestion) return
-      const key = (suggestion.file || '') + '|' + (suggestion.name || '')
-      if (this.intelliSenseSelected.has(key)) {
-        this.intelliSenseSelected.delete(key)
-        this.intelliSenseSelected = new Set(this.intelliSenseSelected)
-      } else {
-        this.intelliSenseSelected = new Set([...this.intelliSenseSelected, key])
-      }
-    },
-
     onIntelliSenseSelect(suggestion) {
       const { file, name } = suggestion
       const { caretIndex, word } = this.cursorWord
-      const text = this.editor?.innerText || ''
+      const text = this.$refs.inputBox?.getEditorText() || ''
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
       let insert = '@' + name
@@ -422,26 +409,23 @@ export default {
       }
       this.setEditorText(left + insert + ' ' + right)
       this.dismissIntelliSense()
-      this.$nextTick(() => this.editor?.focus())
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
     },
 
     onIntelliSenseAcceptMulti(items) {
       const { caretIndex, word } = this.cursorWord
-      const text = this.editor?.innerText || ''
+      const text = this.$refs.inputBox?.getEditorText() || ''
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
-      let mentionInserts = []
+      const mentionInserts = []
       items.forEach(({ file, name }) => {
-        if (file) {
-          this.addFileToMessage(file)
-        } else {
-          mentionInserts.push('@' + name)
-        }
+        if (file) this.addFileToMessage(file)
+        else mentionInserts.push('@' + name)
       })
       const insert = mentionInserts.join(' ')
       this.setEditorText(left + insert + (insert ? ' ' : '') + right)
       this.dismissIntelliSense()
-      this.$nextTick(() => this.editor?.focus())
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
     },
 
     onChatInputKeyDown(event) {
@@ -487,6 +471,7 @@ export default {
     // ── Existing methods ──────────────────────────────────────
 
     syncStableMessages(newMessages) {
+      // Only replace array if message ids changed, otherwise patch in-place to avoid re-renders
       const newIds = newMessages.map(m => m.doc_id).join(',')
       const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
       if (newIds !== oldIds) {
@@ -494,24 +479,24 @@ export default {
       } else {
         newMessages.forEach((msg, i) => {
           const stable = this.stableMessages[i]
-          if (stable && msg !== stable) {
-            Object.assign(stable, msg)
-          }
+          if (stable && msg !== stable) Object.assign(stable, msg)
         })
       }
     },
+
     onLLMModelChanged(modelName) {
       this.chat.llm_model = modelName
       this.saveChat()
     },
+
     updateCursorWord() {
-      this.cursorWord = this.chatSvc.getCaretWordInfo(this.editor)
+      this.cursorWord = this.$refs.inputBox?.getCaretWordInfo() ?? {}
     },
+
     setEditorText(text) {
-      if (this.editor && this.editor.innerText !== undefined) {
-        this.editor.innerText = text
-      }
+      this.$refs.inputBox?.setEditorText(text)
     },
+
     onEditMessage(message, enhance) {
       if (this.editMessage === message) return this.onResetEdit()
       this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
@@ -523,14 +508,17 @@ export default {
       try { this.images = message.images.map(JSON.parse) } catch { }
       this.setEditorText(this.editMessage.content)
     },
+
     toggleHide({ doc_id }) {
       this.chatSvc.toggleHide({ chat: this.chat, doc_id })
       this.saveChat()
     },
+
     toggleAnswer({ doc_id }) {
       this.chatSvc.toggleAnswer({ chat: this.chat, doc_id })
       this.saveChat()
     },
+
     onCopy(message) {
       navigator.permissions.query({ name: "clipboard-read" }).then(result => {
         if (result.state === "granted" || result.state === "prompt") {
@@ -538,6 +526,7 @@ export default {
         }
       }).catch(console.error)
     },
+
     runEdit(codeSnipped) {
       this.waiting = true
       this.$storex.api.run.edit({ id: "", messages: [{ role: 'user', content: codeSnipped }] })
@@ -548,6 +537,7 @@ export default {
         .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: ex.message } }))
         .finally(() => { this.waiting = false })
     },
+
     getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
@@ -559,12 +549,14 @@ export default {
         task_item
       })
     },
+
     postMyMessage({ message, task_item }) {
       const userMessage = this.getUserMessage({ message, task_item })
       this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
       this.cleanUserInputAndWaitAnswer()
       return userMessage
     },
+
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
@@ -572,6 +564,7 @@ export default {
       this.mentions = []
       this.metadata = null
     },
+
     async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
@@ -585,9 +578,11 @@ export default {
       }
       return true
     },
+
     async addSearchMessage() {
       return this.addNewMessage({ task_item: 'search' })
     },
+
     async sendMessage() {
       if (await this.addNewMessage()) {
         if (!this.isChannel || this.lastMessage?.profiles.length) {
@@ -596,6 +591,7 @@ export default {
         }
       }
     },
+
     async sendChatMessage(chat) {
       this.waiting = true
       try {
@@ -604,8 +600,9 @@ export default {
         this.waiting = false
       }
     },
+
     async updateMessage() {
-      const { innerText } = this.editor
+      const innerText = this.$refs.inputBox?.getEditorText() ?? ''
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
       this.editMessage.profiles = this.chatSvc.getMessageProfiles({ messageMentions: this.messageMentions, selectedUser: this.selectedUser, currentUser: this.$user })
       this.editMessage.content = innerText
@@ -613,24 +610,30 @@ export default {
       this.editMessage.updated_at = new Date().toISOString()
       this.onResetEdit()
     },
+
     onResetEdit() {
       this.editMessage = null
       this.setEditorText("")
       this.editMessageId = null
       this.images = []
     },
+
     removeMessage(message) {
       this.chatSvc.removeMessage({ chat: this.chat, message })
       this.saveChat()
     },
+
     onMessageChange() {
-      if (this.editor && this.editor.innerText !== this.editorText) {
-        this.editorText = this.editor.innerText
+      const text = this.$refs.inputBox?.getEditorText() ?? ''
+      if (text !== this.editorText) {
+        this.editorText = text
       }
     },
+
     async saveChat() {
       return this.chatSvc.saveChat(this.chat)
     },
+
     onDrop(e) {
       if (!e.dataTransfer.files) return
       const file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
@@ -639,6 +642,7 @@ export default {
       if (textContent) this.processInputTextContent(textContent)
       this.processDropUrls(e.dataTransfer)
     },
+
     processDropUrls(dataTransfer) {
       const urls = dataTransfer.getData("resourceurls")
       if (urls) {
@@ -652,6 +656,7 @@ export default {
         })
       }
     },
+
     async onContentPaste(e) {
       if (!e.clipboardData?.items) return
       const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
@@ -662,6 +667,7 @@ export default {
       const handled = this.processInputTextContent(textContent)
       if (handled) return stop()
     },
+
     processInputTextContent(textContent) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
       if (imgUrl) { this.images.push(imgUrl); return true }
@@ -673,12 +679,15 @@ export default {
       }
       return false
     },
+
     addFileToMessage(file) {
       if (!this.files.includes(file)) this.files = [...this.files, file]
     },
+
     onInputImage(file) {
       this.imagePreview = { file }
     },
+
     async onAddImage() {
       if (!this.imagePreview) return
       try {
@@ -690,9 +699,11 @@ export default {
         this.imagePreview = null
       }
     },
+
     async onExtractTextImage(image) {
       image.alt = await this.chatSvc.extractTextFromImage(image)
     },
+
     async handleFileChange({ target: { files } }) {
       const imageFiles = [...files].filter(file => file.type.startsWith("image/"))
       for (const file of imageFiles) {
@@ -701,30 +712,38 @@ export default {
       }
       this.selectFile = false
     },
+
     onGenerateCode(codeBlockInfo) {
       this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
     },
+
     removeImage(ix) {
       this.images = this.images.filter((_, imx) => imx !== ix)
     },
+
     async testProject() {
       throw new Error('Obsolete')
     },
+
     removeFileFromMessage(message, file) {
       this.chatSvc.removeFileFromMessage({ message, file })
       this.saveChat()
     },
+
     removeFileFromChat(file) {
       this.chatSvc.removeFileFromChat({ chat: this.chat, file })
       this.saveChat()
     },
+
     removeFileFromFiles(file) {
       this.files = this.files.filter(f => f !== file)
     },
+
     showNotebookStatus(msg) {
       this.notebookStatus = msg
       setTimeout(() => { this.notebookStatus = null }, 3000)
     },
+
     async syncNotebook(file) {
       try {
         this.showNotebookStatus(`Syncing ${file.split('/').reverse()[0]}...`)
@@ -736,6 +755,7 @@ export default {
         this.showNotebookStatus(`Error syncing notebook: ${err.message}`)
       }
     },
+
     async exportNotebook(file) {
       try {
         this.showNotebookStatus(`Exporting to ${file.split('/').reverse()[0]}...`)
@@ -746,24 +766,27 @@ export default {
         this.showNotebookStatus(`Error exporting notebook: ${err.message}`)
       }
     },
+
     toggleVoiceSession() {
       if (this.isVoiceSession) return this.stopVoiceSession()
       let silents = 5
       this.isVoiceSession = true
       this.recognition = this.chatSvc.startVoiceRecognition({
         lang: this.$ui.voiceLanguage,
-        onResult: (event) => { this.editor.innerText += event.results[0][0].transcript },
+        onResult: (event) => { this.$refs.inputBox?.appendEditorText(event.results[0][0].transcript) },
         onEnd: () => {
           if (this.isVoiceSession && silents--) this.recognition.start()
           else this.stopVoiceSession()
         }
       })
     },
+
     stopVoiceSession() {
       this.recognition?.stop()
       this.recognition = null
       this.isVoiceSession = false
     },
+
     onEditMessageKeyDown(event) {
       const stop = () => { event.stopPropagation(); event.preventDefault(); return false }
       if (event.key === 'Escape') { this.onResetEdit(); return stop() }
@@ -775,49 +798,61 @@ export default {
       else if (event.key === 'V' && event.ctrlKey) { this.pasteWithShift = true; return true }
       return true
     },
+
     hideAll() {
       this.chatSvc.hideAll({ chat: this.chat })
       this.saveChat()
     },
+
     toggleDocumentSearch() {
       this.showDocumentSearchModal = !this.showDocumentSearchModal
     },
+
     closeDocumentSearch() {
       this.showDocumentSearchModal = false
     },
+
     onAddDocument(doc) {
       const source = doc.file || doc.metadata?.source
       if (source) this.addFileToMessage(source)
     },
+
     async onReloadMessageFile({ file, message }) {
       message.content = await this.chatSvc.fileToMessage({ file })
       this.saveChat()
     },
+
     async onSaveFile({ file, content }) {
       await this.$storex.chats.writeFile({ chat: this.chat, file, content })
       this.$ui.addNotification({ text: `File ${file.split("/").reverse()[0]} saved` })
     },
+
     onOpenFile(file) {
       this.chatProject.$api.coder.openFile(file)
     },
+
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
       this.uploadProjectFile = null
       this.selectFile = false
     },
+
     async onAddFile(file) {
       if (this.chatSvc.addFileToChat({ chat: this.chat, file })) {
         await this.saveChat()
       }
     },
+
     onMessageEdited({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.saveChat()
     },
+
     onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.saveChat()
     },
+
     removeMessageMention(mention) {
       const orgMention = this.mentionList?.find(m => m === mention)
       if (orgMention) {
@@ -826,10 +861,12 @@ export default {
         this.files = this.files.filter(f => f !== mention.file)
       }
     },
+
     onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
       this.chat.pr_view = { from_branch, to_branch }
       this.saveChat()
     },
+
     async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
       if (chat) {
         chat.messages.push({ user: this.$user.username, role: "user", content: description })
@@ -840,6 +877,7 @@ export default {
         this.createSubTask({ title, description, files, profiles, mode, column })
       }
     },
+
     onChatEntryCreateSubtask({ file, content }) {
       this.createChatSubTask({
         title: file.split("/").reverse()[0],
@@ -847,6 +885,7 @@ export default {
         files: [file]
       })
     },
+
     async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id }) {
       const payload = this.chatSvc.buildSubTaskPayload({
         title, description, files, profiles,
@@ -860,30 +899,37 @@ export default {
       })
       await this.$chats.createNewChat(payload)
     },
+
     onPRChatMessage({ file }) {
       file.chat.messages.push({})
     },
+
     createBlock() {
       this.setEditorText(this.editorText + "```\n\n```")
     },
+
     onNewThread(message) {
       this.$chats.createNewThread({ chat: this.chat, message })
     },
+
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })
       const codeBlock = ["```" + file.split(".")[1] + " " + file, content, "```"].join("\n")
       this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage({ message: codeBlock }) })
     },
+
     addMention(mention) {
       this.mentions.push({ ...mention, active: true })
     },
+
     replaceEmoji({ emoji }) {
       const { caretIndex, word } = this.cursorWord
-      const text = this.editor?.innerText
+      const text = this.$refs.inputBox?.getEditorText() ?? ''
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
       this.setEditorText(left + emoji + right)
     },
+
     async onMessageRunAgents(message) {
       this.$projects.createSubTasks({
         chat: this.chat,

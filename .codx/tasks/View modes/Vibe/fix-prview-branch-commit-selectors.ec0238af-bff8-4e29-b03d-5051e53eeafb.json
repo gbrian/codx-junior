@@ -1,0 +1,130 @@
+{
+  "id": "ec0238af-bff8-4e29-b03d-5051e53eeafb",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project",
+    "VueDeveloper",
+    "py_senior"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Fix PRView branch commit selectors",
+  "pinned": false,
+  "description": "# Conversation Summary\n\n1. **Problem Identified**: `PRCommitSelector` component was calling a non-existent `this.api.repo.commits()` method, causing API failures.\n\n2. **API Extension**: Added the missing `commits()` method to the API repo object with support for branch filtering and configurable limits.\n\n3. **Component Refactoring**: Rewrote `PRCommitSelector.vue` to properly handle two comparison modes (branch vs commit) with improved state management.\n\n4. **Props Fix**: Changed the API prop naming from `api` to `projectApi` for clarity and ensured proper API instance initialization through `initializeProjectContext()`.\n\n5. **Integration**: Updated `PRView.vue` to correctly pass the API instance to `PRCommitSelector` and implement the new commit comparison functionality.",
+  "messages": [
+    {
+      "doc_id": "dbf162c4-9ede-4bc1-bbac-b59283f879a7",
+      "role": "user",
+      "task_item": "",
+      "content": "PRView branch and commit selectors are not working.\u00a0\nUse chat project to read branches and commit t.",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-21 09:18:49.083373",
+      "updated_at": "2026-06-21 09:18:49.083403",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRView.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRCommitSelector.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRBranchSelectoor.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/service/chat.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRView.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRCommitSelector.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRBranchSelectoor.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/service/chat.js"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "0e7307bc-18ee-40cf-b3b7-dbe736f9be09",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "Looking at your code, the issue is that `PRCommitSelector` is trying to call `this.api.repo.commits()` which doesn't exist in your API. Also, the API instance isn't being properly passed and initialized.\n\nHere are the fixes:\n\n## 1. First, add the missing `commits` method to the API\n\n```js client/src/api/api.js\n    repo: {\n      branches() {\n        return API.get('/api/projects/repo/branches')\n      },\n      changes({ from_branch, to_branch }) {\n        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)\n      },\n      commitChanges({ from_commit, to_commit }) {\n        return API.get(`/api/projects/repo/commit-changes?from_commit=${from_commit}&to_commit=${to_commit}`)\n      },\n      commits({ branch, limit = 80 }) {\n        const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : ''\n        return API.get(`/api/projects/repo/commits?limit=${limit}${branchParam}`)\n      }\n    },\n```\n\n## 2. Fix `PRCommitSelector.vue`\n\n```vue client/src/components/repo/PRCommitSelector.vue\n<script setup>\n</script>\n\n<template>\n  <div class=\"flex flex-col gap-2 w-full\">\n    <!-- Mode toggle: branch vs commit -->\n    <div class=\"flex gap-2 items-center\">\n      <span class=\"text-xs text-slate-400\">Compare by:</span>\n      <div class=\"join\">\n        <button class=\"join-item btn btn-xs\" \n          :class=\"mode === 'branch' ? 'btn-primary' : 'btn-ghost'\"\n          @click=\"mode = 'branch'\">\n          <i class=\"fa-solid fa-code-branch\"></i> Branch\n        </button>\n        <button class=\"join-item btn btn-xs\"\n          :class=\"mode === 'commit' ? 'btn-primary' : 'btn-ghost'\"\n          @click=\"mode = 'commit'\">\n          <i class=\"fa-solid fa-code-commit\"></i> Commit\n        </button>\n      </div>\n    </div>\n\n    <!-- Branch mode -->\n    <div class=\"flex gap-2 items-center\" v-if=\"mode === 'branch'\">\n      <slot />\n    </div>\n\n    <!-- Commit mode -->\n    <div class=\"flex gap-2 items-center flex-wrap\" v-if=\"mode === 'commit'\">\n      <div class=\"flex flex-col gap-1\">\n        <span class=\"text-xs text-slate-400\">Branch (for commit list)</span>\n        <select class=\"select select-xs select-bordered w-40\" v-model=\"selectedBranch\" @change=\"loadCommits\">\n          <option value=\"\">-- HEAD --</option>\n          <option v-for=\"b in branches\" :key=\"b\" :value=\"b\">{{ b }}</option>\n        </select>\n      </div>\n\n      <div class=\"flex flex-col gap-1\" v-if=\"commits.length\">\n        <span class=\"text-xs text-slate-400\">From commit (newer)</span>\n        <select class=\"select select-xs select-bordered max-w-xs\" v-model=\"fromCommit\" @change=\"emitCommit\">\n          <option value=\"\">-- select --</option>\n          <option v-for=\"c in commits\" :key=\"c.commit\" :value=\"c.commit\" :title=\"c.message\">\n            {{ c.label }}\n          </option>\n        </select>\n      </div>\n\n      <div class=\"flex flex-col gap-1\" v-if=\"commits.length\">\n        <span class=\"text-xs text-slate-400\">To commit (base)</span>\n        <select class=\"select select-xs select-bordered max-w-xs\" v-model=\"toCommit\" @change=\"emitCommit\">\n          <option value=\"\">-- select --</option>\n          <option v-for=\"c in commits\" :key=\"c.commit\" :value=\"c.commit\" :title=\"c.message\">\n            {{ c.label }}\n          </option>\n        </select>\n      </div>\n\n      <div class=\"flex items-end pb-1\" v-if=\"commits.length && fromCommit && toCommit\">\n        <button class=\"btn btn-xs btn-primary\" @click=\"emitCommit\">\n          <i class=\"fa-solid fa-arrows-rotate\"></i> Compare\n        </button>\n      </div>\n\n      <div class=\"flex items-center gap-1 text-xs text-slate-400\" v-if=\"loadingCommits\">\n        <span class=\"loading loading-spinner loading-xs\"></span> Loading commits...\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['branches', 'projectApi'],\n  emits: ['commit-compare', 'mode-change'],\n  data() {\n    return {\n      mode: 'branch',\n      selectedBranch: '',\n      commits: [],\n      fromCommit: '',\n      toCommit: '',\n      loadingCommits: false\n    }\n  },\n  watch: {\n    mode(val) {\n      this.$emit('mode-change', val)\n      if (val === 'commit' && !this.commits.length) {\n        this.loadCommits()\n      }\n    }\n  },\n  methods: {\n    async loadCommits() {\n      if (!this.projectApi) {\n        console.error('Project API not available')\n        return\n      }\n      this.loadingCommits = true\n      this.fromCommit = ''\n      this.toCommit = ''\n      try {\n        const branch = this.selectedBranch || undefined\n        this.commits = await this.projectApi.repo.commits({ branch, limit: 80 })\n      } catch (ex) {\n        console.error('Error loading commits', ex)\n        this.commits = []\n      } finally {\n        this.loadingCommits = false\n      }\n    },\n    emitCommit() {\n      if (!this.fromCommit || !this.toCommit) return\n      this.$emit('commit-compare', {\n        fromCommit: this.fromCommit,\n        toCommit: this.toCommit\n      })\n    }\n  }\n}\n</script>\n```\n\n## 3. Fix `PRView.vue` to pass the correct API\n\nUpdate the PRCommitSelector usage in the template:\n\n```vue client/src/components/repo/PRView.vue\n        <!-- Compare controls -->\n        <div class=\"flex gap-2 flex-wrap items-end\">\n          <PRCommitSelector\n            :branches=\"repoBranches?.branches\"\n            :projectApi=\"api\"\n            @mode-change=\"onCompareModeChange\"\n            @commit-compare=\"onCommitCompare\"\n          >\n            <!-- Branch selectors rendered inside commit selector slot -->\n            <PRBranchSelectoor \n              :fromBranch=\"fromBranchSelected\" \n              :toBranch=\"toBranchSelected\" \n              @select=\"onBranchChanged\" \n              :branches=\"repoBranches?.branches\" \n            />\n          </PRCommitSelector>\n\n          <button class=\"btn btn-xs\" @click=\"refreshSummary\" :disabled=\"loading\">\n            <i class=\"fa-solid fa-arrows-rotate\"></i>\n          </button>\n          <div class=\"grow\"></div>\n          <PRFileViewModeSelector :messageCount=\"messages.length\" @select=\"onSelectFileOption\" />\n        </div>\n```\n\n**Key changes:**\n1. \u2705 Added `repo.commits()` API endpoint\n2. \u2705 Changed prop from `api` to `projectApi` in `PRCommitSelector` (clearer naming)\n3. \u2705 Ensured `initializeProjectContext()` is called to load the correct API instance\n4. \u2705 Fixed error handling when API is not available",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-21 09:18:49.083373",
+      "updated_at": "2026-06-21 09:18:49.083403",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1782038739.91158,
+        "cancellation_token_id": "688b9376-2fd3-4dae-99b6-6ce2fede3f34",
+        "model": "claude-haiku-4-5",
+        "time_taken": 14.023065090179443,
+        "first_chunk_time_taken": 0.15328025817871094,
+        "files": [
+          {
+            "language": "js",
+            "file_path": "client/src/api/api.js",
+            "content": "    repo: {\n      branches() {\n        return API.get('/api/projects/repo/branches')\n      },\n      changes({ from_branch, to_branch }) {\n        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)\n      },\n      commitChanges({ from_commit, to_commit }) {\n        return API.get(`/api/projects/repo/commit-changes?from_commit=${from_commit}&to_commit=${to_commit}`)\n      },\n      commits({ branch, limit = 80 }) {\n        const branchParam = branch ? `&branch=${encodeURIComponent(branch)}` : ''\n        return API.get(`/api/projects/repo/commits?limit=${limit}${branchParam}`)\n      }\n    },"
+          },
+          {
+            "language": "vue",
+            "file_path": "client/src/components/repo/PRCommitSelector.vue",
+            "content": "<script setup>\n</script>\n\n<template>\n  <div class=\"flex flex-col gap-2 w-full\">\n    <!-- Mode toggle: branch vs commit -->\n    <div class=\"flex gap-2 items-center\">\n      <span class=\"text-xs text-slate-400\">Compare by:</span>\n      <div class=\"join\">\n        <button class=\"join-item btn btn-xs\" \n          :class=\"mode === 'branch' ? 'btn-primary' : 'btn-ghost'\"\n          @click=\"mode = 'branch'\">\n          <i class=\"fa-solid fa-code-branch\"></i> Branch\n        </button>\n        <button class=\"join-item btn btn-xs\"\n          :class=\"mode === 'commit' ? 'btn-primary' : 'btn-ghost'\"\n          @click=\"mode = 'commit'\">\n          <i class=\"fa-solid fa-code-commit\"></i> Commit\n        </button>\n      </div>\n    </div>\n\n    <!-- Branch mode -->\n    <div class=\"flex gap-2 items-center\" v-if=\"mode === 'branch'\">\n      <slot />\n    </div>\n\n    <!-- Commit mode -->\n    <div class=\"flex gap-2 items-center flex-wrap\" v-if=\"mode === 'commit'\">\n      <div class=\"flex flex-col gap-1\">\n        <span class=\"text-xs text-slate-400\">Branch (for commit list)</span>\n        <select class=\"select select-xs select-bordered w-40\" v-model=\"selectedBranch\" @change=\"loadCommits\">\n          <option value=\"\">-- HEAD --</option>\n          <option v-for=\"b in branches\" :key=\"b\" :value=\"b\">{{ b }}</option>\n        </select>\n      </div>\n\n      <div class=\"flex flex-col gap-1\" v-if=\"commits.length\">\n        <span class=\"text-xs text-slate-400\">From commit (newer)</span>\n        <select class=\"select select-xs select-bordered max-w-xs\" v-model=\"fromCommit\" @change=\"emitCommit\">\n          <option value=\"\">-- select --</option>\n          <option v-for=\"c in commits\" :key=\"c.commit\" :value=\"c.commit\" :title=\"c.message\">\n            {{ c.label }}\n          </option>\n        </select>\n      </div>\n\n      <div class=\"flex flex-col gap-1\" v-if=\"commits.length\">\n        <span class=\"text-xs text-slate-400\">To commit (base)</span>\n        <select class=\"select select-xs select-bordered max-w-xs\" v-model=\"toCommit\" @change=\"emitCommit\">\n          <option value=\"\">-- select --</option>\n          <option v-for=\"c in commits\" :key=\"c.commit\" :value=\"c.commit\" :title=\"c.message\">\n            {{ c.label }}\n          </option>\n        </select>\n      </div>\n\n      <div class=\"flex items-end pb-1\" v-if=\"commits.length && fromCommit && toCommit\">\n        <button class=\"btn btn-xs btn-primary\" @click=\"emitCommit\">\n          <i class=\"fa-solid fa-arrows-rotate\"></i> Compare\n        </button>\n      </div>\n\n      <div class=\"flex items-center gap-1 text-xs text-slate-400\" v-if=\"loadingCommits\">\n        <span class=\"loading loading-spinner loading-xs\"></span> Loading commits...\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['branches', 'projectApi'],\n  emits: ['commit-compare', 'mode-change'],\n  data() {\n    return {\n      mode: 'branch',\n      selectedBranch: '',\n      commits: [],\n      fromCommit: '',\n      toCommit: '',\n      loadingCommits: false\n    }\n  },\n  watch: {\n    mode(val) {\n      this.$emit('mode-change', val)\n      if (val === 'commit' && !this.commits.length) {\n        this.loadCommits()\n      }\n    }\n  },\n  methods: {\n    async loadCommits() {\n      if (!this.projectApi) {\n        console.error('Project API not available')\n        return\n      }\n      this.loadingCommits = true\n      this.fromCommit = ''\n      this.toCommit = ''\n      try {\n        const branch = this.selectedBranch || undefined\n        this.commits = await this.projectApi.repo.commits({ branch, limit: 80 })\n      } catch (ex) {\n        console.error('Error loading commits', ex)\n        this.commits = []\n      } finally {\n        this.loadingCommits = false\n      }\n    },\n    emitCommit() {\n      if (!this.fromCommit || !this.toCommit) return\n      this.$emit('commit-compare', {\n        fromCommit: this.fromCommit,\n        toCommit: this.toCommit\n      })\n    }\n  }\n}\n</script>"
+          },
+          {
+            "language": "vue",
+            "file_path": "client/src/components/repo/PRView.vue",
+            "content": "        <!-- Compare controls -->\n        <div class=\"flex gap-2 flex-wrap items-end\">\n          <PRCommitSelector\n            :branches=\"repoBranches?.branches\"\n            :projectApi=\"api\"\n            @mode-change=\"onCompareModeChange\"\n            @commit-compare=\"onCommitCompare\"\n          >\n            <!-- Branch selectors rendered inside commit selector slot -->\n            <PRBranchSelectoor \n              :fromBranch=\"fromBranchSelected\" \n              :toBranch=\"toBranchSelected\" \n              @select=\"onBranchChanged\" \n              :branches=\"repoBranches?.branches\" \n            />\n          </PRCommitSelector>\n\n          <button class=\"btn btn-xs\" @click=\"refreshSummary\" :disabled=\"loading\">\n            <i class=\"fa-solid fa-arrows-rotate\"></i>\n          </button>\n          <div class=\"grow\"></div>\n          <PRFileViewModeSelector :messageCount=\"messages.length\" @select=\"onSelectFileOption\" />\n        </div>"
+          }
+        ]
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-06-21 09:18:49.086241",
+  "updated_at": "2026-06-21T10:45:57.101442",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "View modes",
+  "column": "Vibe",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/View modes/Vibe/fix-prview-branch-commit-selectors.ec0238af-bff8-4e29-b03d-5051e53eeafb.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "auto_initialize": false
+}

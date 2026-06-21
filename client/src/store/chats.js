@@ -105,7 +105,8 @@ export const actions = actionTree(
       }
     },
     async saveChat({ state }, chat) {
-      const savedChat = await API.chats.save(chat)
+      await API.chats.save(chat)
+      const savedChat = await $storex.chats.loadChat(chat)
       registerChat(state, savedChat)
     },
     async saveChatInfo(_, chat) {
@@ -172,7 +173,7 @@ export const actions = actionTree(
       state.activeChat = chat
 
       // On desktop, notify the UI to open the chat panel
-      if (!$storex.ui.isMobile && chat) {
+      if (!$storex.ui.isMobile && chat && $storex.ui.viewMode !== 'vibe') {
         $storex.ui.openChat(chat)
       }
     },

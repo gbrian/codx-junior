@@ -18,12 +18,12 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
   >
     <!-- Document search autocomplete -->
     <modal close="true" @close="$emit('close-knowledge')" v-if="showDocumentSearch">
-        <ProjectResourcesAutoCompleteVue
+      <ProjectResourcesAutoCompleteVue
         :project="chatProject"
         @select-result="$emit('add-document', $event)"
         @close="$emit('close-search')"
         v-if="showDocumentSearch"
-        />
+      />
     </modal>
 
     <!-- Emoji picker -->
@@ -92,11 +92,13 @@ export default {
     voiceLanguageLabel: String
   },
   emits: [
-    'send', 'add-message', 'cancel-edit', 'paste', 'keydown',
+    'close-knowledge',
+    'send', 'add-message', 'search-message', 'cancel-edit',
+    'paste', 'keydown', 'drop',
     'add-document', 'close-search', 'replace-emoji',
     'user-changed', 'model-changed', 'toggle-search', 'hide-all',
     'attach-files', 'test-project', 'toggle-voice',
-    'remove-image', 'preview-image', 'drop'
+    'remove-image', 'preview-image'
   ],
   data() {
     return {
@@ -108,10 +110,39 @@ export default {
       this.draggingOver = false
       this.$emit('drop', e)
     },
-    // Expose editor ref for parent access
-    getEditor() {
-      return this.$refs.editor
+
+    // ── Public editor API ─────────────────────────────────────
+
+    getEditorText() {
+      return this.$refs.editor?.innerText ?? ''
+    },
+
+    setEditorText(text) {
+      if (this.$refs.editor) {
+        this.$refs.editor.innerText = text
+      }
+    },
+
+    appendEditorText(text) {
+      if (this.$refs.editor) {
+        this.$refs.editor.innerText += text
+      }
+    },
+
+    focusEditor() {
+      this.$refs.editor?.focus()
+    },
+
+    getCaretWordInfo() {
+      return this.$service.chat.getCaretWordInfo(this.$refs.editor)
     }
-  }
+  },
+  expose: [
+    'getEditorText',
+    'setEditorText',
+    'appendEditorText', 
+    'focusEditor', 
+    'getCaretWordInfo'
+  ]
 }
 </script>

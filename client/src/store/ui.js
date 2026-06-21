@@ -178,12 +178,16 @@ export const mutations = mutationTree(state, {
     $storex.ui.showApp({ ...app, tabId: null })
   },
   showApp(state, app) {
-    app.tabId = app.tabId || `${app.key || app.name}-${(new Date().getTime())}`
+    // Add timestamp to track when app was opened
+    app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
+    app.openedAt = Date.now()
     state.openApps = {
       ...state.openApps,
       [app.tabId]: app
     }
+    // Update activeApp to the newly opened app
+    state.activeApp = app
   },
   updateAppParams(state, { tabId, params }) {
     const app = state.openApps[tabId]
@@ -202,8 +206,16 @@ export const mutations = mutationTree(state, {
   closeApp(state, app) {
     if (!app) return
     delete state.openApps[app.tabId]
+    // If closed app was activeApp, set activeApp to the most recently opened app
     if (state.activeApp?.tabId === app.tabId) {
-      state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
+      const remainingApps = Object.values(state.openApps)
+      if (remainingApps.length > 0) {
+        state.activeApp = remainingApps.reduce((latest, current) =>
+          current.openedAt > latest.openedAt ? current : latest
+        )
+      } else {
+        state.activeApp = null
+      }
     }
     if (!Object.keys(state.openApps).length) {
       if (!state.activeTab) {
@@ -261,7 +273,12 @@ export const actions = actionTree(
       const data = { 
         ...state, 
         uiReady: false,
-        activeApp: null,
+        activeApp: state.activeApp ? {
+          tabId: state.activeApp.tabId,
+          name: state.activeApp.name,
+          component: state.activeApp.component,
+          openedAt: state.activeApp.openedAt
+        } : null,
         openApps: {},
         _desktopApi: null,
         views: [],
@@ -287,7 +304,6 @@ export const actions = actionTree(
       if (chatId && $storex.projects.activeProject) {
         $storex.projects.setActiveChat({ id: chatId })
       }
-      state.activeApp = Object.values(state.openApps)[0]
       
       $storex.ui.handleResize()
     },

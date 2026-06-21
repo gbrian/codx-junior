@@ -7,10 +7,10 @@ import CreateChannelDialog from '@/components/teams/CreateChannelDialog.vue'
 import CreateTeamDialog from '@/components/teams/CreateTeamDialog.vue'
 import AddMemberDialog from '@/components/teams/AddMemberDialog.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
+import VibeDesktop from '@/components/desktop/VibeDesktop.vue'
 import StatuBar from '@/components/StatuBar.vue'
 import TeamQuickBar from '@/components/teams/TeamQuickBar.vue'
 import TeamBar from '@/components/teams/TeamBar.vue'
-import VibeCodingView from '@/views/VibeCodingView.vue'
 </script>
 
 <template>
@@ -47,14 +47,16 @@ import VibeCodingView from '@/views/VibeCodingView.vue'
       <span class="text-xs text-center px-4">Select or create a team</span>
     </div>
 
-    <!-- ── Main content placeholder (channels open in Desktop panels) ──── -->
-    <div class="flex flex-col flex-1 min-w-0 overflow-hidden items-center justify-center text-base-content-ERROR-40"
-      v-if="isExpertMode"
-    >
-      <Desktop />
+    <!-- ── Main content area ──────────────────────────────────────────── -->
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <!-- Expert mode: tabbed Desktop -->
+      <Desktop v-if="isExpertMode" />
+      
+      <!-- Vibe mode: single app VibeDesktop -->
+      <VibeDesktop v-else />
+      
       <StatuBar class="w-full" />
     </div>
-    <VibeCodingView v-else />
 
     <!-- ── Modals ─────────────────────────────────────────────────────────── -->
 

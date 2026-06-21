@@ -70,11 +70,11 @@
 
 <script>
 export default {
-  props: ['branches', 'api'],
+  props: ['branches', 'projectApi'],
   emits: ['commit-compare', 'mode-change'],
   data() {
     return {
-      mode: 'branch',         // 'branch' | 'commit'
+      mode: 'branch',
       selectedBranch: '',
       commits: [],
       fromCommit: '',
@@ -92,14 +92,19 @@ export default {
   },
   methods: {
     async loadCommits() {
+      if (!this.projectApi) {
+        console.error('Project API not available')
+        return
+      }
       this.loadingCommits = true
       this.fromCommit = ''
       this.toCommit = ''
       try {
         const branch = this.selectedBranch || undefined
-        this.commits = await this.api.repo.commits({ branch, limit: 80 })
+        this.commits = await this.projectApi.repo.commits({ branch, limit: 80 })
       } catch (ex) {
         console.error('Error loading commits', ex)
+        this.commits = []
       } finally {
         this.loadingCommits = false
       }

@@ -14,7 +14,6 @@ import Code from '../Code.vue'
         @add-file="$emit('add-file', $event)"
       />
       <Code
-        :class="!block.finished && 'border border-dashed border-slate-400'"
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"

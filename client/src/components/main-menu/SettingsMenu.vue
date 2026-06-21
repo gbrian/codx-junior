@@ -53,15 +53,14 @@ import MenubarItem from './MenubarItem.vue'
         </MenubarSub>
 
         <MenubarItem>
-            <div class="flex items-center justify-between w-full px-2 py-1" @click.stop="">
-                <span class="flex items-center gap-2 text-sm select-none">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    Vibe mode
+            <div class="flex items-center justify-between w-full" @click.stop="">
+                <span class="flex items-center gap-2 select-none">
+                    Advanced mode
                 </span>
                 <input 
                     type="checkbox" 
                     class="toggle toggle-sm toggle-primary" 
-                    :checked="$storex.ui.viewMode === 'vibe'"
+                    :checked="$storex.ui.viewMode !== 'vibe'"
                     @change="toggleViewMode"
                 />
             </div>

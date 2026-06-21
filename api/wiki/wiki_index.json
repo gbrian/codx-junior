@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782036714,
+  "updated_at": 1782055020,
   "files": {
     "/shared/codx-junior/api/README.md": {
       "path": "/shared/codx-junior/api/README.md",
@@ -259,7 +259,7 @@
     "database-data-management": {
       "name": "Database Data Management",
       "slug": "database-data-management",
-      "description": "This domain encompasses the architectural guidelines and documentation for storage systems and data management strategies. It serves as a central repository for defining how information is persisted, structured, and maintained within the software ecosystem.",
+      "description": "This domain encompasses the architectural guidelines and storage solutions for managing application data within the platform. It provides a centralized documentation repository for database systems, data persistence strategies, and efficient information retrieval patterns.",
       "files": [
         "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "domains/database-data-storage.md",

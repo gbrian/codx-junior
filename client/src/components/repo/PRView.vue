@@ -22,8 +22,8 @@ import ChatEntryVue from '../ChatEntry.vue'
         <!-- Compare controls -->
         <div class="flex gap-2 flex-wrap items-end">
           <PRCommitSelector
-            :branches="repoBranches?.branches"
-            :api="api"
+            :branches="repoBranches"
+            :projectApi="api"
             @mode-change="onCompareModeChange"
             @commit-compare="onCommitCompare"
           >
@@ -32,7 +32,7 @@ import ChatEntryVue from '../ChatEntry.vue'
               :fromBranch="fromBranchSelected" 
               :toBranch="toBranchSelected" 
               @select="onBranchChanged" 
-              :branches="repoBranches?.branches" 
+              :branches="repoBranches" 
             />
           </PRCommitSelector>
 
@@ -215,7 +215,7 @@ export default {
       prShowOption: 'diff',
       chatColumn: null,
       projectContext: null,
-      repoBranches: {},
+      repoBranches: [],
       compareMode: 'branch',
       activeCommitCompare: null,
       api: null
