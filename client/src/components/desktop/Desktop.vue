@@ -27,6 +27,7 @@ import LogsAnalyzerDashboard from '../logs/LogsAnalyzerDashboard.vue'
 import TeamChannel from '../teams/TeamChannel.vue'
 import TeamDM from '../teams/TeamDM.vue'
 import TeamMediaLibrary from '../teams/TeamMediaLibrary.vue'
+import VibeCodingView from '@/views/VibeCodingView.vue'
 </script>
 
 <template>
@@ -79,6 +80,8 @@ export default {
     'team-channel': TeamChannel,
     'team-dm': TeamDM,
     'team-media-library': TeamMediaLibrary,
+    // Vibe coding view
+    'vibe-coding': VibeCodingView,
     tabComponent: Tab,
     ViewProperties
   },

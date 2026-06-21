@@ -52,6 +52,18 @@ import BarButton from './BarButton.vue'
       @click="$ui.setActiveTab('file-finder')" v-if="false">
       <i class="fa-solid fa-folder"></i>
     </BarButton>
+
+    <!-- Vibe Coding button — only visible in expert view mode -->
+    <BarButton
+      tab="vibe-coding"
+      @click="openVibeCoding"
+      v-if="isExpertMode"
+      class="tooltip tooltip-right"
+      data-tip="Vibe Coding"
+    >
+      <i class="fa-solid fa-wand-magic-sparkles"></i>
+    </BarButton>
+
   </div>
 </template>
 
@@ -62,10 +74,24 @@ export default {
       showMobileMenu: false
     }
   },
+  computed: {
+    // Only show vibe coding button in expert view mode
+    isExpertMode() {
+      return this.$storex.ui.viewMode === 'expert'
+    }
+  },
   methods: {
     async onNewQuickChat() {
       const chat = await this.$service.chat.newQuickChat()
       this.$ui.openChat(chat)
+    },
+    openVibeCoding() {
+      this.$ui.showApp({
+        key: 'vibe-coding',
+        name: 'Vibe Coding',
+        component: 'vibe-coding',
+        params: {}
+      })
     }
   }
 }

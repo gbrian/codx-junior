@@ -1,67 +1,34 @@
 # Database and Data Storage
 
 ## Overview
-
-The **Database and Data Storage** domain provides the foundational infrastructure for managing, organizing, and persisting data within the codx-junior system. This domain is responsible for all interactions with underlying data stores, defining data storage strategies, and implementing data management operations that other parts of the system rely upon.
-
-At its core, this domain ensures that application data is stored reliably, retrieved efficiently, and managed consistently throughout the lifecycle of the codx-junior application. It abstracts the complexities of raw data persistence and exposes structured interfaces for reading, writing, and organizing data across the platform.
-
-### Key Responsibilities
-
-- **Data Persistence** — Ensuring application state and content are durably stored across sessions and restarts.
-- **Data Retrieval** — Providing efficient mechanisms to query and fetch stored data on demand.
-- **Storage Strategy Management** — Defining how and where different categories of data are stored (e.g., flat files, structured databases, in-memory caches).
-- **Data Organization** — Structuring stored data in a way that supports scalability and maintainability.
-- **Data Management Operations** — Supporting CRUD (Create, Read, Update, Delete) operations and any domain-specific data transformations required by the system.
-
----
+The **Database and Data Storage** module is a foundational pillar within the application architecture, responsible for defining how data is structured, persisted, and retrieved. This domain establishes the standards for choosing appropriate storage technologies (e.g., Relational, NoSQL, or Object Storage), designing database schemas, ensuring data integrity, and optimizing performance through indexing and caching strategies. Its primary goal is to provide a reliable, scalable, and efficient data persistence layer that supports the needs of all downstream software services.
 
 ## Files in Domain
-
-The following files are part of the Database and Data Storage domain:
-
-| File | Description |
-|---|---|
-| `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md` | Primary wiki documentation for the database and data storage domain, describing its purpose, design decisions, and usage patterns. |
-| `domains/database-data-storage.md` | Domain definition file covering data storage concerns, storage strategies, and related patterns. |
-| `domains/database-and-data-storage.md` | Alternate or supplementary domain definition file providing additional context around database and storage integration. |
-| `domains/database-data-management.md` | Domain definition file focusing on data management operations, including lifecycle management of stored records and artifacts. |
-| `domains/database-and-data-management.md` | Supplementary domain file covering combined database interaction and data management responsibilities. |
-
----
+The following files are associated with the configuration, documentation, and architecture of this domain:
+* `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md`
+* `domains/database-data-storage.md`
+* `domains/database-and-data-storage.md`
+* `domains/database-data-management.md`
+* `domains/database-and-data-management.md`
+* `domains/wiki.md`
 
 ## Dependencies
-
-This domain currently has **no declared external file dependencies**. It operates as a foundational layer within the codx-junior system, meaning it does not depend on other application domains. Instead, higher-level domains depend on it for their data persistence needs.
-
-> **Note:** While no explicit file-level dependencies are declared, this domain may implicitly rely on system-level infrastructure such as the operating system's file I/O capabilities, environment configuration, or third-party database drivers installed within the runtime environment.
-
----
+This domain currently has no explicit internal file dependencies listed within the repository architecture. It is designed to function as a standalone documentation and strategy layer for other service-level modules.
 
 ## Used By
-
-This domain currently has **no declared dependents** in the tracked file registry. However, as a core infrastructure domain, it is expected to be consumed by a broad range of higher-level domains within the codx-junior system, including but not limited to:
-
-- Application state management modules
-- API layers that require persistent data access
-- Wiki and documentation management components
-- Configuration and settings management systems
-- Any feature domain that requires durable storage of user or system-generated content
-
----
+This domain currently serves as a foundational reference and has no specific internal consumers defined. It is intended to guide architectural decisions across the entire project repository.
 
 ## Entry Points
+To access the documentation and guidelines for this domain, please refer to the following primary entry points:
+* [/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md](/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md)
+* [domains/database-data-storage.md](domains/database-data-storage.md)
+* [domains/database-and-data-storage.md](domains/database-and-data-storage.md)
+* [domains/database-data-management.md](domains/database-data-management.md)
+* [domains/database-and-data-management.md](domains/database-and-data-management.md)
 
-The following entry points serve as the primary access paths into the Database and Data Storage domain:
+***
 
-| Entry Point | Purpose |
-|---|---|
-| `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md` | Main documentation entry point; start here to understand the domain's design, scope, and integration patterns. |
-| `domains/database-data-storage.md` | Entry point for understanding storage-specific strategies and implementations. |
-| `domains/database-and-data-storage.md` | Entry point combining database interaction and storage design documentation. |
-| `domains/database-data-management.md` | Entry point for data management operations, record lifecycle, and management patterns. |
-| `domains/database-and-data-management.md` | Entry point for integrated database and data management concerns. |
-
----
-
-*This wiki page was generated for the **Database and Data Storage** domain of the codx-junior system. For updates or corrections, refer to the domain definition files listed above.*
+### Links Preview
+* [Database Schema Design Best Practices](https://www.mongodb.com/resources/basics/databases/database-schema-design)
+* [Data Persistence Strategies in Software Architecture](https://martinfowler.com/eaaDev/DataPersistence.html)
+* [Choosing the Right Database Technology](https://aws.amazon.com/products/databases/)

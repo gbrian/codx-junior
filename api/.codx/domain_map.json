@@ -2,13 +2,14 @@
   {
     "name": "Database Data Management",
     "slug": "database-data-management",
-    "description": "This domain encompasses the architecture and protocols for persistent data storage and retrieval within the system. It manages the lifecycle, organization, and structural integrity of data across various storage engines and database clusters.",
+    "description": "This domain encompasses the architectural guidelines and documentation for data storage, retrieval, and management systems. It serves as a centralized wiki for maintaining consistent database infrastructure and operational data standards.",
     "files": [
       "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
       "domains/database-data-storage.md",
       "domains/database-and-data-storage.md",
       "domains/database-data-management.md",
-      "domains/database-and-data-management.md"
+      "domains/database-and-data-management.md",
+      "domains/wiki.md"
     ],
     "depends_on_domains": [],
     "entry_points": [

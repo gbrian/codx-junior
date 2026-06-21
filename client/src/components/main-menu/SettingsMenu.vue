@@ -1,6 +1,6 @@
 <script setup>
 import MenubarSub from './MenubarSub.vue'
-import MenubarItem from './MenubarItem.vue';
+import MenubarItem from './MenubarItem.vue'
 </script>
 <template>
     <MenubarSub title="Settings">
@@ -53,6 +53,21 @@ import MenubarItem from './MenubarItem.vue';
         </MenubarSub>
 
         <MenubarItem>
+            <div class="flex items-center justify-between w-full px-2 py-1" @click.stop="">
+                <span class="flex items-center gap-2 text-sm select-none">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Vibe mode
+                </span>
+                <input 
+                    type="checkbox" 
+                    class="toggle toggle-sm toggle-primary" 
+                    :checked="$storex.ui.viewMode === 'vibe'"
+                    @change="toggleViewMode"
+                />
+            </div>
+        </MenubarItem>
+
+        <MenubarItem>
             <a class="flex gap-4 items-center gap-2 tooltip select select-sm" data-tip="Voice language">
                 <i class="fa-solid fa-microphone-lines"></i>
                 <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)" @click.stop="">
@@ -80,6 +95,13 @@ export default {
         }
     },
     methods: {
+        toggleViewMode() {
+            if (this.$storex.ui.viewMode === 'vibe') {
+                this.$storex.ui.setExpertMode()
+            } else {
+                this.$storex.ui.setVibeMode()
+            }
+        },
         toggleAppPanel(app) {
             app = this.$ui.openApps[app.key] || app
             this.$ui.showApp({

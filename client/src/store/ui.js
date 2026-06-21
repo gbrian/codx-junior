@@ -19,6 +19,7 @@ export const state = () => ({
     "en-US": "English",
     "es-SP": "Español"
   },
+  viewMode: 'vibe',
   openApps: {},
   appDivided: 'horizontal',
   resolution: API.screen.display?.resolution,
@@ -105,6 +106,18 @@ export const mutations = mutationTree(state, {
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
+    $storex.ui.saveState()
+  },
+  setVibeMode(state) {
+    state.viewMode = 'vibe'
+    $storex.ui.saveState()
+  },
+  setExpertMode(state) {
+    state.viewMode = 'expert'
+    $storex.ui.saveState()
+  },
+  setViewMode(state, mode) {
+    state.viewMode = mode
     $storex.ui.saveState()
   },
   setAppDivided(state, divided) {
