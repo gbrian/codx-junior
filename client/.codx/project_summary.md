@@ -43,6 +43,12 @@ A comprehensive AI-powered digital workspace Single Page Application (SPA) provi
 *   `src/components/teams/TeamMediaLibrary.vue`: Team-specific media management.
 *   `src/components/teams/TeamQuickBar.vue`: Team quick access toolbar.
 
+## Desktop & Window Management
+*   `src/components/desktop/DesktopView.vue`, `Window.vue`, `Tab.vue`: Desktop simulation components.
+*   `src/components/desktop/VibeDesktop.vue`: Vibe-themed desktop environment.
+*   `src/components/windowManager/`: Virtual desktop, windows, workspaces, and navigation.
+*   `src/components/vibe/VibeCodingHeader.vue`: Vibe coding header and workspace UI.
+
 ## AI Configuration & Settings
 *   `src/components/ai_settings/`: Model and provider configuration, agent settings, and model selection.
 
@@ -80,11 +86,6 @@ A comprehensive AI-powered digital workspace Single Page Application (SPA) provi
 *   `src/components/document/`: Document management, editing, and markdown/word support.
 *   `src/components/MarkdownViewer.vue`, `HTMLViewer.vue`, `MermaidViewer.vue`: Content renderers.
 *   `src/components/CodeViewer.vue`, `ConsoleViewer.vue`, `LogViewer.vue`: Code and output viewers.
-
-## Window Manager & Desktop
-*   `src/components/windowManager/`: Virtual desktop, windows, workspaces, and navigation.
-*   `src/components/desktop/`: Desktop simulation with tabs and windows.
-*   `src/components/vibe/VibeCodingHeader.vue`: Vibe coding header and workspace UI.
 
 ## Utility Components
 *   `src/components/TreeView.vue`, `TreeItem.vue`, `Collapsible.vue`: Tree navigation.

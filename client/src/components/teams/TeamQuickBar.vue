@@ -5,32 +5,31 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
 <template>
   <div class="flex flex-col items-center gap-2 px-2 py-3 bg-base-200 border-r border-base-content/10 shrink-0 overflow-y-auto overflow-x-hidden">
     
-    <!-- QuickBar Icons -->
-    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="$emit('new-quick-chat')">
-      <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-        <i class="fa-solid fa-comments"></i>
-      </div>
-    </div>
-
-    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Home" @click="$ui.setActiveTab('home')">
+    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Home" @click="openHome">
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-solid fa-home"></i>
       </div>
     </div>
 
-    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Project" @click="$ui.showNewProject(true)">
+    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="openQuickChat">
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-        <i class="fa-solid fa-plus"></i>
+        <i class="fa-solid fa-comments"></i>
       </div>
     </div>
 
-    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Wiki" @click="$ui.setActiveTab('wiki')">
+    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Project" @click="openProjects">
+      <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
+        <i class="fa-solid fa-folder-plus"></i>
+      </div>
+    </div>
+
+    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Wiki" @click="openWiki">
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-solid fa-graduation-cap"></i>
       </div>
     </div>
 
-    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Tasks" @click="$ui.setActiveTab('tasks')">
+    <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Tasks" @click="openTasks">
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-brands fa-trello"></i>
       </div>
@@ -39,19 +38,19 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
     <div
       class="tooltip tooltip-right cursor-pointer shrink-0"
       data-tip="Media Library"
-      @click="$emit('open-media')"
+      @click="openMediaLibrary"
     >
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-solid fa-image"></i>
       </div>
     </div>
 
-    <!-- Vibe Coding button — only visible in expert view mode -->
+    <!-- Vibe Coding button — visible in expert view mode -->
     <div
-      v-if="isExpertMode"
       class="tooltip tooltip-right cursor-pointer shrink-0"
       data-tip="Vibe Coding"
       @click="openVibeCoding"
+      v-if="isExpertMode"
     >
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -66,7 +65,7 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
       :key="team.id"
       class="tooltip tooltip-right cursor-pointer shrink-0"
       :data-tip="team.name"
-      @click="$emit('select-team', team.id)"
+      @click="selectTeam(team)"
     >
       <div
         class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold transition-all duration-200 hover:rounded-xl overflow-hidden"
@@ -111,10 +110,8 @@ export default {
     }
   },
   emits: [
-    'new-quick-chat',
     'select-team',
-    'create-team',
-    'open-media'
+    'create-team'
   ],
   data() {
     return {}
@@ -125,13 +122,29 @@ export default {
     }
   },
   methods: {
+    openQuickChat() {
+      this.$storex.ui.openQuickChat()
+    },
+    openHome() {
+      this.$storex.ui.openHome()
+    },
+    openProjects() {
+      this.$storex.ui.openProjects()
+    },
+    openWiki() {
+      this.$storex.ui.openWiki()
+    },
+    openTasks() {
+      this.$storex.ui.openTasks()
+    },
+    openMediaLibrary() {
+      this.$storex.ui.openMediaLibrary()
+    },
     openVibeCoding() {
-      this.$ui.showApp({
-        key: 'vibe-coding',
-        name: 'Vibe Coding',
-        component: 'vibe-coding',
-        params: {}
-      })
+      this.$storex.ui.openVibeCoding()
+    },
+    selectTeam(team) {
+      this.$emit('select-team', team)
     }
   }
 }

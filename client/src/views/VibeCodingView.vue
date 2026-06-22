@@ -49,10 +49,10 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
           <ChatIcon mode="vibe" class="text-sm" />
           <span class="text-sm font-bold truncate grow">{{ workingChat?.name || 'Vibe session' }}</span>
           <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
-            <i class="fa-solid fa-plus"></i>
+            <i class="fa-brands fa-trello"></i> Tasks
           </button>
           <button class="btn btn-xs btn-ghost" @click="showChatPicker = !showChatPicker" title="Switch session">
-            <i class="fa-solid fa-chevron-down"></i>
+            Recent <i class="fa-solid fa-chevron-down"></i>
           </button>
         </div>
 
@@ -99,13 +99,6 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
             @refresh-chat="reloadActiveChat"
           />
         </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
-          <i class="fa-solid fa-wand-magic-sparkles text-4xl"></i>
-          <span class="text-sm">Start a vibe coding session</span>
-          <button class="btn btn-sm btn-primary" @click="newVibeChat">
-            <i class="fa-solid fa-plus"></i> New session
-          </button>
-        </div>
       </div>
 
       <!-- MIDDLE: Changes/PR View panel -->
@@ -121,7 +114,7 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
           </button>
         </div>
 
-        <div class="grow min-h-0 overflow-hidden" v-if="workingChat">
+        <div class="grow min-h-0 overflow-hidden p-2" v-if="workingChat">
           <PRView
             ref="prView"
             :chat="workingChat"
@@ -361,10 +354,6 @@ export default {
     async init() {
       await this.loadProjectBranches()
       this.createBranchFrom = this.branches[0] || 'main'
-      const firstSession = this.vibeSessions[0] || null
-      if (firstSession && !this.activeChat) {
-        this.selectSession(firstSession)
-      }
       if (!this.activeChat) {
         this.showKanbanSelector = true
       }

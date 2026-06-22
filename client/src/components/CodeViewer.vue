@@ -48,7 +48,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
           <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
             <span v-if="loadingStats">Loading...</span>
-            <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
+            <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
               <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
               <i class="fa-solid fa-code-compare" v-else></i>
               {{ stats }}
@@ -69,13 +69,11 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
             :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
           >
-            <!-- Red bar: proportion of deletions relative to total changes -->
             <div
               class="bg-error transition-all duration-500"
               :style="{ width: deletionPercentage + '%' }"
               :title="`Deletions: ${deletionCount} lines`"
             ></div>
-            <!-- Green bar: proportion of additions relative to total changes -->
             <div
               class="bg-success transition-all duration-500"
               :style="{ width: additionPercentage + '%' }"
@@ -95,10 +93,16 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     <template #actions>
       <button class="btn btn-sm btn-success btn-outline"
         @click.stop="saveToFile"
-        v-if="file && finished && !showCode"
+        v-if="file && finished && (showCode || showDiff)"
         :class="{ 'blink-save': isSaving }"
         title="Save to file">
         <i class="fa-solid fa-floppy-disk"></i> Save
+      </button>
+      <button class="btn btn-sm btn-error btn-outline"
+        @click.stop="discardChanges"
+        v-if="showDiff && hasChanges"
+        title="Discard changes">
+        <i class="fa-solid fa-xmark"></i> Discard
       </button>
       <button class="btn btn-sm btn-error btn-outline"
         @click.stop="$emit('close')"
@@ -124,7 +128,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
       <!-- view-code grows to fill all available vertical space -->
       <div class="view-code grow overflow-auto">
-        <!-- Fixed height container for Monaco editors so they render correctly -->
         <div :style="{ zoom, height: `${editorHeight}px` }">
           <!-- File diff view: original on disk vs generated code (editable) -->
           <Editor
@@ -136,7 +139,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="showDiff && !editMode && orgContent"
           />
 
-          <!-- Monaco editor: plain edit mode, needs explicit height to render -->
+          <!-- Monaco editor: plain edit mode -->
           <Editor
             v-model="editContent"
             :fileName="file"
@@ -144,7 +147,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             @update:modelValue="onEditorChange"
             v-if="editMode"
           />
-        
 
           <!-- Syntax highlighted read-only view -->
           <VueCodeHighlighter
@@ -157,6 +159,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </div>
       </div>
 
+      <!-- Edit mode actions -->
       <div class="flex justify-end gap-2" v-if="editMode">
         <button class="btn btn-sm btn-outline" @click="cancelEdit">
           <i class="fa-solid fa-xmark"></i> Cancel
@@ -165,29 +168,16 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <i class="fa-solid fa-pen-to-square"></i> Apply
         </button>
       </div>
-      <div class="flex justify-end gap-2" v-else-if="showDiff && !isNoChange">
-        <button class="btn btn-sm btn-outline" @click="onShowDiff">
-          <i class="fa-solid fa-xmark"></i> Close diff
-        </button>
-        <button class="btn btn-sm btn-success btn-outline" @click="saveDiffEdit" v-if="file" :class="{ 'blink-save': isSaving }">
-          <i class="fa-solid fa-floppy-disk"></i> Save changes
-        </button>
-      </div>
+
+      <!-- Read-only view actions -->
       <div class="flex justify-end gap-2" v-else>
         <button class="btn btn-sm btn-outline" @click.stop="onCopy" title="Copy">
           <i class="fa-solid fa-copy"></i> Copy
         </button>
         <button class="btn btn-sm btn-success btn-outline"
-          @click.stop="saveToFile"
-          v-if="file && finished"
-          :class="{ 'blink-save': isSaving }"
-          title="Save to file">
-          <i class="fa-solid fa-floppy-disk"></i> Save
-        </button>
-      </div>
-
-      <div class="flex justify-end gap-2" v-if="!editMode">
-        <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
+          @click.stop="applyPatch"
+          v-if="isPatch"
+          title="Apply patch">
           Apply patch
         </button>
       </div>
@@ -222,7 +212,8 @@ export default {
       deletionCount: 0,
       additionCount: 0,
       isDangerousChange: false,
-      changeRiskMessage: ''
+      changeRiskMessage: '',
+      isNewFile: true
     }
   },
   computed: {
@@ -262,6 +253,9 @@ export default {
       }
       return 'markdown'
     },
+    hasChanges() {
+      return this.diffEditContent !== this.code
+    },
     $api() {
       return (this.project?.$api || this.$storex.api)
     }
@@ -270,6 +264,10 @@ export default {
     async finished() {
       if (this.finished) {
         await this.loadDiffInfo()
+        // Show diff by default for existing files when generation is done
+        if (!this.isNewFile && this.stats && !this.isNoChange) {
+          this.showDiff = true
+        }
       }
       if (this.chat?.mode === 'vibe') {
         this.saveToFile()
@@ -320,7 +318,6 @@ export default {
       const { deletions, insertions } = this.parseStatsString()
       const total = deletions + insertions
       
-      // Store absolute counts for display
       this.deletionCount = deletions
       this.additionCount = insertions
       
@@ -330,7 +327,6 @@ export default {
         return
       }
       
-      // Calculate proportions of total changes
       this.deletionPercentage = (deletions / total) * 100
       this.additionPercentage = (insertions / total) * 100
       
@@ -342,16 +338,14 @@ export default {
       const originalLines = this.orgContent?.split('\n').length || 1
       const newLines = this.code?.split('\n').length || 1
       
-      // Risk metrics
       const deletionRatio = deletions / originalLines
       const lineChangeRatio = Math.abs(newLines - originalLines) / originalLines
       const totalChanges = deletions + insertions
       const changeIntensity = totalChanges / originalLines
       
-      // Risk thresholds
-      const DANGEROUS_DELETION_RATIO = 0.4 // 40% of lines deleted
-      const DANGEROUS_INTENSITY = 0.5 // 50% of file changed
-      const DANGEROUS_LINE_LOSS = 0.3 // 30% of lines removed
+      const DANGEROUS_DELETION_RATIO = 0.4
+      const DANGEROUS_INTENSITY = 0.5
+      const DANGEROUS_LINE_LOSS = 0.3
       
       const isDeletion = deletionRatio > DANGEROUS_DELETION_RATIO
       const isHighIntensity = changeIntensity > DANGEROUS_INTENSITY
@@ -362,7 +356,6 @@ export default {
     },
 
     generateRiskMessage(delRatio, intensity, lineRatio, deletions, insertions) {
-      // Contextual warning based on risk type
       if (delRatio > 0.4) {
         return `${(delRatio * 100).toFixed(0)}% of original content deleted. Critical review recommended.`
       }
@@ -379,14 +372,8 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
 
-    async onShowDiff() {
+    toggleView() {
       if (this.isNoChange) return
-      if (!this.showDiff) {
-        await this.loadDiffInfo()
-        const { content } = await this.$api.files.read(this.file)
-        this.orgContent = content
-        this.diffEditContent = this.code
-      }
       this.showDiff = !this.showDiff
     },
 
@@ -403,11 +390,14 @@ export default {
             this.stats = 'File changes'
           }
           
+          // Determine if file is new
+          const { content } = await this.$api.files.read(this.file)
+          this.isNewFile = !content
+          
           if (!this.orgContent) {
-            const { content } = await this.$api.files.read(this.file)
             this.orgContent = content
           }
-          
+          this.diffEditContent = this.code
           this.calculateDiffPercentages()
         }
       } finally {
@@ -442,22 +432,20 @@ export default {
       this.cancelEdit()
     },
 
-    async saveDiffEdit() {
-      this.triggerSaveAnimation()
-      this.$emit('save-file', { file: this.file, content: this.diffEditContent })
-      this.hasUnsavedFileChanges = false
+    discardChanges() {
+      this.diffEditContent = this.code
       this.showDiff = false
-      await this.loadDiffInfo()
     },
 
     async saveToFile() {
       this.triggerSaveAnimation()
-      const content = this.editMode ? this.editContent : this.code
+      const content = this.editMode ? this.editContent : this.diffEditContent
       this.$emit('save-file', { file: this.file, content })
       this.hasUnsavedFileChanges = false
       if (this.editMode) {
         this.cancelEdit()
       }
+      this.showDiff = false
       await this.loadDiffInfo()
     },
 

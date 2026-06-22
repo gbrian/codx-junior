@@ -156,11 +156,13 @@ export default {
     }
   },
   computed: {
-    // Sort all chats by update timestamp descending
+    // Filter chats by active project, then sort by update timestamp descending
     sortedChats() {
+      const activeProjectId = this.$storex?.projects?.activeProject?.project_id
       const chats = this.$storex?.chats?.allChats || []
+      
       return [...chats]
-        .filter(chat => chat && chat.id)
+        .filter(chat => chat && chat.id && (chat.project_id === activeProjectId || chat.owner_project_id === activeProjectId))
         .sort((a, b) => {
           const getChatTime = (c) => {
             if (c.updated_at) return new Date(c.updated_at).getTime()
@@ -208,7 +210,7 @@ export default {
     // Resolve parent project for the chat
     getChatProject(chat) {
       const projects = this.$storex?.projects?.allProjects || this.$projects?.allProjects || []
-      return projects.find(p => p.project_id === chat.project_id) || this.$project
+      return projects.find(p => p.project_id === chat.project_id || p.project_id === chat.owner_project_id) || this.$project
     },
     // Resolve date formatting matching TaskCardLite pattern
     getFormattedDate(chat) {

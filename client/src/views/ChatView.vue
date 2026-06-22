@@ -380,7 +380,7 @@ export default {
   created() { this.init() },
   computed: {
     theChat() {
-      return this.$chats.chats[this.chat?.id || this.params?.params.chat?.id]
+      return this.$chats.chats[this.chat?.id || this.params?.params?.chat?.id]
     },
     isThread() { return !!this.theChat.message_id },
     isPRView() { return this.workingChat?.mode === 'prview' },
@@ -439,7 +439,7 @@ export default {
   },
   methods: {
     async init() {
-      await this.$service.chat.findChat(this.chat || this.params?.params.chat)
+      await this.$service.chat.findChat(this.workingChat)
       if (!this.theChat) throw new Error(`Chat not loaded`)
       this.setTaskProject()
       this.setProjectContext()

@@ -1,27 +1,20 @@
 <script setup>
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import MemberAvatar from '@/components/teams/MemberAvatar.vue'
-import ProjectDetailt from '@/components/ProjectDetailt.vue'
+import TeamSelector from './TeamSelector.vue'
 </script>
 
 <template>
   <div class="flex flex-col w-full" v-if="activeTeam">
 
-    <!-- Project dropdown / context -->
-    <ProjectDetailt class="px-4 py-4"
-      @click.stop=""
-      :options="{ folders: true, showIcon: true }"
-      @select="$projects.setActiveProject($event)"
+    <!-- Single Team Header with dropdown (replaces all previous team name displays) -->
+    <TeamSelector 
+      :active-team="activeTeam"
+      :teams="teams"
+      @select="$emit('select-team', $event)"
+      @create="$emit('create-team')"
+      @open-settings="$emit('open-team-settings')"
     />
-
-    <!-- Team header -->
-    <div
-      class="flex items-center justify-between px-3 py-3 border-b border-base-content/10 cursor-pointer hover:bg-base-300/50"
-      @click="$emit('open-team-settings')"
-    >
-      <span class="font-bold text-sm truncate">{{ activeTeam.name }}</span>
-      <i class="fa-solid fa-chevron-down text-xs text-base-content/50"></i>
-    </div>
 
     <!-- Search channels -->
     <div class="px-2 py-2">
@@ -89,7 +82,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
 
       <!-- Add category button -->
       <button
-        class="flex items-center gap-1 px-2 py-1 text-xs text-base-content-ERROR-40 hover:text-primary cursor-pointer w-full mb-3"
+        class="flex items-center gap-1 px-2 py-1 text-xs text-base-content/40 hover:text-primary cursor-pointer w-full mb-3"
         @click="addCategory"
       >
         <i class="fa-solid fa-plus text-xs"></i>
@@ -147,7 +140,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
           </div>
 
           <button
-            class="flex items-center gap-1 px-2 py-1 text-xs text-base-content-ERROR-40 hover:text-primary cursor-pointer w-full mt-1"
+            class="flex items-center gap-1 px-2 py-1 text-xs text-base-content/40 hover:text-primary cursor-pointer w-full mt-1"
             @click="$emit('add-member')"
           >
             <i class="fa-solid fa-user-plus text-xs"></i>
@@ -166,8 +159,22 @@ export default {
     activeTeam: {
       type: Object,
       default: null
+    },
+    teams: {
+      type: Array,
+      default: () => []
     }
   },
+  emits: [
+    'select-team',
+    'create-team',
+    'open-team-settings',
+    'open-create-channel',
+    'edit-category',
+    'edit-channel',
+    'add-member',
+    'select-member'
+  ],
   data() {
     return {
       channelSearch: '',

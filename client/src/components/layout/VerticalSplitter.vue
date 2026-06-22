@@ -44,7 +44,6 @@ export default {
   props: ['panels'],
   computed: {
     groupId() {
-      // Generates a unique ID for the splitter group
       const t = this.generateUID()
       return `splitter-group-${t}`
     }

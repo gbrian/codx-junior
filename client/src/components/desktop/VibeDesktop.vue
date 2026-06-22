@@ -25,6 +25,7 @@ import TeamChannel from '../teams/TeamChannel.vue'
 import TeamDM from '../teams/TeamDM.vue'
 import TeamMediaLibrary from '../teams/TeamMediaLibrary.vue'
 import VibeCodingView from '@/views/VibeCodingView.vue'
+import EmptyStateWelcome from './EmptyStateWelcome.vue'
 </script>
 
 <template>
@@ -38,15 +39,9 @@ import VibeCodingView from '@/views/VibeCodingView.vue'
       />
     </div>
 
-    <!-- Empty state when no app is active -->
-    <div 
-      v-else 
-      class="w-full h-full flex items-center justify-center text-base-content/40"
-    >
-      <div class="text-center">
-        <i class="fa-solid fa-inbox text-4xl mb-3"></i>
-        <p class="text-sm">No app open</p>
-      </div>
+    <!-- Welcome state when no app is active -->
+    <div v-else class="w-full h-full">
+      <EmptyStateWelcome />
     </div>
 
     <!-- ViewProperties modal -->
@@ -89,7 +84,8 @@ export default {
     'team-dm': TeamDM,
     'team-media-library': TeamMediaLibrary,
     'vibe-coding': VibeCodingView,
-    ViewProperties
+    ViewProperties,
+    EmptyStateWelcome
   },
   computed: {
     activeApp() {

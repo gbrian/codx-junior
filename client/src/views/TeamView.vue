@@ -28,7 +28,6 @@ import TeamBar from '@/components/teams/TeamBar.vue'
 
     <!-- ── Combined Channels + Recents sidebar column ─────────────────────── -->
     <TeamBar
-      v-if="activeTeam"
       :active-team="activeTeam"
       @open-team-settings="showTeamSettings = true"
       @open-create-channel="openCreateChannel"
@@ -36,16 +35,9 @@ import TeamBar from '@/components/teams/TeamBar.vue'
       @edit-channel="onEditChannel"
       @add-member="showAddMember = true"
       @select-member="onSelectMember"
+      @select-team="selectTeam"
+      @create-team="showCreateTeam = true"
     />
-
-    <!-- Empty sidebar when no team -->
-    <div
-      v-else
-      class="flex flex-col items-center justify-center w-64 bg-base-200 border-r border-base-content/10 gap-3 text-base-content-ERROR-40"
-    >
-      <i class="fa-solid fa-people-group text-4xl"></i>
-      <span class="text-xs text-center px-4">Select or create a team</span>
-    </div>
 
     <!-- ── Main content area ──────────────────────────────────────────── -->
     <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -147,13 +139,17 @@ export default {
     activeTeam() {
       return this.$storex.teams.activeTeam
     },
+    teamBarCollapsed() {
+      return this.$storex.ui.teamBarCollapsed
+    },
     isExpertMode() {
       return this.$storex.ui.viewMode === 'expert'
     }
   },
   methods: {
-    selectTeam(teamId) {
-      this.$storex.teams.selectTeam(teamId)
+    selectTeam(team) {
+      this.$storex.teams.selectTeam(team.id)
+      this.$storex.ui.setActiveTeam(team)
     },
     onTeamCreated() {
       this.showCreateTeam = false

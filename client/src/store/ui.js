@@ -45,7 +45,9 @@ export const state = () => ({
   views: [],
   lastView: null,
   _desktopApi: null,
-  viewEditor: null
+  viewEditor: null,
+  activeTeam: null,
+  teamBarCollapsed: false
 })
 
 export const getters = getterTree(state, {
@@ -59,17 +61,15 @@ export const getters = getterTree(state, {
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
     tab = tab || 'home'
-    if (state.activeTab === tab) {
-      if (state.activeApp) {
-        state.activeTab = null
-      }
+    if (tab !== 'home') {
+      $storex.ui.showApp({
+        name: tab,
+        component: tab
+      })
     } else {
-      state.activeTab = tab
+      state.activeTab = null
+      state.activeApp = null
     }
-    $storex.ui.showApp({
-      name: tab,
-      component: tab
-    })
     $storex.ui.saveState()
   },
   showTab(state, tab) {
@@ -182,9 +182,11 @@ export const mutations = mutationTree(state, {
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
-    state.openApps = {
-      ...state.openApps,
-      [app.tabId]: app
+    if (state.viewMode !== 'vibe') {
+      state.openApps = {
+        ...state.openApps,
+        [app.tabId]: app
+      }
     }
     // Update activeApp to the newly opened app
     state.activeApp = app
@@ -251,6 +253,14 @@ export const mutations = mutationTree(state, {
   },
   closeViewEditor(state) {
     state.viewEditor = null
+  },
+  setActiveTeam(state, team) {
+    state.activeTeam = team
+    $storex.ui.saveState()
+  },
+  setTeamBarCollapsed(state, collapsed) {
+    state.teamBarCollapsed = collapsed
+    $storex.ui.saveState()
   }
 })
 
@@ -260,7 +270,6 @@ export const actions = actionTree(
     async init ({ state }, $storex) {
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
-      state.activeApp = "home"
       if (API.user?.theme) {
         state.theme = API.user.theme
       }
@@ -273,12 +282,6 @@ export const actions = actionTree(
       const data = { 
         ...state, 
         uiReady: false,
-        activeApp: state.activeApp ? {
-          tabId: state.activeApp.tabId,
-          name: state.activeApp.name,
-          component: state.activeApp.component,
-          openedAt: state.activeApp.openedAt
-        } : null,
         openApps: {},
         _desktopApi: null,
         views: [],
@@ -408,6 +411,83 @@ export const actions = actionTree(
         name: `🖼 ${team.name} Media`,
         component: 'team-media-library',
         params: { team }
+      })
+    },
+
+    // ── QuickBar app openers ──────────────────────────────────────────────────
+
+    // Open Vibe Coding session
+    openVibeCoding() {
+      $storex.ui.showApp({
+        key: 'vibe-coding',
+        name: 'Vibe Coding',
+        component: 'vibe-coding',
+        params: {}
+      })
+    },
+
+    // Open Projects app
+    openProjects() {
+      $storex.ui.showApp({
+        key: 'projects',
+        name: 'Projects',
+        component: 'projects',
+        params: {}
+      })
+    },
+
+    // Open Teams app
+    openTeams() {
+      $storex.ui.showApp({
+        key: 'teams',
+        name: 'Teams',
+        component: 'teams',
+        params: {}
+      })
+    },
+
+    // Open Tasks app
+    openTasks() {
+      $storex.ui.setActiveTab('tasks')
+    },
+
+    // Open Wiki/Knowledge app
+    openWiki() {
+      $storex.ui.setActiveTab('wiki')
+    },
+
+    // Open Chat
+    openQuickChat() {
+      $storex.ui.showApp({
+        key: 'quick-chat',
+        name: 'Chat',
+        component: 'chat',
+        params: {}
+      })
+    },
+
+    // Open Media Library
+    openMediaLibrary() {
+      $storex.ui.showApp({
+        key: 'media-library',
+        name: 'Media Library',
+        component: 'media-library',
+        params: {}
+      })
+    },
+
+    // Open Home/Dashboard
+    openHome() {
+      $storex.ui.setActiveTab('home')
+    },
+
+    // Open a tutorial/knowledge article
+    openTutorial(_, tutorialId) {
+      $storex.ui.showApp({
+        key: `tutorial-${tutorialId}`,
+        name: 'Knowledge',
+        component: 'knowledge',
+        params: { tutorial: tutorialId }
       })
     },
 

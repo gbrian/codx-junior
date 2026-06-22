@@ -4,7 +4,7 @@ import MediaGallery from './MediaGallery.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 h-full">
+  <div class="flex flex-col gap-4 h-full p-4">
     <!-- Libraries list -->
     <div class="flex items-center justify-between shrink-0">
       <h2 class="font-bold text-lg">Media Manager</h2>
