@@ -50,7 +50,6 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
       class="tooltip tooltip-right cursor-pointer shrink-0"
       data-tip="Vibe Coding"
       @click="openVibeCoding"
-      v-if="isExpertMode"
     >
       <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
         <i class="fa-solid fa-wand-magic-sparkles"></i>

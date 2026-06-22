@@ -56,7 +56,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <!-- No Project State -->
-      <div v-if="!activeTeam" class="flex-1 flex flex-col items-center justify-center gap-3 px-4 text-base-content/40">
+      <div v-if="!activeTeam" class="py-2 flex-1 flex flex-col items-center justify-center gap-3 px-4 text-base-content/40">
         <i class="fa-solid fa-people-group text-4xl"></i>
         <span class="text-xs text-center">Select or create a team</span>
         <button 
@@ -68,7 +68,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <!-- Recent Chats: Full or Icon Mode -->
-      <div v-if="activeTeam" :class="isCollapsed ? 'p-2 w-full flex flex-col items-center gap-2' : 'px-2 pb-4 w-full'">
+      <div :class="isCollapsed ? 'p-2 w-full flex flex-col items-center gap-2' : 'px-2 pb-4 w-full'">
         <RecentChatsQuickAccess :collapsed="isCollapsed" />
       </div>
     </div>

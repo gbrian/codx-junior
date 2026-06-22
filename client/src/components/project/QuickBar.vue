@@ -54,10 +54,8 @@ import BarButton from './BarButton.vue'
     </BarButton>
 
     <!-- Vibe Coding button — only visible in expert view mode -->
-    <BarButton
-      tab="vibe-coding"
+    <BarButton tab="vibe-coding"
       @click="openVibeCoding"
-      v-if="isExpertMode"
       class="tooltip tooltip-right"
       data-tip="Vibe Coding"
     >

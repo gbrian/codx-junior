@@ -47,7 +47,12 @@ export const state = () => ({
   _desktopApi: null,
   viewEditor: null,
   activeTeam: null,
-  teamBarCollapsed: false
+  teamBarCollapsed: false,
+  panelWidths: {
+    chat: 30,
+    changes: 33,
+    preview: 37
+  }
 })
 
 export const getters = getterTree(state, {
@@ -178,7 +183,6 @@ export const mutations = mutationTree(state, {
     $storex.ui.showApp({ ...app, tabId: null })
   },
   showApp(state, app) {
-    // Add timestamp to track when app was opened
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
@@ -188,7 +192,6 @@ export const mutations = mutationTree(state, {
         [app.tabId]: app
       }
     }
-    // Update activeApp to the newly opened app
     state.activeApp = app
   },
   updateAppParams(state, { tabId, params }) {
@@ -208,7 +211,6 @@ export const mutations = mutationTree(state, {
   closeApp(state, app) {
     if (!app) return
     delete state.openApps[app.tabId]
-    // If closed app was activeApp, set activeApp to the most recently opened app
     if (state.activeApp?.tabId === app.tabId) {
       const remainingApps = Object.values(state.openApps)
       if (remainingApps.length > 0) {
@@ -260,6 +262,13 @@ export const mutations = mutationTree(state, {
   },
   setTeamBarCollapsed(state, collapsed) {
     state.teamBarCollapsed = collapsed
+    $storex.ui.saveState()
+  },
+  setPanelWidth(state, { panel, width }) {
+    state.panelWidths = {
+      ...state.panelWidths,
+      [panel]: width
+    }
     $storex.ui.saveState()
   }
 })
@@ -383,7 +392,6 @@ export const actions = actionTree(
 
     // ── Team panel openers ────────────────────────────────────────────────────
 
-    // Open a team channel as a Desktop panel
     openTeamChannel(_, { team, channel }) {
       $storex.ui.showApp({
         key: `team-channel-${channel.id}`,
@@ -393,7 +401,6 @@ export const actions = actionTree(
       })
     },
 
-    // Open a DM as a Desktop panel, resolving the chat first
     async openTeamDM(_, { team, member }) {
       const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
       $storex.ui.showApp({
@@ -404,7 +411,6 @@ export const actions = actionTree(
       })
     },
 
-    // Open the media library for a team as a Desktop panel
     openTeamMediaLibrary(_, { team }) {
       $storex.ui.showApp({
         key: `team-media-${team.id}`,
@@ -416,7 +422,6 @@ export const actions = actionTree(
 
     // ── QuickBar app openers ──────────────────────────────────────────────────
 
-    // Open Vibe Coding session
     openVibeCoding() {
       $storex.ui.showApp({
         key: 'vibe-coding',
@@ -426,7 +431,6 @@ export const actions = actionTree(
       })
     },
 
-    // Open Projects app
     openProjects() {
       $storex.ui.showApp({
         key: 'projects',
@@ -436,7 +440,6 @@ export const actions = actionTree(
       })
     },
 
-    // Open Teams app
     openTeams() {
       $storex.ui.showApp({
         key: 'teams',
@@ -446,17 +449,14 @@ export const actions = actionTree(
       })
     },
 
-    // Open Tasks app
     openTasks() {
       $storex.ui.setActiveTab('tasks')
     },
 
-    // Open Wiki/Knowledge app
     openWiki() {
       $storex.ui.setActiveTab('wiki')
     },
 
-    // Open Chat
     openQuickChat() {
       $storex.ui.showApp({
         key: 'quick-chat',
@@ -466,7 +466,6 @@ export const actions = actionTree(
       })
     },
 
-    // Open Media Library
     openMediaLibrary() {
       $storex.ui.showApp({
         key: 'media-library',
@@ -476,12 +475,10 @@ export const actions = actionTree(
       })
     },
 
-    // Open Home/Dashboard
     openHome() {
       $storex.ui.setActiveTab('home')
     },
 
-    // Open a tutorial/knowledge article
     openTutorial(_, tutorialId) {
       $storex.ui.showApp({
         key: `tutorial-${tutorialId}`,
@@ -523,7 +520,6 @@ export const actions = actionTree(
       return view
     },
 
-    // Clear all dockview panels so user starts with a blank desktop
     resetDesktop({ state }) {
       const api = state._desktopApi
       if (!api) return

@@ -5,6 +5,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 import PRView from '@/components/repo/PRView.vue'
 import VibeCodingHeader from '@/components/vibe/VibeCodingHeader.vue'
 import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 </script>
 
 <template>
@@ -38,135 +39,256 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
       @add-profile="onAddProfile"
     />
 
-    <div class="flex grow overflow-hidden min-h-0">
-
-      <!-- LEFT: Chat panel -->
-      <div v-if="showChat"
-        class="flex flex-col h-full border-r border-base-content/10 transition-all"
-        :style="{ width: chatWidth }">
-
-        <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
-          <ChatIcon mode="vibe" class="text-sm" />
-          <span class="text-sm font-bold truncate grow">{{ workingChat?.name || 'Vibe session' }}</span>
-          <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
-            <i class="fa-brands fa-trello"></i> Tasks
-          </button>
-          <button class="btn btn-xs btn-ghost" @click="showChatPicker = !showChatPicker" title="Switch session">
-            Recent <i class="fa-solid fa-chevron-down"></i>
-          </button>
-        </div>
-
-        <div v-if="showKanbanSelector" class="flex flex-col h-full overflow-hidden bg-base-100">
-          <div class="flex items-center gap-2 px-2 py-2 border-b border-base-content/10 shrink-0">
-            <span class="text-xs font-semibold">Select task or create new</span>
-            <button class="btn btn-xs btn-ghost ml-auto" @click="showKanbanSelector = false">
-              <i class="fa-solid fa-times"></i>
+    <VerticalSplitter v-if="showChat && (showChanges || showPreview)" :panels="splitterConfig">
+      <template #left>
+        <!-- LEFT: Chat panel -->
+        <div class="flex flex-col h-full w-full">
+          <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
+            <ChatIcon mode="vibe" class="text-sm" />
+            <span class="text-sm font-bold truncate grow">{{ workingChat?.name || 'Vibe session' }}</span>
+            <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
+              <i class="fa-brands fa-trello"></i> Tasks
+            </button>
+            <button class="btn btn-xs btn-ghost" @click="showChatPicker = !showChatPicker" title="Switch session">
+              Recent <i class="fa-solid fa-chevron-down"></i>
             </button>
           </div>
-          <div class="grow overflow-hidden">
-            <KanbanContainer :params="kanbanParams" />
+
+          <div v-if="showKanbanSelector" class="flex flex-col h-full overflow-hidden bg-base-100">
+            <div class="flex items-center gap-2 px-2 py-2 border-b border-base-content/10 shrink-0">
+              <span class="text-xs font-semibold">Select task or create new</span>
+              <button class="btn btn-xs btn-ghost ml-auto" @click="showKanbanSelector = false">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <div class="grow overflow-hidden">
+              <KanbanContainer :params="kanbanParams" />
+            </div>
+          </div>
+
+          <div v-else-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
+            <div v-for="c in vibeSessions" :key="c.id"
+              class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-base-200"
+              :class="activeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
+              @click="selectSession(c)">
+              <ChatIcon :mode="c.mode" class="opacity-60" />
+              <span class="truncate grow">{{ c.name }}</span>
+              <span class="text-base-content/30 shrink-0">{{ formatDate(c.updated_at) }}</span>
+            </div>
+            <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content/40 text-center">
+              No vibe sessions yet
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1 px-2 text-xs text-base-content/50 py-0.5" v-if="showChildChat">
+            <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
+              {{ activeChat?.name }}
+            </button>
+            <i class="fa-solid fa-chevron-right text-xs"></i>
+            <span class="text-warning font-semibold truncate">{{ showChildChat.name }}</span>
+          </div>
+
+          <div class="grow min-h-0 overflow-hidden" v-else-if="workingChat">
+            <Chat
+              :chat="workingChat"
+              :showHidden="showHidden"
+              :filter="chatSearch"
+              class="h-full px-2 pb-2"
+              @refresh-chat="reloadActiveChat"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #right>
+        <!-- MIDDLE: Changes/PR View & RIGHT: Preview -->
+        <VerticalSplitter v-if="showChanges && showPreview" :panels="splitterConfigRight">
+          <template #left>
+            <div class="flex flex-col h-full w-full">
+              <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
+                <i class="fa-solid fa-code-compare text-warning text-sm"></i>
+                <span class="text-sm font-bold truncate grow">Changes</span>
+                <button class="btn btn-xs btn-ghost" @click="refreshChanges" title="Refresh changes">
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+              </div>
+
+              <div class="grow min-h-0 overflow-hidden p-2" v-if="workingChat">
+                <PRView
+                  ref="prView"
+                  :chat="workingChat"
+                  :fromBranch="currentBranchFromMeta"
+                  :toBranch="compareBranchFromMeta"
+                  class="h-full"
+                  @select-branch="onPRBranchSelected"
+                  @comment="onPRComment"
+                  @change-column="onChangeColumnFromPR"
+                  @new-chat="onNewChatFromChanges"
+                  @chat-message="onPRChatMessage"
+                />
+              </div>
+              <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+                <i class="fa-solid fa-inbox text-4xl"></i>
+                <span class="text-sm">No active session</span>
+              </div>
+            </div>
+          </template>
+
+          <template #right>
+            <div class="flex flex-col h-full w-full">
+              <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 border-b border-base-content/10 shrink-0">
+                <i class="fa-solid fa-display text-success text-sm"></i>
+                <span class="text-sm font-bold grow">Preview</span>
+                <select class="select select-xs select-bordered max-w-[180px]"
+                  v-model="selectedAppKey"
+                  @change="onAppSelected">
+                  <option value="">-- Select workspace app --</option>
+                  <option v-for="app in projectApps" :key="app.key" :value="app.key">
+                    {{ app.workspaceName }} / {{ app.name }}
+                  </option>
+                </select>
+                <button class="btn btn-xs btn-ghost" @click="reloadPreview" title="Reload preview">
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button class="btn btn-xs btn-ghost" @click="openPreviewFullscreen" title="Fullscreen" v-if="selectedApp">
+                  <i class="fa-solid fa-expand"></i>
+                </button>
+              </div>
+
+              <div class="grow min-h-0 relative overflow-hidden bg-base-100" v-if="selectedApp?.app" :key="selectedAppKey">
+                <AppWindow
+                  :app="selectedApp.app"
+                  class="w-full h-full"
+                />
+              </div>
+              <div v-else class="grow flex flex-col items-center justify-center gap-3 text-base-content/30">
+                <i class="fa-solid fa-display text-5xl"></i>
+                <span class="text-sm">Select a workspace app to preview</span>
+              </div>
+            </div>
+          </template>
+        </VerticalSplitter>
+
+        <!-- Only Changes visible -->
+        <div v-else-if="showChanges" class="flex flex-col h-full w-full">
+          <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
+            <i class="fa-solid fa-code-compare text-warning text-sm"></i>
+            <span class="text-sm font-bold truncate grow">Changes</span>
+            <button class="btn btn-xs btn-ghost" @click="refreshChanges" title="Refresh changes">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+
+          <div class="grow min-h-0 overflow-hidden p-2" v-if="workingChat">
+            <PRView
+              ref="prView"
+              :chat="workingChat"
+              :fromBranch="currentBranchFromMeta"
+              :toBranch="compareBranchFromMeta"
+              class="h-full"
+              @select-branch="onPRBranchSelected"
+              @comment="onPRComment"
+              @change-column="onChangeColumnFromPR"
+              @new-chat="onNewChatFromChanges"
+              @chat-message="onPRChatMessage"
+            />
+          </div>
+          <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+            <i class="fa-solid fa-inbox text-4xl"></i>
+            <span class="text-sm">No active session</span>
           </div>
         </div>
 
-        <div v-else-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
-          <div v-for="c in vibeSessions" :key="c.id"
-            class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-base-200"
-            :class="activeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
-            @click="selectSession(c)">
-            <ChatIcon :mode="c.mode" class="opacity-60" />
-            <span class="truncate grow">{{ c.name }}</span>
-            <span class="text-base-content/30 shrink-0">{{ formatDate(c.updated_at) }}</span>
+        <!-- Only Preview visible -->
+        <div v-else-if="showPreview" class="flex flex-col h-full w-full">
+          <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 border-b border-base-content/10 shrink-0">
+            <i class="fa-solid fa-display text-success text-sm"></i>
+            <span class="text-sm font-bold grow">Preview</span>
+            <select class="select select-xs select-bordered max-w-[180px]"
+              v-model="selectedAppKey"
+              @change="onAppSelected">
+              <option value="">-- Select workspace app --</option>
+              <option v-for="app in projectApps" :key="app.key" :value="app.key">
+                {{ app.workspaceName }} / {{ app.name }}
+              </option>
+            </select>
+            <button class="btn btn-xs btn-ghost" @click="reloadPreview" title="Reload preview">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <button class="btn btn-xs btn-ghost" @click="openPreviewFullscreen" title="Fullscreen" v-if="selectedApp">
+              <i class="fa-solid fa-expand"></i>
+            </button>
           </div>
-          <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content/40 text-center">
-            No vibe sessions yet
+
+          <div class="grow min-h-0 relative overflow-hidden bg-base-100" v-if="selectedApp?.app" :key="selectedAppKey">
+            <AppWindow
+              :app="selectedApp.app"
+              class="w-full h-full"
+            />
+          </div>
+          <div v-else class="grow flex flex-col items-center justify-center gap-3 text-base-content/30">
+            <i class="fa-solid fa-display text-5xl"></i>
+            <span class="text-sm">Select a workspace app to preview</span>
           </div>
         </div>
+      </template>
+    </VerticalSplitter>
 
-        <div class="flex items-center gap-1 px-2 text-xs text-base-content/50 py-0.5" v-if="showChildChat">
-          <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
-            {{ activeChat?.name }}
+    <!-- Fallback: Chat only -->
+    <div v-else-if="showChat" class="flex flex-col h-full w-full overflow-hidden">
+      <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
+        <ChatIcon mode="vibe" class="text-sm" />
+        <span class="text-sm font-bold truncate grow">{{ workingChat?.name || 'Vibe session' }}</span>
+        <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
+          <i class="fa-brands fa-trello"></i> Tasks
+        </button>
+        <button class="btn btn-xs btn-ghost" @click="showChatPicker = !showChatPicker" title="Switch session">
+          Recent <i class="fa-solid fa-chevron-down"></i>
+        </button>
+      </div>
+
+      <div v-if="showKanbanSelector" class="flex flex-col h-full overflow-hidden bg-base-100">
+        <div class="flex items-center gap-2 px-2 py-2 border-b border-base-content/10 shrink-0">
+          <span class="text-xs font-semibold">Select task or create new</span>
+          <button class="btn btn-xs btn-ghost ml-auto" @click="showKanbanSelector = false">
+            <i class="fa-solid fa-times"></i>
           </button>
-          <i class="fa-solid fa-chevron-right text-xs"></i>
-          <span class="text-warning font-semibold truncate">{{ showChildChat.name }}</span>
         </div>
-
-        <div class="grow min-h-0 overflow-hidden" v-else-if="workingChat">
-          <Chat
-            :chat="workingChat"
-            :showHidden="showHidden"
-            :filter="chatSearch"
-            class="h-full px-2 pb-2"
-            @refresh-chat="reloadActiveChat"
-          />
+        <div class="grow overflow-hidden">
+          <KanbanContainer :params="kanbanParams" />
         </div>
       </div>
 
-      <!-- MIDDLE: Changes/PR View panel -->
-      <div v-if="showChanges"
-        class="flex flex-col h-full border-r border-base-content/10 transition-all"
-        :style="{ width: changesWidth }">
-
-        <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
-          <i class="fa-solid fa-code-compare text-warning text-sm"></i>
-          <span class="text-sm font-bold truncate grow">Changes</span>
-          <button class="btn btn-xs btn-ghost" @click="refreshChanges" title="Refresh changes">
-            <i class="fa-solid fa-rotate-right"></i>
-          </button>
+      <div v-else-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
+        <div v-for="c in vibeSessions" :key="c.id"
+          class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-base-200"
+          :class="activeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
+          @click="selectSession(c)">
+          <ChatIcon :mode="c.mode" class="opacity-60" />
+          <span class="truncate grow">{{ c.name }}</span>
+          <span class="text-base-content/30 shrink-0">{{ formatDate(c.updated_at) }}</span>
         </div>
-
-        <div class="grow min-h-0 overflow-hidden p-2" v-if="workingChat">
-          <PRView
-            ref="prView"
-            :chat="workingChat"
-            :fromBranch="currentBranchFromMeta"
-            :toBranch="compareBranchFromMeta"
-            class="h-full"
-            @select-branch="onPRBranchSelected"
-            @comment="onPRComment"
-            @change-column="onChangeColumnFromPR"
-            @new-chat="onNewChatFromChanges"
-            @chat-message="onPRChatMessage"
-          />
-        </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
-          <i class="fa-solid fa-inbox text-4xl"></i>
-          <span class="text-sm">No active session</span>
+        <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content/40 text-center">
+          No vibe sessions yet
         </div>
       </div>
 
-      <!-- RIGHT: Preview / VNC workspace -->
-      <div v-if="showPreview"
-        class="flex flex-col h-full grow min-w-0 overflow-hidden">
+      <div class="flex items-center gap-1 px-2 text-xs text-base-content/50 py-0.5" v-if="showChildChat">
+        <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
+          {{ activeChat?.name }}
+        </button>
+        <i class="fa-solid fa-chevron-right text-xs"></i>
+        <span class="text-warning font-semibold truncate">{{ showChildChat.name }}</span>
+      </div>
 
-        <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 border-b border-base-content/10 shrink-0">
-          <i class="fa-solid fa-display text-success text-sm"></i>
-          <span class="text-sm font-bold grow">Preview</span>
-          <select class="select select-xs select-bordered max-w-[180px]"
-            v-model="selectedAppKey"
-            @change="onAppSelected">
-            <option value="">-- Select workspace app --</option>
-            <option v-for="app in projectApps" :key="app.key" :value="app.key">
-              {{ app.workspaceName }} / {{ app.name }}
-            </option>
-          </select>
-          <button class="btn btn-xs btn-ghost" @click="reloadPreview" title="Reload preview">
-            <i class="fa-solid fa-rotate-right"></i>
-          </button>
-          <button class="btn btn-xs btn-ghost" @click="openPreviewFullscreen" title="Fullscreen" v-if="selectedApp">
-            <i class="fa-solid fa-expand"></i>
-          </button>
-        </div>
-
-        <div class="grow min-h-0 relative overflow-hidden bg-base-100" v-if="selectedApp?.app" :key="selectedAppKey">
-          <AppWindow
-            :app="selectedApp.app"
-            class="w-full h-full"
-          />
-        </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 text-base-content/30">
-          <i class="fa-solid fa-display text-5xl"></i>
-          <span class="text-sm">Select a workspace app to preview</span>
-        </div>
+      <div class="grow min-h-0 overflow-hidden" v-else-if="workingChat">
+        <Chat
+          :chat="workingChat"
+          :showHidden="showHidden"
+          :filter="chatSearch"
+          class="h-full px-2 pb-2"
+          @refresh-chat="reloadActiveChat"
+        />
       </div>
     </div>
 
@@ -306,17 +428,20 @@ export default {
         .filter(c => c.parent_id === this.activeChat.id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
-    chatWidth() {
-      if (this.showChat && this.showChanges && this.showPreview) return '33%'
-      if (this.showChat && this.showChanges) return '50%'
-      if (this.showChat && this.showPreview) return '50%'
-      return '100%'
+    splitterConfig() {
+      return {
+        left: { defaultSize: this.$storex.ui.panelWidths.chat, minSize: 15 },
+        right: { defaultSize: 100 - this.$storex.ui.panelWidths.chat, minSize: 15 }
+      }
     },
-    changesWidth() {
-      if (this.showChat && this.showChanges && this.showPreview) return '33%'
-      if (this.showChat && this.showChanges) return '50%'
-      if (this.showChanges && this.showPreview) return '50%'
-      return '100%'
+    splitterConfigRight() {
+      const changesDefault = this.$storex.ui.panelWidths.changes
+      const previewDefault = this.$storex.ui.panelWidths.preview
+      const total = changesDefault + previewDefault
+      return {
+        left: { defaultSize: (changesDefault / total) * 100, minSize: 15 },
+        right: { defaultSize: (previewDefault / total) * 100, minSize: 15 }
+      }
     },
     currentBranchFromMeta() {
       return this.activeChat?.meta_data?.current_branch || 'main'
@@ -391,7 +516,6 @@ export default {
         this.selectedApp = null
         return
       }
-      // Build proper app object for AppWindow component
       this.selectedApp = { app }
       this.previewKey++
     },
