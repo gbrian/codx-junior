@@ -15,7 +15,7 @@ import BarButton from './project/BarButton.vue';
               </div>
           </div>
         </div>
-        <div class="text-center overflow-hidden text-nowrap font-bold" v-if="!iconOnly">
+        <div class="text-center overflow-hidden text-nowrap font-bold truncate" v-if="!iconOnly">
             {{ theProject?.project_name }}
         </div>
     </BarButton>

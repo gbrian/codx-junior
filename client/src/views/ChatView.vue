@@ -79,7 +79,6 @@ import Collapsible from '../components/Collapsible.vue'
               </div>
             </div>
           </div>
-
           <div class="flex items-start gap-2 w-full min-w-0">
             <div class="flex items-center gap-1 shrink-0">
               <ProjectDetailt v-model="targetProject" :iconify="true"

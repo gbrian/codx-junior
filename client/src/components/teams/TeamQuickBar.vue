@@ -122,7 +122,7 @@ export default {
   },
   methods: {
     openQuickChat() {
-      this.$storex.ui.openQuickChat()
+      this.$service.chat.newQuickChat()
     },
     openHome() {
       this.$storex.ui.openHome()

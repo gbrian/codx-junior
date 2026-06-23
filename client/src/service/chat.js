@@ -296,7 +296,15 @@ export class ChatService extends Service {
       mode: 'chat',
       auto_initialize: true
     }
-    return this.$chats.createNewChat({ chat })
+    const quickChat = await this.$chats.createNewChat({ chat })
+    this.$storex.ui.showApp({
+        key: 'chat',
+        name: 'Chat',
+        component: 'chat',
+        params: {
+          chat: quickChat
+        }
+      })
   }
 
   async createChat({

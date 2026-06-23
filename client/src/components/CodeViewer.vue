@@ -439,7 +439,8 @@ export default {
 
     async saveToFile() {
       this.triggerSaveAnimation()
-      const content = this.editMode ? this.editContent : this.diffEditContent
+      const content = this.isNewFile ? this.code : 
+        (this.editMode ? this.editContent : this.diffEditContent)
       this.$emit('save-file', { file: this.file, content })
       this.hasUnsavedFileChanges = false
       if (this.editMode) {

@@ -7,7 +7,7 @@ export const namespaced = true
 
 export const state = () => ({
   chats: {},
-  activeChat: null,
+  activeChatId: null,
   chatEvents: {}, // { [chatId]: { updatingCount: number, updatingAt: string | null, timeoutId: number | null } }
 })
 
@@ -36,10 +36,18 @@ export const getters = getterTree(state, {
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0
   },
-  activeChat: state => state.activeChat,
+  activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
 })
 
 export const mutations = mutationTree(state, {
+  setActiveChatId(state, chatId) {
+    state.activeChatId = chatId || null
+  },
+
+  clearActiveChat(state) {
+    state.activeChatId = null
+  },
+
   setChatUpdating(state, { chatId, updating }) {
     const current = state.chatEvents[chatId]?.updatingCount || 0
     const prevTimeoutId = state.chatEvents[chatId]?.timeoutId || null
@@ -79,15 +87,12 @@ export const mutations = mutationTree(state, {
       }
     }
   },
+
   addMessageToChat(state, { chatId, message }) {
     const chat = state.chats[chatId]
     if (!chat) return
     // Replace array reference to trigger Vue reactivity
     chat.messages = [...(chat.messages || []), message]
-    // Keep activeChat in sync
-    if (state.activeChat?.id === chatId) {
-      state.activeChat = state.chats[chatId]
-    }
   },
 })
 
@@ -99,15 +104,10 @@ export const actions = actionTree(
     async loadChats({ state }) {
       const chats = await API.chats.list()
       chats.forEach(chat => registerChat(state, chat))
-      // Refresh activeChat reference from updated chats map
-      if (state.activeChat?.id) {
-        state.activeChat = state.chats[state.activeChat.id] || state.activeChat
-      }
     },
     async saveChat({ state }, chat) {
       await API.chats.save(chat)
-      const savedChat = await $storex.chats.loadChat(chat)
-      registerChat(state, savedChat)
+      await $storex.chats.loadChat(chat)
     },
     async saveChatInfo(_, chat) {
       await API.chats.saveChatInfo({ ...chat, messages: [] })
@@ -129,10 +129,6 @@ export const actions = actionTree(
         const loadedChat = await project.$api.chats.loadChat(chat)
         registerChat(state, loadedChat)
       }
-      // Keep activeChat reference in sync if this is the active chat
-      if (state.activeChat?.id === chat.id) {
-        state.activeChat = state.chats[chat.id]
-      }
       return state.chats[chat.id]
     },
     async reloadChat({ state }, chat) {
@@ -145,10 +141,6 @@ export const actions = actionTree(
       } else {
         registerChat(state, freshChat)
       }
-      // Keep activeChat reference in sync if this is the active chat
-      if (state.activeChat?.id === chat.id) {
-        state.activeChat = state.chats[chat.id]
-      }
       return state.chats[chat.id]
     },
     async deleteChat({ state }, chat) {
@@ -159,22 +151,27 @@ export const actions = actionTree(
         delete state.chats[chat.id]
       }
       // Clear activeChat if the deleted chat was active
-      if (state.activeChat?.id === chat.id) {
-        state.activeChat = null
+      if (state.activeChatId === chat.id) {
+        $storex.chats.clearActiveChat()
       }
     },
     async setActiveChat({ state }, activeChat) {
-      const { id, project_id } = activeChat || {}
-      if (id) {
-        await $storex.chats.reloadChat({ id, project_id })
+      const { id, project_id, owner_project_id } = activeChat || {}
+
+      if (!id) {
+        $storex.chats.clearActiveChat()
+        return
       }
-      // Resolve chat from chats map — single source of truth
-      const chat = (id && state.chats[id]) || null
-      state.activeChat = chat
+
+      // Load/reload the chat data without triggering setActiveChat again
+      await $storex.chats.reloadChat({ id, project_id, owner_project_id })
+
+      // Set the active chat id — activeChat getter will resolve it from chats map
+      $storex.chats.setActiveChatId(id)
 
       // On desktop, notify the UI to open the chat panel
-      if (!$storex.ui.isMobile && chat && $storex.ui.viewMode !== 'vibe') {
-        $storex.ui.openChat(chat)
+      if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
+        $storex.ui.openChat($storex.chats.activeChat)
       }
     },
     async createNewChat({ state }, chat) {
@@ -204,7 +201,7 @@ export const actions = actionTree(
       const savedChat = await API.chats.fromUrl(chat)
       registerChat(state, savedChat)
       if (!chat.temp) {
-        state.activeChat = state.chats[savedChat?.id]
+        await $storex.chats.setActiveChat(savedChat)
       }
       return state.chats[savedChat?.id]
     },

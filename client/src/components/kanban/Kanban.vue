@@ -415,6 +415,9 @@ export default {
     async setActiveChat(chat) {
       chat && this.$chats.reloadChat(chat)
       this.$chats.setActiveChat(chat)
+      if (this.$ui.isVibeMode) {
+        this.$ui.openVibeCoding()
+      }
     },
 
     async projectChanged() {

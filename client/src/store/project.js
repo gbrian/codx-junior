@@ -426,7 +426,7 @@ export const actions = actionTree(
 
           await $storex.chats.loadChats()
           if ($storex.chats.activeChat?.project_id !== API.activeProject.project_id) {
-            $storex.chats.setActiveChat.call(null, {})
+            $storex.chats.clearActiveChat()
           }
           state.ai = state.activeProject.$state.ai
 
@@ -606,7 +606,6 @@ export const actions = actionTree(
         await $storex.projects.loadKanban()
       }
       state.activeBoard = boardName
-      $storex.chats.setActiveChat({})
     },
     getChatProject({ state }, chat) {
       return state.allProjectsById[chat.project_id || chat.owner_project_id] || state.activeProject

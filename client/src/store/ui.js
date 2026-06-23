@@ -60,7 +60,9 @@ export const getters = getterTree(state, {
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
   enableFileManger: () => API.globalSettings?.enable_file_manager,
-  activeApps: () => Object.values($storex.ui.openApps)
+  activeApps: () => Object.values($storex.ui.openApps),
+  isVibeMode: state => state.viewMode === 'vibe',
+  isExpertMode: state => state.viewMode === 'expert',
 })
 
 export const mutations = mutationTree(state, {
@@ -455,15 +457,6 @@ export const actions = actionTree(
 
     openWiki() {
       $storex.ui.setActiveTab('wiki')
-    },
-
-    openQuickChat() {
-      $storex.ui.showApp({
-        key: 'quick-chat',
-        name: 'Chat',
-        component: 'chat',
-        params: {}
-      })
     },
 
     openMediaLibrary() {

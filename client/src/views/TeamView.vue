@@ -9,24 +9,13 @@ import AddMemberDialog from '@/components/teams/AddMemberDialog.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
 import VibeDesktop from '@/components/desktop/VibeDesktop.vue'
 import StatuBar from '@/components/StatuBar.vue'
-import TeamQuickBar from '@/components/teams/TeamQuickBar.vue'
 import TeamBar from '@/components/teams/TeamBar.vue'
 </script>
 
 <template>
   <div class="flex h-full bg-base-300 overflow-hidden">
 
-    <!-- ── Team icons + QuickBar column ──────────────────────────────────── -->
-    <TeamQuickBar
-      :teams="teams"
-      :active-team="activeTeam"
-      @new-quick-chat="onNewQuickChat"
-      @select-team="selectTeam"
-      @create-team="showCreateTeam = true"
-      @open-media="openMediaLibrary"
-    />
-
-    <!-- ── Combined Channels + Recents sidebar column ─────────────────────── -->
+    <!-- ── Merged TeamBar (QuickBar + Channels) column ──────────────────── -->
     <TeamBar
       :active-team="activeTeam"
       @open-team-settings="showTeamSettings = true"
