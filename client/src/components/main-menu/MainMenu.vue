@@ -16,11 +16,11 @@ import ViewsMenu from './ViewsMenu.vue'
 <template>
   <div class="flex gap-2 items-center">
     <MenubarRoot
-      class="flex p-[3px]"
+      class="flex"
     >
       <MenubarMenu class="MenubarMenu">
         <MenubarTrigger
-          class="click py-2 px-3 text-xl select-none font-bold leading-none flex items-center justify-between gap-2 tooltip"
+          class="click text-xl select-none font-bold leading-none flex items-center justify-between gap-2 tooltip"
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
         >
 

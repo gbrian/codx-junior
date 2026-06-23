@@ -1,8 +1,8 @@
 [
   {
-    "name": "wiki",
-    "slug": "wiki",
-    "description": "",
+    "name": "Database Data Management",
+    "slug": "database-data-management",
+    "description": "This domain encompasses the architectural guidelines and storage solutions for managing application data within the CoDX Junior ecosystem. It provides documentation and structural frameworks for database implementation, ensuring consistent data handling and reliable storage practices.",
     "files": [
       "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
       "domains/database-data-storage.md",

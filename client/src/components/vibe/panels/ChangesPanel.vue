@@ -17,18 +17,25 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       </button>
     </div>
 
-    <!-- Project selector for multi-project tasks -->
-    <div v-if="projectsList.length > 1" class="shrink-0 border-b border-base-content/10 px-2 py-2 bg-base-200/30">
-      <div class="flex items-center gap-2 text-xs">
-        <span class="text-base-content/60 font-mono">Project:</span>
-        <select
-          v-model="selectedProjectId"
-          class="select select-xs select-bordered flex-1"
+    <!-- Projects tabs with change counts -->
+    <div v-if="projectsWithGit.length > 0" class="shrink-0 border-b border-base-content/10 bg-base-200/30 overflow-x-auto scrollbar-none">
+      <div class="flex gap-1 px-2 py-1 min-w-max">
+        <button
+          v-for="proj in projectsWithGit"
+          :key="chatId(proj)"
+          @click="selectedProjectId = chatId(proj)"
+          :class="selectedProjectId === chatId(proj) ? 'tab-active' : ''"
+          class="tab tab-sm tab-bordered text-xs gap-1 whitespace-nowrap"
         >
-          <option v-for="proj in projectsList" :key="chatId(proj)" :value="chatId(proj)">
-            {{ proj.project_name }}
-          </option>
-        </select>
+          <span class="font-mono truncate max-w-[100px]">{{ proj.project_name }}</span>
+          <span 
+            class="badge badge-xs"
+            :class="getChangeCountClass(chatId(proj))"
+            v-if="changeCountByProject[chatId(proj)]"
+          >
+            {{ changeCountByProject[chatId(proj)] }}
+          </span>
+        </button>
       </div>
     </div>
 
@@ -67,6 +74,12 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       <span class="text-sm">No active session</span>
     </div>
 
+    <!-- No projects with git -->
+    <div v-else-if="projectsWithGit.length === 0" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+      <i class="fa-solid fa-exclamation-triangle text-4xl text-warning"></i>
+      <span class="text-sm">No projects with git initialized</span>
+    </div>
+
     <!-- Loading state -->
     <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
       <i class="fa-solid fa-spinner text-4xl animate-spin"></i>
@@ -89,7 +102,9 @@ export default {
       availableBranches: [],
       loadingBranches: false,
       branchesLoaded: false,
-      projectBranchCache: {}
+      projectBranchCache: {},
+      projectsGitStatus: {},
+      changeCountByProject: {}
     }
   },
   computed: {
@@ -107,7 +122,7 @@ export default {
       chatsToProcess.push(...subtasks)
 
       chatsToProcess.forEach(c => {
-        const chatId = this.chatId(c) 
+        const chatId = this.chatId(c)
         if (chatId) {
           const proj = this.$storex.projects.allProjectsById?.[chatId]
           if (proj) {
@@ -117,6 +132,14 @@ export default {
       })
 
       return Array.from(projects.values())
+    },
+
+    projectsWithGit() {
+      // Filter projects that have branches (git initialized)
+      return this.projectsList.filter(proj => {
+        const projId = this.chatId(proj)
+        return this.projectsGitStatus[projId]?.hasGit === true
+      })
     },
 
     selectedProject() {
@@ -136,6 +159,7 @@ export default {
       if (newProjectId) {
         this.loadProjectBranches(newProjectId)
         this.loadBranchConfigForProject(newProjectId)
+        this.loadChangeCount(newProjectId)
       }
     }
   },
@@ -148,7 +172,7 @@ export default {
     chatId({ project_id, owner_project_id }) {
       return project_id || owner_project_id
     },
-   
+
     initializeProjectSelection() {
       if (!this.chat) {
         this.branchesLoaded = false
@@ -156,13 +180,38 @@ export default {
         return
       }
 
+      // Check git status for all projects first
+      this.checkAllProjectsGitStatus()
+
       this.selectedProjectId = this.chatId(this.chat)
 
       if (this.selectedProjectId) {
         this.loadProjectBranches(this.selectedProjectId)
         this.loadBranchConfigForProject(this.selectedProjectId)
+        this.loadChangeCount(this.selectedProjectId)
       } else {
         this.branchesLoaded = false
+      }
+    },
+
+    async checkAllProjectsGitStatus() {
+      // Check which projects have git initialized
+      for (const proj of this.projectsList) {
+        const projId = this.chatId(proj)
+        if (!projId) continue
+
+        if (this.projectsGitStatus[projId] !== undefined) {
+          continue // Already checked
+        }
+
+        try {
+          const branches = await proj.$api.repo.branches()
+          this.projectsGitStatus[projId] = {
+            hasGit: Array.isArray(branches) && branches.length > 0
+          }
+        } catch (error) {
+          this.projectsGitStatus[projId] = { hasGit: false }
+        }
       }
     },
 
@@ -196,6 +245,26 @@ export default {
       }
     },
 
+    async loadChangeCount(projectId) {
+      if (!projectId) return
+
+      try {
+        const project = this.$storex.projects.allProjectsById[projectId]
+        if (!project) return
+
+        const changes = await project.$api.repo.changes({
+          from_branch: this.currentBranch,
+          to_branch: this.compareBranch
+        })
+
+        const fileCount = Object.keys(changes?.branch_file_and_commits || {}).length
+        this.changeCountByProject[projectId] = fileCount
+      } catch (error) {
+        console.error('Failed to load change count:', error)
+        this.changeCountByProject[projectId] = 0
+      }
+    },
+
     async refreshBranches() {
       if (!this.selectedProjectId || this.loadingBranches) return
 
@@ -206,12 +275,18 @@ export default {
         if (!project) return
 
         const branches = await project.$api.repo.branches()
-        
+
         this.projectBranchCache[this.selectedProjectId] = branches || []
         this.availableBranches = this.projectBranchCache[this.selectedProjectId]
-        
+
         if (!this.availableBranches.includes(this.currentBranch)) {
           this.currentBranch = this.availableBranches[0] || 'main'
+        }
+
+        // Refresh change counts for all projects
+        for (const proj of this.projectsWithGit) {
+          const projId = this.chatId(proj)
+          this.loadChangeCount(projId)
         }
       } catch (error) {
         console.error('Failed to refresh branches:', error)
@@ -228,7 +303,6 @@ export default {
         return
       }
 
-      // Read from pull_requests pr_view structure
       const prConfig = this.chat.pr_view.pull_requests?.[projectId]
       if (prConfig) {
         this.currentBranch = prConfig.fromBranch || 'main'
@@ -241,17 +315,20 @@ export default {
 
     onBranchChanged(branch) {
       this.currentBranch = branch
+      this.loadChangeCount(this.selectedProjectId)
       this.saveBranchConfig()
     },
 
     onCompareBranchChanged(branch) {
       this.compareBranch = branch
+      this.loadChangeCount(this.selectedProjectId)
       this.saveBranchConfig()
     },
 
     onBranchSelected({ fromBranch, toBranch }) {
       this.currentBranch = fromBranch
       this.compareBranch = toBranch
+      this.loadChangeCount(this.selectedProjectId)
       this.saveBranchConfig()
       this.$emit('select-branch', { fromBranch, toBranch })
     },
@@ -275,6 +352,14 @@ export default {
       }
 
       this.$storex.chats.saveChat(updatedChat)
+    },
+
+    getChangeCountClass(projectId) {
+      const count = this.changeCountByProject[projectId] || 0
+      if (count === 0) return 'badge-ghost'
+      if (count < 5) return 'badge-info'
+      if (count < 10) return 'badge-warning'
+      return 'badge-error'
     }
   }
 }

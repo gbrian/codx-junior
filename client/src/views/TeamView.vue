@@ -8,35 +8,59 @@ import CreateTeamDialog from '@/components/teams/CreateTeamDialog.vue'
 import AddMemberDialog from '@/components/teams/AddMemberDialog.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
 import VibeDesktop from '@/components/desktop/VibeDesktop.vue'
-import StatuBar from '@/components/StatuBar.vue'
 import TeamBar from '@/components/teams/TeamBar.vue'
+import TeamQuickBar from '@/components/teams/TeamQuickBar.vue'
+import TopBar from '@/components/TopBar.vue'
 </script>
 
 <template>
-  <div class="flex h-full bg-base-300 overflow-hidden">
-
-    <!-- ── Merged TeamBar (QuickBar + Channels) column ──────────────────── -->
-    <TeamBar
+  <div class="flex flex-col h-full bg-base-300 overflow-hidden">
+    
+    <!-- ── Top Bar (thin) ──────────────────────────────────────────── -->
+    <TopBar 
+      class="shrink-0 h-12"
       :active-team="activeTeam"
-      @open-team-settings="showTeamSettings = true"
-      @open-create-channel="openCreateChannel"
-      @edit-category="editCategory"
-      @edit-channel="onEditChannel"
-      @add-member="showAddMember = true"
-      @select-member="onSelectMember"
-      @select-team="selectTeam"
-      @create-team="showCreateTeam = true"
+      @toggle-team-bar="toggleTeamBar"
     />
 
-    <!-- ── Main content area ──────────────────────────────────────────── -->
-    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
-      <!-- Expert mode: tabbed Desktop -->
-      <Desktop v-if="isExpertMode" />
+    <!-- ── Main Layout: QuickBar + TeamBar + Content ──────────────────── -->
+    <div class="flex flex-1 min-w-0 overflow-hidden">
       
-      <!-- Vibe mode: single app VibeDesktop -->
-      <VibeDesktop v-else />
-      
-      <StatuBar class="w-full" />
+      <!-- ── Left: TeamQuickBar (collapsible) ──────────────────────── -->
+      <TeamQuickBar
+        :teams="teams"
+        :active-team="activeTeam"
+        :is-collapsed="isQuickBarCollapsed"
+        :is-team-bar-collapsed="isTeamBarCollapsed"
+        @select-team="selectTeam"
+        @create-team="showCreateTeam = true"
+        @toggle-collapse="toggleQuickBar"
+        @expand-team-bar="expandTeamBar"
+      />
+
+      <!-- ── Center: TeamBar (collapsible) ──────────────────────────── -->
+      <TeamBar
+        :active-team="activeTeam"
+        :is-collapsed="isTeamBarCollapsed"
+        @toggle-collapse="toggleTeamBar"
+        @open-team-settings="showTeamSettings = true"
+        @open-create-channel="openCreateChannel"
+        @edit-category="editCategory"
+        @edit-channel="onEditChannel"
+        @add-member="showAddMember = true"
+        @select-member="onSelectMember"
+        @select-team="selectTeam"
+        @create-team="showCreateTeam = true"
+      />
+
+      <!-- ── Right: Main content area ──────────────────────────────── -->
+      <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <!-- Expert mode: tabbed Desktop -->
+        <Desktop v-if="isExpertMode" />
+        
+        <!-- Vibe mode: single app VibeDesktop -->
+        <VibeDesktop v-else />
+      </div>
     </div>
 
     <!-- ── Modals ─────────────────────────────────────────────────────────── -->
@@ -114,12 +138,16 @@ export default {
       editingChannel: null,
       editingChannelCategory: null,
       editingCategory: null,
-      selectedMember: null
+      selectedMember: null,
+      isTeamBarCollapsed: false,
+      isQuickBarCollapsed: false
     }
   },
   created() {
     this.$storex.teams.init()
     this.$storex.media.init()
+    this.isTeamBarCollapsed = this.$storex.ui.teamBarCollapsed
+    this.isQuickBarCollapsed = this.$storex.ui.quickBarCollapsed
   },
   computed: {
     teams() {
@@ -128,14 +156,24 @@ export default {
     activeTeam() {
       return this.$storex.teams.activeTeam
     },
-    teamBarCollapsed() {
-      return this.$storex.ui.teamBarCollapsed
-    },
     isExpertMode() {
       return this.$storex.ui.viewMode === 'expert'
     }
   },
   methods: {
+    toggleTeamBar() {
+      this.isTeamBarCollapsed = !this.isTeamBarCollapsed
+      this.$storex.ui.setTeamBarCollapsed(this.isTeamBarCollapsed)
+    },
+    // Expand TeamBar from the quick bar handle click
+    expandTeamBar() {
+      this.isTeamBarCollapsed = false
+      this.$storex.ui.setTeamBarCollapsed(false)
+    },
+    toggleQuickBar() {
+      this.isQuickBarCollapsed = !this.isQuickBarCollapsed
+      this.$storex.ui.setQuickBarCollapsed(this.isQuickBarCollapsed)
+    },
     selectTeam(team) {
       this.$storex.teams.selectTeam(team.id)
       this.$storex.ui.setActiveTeam(team)
@@ -207,14 +245,6 @@ export default {
       if (!this.selectedMember || !this.activeTeam) return
       this.$storex.teams.removeMember({ teamId: this.activeTeam.id, memberId: this.selectedMember.id })
       this.selectedMember = null
-    },
-    async onNewQuickChat() {
-      const chat = await this.$service.chat.newQuickChat()
-      this.$ui.openChat(chat)
-    },
-    openMediaLibrary() {
-      if (!this.activeTeam) return
-      this.$storex.ui.openTeamMediaLibrary({ team: this.activeTeam })
     },
     onSelectMember(member) {
       this.selectedMember = member

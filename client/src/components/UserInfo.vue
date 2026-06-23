@@ -7,11 +7,12 @@ import MetricRow from './MetricRow.vue'
     <!-- Slot for custom trigger (default: compact status bar) -->
     <slot name="trigger" :toggle-panel="togglePanel" :daily-limit-status="dailyLimitStatus" :today-coins="todayCoins" :user="user" :wallet="wallet">
       <div
-        class="flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-1 py-0.5"
+        class="flex items-center gap-2 cursor-pointer hover:bg-base-200 rounded px-2 py-1 transition-colors"
         @click="togglePanel"
+        :title="`${user?.userName || 'User'}`"
       >
-        <!-- Avatar with warning indicator -->
-        <div class="avatar placeholder relative">
+        <!-- Avatar -->
+        <div class="avatar placeholder relative shrink-0">
           <div
             class="w-6 h-6 rounded-full text-neutral-content overflow-hidden"
             :class="dailyLimitStatus === 'exceeded' ? 'bg-error ring-2 ring-error ring-offset-1' : dailyLimitStatus === 'warning' ? 'bg-warning ring-2 ring-warning ring-offset-1' : 'bg-neutral'"
@@ -30,10 +31,13 @@ import MetricRow from './MetricRow.vue'
           </span>
         </div>
 
+        <!-- Username -->
+        <span class="text-sm font-medium hidden sm:block truncate">{{ user?.userName || 'User' }}</span>
+
         <!-- Compact: today's coins + wallet balance -->
         <div
           v-if="todayCoins != null"
-          class="text-xs font-mono hidden sm:flex items-center gap-0.5"
+          class="text-xs font-mono hidden md:flex items-center gap-0.5"
           :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-warning'"
         >
           <i
@@ -45,7 +49,7 @@ import MetricRow from './MetricRow.vue'
           <!-- Inline exceeded label -->
           <span v-if="dailyLimitStatus === 'exceeded'" class="text-error font-bold ml-1 animate-pulse">LIMIT!</span>
         </div>
-        <div v-if="wallet" class="text-xs text-success font-mono hidden sm:flex items-center gap-0.5 ml-1">
+        <div v-if="wallet" class="text-xs text-success font-mono hidden md:flex items-center gap-0.5 ml-1">
           <i class="fa-solid fa-wallet text-success"></i>
           <span>{{ formatCoins(wallet.balance_cxjcoins) }}</span>
         </div>
@@ -55,9 +59,9 @@ import MetricRow from './MetricRow.vue'
     <!-- Detailed panel overlay -->
     <div
       v-if="showPanel"
-      class="absolute left-0 bottom-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
+      class="absolute right-0 top-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
     >
-      <!-- Header: user info -->
+      <!-- Header: user info + close button -->
       <div class="flex items-center gap-3">
         <div class="avatar placeholder relative">
           <div class="w-12 h-12 rounded-full bg-neutral text-neutral-content overflow-hidden">
@@ -65,7 +69,7 @@ import MetricRow from './MetricRow.vue'
             <span v-else class="text-lg">{{ userInitial }}</span>
           </div>
         </div>
-        <div>
+        <div class="flex-1">
           <div class="font-semibold text-base-content">{{ user?.userName }}</div>
           <div class="text-xs text-base-content opacity-60">{{ user?.role }}</div>
         </div>
@@ -240,9 +244,25 @@ import MetricRow from './MetricRow.vue'
 
       <div v-else class="text-xs text-base-content opacity-50 text-center py-2">No metrics available</div>
 
-      <!-- Logout -->
       <div class="divider my-0"></div>
-      <button class="btn btn-xs btn-outline btn-error w-full" @click="logout">Logout</button>
+
+      <!-- Settings and Logout section -->
+      <div class="flex flex-col gap-2">
+        <button 
+          class="btn btn-xs btn-outline w-full flex items-center justify-center gap-2"
+          @click="openAccountSettings"
+        >
+          <i class="fa-solid fa-user-gear"></i>
+          Account Settings
+        </button>
+        <button 
+          class="btn btn-xs btn-outline btn-error w-full flex items-center justify-center gap-2"
+          @click="logout"
+        >
+          <i class="fa-solid fa-right-from-bracket"></i>
+          Logout
+        </button>
+      </div>
     </div>
 
     <!-- Backdrop to close panel -->
@@ -359,6 +379,10 @@ export default {
     formatDate(dateStr) {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleDateString()
+    },
+    openAccountSettings() {
+      this.showPanel = false
+      this.$ui.setActiveTab('account')
     },
     async logout() {
       this.showPanel = false

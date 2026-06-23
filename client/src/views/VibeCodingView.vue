@@ -14,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid'
 <template>
   <div class="flex flex-col h-full w-full bg-base-300 overflow-hidden">
 
-    <!-- Main header -->
+    <!-- Main header for Vibe Coding -->
     <VibeCodingHeader
       ref="vibeHeader"
       :chat="activeChat"
@@ -128,6 +128,9 @@ export default {
     activeChat() {
       return this.$storex.chats.activeChat
     },
+    activeTeam() {
+      return this.$storex.teams.activeTeam
+    },
     kanbanParams() {
       return this.params || {}
     },
@@ -179,7 +182,6 @@ export default {
         this.showKanbanPanel = true
       }
     },
-
     loadChildrenChats() {
       const children = this.$storex.chats.allChats.filter(c => c.parent_id === this.activeChat.id)
       children.forEach(c => {
@@ -188,42 +190,35 @@ export default {
         }
       })
     },
-
     toggleView(view) {
       if (view === 'chat') this.showChat = !this.showChat
       else if (view === 'changes') this.showChanges = !this.showChanges
       else if (view === 'preview') this.showPreview = !this.showPreview
     },
-
     selectChildChat(childChat) {
       this.activeChildChat = childChat
       if (childChat && !childChat.messages?.length) {
         this.$storex.chats.reloadChat(childChat)
       }
     },
-
     onKanbanChatSelected(chat) {
       if (chat) {
         this.$storex.chats.setActiveChat(chat)
       }
       this.showKanbanPanel = false
     },
-
     onChatMetaUpdated(updatedChat) {
       if (!updatedChat?.id) return
       Object.assign(this.activeChat, updatedChat)
       this.$storex.chats.saveChat(this.activeChat)
     },
-
     onChatUpdated(updatedChat) {
       if (!updatedChat?.id) return
       Object.assign(this.activeChat, updatedChat)
       this.$storex.chats.saveChat(this.activeChat)
     },
-
     onPRBranchSelected({ fromBranch, toBranch, projectId }) {
       if (!this.activeChat || !projectId) return
-      
       const updatedChat = {
         ...this.activeChat,
         meta_data: {
@@ -238,38 +233,24 @@ export default {
           }
         }
       }
-      
       Object.assign(this.activeChat, updatedChat)
       this.$storex.chats.saveChat(this.activeChat)
     },
-
     reloadActiveChat() {
       if (this.activeChat) {
         this.$storex.chats.reloadChat(this.activeChat)
       }
     },
-
-    refreshChanges() {
-      // Refresh changes panel logic
-    },
-
-    reloadPreview() {
-      // Reload preview panel logic
-    },
-
-    openPreviewFullscreen() {
-      // Open fullscreen preview logic
-    },
-
+    refreshChanges() {},
+    reloadPreview() {},
+    openPreviewFullscreen() {},
     reloadWorkspace() {
       this.reloadPreview()
       this.reloadActiveChat()
     },
-
     navigateToBoard() {
       this.$emit('chats', this.kanban?.title || this.activeChat?.board)
     },
-
     navigateToParent(parentChat) {
       if (parentChat) {
         this.$storex.chats.setActiveChat(parentChat)
@@ -277,7 +258,6 @@ export default {
         this.navigateToBoard()
       }
     },
-
     autoSelectApp() {
       if (!this.projectApps?.length) return
       const vncApp = this.projectApps.find(a => a.is_vnc) || this.projectApps[0]
@@ -286,15 +266,12 @@ export default {
         this.onAppSelected()
       }
     },
-
     onAppSelected() {
       const app = this.projectApps.find(a => a.key === this.selectedAppKey)
       this.selectedApp = app ? { app } : null
     },
-
     createSubTask({ name, mode, description }) {
       if (!name?.trim() || !this.activeChat) return
-
       this.$storex.chats.createNewChat({
         id: uuidv4(),
         board: this.activeChat.board,
@@ -309,13 +286,11 @@ export default {
         this.$storex.chats.saveChat(chat)
       })
     },
-
     addTag(tagName) {
       if (!tagName || !this.activeChat) return
       this.activeChat.tags = [...new Set([...(this.activeChat.tags || []), tagName])]
       this.$storex.chats.saveChat(this.activeChat)
     },
-
     executeCreateSubtasks(instructions) {
       if (this.activeChat) {
         this.$storex.projects.createSubTasks({
@@ -324,40 +299,29 @@ export default {
         })
       }
     },
-
     setChatProject(project) {
       if (!this.activeChat) return
       this.activeChat.project_id = project.project_id
       this.$storex.chats.saveChat(this.activeChat)
     },
-
-    onAddProfile(profile) {
-      // Profile handling logic
-    },
-
+    onAddProfile(profile) {},
     onPRComment({ chat, title, files, description, profiles, mode, column }) {
       this.$emit('comment', { chat, title, files, description, profiles, mode, column })
     },
-
     onChangeColumnFromPR({ chats, column }) {
       this.$emit('change-column', { chats, column })
     },
-
     onNewChatFromChanges(payload) {
       this.$emit('new-chat', payload)
     },
-
     onPRChatMessage({ file }) {
       if (file.chat?.messages) {
         file.chat.messages.push({})
       }
     },
-
     async onDeleteChat(chatToDelete) {
       if (!chatToDelete?.id) return
-
       await this.$storex.chats.deleteChat(chatToDelete)
-
       if (this.activeChat?.id === chatToDelete.id) {
         const parentChat = this.$storex.chats.chats[chatToDelete.parent_id]
         if (parentChat) {
