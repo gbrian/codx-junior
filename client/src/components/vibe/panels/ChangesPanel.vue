@@ -4,87 +4,93 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
 </script>
 
 <template>
-  <div class="changes-panel flex flex-col h-full w-full">
-    <!-- Header with title and refresh -->
+  <div class="flex flex-col h-full w-full">
+    <!-- Header -->
     <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
       <i class="fa-solid fa-code-compare text-warning text-sm"></i>
       <span class="text-sm font-bold truncate grow">Changes</span>
-      <button class="btn btn-xs btn-ghost" @click="refreshBranches" :disabled="loadingBranches" title="Load branches from project">
-        <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': loadingBranches }"></i>
+      <button class="btn btn-xs btn-ghost" @click="loadAllProjects" :disabled="loadingChanges" title="Reload branches & changes">
+        <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': loadingChanges }"></i>
       </button>
       <button class="btn btn-xs btn-ghost" @click="$emit('refresh')" title="Refresh changes">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
     </div>
 
-    <!-- Projects tabs with change counts -->
-    <div v-if="projectsWithGit.length > 0" class="shrink-0 border-b border-base-content/10 bg-base-200/30 overflow-x-auto scrollbar-none">
-      <div class="flex gap-1 px-2 py-1 min-w-max">
-        <button
-          v-for="proj in projectsWithGit"
-          :key="chatId(proj)"
-          @click="selectedProjectId = chatId(proj)"
-          :class="selectedProjectId === chatId(proj) ? 'tab-active' : ''"
-          class="tab tab-sm tab-bordered text-xs gap-1 whitespace-nowrap"
-        >
-          <span class="font-mono truncate max-w-[100px]">{{ proj.project_name }}</span>
-          <span 
-            class="badge badge-xs"
-            :class="getChangeCountClass(chatId(proj))"
-            v-if="changeCountByProject[chatId(proj)]"
-          >
-            {{ changeCountByProject[chatId(proj)] }}
-          </span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Branch selector for current project -->
-    <BranchSelector
-      v-if="selectedProject && branchesLoaded"
-      :project="selectedProject"
-      :current-branch="currentBranch"
-      :compare-branch="compareBranch"
-      :available-branches="availableBranches"
-      :loading="loadingBranches"
-      @branch-changed="onBranchChanged"
-      @compare-branch-changed="onCompareBranchChanged"
-    />
-
-    <!-- PR View content -->
-    <div v-if="chat && selectedProject && branchesLoaded" class="grow min-h-0 overflow-hidden p-2">
-      <PRView
-        ref="prView"
-        :chat="activeChat"
-        :from-branch="compareBranch"
-        :to-branch="currentBranch"
-        :project="selectedProject"
-        class="h-full"
-        @select-branch="onBranchSelected"
-        @comment="$emit('comment', $event)"
-        @change-column="$emit('change-column', $event)"
-        @new-chat="$emit('new-chat', $event)"
-        @chat-message="$emit('chat-message', $event)"
-      />
-    </div>
-
-    <!-- Empty state -->
-    <div v-else-if="!chat" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
-      <i class="fa-solid fa-inbox text-4xl"></i>
-      <span class="text-sm">No active session</span>
-    </div>
-
-    <!-- No projects with git -->
-    <div v-else-if="projectsWithGit.length === 0" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
-      <i class="fa-solid fa-exclamation-triangle text-4xl text-warning"></i>
-      <span class="text-sm">No projects with git initialized</span>
-    </div>
-
     <!-- Loading state -->
-    <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
-      <i class="fa-solid fa-spinner text-4xl animate-spin"></i>
-      <span class="text-sm">Loading branches...</span>
+    <div v-if="loadingChanges" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/50">
+      <i class="fa-solid fa-spinner text-3xl animate-spin"></i>
+      <span class="text-sm font-medium">Loading changes...</span>
+      <span class="text-xs opacity-60" v-if="loadingStep">{{ loadingStep }}</span>
     </div>
+
+    <template v-else>
+      <!-- No active session -->
+      <div v-if="!chat" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+        <i class="fa-solid fa-inbox text-4xl"></i>
+        <span class="text-sm">No active session</span>
+      </div>
+
+      <!-- No projects with git -->
+      <div v-else-if="projectsWithBranches.length === 0" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+        <i class="fa-solid fa-exclamation-triangle text-4xl text-warning"></i>
+        <span class="text-sm">No projects with git initialized</span>
+      </div>
+
+      <template v-else>
+        <!-- Project tabs -->
+        <div class="shrink-0 border-b border-base-content/10 bg-base-200/30 overflow-x-auto scrollbar-none">
+          <div class="flex gap-1 px-2 py-1 min-w-max">
+            <button
+              v-for="proj in projectsWithBranches"
+              :key="projId(proj)"
+              @click="selectedProjectId = projId(proj)"
+              :class="selectedProjectId === projId(proj) ? 'tab-active' : ''"
+              class="tab tab-sm tab-bordered text-xs gap-1 whitespace-nowrap"
+            >
+              <span class="font-mono truncate max-w-[100px]">{{ proj.project_name }}</span>
+              <span
+                class="badge badge-xs"
+                :class="changeCountClass(projId(proj))"
+                v-if="changeCountByProject[projId(proj)]"
+              >{{ changeCountByProject[projId(proj)] }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Branch selector -->
+        <BranchSelector
+          v-if="selectedProject"
+          :project="selectedProject"
+          :current-branch="currentBranch"
+          :compare-branch="compareBranch"
+          :available-branches="selectedBranches"
+          :loading="false"
+          @branch-changed="onBranchChanged"
+          @compare-branch-changed="onCompareBranchChanged"
+        />
+
+        <!-- PRView: key forces re-mount when cache key changes -->
+        <div v-if="selectedProject && cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
+          <PRView
+            :key="cacheKey"
+            ref="prView"
+            :chat="chat"
+            :from-branch="compareBranch"
+            :to-branch="currentBranch"
+            :project="selectedProject"
+            :available-branches="selectedBranches"
+            :repo-changes="cachedRepoChanges"
+            class="h-full"
+            @select-branch="onBranchSelected"
+            @comment="$emit('comment', $event)"
+            @change-column="$emit('change-column', $event)"
+            @new-chat="$emit('new-chat', $event)"
+            @chat-message="$emit('chat-message', $event)"
+          />
+        </div>
+      </template>
+    </template>
   </div>
 </template>
 
@@ -96,246 +102,225 @@ export default {
   emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message'],
   data() {
     return {
+      loadingChanges: false,
+      loadingStep: '',
       selectedProjectId: null,
-      currentBranch: 'main',
-      compareBranch: 'local',
-      availableBranches: [],
-      loadingBranches: false,
-      branchesLoaded: false,
-      projectBranchCache: {},
-      projectsGitStatus: {},
-      changeCountByProject: {}
+      // projectId -> branches[]
+      branchesByProject: {},
+      // cacheKey -> repoChanges — always replaced as whole object for reactivity
+      changesByProject: {},
+      // projectId -> fileCount
+      changeCountByProject: {},
+      // per-project branch selections: projectId -> { current, compare }
+      branchSelectionByProject: {},
     }
   },
   computed: {
-    activeChat() {
-      return this.chat
-    },
-    projectsList() {
+    // All projects from chat + subtasks
+    allProjects() {
       if (!this.chat) return []
-
-      const projects = new Map()
-      const chatsToProcess = [this.chat]
-
+      const map = new Map()
       const allChats = this.$storex.chats.allChats || []
-      const subtasks = allChats.filter(c => c.parent_id === this.chat.id)
-      chatsToProcess.push(...subtasks)
-
-      chatsToProcess.forEach(c => {
-        const chatId = this.chatId(c)
-        if (chatId) {
-          const proj = this.$storex.projects.allProjectsById?.[chatId]
-          if (proj) {
-            projects.set(chatId, proj)
-          }
+      const related = [this.chat, ...allChats.filter(c => c.parent_id === this.chat.id)]
+      related.forEach(c => {
+        const id = this.projId(c)
+        if (id && !map.has(id)) {
+          const proj = this.$storex.projects.allProjectsById?.[id]
+          if (proj) map.set(id, proj)
         }
       })
-
-      return Array.from(projects.values())
+      return Array.from(map.values())
     },
 
-    projectsWithGit() {
-      // Filter projects that have branches (git initialized)
-      return this.projectsList.filter(proj => {
-        const projId = this.chatId(proj)
-        return this.projectsGitStatus[projId]?.hasGit === true
+    // Only projects that have branches loaded
+    projectsWithBranches() {
+      return this.allProjects.filter(p => {
+        const branches = this.branchesByProject[this.projId(p)]
+        return Array.isArray(branches) && branches.length > 0
       })
     },
 
     selectedProject() {
       if (!this.selectedProjectId) return null
       return this.$storex.projects.allProjectsById?.[this.selectedProjectId] || null
-    }
-  },
-
-  watch: {
-    chat(newChat) {
-      if (newChat?.id) {
-        this.initializeProjectSelection()
-      }
     },
 
-    selectedProjectId(newProjectId) {
-      if (newProjectId) {
-        this.loadProjectBranches(newProjectId)
-        this.loadBranchConfigForProject(newProjectId)
-        this.loadChangeCount(newProjectId)
-      }
+    selectedBranches() {
+      return this.branchesByProject[this.selectedProjectId] || []
+    },
+
+    currentBranch() {
+      return this.branchSelectionByProject[this.selectedProjectId]?.current || 'main'
+    },
+
+    compareBranch() {
+      return this.branchSelectionByProject[this.selectedProjectId]?.compare || 'local'
+    },
+
+    cacheKey() {
+      if (!this.selectedProjectId) return null
+      return `${this.selectedProjectId}:${this.compareBranch}:${this.currentBranch}`
+    },
+
+    cachedRepoChanges() {
+      return this.cacheKey ? (this.changesByProject[this.cacheKey] || null) : null
     }
   },
-
-  mounted() {
-    this.initializeProjectSelection()
+  watch: {
+    chat(newChat) {
+      if (newChat?.id) this.loadAllProjects()
+    },
+    selectedProjectId(id) {
+      if (id && !this.cachedRepoChanges) {
+        this.loadChangesForProject(id)
+      }
+    },
+    currentBranch() {
+      this.loadChangesForProject(this.selectedProjectId)
+    },
+    compareBranch() {
+      this.loadChangesForProject(this.selectedProjectId)
+    }
   },
-
+  mounted() {
+    if (this.chat) this.loadAllProjects()
+  },
   methods: {
-    chatId({ project_id, owner_project_id }) {
+    projId({ project_id, owner_project_id } = {}) {
       return project_id || owner_project_id
     },
 
-    initializeProjectSelection() {
-      if (!this.chat) {
-        this.branchesLoaded = false
-        this.selectedProjectId = null
-        return
-      }
-
-      // Check git status for all projects first
-      this.checkAllProjectsGitStatus()
-
-      this.selectedProjectId = this.chatId(this.chat)
-
-      if (this.selectedProjectId) {
-        this.loadProjectBranches(this.selectedProjectId)
-        this.loadBranchConfigForProject(this.selectedProjectId)
-        this.loadChangeCount(this.selectedProjectId)
-      } else {
-        this.branchesLoaded = false
-      }
+    // Replace entire changesByProject object so Vue detects the new key reactively
+    setChangesCache(key, value) {
+      this.changesByProject = { ...this.changesByProject, [key]: value }
     },
 
-    async checkAllProjectsGitStatus() {
-      // Check which projects have git initialized
-      for (const proj of this.projectsList) {
-        const projId = this.chatId(proj)
-        if (!projId) continue
+    // Replace entire changeCountByProject object for reactivity
+    setChangeCount(projectId, count) {
+      this.changeCountByProject = { ...this.changeCountByProject, [projectId]: count }
+    },
 
-        if (this.projectsGitStatus[projId] !== undefined) {
-          continue // Already checked
-        }
+    // Replace entire branchesByProject object for reactivity
+    setBranches(projectId, branches) {
+      this.branchesByProject = { ...this.branchesByProject, [projectId]: branches }
+    },
 
-        try {
-          const branches = await proj.$api.repo.branches()
-          this.projectsGitStatus[projId] = {
-            hasGit: Array.isArray(branches) && branches.length > 0
+    // Main entry: load branches for all projects, then load changes
+    async loadAllProjects() {
+      if (!this.chat) return
+      this.loadingChanges = true
+      // Reset with fresh objects
+      this.branchesByProject = {}
+      this.changesByProject = {}
+      this.changeCountByProject = {}
+      this.branchSelectionByProject = {}
+
+      try {
+        for (const proj of this.allProjects) {
+          const id = this.projId(proj)
+          this.loadingStep = `Loading branches for ${proj.project_name}...`
+          try {
+            const branches = await proj.$api.repo.branches()
+            if (Array.isArray(branches) && branches.length > 0) {
+              this.setBranches(id, branches)
+              this.initBranchSelection(id, branches)
+            }
+          } catch {
+            // no git — skip
           }
-        } catch (error) {
-          this.projectsGitStatus[projId] = { hasGit: false }
+        }
+
+        // Load changes for all valid projects
+        for (const proj of this.projectsWithBranches) {
+          const id = this.projId(proj)
+          this.loadingStep = `Loading changes for ${proj.project_name}...`
+          await this.loadChangesForProject(id)
+        }
+
+        // Auto-select first project with branches — done AFTER changes are cached
+        const first = this.projectsWithBranches[0]
+        this.selectedProjectId = first ? this.projId(first) : null
+
+      } finally {
+        this.loadingChanges = false
+        this.loadingStep = ''
+      }
+    },
+
+    // Init branch selection from chat.pr_view or defaults
+    initBranchSelection(projectId, branches) {
+      const prConfig = this.chat?.pr_view?.pull_requests?.[projectId]
+      this.branchSelectionByProject = {
+        ...this.branchSelectionByProject,
+        [projectId]: {
+          current: prConfig?.fromBranch || branches[0] || 'main',
+          compare: prConfig?.toBranch || 'local'
         }
       }
     },
 
-    async loadProjectBranches(projectId) {
-      if (!projectId) {
-        this.branchesLoaded = false
-        return
-      }
-
-      if (this.projectBranchCache[projectId]) {
-        this.availableBranches = this.projectBranchCache[projectId]
-        this.branchesLoaded = true
-        return
-      }
-
-      this.loadingBranches = true
-      this.branchesLoaded = false
-
-      try {
-        const project = this.$storex.projects.allProjectsById[projectId]
-        const branches = await project.$api.repo.branches()
-        this.projectBranchCache[projectId] = branches || []
-        this.availableBranches = this.projectBranchCache[projectId]
-        this.branchesLoaded = true
-      } catch (error) {
-        console.error('Failed to load branches:', error)
-        this.availableBranches = []
-        this.branchesLoaded = true
-      } finally {
-        this.loadingBranches = false
-      }
-    },
-
-    async loadChangeCount(projectId) {
+    async loadChangesForProject(projectId) {
       if (!projectId) return
+      const project = this.$storex.projects.allProjectsById?.[projectId]
+      if (!project) return
+
+      const sel = this.branchSelectionByProject[projectId] || {}
+      const current = sel.current || 'main'
+      const compare = sel.compare || 'local'
+      const key = `${projectId}:${compare}:${current}`
+
+      // Skip if already cached
+      if (this.changesByProject[key]) return
 
       try {
-        const project = this.$storex.projects.allProjectsById[projectId]
-        if (!project) return
-
         const changes = await project.$api.repo.changes({
-          from_branch: this.currentBranch,
-          to_branch: this.compareBranch
+          from_branch: current,
+          to_branch: compare
         })
-
-        const fileCount = Object.keys(changes?.branch_file_and_commits || {}).length
-        this.changeCountByProject[projectId] = fileCount
-      } catch (error) {
-        console.error('Failed to load change count:', error)
-        this.changeCountByProject[projectId] = 0
-      }
-    },
-
-    async refreshBranches() {
-      if (!this.selectedProjectId || this.loadingBranches) return
-
-      this.loadingBranches = true
-
-      try {
-        const project = this.selectedProject
-        if (!project) return
-
-        const branches = await project.$api.repo.branches()
-
-        this.projectBranchCache[this.selectedProjectId] = branches || []
-        this.availableBranches = this.projectBranchCache[this.selectedProjectId]
-
-        if (!this.availableBranches.includes(this.currentBranch)) {
-          this.currentBranch = this.availableBranches[0] || 'main'
-        }
-
-        // Refresh change counts for all projects
-        for (const proj of this.projectsWithGit) {
-          const projId = this.chatId(proj)
-          this.loadChangeCount(projId)
-        }
-      } catch (error) {
-        console.error('Failed to refresh branches:', error)
-        this.$toast.error('Failed to load branches from project')
-      } finally {
-        this.loadingBranches = false
-      }
-    },
-
-    loadBranchConfigForProject(projectId) {
-      if (!this.chat?.pr_view) {
-        this.currentBranch = 'main'
-        this.compareBranch = 'local'
-        return
-      }
-
-      const prConfig = this.chat.pr_view.pull_requests?.[projectId]
-      if (prConfig) {
-        this.currentBranch = prConfig.fromBranch || 'main'
-        this.compareBranch = prConfig.toBranch || 'local'
-      } else {
-        this.currentBranch = 'main'
-        this.compareBranch = 'local'
+        // Use setter to replace whole object — guarantees Vue reactivity
+        this.setChangesCache(key, changes)
+        const count = Object.keys(changes?.branch_file_and_commits || {}).length
+        this.setChangeCount(projectId, count)
+      } catch {
+        this.setChangeCount(projectId, 0)
       }
     },
 
     onBranchChanged(branch) {
-      this.currentBranch = branch
-      this.loadChangeCount(this.selectedProjectId)
+      if (!this.selectedProjectId) return
+      this.branchSelectionByProject = {
+        ...this.branchSelectionByProject,
+        [this.selectedProjectId]: {
+          ...this.branchSelectionByProject[this.selectedProjectId],
+          current: branch
+        }
+      }
       this.saveBranchConfig()
+      this.loadChangesForProject(this.selectedProjectId)
     },
 
     onCompareBranchChanged(branch) {
-      this.compareBranch = branch
-      this.loadChangeCount(this.selectedProjectId)
+      if (!this.selectedProjectId) return
+      this.branchSelectionByProject = {
+        ...this.branchSelectionByProject,
+        [this.selectedProjectId]: {
+          ...this.branchSelectionByProject[this.selectedProjectId],
+          compare: branch
+        }
+      }
       this.saveBranchConfig()
+      this.loadChangesForProject(this.selectedProjectId)
     },
 
     onBranchSelected({ fromBranch, toBranch }) {
-      this.currentBranch = fromBranch
-      this.compareBranch = toBranch
-      this.loadChangeCount(this.selectedProjectId)
-      this.saveBranchConfig()
+      this.onBranchChanged(fromBranch)
+      this.onCompareBranchChanged(toBranch)
       this.$emit('select-branch', { fromBranch, toBranch })
     },
 
     saveBranchConfig() {
       if (!this.chat || !this.selectedProjectId) return
-
+      const sel = this.branchSelectionByProject[this.selectedProjectId]
       const updatedChat = {
         ...this.chat,
         pr_view: {
@@ -344,17 +329,16 @@ export default {
             ...(this.chat.pr_view?.pull_requests || {}),
             [this.selectedProjectId]: {
               url: '',
-              fromBranch: this.currentBranch,
-              toBranch: this.compareBranch
+              fromBranch: sel.current,
+              toBranch: sel.compare
             }
           }
         }
       }
-
       this.$storex.chats.saveChat(updatedChat)
     },
 
-    getChangeCountClass(projectId) {
+    changeCountClass(projectId) {
       const count = this.changeCountByProject[projectId] || 0
       if (count === 0) return 'badge-ghost'
       if (count < 5) return 'badge-info'

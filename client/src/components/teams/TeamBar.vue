@@ -24,7 +24,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
     </div>
     
     <!-- Main content: Only expanded view now -->
-    <div class="flex-1 overflow-y-auto scrollbar-none flex flex-col gap-2 bg-base-200 border-r border-base-content/10">
+    <div class="flex-1 overflow-y-auto scrollbar-none flex flex-col gap-2 bg-base-100 border-r border-base-content/10">
       
       <!-- Channel list -->
       <div v-if="activeTeam" class="w-full">

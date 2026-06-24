@@ -489,7 +489,8 @@ class CODXJuniorSession:
     @profile_function
     async def chat_with_project(
         self,
-        chat: Chat,
+        chat_id: str = None,
+        chat: Chat = None,
         disable_knowledge: bool = False,
         callback=None,
         append_references: bool = True,
@@ -497,6 +498,7 @@ class CODXJuniorSession:
         iteration: int = 0,
     ) -> tuple:
         """Core method: chat with the project using AI and knowledge."""
+        chat = chat or self.get_chat_manager().find_by_id(chat_id=chat_id)
         return await self._chat_engine_actions.chat_with_project(
             chat=chat,
             disable_knowledge=disable_knowledge,

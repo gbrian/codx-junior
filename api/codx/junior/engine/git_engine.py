@@ -257,45 +257,48 @@ class GitEngine:
         if to_branch.startswith("* "):
             to_branch = to_branch[2:]
 
+        # Get list of changed files
         git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
-        branch_files, _ = exec_command(
+        branch_files_output, _ = exec_command(
             git_branch_file_changed, cwd=self.settings.abs_project_path
         )
-        branch_files = branch_files.strip().split("\n")
+        branch_files = [f.strip() for f in branch_files_output.strip().split("\n") if f.strip()]
 
         def get_git_file_diff(file_path: str) -> str:
+            """Get diff for a specific file between branches."""
             cmd = f"git diff {to_branch}...{from_branch} -- {file_path}"
             git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            logger.info(
-                "get_git_file_diff: %s: %s\n%s\n%s",
-                file_path,
-                git_cmd_out,
-                self.settings.abs_project_path,
-                cmd,
-            )
             return git_cmd_out.strip()
 
         def get_git_file_commits(file_path: str) -> list:
+            """Get commits that touched a specific file between branches."""
             pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
-            cmd = f"git log --pretty=format:'{pretty}' {from_branch} -- {file_path}"
+            cmd = f"git log --pretty=format:'{pretty}' {to_branch}..{from_branch} -- {file_path}"
             git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            return [json.loads(line) for line in git_cmd_out.strip().split("\n")]
+            
+            results = []
+            for line in git_cmd_out.strip().split("\n"):
+                if not line.strip():
+                    continue
+                try:
+                    results.append(json.loads(line))
+                except Exception as ex:
+                    logger.warning("Could not parse commit line for %s: %s", file_path, ex)
+            return results
 
-        git_commits = []
-        try:
-            git_commits = get_git_file_commits(branch_files[-1] if branch_files else "")
-        except Exception as ex:
-            logger.error("Error reading branch commits: %s", ex)
-
-        branch_file_and_commits = {
-            file_path: {
-                "commits": git_commits,
+        # Build per-file metadata
+        branch_file_and_commits = {}
+        for file_path in branch_files:
+            if not file_path:
+                continue
+            
+            branch_file_and_commits[file_path] = {
+                "commits": get_git_file_commits(file_path),
                 "diff": get_git_file_diff(file_path),
                 "last_modification": self._get_file_last_modification(file_path),
             }
-            for file_path in branch_files
-        }
 
+        # Get overall diff stats
         git_diff_cmd = (
             f"git diff {to_branch} {from_branch}"
             if from_branch != "local"
@@ -310,13 +313,14 @@ class GitEngine:
             cwd=self.settings.abs_project_path,
         )
 
+        # Handle local changes if comparing against current branch
         local_changes: dict = {}
-
         if is_current_branch:
             git_local, _ = exec_command(
                 "git status -s", cwd=self.settings.abs_project_path
             )
-            local_files = [f.strip().split(" ")[-1] for f in git_local.split("\n")]
+            local_files = [f.strip().split(" ")[-1] for f in git_local.split("\n") if f.strip()]
+            
             for file in local_files:
                 full_path = os.path.join(self.settings.abs_project_path, file)
                 if os.path.isfile(full_path):
@@ -331,14 +335,15 @@ class GitEngine:
                         "last_modification": self._get_file_last_modification(file),
                     }
 
-        for local_file, local_file_info in local_changes.items():
-            if local_file in branch_file_and_commits:
-                branch_file_and_commits[local_file]["diff"] = local_file_info["diff"]
-                branch_file_and_commits[local_file]["last_modification"] = (
-                    local_file_info["last_modification"]
-                )
-            else:
-                branch_file_and_commits[local_file] = local_file_info
+            # Merge local changes into branch changes
+            for local_file, local_file_info in local_changes.items():
+                if local_file in branch_file_and_commits:
+                    branch_file_and_commits[local_file]["diff"] = local_file_info["diff"]
+                    branch_file_and_commits[local_file]["last_modification"] = (
+                        local_file_info["last_modification"]
+                    )
+                else:
+                    branch_file_and_commits[local_file] = local_file_info
 
         pr_details = self.get_pr_review_details(from_branch, to_branch)
 

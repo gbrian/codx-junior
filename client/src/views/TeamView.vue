@@ -35,7 +35,7 @@ import TopBar from '@/components/TopBar.vue'
         @select-team="selectTeam"
         @create-team="showCreateTeam = true"
         @toggle-collapse="toggleQuickBar"
-        @expand-team-bar="expandTeamBar"
+        @toggle-team-bar="toggleTeamBar"
       />
 
       <!-- ── Center: TeamBar (collapsible) ──────────────────────────── -->
@@ -164,11 +164,6 @@ export default {
     toggleTeamBar() {
       this.isTeamBarCollapsed = !this.isTeamBarCollapsed
       this.$storex.ui.setTeamBarCollapsed(this.isTeamBarCollapsed)
-    },
-    // Expand TeamBar from the quick bar handle click
-    expandTeamBar() {
-      this.isTeamBarCollapsed = false
-      this.$storex.ui.setTeamBarCollapsed(false)
     },
     toggleQuickBar() {
       this.isQuickBarCollapsed = !this.isQuickBarCollapsed

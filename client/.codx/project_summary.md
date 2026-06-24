@@ -24,6 +24,7 @@ A comprehensive AI-powered digital workspace Single Page Application (SPA) provi
 *   `src/components/chat/ChatIntelliSense.vue`, `LLMModelSelector.vue`: LLM integration and model selection.
 *   `src/components/chat/ChatMentionBar.vue`, `EmojiPicker.vue`, `ExportChat.vue`: Additional chat features.
 *   `src/components/chats/RecentChatsQuickAccess.vue`: Quick access to recent chats.
+*   `src/components/vibe/ChatPanel.vue`, `ChatPanelHeader.vue`: Vibe-themed chat panel interface.
 
 ## Code Editing & Version Control
 *   `src/components/monaco/Editor.vue`, `DiffViewer.vue`: Code editor wrappers.
@@ -33,21 +34,34 @@ A comprehensive AI-powered digital workspace Single Page Application (SPA) provi
 *   `src/components/code/GitDiffViewer.vue`: File version comparison.
 
 ## Project Management & Task Boards
-*   `src/components/project/`: Project metadata, navigation, creation, and scripting.
+*   `src/components/project/`: Project metadata, navigation, creation, scripting, and icon display.
+*   `src/components/ChatProjectIcon.vue`: Project icon rendering in chat context.
 *   `src/components/kanban/`: Task board with columns, cards, grid, and file views.
+*   `src/components/kanban/KanbanSettings.vue`: Kanban configuration.
+*   `src/components/kanban/TaskSettings.vue`: Individual task configuration.
 
 ## Workspaces & Teams
 *   `src/components/workspaces/`: Workspace organization, selection, and management.
 *   `src/components/teams/`: Team, channel, member management, and settings.
+*   `src/components/teams/TeamSelector.vue`: Team selection interface.
 *   `src/components/teams/TeamDM.vue`: Team direct messaging interface.
 *   `src/components/teams/TeamMediaLibrary.vue`: Team-specific media management.
 *   `src/components/teams/TeamQuickBar.vue`: Team quick access toolbar.
 
 ## Desktop & Window Management
-*   `src/components/desktop/DesktopView.vue`, `Window.vue`, `Tab.vue`: Desktop simulation components.
+*   `src/components/desktop/Desktop.vue`, `Window.vue`, `Tab.vue`: Desktop simulation components.
+*   `src/components/desktop/EmptyStateWelcome.vue`: Empty state welcome screen for desktop.
 *   `src/components/desktop/VibeDesktop.vue`: Vibe-themed desktop environment.
 *   `src/components/windowManager/`: Virtual desktop, windows, workspaces, and navigation.
 *   `src/components/vibe/VibeCodingHeader.vue`: Vibe coding header and workspace UI.
+
+## Vibe Workspace
+*   `src/components/vibe/ChatPanel.vue`, `ChatPanelHeader.vue`: Chat panel interface for Vibe workspace.
+*   `src/components/vibe/VibeCodingHeader.vue`: Header and workspace UI.
+*   `src/components/vibe/panels/BranchSelector.vue`: Branch selection for Vibe workspace.
+*   `src/components/vibe/panels/ChangesPanel.vue`: Changes and diff display for Vibe workspace.
+*   `src/components/vibe/panels/PreviewPanel.vue`: Preview panel for rendering code output and results.
+*   `src/components/vibe/modals/SubtasksModal.vue`, `SubtaskModal.vue`, `TagModal.vue`: Subtask and tag management.
 
 ## AI Configuration & Settings
 *   `src/components/ai_settings/`: Model and provider configuration, agent settings, and model selection.
@@ -77,7 +91,7 @@ A comprehensive AI-powered digital workspace Single Page Application (SPA) provi
 
 ## Navigation & Layout
 *   `src/components/main-menu/`: Sidebar and menu navigation with project, workspace, and view menus.
-*   `src/components/NavigationBar.vue`, `Toolbar.vue`, `EventBar.vue`: Top-level navigation.
+*   `src/components/NavigationBar.vue`, `TopBar.vue`, `Toolbar.vue`, `EventBar.vue`: Top-level navigation and header components.
 *   `src/components/Splitter.vue`, `layout/VerticalSplitter.vue`: Layout dividers.
 *   `src/components/TabView.vue`, `TabNavigation.vue`: Tabbed interfaces.
 *   `src/components/Modal.vue`: Modal dialogs.

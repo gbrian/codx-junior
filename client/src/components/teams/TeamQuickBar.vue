@@ -6,16 +6,6 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
   <div class="h-full relative">
     <div class="flex flex-col items-center gap-2 p-3 bg-base-200 border-r border-base-content/10 shrink-0 overflow-y-auto overflow-x-hidden h-full">
       
-      <!-- TeamBar expand handle: shown when teamBar is collapsed -->
-      <div
-        v-if="isTeamBarCollapsed"
-        class="absolute -right-1 z-100 top-0 tooltip tooltip-right cursor-pointer flex items-start pt-3 shrink-0"
-        data-tip="Expand sidebar"
-        @click="$emit('expand-team-bar')"
-      >
-        <div class="w-2 h-14 rounded-full bg-slate-600 hover:bg-primary transition-all duration-200 mt-2"></div>
-      </div>
-
       <!-- Quick Actions - Always visible and stacked -->
       <div class="flex flex-col items-center gap-2 w-full">
         <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Home" @click="openHome">
@@ -57,6 +47,13 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
         <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Vibe Coding" @click="openVibeCoding">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+        </div>
+
+        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="More..." 
+          @click="$emit('toggle-team-bar')">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
+            <i class="fa-solid fa-ellipsis"></i>
           </div>
         </div>
       </div>

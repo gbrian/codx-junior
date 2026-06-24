@@ -188,6 +188,11 @@ import Collapsible from '../components/Collapsible.vue'
                   <div class="flex items-center gap-1">
                     <span class="text-xs text-base-content-ERROR-40 font-mono w-4">{{ idx + 1 }}</span>
                     <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
+                    <div 
+                      class="loading loading-bars text-info loading-sm opacity-60"
+                      title="Running..."
+                      v-if="$chats.isChatUpdating(childChat.id)"
+                    ></div>
                     <img class="w-3 h-3 rounded-full ml-auto"
                       :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
                   </div>

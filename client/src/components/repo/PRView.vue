@@ -1,12 +1,9 @@
 <script setup>
 import "@git-diff-view/vue/styles/diff-view.css"
 import { DiffParser } from "@git-diff-view/vue"
-import PRBranchSelectoor from './PRBranchSelectoor.vue'
-import PRCommitSelector from './PRCommitSelector.vue'
 import CodxMenu from "../CodxMenu.vue"
 import PRReport from "./PRReport.vue"
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
-import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
 import ChatEntryVue from '../ChatEntry.vue'
 </script>
 
@@ -19,31 +16,6 @@ import ChatEntryVue from '../ChatEntry.vue'
           <progress class="progress grow"></progress>
         </div>
 
-        <!-- Compare controls -->
-        <div class="flex gap-2 flex-wrap items-end">
-          <PRCommitSelector
-            :branches="repoBranches"
-            :projectApi="api"
-            @mode-change="onCompareModeChange"
-            @commit-compare="onCommitCompare"
-          >
-            <!-- Branch selectors rendered inside commit selector slot -->
-            <PRBranchSelectoor 
-              :fromBranch="fromBranchSelected" 
-              :toBranch="toBranchSelected" 
-              @select="onBranchChanged" 
-              :branches="repoBranches" 
-            />
-          </PRCommitSelector>
-
-          <button class="btn btn-xs" @click="refreshSummary" :disabled="loading">
-            <i class="fa-solid fa-arrows-rotate"></i>
-          </button>
-          <div class="grow"></div>
-          <PRFileViewModeSelector :messageCount="messages.length" @select="onSelectFileOption" />
-        </div>
-
-        <!-- Active comparison badge -->
         <div class="flex gap-2 items-center text-xs text-slate-400" v-if="compareMode === 'commit' && activeCommitCompare">
           <i class="fa-solid fa-code-commit"></i>
           <span class="font-mono">{{ activeCommitCompare.fromCommit.slice(0,8) }}</span>
@@ -83,7 +55,7 @@ import ChatEntryVue from '../ChatEntry.vue'
         <div class="grow">
           <div class="flex gap-2 items-center border rounded-md px-1">
             <span class="click" v-if="filter" @click="filter = ''"><i class="fa-solid fa-circle-xmark"></i></span>
-            <input type="text" v-model="filter" class="grow input input-sm" />
+            <input type="text" v-model="filter" class="grow input input-sm bg-transparent" />
             <div class="click flex gap-1 items-center px-1">
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>
@@ -94,22 +66,6 @@ import ChatEntryVue from '../ChatEntry.vue'
           <div class="w-4 h-4 ring ring-offset-1 rounded-full">
             <img :src="profile.avatar" />
           </div>
-        </div>
-        <div class="click px-2 py-1 border rounded-full flex gap-2 items-center tooltip text-xs overflow-hidden text-nowrap text-ellipsis" 
-            v-for="column in columns"
-          :key="column.title" 
-          :title="column.title"
-          :class="`text-[${column.color}] border-[${column.color}]`"
-          @click="filter = (filter||'') + ' column:' + column.title">
-          <i class="fa-solid fa-table-columns"></i> 
-          {{ column.title }}
-          {{ column.chats?.length }}
-        </div>
-        <div class="click px-2 py-1 border border-error text-error items-center rounded-full flex gap-2 tooltip text-xs"
-          @click="filter = (filter||'') + ' hasNo:column'"
-        >
-          <i class="fa-solid fa-circle-exclamation"></i>
-          {{ files?.filter(f => !f.column).length }}
         </div>
       </div>
 
@@ -195,10 +151,18 @@ import ChatEntryVue from '../ChatEntry.vue'
 <script>
 const parser = new DiffParser()
 export default {
-  props: ['fromBranch', 'toBranch', 'chat'],
+  props: [
+    'fromBranch',
+    'toBranch',
+    'chat',
+    'project',
+    'availableBranches',
+    'repoChanges'
+  ],
   data() {
     return {
-      repoChanges: null,
+      // internal copy of repoChanges to avoid conflict with prop
+      localRepoChanges: null,
       overviewChecked: true,
       isInputVisible: false,
       loading: false,
@@ -215,14 +179,19 @@ export default {
       prShowOption: 'diff',
       chatColumn: null,
       projectContext: null,
-      repoBranches: [],
+      repoBranches: this.availableBranches || [],
       compareMode: 'branch',
       activeCommitCompare: null,
       api: null
     }
   },
   created() {
+    // sync prop into local and immediately build files if data is available
+    this.localRepoChanges = this.repoChanges || null
     this.initializeProjectContext()
+    if (this.localRepoChanges) {
+      this.buildFiles()
+    }
   },
   computed: {
     childrenChats() {
@@ -337,25 +306,51 @@ export default {
     chat() {
       this.initializeProjectContext()
     },
+    project() {
+      this.initializeProjectContext()
+    },
     filter() {
       this.resetSelect()
     },
     prChats() {
       this.buildFiles()
+    },
+    fromBranch(newBranch) {
+      this.fromBranchSelected = newBranch
+      this.refreshSummary()
+    },
+    toBranch(newBranch) {
+      this.toBranchSelected = newBranch
+      this.refreshSummary()
+    },
+    availableBranches(newBranches) {
+      this.repoBranches = newBranches || []
+    },
+    // watch the prop and sync into localRepoChanges, then rebuild files
+    repoChanges(newChanges) {
+      this.localRepoChanges = newChanges || null
+      if (this.localRepoChanges) {
+        this.buildFiles()
+      } else {
+        this.files = null
+      }
     }
   },
   methods: {
     async initializeProjectContext() {
       try {
-        // Get the correct API instance for this project
-        const projectId = this.chat.project_id
-        const project = projectId 
-          ? this.$storex.projects.allProjectsById[projectId]
-          : this.$storex.projects.activeProject
+        let projectApi = null
+        
+        if (this.project && this.project.$api) {
+          projectApi = this.project.$api
+        } else if (this.chat?.project_id) {
+          const chatProject = this.$storex.projects.allProjectsById[this.chat.project_id]
+          projectApi = chatProject?.$api
+        } else {
+          projectApi = this.$storex.api
+        }
 
-        this.api = project?.$api || this.$storex.api
-
-        // Load branches for the project
+        this.api = projectApi
         await this.setProjectContext()
       } catch (error) {
         console.error('Error initializing project context:', error)
@@ -388,29 +383,43 @@ export default {
     async refreshSummary() {
       this.loading = true
       try {
+        if (!this.api) {
+          console.error('API not initialized')
+          return
+        }
+
         if (this.compareMode === 'commit' && this.activeCommitCompare) {
           const { fromCommit, toCommit } = this.activeCommitCompare
-          this.repoChanges = await this.api.repo.commitChanges({
+          this.localRepoChanges = await this.api.repo.commitChanges({
             from_commit: fromCommit,
             to_commit: toCommit
           })
         } else {
-          const { fromBranch, toBranch } = this
-          this.repoChanges = await this.api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })
+          // only fetch if not already cached
+          if (!this.localRepoChanges) {
+            this.localRepoChanges = await this.api.repo.changes({
+              from_branch: this.fromBranchSelected,
+              to_branch: this.toBranchSelected
+            })
+          }
         }
         this.buildFiles()
+      } catch (error) {
+        console.error('Error refreshing summary:', error)
+        this.localRepoChanges = null
+        this.files = null
       } finally {
         this.loading = false
       }
     },
 
     buildFiles() {
-      if (!this.repoChanges) {
+      if (!this.localRepoChanges) {
         this.files = null
         return
       }
-      const { branch_file_and_commits } = this.repoChanges 
-      const repoPath = this.repoChanges.repo_path
+      const { branch_file_and_commits } = this.localRepoChanges
+      const repoPath = this.localRepoChanges.repo_path
       
       const files = Object.keys(branch_file_and_commits)
                       .map(file_path => {
@@ -658,6 +667,7 @@ export default {
       const chats = [this.files.find(f => f.file === f.file).chat]
       this.$emit('change-column', { chats, column })
     }
-  }
+  },
+  expose: ['refreshSummary']
 }
 </script>

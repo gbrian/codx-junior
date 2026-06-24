@@ -97,7 +97,7 @@ export default {
     language: { type: String, default: null },
     fileName: { type: String, default: null },
     renderSideBySide: { type: Boolean, default: true },
-    hideUnchanged: { type: Boolean, default: false },
+    hideUnchanged: { type: Boolean, default: true },
     ignoreTrimWhitespace: { type: Boolean, default: true },
     renderIndicators: { type: Boolean, default: true },
     enableSplitViewResizing: { type: Boolean, default: true },

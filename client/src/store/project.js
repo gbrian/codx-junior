@@ -524,7 +524,7 @@ export const actions = actionTree(
     },
     async chatWihProject({ state }, chat) {
       const data = {
-        chat,
+        chat: { id: chat.id },
         codx_path: (await $storex.projects.getChatProject(chat)).codx_path
       }
       $storex.session.emit({ event: 'codx-junior-chat', data })
