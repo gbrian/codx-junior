@@ -270,6 +270,9 @@ class ChatEngineActions:
         Returns:
             Tuple of (updated_chat, documents).
         """
+        if not chat:
+            raise Exception("chat can't be None")
+            
         chat_engine = ChatEngine(
             settings=self.settings,
             event_manager=self.event_manager,

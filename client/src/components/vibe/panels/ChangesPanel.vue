@@ -45,8 +45,8 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
               v-for="proj in projectsWithBranches"
               :key="projId(proj)"
               @click="selectedProjectId = projId(proj)"
-              :class="selectedProjectId === projId(proj) ? 'tab-active' : ''"
-              class="tab tab-sm tab-bordered text-xs gap-1 whitespace-nowrap"
+              :class="selectedProjectId === projId(proj) ? 'tab-active' : 'opacity-30 hover:underline'"
+              class="tab tab-sm tab-bordered text-sm gap-1 whitespace-nowrap"
             >
               <span class="font-mono truncate max-w-[100px]">{{ proj.project_name }}</span>
               <span
@@ -71,7 +71,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         />
 
         <!-- PRView: key forces re-mount when cache key changes -->
-        <div v-if="selectedProject && cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
+        <div v-if="cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
           <PRView
             :key="cacheKey"
             ref="prView"

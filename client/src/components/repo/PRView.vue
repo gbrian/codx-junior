@@ -24,107 +24,109 @@ import ChatEntryVue from '../ChatEntry.vue'
         </div>
       </div>
     </header>
-
-    <div v-if="prShowOption === 'diff'">
-      <div class="flex gap-2 py-2 items-center" v-if="files?.length">
-        <div class="flex gap-2 items-center" v-if="reportFiles.length">
-          <div class="dropdown">
-            <div tabindex="0" role="button" class="btn btn-sm m-1 indicator">
-              <span class="indicator-item badge badge-xs badge-warning" v-if="selectedFiles.length">
-                {{ selectedFiles.length }}
-              </span>
-              <i class="fa-solid fa-bars"></i>
-            </div>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
-              <li @click="onValidateSelected" v-if="selectedFiles.length"><a>Validate changes</a></li>
-              <li @click="onBulkAction" v-if="selectedFiles.length"><a>Custom action...</a></li>
-              <li class="overflow-hidden text-nowrap text-ellipsis" @click="setFilesColumn" v-if="selectedFiles.length"><a>
-                <select @click.stop="" class="select select-xs select-bordered" v-model="chatColumn">
-                  <option v-for="column, ix in columns" :value="column.title" :key="column.title + ix">
-                    <i class="fa-solid fa-table-columns"></i> {{ column.title }}
-                  </option>
-                </select>
-                <button class="btn btn-xs">Set</button>
-              </a></li>
-            </ul>
-          </div>
-        </div>
-        <div class="click btn btn-sm" @click.stop="toggleSelectAll" v-else>
-          <i class="fa-regular fa-file-lines"></i>
-        </div>
-        <div class="grow">
-          <div class="flex gap-2 items-center border rounded-md px-1">
-            <span class="click" v-if="filter" @click="filter = ''"><i class="fa-solid fa-circle-xmark"></i></span>
-            <input type="text" v-model="filter" class="grow input input-sm bg-transparent" />
-            <div class="click flex gap-1 items-center px-1">
-              <i class="fa-solid fa-magnifying-glass"></i>
+    <div class="grow">
+      <div class="h-full flex flex-col" v-if="prShowOption === 'diff'">
+        <div class="flex gap-2 py-2 items-center" v-if="files?.length">
+          <div class="flex gap-2 items-center" v-if="reportFiles.length">
+            <div class="dropdown">
+              <div tabindex="0" role="button" class="btn btn-sm m-1 indicator">
+                <span class="indicator-item badge badge-xs badge-warning" v-if="selectedFiles.length">
+                  {{ selectedFiles.length }}
+                </span>
+                <i class="fa-solid fa-bars"></i>
+              </div>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
+                <li @click="onValidateSelected" v-if="selectedFiles.length"><a>Validate changes</a></li>
+                <li @click="onBulkAction" v-if="selectedFiles.length"><a>Custom action...</a></li>
+                <li class="overflow-hidden text-nowrap text-ellipsis" @click="setFilesColumn" v-if="selectedFiles.length"><a>
+                  <select @click.stop="" class="select select-xs select-bordered" v-model="chatColumn">
+                    <option v-for="column, ix in columns" :value="column.title" :key="column.title + ix">
+                      <i class="fa-solid fa-table-columns"></i> {{ column.title }}
+                    </option>
+                  </select>
+                  <button class="btn btn-xs">Set</button>
+                </a></li>
+              </ul>
             </div>
           </div>
-        </div>
-        <div class="avatar click" :title="profile.name" @click="filter = (filter||'') + ' profile:' + profile.name"
-          v-for="profile in profiles" :key="profile.name">
-          <div class="w-4 h-4 ring ring-offset-1 rounded-full">
-            <img :src="profile.avatar" />
+          <div class="click btn btn-sm" @click.stop="toggleSelectAll" v-else>
+            <i class="fa-regular fa-file-lines"></i>
+          </div>
+          <div class="grow">
+            <div class="flex gap-2 items-center border rounded-md px-1">
+              <span class="click" v-if="filter" @click="filter = ''"><i class="fa-solid fa-circle-xmark"></i></span>
+              <input type="text" v-model="filter" class="grow input input-sm bg-transparent" />
+              <div class="click flex gap-1 items-center px-1">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </div>
+            </div>
+          </div>
+          <div class="avatar click" :title="profile.name" @click="filter = (filter||'') + ' profile:' + profile.name"
+            v-for="profile in profiles" :key="profile.name">
+            <div class="w-4 h-4 ring ring-offset-1 rounded-full">
+              <img :src="profile.avatar" />
+            </div>
           </div>
         </div>
-      </div>
-
-      <SplitterGroup class="grow overflow-auto" id="splitter-group-1" direction="horizontal" v-if="files">
-        <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :defaultSize="30" :collapsible="true" class="" :order="0">
-          <CodxMenu class="h-full overflow-auto"
-            :items="visibleFiles" :item-key="'folder'" 
-            :defaultExpanded="defaultExpanded"
-          >
-            <template v-slot:header>
-              <h2 class="font-semibold !text-base text-blackA11 flex items-end gap-2 px-2 pt-1">
-                <input type="checkbox" @change="toggleAllNoneSelected" class="checkbox checkbox-sm" />
-                Files
-                <span class="click ml-2 text-xs flex gap-1"><a @click="selectAll">all</a>/<a @click="selectNone">none</a></span>
-              </h2>
-            </template>
-            <template v-slot:item="data">
-              <div class="flex gap-1 items-center click px-2 text-nowrap"
-                :class="!data.item.hasChildren && 'ml-6'"
-                @click="onDataItemClick(data.item)"
+        
+          <SplitterGroup id="splitter-group-1" 
+            class="h-full overflow-auto"
+            direction="horizontal" v-if="files">
+            <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :defaultSize="30" :collapsible="true" class="" :order="0">
+              <CodxMenu class="h-full overflow-auto"
+                :items="visibleFiles" :item-key="'folder'" 
+                :defaultExpanded="defaultExpanded"
               >
-                <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm" 
-                  @click.stop=""
-                  @change="onDataItemSelected(data.item)" />
-                <div class="avatar-group -space-x-2" v-if="data.item.value.profiles?.length">
-                  <div class="avatar" :title="profile.name" v-for="profile in data.item.value.profiles" :key="data.item.value.title + profile.name">
-                    <div class="w-4 h-4">
-                      <img :src="profile.avatar" />
+                <template v-slot:header>
+                  <h2 class="font-semibold !text-base text-blackA11 flex items-end gap-2 px-2 pt-1">
+                    <input type="checkbox" @change="toggleAllNoneSelected" class="checkbox checkbox-sm" />
+                    Files
+                    <span class="click ml-2 text-xs flex gap-1"><a @click="selectAll">all</a>/<a @click="selectNone">none</a></span>
+                  </h2>
+                </template>
+                <template v-slot:item="data">
+                  <div class="flex gap-1 items-center click px-2 text-nowrap"
+                    :class="!data.item.hasChildren && 'ml-6'"
+                    @click="onDataItemClick(data.item)"
+                  >
+                    <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm" 
+                      @click.stop=""
+                      @change="onDataItemSelected(data.item)" />
+                    <div class="avatar-group -space-x-2" v-if="data.item.value.profiles?.length">
+                      <div class="avatar" :title="profile.name" v-for="profile in data.item.value.profiles" :key="data.item.value.title + profile.name">
+                        <div class="w-4 h-4">
+                          <img :src="profile.avatar" />
+                        </div>
+                      </div>
+                    </div>
+                    <i class="fa-regular fa-comment-dots" :class="`text-[${data.item.value.column?.color}]`"
+                      v-if="data.item.value.chat"></i>
+
+                    <span :title="data.item.value.fileName">
+                      {{ data.item.value.title }}
+                    </span>
+
+                    <div class="" :class="`text-[${data.item.value.column.color}]`" v-if="data.item.value.column">
+                      ( {{ data.item.value.column.title }} )
                     </div>
                   </div>
-                </div>
-                <i class="fa-regular fa-comment-dots" :class="`text-[${data.item.value.column?.color}]`"
-                  v-if="data.item.value.chat"></i>
-
-                <span :title="data.item.value.fileName">
-                  {{ data.item.value.title }}
-                </span>
-
-                <div class="" :class="`text-[${data.item.value.column.color}]`" v-if="data.item.value.column">
-                  ( {{ data.item.value.column.title }} )
-                </div>
-              </div>
-            </template>
-          </CodxMenu>
-        </SplitterPanel>
-        <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
-        <SplitterPanel class="w-full h-full overflow-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
-          <PRReport  
-            ref="prReport"
-            :prChat="chat"
-            :files="visibleFiles"
-            :columns="columns"
-            @new-chat="onFileChat"
-            @chat-column="onSetChatColumn"  
-          />
-        </SplitterPanel>
-      </SplitterGroup>
+                </template>
+              </CodxMenu>
+            </SplitterPanel>
+            <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
+            <SplitterPanel class="w-full h-full overflow-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
+              <PRReport  
+                ref="prReport"
+                :prChat="chat"
+                :files="visibleFiles"
+                :columns="columns"
+                @new-chat="onFileChat"
+                @chat-column="onSetChatColumn"  
+              />
+            </SplitterPanel>
+          </SplitterGroup>
+      </div>
     </div>
-
     <div v-if="prShowOption === 'chat'">
       <ChatEntryVue
         :chat="chat"
@@ -281,14 +283,14 @@ export default {
       return this.files.reduce((acc, file) => ({ ...acc, [file.fileName]: file }), {})
     },
     columns() {
-      return this.$projects.kanban.boards[this.chat.board].columns
+      return this.$projects.kanban?.boards[this.chat.board].columns
         .reduce((acc, col) => ({
           ...acc,
           [col.title]: {
             ...col,
             chats: this.files.filter(f => f.column?.title === col.title)
           }
-        }), {})
+        }), {}) || {}
     },
     profiles() {
       return this.files?.map(f => f.profiles)

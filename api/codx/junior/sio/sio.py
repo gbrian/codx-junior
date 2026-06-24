@@ -112,7 +112,7 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
     codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
-    await codxjunior_session.chat_with_project(chat_id=data.chat.id)
+    await codxjunior_session.chat_with_project(chat_id=data.chat.id, owner_project_id=data.chat.owner_project_id)
 
 @sio.on("codx-junior-chat-search")
 @sio_api_endpoint

@@ -486,10 +486,18 @@ class CODXJuniorSession:
             profile_name=profile_name, messages=messages
         )
 
+    def find_chat(self, chat_id: str, owner_project_id: str):
+        _self = self
+        if owner_project_id and owner_project_id != self.settings.project_id:
+            _self =self.switch_project(project_id=owner_project_id)
+        logger.info("Searching chat: %s at project: %s (%s)", chat_id, _self.settings.project_name, owner_project_id)
+        return _self.get_chat_manager().find_by_id(chat_id=chat_id)
+
     @profile_function
     async def chat_with_project(
         self,
         chat_id: str = None,
+        owner_project_id: str = None,
         chat: Chat = None,
         disable_knowledge: bool = False,
         callback=None,
@@ -498,7 +506,7 @@ class CODXJuniorSession:
         iteration: int = 0,
     ) -> tuple:
         """Core method: chat with the project using AI and knowledge."""
-        chat = chat or self.get_chat_manager().find_by_id(chat_id=chat_id)
+        chat = chat if chat else self.find_chat(chat_id=chat_id, owner_project_id=owner_project_id)
         return await self._chat_engine_actions.chat_with_project(
             chat=chat,
             disable_knowledge=disable_knowledge,
