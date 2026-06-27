@@ -92,6 +92,7 @@ export const EXTENSION_LANGUAGE_MAP = {
   ini: 'ini',
   env: 'ini',
   md: 'markdown',
+  mermaid: 'markdown',
   mdx: 'markdown',
   sql: 'sql',
   graphql: 'graphql',

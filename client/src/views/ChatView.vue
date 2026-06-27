@@ -22,10 +22,13 @@ import Collapsible from '../components/Collapsible.vue'
         <div class="flex flex-col gap-1 w-full" v-if="!chatMode">
           <div class="flex items-center gap-2 w-full">
             <div class="flex items-center gap-2 text-sm shrink-0">
-              <span class="hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
-                <i class="fa-brands fa-trello"></i>
-                {{ kanban?.title || theChat.board }}
-              </span>
+              <i class="fa-brands fa-trello text-primary"></i>
+              <template v-for="(board, index) in boardBreadcrumbs" :key="board.title">
+                <span class="hover:underline cursor-pointer font-bold text-primary" @click="navigateToBoard(board.title)">
+                  {{ board.title }}
+                </span>
+                <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content-ERROR-40">/</span>
+              </template>
               <template v-if="parentChat">
                 <span class="text-base-content-ERROR-40">/</span>
                 <span class="hover:underline cursor-pointer font-bold text-secondary truncate max-w-[120px]"
@@ -433,6 +436,10 @@ export default {
         return message?.content || '-- no description yet --'
       }
       return this.theChat.description
+    },
+    boardBreadcrumbs() {
+      const boardTitle = this.kanban?.title || this.theChat?.board
+      return this.$storex.projects.boardHierarchy(boardTitle)
     }
   },
   watch: {
@@ -507,6 +514,10 @@ export default {
     navigateToChats() {
       if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
       this.$emit('chats', this.kanban?.title || this.theChat.board)
+    },
+    navigateToBoard(boardTitle) {
+      if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
+      this.$emit('chats', boardTitle)
     },
     newSubChat(message) {
       this.subtaskParentId = this.theChat.id

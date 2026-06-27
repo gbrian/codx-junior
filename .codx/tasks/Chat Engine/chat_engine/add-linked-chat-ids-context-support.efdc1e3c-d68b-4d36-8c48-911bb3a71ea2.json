@@ -1,0 +1,121 @@
+{
+  "id": "efdc1e3c-d68b-4d36-8c48-911bb3a71ea2",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Add linked_chat_ids context support",
+  "pinned": false,
+  "description": "# 5 Lines Summary\n\n1. **Linked Chat Context Feature**: Extended the ChatEngine to support `linked_chat_ids` on Chat and Message objects, allowing multiple parallel conversation contexts to inform the current chat.\n\n2. **New Helper Method**: Implemented `get_linked_chats_context()` that traverses all linked chats, collects non-hidden messages, and formats them with XML-style tags for clear separation.\n\n3. **Refine Mode Integration**: Updated `_append_refine_message()` to inject linked chat context alongside parent document context when refining tasks, enabling multi-source document improvement.\n\n4. **Agent Mode Integration**: Enhanced `_append_agent_message()` to include linked context in agent task prompts, providing richer contextual information for autonomous task completion.\n\n5. **Error Handling & Logging**: Added robust error handling for missing linked chats with warning logs and maintains consistency with existing parent chat traversal patterns.",
+  "messages": [
+    {
+      "doc_id": "61923581-bc97-481d-8bd1-4d763d6f708a",
+      "role": "user",
+      "task_item": "",
+      "content": "Chat and messages can have\u00a0linked_chat_ids: Optional[List[str]] = Field(default=[], description=\"Linked chat ids\")\n    \nThese linked chats will be used as context like we do with the parent chat",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-25 11:36:21.853417",
+      "updated_at": "2026-06-25 11:36:21.853447",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "86d0cd19-d1ef-4139-ad25-ecae1c568799",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Understanding the Requirement\n\nYou want to extend the chat engine to support `linked_chat_ids` on Chat and Message objects, similar to how `parent_id` is currently used to provide context. These linked chats should contribute their content to the conversation context.\n\n# Implementation Plan\n\n1. **Update context collection** to include linked chats alongside parent chats\n2. **Modify helper methods** to gather content from linked chats\n3. **Update the main flow** to incorporate linked chat context\n\n# Code Changes\n\n```py api/codx/junior/chat/chat_engine.py\n# Add this new helper method after get_chat_analysis_parents\n\ndef get_linked_chats_context(self, chat: Chat) -> str:\n    \"\"\"\n    Traverse all linked chats and return concatenated non-hidden message content.\n\n    Linked chats provide contextual information similar to parent chats but allow\n    for multiple parallel contexts to be considered during the conversation.\n\n    :param chat: The chat whose linked chats to traverse.\n    :return: Concatenated content string from all linked chats.\n    \"\"\"\n    linked_content: List[str] = []\n    \n    if not chat.linked_chat_ids:\n        return \"\"\n    \n    chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)\n    \n    for linked_chat_id in chat.linked_chat_ids:\n        linked_chat = chat_manager.find_by_id(linked_chat_id)\n        \n        if not linked_chat:\n            logger.warning(\n                \"Linked chat with id '%s' not found for chat: %s\",\n                linked_chat_id,\n                chat.name\n            )\n            continue\n        \n        messages = [\n            message.content\n            for message in linked_chat.messages\n            if not message.hide\n        ]\n        \n        if messages:\n            linked_section = (\n                f\"<linked_chat name='{linked_chat.name}'>\\n\"\n                f\"{chr(10).join(messages)}\\n\"\n                f\"</linked_chat>\"\n            )\n            linked_content.append(linked_section)\n    \n    logger.info(\n        \"Collected context from %d linked chats for chat '%s'\",\n        len(linked_content),\n        chat.doc_id\n    )\n    return \"\\n\".join(linked_content)\n```\n\nNow update the `_append_refine_message` method to include linked chats context:\n\n```py api/codx/junior/chat/chat_engine.py\ndef _append_refine_message(\n    self,\n    chat: Chat,\n    messages: List,\n    user_message: Message,\n    last_ai_message: Optional[Message]\n) -> List:\n    \"\"\"\n    Append a task-refinement prompt to the message list.\n\n    If a previous AI document exists, it asks the model to apply comments to it.\n    Otherwise it simply uses the raw user message content.\n\n    :param chat: The current chat object.\n    :param messages: Existing message list.\n    :param user_message: The latest user message.\n    :param last_ai_message: The most recent AI message, or None.\n    :return: Updated messages list.\n    \"\"\"\n    existing_document = last_ai_message.content if last_ai_message else \"\"\n    parent_task = self.get_chat_analysis_parents(chat=chat)\n    linked_context = self.get_linked_chats_context(chat=chat)\n    task_content = \"\"\n\n    answer_messages = [\n        message.content for message in chat.messages if message.is_answer\n    ]\n    if answer_messages:\n        task_content += \"Task Document Header:\\n\"\n        task_content += \"\\n\".join(answer_messages)\n        task_content += \"\\n\\n\"\n\n    if parent_task:\n        task_content += (\n            f\"\\nYou are writing a child document.\\n\"\n            f\"This information comes from the parent document for your information:\\n\"\n            f\"<parent_document>\\n{parent_task}\\n</parent_document>\\n\"\n        )\n\n    if linked_context:\n        task_content += (\n            f\"\\nThe following linked chats provide additional context:\\n\"\n            f\"{linked_context}\\n\"\n        )\n\n    if existing_document:\n        task_content += (\n            f\"\\n<document>\\n{existing_document}\\n</document>\\n\\n\"\n            f\"<comments>\\n{user_message.content}\\n</comments>\\n\\n\"\n            f\"INSTRUCTIONS:\\n\"\n            f\" * Read comments and update document content based on them\\n\"\n            f\" * Leave all parts of the document not affected by the comments untouched\\n\"\n            f\" * Output the final document content\\n\"\n        )\n    else:\n        task_content += user_message.content\n\n    refine_message = self._new_chat_message(role=\"user\", content=task_content)\n    messages.append(self.convert_message(refine_message))\n    return messages\n```\n\nUpdate the `_append_agent_message` method to include linked chats context:\n\n```py api/codx/junior/chat/chat_engine.py\ndef _append_agent_message(\n    self,\n    chat: Chat,\n    messages: List,\n    user_message: Message,\n    iterations_left: int\n) -> List:\n    \"\"\"\n    Append an agent-style prompt that instructs the model to complete a task.\n\n    :param chat: The current chat object.\n    :param messages: Existing message list.\n    :param user_message: The latest user message.\n    :param iterations_left: How many iterations remain.\n    :return: Updated messages list.\n    \"\"\"\n    parent_context = self.get_chat_analysis_parents(chat=chat)\n    linked_context = self.get_linked_chats_context(chat=chat)\n    \n    agent_content = (\n        f\"\\nYou are responsible to end this task.\\n\"\n        f\"Follow instructions and try to solve it with the minimum iterations needed.\\n\"\n        f\"<task>\\n{chat.name}\\n</task>\\n\\n\"\n        f\"<parent_context>\\n{parent_context}\\n</parent_context>\\n\\n\"\n    )\n    \n    if linked_context:\n        agent_content += f\"<linked_context>\\n{linked_context}\\n</linked_context>\\n\\n\"\n    \n    agent_content += (\n        f\"<user_request>\\n{user_message.content}\\n</user_request>\\n\\n\"\n        f\"You still have {iterations_left} attempts more to finish the task.\\n\"\n        f\"Return {AGENT_DONE_WORD} when the task is done.\\n\"\n    )\n    \n    agent_message = self._new_chat_message(role=\"user\", content=agent_content)\n    messages.append(self.convert_message(agent_message))\n    return messages\n```\n\n# Summary of Changes\n\n| Method | Change |\n|--------|--------|\n| `get_linked_chats_context()` | **New method** - Collects content from all linked chats with error handling |\n| `_append_refine_message()` | Integrates linked context into task refinement prompts |\n| `_append_agent_message()` | Integrates linked context into agent task prompts |\n\n**Key Features:**\n- \u2705 Graceful handling of missing linked chats (logs warning, continues)\n- \u2705 Skips hidden messages (consistent with parent chat behavior)\n- \u2705 Wraps linked chat content in XML-like tags for clarity\n- \u2705 Structured context injection at appropriate points in the prompt\n- \u2705 Logging for debugging and monitoring",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-25 11:36:21.853417",
+      "updated_at": "2026-06-25 11:36:21.853447",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1782387419.797214,
+        "cancellation_token_id": "c6a7eb15-113a-4ab0-abad-5e16343c3e84",
+        "model": "claude-haiku-4-5",
+        "time_taken": 22.216863870620728,
+        "first_chunk_time_taken": 7.703587055206299,
+        "files": [
+          {
+            "language": "py",
+            "file_path": "api/codx/junior/chat/chat_engine.py",
+            "content": "# Add this new helper method after get_chat_analysis_parents\n\ndef get_linked_chats_context(self, chat: Chat) -> str:\n    \"\"\"\n    Traverse all linked chats and return concatenated non-hidden message content.\n\n    Linked chats provide contextual information similar to parent chats but allow\n    for multiple parallel contexts to be considered during the conversation.\n\n    :param chat: The chat whose linked chats to traverse.\n    :return: Concatenated content string from all linked chats.\n    \"\"\"\n    linked_content: List[str] = []\n    \n    if not chat.linked_chat_ids:\n        return \"\"\n    \n    chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)\n    \n    for linked_chat_id in chat.linked_chat_ids:\n        linked_chat = chat_manager.find_by_id(linked_chat_id)\n        \n        if not linked_chat:\n            logger.warning(\n                \"Linked chat with id '%s' not found for chat: %s\",\n                linked_chat_id,\n                chat.name\n            )\n            continue\n        \n        messages = [\n            message.content\n            for message in linked_chat.messages\n            if not message.hide\n        ]\n        \n        if messages:\n            linked_section = (\n                f\"<linked_chat name='{linked_chat.name}'>\\n\"\n                f\"{chr(10).join(messages)}\\n\"\n                f\"</linked_chat>\"\n            )\n            linked_content.append(linked_section)\n    \n    logger.info(\n        \"Collected context from %d linked chats for chat '%s'\",\n        len(linked_content),\n        chat.doc_id\n    )\n    return \"\\n\".join(linked_content)"
+          },
+          {
+            "language": "py",
+            "file_path": "api/codx/junior/chat/chat_engine.py",
+            "content": "def _append_refine_message(\n    self,\n    chat: Chat,\n    messages: List,\n    user_message: Message,\n    last_ai_message: Optional[Message]\n) -> List:\n    \"\"\"\n    Append a task-refinement prompt to the message list.\n\n    If a previous AI document exists, it asks the model to apply comments to it.\n    Otherwise it simply uses the raw user message content.\n\n    :param chat: The current chat object.\n    :param messages: Existing message list.\n    :param user_message: The latest user message.\n    :param last_ai_message: The most recent AI message, or None.\n    :return: Updated messages list.\n    \"\"\"\n    existing_document = last_ai_message.content if last_ai_message else \"\"\n    parent_task = self.get_chat_analysis_parents(chat=chat)\n    linked_context = self.get_linked_chats_context(chat=chat)\n    task_content = \"\"\n\n    answer_messages = [\n        message.content for message in chat.messages if message.is_answer\n    ]\n    if answer_messages:\n        task_content += \"Task Document Header:\\n\"\n        task_content += \"\\n\".join(answer_messages)\n        task_content += \"\\n\\n\"\n\n    if parent_task:\n        task_content += (\n            f\"\\nYou are writing a child document.\\n\"\n            f\"This information comes from the parent document for your information:\\n\"\n            f\"<parent_document>\\n{parent_task}\\n</parent_document>\\n\"\n        )\n\n    if linked_context:\n        task_content += (\n            f\"\\nThe following linked chats provide additional context:\\n\"\n            f\"{linked_context}\\n\"\n        )\n\n    if existing_document:\n        task_content += (\n            f\"\\n<document>\\n{existing_document}\\n</document>\\n\\n\"\n            f\"<comments>\\n{user_message.content}\\n</comments>\\n\\n\"\n            f\"INSTRUCTIONS:\\n\"\n            f\" * Read comments and update document content based on them\\n\"\n            f\" * Leave all parts of the document not affected by the comments untouched\\n\"\n            f\" * Output the final document content\\n\"\n        )\n    else:\n        task_content += user_message.content\n\n    refine_message = self._new_chat_message(role=\"user\", content=task_content)\n    messages.append(self.convert_message(refine_message))\n    return messages"
+          },
+          {
+            "language": "py",
+            "file_path": "api/codx/junior/chat/chat_engine.py",
+            "content": "def _append_agent_message(\n    self,\n    chat: Chat,\n    messages: List,\n    user_message: Message,\n    iterations_left: int\n) -> List:\n    \"\"\"\n    Append an agent-style prompt that instructs the model to complete a task.\n\n    :param chat: The current chat object.\n    :param messages: Existing message list.\n    :param user_message: The latest user message.\n    :param iterations_left: How many iterations remain.\n    :return: Updated messages list.\n    \"\"\"\n    parent_context = self.get_chat_analysis_parents(chat=chat)\n    linked_context = self.get_linked_chats_context(chat=chat)\n    \n    agent_content = (\n        f\"\\nYou are responsible to end this task.\\n\"\n        f\"Follow instructions and try to solve it with the minimum iterations needed.\\n\"\n        f\"<task>\\n{chat.name}\\n</task>\\n\\n\"\n        f\"<parent_context>\\n{parent_context}\\n</parent_context>\\n\\n\"\n    )\n    \n    if linked_context:\n        agent_content += f\"<linked_context>\\n{linked_context}\\n</linked_context>\\n\\n\"\n    \n    agent_content += (\n        f\"<user_request>\\n{user_message.content}\\n</user_request>\\n\\n\"\n        f\"You still have {iterations_left} attempts more to finish the task.\\n\"\n        f\"Return {AGENT_DONE_WORD} when the task is done.\\n\"\n    )\n    \n    agent_message = self._new_chat_message(role=\"user\", content=agent_content)\n    messages.append(self.convert_message(agent_message))\n    return messages"
+          }
+        ]
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-06-25 11:35:00.278547",
+  "updated_at": "2026-06-25T11:37:25.805259",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Chat Engine",
+  "column": "chat_engine",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Chat Engine/chat_engine/add-linked-chat-ids-context-support.efdc1e3c-d68b-4d36-8c48-911bb3a71ea2.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "auto_initialize": false
+}

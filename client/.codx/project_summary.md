@@ -1,126 +1,138 @@
 # Codx Junior UI Project Summary
 
-A comprehensive AI-powered digital workspace Single Page Application (SPA) providing advanced tools—including code editing, multi-window desktop simulation, real-time chat with LLMs, version control visualization, and sophisticated project management workflows—all within a unified interface.
+A comprehensive AI-powered digital workspace SPA built with Vue 3 and TypeScript, featuring code editing, desktop simulation, chat, version control, project management, and team collaboration.
 
-## Core Infrastructure & State Management
-*   `src/store/`: Centralized state management for chats, users, profiles, projects, sessions, UI, logs, media, and teams.
-*   `src/router/`: Global navigation routing and utilities.
-*   `src/service/`: Business logic layer for chat, projects, wikis, and general services.
-*   `src/api/`: External communication via WebSocket, connection management, and chat management.
+## Project Configuration
+- `package.json`: Project dependencies and scripts.
+- `vite.config.ts`: Build configuration for Vite.
+- `tsconfig.json`: TypeScript configuration.
+- `tailwind.config.js`: Tailwind CSS styling configuration.
+- `.eslintrc.cjs`: ESLint linting rules.
+- `.prettierrc.json`: Code formatting configuration.
+- `postcss.config.js`: PostCSS processing configuration.
 
-## Main Views & Workspaces
-*   `src/views/ChatView.vue`: Core chat interface.
-*   `src/views/DesktopView.vue`: Multi-window desktop simulation.
-*   `src/views/VibeCodingView.vue`: Vibe coding workspace and environment.
-*   `src/views/AgentPlanView.vue`: Agent planning and workflows.
-*   `src/views/GlobalSettings.vue`, `AISettings.vue`, `KnowledgeSettings.vue`: Configuration hubs.
-*   `src/views/HomeView.vue`, `ProjectSettings.vue`, `ProfileView.vue`, `WikiView.vue`, `KnowledgeView.vue`, `FileBrowserView.vue`, `TeamView.vue`: Additional views.
+## API & Backend Integration
+- `src/api/api.js`: Main API client and request handling.
+- `src/api/chatManager.js`: Chat API management.
+- `src/api/socket.js`: WebSocket connection handling.
+- `src/api/connection.js`: Connection utilities.
 
-## Chat & Messaging
-*   `src/components/chat/Chat.vue`: Main chat component.
-*   `src/components/chat/ChatInput*.vue`, `ChatInputToolbar.vue`: Input handling and toolbar.
-*   `src/components/chat/ChatFile*.vue`: File management and preview functionality.
-*   `src/components/chat/ChatImage*.vue`: Image display and carousel.
-*   `src/components/chat/ChatIntelliSense.vue`, `LLMModelSelector.vue`: LLM integration and model selection.
-*   `src/components/chat/ChatMentionBar.vue`, `EmojiPicker.vue`, `ExportChat.vue`: Additional chat features.
-*   `src/components/chats/RecentChatsQuickAccess.vue`: Quick access to recent chats.
-*   `src/components/vibe/ChatPanel.vue`, `ChatPanelHeader.vue`: Vibe-themed chat panel interface.
+## State Management
+- `src/store/index.js`: Root state management.
+- `src/store/chats.js`: Chat state.
+- `src/store/project.js`: Project state.
+- `src/store/session.js`: User session state.
+- `src/store/teams.js`: Team collaboration state.
+- `src/store/ui.js`: UI state management.
+- `src/store/profiles.js`: User profiles state.
+- `src/store/users.js`: Users state.
+- `src/store/logs.js`: Logs state.
+- `src/store/media.js`: Media assets state.
 
-## Code Editing & Version Control
-*   `src/components/monaco/Editor.vue`, `DiffViewer.vue`: Code editor wrappers.
-*   `src/components/code-editor/CodeEditor.jsx`: React-based code editor.
-*   `src/components/repo/`: Pull request visualization, git history, and code comments.
-*   `src/components/git/BranchSelector.vue`: Branch selection and management.
-*   `src/components/code/GitDiffViewer.vue`: File version comparison.
+## Core Services
+- `src/service/service.js`: Main service layer.
+- `src/service/chat.js`: Chat service.
+- `src/service/project.js`: Project service.
+- `src/service/wiki.js`: Wiki service.
 
-## Project Management & Task Boards
-*   `src/components/project/`: Project metadata, navigation, creation, scripting, and icon display.
-*   `src/components/ChatProjectIcon.vue`: Project icon rendering in chat context.
-*   `src/components/kanban/`: Task board with columns, cards, grid, and file views.
-*   `src/components/kanban/KanbanSettings.vue`: Kanban configuration.
-*   `src/components/kanban/TaskSettings.vue`: Individual task configuration.
+## Main Application
+- `src/main.ts`: Application entry point.
+- `src/App.vue`: Root application component.
+- `src/router/index.ts`: Vue Router configuration.
+- `src/router/navigate.js`: Navigation utilities.
 
-## Workspaces & Teams
-*   `src/components/workspaces/`: Workspace organization, selection, and management.
-*   `src/components/teams/`: Team, channel, member management, and settings.
-*   `src/components/teams/TeamSelector.vue`: Team selection interface.
-*   `src/components/teams/TeamDM.vue`: Team direct messaging interface.
-*   `src/components/teams/TeamMediaLibrary.vue`: Team-specific media management.
-*   `src/components/teams/TeamQuickBar.vue`: Team quick access toolbar.
+## Views & Layouts
+- `src/views/HomeView.vue`: Main dashboard.
+- `src/views/CodxJunior.vue`: Codx Junior assistant interface.
+- `src/views/ChatView.vue`: Chat messaging interface.
+- `src/views/ProjectProfile.vue`: Project details page.
+- `src/views/ProjectSettings.vue`: Project configuration.
+- `src/views/GlobalSettings.vue`: Global application settings.
+- `src/views/AISettings.vue`: AI model and provider configuration.
+- `src/views/KnowledgeView.vue`: Knowledge base browser.
+- `src/views/KnowledgeSettings.vue`: Knowledge base configuration.
+- `src/views/TeamView.vue`: Team collaboration interface.
+- `src/views/DesktopView.vue`: Virtual desktop environment.
+- `src/views/VibeCodingView.vue`: Vibe coding interface.
+- `src/views/FileBrowserView.vue`: File system browser.
+- `src/views/WikiView.vue`: Wiki documentation viewer.
+- `src/views/ProfileView.vue`: User profile page.
+- `src/views/StatusView.vue`: System status dashboard.
 
-## Desktop & Window Management
-*   `src/components/desktop/Desktop.vue`, `Window.vue`, `Tab.vue`: Desktop simulation components.
-*   `src/components/desktop/EmptyStateWelcome.vue`: Empty state welcome screen for desktop.
-*   `src/components/desktop/VibeDesktop.vue`: Vibe-themed desktop environment.
-*   `src/components/windowManager/`: Virtual desktop, windows, workspaces, and navigation.
-*   `src/components/vibe/VibeCodingHeader.vue`: Vibe coding header and workspace UI.
+## Chat Components
+- `src/components/chat/Chat.vue`: Main chat component.
+- `src/components/chat/ChatInputBox.vue`: Message input handling.
+- `src/components/chat/ChatMessageList.vue`: Message display.
+- `src/components/chat/ChatFileList.vue`: File attachment management.
+- `src/components/chat/ChatImageCarousel.vue`: Image preview carousel.
+- `src/components/chat/LLMModelSelector.vue`: Model selection dropdown.
+- `src/components/chat/EmojiPicker.vue`: Emoji insertion tool.
+- `src/components/chat/ExportChat.vue`: Chat export utility.
+- `src/components/chat/ChatFileSelectorModal.vue`: File selection dialog.
+- `src/components/chat/ChatIntelliSense.vue`: Intelligent autocomplete.
+- `src/components/chat/UserSelector.vue`: User mention selection.
+- `src/components/chat/ChatMentionBar.vue`: Mention suggestions display.
+- `src/components/chat/ChatInputToolbar.vue`: Input formatting toolbar.
 
-## Vibe Workspace
-*   `src/components/vibe/ChatPanel.vue`, `ChatPanelHeader.vue`: Chat panel interface for Vibe workspace.
-*   `src/components/vibe/VibeCodingHeader.vue`: Header and workspace UI.
-*   `src/components/vibe/panels/BranchSelector.vue`: Branch selection for Vibe workspace.
-*   `src/components/vibe/panels/ChangesPanel.vue`: Changes and diff display for Vibe workspace.
-*   `src/components/vibe/panels/PreviewPanel.vue`: Preview panel for rendering code output and results.
-*   `src/components/vibe/modals/SubtasksModal.vue`, `SubtaskModal.vue`, `TagModal.vue`: Subtask and tag management.
+## Code Editor & Viewing
+- `src/components/code-editor/CodeEditor.jsx`: Monaco-based code editor.
+- `src/components/CodeEditor.vue`: Vue wrapper for code editor.
+- `src/components/Code.vue`: Code display component.
+- `src/components/CodeViewer.vue`: Read-only code viewer.
+- `src/components/DiffViewer.vue`: Diff visualization.
+- `src/components/monaco/Editor.vue`: Monaco editor integration.
+- `src/components/code/GitDiffViewer.vue`: Git diff viewer.
 
-## AI Configuration & Settings
-*   `src/components/ai_settings/`: Model and provider configuration, agent settings, and model selection.
+## Project Management
+- `src/components/kanban/Kanban.vue`: Kanban board interface.
+- `src/components/kanban/TaskCard.vue`: Individual task cards.
+- `src/components/kanban/KanbanColumnView.vue`: Kanban column view.
+- `src/components/kanban/TaskSettings.vue`: Task configuration.
+- `src/components/project/ProjectCard.vue`: Project display cards.
+- `src/components/project/NewProject.vue`: Project creation wizard.
+- `src/components/project/ProjectSettings.vue`: Project configuration.
+- `src/components/project/ProjectScripts.vue`: Project script management.
 
-## Analytics, Logs & Monitoring
-*   `src/components/analytics/`: Analytics visualization, metrics dashboard, and price editing.
-*   `src/components/logs/`: Log display, analysis, filtering, and metrics.
+## Team & Collaboration
+- `src/components/teams/TeamChannel.vue`: Team channel interface.
+- `src/components/teams/TeamSelector.vue`: Team selection dropdown.
+- `src/components/teams/AddMemberDialog.vue`: Member addition modal.
+- `src/components/teams/TeamBar.vue`: Team navigation bar.
+- `src/components/teams/MemberAvatar.vue`: Member display avatar.
+- `src/components/teams/TeamSettings.vue`: Team configuration.
 
-## Media Management
-*   `src/components/media/`: Media browsing, organization, preview, upload, and gallery.
-*   `src/store/media.js`: Media state management.
+## Analytics & Metrics
+- `src/components/analytics/MetricsDashboard.vue`: Analytics dashboard with metrics visualization.
+- `src/components/analytics/DailyChart.vue`: Daily metrics chart display.
+- `src/components/analytics/PriceEditor.vue`: Price configuration.
+- `src/components/logs/LogsAnalyzerDashboard.vue`: Log analysis interface.
 
-## User Management & Security
-*   `src/components/user/`: Authentication, profiles, avatars, and user selection.
-*   `src/components/security/`: Account settings, user security, and wallet settings.
-*   `src/components/roles/RoleSelector.vue`: Role management.
-*   `src/components/profile/`: Profile display, selection, and viewing.
+## AI & Configuration
+- `src/components/ai_settings/AIModelSettings.vue`: AI model configuration.
+- `src/components/ai_settings/AIProviderSettings.vue`: AI provider setup.
+- `src/components/ai_settings/AgentSettings.vue`: Agent configuration.
 
-## Data & Knowledge Management
-*   `src/components/data/`: Data exploration and inspection.
-*   `src/components/knowledge/`: Knowledge base search and configuration.
+## Version Control
+- `src/components/repo/PRView.vue`: Pull request viewer.
+- `src/components/git/BranchSelector.vue`: Git branch selection.
+- `src/components/repo/CommitTreeView.vue`: Commit history visualization.
 
-## UI & Theming
-*   `src/components/ThemeSelector.vue`: Theme switching.
-*   `src/components/ui/ColorPicker.vue`: Color selection.
-*   `src/components/VSwatches.vue`: Color swatch selector.
+## Knowledge & Documentation
+- `src/components/knowledge/KnowledgeSearch.vue`: Knowledge base search.
+- `src/components/knowledge/settings/KnowledgeIndex.vue`: Knowledge indexing.
+- `src/components/wiki/WikiSections.vue`: Wiki page sections.
 
-## Navigation & Layout
-*   `src/components/main-menu/`: Sidebar and menu navigation with project, workspace, and view menus.
-*   `src/components/NavigationBar.vue`, `TopBar.vue`, `Toolbar.vue`, `EventBar.vue`: Top-level navigation and header components.
-*   `src/components/Splitter.vue`, `layout/VerticalSplitter.vue`: Layout dividers.
-*   `src/components/TabView.vue`, `TabNavigation.vue`: Tabbed interfaces.
-*   `src/components/Modal.vue`: Modal dialogs.
+## UI Components
+- `src/components/Modal.vue`: Modal dialog component.
+- `src/components/Toolbar.vue`: Toolbar UI element.
+- `src/components/TopBar.vue`: Top navigation bar.
+- `src/components/NavigationBar.vue`: Navigation component.
+- `src/components/Menu.vue`: Menu system.
+- `src/components/TabNavigation.vue`: Tab-based navigation.
+- `src/components/Splitter.vue`: Resizable splitter.
+- `src/components/TreeView.vue`: Tree view component.
+- `src/components/Collapsible.vue`: Collapsible section component.
 
-## Document & Content Viewing
-*   `src/components/document/`: Document management, editing, and markdown/word support.
-*   `src/components/MarkdownViewer.vue`, `HTMLViewer.vue`, `MermaidViewer.vue`: Content renderers.
-*   `src/components/CodeViewer.vue`, `ConsoleViewer.vue`, `LogViewer.vue`: Code and output viewers.
-
-## Utility Components
-*   `src/components/TreeView.vue`, `TreeItem.vue`, `Collapsible.vue`: Tree navigation.
-*   `src/components/NotificationControl.vue`: Notification management.
-*   `src/components/autocomplete/`: Input autocomplete and project resource completion.
-*   `src/components/bar/SearchBar.vue`: Search functionality.
-*   `src/components/ProfileCard.vue`, `UserInfo.vue`, `ProjectChip.vue`: Display components.
-
-## External Integrations & Plugins
-*   `src/components/oauth_settings/OAuthSettings.vue`: OAuth configuration.
-*   `src/components/global_settings/plugins/`: Plugin management and configuration.
-*   `src/components/global_settings/EnvVariablesEditor.vue`: Environment configuration.
-
-## File Browser
-*   `src/views/FileBrowserView.vue`: Main file browser view.
-*   `src/components/filebrowser/FileFinder.vue`: File search and discovery.
-
-## Additional Components
-*   `src/components/apps/`: Application wrappers (AgentStudio, Coder, Files, Preview).
-*   `src/components/board/`: User dashboard boards (Achievements, Activity, Projects, Settings).
-*   `src/components/mention*/`, `tiptap/`: Rich text editor and mention functionality.
-*   `src/components/browser/Browser.vue`: Browser component.
-*   `src/components/assistant/`, `codx-junior/`: AI assistant components.
-*   `src/components/Markdown.vue`, `IssuePreview.vue`, `NoVNC.vue`, `YoutubeViewer.vue`: Specialized viewers.
+## Utilities & Helpers
+- `src/mixins/index.js`: Vue mixins for shared logic.
+- `src/model/chat.ts`: Chat data model types.

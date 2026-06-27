@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from codx.junior.analytics.model import TokenUsageEvent
 from codx.junior.analytics.storage import AnalyticsStorage
@@ -24,7 +25,7 @@ class Analytics:
             +get_usage_by_user(start_date, end_date) Dict
             +get_usage_by_project(start_date, end_date) Dict
             +get_usage_by_model(start_date, end_date) Dict
-            +get_daily_usage(start_date, end_date, username, project_name) List
+            +get_daily_usage(start_date, end_date, username, project_name, grouping) List
             +get_total_usage(start_date, end_date, username, project_name) Dict
             +list_available_dates() List[str]
         }
@@ -92,7 +93,6 @@ class Analytics:
             input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
             output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
             request_id=request_id
-            # total_cxjcoins is computed automatically in __post_init__
         )
         self.storage.write(event)
         logger.info(
@@ -147,6 +147,24 @@ class Analytics:
             bucket["total_duration_seconds"] += event.duration_seconds
             bucket["total_cxjcoins"] += event.total_cxjcoins
         return result
+
+    @staticmethod
+    def _get_grouping_key_fn(grouping: str):
+        """
+        Return key function based on grouping level.
+
+        Args:
+            grouping: One of 'minute', 'hour', or 'day'
+
+        Returns:
+            Callable that extracts the grouping key from a TokenUsageEvent
+        """
+        if grouping == "minute":
+            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d %H:%M")
+        elif grouping == "hour":
+            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d %H:00")
+        else:  # default to day
+            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d")
 
     # ── Public query API ───────────────────────────────────────────────────────
 
@@ -237,20 +255,22 @@ class Analytics:
         end_date: Optional[str] = None,
         username: Optional[str] = None,
         project_name: Optional[str] = None,
+        grouping: str = "day",
     ) -> List[Dict[str, Any]]:
         """
-        Return per-day aggregated token usage.
+        Return per-period aggregated token usage with configurable grouping.
 
         Args:
             start_date:   Inclusive ISO date lower bound.
             end_date:     Inclusive ISO date upper bound.
             username:     Optional user filter.
             project_name: Optional project filter.
+            grouping:     Time grouping level: 'minute', 'hour', or 'day'. Default: 'day'
 
         Returns:
-            List of dicts [{date, input_tokens, output_tokens, total_tokens, calls,
+            List of dicts [{period, input_tokens, output_tokens, total_tokens, calls,
                             total_duration_seconds, total_cxjcoins}]
-            ordered by date ascending.
+            ordered by period ascending.
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -258,10 +278,11 @@ class Analytics:
             username=username,
             project_name=project_name,
         )
-        aggregated = self._aggregate(events, lambda e: e.iso_date)
+        key_fn = self._get_grouping_key_fn(grouping)
+        aggregated = self._aggregate(events, key_fn)
         return [
-            {"date": date, **counts}
-            for date, counts in sorted(aggregated.items())
+            {"period": period, **counts}
+            for period, counts in sorted(aggregated.items())
         ]
 
     def get_total_usage(

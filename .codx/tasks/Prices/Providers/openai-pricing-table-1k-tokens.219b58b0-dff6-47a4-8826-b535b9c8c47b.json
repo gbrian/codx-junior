@@ -4,6 +4,7 @@
   "project_id": null,
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
@@ -17,7 +18,7 @@
   "users": [
     "admin"
   ],
-  "name": "Claude Pricing Table 1K Tokens",
+  "name": "OpenAI Pricing Table 1K Tokens",
   "pinned": false,
   "description": "The conversation begins with a single message that appears to be a system or context marker (`<<HUMAN_CONVERSATION_START>>`), followed by a large JSON file containing OpenAI model pricing data. The JSON file lists various AI models with their respective input, cached input, and output prices per 1,000 tokens. The models range from older versions like `gpt-3.5-turbo` to newer ones like `gpt-5.5`, `o4-mini`, and specialized models like `o3-deep-research`. The pricing varies significantly, with embedding models having the lowest costs and pro/reasoning models like `o1-pro` having the highest. No actual human question or request was made \u2014 the conversation solely consists of sharing this pricing reference data.",
   "messages": [
@@ -42,7 +43,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "0e1e7f28-c75b-451e-87ed-95c2fad9f176",
@@ -73,7 +75,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "394b881c-a836-451f-b42d-38a08f8157a6",
@@ -96,7 +99,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "5d3b5fd8-c31e-476a-a211-92c2046643fc",
@@ -127,7 +131,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "8b39200e-9773-491e-bd72-e4773a027a1b",
@@ -150,7 +155,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "1ed2dac6-4fb6-4954-a43c-48fead9d708b",
@@ -181,7 +187,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "e95b5ca8-4c1d-4234-9a3a-f9a34ed521af",
@@ -204,7 +211,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "f9ae9bf2-f04d-4f72-9721-b948d89448d3",
@@ -235,7 +243,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "416939c5-98f4-484c-844c-72b33da501c2",
@@ -258,7 +267,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "57fbe15e-02c2-46cd-a756-e07119998d5b",
@@ -289,11 +299,12 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-06-10 07:04:50.830663",
-  "updated_at": "2026-06-10T09:18:47.456986",
+  "updated_at": "2026-06-27T07:43:46.323777",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -303,7 +314,7 @@
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Prices/Providers/claude-pricing-table-1k-tokens.219b58b0-dff6-47a4-8826-b535b9c8c47b.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Prices/Providers/openai-pricing-table-1k-tokens.219b58b0-dff6-47a4-8826-b535b9c8c47b.json",
   "llm_model": "",
   "visibility": "",
   "remote_url": "",

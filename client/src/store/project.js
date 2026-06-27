@@ -310,6 +310,25 @@ export const getters = getterTree(state, {
   profiles: state => getProfiles(state.activeProject),
   allChats: state => $storex.chats.allChats.map(chat => createProjectChat(state.activeProject, chat)),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
+  boardHierarchy: state => (boardTitle) => {
+    if (!state.kanban?.boards) return []
+    const boards = Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] }))
+    const path = []
+    let current = boards.find(b => b.title === boardTitle || b.id === boardTitle)
+    const visited = new Set()
+    while (current) {
+      const key = current.id || current.title
+      if (visited.has(key)) break
+      visited.add(key)
+      path.unshift(current)
+      if (current.parent_id) {
+        current = boards.find(b => b.id === current.parent_id || b.title === current.parent_id)
+      } else {
+        break
+      }
+    }
+    return path
+  },
   allTags: () => $storex.chats.allTags,
   allPRs: () => $storex.chats.allPRs,
   projectDependencies: state => getProjectDependencies(state.activeProject),

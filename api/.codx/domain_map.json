@@ -1,24 +1,67 @@
 [
   {
-    "name": "Database and Data Management",
-    "slug": "database-and-data-management",
-    "description": "This domain encompasses the architecture, storage, and management strategies for organizational data. It provides the foundational knowledge and technical documentation required for designing, maintaining, and scaling robust database systems.",
+    "name": "Database and Analytics",
+    "slug": "database-and-analytics",
+    "description": "This domain manages the structural integrity of the application data through formal change management processes and database storage configurations. It also integrates analytics reporting to monitor system performance and user engagement across the Codx-Junior platform.",
     "files": [
       "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
-      "domains/database-data-storage.md",
-      "domains/database-and-data-storage.md",
-      "domains/database-data-management.md",
-      "domains/database-and-data-management.md",
-      "domains/wiki.md"
+      "domains/codx-junior-analytics.md",
+      "domains/database-change-management.md"
     ],
     "depends_on_domains": [],
     "entry_points": [
       "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
-      "domains/database-data-storage.md",
-      "domains/database-and-data-storage.md",
-      "domains/database-data-management.md",
-      "domains/database-and-data-management.md"
+      "domains/codx-junior-analytics.md",
+      "domains/database-change-management.md"
+    ],
+    "keywords": [
+      "asynchronous-processing",
+      "knowled-event",
+      "knowledge-database",
+      "media-file",
+      "metrics-management",
+      "project-change",
+      "transcription",
+      "wiki-integration"
+    ]
+  },
+  {
+    "name": "Junior Analytics Engine",
+    "slug": "junior-analytics-engine",
+    "description": "This module manages background processing and data tracking for analytics services within the CoDX Junior ecosystem. It provides the core infrastructure for capturing, processing, and exposing analytical insights through dedicated API endpoints.",
+    "files": [
+      "/home/codx-junior/codx-junior/api/codx/junior/background.py",
+      "/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py",
+      "/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py"
+    ],
+    "depends_on_domains": [],
+    "entry_points": [
+      "/home/codx-junior/codx-junior/api/codx/junior/background.py",
+      "/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py",
+      "/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py"
     ],
     "keywords": []
+  },
+  {
+    "name": "Change Management System",
+    "slug": "change-management-system",
+    "description": "This module handles the lifecycle of software changes within the application. It provides the core logic for tracking, processing, and coordinating updates across the system.",
+    "files": [
+      "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
+    ],
+    "depends_on_domains": [],
+    "entry_points": [
+      "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
+    ],
+    "keywords": [
+      "asynchronous-processing",
+      "knowled-event",
+      "knowledge-database",
+      "media-file",
+      "metrics-management",
+      "project-change",
+      "transcription",
+      "wiki-integration"
+    ]
   }
 ]

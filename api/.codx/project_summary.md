@@ -1,119 +1,121 @@
-# Codx-API Project Summary: Advanced AI Coding Assistant Orchestrator
+# Codx-API Project Summary
 
-Advanced developer assistance platform that orchestrates conversational AI workflows, integrates specialized agents, provides RAG capabilities over codebases, and abstracts multiple LLM interactions through a unified interface.
+An AI-driven platform for enhancing communication, knowledge management, and project automation with real-time collaboration capabilities.
 
-***
+## Core Architecture
 
-## 🌐 System APIs & Service Layer
-Domain-specific service interfaces for authentication, projects, users, and knowledge retrieval.
-- `codx/junior/api/users.py` - User management and authentication
-- `codx/junior/api/projects.py` - Project configuration and metadata
-- `codx/junior/api/chat.py` - Conversational interface
-- `codx/junior/api/wiki.py` - Wiki content retrieval and management
-- `codx/junior/api/analytics.py` - Usage tracking and metrics reporting
-- `codx/junior/api/logs.py` - Operational log persistence
-- `codx/junior/api/github.py` - GitHub integration and issue tracking
-- `codx/junior/api/knowledge.py` - RAG knowledge base queries
-- `codx/junior/api/global_settings.py`, `views.py`, `chatGPTLikeApi.py` - Supporting API utilities
+### AI & Language Models
+- `/codx/junior/ai/ai.py` - Main AI interface and orchestration
+- `/codx/junior/ai/llmfactory.py` - Factory for creating LLM instances
+- `/codx/junior/ai/openai_ai.py` - OpenAI integration
+- `/codx/junior/ai/ollama.py` - Ollama local model support
+- `/codx/junior/ai/vllm_cpu_ai.py` - vLLM CPU inference
+- `/codx/junior/ai/wallet_check.py` - Token/wallet management
+- `/codx/junior/ai/cancellation.py` - Request cancellation handling
+- `/codx/junior/ai/ai_logger.py` - AI activity logging
 
-## ⚙️ Core Engine & State Management
-Orchestration hub for chat flow, async tasks, and persistent context.
-- `codx/junior/chat_manager.py` - Manages chat lifecycle and state
-- `codx/junior/engine.py` - Main orchestration controller
-- `codx/junior/context.py` - Conversational memory and context
-- `codx/junior/task_manager.py` - Background job scheduling
-- `codx/junior/background.py` - Async task execution
-- `codx/junior/events/event_manager.py` - Event-driven communication
+### API & Service Layer
+- `/codx/junior/api/chat.py` - Chat endpoints
+- `/codx/junior/api/projects.py` - Project management
+- `/codx/junior/api/users.py` - User authentication and profiles
+- `/codx/junior/api/workspaces.py` - Workspace management
+- `/codx/junior/api/github.py` - GitHub integration
+- `/codx/junior/api/global_settings.py` - Configuration management
+- `/codx/junior/api/knowledge.py` - Knowledge base endpoints
+- `/codx/junior/api/wiki.py` - Wiki endpoints
+- `/codx/junior/api/logs.py` - Logging endpoints
+- `/codx/junior/api/analytics.py` - Analytics endpoints and metrics exposure
+- `/codx/junior/api/file_finder.py` - File search utilities
+- `/codx/junior/api/project_search.py` - Project search endpoints
+- `/codx/junior/api/db_router.py` - Database routing
 
-## 💬 Chat, Agents & Interaction Layer
-Conversational logic, specialized autonomous agents, and tool execution.
-- `codx/junior/chat/chat_engine.py` - Workflow generation and chat logic
-- `codx/junior/agents/base_agent.py` - Agent framework
-- `codx/junior/agents/devops_agent.py` - DevOps automation agent
-- `codx/junior/agents/git_issues_agent.py` - GitHub issues agent
-- `codx/junior/profiles/profile_manager.py` - Role/profile management
-- `codx/junior/profiles/*.profile*` - Specialized role definitions (analyst, developer, etc.)
-- `codx/junior/tools/code_writer.py` - Code generation and writing
-- `codx/junior/tools/project_tools.py` - Project-specific utilities
-- `codx/junior/tools/fetch_webpage.py` - Web content retrieval
-- `codx/junior/mentions/mention_manager.py` - User/entity mention handling
+### Chat & Conversation
+- `/codx/junior/chat/chat_engine.py` - Chat processing engine
+- `/codx/junior/chat/chat_knowledge.py` - Knowledge integration in chat
+- `/codx/junior/chat/chat_export.py` - Chat export functionality
+- `/codx/junior/chat_manager.py` - Chat session management
 
-## 📚 Knowledge Management & RAG
-Vector-based retrieval augmented generation for codebase and wiki integration.
-- `codx/junior/knowledge/knowledge_loader.py` - Document ingestion pipeline
-- `codx/junior/knowledge/knowledge_splitter.py` - Document chunking strategy
-- `codx/junior/knowledge/knowledge_code_splitter.py` - Code-specific parsing
-- `codx/junior/knowledge/knowledge_graph.py` - Knowledge graph construction and traversal
-- `codx/junior/knowledge/knowledge_db.py` - Vector DB abstraction
-- `codx/junior/knowledge/knowledge_milvus.py` - Milvus vector store implementation
-- `codx/junior/knowledge/knowledge_ai_search.py` - AI-powered semantic search
-- `codx/junior/knowledge/knowledge_training.py` - Knowledge base training
-- `codx/junior/knowledge/knowledge_wiki.py` - Wiki document processing
-- `codx/junior/knowledge/knowledge_prompts.py` - Search and enrichment prompts
+### Knowledge Management & RAG
+- `/codx/junior/knowledge/knowledge_ai_search.py` - AI-powered search
+- `/codx/junior/knowledge/knowledge_training.py` - Knowledge base training
+- `/codx/junior/knowledge/knowledge_milvus.py` - Milvus vector DB integration
+- `/codx/junior/knowledge/knowledge_loader.py` - Document loading
+- `/codx/junior/knowledge/knowledge_splitter.py` - Text chunking strategies
+- `/codx/junior/knowledge/knowledge_graph.py` - Knowledge graph construction
+- `/codx/junior/knowledge/knowledge_db.py` - Knowledge base storage
+- `/codx/junior/knowledge/knowledge_keywords.py` - Keyword extraction
+- `/codx/junior/knowledge/knowledge_code_splitter.py` - Code-specific chunking
+- `/codx/junior/knowledge/knowledge_code_to_dcouments.py` - Code to document conversion
 
-## 🧠 AI Model Abstraction Layer
-Unified interface for multiple LLM providers with consistent request/response handling.
-- `codx/junior/ai/ai.py` - Abstract AI provider interface
-- `codx/junior/ai/llmfactory.py` - Model provider factory
-- `codx/junior/ai/openai_ai.py` - OpenAI API wrapper
-- `codx/junior/ai/ollama.py` - Ollama local model support
-- `codx/junior/ai/vllm_cpu_ai.py` - vLLM CPU inference
-- `codx/junior/ai/raw_logger.py`, `raw_log_reader.py` - Request/response logging
-- `codx/junior/ai/cancellation.py` - Request cancellation handling
-- `codx/junior/ai/wallet_check.py` - Token quota management
-- `codx/junior/ai/ai_logger.py` - AI interaction logging
+### Analytics & Monitoring
+- `/codx/junior/analytics/analytics.py` - Analytics aggregation and reporting
+- `/codx/junior/analytics/token_counter.py` - Token usage analytics
+- `/codx/junior/analytics/storage.py` - Analytics data storage
+- `/codx/junior/analytics/model.py` - Analytics data models
 
-## 🔨 Execution & Domain Engines
-Safe, structured environments for code, filesystem, and version control operations.
-- `codx/junior/engine/code_engine.py` - Code execution sandbox
-- `codx/junior/engine/file_engine.py` - Filesystem read/write operations
-- `codx/junior/engine/git_engine.py` - Git version control interactions
-- `codx/junior/engine/knowledge_engine.py` - Knowledge retrieval orchestration
-- `codx/junior/engine/wiki_engine.py` - Wiki content management
-- `codx/junior/engine/chat_engine_actions.py` - Chat workflow actions
-- `codx/junior/engine/session.py` - User session management
+### Execution Engines
+- `/codx/junior/engine/code_engine.py` - Code execution and analysis
+- `/codx/junior/engine/file_engine.py` - File operations
+- `/codx/junior/engine/git_engine.py` - Git operations
+- `/codx/junior/engine/wiki_engine.py` - Wiki content management
+- `/codx/junior/engine/knowledge_engine.py` - Knowledge retrieval
+- `/codx/junior/engine/chat_engine_actions.py` - Chat action execution
+- `/codx/junior/engine/session.py` - Session management
 
-## 📊 Analytics & Profiling
-Usage tracking, performance metrics, and behavior analysis.
-- `codx/junior/analytics/analytics.py` - Analytics collection and reporting
-- `codx/junior/analytics/token_counter.py` - LLM token usage tracking
-- `codx/junior/analytics/storage.py` - Metrics persistence
-- `codx/junior/metrics/codx_junior_metrics.py` - System-wide metrics
-- `codx/junior/metrics/chat_heatmap.py` - Chat activity visualization
-- `codx/junior/metrics/chat_wall.py` - Activity aggregation
-- `codx/junior/profiling/profiler.py` - Performance profiling
+### Agents
+- `/codx/junior/agents/base_agent.py` - Base agent framework
+- `/codx/junior/agents/devops_agent.py` - DevOps automation
+- `/codx/junior/agents/git_issues_agent.py` - Git issue handling
 
-## 🔌 Project & File Management
-Project discovery, file tracking, and change detection.
-- `codx/junior/project/project_manager.py` - Project lifecycle management
-- `codx/junior/project/project_discover.py` - Project detection and initialization
-- `codx/junior/changes/change_manager.py` - File change tracking
-- `codx/junior/changes/watch_project_file_changes.py` - File system watcher
-- `codx/junior/search/project_search_manager.py` - Project-wide code search
-- `codx/junior/api/file_finder.py`, `project_search.py` - File discovery utilities
+### Real-Time Communication
+- `/codx/junior/sio/sio.py` - Socket.IO server setup
+- `/codx/junior/sio/session_channel.py` - Session and channel management
+- `/codx/junior/sio/sio_background.py` - Background task execution via sockets
+- `/codx/junior/sio/model.py` - Socket.IO data models
 
-## 🔐 Security & User Management
-Authentication, authorization, and workspace isolation.
-- `codx/junior/security/user_management.py` - User account management
-- `codx/junior/security/github_oauth.py` - OAuth integration
-- `codx/junior/api/users.py` - User service API
-- `codx/junior/workspace/workspace_manager.py` - Workspace isolation
+### Background Processing
+- `/codx/junior/background.py` - Background task initialization
+- `/codx/junior/task_manager.py` - Task execution and scheduling
 
-## 📡 Real-Time Communication
-WebSocket-based real-time bidirectional communication.
-- `codx/junior/sio/sio.py` - Socket.IO server implementation
-- `codx/junior/sio/session_channel.py` - Session-based messaging
-- `codx/junior/sio/sio_background.py` - Background job communication
+### Data & Storage
+- `/codx/junior/db.py` - Database connection and models
+- `/codx/junior/model/model.py` - Core data models
+- `/codx/junior/model/user.py` - User models
+- `/codx/junior/model/ai_model.py` - AI model definitions
+- `/codx/junior/model/wallet.py` - Wallet/token models
+- `/codx/junior/model/logs.py` - Log models
 
-## 📖 Wiki & Documentation
-Wiki content management, domain classification, and documentation rendering.
-- `codx/junior/wiki/wiki_manager.py` - Wiki lifecycle management
-- `codx/junior/wiki/wiki_domains.py` - Wiki domain classification and ontology
-- `codx/junior/wiki/wiki_index.py` - Wiki indexing and search
-- `codx/junior/wiki/model.py` - Wiki data structures
-- `codx/junior/wiki/wiki_template/` - VitePress wiki template
+### File & Project Monitoring
+- `/codx/junior/changes/watch_project_file_changes.py` - File change monitoring
+- `/codx/junior/changes/change_manager.py` - Change management in project files
+- `/codx/junior/project/project_manager.py` - Project operations
+- `/codx/junior/project/project_discover.py` - Project discovery
 
-## 🎯 Application Entry Points
-- `codx/junior/main.py` - Application bootstrap
-- `codx/junior/app.py` - Flask/FastAPI application setup
-- `codx/junior/db.py` - Database initialization and ORM
+### Wiki & Documentation
+- `/codx/junior/wiki/wiki_manager.py` - Wiki lifecycle management
+- `/codx/junior/wiki/wiki_index.py` - Wiki indexing
+- `/codx/junior/wiki/wiki_domains.py` - Domain-specific wikis
+- `/codx/junior/wiki/model.py` - Wiki data models
+
+### Utilities & Support
+- `/codx/junior/profiles/profile_manager.py` - User/role profiles
+- `/codx/junior/search/project_search_manager.py` - Project search
+- `/codx/junior/security/user_management.py` - User authorization
+- `/codx/junior/security/github_oauth.py` - GitHub OAuth flow
+- `/codx/junior/tools/code_writer.py` - Code generation tools
+- `/codx/junior/tools/fetch_webpage.py` - Web content fetching
+- `/codx/junior/tools/project_tools.py` - Project utilities
+- `/codx/junior/utils/chat_utils.py` - Chat utilities
+- `/codx/junior/utils/utils.py` - General utilities
+- `/codx/junior/mentions/mention_manager.py` - Mention handling
+- `/codx/junior/events/event_manager.py` - Event management
+- `/codx/junior/plugins/plugin_manager.py` - Plugin system
+- `/codx/junior/views/view_manager.py` - View management
+- `/codx/junior/whisper/audio_manager.py` - Audio transcription
+
+### Entry Points
+- `/codx/junior/main.py` - Application startup
+- `/codx/junior/app.py` - Flask/API application
+- `/codx/junior/context.py` - Request context management
+- `/codx/junior/settings.py` - Global settings
+- `/codx/junior/globals.py` - Global variables

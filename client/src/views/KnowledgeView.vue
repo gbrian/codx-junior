@@ -56,7 +56,7 @@ import AgentPlanView from '@/views/AgentPlanView.vue'
         <!-- Loading indicator -->
         <div v-if="loading" class="flex flex-col items-center gap-3 py-10 text-base-content/70">
           <span class="loading loading-spinner loading-lg"></span>
-          <span class="text-sm font-medium">AI is searching the knowledge base...</span>
+          <span class="text-sm font-medium">Searching the knowledge base...</span>
           <span class="text-xs text-base-content/50">This may take a few seconds</span>
         </div>
 

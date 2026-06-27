@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "updated_at": 1782547854,
+  "files": {
+    "/shared/codx-junior/README.md": {
+      "path": "/shared/codx-junior/README.md",
+      "slug": "shared-codx-junior-readme-md.md",
+      "category": "Project Overview",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/project-overview/shared-codx-junior-readme-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/LICENSE.md": {
+      "path": "/shared/codx-junior/LICENSE.md",
+      "slug": "shared-codx-junior-license-md.md",
+      "category": "Project Overview",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/project-overview/shared-codx-junior-license-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/.dockerignore": {
+      "path": "/shared/codx-junior/.dockerignore",
+      "slug": "shared-codx-junior-dockerignore.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-dockerignore.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/Dockerfile": {
+      "path": "/shared/codx-junior/Dockerfile",
+      "slug": "shared-codx-junior-dockerfile.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-dockerfile.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docker-compose.yaml": {
+      "path": "/shared/codx-junior/docker-compose.yaml",
+      "slug": "shared-codx-junior-docker-compose-yaml.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docker-compose-yaml.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/installer.sh": {
+      "path": "/shared/codx-junior/installer.sh",
+      "slug": "shared-codx-junior-installer-sh.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-installer-sh.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docker-init/install-codx-junior.sh": {
+      "path": "/shared/codx-junior/docker-init/install-codx-junior.sh",
+      "slug": "shared-codx-junior-docker-init-install-codx-junior-sh.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docker-init-install-codx-junior-sh.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/initial-setup.md": {
+      "path": "/shared/codx-junior/docs/initial-setup.md",
+      "slug": "shared-codx-junior-docs-initial-setup-md.md",
+      "category": "Setup and Installation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docs-initial-setup-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features.md": {
+      "path": "/shared/codx-junior/docs/features.md",
+      "slug": "shared-codx-junior-docs-features-md.md",
+      "category": "Features and Functionalities",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/code-generation-and-review.md": {
+      "path": "/shared/codx-junior/docs/features/code-generation-and-review.md",
+      "slug": "shared-codx-junior-docs-features-code-generation-and-review-md.md",
+      "category": "Features and Functionalities",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-code-generation-and-review-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/collaboration-and-communication.md": {
+      "path": "/shared/codx-junior/docs/features/collaboration-and-communication.md",
+      "slug": "shared-codx-junior-docs-features-collaboration-and-communication-md.md",
+      "category": "Features and Functionalities",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-collaboration-and-communication-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/project-dashboard.md": {
+      "path": "/shared/codx-junior/docs/features/project-dashboard.md",
+      "slug": "shared-codx-junior-docs-features-project-dashboard-md.md",
+      "category": "Features and Functionalities",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-project-dashboard-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/development-tools.md": {
+      "path": "/shared/codx-junior/docs/features/development-tools.md",
+      "slug": "shared-codx-junior-docs-features-development-tools-md.md",
+      "category": "Development and Testing",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-docs-features-development-tools-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/tests/chatGPTApi/endpoint.tests.http": {
+      "path": "/shared/codx-junior/tests/chatGPTApi/endpoint.tests.http",
+      "slug": "shared-codx-junior-tests-chatgptapi-endpoint-tests-http.md",
+      "category": "Development and Testing",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-tests-chatgptapi-endpoint-tests-http.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/pytest.ini": {
+      "path": "/shared/codx-junior/pytest.ini",
+      "slug": "shared-codx-junior-pytest-ini.md",
+      "category": "Development and Testing",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-pytest-ini.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/deployment-and-operations.md": {
+      "path": "/shared/codx-junior/docs/features/deployment-and-operations.md",
+      "slug": "shared-codx-junior-docs-features-deployment-and-operations-md.md",
+      "category": "Deployment and Operations",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-docs-features-deployment-and-operations-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/scripts/run_docker.sh": {
+      "path": "/shared/codx-junior/scripts/run_docker.sh",
+      "slug": "shared-codx-junior-scripts-run-docker-sh.md",
+      "category": "Deployment and Operations",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-scripts-run-docker-sh.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/supervisor.conf": {
+      "path": "/shared/codx-junior/supervisor.conf",
+      "slug": "shared-codx-junior-supervisor-conf.md",
+      "category": "Deployment and Operations",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-supervisor-conf.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/features/knowledge-sharing.md": {
+      "path": "/shared/codx-junior/docs/features/knowledge-sharing.md",
+      "slug": "shared-codx-junior-docs-features-knowledge-sharing-md.md",
+      "category": "User Support and Documentation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-features-knowledge-sharing-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/getting-started.md": {
+      "path": "/shared/codx-junior/docs/getting-started.md",
+      "slug": "shared-codx-junior-docs-getting-started-md.md",
+      "category": "User Support and Documentation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-getting-started-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "/shared/codx-junior/docs/collaboration.md": {
+      "path": "/shared/codx-junior/docs/collaboration.md",
+      "slug": "shared-codx-junior-docs-collaboration-md.md",
+      "category": "User Support and Documentation",
+      "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-collaboration-md.md",
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    }
+  },
+  "domains": {}
+}

@@ -1,4 +1,5 @@
 import os
+import pickle
 import multiprocessing
 from llama_cpp import Llama
 from codx.junior.globals import CODX_JUNIOR_MODELS_PATH
@@ -26,6 +27,28 @@ class GuideModel:
             verbose=False
         )
 
+    def _save_state(self):
+        """Serializes and saves the current LlamaState to disk using pickle."""
+        state = self.llm.save_state()
+        with open(self.state_path, "wb") as f:
+            pickle.dump(state, f)
+        print(f"[GuideModel] Guide state saved to {self.state_path}")
+
+    def _restore_state(self) -> bool:
+        """
+        Attempts to restore LlamaState from disk using pickle.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            with open(self.state_path, "rb") as f:
+                state = pickle.load(f)
+            self.llm.load_state(state)
+            print(f"[GuideModel] Guide state restored from {self.state_path}")
+            return True
+        except Exception as e:
+            print(f"[GuideModel] Failed to restore state: {e}")
+            return False
+
     def load_guide(self, guide_text: str, force_refresh: bool = False):
         """
         Loads the project guide document into the model's context.
@@ -35,14 +58,14 @@ class GuideModel:
 
         if os.path.exists(self.state_path) and not force_refresh:
             print(f"[GuideModel] Restoring guide state from {self.state_path}...")
-            self.llm.load_state(self.state_path)
-        else:
-            print("[GuideModel] Processing guide for the first time (this may take a moment)...")
-            self.llm.tokenize(self.guide_text.encode("utf-8"))
-            # Prime the KV cache with the guide context
-            self.llm(self.guide_text, max_tokens=1)
-            self.llm.save_state(self.state_path)
-            print(f"[GuideModel] Guide processed and state saved to {self.state_path}")
+            if self._restore_state():
+                return
+
+        print("[GuideModel] Processing guide for the first time (this may take a moment)...")
+        # Prime the KV cache with the guide context
+        self.llm(self.guide_text, max_tokens=1)
+        self._save_state()
+        print(f"[GuideModel] Guide processed and state saved to {self.state_path}")
 
     def ask(self, question: str) -> str:
         """

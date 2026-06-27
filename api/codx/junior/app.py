@@ -448,7 +448,10 @@ def api_get_files(request: Request):
 def api_get_file(request: Request):
     codx_junior_session = request.state.codx_junior_session
     path = request.query_params.get("path")
-    return codx_junior_session.read_file(path=path)
+    try:
+        return codx_junior_session.read_file(path=path)
+    except Exception as ex:
+        logger.error("Error reading file: %s: %s", path, str(ex))
 
 @app.post("/api/files/diff")
 async def api_get_file_diff(request: Request):
@@ -466,7 +469,10 @@ async def api_get_file_diff_comments(request: Request):
 async def api_post_file(doc: Document, request: Request):
     codx_junior_session = request.state.codx_junior_session
     file_path = request.query_params.get("path")
-    return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
+    try:
+        return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
+    except Exception as ex:
+        logger.error("Error writing file: %s: %s", file_path, str(ex))
 
 @app.get("/api/files/reset")
 async def api_reset_file(request: Request):

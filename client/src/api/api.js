@@ -656,8 +656,8 @@ knowledge: {
         const qs = _buildAnalyticsQS({ startDate, endDate, projectName, model })
         return API.get(`/api/analytics/total${qs}`)
       },
-      daily({ startDate, endDate, projectName } = {}) {
-        const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
+      daily({ startDate, endDate, projectName, grouping = 'day' } = {}) {
+        const qs = _buildAnalyticsQS({ startDate, endDate, projectName, grouping })
         return API.get(`/api/analytics/daily${qs}`)
       },
       byModel({ startDate, endDate, projectName } = {}) {
@@ -672,8 +672,8 @@ knowledge: {
           const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, projectId, model })
           return API.get(`/api/analytics/admin/total${qs}`)
         },
-        daily({ startDate, endDate, username, projectName } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
+        daily({ startDate, endDate, username, projectName, grouping = 'day' } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, grouping })
           return API.get(`/api/analytics/admin/daily${qs}`)
         },
         byUser({ startDate, endDate, projectName, projectId } = {}) {

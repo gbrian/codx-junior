@@ -245,14 +245,18 @@ def get_daily(
     start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
+    grouping: str = Query("day", description="Grouping level: minute, hour, or day"),
     user: CodxUser = Depends(get_authenticated_user),
 ) -> List[Dict[str, Any]]:
     """
-    Return per-day aggregated token usage for the authenticated user.
+    Return per-period aggregated token usage for the authenticated user.
+
+    Args:
+        grouping: Time grouping level - 'minute', 'hour', or 'day'. Default: 'day'
 
     Returns:
-        List of ``{date, input_tokens, output_tokens, total_tokens, calls}``
-        sorted by date ascending.
+        List of ``{period, input_tokens, output_tokens, total_tokens, calls}``
+        sorted by period ascending.
     """
     analytics = _get_analytics()
     return analytics.get_daily_usage(
@@ -260,6 +264,7 @@ def get_daily(
         end_date=end_date,
         username=user.username,
         project_name=project_name,
+        grouping=grouping,
     )
 
 
@@ -347,16 +352,20 @@ def admin_get_daily(
     end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
     username: Optional[str] = Query(None, description="Filter by username"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
+    grouping: str = Query("day", description="Grouping level: minute, hour, or day"),
     _: CodxUser = Depends(require_admin),
 ) -> List[Dict[str, Any]]:
     """
-    Return per-day aggregated token usage across all users.
+    Return per-period aggregated token usage across all users.
+
+    Args:
+        grouping: Time grouping level - 'minute', 'hour', or 'day'. Default: 'day'
 
     Requires admin role.
 
     Returns:
-        List of ``{date, input_tokens, output_tokens, total_tokens, calls}``
-        sorted by date ascending.
+        List of ``{period, input_tokens, output_tokens, total_tokens, calls}``
+        sorted by period ascending.
     """
     analytics = _get_analytics()
     return analytics.get_daily_usage(
@@ -364,6 +373,7 @@ def admin_get_daily(
         end_date=end_date,
         username=username,
         project_name=project_name,
+        grouping=grouping,
     )
 
 
@@ -475,9 +485,6 @@ async def get_pricing(
     by_model_data = analytics.get_usage_by_model()
     active_keys = set(by_model_data.keys())
 
-    # Build a fast provider lookup
-    provider_map = {p.name: p for p in global_settings.ai_providers}
-
     result = []
     for provider in global_settings.ai_providers:
         models = []
@@ -562,7 +569,6 @@ async def update_model_pricing(
     """
     global_settings = read_global_settings()
 
-    # Locate the AIModel to resolve the provider-side model name
     ai_model = next(
         (m for m in global_settings.ai_models
          if m.ai_provider == provider_name and m.name == model_name),
@@ -575,10 +581,8 @@ async def update_model_pricing(
             detail=f"Model '{model_name}' not found for provider '{provider_name}'.",
         )
 
-    # Resolve the provider-side model name
     provider_model_name = ai_model.ai_model or model_name
 
-    # Update provider.price_list
     provider_found = False
     for provider in global_settings.ai_providers:
         if provider.name == provider_name:
@@ -641,5 +645,3 @@ async def recalculate_pricing(
         output_k_tokens_cxjcoins=body.output_k_tokens_cxjcoins,
     )
     return {"ok": res}
-
-# Made with ❤️ by codx-junior

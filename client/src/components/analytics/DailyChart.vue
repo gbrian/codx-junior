@@ -1,249 +1,11 @@
 <script setup>
+import Chart from 'chart.js/auto'
 </script>
 
 <template>
-  <div class="daily-chart w-full h-full relative" ref="container">
-    <svg
-      v-if="width && height && data.length"
-      :viewBox="`0 0 ${width} ${height}`"
-      class="w-full h-full"
-      @mousemove="onMouseMove"
-      @mouseleave="tooltip.visible = false"
-    >
-      <!-- Grid lines -->
-      <g class="grid">
-        <line
-          v-for="(tick, i) in yTicks"
-          :key="'hgrid-' + i"
-          :x1="padding.left"
-          :y1="yScale(tick)"
-          :x2="width - padding.right"
-          :y2="yScale(tick)"
-          stroke="currentColor"
-          stroke-opacity="0.08"
-          stroke-width="1"
-        />
-      </g>
-
-      <!-- Y axis ticks (tokens) -->
-      <g class="y-axis">
-        <text
-          v-for="(tick, i) in yTicks"
-          :key="'ytick-' + i"
-          :x="padding.left - 6"
-          :y="yScale(tick) + 4"
-          text-anchor="end"
-          class="fill-current opacity-40"
-          font-size="10"
-        >
-          {{ formatTick(tick) }}
-        </text>
-      </g>
-
-      <!-- Y axis ticks (cost - right side) -->
-      <g class="y-axis-right">
-        <text
-          v-for="(tick, i) in yCostTicks"
-          :key="'ytickr-' + i"
-          :x="width - padding.right + 6"
-          :y="yCostScale(tick) + 4"
-          text-anchor="start"
-          class="fill-[#e879f9] opacity-50"
-          font-size="9"
-        >
-          {{ formatCoinsShort(tick) }}
-        </text>
-      </g>
-
-      <!-- X axis ticks -->
-      <g class="x-axis">
-        <text
-          v-for="(point, i) in xTickPoints"
-          :key="'xtick-' + i"
-          :x="xScale(point.index)"
-          :y="height - padding.bottom + 14"
-          text-anchor="middle"
-          class="fill-current opacity-40"
-          font-size="9"
-        >
-          {{ formatDate(point.date) }}
-        </text>
-      </g>
-
-      <!-- Gradient defs -->
-      <defs>
-        <linearGradient id="totalGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3" />
-          <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02" />
-        </linearGradient>
-        <linearGradient id="inputGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#22c55e" stop-opacity="0.2" />
-          <stop offset="100%" stop-color="#22c55e" stop-opacity="0.01" />
-        </linearGradient>
-        <linearGradient id="outputGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2" />
-          <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.01" />
-        </linearGradient>
-        <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#e879f9" stop-opacity="0.25" />
-          <stop offset="100%" stop-color="#e879f9" stop-opacity="0.01" />
-        </linearGradient>
-      </defs>
-
-      <!-- ===== SINGLE DAY: BAR MODE ===== -->
-      <template v-if="isSingleDay">
-        <!-- Bars for total, input, output, cost grouped -->
-        <g v-for="(bar, i) in singleDayBars" :key="'bar-' + i">
-          <rect
-            :x="bar.x"
-            :y="bar.y"
-            :width="bar.w"
-            :height="bar.barHeight"
-            :fill="bar.color"
-            :fill-opacity="bar.opacity"
-            rx="3"
-          />
-          <!-- Bar label at top -->
-          <text
-            :x="bar.x + bar.w / 2"
-            :y="bar.y - 4"
-            text-anchor="middle"
-            :fill="bar.color"
-            font-size="9"
-            opacity="0.8"
-          >
-            {{ bar.label }}
-          </text>
-        </g>
-      </template>
-
-      <!-- ===== MULTI DAY: LINE MODE ===== -->
-      <template v-else>
-        <!-- Area fills -->
-        <path :d="areaPath('total_tokens')" fill="url(#totalGrad)" />
-        <path :d="areaPath('input_tokens')" fill="url(#inputGrad)" />
-        <path :d="areaPath('output_tokens')" fill="url(#outputGrad)" />
-        <path :d="costAreaPath()" fill="url(#costGrad)" />
-
-        <!-- Lines -->
-        <path
-          :d="linePath('total_tokens')"
-          fill="none"
-          stroke="#6366f1"
-          stroke-width="2"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <path
-          :d="linePath('input_tokens')"
-          fill="none"
-          stroke="#22c55e"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <path
-          :d="linePath('output_tokens')"
-          fill="none"
-          stroke="#f59e0b"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <path
-          :d="costLinePath()"
-          fill="none"
-          stroke="#e879f9"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-          stroke-dasharray="5,3"
-        />
-
-        <!-- Hover vertical line -->
-        <line
-          v-if="tooltip.visible"
-          :x1="tooltip.x"
-          :y1="padding.top"
-          :x2="tooltip.x"
-          :y2="height - padding.bottom"
-          stroke="currentColor"
-          stroke-opacity="0.3"
-          stroke-width="1"
-          stroke-dasharray="4,4"
-        />
-
-        <!-- Hover dots -->
-        <template v-if="tooltip.visible && tooltip.point">
-          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.total_tokens)" r="4" fill="#6366f1" />
-          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.input_tokens)" r="3.5" fill="#22c55e" />
-          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.output_tokens)" r="3.5" fill="#f59e0b" />
-          <circle
-            v-if="tooltip.point.total_cxjcoins != null"
-            :cx="tooltip.x"
-            :cy="yCostScale(tooltip.point.total_cxjcoins)"
-            r="3.5"
-            fill="#e879f9"
-          />
-        </template>
-      </template>
-    </svg>
-
-    <!-- Tooltip -->
-    <div
-      v-if="tooltip.visible && tooltip.point"
-      class="absolute pointer-events-none bg-base-100 border border-base-300 rounded-lg shadow-lg p-2 z-10 text-xs"
-      :style="tooltipStyle"
-    >
-      <p class="font-bold text-base-content mb-1">{{ tooltip.point.date }}</p>
-      <div class="space-y-0.5">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-[#6366f1] inline-block"></span>
-          <span class="text-base-content/70">Total:</span>
-          <span class="font-semibold">{{ formatNumber(tooltip.point.total_tokens) }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-[#22c55e] inline-block"></span>
-          <span class="text-base-content/70">Input:</span>
-          <span class="font-semibold text-success">{{ formatNumber(tooltip.point.input_tokens) }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-[#f59e0b] inline-block"></span>
-          <span class="text-base-content/70">Output:</span>
-          <span class="font-semibold text-warning">{{ formatNumber(tooltip.point.output_tokens) }}</span>
-        </div>
-        <div class="flex items-center gap-2 border-t border-base-300 pt-0.5 mt-0.5">
-          <span class="text-base-content/70">Calls:</span>
-          <span class="font-semibold">{{ tooltip.point.calls }}</span>
-        </div>
-        <div v-if="tooltip.point.total_cxjcoins != null" class="flex items-center gap-2 border-t border-base-300 pt-0.5 mt-0.5">
-          <span class="w-2 h-2 rounded-full bg-[#e879f9] inline-block"></span>
-          <span class="text-base-content/70">Cost:</span>
-          <span class="font-semibold text-fuchsia-400">{{ formatCoins(tooltip.point.total_cxjcoins) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Legend -->
-    <div class="absolute top-0 right-0 flex items-center gap-3 text-xs">
-      <div class="flex items-center gap-1">
-        <span class="w-3 h-0.5 bg-[#6366f1] inline-block"></span>
-        <span class="text-base-content/60">Total</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <span class="w-3 h-0.5 bg-[#22c55e] inline-block"></span>
-        <span class="text-base-content/60">Input</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <span class="w-3 h-0.5 bg-[#f59e0b] inline-block"></span>
-        <span class="text-base-content/60">Output</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <svg width="12" height="6" class="inline-block">
-          <line x1="0" y1="3" x2="12" y2="3" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3,2" />
-        </svg>
-        <span class="text-base-content/60">Cost</span>
-      </div>
+  <div class="w-full h-full bg-base-900 rounded-lg">
+    <div class="flex-1 w-full h-full relative bg-base-800 rounded-lg">
+      <canvas ref="chartCanvas"></canvas>
     </div>
   </div>
 </template>
@@ -255,219 +17,206 @@ export default {
     data: {
       type: Array,
       default: () => []
+    },
+    grouping: {
+      type: String,
+      default: 'day',
+      validator: (v) => ['minute', 'hour', 'day'].includes(v)
     }
   },
   data() {
     return {
-      width: 0,
-      height: 0,
-      padding: { top: 20, right: 48, bottom: 30, left: 55 },
-      tooltip: {
-        visible: false,
-        x: 0,
-        y: 0,
-        point: null
-      },
-      resizeObserver: null
+      chart: null,
+      visibleMetrics: ['input_tokens', 'output_tokens', 'calls', 'total_cxjcoins'],
+      availableMetrics: [
+        { key: 'input_tokens', label: 'Input Tokens', color: '#10b981', type: 'line' },
+        { key: 'output_tokens', label: 'Output Tokens', color: '#f59e0b', type: 'line' },
+        { key: 'calls', label: 'Calls', color: '#3b82f6', type: 'bar' },
+        { key: 'total_cxjcoins', label: 'CXJ Coins', color: '#8b5cf6', type: 'bar' }
+      ]
     }
   },
   computed: {
-    chartPoints() {
-      return [...this.data].sort((a, b) => a.date > b.date ? 1 : -1)
-    },
-    isSingleDay() {
-      return this.chartPoints.length === 1
-    },
-    maxValue() {
-      return Math.max(...this.chartPoints.map(p => p.total_tokens), 1)
-    },
-    maxCost() {
-      return Math.max(...this.chartPoints.map(p => p.total_cxjcoins || 0), 1)
-    },
-    yTicks() {
-      const max = this.maxValue
-      const step = Math.pow(10, Math.floor(Math.log10(max)))
-      const nice = Math.ceil(max / step) * step
-      return [0, nice * 0.25, nice * 0.5, nice * 0.75, nice].map(Math.round)
-    },
-    yCostTicks() {
-      const max = this.maxCost
-      const step = Math.pow(10, Math.floor(Math.log10(max)))
-      const nice = Math.ceil(max / step) * step
-      return [0, nice * 0.25, nice * 0.5, nice * 0.75, nice]
-    },
-    xTickPoints() {
-      const n = this.chartPoints.length
-      if (n === 0) return []
-      const maxTicks = 7
-      const step = Math.max(1, Math.floor(n / maxTicks))
-      const ticks = []
-      for (let i = 0; i < n; i += step) {
-        ticks.push({ index: i, date: this.chartPoints[i].date })
+    chartData() {
+      if (!this.data || this.data.length === 0) {
+        return { labels: [], datasets: [] }
       }
-      if (ticks[ticks.length - 1]?.index !== n - 1) {
-        ticks.push({ index: n - 1, date: this.chartPoints[n - 1].date })
-      }
-      return ticks
-    },
-    tooltipStyle() {
-      const { x } = this.tooltip
-      const left = x > (this.width / 2) ? `${x - 150}px` : `${x + 12}px`
-      return { top: `${this.padding.top}px`, left }
-    },
-    // Build bar data for single-day mode
-    singleDayBars() {
-      if (!this.isSingleDay) return []
-      const p = this.chartPoints[0]
-      const bottom = this.height - this.padding.bottom
-      const innerW = this.width - this.padding.left - this.padding.right
-      // 3 token bars + 1 cost bar, with a gap
-      const barDefs = [
-        { key: 'total_tokens',  color: '#6366f1', label: this.formatNumber(p.total_tokens),  value: p.total_tokens,  scale: 'token' },
-        { key: 'input_tokens',  color: '#22c55e', label: this.formatNumber(p.input_tokens),   value: p.input_tokens,  scale: 'token' },
-        { key: 'output_tokens', color: '#f59e0b', label: this.formatNumber(p.output_tokens),  value: p.output_tokens, scale: 'token' },
-        { key: 'total_cxjcoins',color: '#e879f9', label: this.formatCoins(p.total_cxjcoins), value: p.total_cxjcoins || 0, scale: 'cost' }
-      ]
-      const count = barDefs.length
-      const gap = 12
-      const barW = Math.max(20, (innerW - gap * (count + 1)) / count)
-      const totalBarsW = barW * count + gap * (count - 1)
-      const startX = this.padding.left + (innerW - totalBarsW) / 2
 
-      return barDefs.map((def, i) => {
-        const x = startX + i * (barW + gap)
-        const yVal = def.scale === 'cost'
-          ? this.yCostScale(def.value)
-          : this.yScale(def.value)
-        return {
-          x,
-          y: yVal,
-          w: barW,
-          barHeight: bottom - yVal,
-          color: def.color,
-          opacity: 0.75,
-          label: def.label
-        }
+      const labels = this.data.map(d => d.period || d.date)
+      const datasets = []
+
+      this.availableMetrics.forEach(metric => {
+        if (!this.visibleMetrics.includes(metric.key)) return
+
+        const values = this.data.map(d => d[metric.key] || 0)
+        const isBar = metric.type === 'bar'
+
+        datasets.push({
+          label: metric.label,
+          data: values,
+          borderColor: metric.color,
+          backgroundColor: isBar ? metric.color : `rgba(${this.hexToRgb(metric.color)}, 0.15)`,
+          borderWidth: isBar ? 0 : 2,
+          tension: isBar ? 0 : 0.4,
+          fill: !isBar,
+          pointRadius: isBar ? 0 : 4,
+          pointBackgroundColor: metric.color,
+          pointBorderColor: '#374151',
+          pointBorderWidth: 2,
+          type: metric.type,
+          yAxisID: this.getYAxisId(metric.key)
+        })
       })
+
+      return { labels, datasets }
+    }
+  },
+  watch: {
+    chartData: {
+      handler() {
+        this.updateChart()
+      },
+      deep: true
     }
   },
   methods: {
-    xScale(i) {
-      const n = this.chartPoints.length
-      if (n <= 1) return (this.width - this.padding.left - this.padding.right) / 2 + this.padding.left
-      const range = this.width - this.padding.left - this.padding.right
-      return this.padding.left + (i / (n - 1)) * range
+    hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 0, 0'
     },
-    yScale(value) {
-      const range = this.height - this.padding.top - this.padding.bottom
-      const max = this.yTicks[this.yTicks.length - 1] || 1
-      return this.height - this.padding.bottom - (value / max) * range
+
+    getYAxisId(metricKey) {
+      return ['input_tokens', 'output_tokens'].includes(metricKey) ? 'y' : 'y1'
     },
-    yCostScale(value) {
-      const range = this.height - this.padding.top - this.padding.bottom
-      const max = this.yCostTicks[this.yCostTicks.length - 1] || 1
-      return this.height - this.padding.bottom - (value / max) * range
+
+    formatTokenValue(value) {
+      if (!value) return '0'
+      if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M'
+      if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K'
+      return value.toFixed(1)
     },
-    linePath(key) {
-      if (this.chartPoints.length === 0) return ''
-      return this.chartPoints.map((p, i) => {
-        const x = this.xScale(i)
-        const y = this.yScale(p[key])
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-      }).join(' ')
-    },
-    costLinePath() {
-      if (this.chartPoints.length === 0) return ''
-      return this.chartPoints.map((p, i) => {
-        const x = this.xScale(i)
-        const y = this.yCostScale(p.total_cxjcoins || 0)
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-      }).join(' ')
-    },
-    areaPath(key) {
-      if (this.chartPoints.length === 0) return ''
-      const bottom = this.height - this.padding.bottom
-      const points = this.chartPoints.map((p, i) => ({
-        x: this.xScale(i),
-        y: this.yScale(p[key])
-      }))
-      const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
-      const close = `L ${points[points.length - 1].x.toFixed(2)} ${bottom} L ${points[0].x.toFixed(2)} ${bottom} Z`
-      return `${line} ${close}`
-    },
-    costAreaPath() {
-      if (this.chartPoints.length === 0) return ''
-      const bottom = this.height - this.padding.bottom
-      const points = this.chartPoints.map((p, i) => ({
-        x: this.xScale(i),
-        y: this.yCostScale(p.total_cxjcoins || 0)
-      }))
-      const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
-      const close = `L ${points[points.length - 1].x.toFixed(2)} ${bottom} L ${points[0].x.toFixed(2)} ${bottom} Z`
-      return `${line} ${close}`
-    },
-    formatTick(v) {
-      if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
-      if (v >= 1_000) return (v / 1_000).toFixed(0) + 'K'
-      return v
-    },
-    formatCoinsShort(v) {
-      if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
-      if (v >= 1_000) return (v / 1_000).toFixed(1) + 'K'
-      return Number(v).toFixed(1)
-    },
-    formatDate(dateStr) {
-      if (!dateStr) return ''
-      const [, month, day] = dateStr.split('-')
-      return `${month}/${day}`
-    },
-    formatNumber(num) {
-      if (!num) return '0'
-      if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
-      if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
-      return num.toString()
-    },
-    formatCoins(coins) {
-      if (!coins && coins !== 0) return '-'
-      if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'
-      if (coins >= 1_000) return '🪙 ' + (coins / 1_000).toFixed(2) + 'K'
-      return '🪙 ' + Number(coins).toFixed(2)
-    },
-    onMouseMove(event) {
-      // In single-day bar mode always show the only data point
-      if (this.isSingleDay) {
-        const cx = this.width / 2
-        this.tooltip.visible = true
-        this.tooltip.x = cx
-        this.tooltip.point = this.chartPoints[0]
-        return
+
+    updateChart() {
+      if (!this.$refs.chartCanvas) return
+
+      if (this.chart) {
+        this.chart.data = this.chartData
+        this.chart.options = this.getChartOptions()
+        this.chart.update()
+      } else {
+        this.initChart()
       }
-      const rect = this.$el.getBoundingClientRect()
-      const svgX = event.clientX - rect.left
-      const innerWidth = this.width - this.padding.left - this.padding.right
-      const n = this.chartPoints.length
-      if (n === 0) return
-      const relX = svgX - this.padding.left
-      const idx = Math.round((relX / innerWidth) * (n - 1))
-      const clampedIdx = Math.max(0, Math.min(n - 1, idx))
-      this.tooltip.visible = true
-      this.tooltip.x = this.xScale(clampedIdx)
-      this.tooltip.y = event.clientY - rect.top
-      this.tooltip.point = this.chartPoints[clampedIdx]
     },
-    updateSize() {
-      if (!this.$refs.container) return
-      this.width = this.$refs.container.clientWidth
-      this.height = this.$refs.container.clientHeight
+
+    initChart() {
+      const ctx = this.$refs.chartCanvas?.getContext('2d')
+      if (!ctx) return
+
+      this.chart = new Chart(ctx, {
+        type: 'line',
+        data: this.chartData,
+        options: this.getChartOptions()
+      })
+    },
+
+    getChartOptions() {
+      const baseColors = {
+        bg: '#1f2937',
+        border: '#374151',
+        text: '#e5e7eb',
+        textSecondary: '#9ca3af',
+        gridColor: 'rgba(55, 65, 81, 0.2)'
+      }
+
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              padding: 15,
+              font: { size: 14, weight: '600', family: "'Inter', sans-serif" },
+              color: baseColors.text
+            }
+          },
+          tooltip: {
+            backgroundColor: `rgba(${this.hexToRgb('#111827')}, 0.95)`,
+            padding: 14,
+            titleFont: { size: 14, weight: '600', family: "'Inter', sans-serif" },
+            bodyFont: { size: 13, weight: '500', family: "'Inter', sans-serif" },
+            borderColor: baseColors.border,
+            borderWidth: 1,
+            mode: 'index',
+            intersect: false,
+            titleColor: baseColors.text,
+            bodyColor: baseColors.textSecondary,
+            callbacks: {
+              label: (context) => {
+                const label = context.dataset.label || ''
+                const value = context.parsed.y
+                const formatted = this.formatTokenValue(value)
+                return `${label}: ${formatted}`
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            grid: { color: baseColors.gridColor },
+            ticks: {
+              font: { size: 13, weight: '600', family: "'Inter', sans-serif" },
+              color: baseColors.textSecondary,
+              callback: (value) => this.formatTokenValue(value)
+            },
+            title: {
+              display: true,
+              text: 'Tokens',
+              font: { size: 14, weight: '600', family: "'Inter', sans-serif" },
+              color: baseColors.text
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            beginAtZero: true,
+            grid: { drawOnChartArea: false },
+            ticks: {
+              font: { size: 13, weight: '600', family: "'Inter', sans-serif" },
+              color: baseColors.textSecondary
+            },
+            title: {
+              display: true,
+              text: 'Calls / CXJ Coins',
+              font: { size: 14, weight: '600', family: "'Inter', sans-serif" },
+              color: baseColors.text
+            }
+          },
+          x: {
+            display: false
+          }
+        }
+      }
     }
   },
   mounted() {
-    this.updateSize()
-    this.resizeObserver = new ResizeObserver(this.updateSize)
-    this.resizeObserver.observe(this.$refs.container)
+    this.initChart()
   },
   beforeUnmount() {
-    if (this.resizeObserver) this.resizeObserver.disconnect()
+    if (this.chart) {
+      this.chart.destroy()
+    }
   }
 }
 </script>

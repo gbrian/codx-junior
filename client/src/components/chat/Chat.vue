@@ -1,7 +1,7 @@
 <script setup>
 import { API } from '../../api/api'
 import CheckLists from './CheckLists.vue'
-import PRView from '@/components/repo/PRView.vue'
+import ChangesPanel from '@/components/vibe/panels/ChangesPanel.vue'
 import ChatFileList from './ChatFileList.vue'
 import ChatInputBox from './ChatInputBox.vue'
 import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
@@ -34,12 +34,12 @@ import ChatFilePreview from './ChatFilePreview.vue'
         <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" v-if="!isVibe" />
       </div>
 
+      <!-- Changes Panel for PRView Mode -->
       <div class="grow" v-show="isPRView">
-        <PRView
+        <ChangesPanel
           class="h-full overflow-auto"
-          :fromBranch="chat.pr_view?.from_branch"
-          :toBranch="chat.pr_view?.to_branch"
           :chat="chat"
+          @refresh="onRefreshChanges"
           @select-branch="onPRViewBranchChanged"
           @comment="onPRFileComment"
           @change-column="$emit('change-column', $event)"
@@ -216,9 +216,7 @@ export default {
       notebookStatus: null,
       editorText: "",
       stableMessages: [],
-      // File preview panel
       previewFile: null,
-      // IntelliSense state
       intelliSenseSuggestions: [],
       intelliSenseIndex: 0,
       intelliSenseQuery: '',
@@ -340,7 +338,6 @@ export default {
     // ── File preview ──────────────────────────────────────────
 
     openFilePreview(filePath) {
-      // Toggle off if same file clicked again
       this.previewFile = this.previewFile === filePath ? null : filePath
     },
 
@@ -352,10 +349,15 @@ export default {
       this.$ui?.addNotification?.({ text: `Saved: ${file.split('/').reverse()[0]}` })
     },
 
+    // ── PRView / ChangesPanel handlers ────────────────────────
+
+    onRefreshChanges() {
+      this.$refs.changesPanel?.loadAllProjects()
+    },
+
     // ── IntelliSense ──────────────────────────────────────────
 
     scheduleIntelliSense() {
-      // Reset dismissed state if user typed a new word
       if (this.intelliSenseDismissed) {
         const { word } = this.cursorWord
         if (word !== this.intelliSenseQuery) this.intelliSenseDismissed = false
@@ -468,10 +470,9 @@ export default {
       this.onEditMessageKeyDown(event)
     },
 
-    // ── Existing methods ──────────────────────────────────────
+    // ── Message sync ──────────────────────────────────────────
 
     syncStableMessages(newMessages) {
-      // Only replace array if message ids changed, otherwise patch in-place to avoid re-renders
       const newIds = newMessages.map(m => m.doc_id).join(',')
       const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
       if (newIds !== oldIds) {

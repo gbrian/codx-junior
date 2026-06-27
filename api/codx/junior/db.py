@@ -58,6 +58,7 @@ class Message(BaseModel):
     disable_knowledge: Optional[bool] = Field(default=False)
     read_by: List[str] = Field(default=[])
     error: Optional[str] = Field(default=None)
+    linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
 
 class ChatId(BaseModel):
     chat_id: str = Field(default=None, description="Chat id")
@@ -69,12 +70,13 @@ class Chat(BaseModel):
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat works, see owner_project_id for the project where the chat was created")
     owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
+    linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
     parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
     parent_project_id: Optional[str] = Field(default=None, description="Parent chat project id")
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
-    # tags: Optional[any] = Field(default=None, description="Informative set of tags")
+    # tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])

@@ -67,7 +67,7 @@ class ChangeManager:
 
         await asyncio.gather(*tasks)
 
-        if True or not self.settings.watching:
+        if not self.settings.watching:
             return
 
         # Check indexing

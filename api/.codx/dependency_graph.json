@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782318692,
+  "updated_at": 1782547857,
   "files": {
     "README.md": {
       "imports": [],
@@ -304,7 +304,8 @@
       ],
       "external_deps": [
         "logging",
-        "typing"
+        "typing",
+        "datetime"
       ]
     },
     "codx/junior/analytics/model.py": {
@@ -1620,7 +1621,8 @@
     "codx/junior/model/model.py": {
       "imports": [
         "codx/junior/model/user.py",
-        "codx/junior/model/ai_model.py"
+        "codx/junior/model/ai_model.py",
+        "codx/junior/model/profile.py"
       ],
       "imported_by": [
         "codx/junior/ai/__init__.py",
@@ -1672,12 +1674,25 @@
         "typing"
       ]
     },
+    "codx/junior/model/profile.py": {
+      "imports": [
+        "codx/junior/model/user.py"
+      ],
+      "imported_by": [
+        "codx/junior/model/model.py"
+      ],
+      "external_deps": [
+        "pydantic",
+        "typing"
+      ]
+    },
     "codx/junior/model/user.py": {
       "imports": [
         "codx/junior/model/wallet.py"
       ],
       "imported_by": [
         "codx/junior/model/model.py",
+        "codx/junior/model/profile.py",
         "codx/junior/security/user_management.py"
       ],
       "external_deps": [
@@ -2529,6 +2544,31 @@
         "unittest",
         "os"
       ]
+    },
+    "apply_profiles": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "extract_profile_mentions": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "get_matching_profiles": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "get_profiles": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "resolve_profiles": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
     }
   }
 }

@@ -1,28 +1,42 @@
 # Multi-Domain Container Setup
 
 ## Overview
-This domain manages the comprehensive configuration required for establishing a containerized application built on a multi-domain architecture. Its primary purpose is to house all build-related instructions, ensuring that various logical components (domains) can be packaged and deployed independently using best practices in Docker containerization. This setup separates the concerns of different microservices or applications, allowing them to build, test, and run as isolated units while still functioning cohesively within a larger system.
 
-The configuration utilizes detailed documentation and exclusion files (`.dockerignore`) to optimize image size, speed up builds, and prevent unnecessary artifacts (like development tools, cache directories, or excessive local node modules) from being packaged into the final container images.
+This domain provides the foundational technical documentation and configuration standards necessary for building, deploying, and managing complex containerized applications that operate within isolated multi-tenant or multi-domain environments. Successful implementation requires careful consideration of resource segregation, service-to-service communication across defined boundaries, and environment variable management (e.g., distinguishing between staging, production A, and production B).
 
-**Keywords:** Multi-Domain Architecture, Containerization, Docker best practices, Build Lifecycle, Microservices, Packaging, Configuration Management.
+The materials covered here range from basic artifact generation using modern build tools (like Vite for frontend assets) to advanced architectural patterns detailing how disparate microservices—potentially built with Node.js, Python, or Java—communicate securely while maintaining strict domain isolation. Key considerations include configuring `docker-compose` or Kubernetes manifests to define resource limits, network policies, and persistent storage volumes (`database-files`).
+
+### Core Concepts Covered:
+*   **Tenant Isolation:** Strategies for ensuring that data and operational functions of one tenant (domain) cannot interfere with another.
+*   **Artifact Management:** Defining the lifecycle of build artifacts, including compiled assets, dependency manifests, and configuration files needed for deployment.
+*   **Environment Parity:** Ensuring development environments accurately reflect production behavior using standard Git workflows and environment variable sourcing.
 
 ## Files in Domain
-*   **.dockerignore:** Specifies files and directories that should be explicitly excluded when building a Docker image context. This is crucial for keeping the image size minimal and preventing accidental inclusion of local development artifacts (e.g., temporary logs, node `node_modules` from host machine, or large cache files).
 
-*   **domains/container-build-configuration.md:** Serves as the central documentation hub for all container build processes. It details:
-    *   The independent build instructions for each logical domain.
-    *   Recommended base images and OS layers.
-    *   Specific environment variables required for successful deployment.
-    *   Guidelines on how to properly package each component and manage dependencies (e.g., Python virtual environments, Node.js dependency handling).
+The following files constitute the core knowledge base for this domain area:
+
+*   `domains/container-build-configuration.md`: Details best practices and specific steps for configuring container builds. This includes specifying build stages, managing multi-stage Dockerfiles, defining correct dependency versions (e.g., Node.js runtime requirements), and ensuring cache file efficiency to speed up CI/CD pipelines.
+*   `domains/multi-domain-container-setup.md`: Focuses on the architectural patterns required for running applications across multiple segregated domains. This document covers topics such as domain routing, service communication meshes (e.g., Istio concepts), and standardized ingress setup per tenant ID.
 
 ## Dependencies
-None. This domain contains foundational build configuration and documentation, meaning it does not rely on external code or prior artifacts within the project structure to function.
+
+This domain relies heavily on external tooling and internal project setups to function correctly:
+
+*   **Development Tools:** Git is mandatory for version control and branching strategies used throughout the build process. An IDE-configuration is necessary for developer productivity, often including specific linting and type checking rules (e.g., TypeScript for Node.js).
+*   **Runtime Environments:** Requires configured runtime environments for various languages, typically encompassing **Node.js dependencies**, dedicated **Python environments** (often managed via `venv` or Poetry), and standardized build toolchains like Vite.
+*   **Infrastructure Components:** Deep knowledge of virtualized environments, including Kubernetes manifests, Docker-compose configurations, and robust secrets management utilities are assumed prerequisites for deployment guides within this domain.
 
 ## Used By
-(Note: Currently empty.)
-This domain is critical infrastructure for building subsequent services, deployment scripts (e.g., Kubernetes YAMLs), and CI/CD pipelines. Any machine or script generating production container images will depend on the rules and documentation provided here.
+
+This domain configuration is a critical backbone used by the following development areas:
+
+*   **CI/CD Pipelines:** The explicit build artifacts defined here dictate how continuous integration systems (e.g., Jenkins, GitHub Actions) assemble and package deployable images.
+*   **Platform Engineering Teams:** Responsible for implementing Kubernetes deployment strategies and network policy enforcement based on multi-domain isolation standards.
+*   **Backend API Services:** Consume the container setup documentation to correctly initialize environment variables, handle database connection pooling across domains, and manage service mesh routing.
 
 ## Entry Points
-*   **.dockerignore:** The immediate entry point for developers who need to understand which files are considered non-essential for building a clean container image, aiding local development setup efficiency.
-*   **domains/container-build-configuration.md:** This is the primary reference document. It must be reviewed by developers and DevOps engineers before any new domain service can be created or updated, ensuring adherence to standardized packaging practices.
+
+These files serve as the primary guides for engineers starting work within this domain:
+
+*   domains/container-build-configuration.md
+*   domains/multi-domain-container-setup.md

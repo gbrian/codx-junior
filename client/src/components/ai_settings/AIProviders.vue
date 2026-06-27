@@ -102,7 +102,7 @@ import AIProviderSettings from './AIProviderSettings.vue'
             <td>
               <span v-if="provider.api_key" class="flex items-center gap-1 text-xs">
                 <i class="fa-solid fa-key text-warning"></i>
-                {{ provider.api_key?.slice(0, 4) }}••••
+                {{ maskApiKey(provider.api_key) }}
               </span>
               <span v-else class="text-xs text-error/60">
                 <i class="fa-solid fa-ban mr-1"></i>No key
@@ -232,6 +232,14 @@ export default {
     }
   },
   methods: {
+    // Mask API key: show first 6 and last 5 chars, hide middle with dots
+    maskApiKey(key) {
+      if (!key || key.length < 11) return key.slice(0, 6) + '•'.repeat(Math.max(0, key.length - 6))
+      const first = key.slice(0, 6)
+      const last = key.slice(-5)
+      const hiddenLength = key.length - 11
+      return `${first}${'•'.repeat(4)}${last}`
+    },
     // Count how many models are assigned to a given provider name
     getModelCount(provider) {
       const models = this.aiModels.filter(m => m.ai_provider === provider.name).length

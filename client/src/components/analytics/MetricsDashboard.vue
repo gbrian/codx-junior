@@ -13,6 +13,20 @@ import PriceEditor from './PriceEditor.vue'
         <h1 class="text-2xl font-bold text-base-content">Analytics Dashboard</h1>
       </div>
       <div class="flex flex-wrap items-center gap-2">
+        <!-- Grouping selector -->
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-base-content/70">Group by:</label>
+          <select
+            v-model="grouping"
+            class="select select-bordered select-sm"
+            @change="loadData"
+          >
+            <option value="minute">Minute</option>
+            <option value="hour">Hour</option>
+            <option value="day">Day</option>
+          </select>
+        </div>
+
         <button
           class="btn btn-sm btn-outline"
           :class="{ 'btn-active': isAdminView }"
@@ -46,10 +60,8 @@ import PriceEditor from './PriceEditor.vue'
           </span>
         </template>
 
-        <!-- Quick presets + auto-refresh in header actions -->
         <template #actions>
           <div class="flex flex-wrap items-center gap-1 mr-1" @click.stop>
-            <!-- Quick date presets -->
             <button
               v-for="preset in datePresets"
               :key="preset.label"
@@ -60,10 +72,8 @@ import PriceEditor from './PriceEditor.vue'
               {{ preset.label }}
             </button>
 
-            <!-- Divider -->
             <div class="w-px h-4 bg-base-300 mx-1"></div>
 
-            <!-- Auto-refresh selector -->
             <div class="flex items-center gap-1">
               <i
                 class="fa-solid fa-clock text-xs"
@@ -112,7 +122,6 @@ import PriceEditor from './PriceEditor.vue'
                 </div>
               </div>
 
-              <!-- Admin filters -->
               <template v-if="isAdminView">
                 <div class="flex items-center gap-1">
                   <label class="text-xs text-base-content/60">User</label>
@@ -126,7 +135,6 @@ import PriceEditor from './PriceEditor.vue'
                 </div>
               </template>
 
-              <!-- Model filter -->
               <div class="flex items-center gap-1">
                 <label class="text-xs text-base-content/60">Model</label>
                 <select
@@ -192,41 +200,40 @@ import PriceEditor from './PriceEditor.vue'
       </div>
 
       <!-- Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- Daily Usage Chart -->
-        <div class="card bg-base-100 shadow">
-          <div class="card-body p-4">
-            <h2 class="card-title text-base mb-4 flex items-center gap-2">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 h-96">
+        <!-- Period Usage Chart -->
+        <div class="card bg-base-100 shadow h-full overflow-hidden">
+          <div class="card-body p-4 h-full flex flex-col">
+            <h2 class="card-title text-base mb-4 flex items-center gap-2 flex-shrink-0">
               <i class="fa-solid fa-chart-line text-primary"></i>
-              Daily Token Usage
+              {{ groupingLabel }} Token Usage
             </h2>
-            <div v-if="dailyData.length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
+            <div v-if="dailyData.length === 0" class="flex items-center justify-center flex-1 text-base-content-ERROR-40">
               <div class="text-center">
                 <i class="fa-solid fa-chart-line text-5xl"></i>
-                <p class="mt-2 text-sm">No daily data available</p>
+                <p class="mt-2 text-sm">No data available</p>
               </div>
             </div>
-            <div v-else class="relative h-48">
-              <DailyChart :data="dailyData" />
+            <div v-else class="flex-1 w-full min-h-0">
+              <DailyChart :data="dailyData" :grouping="grouping" />
             </div>
           </div>
         </div>
 
         <!-- Model Breakdown -->
-        <div class="card bg-base-100 shadow">
-          <div class="card-body p-4">
-            <h2 class="card-title text-base mb-4 flex items-center gap-2">
+        <div class="card bg-base-100 shadow h-full overflow-hidden">
+          <div class="card-body p-4 h-full flex flex-col">
+            <h2 class="card-title text-base mb-4 flex items-center gap-2 flex-shrink-0">
               <i class="fa-solid fa-microchip text-secondary"></i>
               Usage by Model
             </h2>
-            <div v-if="Object.keys(byModelData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
+            <div v-if="Object.keys(byModelData).length === 0" class="flex items-center justify-center flex-1 text-base-content-ERROR-40">
               <div class="text-center">
                 <i class="fa-solid fa-robot text-5xl"></i>
                 <p class="mt-2 text-sm">No model data available</p>
               </div>
             </div>
-            <div v-else class="space-y-3 overflow-y-auto max-h-48">
-              <!-- byModelData ordered by total_tokens desc -->
+            <div v-else class="space-y-3 overflow-y-auto flex-1">
               <div
                 v-for="[model, stats] in byModelDataSorted"
                 :key="model"
@@ -236,7 +243,7 @@ import PriceEditor from './PriceEditor.vue'
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-medium truncate" :title="model">{{ model }}</span>
                     <span class="text-xs text-base-content/60 ml-2">
-                      {{ formatNumber(stats.total_tokens) }} tokens
+                      {{ formatTokens(stats.total_tokens) }}
                     </span>
                   </div>
                   <div class="w-full bg-base-200 rounded-full h-2">
@@ -246,8 +253,8 @@ import PriceEditor from './PriceEditor.vue'
                     ></div>
                   </div>
                   <div class="flex gap-2 mt-1 flex-wrap">
-                    <span class="text-xs text-success">↑ {{ formatNumber(stats.input_tokens) }} in</span>
-                    <span class="text-xs text-warning">↓ {{ formatNumber(stats.output_tokens) }} out</span>
+                    <span class="text-xs text-success">↑ {{ formatTokens(stats.input_tokens) }}</span>
+                    <span class="text-xs text-warning">↓ {{ formatTokens(stats.output_tokens) }}</span>
                     <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
                     <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
                       🪙 {{ formatCoins(stats.total_cxjcoins) }}
@@ -291,7 +298,7 @@ import PriceEditor from './PriceEditor.vue'
                     <div class="flex items-center justify-between mb-1">
                       <span class="text-xs font-medium truncate">{{ username }}</span>
                       <span class="text-xs text-base-content/60">
-                        {{ formatNumber(stats.total_tokens) }} tokens
+                        {{ formatTokens(stats.total_tokens) }}
                       </span>
                     </div>
                     <div class="w-full bg-base-200 rounded-full h-2">
@@ -337,7 +344,7 @@ import PriceEditor from './PriceEditor.vue'
                         {{ projectName }}
                       </span>
                       <span class="text-xs text-base-content/60">
-                        {{ formatNumber(stats.total_tokens) }} tokens
+                        {{ formatTokens(stats.total_tokens) }}
                       </span>
                     </div>
                     <div class="w-full bg-base-200 rounded-full h-2">
@@ -391,7 +398,7 @@ import PriceEditor from './PriceEditor.vue'
                   >
                     <td class="font-medium text-xs truncate max-w-32" :title="model">{{ model }}</td>
                     <td class="text-right text-base-content/60">{{ stats.calls }}</td>
-                    <td class="text-right">{{ formatNumber(stats.total_tokens) }}</td>
+                    <td class="text-right">{{ formatTokens(stats.total_tokens) }}</td>
                     <td class="text-right">
                       <span class="font-mono text-xs">
                         {{ stats.total_duration_seconds > 0 ? stats.total_duration_seconds.toFixed(2) + 's' : 'N/A' }}
@@ -402,7 +409,7 @@ import PriceEditor from './PriceEditor.vue'
                         class="font-mono text-xs font-semibold"
                         :class="getTokensPerSecColor(stats.tokens_per_second)"
                       >
-                        {{ stats.tokens_per_second > 0 ? formatNumber(stats.tokens_per_second) + '/s' : 'N/A' }}
+                        {{ stats.tokens_per_second > 0 ? formatTokens(stats.tokens_per_second) + '/s' : 'N/A' }}
                       </span>
                     </td>
                     <td class="text-right">
@@ -438,7 +445,7 @@ import PriceEditor from './PriceEditor.vue'
           <div class="flex items-center justify-between mb-4">
             <h2 class="card-title text-base flex items-center gap-2">
               <i class="fa-solid fa-table text-primary"></i>
-              Daily Breakdown
+              Period Breakdown
             </h2>
             <div class="flex items-center gap-2">
               <button
@@ -460,7 +467,7 @@ import PriceEditor from './PriceEditor.vue'
             <table class="table table-sm w-full">
               <thead>
                 <tr class="text-xs">
-                  <th>Date</th>
+                  <th>{{ grouping === 'minute' ? 'Time' : grouping === 'hour' ? 'Hour' : 'Date' }}</th>
                   <th class="text-right">Input Tokens</th>
                   <th class="text-right">Output Tokens</th>
                   <th class="text-right">Total Tokens</th>
@@ -473,13 +480,13 @@ import PriceEditor from './PriceEditor.vue'
               <tbody>
                 <tr
                   v-for="row in sortedDailyData"
-                  :key="row.date"
+                  :key="row.period || row.date"
                   class="hover text-sm"
                 >
-                  <td class="font-medium">{{ row.date }}</td>
-                  <td class="text-right text-success">{{ formatNumber(row.input_tokens) }}</td>
-                  <td class="text-right text-warning">{{ formatNumber(row.output_tokens) }}</td>
-                  <td class="text-right font-semibold">{{ formatNumber(row.total_tokens) }}</td>
+                  <td class="font-medium">{{ row.period || row.date }}</td>
+                  <td class="text-right text-success">{{ formatTokens(row.input_tokens) }}</td>
+                  <td class="text-right text-warning">{{ formatTokens(row.output_tokens) }}</td>
+                  <td class="text-right font-semibold">{{ formatTokens(row.total_tokens) }}</td>
                   <td class="text-right text-base-content/60">{{ row.calls }}</td>
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
@@ -492,8 +499,8 @@ import PriceEditor from './PriceEditor.vue'
                       <button
                         v-if="isAdminView"
                         class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-0 min-h-0 h-auto"
-                        title="Edit prices for this date"
-                        @click="openPriceEditorForDate(row.date)"
+                        title="Edit prices for this period"
+                        @click="openPriceEditorForDate(row.period || row.date)"
                       >
                         <i class="fa-solid fa-pen-to-square text-fuchsia-400 text-xs"></i>
                       </button>
@@ -516,9 +523,9 @@ import PriceEditor from './PriceEditor.vue'
               <tfoot>
                 <tr class="font-bold text-sm border-t-2 border-base-300">
                   <td>Total</td>
-                  <td class="text-right text-success">{{ formatNumber(totalStats.input_tokens) }}</td>
-                  <td class="text-right text-warning">{{ formatNumber(totalStats.output_tokens) }}</td>
-                  <td class="text-right">{{ formatNumber(totalStats.total_tokens) }}</td>
+                  <td class="text-right text-success">{{ formatTokens(totalStats.input_tokens) }}</td>
+                  <td class="text-right text-warning">{{ formatTokens(totalStats.output_tokens) }}</td>
+                  <td class="text-right">{{ formatTokens(totalStats.total_tokens) }}</td>
                   <td class="text-right text-base-content/60">{{ totalStats.calls }}</td>
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
@@ -583,9 +590,9 @@ export default {
       isAdminView: false,
       sortOrder: 'desc',
       activePreset: '30d',
+      grouping: 'day',
       priceEditorOpen: false,
       priceEditorDate: null,
-      // Auto-refresh: seconds interval, null = off
       autoRefreshInterval: null,
       autoRefreshTimer: null,
       filters: {
@@ -633,6 +640,14 @@ export default {
       return chips
     },
 
+    groupingLabel() {
+      return {
+        minute: 'Per-Minute',
+        hour: 'Hourly',
+        day: 'Daily'
+      }[this.grouping] || 'Daily'
+    },
+
     kpiCards() {
       const avgTokensPerCall = this.totalStats.calls > 0
         ? Math.round(this.totalStats.total_tokens / this.totalStats.calls)
@@ -646,7 +661,7 @@ export default {
       return [
         {
           label: 'Total Tokens',
-          value: this.formatNumber(this.totalStats.total_tokens),
+          value: this.formatTokens(this.totalStats.total_tokens),
           sub: 'across selected period',
           faIcon: 'fa-solid fa-hashtag',
           color: 'text-primary',
@@ -655,14 +670,14 @@ export default {
         {
           label: 'Total Calls',
           value: this.formatNumber(this.totalStats.calls),
-          sub: `avg ${this.formatNumber(avgTokensPerCall)} tokens/call`,
+          sub: `avg ${this.formatTokens(avgTokensPerCall)} tokens/call`,
           faIcon: 'fa-solid fa-plug',
           color: 'text-secondary',
           bgColor: 'bg-secondary/10'
         },
         {
           label: 'Input Tokens',
-          value: this.formatNumber(this.totalStats.input_tokens),
+          value: this.formatTokens(this.totalStats.input_tokens),
           sub: `${((this.totalStats.input_tokens / Math.max(this.totalStats.total_tokens, 1)) * 100).toFixed(1)}% of total`,
           faIcon: 'fa-solid fa-circle-arrow-up',
           color: 'text-success',
@@ -670,7 +685,7 @@ export default {
         },
         {
           label: 'Output Tokens',
-          value: this.formatNumber(this.totalStats.output_tokens),
+          value: this.formatTokens(this.totalStats.output_tokens),
           sub: `${ratio}% of total`,
           faIcon: 'fa-solid fa-circle-arrow-down',
           color: 'text-warning',
@@ -686,7 +701,7 @@ export default {
         },
         {
           label: 'Tokens / sec',
-          value: tokPerSec > 0 ? this.formatNumber(tokPerSec) + '/s' : 'N/A',
+          value: tokPerSec > 0 ? this.formatTokens(tokPerSec) + '/s' : 'N/A',
           sub: 'generation speed',
           faIcon: 'fa-solid fa-bolt',
           color: 'text-error',
@@ -705,8 +720,10 @@ export default {
 
     sortedDailyData() {
       return [...this.dailyData].sort((a, b) => {
-        if (this.sortOrder === 'desc') return b.date > a.date ? 1 : -1
-        return a.date > b.date ? 1 : -1
+        const aKey = a.period || a.date
+        const bKey = b.period || b.date
+        if (this.sortOrder === 'desc') return bKey > aKey ? 1 : -1
+        return aKey > bKey ? 1 : -1
       })
     },
 
@@ -720,7 +737,6 @@ export default {
       return Math.max(...Object.values(this.byProjectData).map(s => s.total_tokens), 1)
     },
 
-    // Sort byModelData entries by total_tokens descending
     byModelDataSorted() {
       return Object.entries(this.byModelData).sort((a, b) => b[1].total_tokens - a[1].total_tokens)
     },
@@ -785,10 +801,10 @@ export default {
         projectName: ''
       }
       this.activePreset = '30d'
+      this.grouping = 'day'
       this.loadData()
     },
 
-    // Set up or clear the auto-refresh timer
     setupAutoRefresh() {
       if (this.autoRefreshTimer) {
         clearInterval(this.autoRefreshTimer)
@@ -821,7 +837,8 @@ export default {
           startDate: this.filters.startDate,
           endDate: this.filters.endDate,
           model: this.filters.model || undefined,
-          projectName: this.filters.projectName || undefined
+          projectName: this.filters.projectName || undefined,
+          grouping: this.grouping
         }
 
         const adminFilters = this.isAdminView
@@ -859,6 +876,13 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+
+    formatTokens(num) {
+      if (!num) return '0'
+      if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
+      if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
+      return num.toString()
     },
 
     formatNumber(num) {
@@ -902,13 +926,13 @@ export default {
       if (pct >= 0.35) return 'bg-warning'
       return 'bg-error'
     }
+
   },
 
   mounted() {
     this.loadData()
   },
 
-  // Clean up timer on component destroy
   beforeUnmount() {
     if (this.autoRefreshTimer) {
       clearInterval(this.autoRefreshTimer)

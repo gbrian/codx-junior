@@ -188,7 +188,8 @@ def check_projects() -> None:
             projects = find_all_projects()
             eligible_projects = [
                 project for project in projects.values()
-                if not is_project_in_quarantine(project.project_name)
+                if not is_project_in_quarantine(project.project_name) \
+                    and getattr(project, "watching", True)
             ]
 
             skipped = len(projects) - len(eligible_projects)
