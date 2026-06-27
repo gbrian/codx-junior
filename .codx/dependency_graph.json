@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782547854,
+  "updated_at": 1782582213,
   "files": {
     ".dockerignore": {
       "imports": [],
@@ -623,6 +623,11 @@
       "imported_by": [],
       "external_deps": []
     },
+    "plugins/claude/docker-compose.yml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
     "plugins/guide-model/.env.example": {
       "imports": [],
       "imported_by": [],
@@ -812,16 +817,6 @@
       "imported_by": [],
       "external_deps": []
     },
-    "models/Qwen3.5-0.8B-Q8_0.gguf": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "models/gemma-4-12B-it-qat-assistant-MTP-Q8_0.gguf": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
     "notebooks/airLLM/airLLM.ipynb": {
       "imports": [],
       "imported_by": [],
@@ -838,16 +833,6 @@
       "external_deps": []
     },
     "notebooks/llama.cpp/llamacpp.ipynb": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "patches/wiki_all_changes.zip": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "plugins/claude/docker-compose.yml": {
       "imports": [],
       "imported_by": [],
       "external_deps": []

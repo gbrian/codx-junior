@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782547857,
+  "updated_at": 1782582096,
   "files": {
     "README.md": {
       "imports": [],
@@ -2544,31 +2544,6 @@
         "unittest",
         "os"
       ]
-    },
-    "apply_profiles": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "extract_profile_mentions": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "get_matching_profiles": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "get_profiles": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
-    },
-    "resolve_profiles": {
-      "imports": [],
-      "imported_by": [],
-      "external_deps": []
     }
   }
 }

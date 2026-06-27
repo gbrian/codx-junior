@@ -1,43 +1,26 @@
 # Background Process Management
 
 ## Overview
+The Background Process Management domain provides architectural support for handling long-running, asynchronous tasks that operate outside of the primary user API request cycle. Its core purpose is to manage durable state transitions and service executions critical for maintaining data integrity within complex applications.
 
-The Background Process Management module is a core component responsible for handling asynchronous tasks that must run independently of immediate API synchronous requests. Its primary function is to enhance overall system responsiveness and maintain excellent user experience by offloading intensive computations, data processing, or scheduled operations from the main request thread.
+This module utilizes robust mechanisms—including internal state change management (via `ChangeManager`)—to ensure systematic, reliable progression through background job lifecycles. Functions managed here encompass everything from periodic system rebuilds (`periodic-rebuild`, `project-monitoring`) to event-driven processing and resource intensive tasks (e.g., detailed file validation or comprehensive content parsing like mention detection).
 
-Beyond basic concurrency management, this domain incorporates robust **Change Management** logic. The `change_manager` component coordinates complex state transitions across the application domain, ensuring structured, auditable, and reliable updates to data records. This dual focus allows the system to perform resource-intensive background tasks while simultaneously maintaining data integrity through controlled state changes.
-
-Key functionalities include:
-*   Asynchronous task scheduling (using `asyncio`).
-*   Concurrent processing workflows (thread pooling).
-*   Handling periodic maintenance tasks (interval scheduling).
-*   Coordinated state change logging and application logic execution.
+Key technologies supported include asynchronous task queuing (`asyncio-tasks`, `coroutine-management`), concurrent execution strategies (`thread-pooling`, `concurrent-processing`), advanced logging systems, and structured error handling necessary for reliable background service operation.
 
 ## Files in Domain
+The domain consists of specialized modules designed to handle job execution and state integrity:
 
-The domain comprises two primary files, each serving a distinct but interconnected purpose:
-
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: This file is the entry point for general background processing. It houses the logic necessary to run coroutines and manage asynchronous tasks (such as periodic rebuilds, bulk data imports, or long-running pipelines) that should not block client responses. Logging utilities related to task execution are also typically implemented here.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: This module implements the core state transition and change coordination logic. It ensures that any significant modification to a resource's state follows defined business rules, providing structured updates and maintaining an authoritative history of changes within the system.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: Primary entry point for initiating, managing, and running asynchronous background jobs.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: Utility class responsible for systematically tracking and enforcing state transitions and data integrity across the duration of any durable background process.
 
 ## Dependencies
-
-This domain does not have explicit file-level dependencies documented but conceptually relies on:
-
-*   **Asynchronous Libraries:** The `asyncio` library is fundamental for managing coroutines and concurrent execution.
-*   **Logging System:** Relies heavily on a robust, centralized logging mechanism to track the state and failure points of background jobs.
-*   **Database/State Store Access:** Requires reliable interfaces to read and write structured data that undergo state transitions managed by the `ChangeManager`.
+This domain currently has no listed internal dependencies on other code modules (`<depends_on_files>`). However, it relies heavily on core application services for logging (`logger`, `logging-system`) to monitor job execution and status changes.
 
 ## Used By
-
-This module is critical infrastructure, meaning it is used as an abstraction layer by many parts of the application logic:
-
-*   API Endpoints (for triggering non-blocking actions).
-*   Scheduler Services (for periodic tasks like index rebuilds or data synchronization).
-*   Data Processing Pipelines (for complex operations such as mention detection or resource allocation updates that cannot complete synchronously).
+(No specific downstream consumers are documented.)
 
 ## Entry Points
+The following files serve as primary entry points for initiating the functionality within this domain:
 
-Both core components serve as primary execution points within the application and can be directly invoked for operational purposes:
-
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: Used to manually or automatically trigger specific background jobs (e.g., running a full system data ingest).
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: Called by other modules whenever an entity's state requires validation and structured transition logging before commit.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: The main module used to enqueue and manage asynchronous tasks across the application.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: Used by background jobs that require atomic, systematic state updates to maintain data consistency (e.g., marking a project stage as complete).

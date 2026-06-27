@@ -1,30 +1,33 @@
 # Codx Junior Analytics
 
 ## Overview
-The **Codx Junior Analytics** domain serves as the central hub for monitoring, processing, and recording application usage within the Codx Junior platform. This module is responsible for bridging user interactions with analytical data stores, ensuring that background processes handle telemetry efficiently without impacting the main application thread. It provides the necessary API infrastructure to expose tracking capabilities and the internal logic required to normalize and persist usage metrics.
+The **Codx Junior Analytics** module cluster is the core engine responsible for system activity monitoring and data synthesis within the Codx Junior platform. It serves as the bridge between platform operations and business intelligence by providing background data processing and facilitating API-driven analytics ingestion.
+
+This module is designed to:
+*   **Track User Activity:** Monitor interaction data across the Codx Junior ecosystem.
+*   **Background Processing:** Handle asynchronous data aggregation and compute-heavy analytics tasks without impacting real-time platform performance.
+*   **Actionable Insights:** Expose processed data through dedicated API endpoints for internal and external consumption.
 
 ## Files in Domain
-The following files constitute the core logic for the Codx Junior Analytics domain:
-
-*   `/home/codx-junior/codx-junior/api/codx/junior/background.py`: Manages asynchronous background tasks, including the queuing and batch processing of analytical events.
-*   `/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py`: Defines the API endpoints used by the frontend or external services to submit telemetry and retrieve analytical reports.
-*   `/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py`: Contains the primary internal logic for data calculation, aggregation, and interaction with the persistence layer.
+*   `/home/codx-junior/codx-junior/api/codx/junior/background.py`: Manages asynchronous tasks, queue processing, and periodic data synchronization.
+*   `/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py`: Defines the API interface for incoming analytics requests and data queries.
+*   `/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py`: Houses the core logic for data transformation, reporting, and statistical calculations.
 
 ## Dependencies
-*Currently, there are no specific internal file dependencies documented for this domain.*
+*   *Currently no specific internal dependencies defined.*
 
 ## Used By
-*Currently, this domain is not explicitly listed as a dependency for other modules in the system.*
+*   *Currently no specific dependent modules defined.*
 
 ## Entry Points
-The following files serve as the primary execution or access points for the domain functionality:
-
-*   **/home/codx-junior/codx-junior/api/codx/junior/background.py**: Entry point for background worker processes.
-*   **/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py**: Entry point for HTTP-based analytical requests.
-*   **/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py**: Entry point for internal library calls and data processing requests.
+The following files serve as the primary execution and interface points for the analytics cluster:
+*   `/home/codx-junior/codx-junior/api/codx/junior/background.py` (Background Service Execution)
+*   `/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py` (API Request Gateway)
+*   `/home/codx-junior/codx-junior/api/codx/junior/analytics/analytics.py` (Core Logic Interface)
 
 ***
 
-### Search Results & References
-*   [Codx Official Documentation](https://www.codx.vn/) - *General information regarding the Codx ecosystem and platform architecture.*
-*   [Python Analytics Best Practices](https://realpython.com/python-data-analytics/) - *Standard methodologies for implementing analytics modules in Python environments.*
+### Links Preview
+*   [Codx Junior Documentation Portal](https://codx-junior.io/docs)
+*   [API Analytics Integration Guide](https://codx-junior.io/api/analytics)
+*   [Background Task Management Wiki](https://codx-junior.io/wiki/background-processes)

@@ -309,7 +309,7 @@ export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
   profiles: state => getProfiles(state.activeProject),
   allChats: state => $storex.chats.allChats.map(chat => createProjectChat(state.activeProject, chat)),
-  allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
+  allBoards: state => state.kanban?.boards ? Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })) : [],
   boardHierarchy: state => (boardTitle) => {
     if (!state.kanban?.boards) return []
     const boards = Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] }))
@@ -496,8 +496,15 @@ export const actions = actionTree(
     },
     async saveSettings({ state }, settings) {
       state.projectLoading = true
+      
       try {
-        await API.settings.save(settings)
+        await $storex.api.settings.global.write(settings)
+      
+        // Force reload all projects with new global settings
+        await $storex.projects.loadAllProjects()
+        
+        await $storex.projects.realoadProject()
+      
       } finally {
         state.projectLoading = false
       }

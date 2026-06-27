@@ -4,6 +4,7 @@
   themes: all;
 }
 
+
 .codx-primary {
   color: #cc0099;
 }
@@ -15,3 +16,6 @@
 div[data-reka-popper-content-wrapper] {
   z-index: 2 !important;
 }
+
+/* Import codx-junior themes */
+/* @import "./daisy-override.css"; */

@@ -454,6 +454,9 @@ export default {
       if (!this.theChat) throw new Error(`Chat not loaded`)
       this.setTaskProject()
       this.setProjectContext()
+      if (!this.$storex.projects.kanban) {
+        await this.$storex.projects.loadKanban()
+      }
       await Promise.all(this.childrenChats.map(chat => this.$chats.loadChat(chat)))
       this.chatProfiles = await this.$storex.api.project(this.ownerProject)
         .then(p => p.profiles.list())
@@ -515,8 +518,9 @@ export default {
       if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
       this.$emit('chats', this.kanban?.title || this.theChat.board)
     },
-    navigateToBoard(boardTitle) {
+    async navigateToBoard(boardTitle) {
       if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
+      await this.$storex.projects.setActiveBoard(boardTitle)
       this.$emit('chats', boardTitle)
     },
     newSubChat(message) {

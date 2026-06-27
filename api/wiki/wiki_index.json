@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782547863,
+  "updated_at": 1782582015,
   "files": {
     "/shared/codx-junior/api/README.md": {
       "path": "/shared/codx-junior/api/README.md",
@@ -256,37 +256,10 @@
     }
   },
   "domains": {
-    "database-and-analytics": {
-      "name": "Database and Analytics",
-      "slug": "database-and-analytics",
-      "description": "This domain manages the structural integrity of the application data through formal change management processes and database storage configurations. It also integrates analytics reporting to monitor system performance and user engagement across the Codx-Junior platform.",
-      "files": [
-        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
-        "domains/codx-junior-analytics.md",
-        "domains/database-change-management.md"
-      ],
-      "entry_points": [
-        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
-        "domains/codx-junior-analytics.md",
-        "domains/database-change-management.md"
-      ],
-      "keywords": [
-        "asynchronous-processing",
-        "knowled-event",
-        "knowledge-database",
-        "media-file",
-        "metrics-management",
-        "project-change",
-        "transcription",
-        "wiki-integration"
-      ],
-      "depends_on_domains": [],
-      "wiki_path": "domains/database-and-analytics.md"
-    },
-    "junior-analytics-engine": {
-      "name": "Junior Analytics Engine",
-      "slug": "junior-analytics-engine",
-      "description": "This module manages background processing and data tracking for analytics services within the CoDX Junior ecosystem. It provides the core infrastructure for capturing, processing, and exposing analytical insights through dedicated API endpoints.",
+    "uncategorized": {
+      "name": "uncategorized",
+      "slug": "uncategorized",
+      "description": "",
       "files": [
         "/home/codx-junior/codx-junior/api/codx/junior/background.py",
         "/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py",
@@ -299,16 +272,18 @@
       ],
       "keywords": [],
       "depends_on_domains": [],
-      "wiki_path": "domains/junior-analytics-engine.md"
+      "wiki_path": "domains/uncategorized.md"
     },
-    "change-management-system": {
-      "name": "Change Management System",
-      "slug": "change-management-system",
-      "description": "This module handles the lifecycle of software changes within the application. It provides the core logic for tracking, processing, and coordinating updates across the system.",
+    "general": {
+      "name": "general",
+      "slug": "general",
+      "description": "",
       "files": [
+        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
       ],
       "entry_points": [
+        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
       ],
       "keywords": [
@@ -322,7 +297,7 @@
         "wiki-integration"
       ],
       "depends_on_domains": [],
-      "wiki_path": "domains/change-management-system.md"
+      "wiki_path": "domains/general.md"
     }
   }
 }

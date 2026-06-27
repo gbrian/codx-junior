@@ -28,11 +28,7 @@ import Chat from '../chat/Chat.vue'
       <a role="tab" class="tab" :class="tabIx === 0 && 'tab-active'" @click="tabIx = 0">
         <i class="fa-solid fa-sliders mr-1"></i> Settings
       </a>
-      <a role="tab" class="tab" :class="[
-          tabIx === 1 && 'tab-active',
-          model.model_type !== 'llm' && 'tab-disabled opacity-40'
-        ]" 
-        @click="newChat">
+      <a role="tab" class="tab" :class="[tabIx === 1 && 'tab-active', model.model_type !== 'llm' && 'tab-disabled opacity-40']" @click="newChat">
         <i class="fa-solid fa-comment mr-1"></i> Test chat
       </a>
     </div>
@@ -73,30 +69,24 @@ import Chat from '../chat/Chat.vue'
         <div class="flex flex-col gap-3 p-3 bg-base-200 rounded-lg">
           <div class="text-xs font-bold uppercase tracking-widest text-secondary flex items-center gap-1">
             <i class="fa-solid fa-tag"></i> Identity
-            <!-- Toggle: pick from list vs manual -->
-            <div class="ml-auto flex items-center gap-2" v-if="currentProviderPriceList.length">
-              <span class="text-xs font-normal normal-case tracking-normal text-base-content/50">Pick from list</span>
-              <input
-                type="checkbox"
-                class="toggle toggle-sm toggle-secondary"
-                v-model="identityFromList"
-                @change="onIdentityModeChange"
-              />
-            </div>
           </div>
 
-          <!-- Pick model name from provider price list -->
-          <div v-if="identityFromList && currentProviderPriceList.length" class="form-control">
+          <!-- Model Name (friendly) - Always editable -->
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs">Model Name (friendly name)</span>
+            </label>
+            <input class="input input-bordered input-sm" v-model="model.name" placeholder="Friendly display name" />
+          </div>
+
+          <!-- Dropdown list (Always visible if the provider has a price list) -->
+          <div class="form-control" v-if="currentProviderPriceList.length">
             <label class="label py-1">
               <span class="label-text text-xs">
-                <i class="fa-solid fa-list mr-1 text-secondary"></i>Select model from provider
+                <i class="fa-solid fa-list mr-1 text-secondary"></i> Select Model from Provider List
               </span>
             </label>
-            <select
-              class="select select-bordered select-sm font-mono text-xs"
-              v-model="selectedIdentityEntry"
-              @change="applyIdentityEntry"
-            >
+            <select class="select select-bordered select-sm font-mono text-xs" v-model="selectedIdentityEntry" @change="applyIdentityEntry">
               <option :value="null">— choose a model —</option>
               <option v-for="entry in currentProviderPriceList" :key="entry.model_name" :value="entry">
                 {{ entry.model_name }}
@@ -104,25 +94,30 @@ import Chat from '../chat/Chat.vue'
             </select>
           </div>
 
-          <!-- Manual identity fields -->
-          <template v-else>
-            <div class="form-control">
-              <label class="label py-1">
-                <span class="label-text text-xs">Model Name</span>
-              </label>
-              <input class="input input-bordered input-sm" v-model="model.name" placeholder="Model Name" />
+          <!-- Manual override checkbox for provider model name -->
+          <div class="form-control" v-if="currentProviderPriceList.length">
+            <label class="label py-1 cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="toggle toggle-sm toggle-secondary" v-model="manualOverride" />
+              <span class="label-text text-xs">Manually override AI provider's model name</span>
+            </label>
+          </div>
+
+          <!-- AI Provider Model's Name - Manual input or read-only text -->
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs">AI Provider Model's Name (ai_model)</span>
+            </label>
+            <div v-if="manualOverride || !currentProviderPriceList.length">
+              <input class="input input-bordered input-sm font-mono text-xs w-full" v-model="model.ai_model" placeholder="e.g. gpt-4o" />
             </div>
-            <div class="form-control">
-              <label class="label py-1">
-                <span class="label-text text-xs">AI Provider Model's Name</span>
-              </label>
-              <input class="input input-bordered input-sm font-mono text-xs" v-model="model.ai_model" :placeholder="model.name" />
+            <div v-else class="px-3 py-2 bg-base-300 rounded text-xs font-mono select-none">
+              {{ model.ai_model || '— select from dropdown above —' }}
             </div>
-          </template>
+          </div>
 
           <div class="form-control">
             <label class="label py-1">
-              <span class="label-text text-xs"><i class="fa-solid fa-network-wired mr-1 text-info"></i>Model URL</span>
+              <span class="label-text text-xs"><i class="fa-solid fa-network-wired mr-1 text-info"></i> Model URL</span>
             </label>
             <input class="input input-bordered input-sm font-mono text-xs" v-model="model.url" placeholder="https://..." />
           </div>
@@ -134,46 +129,15 @@ import Chat from '../chat/Chat.vue'
             <i class="fa-solid fa-coins"></i> Billing
           </div>
 
-          <!-- Price list picker (only when not using identity-from-list, which already sets pricing) -->
-          <div v-if="currentProviderPriceList.length && !identityFromList" class="form-control">
-            <label class="label py-1">
-              <span class="label-text text-xs">
-                <i class="fa-solid fa-tags mr-1 text-primary"></i>Pick from provider price list
-              </span>
-              <span class="label-text-alt">
-                <button class="btn btn-ghost btn-xs text-base-content-ERROR-40" @click="selectedPriceEntry = null" title="Clear selection">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </span>
-            </label>
-            <select class="select select-bordered select-sm font-mono text-xs" v-model="selectedPriceEntry" @change="applyPriceEntry">
-              <option :value="null">— set manually —</option>
-              <option v-for="entry in currentProviderPriceList" :key="entry.model_name" :value="entry">
-                {{ entry.model_name }}
-              </option>
-            </select>
-            <!-- Selected entry preview -->
-            <div v-if="selectedPriceEntry" class="flex gap-3 mt-1 px-2 py-1 bg-base-300 rounded text-xs">
-              <span class="text-green-500">
-                <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i>
-                ${{ selectedPriceEntry.input_price_per_1k_tokens }} / 1K in
-              </span>
-              <span class="text-blue-500">
-                <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>
-                ${{ selectedPriceEntry.output_price_per_1k_tokens }} / 1K out
-              </span>
-            </div>
-          </div>
-
-          <!-- Pricing preview when identity-from-list is active -->
-          <div v-if="identityFromList && selectedIdentityEntry" class="flex gap-3 px-2 py-1 bg-base-300 rounded text-xs">
+          <!-- Pricing preview from selected provider entry -->
+          <div v-if="selectedIdentityEntry" class="flex gap-3 px-2 py-1 bg-base-300 rounded text-xs">
             <span class="text-green-500">
               <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i>
-              ${{ selectedIdentityEntry.input_price_per_1k_tokens }} / 1K in
+              Original: ${{ selectedIdentityEntry.input_price_per_1k_tokens }} / 1K in
             </span>
             <span class="text-blue-500">
               <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>
-              ${{ selectedIdentityEntry.output_price_per_1k_tokens }} / 1K out
+              Original: ${{ selectedIdentityEntry.output_price_per_1k_tokens }} / 1K out
             </span>
           </div>
 
@@ -182,7 +146,7 @@ import Chat from '../chat/Chat.vue'
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs">
-                  <i class="fa-solid fa-arrow-right-to-bracket mr-1 text-green-500"></i>Input / 1K tokens
+                  <i class="fa-solid fa-arrow-right-to-bracket mr-1 text-green-500"></i> Input / 1K tokens
                 </span>
               </label>
               <div class="flex items-center gap-1">
@@ -193,7 +157,7 @@ import Chat from '../chat/Chat.vue'
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs">
-                  <i class="fa-solid fa-arrow-right-from-bracket mr-1 text-blue-500"></i>Output / 1K tokens
+                  <i class="fa-solid fa-arrow-right-from-bracket mr-1 text-blue-500"></i> Output / 1K tokens
                 </span>
               </label>
               <div class="flex items-center gap-1">
@@ -324,17 +288,14 @@ export default {
       tabIx: 0,
       testChat: null,
       testChatError: null,
-      selectedPriceEntry: null,
-      // Controls Identity section mode: true = pick from provider list, false = manual
-      identityFromList: false,
-      selectedIdentityEntry: null
+      selectedIdentityEntry: null,
+      manualOverride: false
     }
   },
   computed: {
     currentModelIsLLM() {
       return this.model?.model_type === 'llm'
     },
-    // Returns the price list of the currently selected provider
     currentProviderPriceList() {
       if (!this.model?.ai_provider || !this.aiProviders?.length) return []
       const provider = this.aiProviders.find(p => p.name === this.model.ai_provider)
@@ -342,35 +303,39 @@ export default {
     }
   },
   watch: {
-    // Reset selections when provider changes
     'model.ai_provider'() {
-      this.selectedPriceEntry = null
       this.selectedIdentityEntry = null
-      this.identityFromList = false
+      this.manualOverride = false
+      this.syncSelectedIdentity()
     },
-    // Re-assign model to test chat if model name changes while chat tab is open
     'model.name'(newName) {
       if (this.testChat && newName) {
         this.testChat.llm_model = newName
       }
+    },
+    currentProviderPriceList: {
+      handler() {
+        this.syncSelectedIdentity()
+      },
+      immediate: true
     }
+  },
+  mounted() {
+    this.syncSelectedIdentity()
   },
   methods: {
     async newChat() {
-      // Only LLM models can be tested
       if (!this.currentModelIsLLM) return
       this.tabIx = 1
       if (this.testChat) return
       this.testChatError = null
       try {
-        // Create a temp chat pre-assigned to this model
         this.testChat = await this.$chats.createNewChat({
           name: `Test: ${this.model.name || 'model'}`,
           llm_model: this.model.name,
           temp: true,
           test: true
         })
-        // Ensure the model is assigned even after creation
         if (this.testChat) {
           this.testChat.llm_model = this.model.name
         }
@@ -379,32 +344,32 @@ export default {
       }
     },
     onProviderChange() {
-      this.selectedPriceEntry = null
       this.selectedIdentityEntry = null
-      this.identityFromList = false
+      this.manualOverride = false
     },
-    // Reset identity selection when toggling mode
-    onIdentityModeChange() {
-      this.selectedIdentityEntry = null
-    },
-    // Apply selected identity entry: sets model name, ai_model and billing fields
     applyIdentityEntry() {
       if (!this.selectedIdentityEntry) return
       const entry = this.selectedIdentityEntry
-      this.model.name = entry.model_name
+      
+      // friendly name is initialized to the selected model if empty.
+      if (!this.model.name) {
+        this.model.name = entry.model_name
+      }
+      
       this.model.ai_model = entry.model_name
       this.model.input_k_tokens_cxjcoins = entry.input_price_per_1k_tokens
       this.model.output_k_tokens_cxjcoins = entry.output_price_per_1k_tokens
     },
-    // Apply selected price list entry values to model billing fields only
-    applyPriceEntry() {
-      if (!this.selectedPriceEntry) return
-      const entry = this.selectedPriceEntry
-      this.model.input_k_tokens_cxjcoins = entry.input_price_per_1k_tokens
-      this.model.output_k_tokens_cxjcoins = entry.output_price_per_1k_tokens
-      // Also set ai_model name if not already set
-      if (!this.model.ai_model) {
-        this.model.ai_model = entry.model_name
+    // Synchronizes UI selected list entry with model.ai_model on load or switch
+    syncSelectedIdentity() {
+      if (this.model?.ai_model && this.currentProviderPriceList.length) {
+        const found = this.currentProviderPriceList.find(e => e.model_name === this.model.ai_model)
+        if (found) {
+          this.selectedIdentityEntry = found
+        } else {
+          // auto enable manual override if a non-listed custom name is currently saved
+          this.manualOverride = true
+        }
       }
     }
   }
