@@ -12,7 +12,15 @@ from typing import Any, Dict, List, Optional, Set
 from slugify import slugify
 from pathlib import Path
 
-from pymilvus import MilvusClient, DataType, Function, FunctionType
+from pymilvus import (
+    MilvusClient,
+    DataType,
+    Function,
+    FunctionType,
+    AnnSearchRequest,
+    RRFRanker,
+    WeightedRanker,
+)
 from pymilvus.exceptions import MilvusException
 
 from langchain_core.documents import Document
@@ -21,6 +29,7 @@ from codx.junior.model.model import CodxUser
 
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
+from codx.junior.knowledge.embeddings import LocalEmbeddingsModel, HybridEmbeddingsModel
 
 from codx.junior.utils.utils import calculate_md5
 from codx.junior.profiling.profiler import profile_function
@@ -37,8 +46,9 @@ FIELD_KEYWORDS = "keywords"
 FIELD_PAGE_CONTENT = "page_content"
 FIELD_METADATA = "metadata"
 FIELD_SPARSE = "sparse"
+FIELD_DENSE = "dense"
 
-# Metadata key used to surface BM25 relevance score to callers
+# Metadata key used to surface relevance score to callers
 FIELD_SCORE = "score"
 
 # Default search filter for non-empty sources
@@ -46,6 +56,9 @@ NON_EMPTY_SOURCE_FILTER = 'source != ""'
 
 # Static file schema version — increment when the structure changes
 SOURCE_MAP_VERSION = 1
+
+# Dense embedding dimension for the local "all-MiniLM-L6-v2" model
+DENSE_EMBEDDING_DIM = int(os.environ.get("CODX_JUNIOR_DENSE_DIM", "384"))
 
 
 def connect_milvus_client() -> Optional[MilvusClient]:
@@ -219,10 +232,16 @@ def _rebuild_categories(source_map: Dict[str, Any]) -> None:
 
 class KnowledgeDB:
     """
-    Manages a Milvus-backed full-text knowledge base for a project.
+    Manages a Milvus-backed hybrid knowledge base for a project.
 
-    Uses BM25 sparse vectors for full-text retrieval. Each project gets its
-    own named collection derived from the project path.
+    Combines BM25 sparse vectors for full-text retrieval with dense embedding
+    vectors for semantic retrieval. Each project gets its own named collection
+    derived from the project path.
+
+    Three retrieval strategies are exposed:
+      - ``search_sparse``  → BM25 full-text search (lexical).
+      - ``search_vector``  → dense embedding semantic search.
+      - ``search_hybrid``  → fused sparse + dense search using a reranker.
 
     A lightweight JSON *source-map* file is kept alongside the Milvus DB file
     and is the single source of truth for ``get_all_sources`` and
@@ -240,17 +259,22 @@ class KnowledgeDB:
             +str index_fulltext_name
             +str db_file_list
             +AI ai
+            +LocalEmbeddingsModel embeddings_model
             +connect_db()
             +create_db()
             +reset()
             +index_documents(documents)
             +delete_documents(sources)
             +search(query, limit) List[Document]
+            +search_sparse(query, limit) List[Document]
+            +search_vector(query, limit) List[Document]
+            +search_hybrid(query, limit) List[Document]
             +raw_search(filter, output_fields, limit)
             +get_all_sources() Dict[str, Document]
             +get_all_categoties() List[str]
             +get_db_info()
             +get_collection_metrics()
+            -_embed_query(query) List[float]
             -_load_source_map() Dict
             -_save_source_map(source_map)
             -_upsert_source_map_entries(documents)
@@ -258,8 +282,8 @@ class KnowledgeDB:
             -_init_source_map_from_db() Dict
         }
 
-    Note: Documents returned by search() include a ``score`` key in their
-    metadata containing the BM25 relevance score for the query.
+    Note: Documents returned by all search methods include a ``score`` key in
+    their metadata containing the relevance score for the query.
     """
 
     db: Any
@@ -267,6 +291,7 @@ class KnowledgeDB:
     db_file_list: str
     index_name: str
     ai: Any
+    embeddings_model: LocalEmbeddingsModel
     last_update: Optional[float]
 
     def __init__(self, settings: CODXJuniorSettings):
@@ -289,13 +314,39 @@ class KnowledgeDB:
         self.db_file = f"{self.db_path}/milvus.db"
         # Static source-map file lives next to the Milvus DB file
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
-        self.embedding = None
+        
+        # Initialize embeddings model (use local by default)
+        self.embeddings_model = self._init_embeddings_model()
 
         self.connect_db()
         self.refresh_last_update()
 
     def __del__(self):
         pass
+
+    def _init_embeddings_model(self) -> LocalEmbeddingsModel:
+        """
+        Initialize the embeddings model.
+        
+        Uses local in-memory embeddings by default.
+        Can be configured to use hybrid approach if AI service is available.
+        
+        Returns:
+            Initialized embeddings model.
+        """
+        try:
+            # Try local embeddings first (no external dependencies)
+            logger.info(
+                "Initializing local embeddings model for project '%s'", 
+                self.settings.project_name
+            )
+            return LocalEmbeddingsModel(model_name="all-MiniLM-L6-v2")
+        except ImportError:
+            logger.warning(
+                "sentence-transformers not available. Install with: "
+                "pip install sentence-transformers"
+            )
+            raise
 
     def get_ai(self) -> AI:
         """
@@ -325,9 +376,11 @@ class KnowledgeDB:
 
     def create_db(self) -> None:
         """
-        Create the Milvus database and full-text collection if they don't exist.
+        Create the Milvus database and hybrid collection if they don't exist.
 
-        Sets up the BM25 sparse vector schema and SPARSE_INVERTED_INDEX.
+        Sets up:
+          - BM25 sparse vector schema with SPARSE_INVERTED_INDEX (lexical).
+          - Dense float vector with an AUTOINDEX / COSINE metric (semantic).
         """
         data_base_list = self.db.list_databases()
         if self.index_fulltext_name not in data_base_list:
@@ -343,6 +396,13 @@ class KnowledgeDB:
 
         # Sparse field stores BM25 embeddings generated by the built-in function
         schema.add_field(field_name=FIELD_SPARSE, datatype=DataType.SPARSE_FLOAT_VECTOR)
+
+        # Dense field stores semantic embeddings supplied at insert time
+        schema.add_field(
+            field_name=FIELD_DENSE,
+            datatype=DataType.FLOAT_VECTOR,
+            dim=DENSE_EMBEDDING_DIM,
+        )
 
         bm25_function = Function(
             name="text_bm25_emb",
@@ -363,6 +423,11 @@ class KnowledgeDB:
                 "bm25_b": 0.75,
             },
         )
+        index_params.add_index(
+            field_name=FIELD_DENSE,
+            index_type="AUTOINDEX",
+            metric_type="COSINE",
+        )
 
         self.db.create_collection(
             collection_name=self.index_fulltext_name,
@@ -373,7 +438,7 @@ class KnowledgeDB:
         collection_view = self.db.describe_collection(
             collection_name=self.index_fulltext_name
         )
-        logger.info("New full-text index collection created: %s", collection_view)
+        logger.info("New hybrid index collection created: %s", collection_view)
 
     def reset(self) -> None:
         """Drop the collection and file-list, then recreate from scratch."""
@@ -385,6 +450,36 @@ class KnowledgeDB:
 
         self.db.drop_collection(collection_name=self.index_fulltext_name)
         self.create_db()
+
+    # ── Embedding helpers ─────────────────────────────────────────────────────
+
+    def _embed_query(self, query: str) -> List[float]:
+        """
+        Produce a dense embedding vector for a query string.
+
+        Args:
+            query: Natural-language query to embed.
+
+        Returns:
+            Dense float vector for the query.
+        """
+        if hasattr(self.embeddings_model, "embed_query"):
+            return self.embeddings_model.embed_query(query)
+        return self.embeddings_model.embed_documents([query])[0]
+
+    def _embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """
+        Produce dense embedding vectors for a batch of texts.
+
+        Args:
+            texts: List of strings to embed.
+
+        Returns:
+            List of dense float vectors, one per input text.
+        """
+        if hasattr(self.embeddings_model, "embed_documents"):
+            return self.embeddings_model.embed_documents(texts)
+        return [self.embeddings_model.embed_query(text) for text in texts]
 
     # ── Source-map internal helpers ───────────────────────────────────────────
 
@@ -546,15 +641,19 @@ class KnowledgeDB:
     @profile_function
     def index_documents(self, documents: List[Document]) -> None:
         """
-        Insert or upsert a list of documents into the full-text collection.
+        Insert or upsert a list of documents into the hybrid collection.
 
-        Also updates the static source-map file so ``get_all_sources`` does not
-        need to hit the DB.
+        Generates dense embeddings for each document's combined content so that
+        both BM25 (sparse, generated by Milvus) and semantic (dense) search are
+        available. Also updates the static source-map file so ``get_all_sources``
+        does not need to hit the DB.
 
         Args:
             documents: LangChain Document objects to index.
         """
         data_search: List[Dict[str, Any]] = []
+        page_contents: List[str] = []
+        prepared_docs: List[Dict[str, Any]] = []
 
         for doc in documents:
             try:
@@ -577,7 +676,8 @@ class KnowledgeDB:
                     "category": doc.metadata.get("category", ""),
                     "last_update": int(time.time()),
                 }
-                data_search.append(search_doc)
+                prepared_docs.append(search_doc)
+                page_contents.append(page_content)
                 logger.info(
                     "Data processing document, len %d, %s",
                     len(doc.page_content),
@@ -590,6 +690,28 @@ class KnowledgeDB:
                     doc.metadata,
                     ex,
                 )
+
+        # Generate dense embeddings in a single batch for efficiency
+        if prepared_docs:
+            try:
+                dense_vectors = self._embed_documents(page_contents)
+            except Exception as ex:
+                logger.error("Error generating dense embeddings: %s", ex)
+                dense_vectors = [None] * len(prepared_docs)
+
+            for search_doc, dense_vector in zip(prepared_docs, dense_vectors):
+                if dense_vector is not None:
+                    search_doc[FIELD_DENSE] = dense_vector
+                    data_search.append(search_doc)
+                else:
+                    logger.warning(
+                        "Skipping document without dense embedding: %s",
+                        search_doc.get("source"),
+                    )
+
+        if not data_search:
+            logger.warning("No documents to index after embedding step.")
+            return
 
         try:
             res = self.db.insert(
@@ -830,20 +952,40 @@ class KnowledgeDB:
             )
             return {"error": str(ex)}
 
+    # ── Search strategies ─────────────────────────────────────────────────────
+
     @profile_function
     def search(self, query: str, _limit: int = 50) -> List[Document]:
         """
-        Full-text BM25 search against the sparse vector index.
+        Default search entry point.
+
+        Performs a **hybrid** search (sparse BM25 + dense semantic) for the best
+        overall relevance. Kept for backward compatibility — equivalent to
+        ``search_hybrid``.
+
+        Args:
+            query:  Natural-language query string.
+            _limit: Maximum number of results to return.
+
+        Returns:
+            List of matching Document objects ordered by descending fused score.
+        """
+        return self.search_hybrid(query=query, _limit=_limit)
+
+    @profile_function
+    def search_sparse(self, query: str, _limit: int = 50) -> List[Document]:
+        """
+        Full-text BM25 (lexical) search against the sparse vector index.
 
         Each returned Document will have a ``score`` key in its ``metadata``
         containing the BM25 relevance score (higher is more relevant).
 
         Diagram:
         flowchart TD
-            A[search query] --> B[MilvusClient.search BM25]
+            A[search_sparse query] --> B[MilvusClient.search BM25 anns_field=sparse]
             B --> C[Flatten result list-of-lists]
-            C --> D[db_results_to_documents with include_score=True]
-            D --> E[Return List of Documents with score in metadata]
+            C --> D[db_results_to_documents include_score=True]
+            D --> E[Return List of Documents]
 
         Args:
             query:  Natural-language query string.
@@ -851,7 +993,6 @@ class KnowledgeDB:
 
         Returns:
             List of matching Document objects ordered by descending BM25 score.
-            Each document's metadata contains a ``score`` float field.
         """
         search_params = {
             "params": {"drop_ratio_search": 0.2},
@@ -864,9 +1005,131 @@ class KnowledgeDB:
             limit=_limit,
             search_params=search_params,
         )
-        flat_results = reduce(lambda x, y: x + y, results)
+        flat_results = reduce(lambda x, y: x + y, results, [])
         logger.info(
-            "[Full text search] '%s' returned %d results", query, len(flat_results)
+            "[Sparse search] '%s' returned %d results", query, len(flat_results)
+        )
+        return self.db_results_to_documents(flat_results, include_score=True)
+
+    @profile_function
+    def search_vector(self, query: str, _limit: int = 50) -> List[Document]:
+        """
+        Dense semantic search against the dense vector index.
+
+        Embeds the query into a dense vector and runs a COSINE ANN search,
+        returning the semantically closest documents.
+
+        Diagram:
+        flowchart TD
+            A[search_vector query] --> B[_embed_query]
+            B --> C[MilvusClient.search anns_field=dense metric=COSINE]
+            C --> D[Flatten result list-of-lists]
+            D --> E[db_results_to_documents include_score=True]
+            E --> F[Return List of Documents]
+
+        Args:
+            query:  Natural-language query string.
+            _limit: Maximum number of results to return.
+
+        Returns:
+            List of matching Document objects ordered by descending similarity.
+        """
+        query_vector = self._embed_query(query)
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {},
+        }
+        results = self.db.search(
+            collection_name=self.index_fulltext_name,
+            data=[query_vector],
+            anns_field=FIELD_DENSE,
+            output_fields=[FIELD_PAGE_CONTENT, FIELD_METADATA],
+            limit=_limit,
+            search_params=search_params,
+        )
+        flat_results = reduce(lambda x, y: x + y, results, [])
+        logger.info(
+            "[Vector search] '%s' returned %d results", query, len(flat_results)
+        )
+        return self.db_results_to_documents(flat_results, include_score=True)
+
+    @profile_function
+    def search_hybrid(
+        self,
+        query: str,
+        _limit: int = 50,
+        sparse_weight: float = 1.0,
+        dense_weight: float = 1.0,
+        use_rrf: bool = True,
+    ) -> List[Document]:
+        """
+        Hybrid search combining BM25 (sparse) and dense semantic retrieval.
+
+        Runs two ANN sub-requests (sparse + dense) in a single Milvus
+        ``hybrid_search`` call and fuses the rankings with a reranker:
+          - When ``use_rrf`` is True → Reciprocal Rank Fusion (RRFRanker).
+          - Otherwise               → WeightedRanker with the given weights.
+
+        Diagram:
+        flowchart TD
+            A[search_hybrid query] --> B[_embed_query]
+            B --> C[Build sparse AnnSearchRequest]
+            B --> D[Build dense AnnSearchRequest]
+            C --> E[hybrid_search with Ranker]
+            D --> E
+            E --> F[Flatten result list-of-lists]
+            F --> G[db_results_to_documents include_score=True]
+            G --> H[Return List of Documents]
+
+        Args:
+            query:         Natural-language query string.
+            _limit:        Maximum number of fused results to return.
+            sparse_weight: Weight for the sparse leg (WeightedRanker only).
+            dense_weight:  Weight for the dense leg (WeightedRanker only).
+            use_rrf:       Use Reciprocal Rank Fusion when True, else weighted.
+
+        Returns:
+            List of matching Document objects ordered by descending fused score.
+        """
+        query_vector = self._embed_query(query)
+
+        # Over-fetch from each leg so the reranker has more candidates to fuse
+        leg_limit = max(_limit, _limit * 2)
+
+        sparse_request = AnnSearchRequest(
+            data=[query],
+            anns_field=FIELD_SPARSE,
+            param={"params": {"drop_ratio_search": 0.2}},
+            limit=leg_limit,
+        )
+        dense_request = AnnSearchRequest(
+            data=[query_vector],
+            anns_field=FIELD_DENSE,
+            param={"metric_type": "COSINE", "params": {}},
+            limit=leg_limit,
+        )
+
+        ranker = RRFRanker() if use_rrf else WeightedRanker(sparse_weight, dense_weight)
+
+        try:
+            results = self.db.hybrid_search(
+                collection_name=self.index_fulltext_name,
+                reqs=[sparse_request, dense_request],
+                ranker=ranker,
+                output_fields=[FIELD_PAGE_CONTENT, FIELD_METADATA],
+                limit=_limit,
+            )
+        except Exception as ex:
+            logger.error(
+                "[Hybrid search] failed for '%s': %s. Falling back to sparse.",
+                query,
+                ex,
+            )
+            return self.search_sparse(query=query, _limit=_limit)
+
+        flat_results = reduce(lambda x, y: x + y, results, [])
+        logger.info(
+            "[Hybrid search] '%s' returned %d results", query, len(flat_results)
         )
         return self.db_results_to_documents(flat_results, include_score=True)
 
@@ -878,7 +1141,7 @@ class KnowledgeDB:
         """
         Convert raw Milvus query/search result entries to LangChain Documents.
 
-        When ``include_score`` is True the BM25 relevance distance returned by
+        When ``include_score`` is True the relevance distance returned by
         Milvus is stored as ``metadata["score"]`` on every document, allowing
         callers to rank or display results by relevance.
 
@@ -895,7 +1158,7 @@ class KnowledgeDB:
 
         Args:
             results:       Iterable of result dicts from Milvus (query or search).
-            include_score: When True, store the BM25 distance in
+            include_score: When True, store the relevance distance in
                            ``metadata[FIELD_SCORE]``.
 
         Returns:

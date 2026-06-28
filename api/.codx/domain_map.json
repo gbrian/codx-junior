@@ -1,8 +1,23 @@
 [
   {
-    "name": "uncategorized",
-    "slug": "uncategorized",
-    "description": "",
+    "name": "Knowledge and Data Infrastructure",
+    "slug": "knowledge-and-data-infrastructure",
+    "description": "This domain manages the structural foundation for persistent data storage and the implementation of knowledge retrieval systems. It integrates database management with advanced AI embedding models to facilitate efficient information organization and semantic search capabilities.",
+    "files": [
+      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+      "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md"
+    ],
+    "depends_on_domains": [],
+    "entry_points": [
+      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+      "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md"
+    ],
+    "keywords": []
+  },
+  {
+    "name": "Junior Analytics Engine",
+    "slug": "junior-analytics-engine",
+    "description": "This module manages background processing and data tracking for the Junior analytics suite. It provides the necessary API endpoints and internal logic to collect, process, and expose analytical insights.",
     "files": [
       "/home/codx-junior/codx-junior/api/codx/junior/background.py",
       "/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py",
@@ -17,16 +32,14 @@
     "keywords": []
   },
   {
-    "name": "general",
-    "slug": "general",
-    "description": "",
+    "name": "Change Management System",
+    "slug": "change-management-system",
+    "description": "This module handles the lifecycle of software changes and updates within the Codx Junior ecosystem. It provides the necessary infrastructure to track, process, and manage modifications to the system's codebase or configuration.",
     "files": [
-      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
       "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
     ],
     "depends_on_domains": [],
     "entry_points": [
-      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
       "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
     ],
     "keywords": [

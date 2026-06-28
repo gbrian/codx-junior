@@ -130,17 +130,17 @@ class CODXJuniorSession:
             else self
         )
 
-    def log_info(self, msg: str) -> None:
+    def log_info(self, msg: str, *args) -> None:
         """Log an info message prefixed with the project name."""
-        logger.info("[%s] %s", self.settings.project_name, msg)
+        logger.info("[%s] " + msg, self.settings.project_name, *args)
 
-    def log_error(self, msg: str) -> None:
+    def log_error(self, msg: str, *args) -> None:
         """Log an error message prefixed with the project name."""
-        logger.error("[%s] %s", self.settings.project_name, msg)
+        logger.error("[%s] " + msg, self.settings.project_name, *args)
 
-    def log_exception(self, msg: str) -> None:
+    def log_exception(self, msg: str, *args) -> None:
         """Log an exception message prefixed with the project name."""
-        logger.exception("[%s] %s", self.settings.project_name, msg)
+        logger.exception("[%s] " + msg, self.settings.project_name, *args)
 
     def coder_open_file(self, file_name: str) -> dict:
         """Open a file in the code server editor."""
@@ -402,6 +402,13 @@ class CODXJuniorSession:
         return await self._code_engine.improve_existing_code_patch(
             chat=chat, code_generator=code_generator
         )
+
+    async def generate_full_file_content(self, file_path: str, partial_content: str) -> str:
+        """Apply a partial changes code improvement."""
+        return await self._code_engine.generate_full_file_content(
+            file_path=file_path, partial_content=partial_content
+        )
+
 
     @profile_function
     async def improve_existing_code(

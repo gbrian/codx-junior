@@ -18,7 +18,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <div class="flex items-center gap-2">
           <!-- Show loading ring when loading prop is true -->
           <div class="" v-if="loading" >
-            <span class="loading loading-ring loading-xs shrink-0 text-info"></span>
+            <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
           </div>
           <template v-else>
             <img

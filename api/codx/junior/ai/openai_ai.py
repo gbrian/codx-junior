@@ -178,11 +178,34 @@ class OpenAI_AI:
         tags: str = "",
         session_id: str = None,
         request_id: str = None,
+        usage_info=None,
     ) -> None:
         try:
             analytics = _get_analytics()
-            input_tokens = count_tokens(input_text, model=self.model)
-            output_tokens = count_tokens(output_text, model=self.model)
+            
+            input_tokens = 0
+            output_tokens = 0
+            tokens_from_provider = False
+
+            if usage_info is not None:
+                if hasattr(usage_info, "prompt_tokens"):
+                    tokens_from_provider = True
+                    input_tokens = getattr(usage_info, "prompt_tokens") or 0
+                    
+                elif isinstance(usage_info, dict) and "prompt_tokens" in usage_info:
+                    tokens_from_provider = True
+                    input_tokens = usage_info.get("prompt_tokens") or 0
+                
+                if hasattr(usage_info, "completion_tokens"):
+                    output_tokens = getattr(usage_info, "completion_tokens") or 0
+                elif isinstance(usage_info, dict):
+                    output_tokens = usage_info.get("completion_tokens") or 0
+
+            # Fallback to auto-calculated values if native values are unavailable or zero
+            if not input_tokens:
+                input_tokens = count_tokens(input_text, model=self.model)
+            if not output_tokens:
+                output_tokens = count_tokens(output_text, model=self.model)
 
             input_k_tokens_cxjcoins, output_k_tokens_cxjcoins = self._get_model_cost()
 
@@ -200,6 +223,7 @@ class OpenAI_AI:
                 input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
                 output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
                 request_id=request_id,
+                tokens_from_provider=tokens_from_provider,
             )
         except Exception as ex:
             logger.warning("_record_usage failed (non-fatal): %s", ex)
@@ -243,6 +267,7 @@ class OpenAI_AI:
         kwargs = {
             "model": self.model,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
 
         if self.llm_settings.temperature >= 0:
@@ -267,6 +292,7 @@ class OpenAI_AI:
 
         request_start = time.monotonic()
         tags_joined = ""
+        usage_info = None
 
         try:
             tags = tags_str.split(",") + [
@@ -289,11 +315,24 @@ class OpenAI_AI:
                 parent_request_id=parent_request_id,
             )
 
-            response_stream = self.client.chat.completions.create(
-                **kwargs,
-                messages=openai_messages,
-                extra_headers=request_headers
-            )
+            try:
+                response_stream = self.client.chat.completions.create(
+                    **kwargs,
+                    messages=openai_messages,
+                    extra_headers=request_headers
+                )
+            except Exception as ex:
+                if "stream_options" in kwargs:
+                    logger.warning("Failed to create chat completion with stream_options, retrying without: %s", ex)
+                    kwargs.pop("stream_options", None)
+                    response_stream = self.client.chat.completions.create(
+                        **kwargs,
+                        messages=openai_messages,
+                        extra_headers=request_headers
+                    )
+                else:
+                    raise
+
             callbacks = config.get("callbacks", None)
             content_parts = []
             last_finish_reason = None
@@ -319,6 +358,9 @@ class OpenAI_AI:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
+                if hasattr(chunk, "usage") and chunk.usage is not None:
+                    usage_info = chunk.usage
+
                 if cancellation_token and cancellation_token.is_cancelled:
                     logger.info("chat_completions: cancellation requested, closing stream")
                     try:
@@ -327,6 +369,9 @@ class OpenAI_AI:
                         pass
                     send_callback("", flush=True)
                     raise CancelledError("Chat completion was cancelled by the caller.")
+
+                if not chunk.choices:
+                    continue
 
                 choice = chunk.choices[0]
                 if choice.finish_reason:
@@ -391,6 +436,7 @@ class OpenAI_AI:
             tags=tags_joined,
             session_id=session_id,
             request_id=request_id,
+            usage_info=usage_info,
         )
 
         messages.append(AIMessage(content=response_content))
@@ -408,6 +454,7 @@ class OpenAI_AI:
         kwargs = {
             "model": self.model,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         selected_tools = config.get("tools", [])
         chat_tools = [t for t in self.tools if t["tool_json"]["function"]["name"] in selected_tools]
@@ -433,6 +480,7 @@ class OpenAI_AI:
 
         request_start = time.monotonic()
         tags_joined = ""
+        usage_info = None
 
         try:
             tags = tags_str.split(",") + [
@@ -462,9 +510,21 @@ class OpenAI_AI:
                 parent_request_id=parent_request_id,
             )
         
-            response_stream = self.client.chat.completions.create(
-              **request_params
-            )
+            try:
+                response_stream = self.client.chat.completions.create(
+                  **request_params
+                )
+            except Exception as ex:
+                if "stream_options" in request_params:
+                    logger.warning("Failed to create async chat completion with stream_options, retrying without: %s", ex)
+                    request_params.pop("stream_options", None)
+                    kwargs.pop("stream_options", None)
+                    response_stream = self.client.chat.completions.create(
+                        **request_params
+                    )
+                else:
+                    raise
+
             callbacks = config.get("callbacks", None)
             content_parts = []
             last_finish_reason = None
@@ -501,6 +561,9 @@ class OpenAI_AI:
                 self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
+                if hasattr(chunk, "usage") and chunk.usage is not None:
+                    usage_info = chunk.usage
+
                 if cancellation_token and cancellation_token.is_cancelled:
                     logger.info("a_chat_completions: cancellation requested, closing stream")
                     try:
@@ -509,6 +572,9 @@ class OpenAI_AI:
                         pass
                     send_callback("", flush=True)
                     raise CancelledError("Async chat completion was cancelled by the caller.")
+
+                if not chunk.choices:
+                    continue
 
                 choice = chunk.choices[0]
                 if choice.finish_reason:
@@ -624,6 +690,7 @@ class OpenAI_AI:
             tags=tags_joined,
             session_id=session_id,
             request_id=request_id,
+            usage_info=usage_info,
         )
 
         messages.append(AIMessage(content=response_content))

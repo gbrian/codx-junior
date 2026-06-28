@@ -62,7 +62,8 @@ class AI:
 
         self.llm: Callable = self.create_chat_model(llm_model=llm_model)
         self.a_llm: Callable = self.create_a_chat_model(llm_model=llm_model)
-        self.embeddings: Callable = self.create_embeddings_model()
+        # Underlying embeddings client/model (created lazily-safe in constructor)
+        self.embeddings_model: Any = self.create_embeddings_model()
 
     @profile_function
     def image(self, prompt: str) -> str:
@@ -137,7 +138,7 @@ class AI:
         ollama_model_name = model_name.removeprefix("ollama/")
 
         # Strip any path from api_url (e.g. remove "/v1") so we build the correct
-        # Ollama endpoint: <scheme>://<netloc>/api/pull
+        # Ollama endpoint: <scheme>://<host>:<port>/api/pull
         parsed = urlparse(api_url)
         ollama_base_url = f"{parsed.scheme}://{parsed.netloc}"
         pull_url = f"{ollama_base_url}/api/pull"
@@ -426,12 +427,47 @@ class AI:
         return response_messages
 
     @profile_function
-    def embeddings(self, content: str) -> Any:
+    def embeddings(self, content: Union[str, List[str]]) -> Any:
         """
-        Returns embeddings for a specific content string.
+        Generate dense embedding vectors for the given content.
+
+        Accepts either a single string or a list of strings and returns the
+        embedding(s) produced by the configured embeddings model
+        (resolved via ``settings.get_embeddings_settings``).
+
+        Behaviour:
+          - When ``content`` is a ``str``  → returns a single embedding vector
+            (``List[float]``).
+          - When ``content`` is a ``list`` → returns a list of embedding
+            vectors (``List[List[float]]``), one per input string.
+
+        This delegates to the underlying LangChain-style embeddings model
+        created by ``create_embeddings_model`` (which exposes
+        ``embed_query`` / ``embed_documents``).
+
+        :param content: A single string or list of strings to embed.
+        :return: A single vector, or a list of vectors, depending on input.
         """
-        return self.embeddings(content=content)
-        
+        if self.embeddings_model is None:
+            raise RuntimeError(
+                "Embeddings model is not configured. Check embeddings_model "
+                "in project/global settings."
+            )
+
+        # Batch input → embed_documents
+        if isinstance(content, list):
+            if hasattr(self.embeddings_model, "embed_documents"):
+                return self.embeddings_model.embed_documents(content)
+            # Fallback: embed one by one using embed_query
+            return [self.embeddings_model.embed_query(text) for text in content]
+
+        # Single string input → embed_query
+        if hasattr(self.embeddings_model, "embed_query"):
+            return self.embeddings_model.embed_query(content)
+
+        # Fallback for clients exposing only embed_documents
+        return self.embeddings_model.embed_documents([content])[0]
+
     def _get_provider(self) -> str:
         """
         Helper method to retrieve the LLM provider safely.
@@ -489,5 +525,20 @@ def messages_md5(messages: List[Message]) -> str:
     """
     messages_str = "".join([str(msg.content) for msg in messages])
     return str(hashlib.md5(messages_str.encode("utf-8")).hexdigest())
+
+def serialize_messages(messages: List[Message]) -> List[Dict[str, str]]:
+    """
+    Serialize messages to a JSON-compatible format.
+    
+    :param messages: List of message objects.
+    :return: List of serialized message dicts.
+    """
+    return [
+        {
+            "type": type(msg).__name__,
+            "content": str(msg.content),
+        }
+        for msg in messages
+    ]
 
 # Made with ❤️ by codx-junior

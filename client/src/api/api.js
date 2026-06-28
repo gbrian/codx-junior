@@ -534,8 +534,8 @@ knowledge: {
       improve(chat) {
         return API.post('/api/run/improve?', chat)
       },
-      patch(patch) {
-        return API.post('/api/run/improve/patch?', patch).then(({ data }) => data)
+      patch({ file_path, partial_content }) {
+        return API.post('/api/run/improve/patch?', { file_path, partial_content })
       },
       edit(chat) {
         return API.post('/api/run/edit?', chat)

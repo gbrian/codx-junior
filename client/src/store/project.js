@@ -48,7 +48,21 @@ const createState = () => ({
   },
   openedWorkspaces: [],
   projectBarnches: {},
-  workspaces: []
+  workspaces: [],
+  // Indexing state
+  indexingFiles: [],
+  indexingProgress: {
+    status: null,
+    progress: 0,
+    message: null,
+    current_file: null,
+    stage: null,
+    completed: 0,
+    total: 0,
+    indexed_count: 0,
+    error: null
+  },
+  indexingError: null
 })
 
 function getProfiles(project) {
@@ -296,6 +310,33 @@ export const mutations = mutationTree(state, {
   addRecentProject(state, project) {
     state.recentProjects = [project, ...state.recentProjects.filter(p => p.codx_path !== project.codx_path)].slice(0, 5)
   },
+  setIndexingFiles(state, filePaths) {
+    state.indexingFiles = filePaths
+  },
+  setIndexingError(state, error) {
+    state.indexingError = error
+  },
+  updateIndexProgress(state, progress) {
+    state.indexingProgress = {
+      ...state.indexingProgress,
+      ...progress
+    }
+  },
+  clearIndexingState(state) {
+    state.indexingFiles = []
+    state.indexingProgress = {
+      status: null,
+      progress: 0,
+      message: null,
+      current_file: null,
+      stage: null,
+      completed: 0,
+      total: 0,
+      indexed_count: 0,
+      error: null
+    }
+    state.indexingError = null
+  }
 })
 
 function createProjectChat(project, chat) {
@@ -748,6 +789,130 @@ export const actions = actionTree(
         ]))
       )
     },
+    // Indexing actions
+    async startIndexing({ commit }, filePaths) {
+      commit('setIndexingFiles', filePaths)
+      commit('setIndexingError', null)
+      
+      try {
+        const api = $storex.projects.activeProject?.$api
+        if (!api) {
+          throw new Error('API not initialized')
+        }
+
+        await api.knowledge.indexFilesBackground(filePaths)
+      } catch (error) {
+        commit('setIndexingError', error.message)
+        throw error
+      }
+    },
+
+    // Handle socket progress events
+    updateIndexProgress({ commit }, progress) {
+      commit('updateIndexProgress', progress)
+    },
+
+    // Clear indexing state when complete or cancelled
+    clearIndexing({ commit }) {
+      commit('clearIndexingState')
+    },
+
+    // Subscribe to index progress events
+    subscribeToIndexProgress({ commit }) {
+      const socket = $storex.api.socket
+      if (!socket) {
+        throw new Error('Socket not connected')
+      }
+
+      // Started event
+      socket.on('codx-junior-index-progress-started', (data) => {
+        console.log(`📦 Indexing started: ${data.total_files} files`)
+        commit('updateIndexProgress', {
+          status: 'indexing',
+          progress: 0,
+          message: data.message,
+        })
+      })
+
+      // Document processing events
+      socket.on('codx-junior-index-progress-document-processing', (data) => {
+        console.log(`📄 Processing: ${data.source}`)
+        commit('updateIndexProgress', {
+          status: 'processing',
+          progress: Math.round((data.file_index / data.total_files) * 100),
+          current_file: data.source,
+          stage: 'Loading documents',
+        })
+      })
+
+      // Document enriched events
+      socket.on('codx-junior-index-progress-document-enriched', (data) => {
+        console.log(`✨ Enriched: ${data.source} (${data.progress_percent}%)`)
+        commit('updateIndexProgress', {
+          status: 'enriching',
+          progress: data.progress_percent,
+          completed: data.completed,
+          total: data.total,
+          stage: 'Enriching documents with AI',
+        })
+      })
+
+      // Document indexed events
+      socket.on('codx-junior-index-progress-document-indexed', (data) => {
+        console.log(`📚 Indexed: ${data.source} (${data.progress_percent}%)`)
+        commit('updateIndexProgress', {
+          status: 'indexing_db',
+          progress: data.progress_percent,
+          indexed_count: data.indexed_count,
+          total: data.total,
+          stage: 'Writing to database',
+        })
+      })
+
+      // Batch complete
+      socket.on('codx-junior-index-progress-batch-complete', (data) => {
+        console.log(`✅ Batch complete: ${data.documents_loaded} documents`)
+      })
+
+      // Completion event
+      socket.on('codx-junior-index-progress-completed', (data) => {
+        console.log(`🎉 Indexing complete: ${data.indexed_count}/${data.total}`)
+        commit('updateIndexProgress', {
+          status: 'complete',
+          progress: 100,
+          message: `Successfully indexed ${data.indexed_count} documents`,
+        })
+        // Clear indexing state after a short delay
+        setTimeout(() => {
+          commit('clearIndexingState')
+        }, 2000)
+      })
+
+      // Error event
+      socket.on('codx-junior-index-error', (data) => {
+        console.error(`❌ Error: ${data.error_type} - ${data.message}`)
+        commit('setIndexingError', data.message)
+        commit('updateIndexProgress', {
+          status: 'error',
+          error: data.message,
+          context: data.context,
+        })
+      })
+    },
+
+    // Unsubscribe from index progress events
+    unsubscribeFromIndexProgress() {
+      const socket = $storex.api.socket
+      if (!socket) return
+
+      socket.off('codx-junior-index-progress-started')
+      socket.off('codx-junior-index-progress-document-processing')
+      socket.off('codx-junior-index-progress-document-enriched')
+      socket.off('codx-junior-index-progress-document-indexed')
+      socket.off('codx-junior-index-progress-batch-complete')
+      socket.off('codx-junior-index-progress-completed')
+      socket.off('codx-junior-index-error')
+    }
   }
 )
 

@@ -1,34 +1,50 @@
-# Docker Build Configuration
+# Software Domain Wiki: Docker Build Configuration
 
 ## Overview
 
-Docker Build Configuration governs which files and directories from the local project workspace are included within the build context passed to the Docker daemon during image creation. This process is crucial because the container runtime only receives data related to what was explicitly provided in the build context.
+The **Docker Build Configuration** domain is critical for managing the build process of containerized applications using Docker. Its primary mechanism is the `.dockerignore` file, which dictates the exclusion rules for the build context provided to the `docker build` command.
 
-The primary tool for managing this behavior is the **`.dockerignore`** file. Instead of relying solely on `.gitignore` (which filters files for Git tracking), `.dockerignore` is specifically designed to exclude files, directories, and patterns that should *never* be bundled into the image layers.
+When a Docker build executes, it first packages the current directory into a "build context." This context is sent to the Docker daemon and is subsequently used by all instructions (e.g., `COPY`, `ADD`) within the `Dockerfile`. If unnecessary files—such as local development artifacts, package manager caches (`node_modules`, `venv`), configuration boilerplate, or temporary build outputs—are included in this context, several problems can occur:
 
-By correctly populating `.dockerignore`, developers can achieve several critical goals:
-1. **Image Size Optimization:** Preventing large, unnecessary build artifacts (like `node_modules` or local compiled assets) from being copied significantly reduces the final image size.
-2. **Speed Enhancement:** Smaller contexts lead to faster copying of layers and quicker overall build times.
-3. **Security:** Excluding sensitive or environment-specific files (e.g., local configuration credentials, private keys, development secrets) prevents them from being accidentally baked into the immutable image layer history.
+1.  **Increased Build Speed:** The Docker daemon has to transfer and process gigabytes of irrelevant data over the network, significantly slowing down builds.
+2.  **Security Risks:** Publishing sensitive artifacts intended only for local development (e.g., SSH keys, temporary passwords) by mistake.
+3.  **Image Bloat:** Although not always leading to final image bloat, improperly copying large context files can confuse layering and increase the overall build time unnecessarily.
 
-The content managed by this domain dictates that only essential source code, stable dependencies, and required assets should be visible to the build process.
+This module enforces clean separation between the application source code required for production and the developer tools or junk data used solely during local development. By properly implementing `.dockerignore`, developers ensure that only necessary assets reach the container, resulting in faster, leaner, and more reliable build cycles.
 
 ## Files in Domain
 
-*   **`/home/codx-junior-projects/codx-junior/.dockerignore`**: This is the central exclusion file for the Docker build context. It uses pattern matching (similar to shell wildcards) to list all directories and files that Docker should ignore when packaging the build context. By adding entries here, you prevent artifacts like local cache files (`npm cache`), massive dependency folders (`node_modules`), temporary IDE outputs, or development-only tools from contaminating the image layer.
+The core file within this domain is:
+
+*   `/home/codx-junior-projects/codx-junior/.dockerignore`
+
+**Purpose:** This file contains patterns (file names, glob expressions, directories) that should be excluded from the root directory when Docker captures the build context.
+
+**Typical Exclusions:**
+*   `node_modules/`: Local dependency installations are often large and better managed via `package.json` and installed within a dedicated layer in the final image.
+*   `dist/`, `build/` (if those outputs should not be copied): If source code requires compilation, but the compiled output is already expected to be placed elsewhere.
+*   `*.log` or `temp/*`: Log files, temporary build data, and debugging artifacts.
+*   `.vscode/`, `.idea/`: IDE-specific configuration directories that are runtime agnostic.
 
 ## Dependencies
 
-(None specified or required for basic understanding)
+This module operates primarily on file system dependencies but can rely conceptually on other project management tools:
 
-This configuration manages an exclusion list rather than relying on other project configuration or external services. Proper maintenance of `.dockerignore` relies on understanding the file structures used by various specialized systems within the project (e.g., Vite, Node.js, Python).
+*   **Project Structure:** The existence and layout of standard project files (e.g., `src/`, `package.json`) dictate what must *not* be ignored.
+*   **Build Tooling (`Dockerfile`):** It is inherently dependent on the corresponding `Dockerfile`. The instructions within the `Dockerfile` determine which paths are copied, while `.dockerignore` determines which paths the build system should even see.
 
 ## Used By
 
-*   **Dockerfile:** The `COPY` instruction in a Dockerfile explicitly uses the build context provided by the CLI which is filtered by this `.dockerignore` file.
-*   **CI/CD Pipelines:** Any continuous integration system executing `docker build` must respect these exclusions to ensure efficient and secure deployments.
-*   **Local Development Workflows:** Developers manually running `docker build` locally depend on this file to simulate a clean production environment, preventing the use of local caches that might differ from the final deployment environment.
+This domain's functionality is foundational and contributes to several downstream processes:
+
+*   **Docker Build Execution:** This is the primary consumer. Any application build workflow that uses a standard `docker build -t image .` command relies on this configuration being present and correct.
+*   **CI/CD Pipelines (Continuous Integration):** When integrating automated build steps (e.g., Jenkins, GitHub Actions), the exclusion rules must be maintained to ensure consistent build contexts across environments.
+*   **Container Orchestration:** While tools like Kubernetes don't directly read the `.dockerignore`, they rely on the underlying images produced by Docker, making the exclusion logic critical for stable deployment units.
 
 ## Entry Points
 
-*   **.dockerignore**: This is the primary entry point for configuring exclusions. When working in an application or repository structure, creating or modifying this file is the designated task whenever build context optimization is required (e.g., adding a new type of large cache directory or dependency folder).
+The primary entry point and operational artifact for this domain is:
+
+*   `/home/codx-junior-projects/codx-junior/.dockerignore`
+
+This file must be committed to version control so that all team members and CI/CD systems use the same, standardized build context rules.

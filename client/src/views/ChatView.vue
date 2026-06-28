@@ -11,6 +11,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
 import Markdown from '../components/Markdown.vue'
 import Collapsible from '../components/Collapsible.vue'
+import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 </script>
 
 <template>
@@ -19,7 +20,7 @@ import Collapsible from '../components/Collapsible.vue'
       <div class="grow flex flex-col w-full min-w-0">
 
         <!-- ── HEADER ─────────────────────────────────────────────────────── -->
-        <div class="flex flex-col gap-1 w-full" v-if="!chatMode">
+        <div class="flex flex-col gap-1 w-full shrink-0">
           <div class="flex items-center gap-2 w-full">
             <div class="flex items-center gap-2 text-sm shrink-0">
               <i class="fa-brands fa-trello text-primary"></i>
@@ -27,10 +28,10 @@ import Collapsible from '../components/Collapsible.vue'
                 <span class="hover:underline cursor-pointer font-bold text-primary" @click="navigateToBoard(board.title)">
                   {{ board.title }}
                 </span>
-                <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content-ERROR-40">/</span>
+                <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content/40">/</span>
               </template>
               <template v-if="parentChat">
-                <span class="text-base-content-ERROR-40">/</span>
+                <span class="text-base-content/40">/</span>
                 <span class="hover:underline cursor-pointer font-bold text-secondary truncate max-w-[120px]"
                   :title="parentChat.name" @click="navigateToParent(parentChat)">
                   {{ parentChat.name }}
@@ -108,16 +109,18 @@ import Collapsible from '../components/Collapsible.vue'
                         <i class="fa-solid fa-house text-xs"></i> {{ ownerProject?.title }}
                       </span>
                       <span>[{{ formattedChatUpdatedDate }}]</span>
-                      <span v-if="computedChatDescription" class="cursor-pointer hover:underline"
-                        :class="showDescription ? 'text-error/70' : 'text-info'"
-                        @click.stop="showDescription = !showDescription">
-                        [{{ showDescription ? 'close' : 'description' }}]
-                      </span>
+                      <span 
+                        v-if="theChat.history?.length"
+                        class="click text-xs flex items-center gap-1 transition-all"
+                        :class="showHistoryWall ? 'text-warning' : 'hover:text-warning'"
+                        @click="toggleHistoryWall"
+                        title="Toggle history wall view"
+                      >
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span class="">History</span>
+                    </span>
                     </div>
                   </div>
-                </div>
-                <div class="text-xs mt-1" v-if="showDescription">
-                  <markdown class="prose-sm" :text="computedChatDescription || '-- no description yet --'" />
                 </div>
               </template>
             </div>
@@ -173,7 +176,7 @@ import Collapsible from '../components/Collapsible.vue'
                     <i class="fa-solid fa-house text-xs text-base-content/30"></i>
                   </div>
                   <div class="text-xs truncate text-base-content/70 leading-tight">{{ computedChatName }}</div>
-                  <div class="text-xs text-base-content-ERROR-40">
+                  <div class="text-xs text-base-content/40">
                     {{ (theChat.messages || []).length }} msgs
                   </div>
                 </div>
@@ -189,7 +192,7 @@ import Collapsible from '../components/Collapsible.vue'
                   @click="selectChildChat(childChat)"
                 >
                   <div class="flex items-center gap-1">
-                    <span class="text-xs text-base-content-ERROR-40 font-mono w-4">{{ idx + 1 }}</span>
+                    <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
                     <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
                     <div 
                       class="loading loading-bars text-info loading-sm opacity-60"
@@ -203,7 +206,7 @@ import Collapsible from '../components/Collapsible.vue'
                     {{ childChat.name }}
                   </div>
                   <div class="flex items-center justify-between">
-                    <span class="text-xs text-base-content-ERROR-40">
+                    <span class="text-xs text-base-content/40">
                       {{ (childChat.messages || []).length }} msgs
                     </span>
                     <span class="badge badge-xs truncate"
@@ -215,7 +218,7 @@ import Collapsible from '../components/Collapsible.vue'
 
                 <!-- Add card -->
                 <div
-                  class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content-ERROR-40"
+                  class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content/40"
                   @click="newSubChat()"
                 >
                   <i class="fa-solid fa-plus text-lg"></i>
@@ -227,7 +230,7 @@ import Collapsible from '../components/Collapsible.vue'
 
           <!-- No children: simple add button -->
           <div v-else class="flex">
-            <button class="btn btn-xs btn-ghost gap-1 text-base-content-ERROR-40 hover:text-primary" @click="newSubChat()">
+            <button class="btn btn-xs btn-ghost gap-1 text-base-content/40 hover:text-primary" @click="newSubChat()">
               <i class="fa-solid fa-plus text-xs"></i>
               <span class="text-xs">Add subtask</span>
             </button>
@@ -235,8 +238,8 @@ import Collapsible from '../components/Collapsible.vue'
         </div>
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
 
-        <!-- Active subtask breadcrumb -->
-        <div class="flex items-center gap-1 text-xs text-base-content/50 mt-1" v-if="showChildChat">
+        <!-- Active subtask breadcrumb (shown in both views) -->
+        <div class="flex items-center gap-1 text-xs text-base-content/50 mt-1 shrink-0" v-if="showChildChat">
           <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
             {{ computedChatName }}
           </button>
@@ -244,9 +247,28 @@ import Collapsible from '../components/Collapsible.vue'
           <span class="text-warning font-semibold">{{ showChildChat.name }}</span>
         </div>
 
-        <Chat class="mt-2" :chat="workingChat" :showHidden="showHidden" :childrenChats="childrenChats"
-          :filter="chatSearch" @refresh-chat="reloadChat(workingChat)" @remove-file="onRemoveFile"
-          @delete="confirmDelete = true" @subtask="onNewMessageSubtask" />
+        <!-- Content Area: History Wall OR Chat View -->
+        <div class="flex-1 min-h-0 mt-2">
+          <!-- History Wall View (Full Screen) -->
+          <ChatHistoryViewer
+            v-if="showHistoryWall"
+            :history="theChat.history || []"
+            :currentDescription="computedChatDescription"
+          />
+
+          <!-- Normal Chat View -->
+          <Chat 
+            v-else
+            :chat="workingChat" 
+            :showHidden="showHidden" 
+            :childrenChats="childrenChats"
+            :filter="chatSearch" 
+            @refresh-chat="reloadChat(workingChat)" 
+            @remove-file="onRemoveFile"
+            @delete="confirmDelete = true" 
+            @subtask="onNewMessageSubtask" 
+          />
+        </div>
 
         <!-- MODALS -->
         <modal v-if="confirmDelete">
@@ -346,7 +368,7 @@ import Collapsible from '../components/Collapsible.vue'
 
 <script>
 export default {
-  components: { Markdown, Collapsible },
+  components: { Markdown, Collapsible, ChatHistoryViewer },
   props: ['chatMode', 'chat', 'kanban', 'params'],
   data() {
     return {
@@ -369,10 +391,10 @@ export default {
       subtaskProject: null,
       subtaskParentId: null,
       subtaskMessageId: null,
+      subtaskColumn: '',
       showAddProfile: false,
       createTasksInstructions: '',
       chatProfiles: [],
-      showDescription: false,
       projectContext: null,
       showChatSelector: false,
       showChildChat: null,
@@ -380,24 +402,38 @@ export default {
       chatSearch: null,
       ownerProject: null,
       targetProject: null,
-      // Track collapsible open state so summary pills update correctly
-      subtasksOpen: false
+      subtasksOpen: false,
+      showHistoryWall: false
     }
   },
-  created() { this.init() },
+  created() {
+    this.init()
+  },
   computed: {
     theChat() {
       return this.$chats.chats[this.chat?.id || this.params?.params?.chat?.id]
     },
-    isThread() { return !!this.theChat.message_id },
-    isPRView() { return this.workingChat?.mode === 'prview' },
-    aiModels() { return this.$projects.ai.models },
+    isThread() {
+      return !!this.theChat.message_id
+    },
+    isPRView() {
+      return this.workingChat?.mode === 'prview'
+    },
+    aiModels() {
+      return this.$projects.ai.models
+    },
     showTaskProjectName() {
       return this.ownerProject && this.ownerProject.project_id !== this.$project.project_id
     },
-    hiddenCount() { return this.workingChat.messages?.filter(m => m.hide).length },
-    messageCount() { return this.workingChat.messages?.length },
-    messages() { return this.theChat.messages.filter(m => !m.hide || this.showHidden) },
+    hiddenCount() {
+      return this.workingChat.messages?.filter(m => m.hide).length
+    },
+    messageCount() {
+      return this.workingChat.messages?.length
+    },
+    messages() {
+      return this.theChat.messages.filter(m => !m.hide || this.showHidden)
+    },
     formattedChatUpdatedDate() {
       const updatedAt = this.theChat.updated_at
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
@@ -409,7 +445,6 @@ export default {
         .filter(c => c.parent_id === this.theChat.id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
-    // Group subtasks by column for the summary pills
     subtasksByColumn() {
       return this.childrenChats.reduce((acc, c) => {
         const col = c.column || 'Unknown'
@@ -417,7 +452,9 @@ export default {
         return acc
       }, {})
     },
-    parentChat() { return this.$chats.chats[this.theChat?.parent_id] },
+    parentChat() {
+      return this.$chats.chats[this.theChat?.parent_id]
+    },
     images() {
       return (this.workingChat.messages || [])
         .map(m => m.images || []).reduce((a, b) => a.concat(b), [])
@@ -427,13 +464,15 @@ export default {
     workingChat() {
       return this.$chats.chats[this.showChildChat?.id] || this.theChat
     },
-    computedChatName() { return this.theChat.name || 'New Task' },
+    computedChatName() {
+      return this.theChat.name || 'New Task'
+    },
     computedChatDescription() {
       if (this.theChat.message_id) {
         const message = this.$storex.projects.allChats
           .find(c => c.id === this.theChat.parent_id)
           ?.messages.find(m => m.doc_id === this.theChat.message_id)
-        return message?.content || '-- no description yet --'
+        return message?.content || ''
       }
       return this.theChat.description
     },
@@ -444,14 +483,17 @@ export default {
   },
   watch: {
     chat(newVal, oldVal) {
-      if (oldVal && newVal && oldVal.project_id !== newVal.project_id) this.init()
+      if (oldVal && newVal && oldVal.project_id !== newVal.project_id) {
+        this.init()
+      }
       this.showChildChat = null
+      this.showHistoryWall = false
     }
   },
   methods: {
     async init() {
       await this.$service.chat.findChat(this.workingChat)
-      if (!this.theChat) throw new Error(`Chat not loaded`)
+      if (!this.theChat) throw new Error('Chat not loaded')
       this.setTaskProject()
       this.setProjectContext()
       if (!this.$storex.projects.kanban) {
@@ -462,7 +504,6 @@ export default {
         .then(p => p.profiles.list())
         .then(profiles => profiles.filter(p => this.theChat.profiles.includes(p.name)))
       if (this.isPRView) await this.$projects.loadBranches()
-      this.showDescription = this.isThread
     },
     setTaskProject() {
       this.ownerProject = this.$projects.allProjectsById[this.theChat.owner_project_id]
@@ -472,7 +513,9 @@ export default {
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
-    async reloadChat() { this.$chats.reloadChat(this.workingChat) },
+    async reloadChat() {
+      this.$chats.reloadChat(this.workingChat)
+    },
     async setChatProject(project) {
       this.targetProject = project
       this.workingChat.project_id = project.project_id
@@ -482,14 +525,22 @@ export default {
       this.editName = false
       return this.$chats.saveChat(chat || this.workingChat)
     },
-    saveChatInfo(chat) { this.editName = false; this.$chats.saveChatInfo(chat) },
+    saveChatInfo(chat) {
+      this.editName = false
+      this.$chats.saveChatInfo(chat)
+    },
     async confirmDeleteChat() {
       this.confirmDelete = false
       await this.$chats.deleteChat(this.theChat)
-      if (this.parentChat) this.$chats.setActiveChat(this.parentChat)
-      else this.navigateToChats()
+      if (this.parentChat) {
+        this.$chats.setActiveChat(this.parentChat)
+      } else {
+        this.navigateToChats()
+      }
     },
-    resetConfirmDelete() { this.confirmDelete = false },
+    resetConfirmDelete() {
+      this.confirmDelete = false
+    },
     async removeFileFromContext() {
       this.theChat.profiles = this.theChat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
@@ -539,24 +590,31 @@ export default {
       const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId)
       if (!findChild()) {
         await this.createSubTask({
-          parent: chat, name: `${subtaskMessageId} - thread`,
-          project_id: chat.project_id, parent_id: chat.parent_id,
-          message_id: subtaskMessageId, file_list: files, profiles,
-          mode, board: chat.board, column, activateChat: true,
+          parent: chat,
+          name: `${subtaskMessageId} - thread`,
+          project_id: chat.project_id,
+          parent_id: chat.parent_id,
+          message_id: subtaskMessageId,
+          file_list: files,
+          profiles,
+          mode,
+          board: chat.board,
+          column,
+          activateChat: true,
           child_index: this.childrenChats?.length
         })
       }
       this.$chats.setActiveChat(findChild())
     },
     getSubTaskParentSummary() {
-      let { messages } = this
-      if (!messages.length) return ""
+      let messages = this.messages
+      if (!messages.length) return ''
       if (this.theChat.mode === 'task') {
         messages = messages.reverse()
         const lastAI = messages.find(m => m.role === 'assistant')
         if (lastAI) return lastAI.content
       }
-      return messages.reduce((acc, m) => acc + "\n" + m.content, "")
+      return messages.reduce((acc, m) => acc + '\n' + m.content, '')
     },
     async onCreateSubtask() {
       if (!this.subtaskName.trim()) return
@@ -565,16 +623,25 @@ export default {
         this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
       }
       await this.createSubTask({
-        parent: this.theChat, name: this.subtaskName, description: this.subtaskDescription,
+        parent: this.theChat,
+        name: this.subtaskName,
+        description: this.subtaskDescription,
         project_id: this.subtaskProject?.project_id || this.targetProject?.project_id,
-        parent_id: this.subtaskParentId, message_id: this.subtaskMessageId,
-        file_list: this.subtaskFiles, profiles: this.subtaskProfiles,
-        mode: this.subtaskMode, board: this.theChat.board,
-        column: this.subtaskColumn, activateChat: true, child_index: this.childrenChats.length
+        parent_id: this.subtaskParentId,
+        message_id: this.subtaskMessageId,
+        file_list: this.subtaskFiles,
+        profiles: this.subtaskProfiles,
+        mode: this.subtaskMode,
+        board: this.theChat.board,
+        column: this.subtaskColumn,
+        activateChat: true,
+        child_index: this.childrenChats.length
       })
       this.resetSubtaskModal()
     },
-    cancelSubtask() { this.resetSubtaskModal() },
+    cancelSubtask() {
+      this.resetSubtaskModal()
+    },
     resetSubtaskModal() {
       this.showSubtaskModal = false
       this.subtaskName = ''
@@ -589,29 +656,56 @@ export default {
       this.newTag = null
       this.saveChat()
     },
-    setChatMode(mode) { this.workingChat.mode = mode; this.saveChat() },
-    navigateToParent(parentChat) {
-      if (parentChat) this.$emit('chat', parentChat)
-      else this.navigateToChats()
+    setChatMode(mode) {
+      this.workingChat.mode = mode
+      this.saveChat()
     },
-    async onAddProfile() { this.showAddProfile = true },
-    toggleChatPinned() { this.theChat.pinned = !this.theChat.pinned; this.saveChat() },
+    navigateToParent(parentChat) {
+      if (parentChat) {
+        this.$emit('chat', parentChat)
+      } else {
+        this.navigateToChats()
+      }
+    },
+    async onAddProfile() {
+      this.showAddProfile = true
+    },
+    toggleChatPinned() {
+      this.theChat.pinned = !this.theChat.pinned
+      this.saveChat()
+    },
     selectChildChat(childChat) {
       this.showChildChat = childChat
-      if (childChat && !childChat.messages?.length) this.$chats.reloadChat(childChat)
+      if (childChat && !childChat.messages?.length) {
+        this.$chats.reloadChat(childChat)
+      }
+    },
+    toggleHistoryWall() {
+      this.showHistoryWall = !this.showHistoryWall
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.$chats.createNewChat({
-        id: uuidv4(), board: parent.board, name, mode, profiles,
-        column: column || parent.column, parent_id: parent_id || parent.id,
-        message_id, owner_project_id: parent.owner_project_id || parent.project_id,
+        id: uuidv4(),
+        board: parent.board,
+        name,
+        mode,
+        profiles,
+        column: column || parent.column,
+        parent_id: parent_id || parent.id,
+        message_id,
+        owner_project_id: parent.owner_project_id || parent.project_id,
         project_id: project_id || parent.project_id,
         messages: description ? [{ role: 'user', content: description }] : [],
-        file_list, child_index
+        file_list,
+        child_index
       })
       await this.$chats.saveChat(chat)
-      if (description) this.$storex.projects.chatWihProject(chat)
-      if (activateChat) await this.$chats.setActiveChat(chat)
+      if (description) {
+        this.$storex.projects.chatWihProject(chat)
+      }
+      if (activateChat) {
+        await this.$chats.setActiveChat(chat)
+      }
     },
     async createSubTasks() {
       if (this.showSubtasksModal) {
@@ -619,7 +713,7 @@ export default {
         this.showSubtasksModal = false
       } else {
         this.showSubtasksModal = true
-        this.createTasksInstructions = ""
+        this.createTasksInstructions = ''
       }
     }
   }

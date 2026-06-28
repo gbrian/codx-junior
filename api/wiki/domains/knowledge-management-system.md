@@ -1,44 +1,39 @@
 # Knowledge Management System
 
 ## Overview
+The **Knowledge Management System** (KMS) serves as the core engine for persistence, versioning, and semantic intelligence within the Codx Junior ecosystem. Designed to transform raw data into a structured and searchable information graph, this module facilitates long-term memory for the system.
 
-The Knowledge Management System (KMS) domain cluster is foundational to building an intelligent, robust, and structurally defined knowledge base. It moves beyond simple content repositories by implementing core services designed for advanced data structuring, sophisticated processing, and controlled content dissemination.
-
-At its core, the KMS utilizes a dedicated **Knowledge Graph** to model complex relationships between data entities (nodes) and the connections between them (edges). This graph structure allows for semantic querying, reasoning, and deep data correlation—a marked improvement over traditional relational databases when managing heterogeneous knowledge sets.
-
-The system incorporates advanced Artificial Intelligence (AI) logic to empower processing tasks that require computational intelligence. Key functionalities include sophisticated cancellation handling protocols (`cancellation.py`) which ensure reliable resource management and graceful termination of long-running processes. Furthermore, content definition is managed through structured **Wiki Domains**, establishing clear scopes and architectural boundaries for different bodies of expertise within the knowledge base.
-
-This domain relies on Python for its core logic, leveraging modern software patterns (such as Singleton and Asynchronous Processing) to handle high concurrency demands inherent in large-scale data processing environments. The system provides a cohesive set of APIs used by various client modules across the full stack.
-
-### Core Technologies & Concepts
-*   **Knowledge Graph:** Structured representation of disparate knowledge entities.
-*   **AI Integration:** Advanced business logic and operational enhancements for complex tasks (e.g., workflow cancellation).
-*   **Structured Wiki Domains:** Defining scope and governance over organizational knowledge content.
-*   **Concurrency Control:** Handling multiple simultaneous requests and resource allocation efficiently.
+Key functionalities include:
+*   **Semantic Representation:** Utilizing advanced embedding generation (via OpenAI and local sentence-transformers) to convert text and media metadata into high-dimensional vector representations.
+*   **Persistence & Versioning:** Managing complex data states through a robust change-tracking architecture that ensures data integrity and historical auditability.
+*   **Resilient Retrieval:** Incorporating error-handling and fallback mechanisms for embedding services to ensure service resilience and graceful degradation under load.
+*   **Asynchronous Processing:** Handling knowledge updates and batch processing to optimize performance for large-scale wiki and project-change data.
 
 ## Files in Domain
-
-The KMS domain is comprised of three distinct Python modules, each serving a specialized architectural function:
-
-| File Path | Purpose | Description |
-| :--- | :--- | :--- |
-| `api/codx/junior/ai/cancellation.py` | **AI Logic & Resource Management** | Implements core AI-driven processing handlers, particularly focusing on robust and graceful cancellation tokens. Ensures that asynchronous processes can be reliably halted and resources released when necessary. |
-| `api/codx/junior/knowledge/knowledge_graph.py` | **Data Structuring Core** | Defines the primary interaction layer with the Knowledge Graph. Handles node creation, edge traversal, relationship querying, and ensures data integrity across complex interconnected datasets. |
-| `api/codx/junior/wiki/wiki_domains.py` | **Content Scoping & Governance** | Manages the structure and boundaries of organizational knowledge content. Defines specific, structured domains (wikis) to categorize, scope, and govern how different types of information are written and consumed. |
+*   `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md`: Documentation defining the database schema and storage strategy for wiki-related data.
+*   `/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py`: Logic responsible for tracking, versioning, and auditing changes across the knowledge base.
+*   `/home/codx-junior/codx-junior/api/codx/junior/knowledge/embeddings.py`: Core utility for generating vector embeddings and managing AI-integration for semantic searches.
 
 ## Dependencies
-
-Currently, there are no explicit external module dependencies defined within this domain that require declaration in the dependency list. This cluster serves as a foundational API layer for core services.
+This module relies on:
+*   **Vector Database:** External storage for high-dimensional vector indices.
+*   **AI Providers:** OpenAI API for primary embeddings, with local fallback models for offline/low-latency requirements.
+*   **System Event Bus:** To process `knowledge-event` triggers and keep the knowledge base synchronized with project changes.
 
 ## Used By
-
-This section is intended to track modules that utilize the services provided by the Knowledge Management System (KMS). As of this architecture definition, no consuming modules have been specified.
+The Knowledge Management System provides foundational services to:
+*   **Search/Retrieval APIs:** Consumer modules requesting semantic context.
+*   **Project Management Modules:** Any module requiring audit logs or versioning history (e.g., `project-change` tracking).
+*   **Transcription Services:** Media file indexing and semantic tagging pipelines.
 
 ## Entry Points
+*   [`/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md`](file:///home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md)
+*   [`/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py`](file:///home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py)
+*   [`/home/codx-junior/codx-junior/api/codx/junior/knowledge/embeddings.py`](file:///home/codx-junior/codx-junior/api/codx/junior/knowledge/embeddings.py)
 
-All listed files within this domain are designated as critical entry points, making them accessible primary APIs for internal and external service consumers.
+---
 
-*   `/home/codx-junior-projects/codx-junior/.dockerignore`
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/cancellation.py`
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_graph.py`
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/wiki/wiki_domains.py`
+### External References
+*   [Sentence-Transformers Documentation](https://www.sbert.net/)
+*   [OpenAI Embeddings API Reference](https://platform.openai.com/docs/guides/embeddings)
+*   [Vector Database Concepts (Pinecone/Weaviate/Milvus)](https://weaviate.io/blog/what-is-a-vector-database)

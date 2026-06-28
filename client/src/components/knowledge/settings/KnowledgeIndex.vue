@@ -1,6 +1,7 @@
 <script setup>
 import KnowledgeFileList from './KnowledgeFileList.vue'
 import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
+import moment from 'moment'
 </script>
 
 <template>
@@ -49,11 +50,11 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
     <div v-if="isIndexing" class="w-full">
       <div class="flex items-center justify-between text-xs mb-1">
         <span class="text-warning font-medium flex items-center gap-1">
-          <i class="fa-solid fa-bolt"></i> Indexing in progress
+          <i class="fa-solid fa-bolt"></i> {{ indexProgress.stage || 'Indexing in progress' }}
         </span>
-        <span class="text-base-content/50">{{ indexingFiles.length }} file{{ indexingFiles.length > 1 ? 's' : '' }} queued</span>
+        <span class="text-base-content/50">{{ indexProgress.progress }}%</span>
       </div>
-      <progress class="progress progress-warning w-full h-1.5"></progress>
+      <progress class="progress progress-warning w-full h-1.5" :value="indexProgress.progress" max="100"></progress>
     </div>
 
     <!-- Stats Grid -->
@@ -76,7 +77,7 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
           </div>
           <div
             class="w-10 h-10 rounded-full flex items-center justify-center"
-            :class="pendingCount > 0 ? 'bg-warning/20 text-warning' : 'bg-base-300 text-base-content-ERROR-40'"
+            :class="pendingCount > 0 ? 'bg-warning/20 text-warning' : 'bg-base-300 text-base-content/40'"
           >
             <i class="fa-solid fa-hourglass-half"></i>
           </div>
@@ -207,21 +208,16 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
 </template>
 
 <script>
-import moment from 'moment'
-
 export default {
   emits: ['reload-status', 'set-setting'],
   props: {
     settings: Object,
     indexStatus: Object,
-    confirmDelete: Boolean,
     project: Object
   },
   data() {
     return {
       activeTab: 0,
-      indexingFiles: [],
-      indexingError: null,
       confirmDelete: false
     }
   },
@@ -236,10 +232,18 @@ export default {
       return this.settings?.knowledge_file_ignore
         ?.trim()?.split(',').filter(e => e.trim().length) || []
     },
-    pendingCount() { return this.indexStatus?.pending_files?.length || 0 },
-    indexedCount() { return this.indexStatus?.files?.length || 0 },
-    ignoredCount() { return this.ignoredFolders.length },
-    totalCount() { return this.pendingCount + this.indexedCount },
+    pendingCount() {
+      return this.indexStatus?.pending_files?.length || 0
+    },
+    indexedCount() {
+      return this.indexStatus?.files?.length || 0
+    },
+    ignoredCount() {
+      return this.ignoredFolders.length
+    },
+    totalCount() {
+      return this.pendingCount + this.indexedCount
+    },
     pendingPercent() {
       return this.totalCount ? Math.round((this.pendingCount / this.totalCount) * 100) : 0
     },
@@ -248,9 +252,12 @@ export default {
     },
     showFiles() {
       switch (this.activeTab) {
-        case 0: return this.indexStatus?.pending_files || []
-        case 1: return this.indexStatus?.files || []
-        default: return this.ignoredFolders
+        case 0:
+          return this.indexStatus?.pending_files || []
+        case 1:
+          return this.indexStatus?.files || []
+        default:
+          return this.ignoredFolders
       }
     },
     tabLabel() {
@@ -264,44 +271,53 @@ export default {
       ][this.activeTab]
     },
     isIndexing() {
-      return this.indexingFiles.length > 0
+      return this.$storex.projects.isIndexing
+    },
+    indexingFiles() {
+      return this.$storex.projects.indexingFiles
+    },
+    indexingError() {
+      return this.$storex.projects.indexingError
+    },
+    indexProgress() {
+      return this.$storex.projects.indexProgress
     }
   },
   watch: {
     'indexStatus.pending_files'(newFiles) {
-      if (!newFiles?.length) {
-        this.indexingFiles = []
-        this.indexingError = null
+      if (!newFiles?.length && !this.isIndexing) {
+        this.$storex.projects.clearIndexing()
+      }
+    },
+    indexingError(error) {
+      if (error) {
+        this.$session.onError(`Indexing failed: ${error}`)
       }
     }
   },
+  mounted() {
+    this.$storex.projects.subscribeToIndexProgress()
+  },
+  beforeUnmount() {
+    this.$storex.projects.unsubscribeFromIndexProgress()
+  },
   methods: {
-    // Tab management
     setTab(ix) {
       this.activeTab = ix
       this.$refs.fileList?.clearSelection()
     },
 
-    // File indexing handler
+    // Handle file indexing
     async handleIndexFiles(filePaths) {
-      this.indexingFiles = [...filePaths]
-      this.indexingError = null
-
       try {
-        const api = this.project?.$api
-        if (!api) {
-          throw new Error('API not initialized')
-        }
-
-        await api.knowledge.indexFilesBackground(filePaths)
+        await this.$storex.projects.startIndexing(filePaths)
         this.$session.onInfo(`Indexing ${filePaths.length} file(s) in background...`)
       } catch (error) {
-        this.indexingError = error.message
         this.$session.onError(`Failed to start indexing: ${error.message}`)
       }
     },
 
-    // File ignore handler
+    // Handle file ignore
     async handleIgnoreFiles({ paths, asFolder }) {
       const projectPath = this.settings?.abs_project_path
       const relativePaths = paths.map(f => f.replace(projectPath, ''))
@@ -311,12 +327,12 @@ export default {
       await this.addEntriesToIgnore(entries)
     },
 
-    // File unignore handler
+    // Handle file unignore
     async handleUnignoreFiles(paths) {
       await this.removeEntriesFromIgnore(paths)
     },
 
-    // File drop handler
+    // Handle file drop
     async handleDropFiles(filePaths) {
       try {
         const api = this.project?.$api
@@ -329,11 +345,12 @@ export default {
       }
     },
 
-    // Ignore pattern handlers
+    // Handle ignore pattern add
     async handleAddIgnore(entries) {
       await this.addEntriesToIgnore(entries)
     },
 
+    // Handle ignore pattern remove
     async handleRemoveIgnore(entries) {
       await this.removeEntriesFromIgnore(entries)
     },
@@ -372,16 +389,17 @@ export default {
       }
     },
 
-    // Reload status
+    // Reload knowledge status
     async reloadStatus() {
       this.$emit('reload-status')
     },
 
-    // Delete index handlers
+    // Delete index handler
     handleDeleteIndex() {
       this.confirmDelete = true
     },
 
+    // Confirm and delete index
     async confirmAndDeleteIndex() {
       try {
         const api = this.project?.$api
@@ -395,6 +413,7 @@ export default {
       }
     },
 
+    // Cancel delete operation
     cancelDelete() {
       this.confirmDelete = false
     }

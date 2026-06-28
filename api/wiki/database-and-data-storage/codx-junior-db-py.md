@@ -1,199 +1,104 @@
-The `codx.junior.db` module provides database functionalities for the CODX Junior project, primarily focused on managing chat and kanban data.
+## CODX Junior Database Management documentation
 
-## Database Models
+This document describes the data models and the `CODXJuniorDB` class, which provides structured persistence and retrieval mechanisms for various features within the CODX Junior application. The module handles defining complex data structures using Pydantic models and managing interactions with the underlying database client (TinyDB).
 
-The module defines several Pydantic models to represent the data structures stored in the database:
+### Data Models
 
-*   **`MessageTaskItem`**: An Enum for message task item types.
-*   **`Message`**: Represents a single message within a chat. It includes fields for message content, role, timestamps, associated files, and metadata.
-*   **`ChatId`**: A simple model to store a chat's ID and its associated project ID, used for linking chats.
-*   **`Chat`**: Represents a chat conversation. It includes fields for chat metadata, messages, participants, status, and links to other chats or projects. It also supports integration with kanban boards and pull request views.
-*   **`KanbanColumn`**: Represents a column within a kanban board, with fields for its title, color, and order.
-*   **`Kanban`**: Represents a kanban board, including its title, description, and a list of `KanbanColumn` objects.
+The system uses several Pydantic models to enforce structure and consistency when handling core entities:
 
-## `CODXJuniorDB` Class
+#### `KanbanColumn`
+Represents a single column within a Kanban board.
 
-The `CODXJuniorDB` class is the main interface for interacting with the project's database.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `doc_id` | Optional[str] | Unique identifier for the document. |
+| `title` | str | The title of the column. |
+| `color` | Optional[str] | The visual color assigned to the column. |
+| `index` | int | The sorting index of the column. |
+| `chats` | List[str] | A list of chat IDs associated with this column. |
 
-### Initialization
+#### `Kanban`
+Represents an entire Kanban board structure.
 
-The database client is initialized using `TinyDB` and is stored in a global `PROJECT_DATABASES` dictionary to avoid redundant connections for the same project path. The `db_path` is derived from the project's settings.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `doc_id` | Optional[str] | Unique identifier for the kanban board. |
+| `title` | str | The title of the board. |
+| `description` | Optional[str] | Detailed description of the board. |
+| `index` | int | The sorting index of the board. |
+| `columns` | List[`KanbanColumn`] | List of columns contained within the board. |
+| `created_at` | str | Timestamp when the kanban was created. |
+| `updated_at` | str | Timestamp last updated. |
 
-### Database Operations
+#### `Message`
+Represents a single message entry (e.g., in a chat).
 
-*   **`init_client()`**: Initializes the TinyDB client if it's not already connected for the current project.
-*   **`reset()`**: Resets the database by removing the existing database file and re-initializing the client.
-*   **`save_kanban(kanban: Kanban)`**: Saves a `Kanban` object to the database. If the `kanban` object doesn't have a `doc_id`, a new one is created. Otherwise, the existing record is updated.
-*   **`get_kanban(kanban_id: str)`**: Retrieves a `Kanban` object from the database using its `doc_id`.
-*   **`get_all_kankan()`**: Retrieves all `Kanban` objects from the database.
-*   **`get_kanban_chats(kanban_id: str, column_id: str)`**: Retrieves all `Chat` objects associated with a specific kanban column.
-*   **`get_chat(chat_id: str)`**: Retrieves a `Chat` object from the database using its `doc_id`.
-*   **`save_chat(chat: Chat)`**: Saves a `Chat` object to the database. Similar to `save_kanban`, it creates a new record if `doc_id` is absent, or updates an existing one.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `doc_id` | Optional[str] | Unique identifier for the message. |
+| `role` | str | The role of the speaker (e.g., 'user', 'ai'). |
+| `task_item` | str | A specific task item associated with the message. |
+| `content` | str | The actual content written in the message. |
+| `think` | Optional[str] | Content generated during thinking processes. |
+| `hide` | bool | Flag to determine if the message should be visible (default: False). |
+| `is_answer` | bool | Indicates if the message is an answer/response. |
+| `improvement` | bool | Indicates if the message contains improvements. |
+| `created_at` | str | Timestamp when the message was created. |
+| `updated_at` | str | Timestamp of the last update. |
+| `images` | List[str] | List of image paths/URIs included with the message. |
+| `files` | List[str] | List of file paths/names associated with the message. |
+| `knowledge_topics` | List[str] | Topics used to index the message for knowledge retrieval. |
+| `done` | Optional[bool] | Indicates if the user is finished writing (default: True). |
 
-```python /codx/junior/db.py
-import os
-import logging
-import re
-import uuid
-from slugify import slugify
+#### `ChatHistoryEntry`
+Tracks summary information about past chat sessions.
 
-from codx.junior.settings import CODXJuniorSettings
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `timestamp` | str | Timestamp when this history entry was generated. |
+| `summary` | str | A brief summary of the historical chat segment. |
+| `message_ids` | List[str] | List of message IDs associated with this summary. |
 
-from pydantic import BaseModel, Field
-from typing import Optional, List, Union
+#### `Chat`
+Represents an overarching conversation thread or session.
 
-from datetime import datetime
-from enum import Enum
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `doc_id` | Optional[str] | Unique identifier for the chat. |
+| `project_id` | Optional[str] | Defines the project the chat belongs to. |
+| `owner_project_id` | Optional[str] | The ID of the project that owns this chat entry. |
+| `parent_id` | Optional[str] | Reference to a parent chat conversation. |
+| `linked_chat_ids` | List[str] | IDs of other chats linked to this one. |
+| `child_index` | Optional[int] | Used to sort multiple related chat contents (siblings). |
+| `status` | str | The current operational status of the chat. |
+| `messages` | List[`Message`] | The sequence of individual messages within the chat. |
+| `kanban_id` | str | Reference ID linking the chat to a specific Kanban board. |
+| `columns` | List[`KanbanColumn`] | Columns associated with this chat context. |
+| `history` | List[`ChatHistoryEntry`] | Historical entries of this chat. |
 
-from codx.junior.model.model import PRView
+### CODXJuniorDB Class
 
-logger = logging.getLogger(__name__)
+The `CODXJuniorDB` class is the primary interface for managing database operations, ensuring that interactions are structured and scalable across different projects. It uses a dictionary (`PROJECT_DATABASES`) to potentially manage multiple database instances based on the project path (`self.settings.abs_project_path`).
 
-class MessageTaskItem(Enum):
-    SUMMARY = "summary"
+#### Initialization
+The constructor requires `CODXJuniorSettings` and initializes the connection using the specified absolute project path (`self.db_path`). It sets up three core tables: `kanban`, `column`, and `chat`.
 
-class Message(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    role: str = Field(default='')
-    task_item: str = Field(default='')
-    content: str = Field(default='')
-    think: Optional[str] = Field(default='')
-    hide: bool = Field(default=False)
-    is_answer: bool = Field(default=False)
-    improvement: bool = Field(default=False)
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-    images: List[str] = Field(default=[])
-    files: List[str] = Field(default=[])
-    meta_data: Optional[dict] = Field(default={})
-    profiles: List[str] = Field(default=[])
-    user: Optional[str] = Field(default=None)
-    knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
-    done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
-    is_thinking: Optional[bool] = Field(default=False)
-    disable_knowledge: Optional[bool] = Field(default=False)
-    read_by: List[str] = Field(default=[])
-    error: Optional[str] = Field(default=None)
+**Constructor:** `__init__(self, settings: CODXJuniorSettings)`
 
-class ChatId(BaseModel):
-    chat_id: str = Field(default=None, description="Chat id")
-    project_id: str = Field(default=None, description="Defines the project which this chat belongs")
-    
-class Chat(BaseModel):
-    id: Optional[str] = Field(default=None)
-    doc_id: Optional[str] = Field(default=None)
-    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
-    owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
-    parent_id: Optional[str] = Field(default=None, description="Parent chat")
-    parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
-    parent_project_id: Optional[str] = Field(default=None, description="Parent chat project id")
-    child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
-    message_id: Optional[str] = Field(default=None, description="Parent message for threads")
-    status: str = Field(default='')
-    # tags: Optional[any] = Field(default=None, description="Informative set of tags")
-    file_list: List[str] = Field(default=[])
-    check_lists: Optional[List[dict]] = Field(default=[])
-    profiles: List[str] = Field(default=[])
-    users: List[str] = Field(default=[])
-    name: str = Field(default='')
-    pinned: Optional[bool] = Field(default=False)
-    description: str = Field(default='')
-    messages: List[Message] = Field(default=[])
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-    mode: str = Field(default='chat')
-    kanban_id: str = Field(default='')
-    column_id: str = Field(default='')
-    board: str = Field(default='')
-    column: str = Field(default='')
-    chat_index: Optional[int] = Field(default=0)
-    url: str = Field(default='')
-    branch: str = Field(default='')
-    file_path: str = Field(default='')
-    llm_model: Optional[str] = Field(default='')
-    visibility: Optional[str] = Field(default='')
-    remote_url: Optional[str] = Field(default='')
-    knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
-    chat_links: List[ChatId] = Field(default=[])
-    pr_view: Optional[dict] = Field(default={}, description="Pull request view")
-    
+#### Core Methods
 
-class KanbanColumn(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    color: Optional[str]
-    index: int = Field(default=0)
+*   **`reset(self) `**:
+    *   Purpose: Removes the database file associated with the current project path.
+    *   Action: Deletes the `.db.json` file and clears the pointer in `PROJECT_DATABASES`.
+*   **Kanban Management:**
+    *   **`save_kanban(self, kanban: Kanban)`**: Saves a Kanban board instance. If `doc_id` is missing, it generates a new UUID and sets timestamps. If `doc_id` exists, it updates the record with new data while preserving the ID.
+    *   **`get_kanban(self, kanban_id: str)`**: Retrieves a single Kanban board by its document identifier (`doc_id`).
+    *   **`get_all_kankan(self)`**: Fetches all stored `Kanban` objects from the database.
+    *   **`get_kanban_chats(self, kanban_id: str, column_id: str)`**: Retrieves a list of `Chat` objects that belong to a specific Kanban board and column combination.
+*   **Chat Management:**
+    *   **`get_chat(self, chat_id: str)`**: Retrieves a single `Chat` object using its document identifier (`doc_id`).
+    *   **`save_chat(self, chat: Chat)`**: Saves or updates a `Chat` session. Similar to `Kanban`, it supports creation (generating UUIDs and timestamps) or updating existing records based on the `doc_id`.
 
-class Kanban(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    description: Optional[str]
-    index: int = Field(default=0)
-    columns: Optional[List[KanbanColumn]] = Field(default=[])
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-
-PROJECT_DATABASES = {}
-
-class CODXJuniorDB:
-    def __init__(self, settings: CODXJuniorSettings):
-        self.settings = settings
-        self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(self.settings.codx_path))
-        self.db_path = f"{self.settings.codx_path}/{self.index_name}.db.json"
-        self.client = PROJECT_DATABASES.get(self.settings.project_path, None)
-        if not self.client:
-            self.init_client()
-        self.kanban_table = self.client.table('kanban', cache_size=0)
-        self.column_table = self.client.table('column', cache_size=0)
-        self.chat_table = self.client.table('chat', cache_size=0)
-
-    def init_client(self):
-        if self.client is None:
-            logger.info(f"Connected to database: {self.settings.project_path}")
-            self.client = TinyDB(self.db_path, sort_keys=True, indent=4, separators=(',', ': '))
-            PROJECT_DATABASES[self.settings.project_path] = self.client
-        
-    def reset(self):
-        logger.info(f"Reseting DB {self.settings.project_path}")
-        if os.path.exists(self.db_path):
-            os.remove(self.db_path)
-            PROJECT_DATABASES[self.settings.project_path] = None
-            self.init_client()
-
-    def save_kanban(self, kanban: Kanban):
-        """Save a kanban to the database, if kanban has not doc_id, create a new one"""
-        if not kanban.doc_id:
-            kanban.doc_id = str(uuid.uuid4())
-            kanban.created_at = str(datetime.now())
-            kanban.updated_at = str(datetime.now())
-            self.kanban_table.insert(kanban.model_dump())            
-        else:
-            kanban.updated_at = str(datetime.now())
-            self.kanban_table.update(kanban.model_dump(), where('doc_id') == kanban.doc_id)
-        return self.get_kanban(kanban.doc_id)
-
-    def get_kanban(self, kanban_id: str):
-        return Kanban(**self.kanban_table.get(where('doc_id') == kanban_id))
-
-    def get_all_kankan(self):
-        return [Kanban(**kanban) for kanban in self.kanban_table.all()]
-
-    def get_kanban_chats(self, kanban_id: str, column_id: str):
-        """Load all chats from a column of a kanban"""
-        return [Chat(**chat) for chat in self.chat_table.search(where('kanban_id') == kanban_id 
-                                    and where('column_id') == column_id)]
-    def get_chat(self, chat_id: str):
-        return Chat(**self.chat_table.get(where('doc_id') == chat_id))
-
-    def save_chat(self, chat: Chat):
-        """Save a chat to the database, if chat has not doc_id, create a new one"""
-        if not chat.doc_id:
-            chat.doc_id = str(uuid.uuid4())
-            chat.created_at = str(datetime.now())
-            chat.updated_at = str(datetime.now())
-            self.chat_table.insert(chat.model_dump())
-        else:
-            chat.updated_at = str(datetime.now())
-            self.chat_table.update(chat.model_dump(), where('doc_id') == chat.doc_id)
-
-            
+## Dependencies
+**Imports from:** codx/junior/settings.py, codx/junior/model/model.py
+**Imported by:** codx/junior/agents/git_issues_agent.py, codx/junior/api/chat.py, codx/junior/app.py, codx/junior/chat/chat_engine.py, codx/junior/chat/chat_export.py, codx/junior/chat/chat_knowledge.py, codx/junior/chat_manager.py, codx/junior/engine/chat_engine_actions.py, codx/junior/engine/code_engine.py, codx/junior/engine/file_engine.py, codx/junior/engine/knowledge_engine.py, codx/junior/engine/session.py, codx/junior/engine/wiki_engine.py, codx/junior/events/event_manager.py, codx/junior/knowledge/knowledge_ai_search_message.py, codx/junior/mentions/mention_manager.py, codx/junior/sio/model.py, codx/junior/tools/code_writer.py, tests/db/test_db.py

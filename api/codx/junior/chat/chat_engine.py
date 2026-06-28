@@ -20,7 +20,7 @@ from codx.junior.ai import AI
 from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCELLATION_REGISTRY
 from codx.junior.chat_manager import ChatManager
 from codx.junior.context import AICodeGenerator
-from codx.junior.db import Chat, Message
+from codx.junior.db import Chat, Message, ChatHistoryEntry
 from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -813,7 +813,7 @@ class ChatEngine:
         callback,
         send_message_event,
         cancellation_token: Optional[CancellationToken] = None,
-    ) -> Tuple[Optional[str], Optional[str], List[str]]:
+    ) -> Tuple[Optional[str], Optional[str], List[str], Any]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
 
@@ -951,7 +951,7 @@ class ChatEngine:
         response_message.profiles = chat_profile_names
 
     # -------------------------------------------------------------------------
-    # Helper: generate chat description
+    # Helper: generate chat description and history entry
     # -------------------------------------------------------------------------
     async def _generate_chat_description(
         self,
@@ -963,6 +963,9 @@ class ChatEngine:
         """
         Generate and store a short summary of the conversation.
 
+        Maintains a timestamped history of descriptions as the chat evolves,
+        allowing review of context changes over time.
+
         :param chat: The chat to annotate with a description.
         :param messages: Message list used for the conversation.
         :param is_refine: Whether we are in task/refine mode (uses only last message).
@@ -972,15 +975,39 @@ class ChatEngine:
             desc_messages = messages.copy()
             if is_refine:
                 desc_messages = [desc_messages[-1]]
+            
             description_response = await ai_chat_fn(
                 messages=desc_messages,
                 prompt="Create a 5 lines summary of the conversation",
                 tags="chat-summary"
             )
-            chat.description = description_response[-1].content
+            
+            new_description = description_response[-1].content.strip()
+            
+            # Update current description
+            chat.description = new_description
+            
+            # Create and append history entry
+            history_entry = ChatHistoryEntry(
+                timestamp=datetime.now(tz=timezone.utc).isoformat(),
+                summary=new_description,
+                message_ids=[m.doc_id for m in chat.messages]
+            )
+            
+            # Initialize history if needed
+            if not hasattr(chat, 'history') or chat.history is None:
+                chat.history = []
+            
+            chat.history.append(history_entry)
+            
+            logger.info(
+                "Chat description updated (history entries: %d) for chat '%s'",
+                len(chat.history),
+                chat.doc_id
+            )
         except (ValueError, RuntimeError) as ex:
             logger.exception(
-                "Error generating chat description: %s %s", ex, chat.id
+                "Error generating chat description: %s %s", ex, chat.doc_id
             )
 
     # -------------------------------------------------------------------------

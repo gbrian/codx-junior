@@ -27,6 +27,7 @@ class TokenUsageEvent:
         output_k_tokens_cxjcoins:  Price per 1K output tokens in CXJ coins (from AISettings).
         total_cxjcoins:        Total cost in CXJ coins for this event.
         request_id:            Request id for tracebility
+        tokens_from_provider:  Token count comes from provider's response, else they are calculated
     """
     username: str
     project_name: str
@@ -45,6 +46,7 @@ class TokenUsageEvent:
     output_k_tokens_cxjcoins: float = 0.0
     total_cxjcoins: float = 0.0
     request_id: str = None
+    tokens_from_provider: bool = False
 
     def __post_init__(self):
         """Compute total_cxjcoins from input/output tokens and their respective prices if not set."""

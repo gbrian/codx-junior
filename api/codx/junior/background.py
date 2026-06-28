@@ -60,7 +60,8 @@ def start_background_services(stop_event) -> None:
 
     # Start the project checking loop in a dedicated background thread
     Thread(target=check_projects, name="ProjectCheckLoop", daemon=True).start()
-    Thread(target=check_projects_wiki, name="WikiCheckLoop", daemon=True).start()
+    # TODO: Disabled until analyzing high AI consumption. Do not reanable unless you are authorized to
+    # Thread(target=check_projects_wiki, name="WikiCheckLoop", daemon=True).start()
 
 
 async def stop_background_services() -> None:

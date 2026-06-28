@@ -1,356 +1,46 @@
-# Knowledge Database
-
-The `KnowledgeDB` class manages the interaction with a Milvus database for storing and retrieving document data. It's designed to index and search through documents, leveraging Milvus for efficient full-text search capabilities.
-
-## Database Connection and Initialization
-
-The module initializes a Milvus client connection at the module level.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus:19530")
-
-logger = logging.getLogger(__name__)
-
-def connect_milvus_client():
-    try:
-        MILVUS["client"] = MilvusClient(
-                        uri=CODX_JUNIOR_MILVUS_URL,
-                        token="root:Milvus"
-                    )
-        return MILVUS["client"]
-    except Exception as ex:
-        logger.exception("Milvus not ready", ex)
-    return None
-
-MILVUS = {}
-connect_milvus_client()
-
-def get_milvus_client():
-    client = MILVUS.get("client")
-    if not client:
-        if not connect_milvus_client():
-            raise Exception("Couldn't connect to MILVUS server, check logs.")
-    try:
-        client.list_databases()
-        return client
-    except Exception as ex:
-        logger.exception("Error connecting to MilvusDB: %s", ex)
-
-    connect_milvus_client()
-    return MILVUS["client"]
-```
-
-The `KnowledgeDB` class itself is initialized with project settings, which determine the database path and collection names.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-class KnowledgeDB:
-    # ... (other attributes)
-
-    def __init__(self, settings: CODXJuniorSettings):
-        self.ai = None
-        self.settings = settings
-
-        self.path = self.settings.project_path
-        self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path))).strip()
-        self.index_fulltext_name = f"{self.index_name}_full_text"
-
-        self.db_path = f"{settings.codx_path}/db/{self.index_name}"
-        os.makedirs(self.db_path, exist_ok=True)
-
-        self.db_file = f"{self.db_path}/milvus.db"
-        self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
-        self.embedding = None
-
-        self.connect_db()
-
-        self.refresh_last_update()
-    # ... (rest of the class)
-```
-
-## Database Schema and Fields
-
-The `KNOWLEDGE_FIELDS` dictionary defines the schema for documents stored in Milvus. This includes fields for metadata, content, source, keywords, category, and last update timestamp.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-KNOWLEDGE_FIELDS = {
-    "id":           { "datatype": DataType.INT64, "is_primary": True, "auto_id": True },
-    "metadata":     { "datatype": DataType.JSON, "enable_analyzer": False },
-    "page_content": { "datatype": DataType.VARCHAR, "max_length": 65535, "enable_analyzer": True },
-    "source":       { "datatype": DataType.VARCHAR, "max_length": 200, "enable_analyzer": True },
-    "keywords":     { "datatype": DataType.VARCHAR, "max_length": 5000, "enable_analyzer": True },
-    "category":     { "datatype": DataType.VARCHAR, "max_length": 300, "enable_analyzer": True },
-    "last_update":  { "datatype": DataType.INT32, "enable_analyzer": True },
-}
-```
-
-A sparse vector field named `sparse` is also added for BM25 full-text search.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def create_db(self):
-        # ... (other schema creation)
-        schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
-
-        bm25_function = Function(
-            name="text_bm25_emb",
-            input_field_names=["page_content"],
-            output_field_names=["sparse"],
-            function_type=FunctionType.BM25,
-        )
-
-        schema.add_function(bm25_function)
-
-        index_params = self.db.prepare_index_params()
-        index_params.add_index(
-            field_name="sparse",
-            index_type="SPARSE_INVERTED_INDEX",
-            metric_type="BM25",
-            params={
-                "inverted_index_algo": "DAAT_MAXSCORE",
-                "bm25_k1": 1.2,
-                "bm25_b": 0.75
-            }
-        )
-        # ... (rest of collection creation)
-```
-
-## Document Indexing
-
-The `index_documents` method takes a list of `Document` objects and prepares them for insertion into Milvus. It combines relevant fields into `page_content` for full-text indexing and sets the `last_update` timestamp.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    @profile_function
-    def index_documents(self, documents: [Document]):
-        data_search = []
-        for doc in documents:
-            try:
-                content = list(filter(lambda x: x,
-                  [
-                    doc.metadata["source"],
-                    doc.page_content,
-                    doc.metadata.get("summary"),
-                    doc.metadata.get("tags")
-                  ]
-                ))
-                page_content = "\n".join(content)
-                search_doc = {
-                  "metadata": doc.metadata,
-                  "page_content": page_content,
-                  "source": doc.metadata["source"],
-                  "keywords": ",".join(doc.metadata.get("keywords",[])),
-                  "category": doc.metadata.get("category",''),
-                  "last_update": int(time.time())
-                }
-                data_search.append(search_doc)
-                logger.info(f"Data processing document, len {len(doc.page_content)}, {doc.metadata}")
-
-            except Exception as ex:
-                logger.error(f"Error processing document, len {len(doc.page_content)}, {doc.metadata}: {ex}")
-
-
-        try:
-            res = self.db.insert(
-                collection_name=self.index_fulltext_name,
-                data=data_search
-            )
-            # logger.info(f"[Full text] Adding {data_search} documents: response {res}")
-
-        except Exception as ex:
-            if "float_vector" in str(ex):
-                logger.error(f"Error inserting new documents for project {self.settings.project_name} - index {self.index_fulltext_name} {ex}, trying to restart index")
-                self.reset()
-            else:
-                raise ex
-```
-
-## Document Deletion
-
-The `delete_documents` method allows for the removal of documents based on their `source` field.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    @profile_function
-    def delete_documents (self, sources: [str]):
-        logger.info('Removing old documents')
-        try:
-            logger.info(f"Document ids to delete: {sources}")
-            source_filters = "".join([
-              'source in ["',
-              '","'.join(sources),
-             '"]'
-            ])
-            self.db.delete(
-                collection_name=self.index_fulltext_name,
-                filter=source_filters
-            )
-        except Exception as ex:
-            logger.error("Error deleting sources: %s", sources)
-```
-
-## Searching Documents
-
-### Raw Search
-
-The `raw_search` method performs a direct query to the Milvus collection using a provided filter string.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def raw_search(self,
-                  search_filter: str,
-                  output_fields=None,
-                  limit=None):
-        if not output_fields:
-            output_fields = list(KNOWLEDGE_FIELDS.keys())
-        # logger.info("raw_search: %s, %s", search_filter, output_fields)
-        results = self.db.query(
-            collection_name=self.index_fulltext_name,
-            filter=search_filter,
-            output_fields=output_fields,
-            limit=limit
-        )
-        return self.db_results_to_documents(results)
-```
-
-### Full-Text Search
-
-The `search` method utilizes Milvus's search capabilities, specifically the sparse vector field, for full-text queries.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    @profile_function
-    def search(self, query: str, _limit: int = 50):
-        search_params = {
-            'params': { 'drop_ratio_search': 0.2 },
-        }
-        results = self.db.search(
-            collection_name=self.index_fulltext_name,
-            data=[query],
-            anns_field='sparse',
-            output_fields=['page_content', 'metadata'], # Fields to return in search results; sparse field cannot be output
-            limit=_limit,
-            search_params=search_params
-        )
-        results = reduce(lambda x,y: x + y, results)
-        logger.info(f"[Full text search] '{query}' returned {len(results)} results")
-
-        return self.db_results_to_documents(results)
-```
-
-The `db_results_to_documents` helper function converts the raw Milvus search results into a list of `Document` objects.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def db_results_to_documents(self, results):
-        documents = []
-        try:
-            for entry in list(results):
-                _id = entry.get("id", 0)
-                entity = entry.get("entity") or entry
-                distance = float(entry.get("distance", "0"))
-                entity["db_distance"] = distance
-
-                metadata = entity.get("metadata", { })
-                for prop in ["source", "keywords", "category", "last_update"]:
-                    value = entry.get(prop)
-                    if value:
-                        metadata[prop] = value
-
-                documents.append(
-                    Document(id=_id,
-                        page_content=entity.get("page_content", ""),
-                        metadata=metadata))
-            return documents
-        except Exception as ex:
-            logger.exception("ERROR db_results_to_documents: %s\n%s", ex, results[0])
-```
-
-## Utility Methods
-
-### Get Database Information
-
-The `get_db_info` method retrieves statistics about the Milvus collection.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def get_db_info(self):
-        return {
-            "embeddings": {
-                "index": self.index_fulltext_name,
-                **self.db.get_collection_stats(
-                          collection_name=self.index_fulltext_name,
-                          timeout=5)
-            },
-        }
-```
-
-### Get All Sources
-
-The `get_all_sources` method retrieves all unique sources present in the database, along with their last update timestamp. If the index is corrupted (e.g., missing fields), it will attempt to reset it.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def get_all_sources(self):
-        try:
-            documents = self.raw_search(search_filter='source != ""', output_fields=["source", "last_update"])
-            result = {}
-
-            for doc in documents:
-                source = doc.metadata["source"]
-                last_update = doc.metadata["last_update"]
-
-                if source in result:
-                    if result[source].metadata["last_update"] >= last_update:
-                        continue
-
-                result[source] = doc
-
-            return result
-
-        # Log any exceptions encountered during execution.
-        except Exception as ex:
-            logger.error("Error reading project '%s' sources: %s", self.settings.project_name, ex)
-            error = str(ex)
-            if "field source not exist" in error or \
-                "field last_update not exist" in error:
-                # Corrupted index
-                self.reset()
-
-        # Fall back to returning an empty list if an error occurs.
-        return {}
-```
-
-### Get All Categories
-
-The `get_all_categories` method returns a list of all unique categories found in the documents.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def get_all_categoties(self):
-        documents = self.raw_search(search_filter='source != ""', output_fields=["category"])
-        return list(set([ doc.metadata.get("category", "Unknown") for doc in documents]))
-```
-
-## Resetting the Database
-
-The `reset` method drops the current Milvus collection and recreates it, effectively clearing all indexed data.
-
-```python
-# /codx/junior/knowledge/knowledge_db.py
-    def reset(self):
-        logger.info(f"Deleting index {self.settings.project_name}")
-
-        if os.path.isfile(self.db_file_list):
-            os.remove(self.db_file_list)
-        self.last_update = None
-
-        logger.info(f"Deleting index {self.settings.project_name}")
-
-        self.db.drop_collection(
-            collection_name=self.index_fulltext_name
-        )
-        self.create_db()
-```
+# KnowledgeDB
+
+The `KnowledgeDB` module provides a management system for a Milvus-backed hybrid knowledge base tailored for individual projects. It facilitates both lexical (full-text) and semantic (vector) search, utilizing a hybrid retrieval approach.
+
+## Overview
+Each project is assigned a unique collection in Milvus, derived from the project's directory path. To optimize performance and avoid costly full-database scans, the system maintains a local JSON `source-map` file (located at `<db_path>/<index_name>_file.json`) that acts as the source of truth for administrative tasks like listing sources or categories.
+
+## Retrieval Strategies
+The system supports three distinct search strategies:
+*   **Sparse Search (`search_sparse`)**: Performs BM25 full-text lexical search using the sparse vector index.
+*   **Vector Search (`search_vector`)**: Performs semantic search by comparing dense embedding vectors using Cosine similarity.
+*   **Hybrid Search (`search_hybrid`)**: Combines both sparse and dense retrieval methods, fused using either Reciprocal Rank Fusion (RRF) or a weighted ranker.
+
+## Key Components
+
+### Database Management
+*   **Connection Handling**: The system manages connections to the Milvus server via `get_milvus_client()`.
+*   **Initialization**: The `create_db` method sets up the schema, including fields for `page_content`, `metadata`, `sparse` (BM25), and `dense` (Float Vector).
+*   **Indexing**: `index_documents` processes `LangChain` documents, generating dense embeddings and triggering the Milvus-native BM25 function.
+*   **Maintenance**: `reset` drops the collection and recreates it from scratch, while `delete_documents` removes records by source path.
+
+### Source-Map Helpers
+The `source-map` provides a performant interface for querying metadata without hitting the database.
+*   **Synchronization**: The system ensures the source-map remains in sync with the database via `_upsert_source_map_entries` and `_remove_source_map_entries` during index and delete operations.
+*   **Bootstrapping**: If the source-map is missing or outdated, `_init_source_map_from_db` performs a one-time scan to reconstruct the file.
+*   **Utility Methods**: `get_all_sources()` and `get_all_categoties()` retrieve metadata directly from the static file.
+
+### Metrics and Info
+*   **`get_collection_metrics`**: Aggregates comprehensive data regarding the current state of the collection, including row counts, index configuration (BM25 and Autoindex), partition information, and load status.
+*   **`get_db_info`**: Returns high-level collection statistics and configuration details.
+
+## Implementation Details
+*   **Embeddings**: Uses `LocalEmbeddingsModel` (defaulting to "all-MiniLM-L6-v2") for dense vector generation.
+*   **Hybrid Fusing**: The `search_hybrid` method enables over-fetching from individual search legs to improve the quality of the fused results returned to the user.
+*   **Relevance Scoring**: All search methods automatically inject a `score` into the document's metadata, representing the relevance distance calculated by the underlying Milvus search engine.
+
+---
+### References
+*   *Section: KnowledgeDB Class Definition & Diagram*
+*   *Section: Source-map helpers*
+*   *Section: Search strategies*
+*   *Section: Embedding helpers*
+
+## Dependencies
+**Imports from:** codx/junior/model/model.py, codx/junior/ai/__init__.py, codx/junior/settings.py, codx/junior/knowledge/embeddings.py, codx/junior/utils/utils.py, codx/junior/profiling/profiler.py
+**Imported by:** codx/junior/api/db_router.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/knowledge/knowledge_wiki.py, codx/junior/wiki/wiki_domains.py, codx/junior/wiki/wiki_index.py, codx/junior/wiki/wiki_manager.py

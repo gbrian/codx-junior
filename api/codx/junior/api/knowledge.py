@@ -20,6 +20,7 @@ from codx.junior.knowledge.knowledge_ai_search import (
 )
 from codx.junior.api import require_admin
 from codx.junior.engine.session import CODXJuniorSession
+from codx.junior.engine.progress_callback import SocketProgressCallback, ProgressEventType
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.sio.sio import sio
 from codx.junior.sio.sio import sio_api_endpoint
@@ -557,11 +558,20 @@ async def sio_index_knowledge(
     codxjunior_session: CODXJuniorSession
 ):
     """
-    Index knowledge files in the background via socket event.
+    Index knowledge files in the background via socket event with progress reporting.
 
     Expected data:
         - file_paths: List[str] - Absolute paths to files/folders to index
         - codx_path: str - Project path
+
+    Emitted events:
+        - ``codx-junior-index-progress-started``: Indexing started
+        - ``codx-junior-index-progress-document-processing``: Processing document
+        - ``codx-junior-index-progress-document-enriched``: Document enriched
+        - ``codx-junior-index-progress-document-indexed``: Document indexed
+        - ``codx-junior-index-progress-batch-complete``: Batch finished
+        - ``codx-junior-index-progress-completed``: Full indexing done
+        - ``codx-junior-index-error``: Error occurred
 
     Returns:
         Result of the indexing operation.
@@ -573,33 +583,88 @@ async def sio_index_knowledge(
         codxjunior_session.settings.project_name,
     )
 
+    # Create progress callback for this session
+    channel = SessionChannel(sio=sio, sid=sid)
+    progress_callback = SocketProgressCallback(channel=channel)
+
     try:
-        # Index files in background
-        result = codxjunior_session.index_knowledge_source(
-            sources=file_paths
+        # Notify client that indexing started
+        await progress_callback.on_progress(
+            ProgressEventType.STARTED,
+            {
+                "total_files": len(file_paths),
+                "message": f"Starting indexing of {len(file_paths)} file(s)",
+            }
         )
 
-        # Notify client of completion
-        channel = SessionChannel(sio=sio, sid=sid)
-        channel.send_event("codx-junior-index-knowledge-complete", {
-            "status": "success",
-            "files_indexed": len(file_paths),
-            "message": f"Successfully indexed {len(file_paths)} file(s)",
-        })
+        # Get knowledge instance with callback
+        knowledge = codxjunior_session.get_knowledge()
+        
+        # Load documents with progress reporting
+        all_documents = []
+        for idx, file_path in enumerate(file_paths):
+            await progress_callback.on_progress(
+                ProgressEventType.DOCUMENT_PROCESSING,
+                {
+                    "file_index": idx,
+                    "total_files": len(file_paths),
+                    "current_file": file_path,
+                    "message": f"Loading {file_path}...",
+                }
+            )
+            
+            try:
+                documents = knowledge.loader.load(path=file_path)
+                all_documents.extend(documents)
+            except Exception as ex:
+                await progress_callback.on_error(
+                    ex,
+                    {
+                        "file_path": file_path,
+                        "stage": "loading",
+                    }
+                )
+
+        # Index all documents with progress reporting
+        if all_documents:
+            await knowledge.index_documents(
+                documents=all_documents,
+                raiseIfError=False,
+                callback=progress_callback,
+            )
+
+        # Final success event
+        await progress_callback.on_progress(
+            ProgressEventType.COMPLETED,
+            {
+                "status": "success",
+                "documents_indexed": len(all_documents),
+                "files_indexed": len(file_paths),
+                "message": f"Successfully indexed {len(file_paths)} file(s) ({len(all_documents)} documents)",
+            }
+        )
 
         logger.info(
-            "Socket: index_knowledge complete | files=%d",
+            "Socket: index_knowledge complete | files=%d | documents=%d",
             len(file_paths),
+            len(all_documents),
         )
-        return result
+        
+        return {
+            "status": "success",
+            "files_indexed": len(file_paths),
+            "documents_indexed": len(all_documents),
+        }
 
     except Exception as ex:
         logger.exception("Error indexing knowledge via socket")
-        channel = SessionChannel(sio=sio, sid=sid)
-        channel.send_event("codx-junior-index-knowledge-error", {
-            "status": "error",
-            "message": str(ex),
-        })
+        await progress_callback.on_error(
+            ex,
+            {
+                "files": len(file_paths),
+                "stage": "overall",
+            }
+        )
         return {"error": str(ex)}
 
 

@@ -4,23 +4,20 @@ import json
 from datetime import datetime
 from functools import reduce
 from pathlib import Path
-
-from concurrent.futures import ThreadPoolExecutor
-
-from codx.junior.knowledge.knowledge_db import KnowledgeDB
+from typing import Optional
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from codx.junior.knowledge.knowledge_db import KnowledgeDB
 from codx.junior.model.model import CodxUser
-
+from codx.junior.engine.progress_callback import ProgressCallback, ProgressEventType
 from langchain_core.documents import Document
 
 from codx.junior.utils.utils import (
-  calculate_md5,
-  extract_blocks,
-  exec_command,
-  extract_json_blocks,
- 
+    calculate_md5,
+    extract_blocks,
+    exec_command,
+    extract_json_blocks,
 )
 
 from codx.junior.ai import AI
@@ -40,10 +37,11 @@ class Knowledge:
     db: KnowledgeDB
     ai: AI
 
-    def __init__(self, settings: CODXJuniorSettings):
+    def __init__(self, settings: CODXJuniorSettings, callback: Optional[ProgressCallback] = None):
         self.ai = None
         self.db = None
         self.settings = settings
+        self.callback = callback
         self.path = self.settings.abs_project_path
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
@@ -122,11 +120,11 @@ class Knowledge:
         with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(task, path)
 
-    def get_all_documents (self, include=[]):
+    def get_all_documents(self, include=[]):
         return self.get_db().get_all_documents(include=include)
         
     def clean_deleted_documents(self):
-        sources = [ source for source in self.get_all_sources() \
+        sources = [source for source in self.get_all_sources() \
                       if not self.loader.is_valid_file(source)]
         if sources:
             logger.info(f'Documents to delete: {sources}')
@@ -134,82 +132,158 @@ class Knowledge:
             return True
         return False
 
-    def enrich_document (self, doc, metadata, categories=[]):
-      if doc.metadata.get("indexed"):
-          raise Exception(f"Doc already indexed {doc.metadata}")
-      for k in metadata.keys():
-          doc.metadata[k] = metadata[k]
-      source = doc.metadata.get('source')
+    def enrich_document(self, doc, metadata, categories=[]):
+        """
+        Enrich a single document with AI-generated metadata.
+        
+        Args:
+            doc: Document to enrich.
+            metadata: Base metadata to add.
+            categories: Available categories for classification.
+            
+        Returns:
+            Enriched document or None if enrichment fails.
+        """
+        if doc.metadata.get("indexed"):
+            raise Exception(f"Doc already indexed {doc.metadata}")
+        
+        for k in metadata.keys():
+            doc.metadata[k] = metadata[k]
+        
+        source = doc.metadata.get('source')
 
-      if self.settings.knowledge_enrich_documents:
-        try:
-          summary_prompt=f"""
-          Analyze this document:
-          <document>
-          { doc.page_content }
-          </document>
-          <categories>
-          { ",".join(categories)}
-          </categories>
+        if self.settings.knowledge_enrich_documents:
+            try:
+                summary_prompt = f"""
+Analyze this document:
+<document>
+{doc.page_content}
+</document>
+<categories>
+{",".join(categories)}
+</categories>
 
-          Return a JSON object with this information:
-           * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
-           * "keywords": A array of keywords. Use "-" insteas spaces for keywords.
-           * "category": Choose a category from the list fot this document or return a new one if doesn't fit 
-           * "content_graph": Create a graph representation of the content using nodes and relations.
-          """
-          messages = self.get_ai().chat(prompt=summary_prompt)
-          doc.metadata = {
-            **doc.metadata,
-            **next(extract_json_blocks(messages[-1].content))
-          }
-        except Exception as ex:
-          logger.error(f"Error enriching document {source}: {ex}")
-          doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
+Return a JSON object with this information:
+ * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
+ * "keywords": An array of keywords. Use "-" instead spaces for keywords.
+ * "category": Choose a category from the list for this document or return a new one if doesn't fit 
+ * "content_graph": Create a graph representation of the content using nodes and relations.
+"""
+                messages = self.get_ai().chat(prompt=summary_prompt)
+                doc.metadata = {
+                    **doc.metadata,
+                    **next(extract_json_blocks(messages[-1].content))
+                }
+            except Exception as ex:
+                logger.error(f"Error enriching document {source}: {ex}")
+                doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
 
-      if self.settings.knowledge_generate_training_dataset:
-        try:
-          summary_prompt=f"""
-          Given this document:
-          <document>
-          { doc.page_content }
-          </document>
+        if self.settings.knowledge_generate_training_dataset:
+            try:
+                summary_prompt = f"""
+Given this document:
+<document>
+{doc.page_content}
+</document>
 
-          Generate a training dataset for finetuning a model.
-          Return a JSON list with {10} entries. 
-          Each entry having fields:
-           * "user_request": Create a user request using the document content.
-           * "ai_response": Create a response for the generated user_request using the document content.
-          
-          """
-          messages = self.get_ai().chat(prompt=summary_prompt)
-          training = next(extract_json_blocks(messages[-1].content))
-          doc.metadata["training"] = training 
-        except Exception as ex:
-          logger.info(f"Error creating training dataset {source}: {ex}")
-          doc.metadata["error"] = doc.metadata.get("error", []) + str(ex)
-      doc.metadata["indexed"] = 1
-      return doc
+Generate a training dataset for finetuning a model.
+Return a JSON list with 10 entries. 
+Each entry having fields:
+ * "user_request": Create a user request using the document content.
+ * "ai_response": Create a response for the generated user_request using the document content.
+"""
+                messages = self.get_ai().chat(prompt=summary_prompt)
+                training = next(extract_json_blocks(messages[-1].content))
+                doc.metadata["training"] = training 
+            except Exception as ex:
+                logger.info(f"Error creating training dataset {source}: {ex}")
+                doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
+        
+        doc.metadata["indexed"] = 1
+        return doc
 
-    def parallel_enrich(self, documents, metadata):
-      with ThreadPoolExecutor() as executor:
-        futures = {
-          executor.submit(
-            self.enrich_document,
-            doc=doc,
-            metadata=metadata,
-            categories=self.get_categories()): doc for doc in documents
-        }
+    async def parallel_enrich(self, documents, metadata):
+        """
+        Enrich documents in parallel with progress reporting.
+        
+        Args:
+            documents: Documents to enrich.
+            metadata: Shared metadata to add.
+            
+        Yields progress events via callback.
+        
+        Returns:
+            List of enriched documents.
+        """
         valid_documents = []
-        for future in as_completed(futures):
-          result = future.result()
-          if result is not None:
-              valid_documents.append(result)
+        total = len(documents)
+        completed = 0
+        
+        if self.callback:
+            await self.callback.on_progress(
+                ProgressEventType.DOCUMENT_PROCESSING,
+                {
+                    "stage": "enrichment",
+                    "total_documents": total,
+                    "message": f"Starting enrichment of {total} documents",
+                }
+            )
+        
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(
+                    self.enrich_document,
+                    doc=doc,
+                    metadata=metadata,
+                    categories=self.get_categories()
+                ): idx for idx, doc in enumerate(documents)
+            }
+            
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    result = future.result()
+                    if result is not None:
+                        valid_documents.append(result)
+                    
+                    completed += 1
+                    
+                    if self.callback:
+                        await self.callback.on_progress(
+                            ProgressEventType.DOCUMENT_ENRICHED,
+                            {
+                                "index": idx,
+                                "total": total,
+                                "completed": completed,
+                                "progress_percent": int((completed / total) * 100),
+                                "source": result.metadata.get("source") if result else "unknown",
+                            }
+                        )
+                except Exception as ex:
+                    if self.callback:
+                        await self.callback.on_error(
+                            ex,
+                            {
+                                "document_index": idx,
+                                "stage": "enrichment",
+                                "total_documents": total,
+                            }
+                        )
+        
+        if self.callback:
+            await self.callback.on_progress(
+                ProgressEventType.ITERATION_COMPLETE,
+                {
+                    "stage": "enrichment",
+                    "documents_enriched": len(valid_documents),
+                    "documents_failed": total - len(valid_documents),
+                }
+            )
+        
         return valid_documents
 
     def get_categories(self):
         return self.get_db().get_all_categoties()
-
 
     def create_wiki_doc(self, source):
         try:
@@ -330,59 +404,130 @@ Rules:
             logger.exception("Error building project summary: %s", ex)
             return current_summary
 
-    def index_documents (self, documents, raiseIfError=False):
+    async def index_documents(self, documents, raiseIfError=False, callback: Optional[ProgressCallback] = None):
+        """
+        Index documents with progress callback support.
+        
+        Args:
+            documents: Documents to index.
+            raiseIfError: Raise on first error.
+            callback: Progress callback.
+            
+        Yields progress events.
+        """
+        _callback = callback or self.callback
         
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
         all_sources = list(set([doc.metadata["source"] for doc in documents]))
-        all_sources_with_md5 = dict([(source, calculate_md5(source)) for source in all_sources])
+        all_sources_with_md5 = dict(
+            [(source, calculate_md5(source)) for source in all_sources]
+        )
         
-        metadata = {
-          "index_date": f"{index_date}"
-        }
-        enriched_documents = self.parallel_enrich(documents=documents, metadata=metadata)
-
-        all_documents = enriched_documents
-        self.delete_documents(all_documents)
-
-        wiki_documents = {}
-        # for source in all_sources:
-        #     wiki_doc = self.create_wiki_doc(source)
-        #     if wiki_doc:
-        #         logger.info("Indexing document and wiki doc: %s", wiki_doc)
-        #         wiki_documents[source] = wiki_doc 
+        if _callback:
+            await _callback.on_progress(
+                ProgressEventType.DOCUMENT_PROCESSING,
+                {
+                    "stage": "enrichment",
+                    "total_documents": len(documents),
+                    "unique_sources": len(all_sources),
+                }
+            )
         
-        for doc in all_documents:
+        metadata = {"index_date": index_date}
+        enriched_documents = await self.parallel_enrich(
+            documents=documents,
+            metadata=metadata,
+        )
+        
+        # Delete old versions
+        self.delete_documents(enriched_documents)
+        
+        if _callback:
+            await _callback.on_progress(
+                ProgressEventType.DOCUMENT_PROCESSING,
+                {
+                    "stage": "indexing",
+                    "total_documents": len(enriched_documents),
+                }
+            )
+        
+        indexed_count = 0
+        failed_count = 0
+        
+        for doc in enriched_documents:
             source = doc.metadata.get("source")
-            category = None
-            if source in wiki_documents:
-                category = wiki_documents[source].metadata["category"]
-            logger.info("Indexing document: %s", source)
             try:
                 doc.metadata["index_date"] = index_date
-                doc.metadata["file_md5"] = all_sources_with_md5.get(source, '')
-                # logger.info(f"Indexing document: {doc}")
-                if category:
-                    doc.metadata["category"] = category
-                    doc.metadata["wiki_category"] = category
-
-                self.get_db().index_documents(documents=[doc])
-                # logger.info(f"Indexing document DONE: {doc}")
+                doc.metadata["file_md5"] = all_sources_with_md5.get(source, "")
                 
+                self.get_db().index_documents(documents=[doc])
+                indexed_count += 1
+                
+                if _callback:
+                    await _callback.on_progress(
+                        ProgressEventType.DOCUMENT_INDEXED,
+                        {
+                            "source": source,
+                            "indexed_count": indexed_count,
+                            "total": len(enriched_documents),
+                            "progress_percent": int((indexed_count / len(enriched_documents)) * 100),
+                        }
+                    )
+                    
             except Exception as ex:
-                logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.abs_project_path}")
+                failed_count += 1
+                
+                if _callback:
+                    await _callback.on_error(
+                        ex,
+                        {
+                            "source": source,
+                            "stage": "indexing",
+                            "indexed_so_far": indexed_count,
+                        }
+                    )
+                
                 if "float data" in str(ex):
-                  logger.error(f"{self.settings.abs_project_path}: float data error, trying to reset index")
-                  self.reset()
+                    logger.error(f"Float data error, resetting index for {self.settings.abs_project_path}")
+                    self.reset()
                 elif raiseIfError:
                     raise ex
-
-        # Update the project summary to reflect newly indexed files
+        
+        # Update project summary
         try:
+            if _callback:
+                await _callback.on_progress(
+                    ProgressEventType.DOCUMENT_PROCESSING,
+                    {
+                        "stage": "summary_generation",
+                        "message": "Generating project summary...",
+                    }
+                )
+            
             self.build_project_summary(added_sources=all_sources)
         except Exception as ex:
-            logger.exception("Error updating project summary after indexing: %s", ex)
+            logger.exception("Error updating project summary: %s", ex)
+            if _callback:
+                await _callback.on_error(ex, {"stage": "summary_generation"})
+        
+        if _callback:
+            await _callback.on_progress(
+                ProgressEventType.COMPLETED,
+                {
+                    "indexed_count": indexed_count,
+                    "failed_count": failed_count,
+                    "total": len(enriched_documents),
+                }
+            )
 
-    def delete_documents (self, documents=None, sources=None):
+    def delete_documents(self, documents=None, sources=None):
+        """
+        Delete documents from the knowledge base.
+        
+        Args:
+            documents: Documents to delete (extracts sources from metadata).
+            sources: List of source paths to delete.
+        """
         deleted_sources = list(set(sources or [doc.metadata["source"] for doc in documents]))
         self.get_db().delete_documents(sources=deleted_sources)
 
@@ -393,75 +538,129 @@ Rules:
             logger.exception("Error updating project summary after deletion: %s", ex)
     
     def reset(self):
-        logger.info('Reseting retriever')
+        """Reset the knowledge base and mark all files for reindexing."""
+        logger.info('Resetting retriever')
         self.get_db().reset()
         changes, _ = self.detect_changes()
         for file in changes:
             exec_command(f'touch "{file}"', cwd=self.settings.abs_project_path)
-    
 
     def search(self, query, search_type='fulltext', limit=100):
+        """
+        Search for documents matching the query.
+        
+        Args:
+            query: Search query string.
+            search_type: Type of search (default: 'fulltext').
+            limit: Maximum number of results.
+            
+        Returns:
+            List of matching documents.
+        """
         matches = self.get_db().search(query=query)
         all_match_sources = [doc.metadata["source"] for doc in matches]
-        all_files = [Document(page_content="[[Project file]] content not loaded", metadata={ "source": path }) for path in self.get_all_repo_files() \
-                        if path not in all_match_sources and query.lower() in path.lower()]
+        all_files = [Document(page_content="[[Project file]] content not loaded", metadata={"source": path}) 
+                     for path in self.get_all_repo_files() \
+                     if path not in all_match_sources and query.lower() in path.lower()]
         return matches + all_files
 
     def doc_from_project_file(self, file_path):
+        """
+        Load a document from a project file.
+        
+        Args:
+            file_path: Relative or absolute path to the file.
+            
+        Returns:
+            Document with file content and metadata.
+        """
         file_path = f"{self.settings.abs_project_path}/{file_path}"
 
         with open(file_path, 'r') as f:
             metadata = {
-              "source": file_path
+                "source": file_path
             }
-            return Document(page_content=f.read(), metadata=metadata)      
+            return Document(page_content=f.read(), metadata=metadata)
 
     def doc_and_summary(self, doc):
-      summary = self.build_doc_summary(doc)
-      doc.metadata = { **doc.metadata, **summary }
-      doc.page_content = f"## SUMMARY:\n{json.dumps(summary, indent=2)}\n## CONTENT:\n{doc.page_content}"
-      return doc
+        """
+        Enhance a document with AI-generated summary.
+        
+        Args:
+            doc: Document to summarize.
+            
+        Returns:
+            Document with summary in metadata and content.
+        """
+        summary = self.build_doc_summary(doc)
+        doc.metadata = {**doc.metadata, **summary}
+        doc.page_content = f"## SUMMARY:\n{json.dumps(summary, indent=2)}\n## CONTENT:\n{doc.page_content}"
+        return doc
 
     def build_doc_summary(self, doc):
-      prompt = \
-      f"""CREATE A SUMMARY LIKE THIS:
+        """
+        Build an AI-generated summary for a document.
+        
+        Args:
+            doc: Document to summarize.
+            
+        Returns:
+            Dictionary with summary metadata.
+        """
+        prompt = f"""CREATE A SUMMARY LIKE THIS:
 
-      ```json
-      {{
-        "keywords": "<csv_keywords>",
-        "summary": "<brief summary about the document>"
-      }}
-      ```
+```json
+{{
+  "keywords": "<csv_keywords>",
+  "summary": "<brief summary about the document>"
+}}
+```
 
-      FROM THIS CONTENT:
+FROM THIS CONTENT:
 
-        * FILE NAME: { doc.metadata['source'] }
-        * LANGUAGE: { doc.metadata['language'] }
-        * CONTENT: { doc.page_content }
-      """
-      messages = self.get_ai().chat("", prompt)
-      response = messages[-1].content.strip()
-      blocks = list(extract_blocks(response))
-      summary = { 
-        "source": doc.metadata['source'],
-        "language": doc.metadata['language'],
-        "summary": response
-      }
-      if blocks:
-        summary = { **summary, **json.loads(blocks[0]["content"]) }
-      return summary
+  * FILE NAME: {doc.metadata['source']}
+  * LANGUAGE: {doc.metadata['language']}
+  * CONTENT: {doc.page_content}
+"""
+        messages = self.get_ai().chat("", prompt)
+        response = messages[-1].content.strip()
+        blocks = list(extract_blocks(response))
+        summary = {
+            "source": doc.metadata['source'],
+            "language": doc.metadata['language'],
+            "summary": response
+        }
+        if blocks:
+            summary = {**summary, **json.loads(blocks[0]["content"])}
+        return summary
 
     def extract_query_keywords(self, query):
-      try:
-        prompt, system = self.knowledge_prompts.extract_query_tags(query)
-        messages = self.get_ai().chat(system, prompt)
-        response = messages[-1].content.strip()
-        keywords = [f"TAG_{k}" for k in response.split(",")]
-        return keywords
-      except Exception as ex:
-        logger.exception(f"Error extracting document keywords {source}: {ex}")
+        """
+        Extract keywords from a query using AI.
+        
+        Args:
+            query: Query string to analyze.
+            
+        Returns:
+            List of extracted keywords.
+        """
+        try:
+            prompt, system = self.knowledge_prompts.extract_query_tags(query)
+            messages = self.get_ai().chat(system, prompt)
+            response = messages[-1].content.strip()
+            keywords = [f"TAG_{k}" for k in response.split(",")]
+            return keywords
+        except Exception as ex:
+            logger.exception(f"Error extracting query keywords: {ex}")
 
     def index_document(self, text, metadata):
+        """
+        Index a single document from text content.
+        
+        Args:
+            text: Document text content.
+            metadata: Document metadata.
+        """
         documents = [Document(page_content=text, metadata=metadata)]
         try:
             self.delete_documents(documents)
@@ -469,18 +668,41 @@ Rules:
             pass
         self.index_documents(documents)
 
-    def get_all_sources (self):
+    def get_all_sources(self):
+        """
+        Get all indexed document sources.
+        
+        Returns:
+            List of source file paths.
+        """
         sources = [d.metadata["source"] for d in self.get_db().get_all_sources().values()]
         return sources
 
-    def get_db_info (self):
+    def get_db_info(self):
+        """Get database information."""
         return self.get_db().get_db_info()
       
     def is_valid_project_file(self, file_path):
+        """
+        Check if a file is a valid project file.
+        
+        Args:
+            file_path: File path to validate.
+            
+        Returns:
+            True if file is in project sources, False otherwise.
+        """
         sources = self.loader.list_repository_files()
         return True if file_path in sources else False
 
-    def status (self):
+    def status(self):
+        """
+        Get the current knowledge base status.
+        
+        Returns:
+            Dictionary with status information including file count, 
+            folders, keywords, and database info.
+        """
         doc_sources = self.get_all_sources()
         
         folders = list(dict.fromkeys([Path(file_path).parent for file_path in doc_sources]))      
@@ -493,58 +715,68 @@ Rules:
             keyword_count += len(value)
         
         status_info = {
-          "file_count": file_count,
-          "folders": folders,
-          "keyword_count": keyword_count,
-          "files": doc_sources,
-          "db_info": self.get_db_info()
+            "file_count": file_count,
+            "folders": folders,
+            "keyword_count": keyword_count,
+            "files": doc_sources,
+            "db_info": self.get_db_info()
         }
         return status_info
 
-    def build_code_changes_summary(self, diff: str, force = False):
+    def build_code_changes_summary(self, diff: str, force=False):
+        """
+        Build a human-friendly summary of code changes.
+        
+        Args:
+            diff: Unified diff format string.
+            force: Force regeneration even if cached.
+            
+        Returns:
+            Summary markdown string.
+        """
         last_changes_summary_file_path = f"{self.get_db().db_path}/last_changes_summary.md"
         chages_summary = ""
         if force:
             ai = self.get_ai()
             messages = ai.chat(prompt=f"""
-            ```diff
-            {diff}
-            ```
-            
-            Analyze staged changes.
-            Create a human friendly report of changes.
-            The report must have an overview and a list of files changes.
-            Each change section contains: File name, brief description, errors/improvemnts (if any), and a diff section
-            See example below:
-            
-            EXAMPLE:
+```diff
+{diff}
+```
 
-            ## Changes details
-            Current changes involve adding new functionality for managing users
+Analyze staged changes.
+Create a human friendly report of changes.
+The report must have an overview and a list of files changes.
+Each change section contains: File name, brief description, errors/improvements (if any), and a diff section
+See example below:
 
-            ### Changes
+EXAMPLE:
 
-            FILE: /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
-            Added modules A, B,  for this and that
-            
-            ```diff
-            +++ /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
-            @@ -0,0 +1,33 @@
-            +package com.w2m.w2fly.mromanagement.service;
-            +
-            +import com.w2m.w2fly.mromanagement.data.model.History;
-            +import com.w2m.w2fly.mromanagement.data.repository.HistoryRepository;
-            +import org.springframework.beans.factory.annotation.Autowired;
-            +import org.springframework.stereotype.Service;
-            +
-            +import java.time.LocalDateTime;
-            +
-            +@Service
-            +public class HistoryService
-            ```
-            
-            ... the methods Foo and Bar has been updated to...
-            """)
+## Changes details
+Current changes involve adding new functionality for managing users
+
+### Changes
+
+FILE: /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
+Added modules A, B, for this and that
+
+```diff
++++ /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
+@@ -0,0 +1,33 @@
++package com.w2m.w2fly.mromanagement.service;
++
++import com.w2m.w2fly.mromanagement.data.model.History;
++import com.w2m.w2fly.mromanagement.data.repository.HistoryRepository;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Service;
++
++import java.time.LocalDateTime;
++
++@Service
++public class HistoryService
+```
+
+... the methods Foo and Bar has been updated to...
+""")
             chages_summary = messages[-1].content
             with open(last_changes_summary_file_path, 'w') as f:
                 f.write(chages_summary)
@@ -555,11 +787,20 @@ Rules:
     
     @classmethod
     def get_documents_from_sources(cls, file_paths: [str]) -> [Document]:
+        """
+        Create Document objects from file paths.
+        
+        Args:
+            file_paths: List of file paths to load.
+            
+        Returns:
+            List of Document objects with content and metadata.
+        """
         def create_document(file_path: str) -> Document:
             language = file_path.split(".")[-1] if "." in file_path else "txt"
             with open(file_path, 'r') as f:
-                return Document(page_content=f.read(), metadata={ 
+                return Document(page_content=f.read(), metadata={
                     "language": language,
-                    "source": file_path 
+                    "source": file_path
                 })
         return [create_document(file_path) for file_path in file_paths]

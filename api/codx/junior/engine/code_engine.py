@@ -48,6 +48,7 @@ class CodeEngine:
         CE --> change_file_with_instructions
         CE --> project_script_test
         CE --> apply_patch
+        CE --> generate_full_file_content
     ```
     """
 
@@ -452,40 +453,315 @@ class CodeEngine:
             return console_out
         return ""
 
-    def apply_patch(self, patch: str) -> None:
+    async def generate_full_file_content(
+        self, file_path: str, partial_content: str, original_content: str = None
+    ) -> str:
         """
-        Apply a git-style diff patch to the project.
+        Generate a complete file content from partial LLM output.
+        
+        Uses AI to create the full file by passing the original content,
+        the partial changes, and file-specific profiles to ensure proper
+        formatting and structure.
 
         Args:
-            patch: Patch content string.
-        """
-        file_diff_lines = patch.split("\n")
-        file_path = None
+            file_path: Path of the file being generated.
+            partial_content: Partial or complete content from LLM generation.
+            original_content: Original file content (if file exists). If None, reads from disk.
 
+        Returns:
+            Complete file content as a string.
+
+        Raises:
+            RuntimeError: If AI generation fails.
+        """
+        # Read original content if not provided
+        if original_content is None:
+            original_content = ""
+            if os.path.isfile(file_path):
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        original_content = f.read()
+                except Exception as read_ex:
+                    logger.warning(
+                        "Could not read original file %s: %s", file_path, read_ex
+                    )
+
+        profile_manager = ProfileManager(settings=self.settings)
+        
+        # Get file-specific profiles for better context
+        file_profiles = profile_manager.get_file_profiles_by_file_path(file_path)
+        profile_instructions = ""
+        
+        if file_profiles:
+            profile_content_list = [
+                profile_manager.get_profile_With_content(profile).parsed_content
+                for profile in file_profiles
+            ]
+            profile_instructions = "\n\n".join(profile_content_list)
+        else:
+            # Fallback to software_developer profile
+            default_profile = profile_manager.read_profile("software_developer")
+            if default_profile:
+                profile_instructions = profile_manager.get_profile_With_content(
+                    default_profile
+                ).parsed_content
+
+        # Get relative path for better readability in prompts
+        try:
+            rel_file_path = os.path.relpath(file_path, self.settings.abs_project_path)
+        except ValueError:
+            rel_file_path = file_path
+
+        # Create the request prompt with JSON response format
+        request_prompt = f"""You are a code generation assistant. Your task is to generate the COMPLETE and FINAL version of a file.
+
+FILE PATH: {rel_file_path}
+PROJECT PATH: {self.settings.abs_project_path}
+
+PROFILE GUIDELINES:
+```
+{profile_instructions}
+```
+
+ORIGINAL FILE CONTENT (if empty, this is a new file):
+```
+{original_content if original_content else "(New file - no original content)"}
+```
+
+PARTIAL/GENERATED CONTENT TO COMPLETE:
+```
+{partial_content}
+```
+
+INSTRUCTIONS:
+1. Generate the COMPLETE file content, not partial changes
+2. Preserve all formatting, indentation, and structure from the original file
+3. Integrate the generated content seamlessly
+4. Do NOT include code block markers (```) in your response
+5. Do NOT include any explanations, comments, or decoration
+6. Return ONLY the valid file content in JSON format as follows:
+
+{{
+  "file_path": "{rel_file_path}",
+  "content": "<<FULL FILE CONTENT HERE>>"
+}}
+
+Ensure the JSON is valid and the content is properly escaped if needed."""
+
+        try:
+            ai = self.session.get_ai()
+            self.session.log_info(
+                "Generating full file content for %s using AI", file_path
+            )
+            
+            messages = await ai.a_chat(prompt=request_prompt)
+            response_content = messages[-1].content.strip()
+            
+            # Extract JSON from response
+            parsed_response = self._extract_json_response(response_content)
+            
+            if not parsed_response or "content" not in parsed_response:
+                logger.error(
+                    "Invalid AI response format for file %s: %s",
+                    file_path,
+                    response_content,
+                )
+                raise RuntimeError(
+                    f"AI did not return valid JSON with 'content' field for {file_path}"
+                )
+            
+            full_content = parsed_response["content"]
+            
+            if not full_content:
+                logger.error("AI returned empty content for file %s", file_path)
+                raise RuntimeError(f"AI returned empty content for {file_path}")
+            
+            self.session.log_info(
+                "Successfully generated full content for %s (%d chars)",
+                file_path,
+                len(full_content),
+            )
+            
+            return full_content
+            
+        except Exception as ex:
+            logger.exception(
+                "Failed to generate full file content for %s: %s", file_path, ex
+            )
+            raise RuntimeError(
+                f"Failed to generate full file content for {file_path}: {ex}"
+            ) from ex
+
+    def _extract_json_response(self, response: str) -> Optional[dict]:
+        """
+        Extract JSON object from AI response, handling various formats.
+
+        Args:
+            response: Raw response text from AI.
+
+        Returns:
+            Parsed JSON dict, or None if extraction fails.
+        """
+        response = response.strip()
+        
+        # Try to find JSON object in the response
+        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+        
+        # Try to parse entire response as JSON
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            logger.debug("Could not parse response as JSON: %s", response[:100])
+            return None
+
+    def apply_patch(self, patch: str) -> str:
+        """
+        Apply a git-style diff patch and return the complete file content.
+        
+        Reads the original file, applies the patch through AI to ensure
+        completeness, and returns the final content without saving.
+
+        Args:
+            patch: Patch content string (git diff format).
+
+        Returns:
+            Complete file content after applying the patch.
+
+        Raises:
+            RuntimeError: If the patch cannot be applied.
+        """
+        file_path = None
+        
+        # Extract file path from patch header
+        file_diff_lines = patch.split("\n")
         for line in file_diff_lines:
             if line.startswith("+++ b/"):
                 file_path = line[6:]  # Remove '+++ b/' prefix
                 break
 
         if not file_path:
-            logger.error("No file path found in patch.")
-            return
+            raise RuntimeError("No file path found in patch header")
 
+        # Resolve to absolute path if needed
         if not file_path.startswith(self.settings.abs_project_path):
             file_path = os.path.join(self.settings.abs_project_path, file_path)
 
-        existing_content = ""
+        # Read original content
+        original_content = ""
         if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                existing_content = f.read()
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    original_content = f.read()
+            except Exception as read_ex:
+                logger.warning(
+                    "Could not read original file %s: %s", file_path, read_ex
+                )
 
-        new_content = existing_content + "\n"
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # Prepare the patch request for AI
+        profile_manager = ProfileManager(settings=self.settings)
+        
+        # Get file-specific profiles
+        file_profiles = profile_manager.get_file_profiles_by_file_path(file_path)
+        profile_instructions = ""
+        
+        if file_profiles:
+            profile_content_list = [
+                profile_manager.get_profile_With_content(profile).parsed_content
+                for profile in file_profiles
+            ]
+            profile_instructions = "\n\n".join(profile_content_list)
+        else:
+            default_profile = profile_manager.read_profile("software_developer")
+            if default_profile:
+                profile_instructions = profile_manager.get_profile_With_content(
+                    default_profile
+                ).parsed_content
 
-        with open(file_path, "w", encoding="utf-8", errors="ignore") as f:
-            f.write(clean_string(new_content))
+        try:
+            rel_file_path = os.path.relpath(file_path, self.settings.abs_project_path)
+        except ValueError:
+            rel_file_path = file_path
 
-        logger.info("Patch applied and saved to %s", file_path)
+        # Create patch application request
+        request_prompt = f"""You are a code generation assistant. Your task is to apply a git patch to a file and return the COMPLETE final version.
+
+FILE PATH: {rel_file_path}
+PROJECT PATH: {self.settings.abs_project_path}
+
+PROFILE GUIDELINES:
+```
+{profile_instructions}
+```
+
+ORIGINAL FILE CONTENT:
+```
+{original_content if original_content else "(New file)"}
+```
+
+GIT PATCH TO APPLY:
+```patch
+{patch}
+```
+
+INSTRUCTIONS:
+1. Apply the patch to the original file content
+2. Generate the COMPLETE file content, not partial changes
+3. Preserve all formatting, indentation, and structure
+4. Do NOT include code block markers (```) in your response
+5. Do NOT include any explanations, comments, or decoration
+6. Return ONLY the valid file content in JSON format as follows:
+
+{{
+  "file_path": "{rel_file_path}",
+  "content": "<<COMPLETE FILE CONTENT HERE AFTER APPLYING PATCH>>"
+}}
+
+Ensure the JSON is valid and the content is properly escaped if needed."""
+
+        try:
+            ai = self.session.get_ai()
+            self.session.log_info("Applying patch to %s using AI", file_path)
+            
+            messages = ai.chat(prompt=request_prompt)
+            response_content = messages[-1].content.strip()
+            
+            # Extract JSON from response
+            parsed_response = self._extract_json_response(response_content)
+            
+            if not parsed_response or "content" not in parsed_response:
+                logger.error(
+                    "Invalid AI response format for patch on %s: %s",
+                    file_path,
+                    response_content,
+                )
+                raise RuntimeError(
+                    f"AI did not return valid JSON with 'content' field for {file_path}"
+                )
+            
+            final_content = parsed_response["content"]
+            
+            if not final_content:
+                raise RuntimeError(f"AI returned empty content after applying patch to {file_path}")
+            
+            self.session.log_info(
+                "Successfully applied patch to %s (%d chars)",
+                file_path,
+                len(final_content),
+            )
+            
+            return final_content
+            
+        except Exception as ex:
+            logger.exception(
+                "Failed to apply patch to %s: %s", file_path, ex
+            )
+            raise RuntimeError(f"Failed to apply patch to {file_path}: {ex}") from ex
 
     def extract_changes(self, content: str):
         """

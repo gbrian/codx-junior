@@ -2,99 +2,98 @@
 
 ## Overview
 
-The "AI Development Agent Platform" provides a comprehensive and robust backend infrastructure designed for developing sophisticated, multi-modal Artificial Intelligence (AI) agents. This platform serves as an advanced coordination layer that integrates various components necessary for modern AI workflows, including multiple Large Language Model (LLM) providers, structured knowledge retrieval systems (RAG), and specialized tooling.
+This domain serves as an advanced, orchestration layer for comprehensive software development tasks leveraging AI agents. It structures complex workflows by integrating multimodal knowledge bases via Retrieval-Augmented Generation (RAG) from diverse sources like internal code repositories, project documentation, and wiki content.
 
-Its primary goal is to automate complex developer tasks, encompassing everything from codebase analysis and interactive chat sessions to managing DevOps pipelines and tracking GitHub issues. By consolidating these functionalities into a single, powerful domain, it significantly accelerates the development process for AI-driven applications and agents.
-
-**Key Capabilities include:**
-
-*   **Multi-LLM Support:** Integration with various LLMs (OpenAI, Mistral, Ollama, Anthropic) through standard interfaces (`llmfactory.py`).
-*   **Advanced Knowledge Retrieval (RAG):** Comprehensive knowledge management system for ingesting code, documents, and structured data into vector databases (e.g., Milvus), ensuring agents have access to domain-specific context.
-*   **Specialized Agents:** Dedicated agent modules for specific tasks like DevOps automation (`devops_agent.py`) and GitHub/Issue tracking (`git_issues_agent.py`).
-*   **Workflow Orchestration:** Managing the entire lifecycle of an AI interaction, from user input to action execution (e.g., file manipulation, web fetching, database updates).
-*   **Extensibility:** Designed with modularity in mind, allowing easy integration of new tools or data sources.
+The platform's core functionality allows specialized, dedicated AI agents to interact with external services. It facilitates multi-step coding solutions, advanced project management functions, and dynamic interaction with tools such as GitHub. Structurally, the domain manages communication flow through messaging queues (Sio), handles user authentication and session context, and provides modular engines for accessing deep knowledge across code, documentation, and collaborative wiki sources, making it a central hub for AI-driven development support.
 
 ## Files in Domain
 
-The project structure is highly organized into specialized modules:
+### Core API & Utilities
+*   `/home/codx-junior-projects/codx-junior/api/README.md`
+*   `/home/codx-junior-projects/codx-junior/api/global_settings.py`
+*   `/home/codx-junior-projects/codx-junior/api/backend/app.py`
+*   `/home/codx-junior-projects/codx-junior/api/shared/codx-junior/scripts/docker-compose.yaml`
+*   `/home/codx-junior-projects/codx-junior/api/shared/codx-junior/scripts/traefik/traefik.yaml`
 
-### Core Application & Logic
-*   `api/README.md`: Main README file for the API layer.
-*   `api/codx/junior/app.py`: The main entry point for running the application or service.
-*   `api/codx/junior/main.py`: Contains core orchestration logic.
-*   `api/codx/junior/utils/utils.py`: General utility functions used across the platform.
-*   `api/codx/junior/context.py`: Manages and passes state context throughout AI interactions.
+### Agents and Processors
+These files contain the specialized, modular agents that execute tasks:
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/base_agent.py`: The foundational agent class.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/devops_agent.py`: Agent for DevOps tasks.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/git_issues_agent.py`: Agent specialized in GitHub issues and Git operations.
 
-### AI Model Integration (`api/codx/junior/ai`)
-This directory handles communication with external LLM services:
-*   `openai_ai.py`: Client implementation for OpenAI models.
-*   `ollama.py`: Client implementation for Ollama-hosted local models.
-*   `anthropic.py.disabled`: (Deprecated/Disabled) Anthropic model integration.
-*   `mistral_ai.py.disabled`: (Deprecated/Disabled) Mistral AI model integration.
-*   `llmfactory.py`: Acts as a factory pattern to select and interface with different LLM providers dynamically.
-*   `utils.py`, `ai_logger.py`: Support utilities for the AI layer.
+### AI Model & Local Inference Management (`ai` package)
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/__init__.py`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/anthropic.py.disabled` (Disabled integration)
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/llmfactory.py`: Utility for accessing multiple LLMs.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/ollama.py`: Integration with the Ollama local model runner.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/openai_ai.py`: Standard OpenAI integration.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/utils.py`: General AI utility functions.
 
-### Agent Systems (`api/codx/junior/agents`)
-Modular agents designed to interact with specific toolsets:
-*   `base_agent.py`: Defines the abstract base class for all specialized agents.
-*   `devops_agent.py`: Handles CI/CD, infrastructure, and DevOps tasks.
-*   `git_issues_agent.py`: Interacts with GitHub APIs for resource and issue management.
+### API Endpoints & Services (`api` package)
+These modules define interaction points for system features:
+*   `api/codx/junior/api/chatGPTLikeApi.py`: Simulated or wrapper API for common LLM endpoints.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/db_router.py`: Routes database interactions.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/file_finder.py`: Manages file searching capabilities.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/github.py`: Direct integration with GitHub API operations.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/global_settings.py` (Duplicate, used by process): System configuration handling.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/users.py`: User management APIs.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/api/wiki.py`: API layer for wiki interactions.
 
-### Knowledge Base & RAG (`api/codx/junior/knowledge`)
-The sophisticated system responsible for ingesting, storing, and retrieving contextual knowledge:
-*   `knowledge_db.py`: Interaction layer with the vector database (e.g., Milvus).
-*   `knowledge_loader.py`: Responsible for loading data from various sources.
-*   `knowledge_splitter.*.py`: Various specialized splitters (`code`, `qa`) to optimize chunking of different data types.
-*   `milvus.py`: Specific implementation for connecting to the Milvus vector store.
-*   `settings.py`: Configuration for knowledge pipeline parameters.
+### Knowledge Retrieval & RAG System (`knowledge` package)
+This suite handles the ingestion, chunking, and querying of diverse data types:
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/__init__.py`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_loader.py`: Loads source documents.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_code_to_dcouments.py`: Converts code bases into searchable documentation chunks.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_qa_splitter.py`: Specialized splitter for Q&A formats.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_splitter.py`: General intelligent document chunker.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_milvus.py`: Integration with Milvus vector database.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_ai_search.py` / `knowledge_ai_search_message.py`: Core AI search logic.
 
-### APIs and Services (Mini-Services)
-These modules handle interactions with external platforms or persistent storage:
-*   `api/codx/junior/api/chatGPTLikeApi.py`: API wrapper simulating chat functionality.
-*   `api/codx/junior/api/db_router.py`, `knowledge.py`, `users.py`: Database and user management APIs.
-*   `api/codx/junior/api/github.py`: Dedicated client for GitHub interactions (separate from the agent).
+### Messaging, Context & Core Logic
+These files handle the underlying operational flow:
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/context.py`: Manages conversational and session context.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/db.py`: Database connection and persistence layer.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/engine.py`: The primary execution engine (Orchestrator).
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/events/event_manager.py`: System event handling mechanism.
 
-### Tools & Tooling (`api/codx/junior/tools`)
-A collection of actionable functions that agents can utilize:
-*   `code_writer.py`: Utility for writing or modifying code snippets.
-*   `fetch_webpage.py`: Tool to retrieve and process data from external web URLs.
-*   `project_tools.py`: Specialized tools related to codebase navigation/analysis.
+### Tools & Extensions (`tools` package)
+These functions provide specialized capabilities to the agents:
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/tools/__init__.py`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/tools/code_writer.py`: Tool for generating and managing code snippets.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/tools/fetch_webpage.py`: Web scraping tool.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/tools/project_tools.py`: Tools for navigating and manipulating project structure.
 
-### Workflow & State Management
-*   `api/codx/junior/engine/*.py`: Sophisticated engine modules for specific workflows (e.g., `git_engine.py`, `knowledge_engine.py`, `file_engine.py`).
-*   `api/codx/junior/chat/chat_engine.py`: Manages the core conversational flow and state persistence during chatting sessions.
+### Chat, State Management & Workflow
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py`: Dedicated engine for dialogue management.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py`: Manages chat session state and history.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/sio/model.py`, `sio/session_channel.py`, `sio/sio.py`, `sio/sio_background.py`: WebSocket (SocketIO) implementation for real-time communication.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/task_manager.py`: Coordinates asynchronous task execution.
+
+### Profile Management & User Context (`profiles` package)
+Handles various user and role definitions:
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/profiles/agent-coding-task.md`
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/profiles/analyst.profile`
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/profiles/browser.profile`
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/profiles/software_developer.profile`
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/profiles/project.profile`
+
+### Monitoring & Reporting (`metrics` package)
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/metrics/chat_heatmap.py`: Analysis tool for chat usage patterns.
+*   `/home/codx-junior-projects/codx/junior/api/codx/junior/metrics/chat_wall.py`: Interface for tracking interaction history ("context wall").
 
 ## Dependencies
 
-This platform is inherently complex, requiring dependencies across networking, data storage, and AI infrastructure:
-
-**Primary Libraries & Services:**
-
-*   **LLM Providers:** Requires API keys and client libraries for OpenAI, Anthropic, Mistral, etc.
-*   **Vector Database:** Relies on a vector store like Milvus or Pinecone for RAG functionality.
-*   **GitHub API:** Dependency required for authentication and interaction with GitHub resources (issues, repositories).
-*   **Database Layer:** Uses services/libraries (implied by `db_router.py`) for persistent data storage (chat history, user profiles, etc.).
-*   **Asynchronous Networking:** Heavily relies on asynchronous programming patterns (e.g., FastAPI or similar framework) for managing concurrent requests and long-running tasks.
-
-**Conceptual Dependencies:**
-
-1.  **Source Code/Project Structure:** Requires access to the file system context (`file_manager`, `project_tools`).
-2.  **Authentication & Authorization:** Dependencies on secure OAuth flows (GitHub OAuth) and user management systems.
-3.  **Knowledge Source Mapping:** Depends on external sources (wikis, documentation sites) being accessible or ingestible.
+No explicit dependencies are listed in the provided metadata. The domain functions as a monolithic orchestrator, suggesting that its operational dependencies rely heavily on robust external services (like LLM APIs and vector stores like Milvus) which are integrated via specialized modules (`ai/`, `knowledge/knowledge_milvus.py`).
 
 ## Used By
 
-Currently, this domain appears to be the **core infrastructure** of a larger application. Its functionalities are meant to be used by:
-
-*   **The Main Application Layer (`app.py`):** Acts as the primary entry point that routes user requests through the necessary engines (Chat Engine, Knowledge Engine).
-*   **Client Interface:** Any front-end or API consumer wishing to interact with advanced AI development features (e.g., a web UI, command line tool).
+No specific files are listed in the provided metadata that depend upon this entire domain package, suggesting it acts as a core infrastructure layer accessed by top-level entry points (e.g., the front-end client or main startup scripts).
 
 ## Entry Points
 
-The core executable modules and primary integration files define how external systems should interact with the platform:
-
-*   `/home/codx-junior-projects/codx-junior/api/README.md`: Documentation entry point.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/base_agent.py`: The conceptual starting point for creating new agents.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/devops_agent.py`: Entry point for DevOps automation tasks.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/git_issues_agent.py`: Entry point for GitHub issue management agents.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/__init__.py`: The entry point to initialize the LLM functionality factory.
+The following modules serve as primary access points for external interfaces and general use:
+*   `/home/codx-junior-projects/codx-junior/api/README.md`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/base_agent.py`: Base class for all executable agents defining the agent framework.
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/devops_agent.py`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/agents/git_issues_agent.py`
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/ai/__init__.py`: Entry point for managing all AI interactions and API keys.

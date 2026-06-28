@@ -60,6 +60,12 @@ class Message(BaseModel):
     error: Optional[str] = Field(default=None)
     linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
 
+class ChatHistoryEntry(BaseModel):
+    """Represents a historical entry in a chat with timestamp, summary, and associated message IDs"""
+    timestamp: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when this history entry was generated")
+    summary: str = Field(default='', description="Summary of this history entry")
+    message_ids: List[str] = Field(default=[], description="List of message IDs associated with this history entry")
+
 class ChatId(BaseModel):
     chat_id: str = Field(default=None, description="Chat id")
     project_id: str = Field(default=None, description="Defines the project which this chat belongs")
@@ -103,6 +109,7 @@ class Chat(BaseModel):
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
+    history: List[ChatHistoryEntry] = Field(default=[], description="Historical entries of this chat")
     auto_initialize: Optional[bool] = Field(
         default=False,
         description=(

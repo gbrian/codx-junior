@@ -1,212 +1,80 @@
-The `KnowledgeLoader` class is responsible for loading and processing documents from a project's codebase. It integrates with Git to identify relevant files and uses a `KnowledgeCodeSplitter` to extract meaningful content.
+# Knowledge Document Loader
 
-### Core Functionality
+The `KnowledgeLoader` class is responsible for discovering, validating, and loading documents from a file system or Git repository structure into searchable document chunks. It supports incremental indexing by checking for recent modifications and updates based on timestamps and file integrity (MD5).
 
-The `KnowledgeLoader` performs the following key tasks:
+## Initialization
 
-1.  **File Identification:** It identifies files within the project's repository, including versioned and unversioned files, and optionally includes files from external folders specified in the settings.
-2.  **File Filtering:** It filters files based on several criteria:
-    *   **File Size:** Excludes empty files or files larger than 50KB.
-    *   **Modification Time:** Excludes files modified within the last 10 minutes to avoid indexing incomplete changes.
-    *   **Change Detection:** Checks if a file has been modified since the last indexing by comparing modification times and MD5 checksums.
-    *   **Ignore Paths:** Skips files located in paths specified in `knowledge_file_ignore` settings or provided `ignore_paths` during loading.
-3.  **Document Extraction:** For each valid file, it uses a `KnowledgeCodeSplitter` to extract document chunks.
-4.  **Error Handling:** Logs errors if no documents are generated for a file or if any other exceptions occur during the loading process.
-5.  **Repository Fix:** Includes a method `fix_repo` to address common Git ownership issues that might prevent file listing.
+The loader requires configuration settings and optionally accepts a progress callback for tracking long-running processes.
 
-### Key Methods
+***
+**Function Signature:** `KnowledgeLoader(settings: CODXJuniorSettings, callback: Optional[ProgressCallback] = None)`
+***
 
-*   `__init__(self, settings: CODXJuniorSettings)`: Initializes the `KnowledgeLoader` with project settings and the project path.
-*   `should_index_doc(self, file_path, last_update, current_sources)`: Determines if a document should be indexed based on modification time, size, and existence in previous sources.
-*   `is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore=[])`: Checks if a given file is valid for indexing based on various criteria including ignore lists and update status.
-*   `load(self, current_sources_and_updates: datetime = None, path: str = None, current_sources=None, ignore_paths=[])`: Loads and processes documents from the repository files. It can load all files, a specific file, or files within a given path.
-*   `get_git_files(self)`: Retrieves a list of all versioned and unversioned files within the Git repository that are within the project's path.
-*   `run_git_command(self, command, cwd: str = None)`: A helper method to execute Git commands and return their output and errors.
-*   `list_repository_files(self, current_sources_and_updates = None, path: str = None, current_sources=None, ignore_paths=[])`: Returns a list of files that are candidates for indexing after applying all filtering logic.
-*   `list_repository_folders(self)`: Returns a list of unique directory paths containing the files identified for indexing.
-*   `fix_repo(self)`: Attempts to fix Git repository issues related to ownership detection.
+*   `self.path`: The absolute project path used as the source root. [Reference: `__init__`]
+*   `self.settings`: Contains global configuration settings necessary for operations (e.g., external folder paths and ignore lists). [Reference: `__init__`]
+*   `self.callback`: An optional progress hook that allows real-time tracking of the loading process (start, document processing, completion, errors). [Reference: `load_with_progress`]
 
-```python
-# /codx/junior/knowledge/knowledge_loader.py
-import logging
-import os
-import time
-import subprocess
-import pathlib
-from datetime import datetime
+## File Discovery and Validation
 
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+Before documents can be loaded, the class must identify which files are valid for indexing. The core logic handles both file path resolution within a Git repository and checking if the file needs re-indexing.
 
+### 1. Listing Repository Files
+The primary method for locating potential source material is `list_repository_files`. This method determines the list of all files to be processed by combining:
 
-from codx.junior.settings import CODXJuniorSettings
-from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
-from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
+*   **Git Integration:** It first utilizes `git ls-files` and `git ls-files --others --exclude-standard` to gather versioned and unversioned file paths within a specified repository directory. [Reference: `get_git_files`]
+*   **External Folders:** If configured, it also includes files from external knowledge folders defined in the settings. [Reference: `list_repository_files`]
 
+### 2. Validity Checks
+The class employs robust checks via `is_valid_file` and `should_index_doc` to determine if an already indexed file should be processed again.
 
-from codx.junior.utils.utils import (
-  exec_command,
-  calculate_md5
-)
+**Criteria for Indexing:** A file is considered valid if: [Reference: `should_index_doc`]
+1.  It exists as a file on the file system.
+2.  (Optional) It matches a specified path or does not contain any ignored substrings.
+3.  **Update Check (Incremental):**
+    *   If no prior update data (`last_update`) exists, it is indexed by default.
+    *   The file size must be within acceptable limits. [Reference: `should_index_doc`]
+    *   If the file was modified within the last 10 minutes, or if its last modification time is newer than the stored update timestamp (`last_update`), it will be re-indexed.
+4.  **Data Integrity Check (MD5):** If previous sources are known, the current MD5 hash of the file must match the previously recorded hash to proceed with indexing. [Reference: `should_index_doc`]
 
-logger = logging.getLogger(__name__)
+## Document Loading Methods
 
+### Asynchronous Loading (`load_with_progress`)
+This asynchronous method is designed for large-scale or network-intensive loading tasks and integrates progress tracking via an async callback. [Reference: `load_with_progress`]
 
-class KnowledgeLoader:
-    def __init__(self, settings: CODXJuniorSettings):
-        self.path = settings.project_path
-        self.settings = settings
+**Parameters:**
+*   `path`: An optional specific path to restrict the loading scope.
+*   `last_update`: A timestamp specifying that only files modified after this time should be loaded (incremental).
+*   `current_sources`: Dictionary of currently indexed sources.
+*   `current_sources_and_updates`: Sources containing metadata for update checks (e.g., last stored update time).
 
-    def should_index_doc(self, file_path, last_update, current_sources):
-        if not last_update:
-            return True
-        file_stats = os.stat(file_path)
-        if file_stats.st_size == 0 or file_stats.st_size > (50 * 1024):
-            return False
+**Process:**
+1.  Retrieves the list of files to process using `list_repository_files`.
+2.  Iterates through each file, passing it to the internal code splitter.
+3.  Generates a document stream and sequentially extends the master document list (`documents`).
+4.  Manages progress notifications:
+    *   `ProgressEventType.STARTED`: Indicates total files and whether the run is incremental.
+    *   `ProgressEventType.DOCUMENT_PROCESSING`: Reports progress per file, including source path and documents count.
+    *   `ProgressEventType.BATCH_COMPLETE`: Summarizes the results, reporting total loaded documents, files processed, and invalid/empty documents.
 
-        # Check if the file was modified within the last 10 minutes
-        ten_minutes_ago = time.time() - 10 * 60
-        if file_stats.st_mtime > ten_minutes_ago:
-            return False
-        
-        if current_sources: 
-            if file_path not in current_sources:
-                # New file
-                return True
-            
-            file_md5 = calculate_md5(file_path)
-            current_file_md5 = current_sources[file_path].get("file_md5")
-            if file_md5 == current_file_md5:
-                return False
+### Synchronous Loading (`load`)
+This synchronous method performs equivalent document loading to `load_with_progress` but without progress callback support. [Reference: `load`]
 
-        last_doc_update = int(os.path.getmtime(file_path))
-        logger.info("File last update check last_update: %s - last_doc_update: %s", last_update, last_doc_update)
-        
-        if not last_update or last_doc_update > last_update:
-          return True
+**Parameters:**
+*   `current_sources_and_updates`: Metadata used for update checking (optional).
+*   `path`: An optional path limit.
+*   `current_sources`: Dictionary of currently indexed sources (optional).
+*   `ignore_paths`: Paths that must be explicitly ignored during listing.
 
-        return False
+**Process:** The method executes file listing and document processing iteration, aggregating the results into a list of loaded documents.
 
-    def is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
-        if not os.path.isfile(file):
-            return False
+## Utilities
 
-        if path:
-            if not (path in file):
-                return False
-        file_errors = [err for err in knowledge_file_ignore if err in file]
-        if file_errors:
-            return False
-        last_update = None
-        if current_sources_and_updates and file in current_sources_and_updates:
-            last_update = current_sources_and_updates[file]["metadata"]["last_update"]
-            last_update = datetime.fromisoformat(last_update)
-            
-        if not self.should_index_doc(file_path=file, last_update=last_update, current_sources=current_sources):
-            return False
-    
-        return True
+### Code Splitting and Document Enrichment
+All loading methods rely on an internal `KnowledgeCodeSplitter`. This object is responsible for taking raw source files (like code) and splitting them into structured documents suitable for indexing and retrieval. [Reference: `load_with_progress`, `load`] The resultant documents are filtered to ensure they have non-empty content before being returned.
 
-    def load(self, current_sources_and_updates: datetime = None, path: str = None, current_sources=None, ignore_paths=[]):
-        documents = []
-        code_splitter = KnowledgeCodeSplitter(settings=self.settings)
-        #code_splitter = KnowledgeCodeToDocuments(settings=self.settings)
-        files = self.list_repository_files(
-            path=path,
-            current_sources_and_updates=current_sources_and_updates,
-            current_sources=current_sources,
-            ignore_paths=ignore_paths
-        )
-        for file_path in files:
-            try:
-                new_docs = code_splitter.load(file_path)
-                if not new_docs:
-                    logging.error(f"No documents generated for: {file_path}")
-                    continue
-                documents = documents + new_docs
-            except Exception as ex:
-                logging.exception(f"Error loading file {file_path}")  
+### Directory Discovery
+The method `list_repository_folders` gathers all unique parent directories found among the files that were successfully targeted for loading, providing insight into the organizational structure of the indexed knowledge base. [Reference: `list_repository_folders`]
 
-        bad_docs = [doc for doc in documents if not doc.page_content]
-        good_docs = [doc for doc in documents if doc.page_content]
-        if bad_docs:
-            logger.debug(f"Loaded {len(documents)} documents from {len(files)} files. OK: {len(good_docs)} ERROR: {len(bad_docs)}")
-        return good_docs
-
-    def get_git_files(self):
-        git_parent_folder, _ = exec_command("git rev-parse --git-dir", cwd=self.path)
-        git_parent_folder = git_parent_folder.strip()
-        
-        # logger.info(f"git_parent_folder: '{git_parent_folder}'")
-        
-        git_parent = self.path
-        if "/.git" in git_parent_folder:
-            git_parent = git_parent_folder.replace("/.git", "")
-        
-        # Versioned files
-        versioned_files, _ = self.run_git_command(['git', 'ls-files'], cwd=git_parent)
-        # Unversioned files
-        unversioned_files, _ = self.run_git_command(['git', 'ls-files', '--others', '--exclude-standard'], cwd=git_parent)
-        
-        # joining versioned and unversioned file paths
-        full_file_paths = [os.path.join(git_parent, file_path) for file_path in versioned_files + unversioned_files]
-
-        current_path_files = [f for f in full_file_paths if f.startswith(self.path)]
-        
-        # logger.info(f"""list_repository_files checking {self.path}: 
-        # git root: {git_parent_folder}
-        # git_parent: {git_parent}
-        # git files {len(full_file_paths)}
-        # this folder files {len(current_path_files)}
-        # """)
-        return current_path_files
-
-    def run_git_command(self, command, cwd: str = None):
-        if not cwd:
-            cwd = self.path
-        result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        file_paths = result.stdout.decode('utf-8').split('\n')
-        error = result.stderr.decode('utf-8') if result.stderr else None
-        return file_paths, error
-
-    def list_repository_files(self, current_sources_and_updates = None, path: str = None, current_sources=None, ignore_paths=[]):        
-        full_file_paths = None
-        if path:
-            if os.path.isfile(path):
-                full_file_paths = [path]
-            else:  
-                full_file_paths = [str(file_path) for file_path in pathlib.Path(path).rglob("*")]
-            logging.info(f"Indexing {full_file_paths}")
-        else:
-            
-            # filter if we are in a sub-path
-            full_file_paths = self.get_git_files()
-                        
-            if self.settings.knowledge_external_folders:
-                for ext_path in self.settings.knowledge_external_folders.split(","):
-                    external_file_paths = [str(file_path) for file_path in pathlib.Path(ext_path).rglob("*")]
-                    full_file_paths = full_file_paths + external_file_paths
-
-        knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
-        knowledge_file_ignore = ignore_paths + [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
-        # logger.info(f"knowledge ignore files {knowledge_file_ignore}")
-        changed_file_paths = [file for file in full_file_paths \
-                            if self.is_valid_file(file,
-                                current_sources_and_updates=current_sources_and_updates,
-                                path=path,
-                                current_sources=current_sources,
-                                knowledge_file_ignore=knowledge_file_ignore) ]
-        
-        return changed_file_paths
-
-    def list_repository_folders(self):
-        all_files = self.list_repository_files()
-        return list(set([os.path.dirname(file_path) for file_path in all_files]))
-
-    def fix_repo(self):
-        _, error = self.run_git_command(['git', 'ls-files'])
-        if error and "detected dubious ownership in repository" in error:
-            fix = [err for err in error.split("\n") if "git config" in err][0]
-            logging.info(f"Fixing git error {fix}")
-            self.run_git_command(fix.strip().split(" "))
-
-```
+## Dependencies
+**Imports from:** codx/junior/settings.py, codx/junior/knowledge/knowledge_code_splitter.py, codx/junior/knowledge/knowledge_code_to_dcouments.py, codx/junior/engine/progress_callback.py, codx/junior/utils/utils.py
+**Imported by:** codx/junior/engine/session.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/wiki/wiki_manager.py

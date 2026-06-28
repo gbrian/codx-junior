@@ -2,45 +2,36 @@
 
 ## Overview
 
-This domain is dedicated to managing crucial asynchronous operations and complex state transitions within the application. Its core purpose is to decouple long-running, resource-intensive jobs (such as periodic rebuilds, scheduled workflows, or intensive data processing) from the synchronous API request lifecycle, ensuring a robust and responsive user experience.
+The Background Task & State Management domain is critical for maintaining system responsiveness, scalability, and data integrity. It operates by abstracting long-running or time-delayed processes away from the immediate execution cycle of API requests, thereby ensuring that the user experience remains fast and consistent even when complex operations are occurring in the background.
 
-The system provides structured mechanisms for reliable background execution using specialized task runners and coroutine management. Furthermore, it enforces data integrity by implementing explicit state transition logic. The `ChangeManager` component is vital for controlling how business objects evolve, guaranteeing that complex data mutations follow predictable and valid paths.
+This domain enforces a two-pronged architectural model:
 
-Key functionalities managed here include:
-*   **Asynchronous Processing:** Handling tasks concurrently using tools like `asyncio`.
-*   **Reliable Scheduling:** Executing jobs at specified intervals or times (e.g., periodic monitoring).
-*   **State Control:** Implementing controlled, auditable changes to application state.
-*   **Advanced Event Handling:** Supporting complex workflows such as detailed file validation pipelines and structured comment/mention detection processes.
+1.  **Asynchronous Execution:** Handles concurrent processing using dedicated background services. This includes tasks that must run periodically (e.g., data cleanup), those requiring explicit scheduling, or heavy computation that would otherwise block the main event loop (`asyncio`).
+2.  **State Transition Control (Change Management):** Implements a robust layer responsible for tracking all state changes within the application's core data models. This ensures auditability and control over how an entity progresses through defined lifecycles, preventing illegal or untracked state transitions.
+
+The integration of these two mechanisms allows the system to execute complex operational logic safely (Background Tasks) while simultaneously guaranteeing that the resulting data modifications are deterministic and auditable (Change Manager).
 
 ## Files in Domain
 
-This domain consists of the following core files:
+### `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`
+* **Purpose:** Core mechanism for asynchronous task scheduling and execution. This script manages the worker pool or message queue interaction, allowing API endpoints to offload heavy work. It utilizes Python's `asyncio` module capabilities, supporting coroutine management and coordinated concurrency between multiple independent tasks (e.g., bulk data processing, periodic report generation).
+* **Functionality:** Task queues management, task initiation, error handling for background jobs, và scheduling using interval or delay functions.
 
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: This primary module handles the initialization and execution logic for background services. It serves as the central point for scheduling tasks, managing concurrent coroutines, and overseeing the broader asynchronous task ecosystem within the application.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: This component is responsible for enforcing explicit state transitions across business entities. It provides controlled methods to modify data, ensuring that changes are validated before being committed and maintaining the integrity of the application model.
+### `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`
+* **Purpose:** Serves as the sole gatekeeper for data modification persistence. It implements the business logic necessary to validate and record state transitions against predefined rules within a resource's lifecycle. Any entity that requires an update *must* pass through this manager, which logs the old state, new state, responsible user, and timestamp.
+* **Functionality:** State validation, audit logging (history tracking), transaction control for state updates, and maintaining reliable data integrity across complex interactions.
 
 ## Dependencies
 
-This domain currently has no explicit dependencies listed in its own files but relies heavily on:
-
-*   **Python Standard Library:** Utilizing `asyncio` for coroutine management and modern asynchronous programming patterns.
-*   **Logging System:** Requires robust logging capabilities to track job execution state, errors, and task completions for monitoring purposes.
-*   **Database Interaction Layer:** Implicitly depends on persistence mechanisms suitable for holding scheduled tasks and recording state changes.
+*(Note: This section is planned for future expansion. Expected dependencies include messaging brokers like Redis/RabbitMQ for queuing tasks, or dedicated database ORM layers to support transactional change recording.)*
 
 ## Used By
 
-This domain is foundational and provides core services consumed by:
-
-*(No specific files marked as using this domain were provided in the inputs.)*
-
-Its functionality is expected to be used ubiquitously across the platform, including any module requiring:
-*   Scheduled upkeep actions (e.g., nightly cleanup or data compilation).
-*   Response to external events that require non-blocking processing.
-*   Any core business logic component responsible for modifying application state.
+*(Note: Currently no files directly utilize this Domain. However, any file managing complex business logic that involves delayed operations or multiple state transitions will rely on methods provided by these scripts.)*
 
 ## Entry Points
 
-The applications can initiate asynchronous processes and interact with the state management system through these entry points:
+The following files represent primary entry points for initiating system functionality and cannot be accessed without proper workflow orchestration.
 
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py`: Used to trigger or manage the overall background task queue, potentially for running manual or scheduled jobs.
-*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py`: Used by business logic services when a state change needs to be programmatically initiated and validated (e.g., activating a project, updating user status).
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/background.py` (For explicitly kicking off background computational jobs)
+*   `/home/codx-junior-projects/codx-junior/api/codx/junior/changes/change_manager.py` (Invoked by business services layers whenever a state change is committed to the database)

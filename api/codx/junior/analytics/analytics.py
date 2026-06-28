@@ -56,7 +56,8 @@ class Analytics:
         tags: str = "",
         input_k_tokens_cxjcoins: float = 0.0,
         output_k_tokens_cxjcoins: float = 0.0,
-        request_id: str = None
+        request_id: str = None,
+        tokens_from_provider: bool = False
     ) -> TokenUsageEvent:
         """
         Record a single LLM call's token consumption.
@@ -92,7 +93,8 @@ class Analytics:
             tags=tags,
             input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
             output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
-            request_id=request_id
+            request_id=request_id,
+            tokens_from_provider=tokens_from_provider
         )
         self.storage.write(event)
         logger.info(
@@ -125,7 +127,7 @@ class Analytics:
 
         Returns:
             Dict mapping key → {input_tokens, output_tokens, total_tokens, calls,
-                                total_duration_seconds, total_cxjcoins}.
+                                total_duration_seconds, total_cxjcoins, tokens_from_provider}.
         """
         result: Dict[str, Dict[str, Any]] = {}
         for event in events:
@@ -138,6 +140,7 @@ class Analytics:
                     "calls": 0,
                     "total_duration_seconds": 0.0,
                     "total_cxjcoins": 0.0,
+                    "tokens_from_provider": False,
                 }
             bucket = result[key]
             bucket["input_tokens"] += event.input_tokens
@@ -146,6 +149,7 @@ class Analytics:
             bucket["calls"] += 1
             bucket["total_duration_seconds"] += event.duration_seconds
             bucket["total_cxjcoins"] += event.total_cxjcoins
+            bucket["tokens_from_provider"] = bucket["tokens_from_provider"] or getattr(event, "tokens_from_provider", False)
         return result
 
     @staticmethod
@@ -186,7 +190,7 @@ class Analytics:
 
         Returns:
             Dict[username, {input_tokens, output_tokens, total_tokens, calls,
-                            total_duration_seconds, total_cxjcoins}]
+                            total_duration_seconds, total_cxjcoins, tokens_from_provider}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -212,7 +216,7 @@ class Analytics:
 
         Returns:
             Dict[project_name, {input_tokens, output_tokens, total_tokens, calls,
-                                total_duration_seconds, total_cxjcoins}]
+                                total_duration_seconds, total_cxjcoins, tokens_from_provider}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -239,7 +243,7 @@ class Analytics:
 
         Returns:
             Dict[model, {input_tokens, output_tokens, total_tokens, calls,
-                         total_duration_seconds, total_cxjcoins}]
+                         total_duration_seconds, total_cxjcoins, tokens_from_provider}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -269,7 +273,7 @@ class Analytics:
 
         Returns:
             List of dicts [{period, input_tokens, output_tokens, total_tokens, calls,
-                            total_duration_seconds, total_cxjcoins}]
+                            total_duration_seconds, total_cxjcoins, tokens_from_provider}]
             ordered by period ascending.
         """
         events = self.storage.read_events(
@@ -307,7 +311,7 @@ class Analytics:
 
         Returns:
             Dict with keys: input_tokens, output_tokens, total_tokens, calls,
-                            total_duration_seconds, total_cxjcoins.
+                            total_duration_seconds, total_cxjcoins, tokens_from_provider.
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -324,6 +328,7 @@ class Analytics:
             "calls": 0,
             "total_duration_seconds": 0.0,
             "total_cxjcoins": 0.0,
+            "tokens_from_provider": False,
         }
         for event in events:
             totals["input_tokens"] += event.input_tokens
@@ -332,6 +337,7 @@ class Analytics:
             totals["calls"] += 1
             totals["total_duration_seconds"] += event.duration_seconds
             totals["total_cxjcoins"] += event.total_cxjcoins
+            totals["tokens_from_provider"] = totals["tokens_from_provider"] or getattr(event, "tokens_from_provider", False)
         return totals
 
     def list_available_dates(self) -> List[str]:

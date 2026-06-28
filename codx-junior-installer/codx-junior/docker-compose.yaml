@@ -52,7 +52,47 @@ services:
       - ../../ollama_models:/root/.ollama
     labels:
       - traefik.enable=false
-    
+
+  ###################################################################
+  ## LocalAI
+  ## Local LLM API with security enabled
+  ###################################################################
+
+  localai:
+    container_name: localai-codx-junior
+    image: localai/localai:latest-aio-gpu
+    restart: unless-stopped
+    shm_size: "20gb"
+    environment:
+      - DEBUG=1
+      - LOCALAI_API_AUTH_KEY=${LOCALAI_API_KEY:-your-secure-api-key-here}
+      - LOCALAI_AUTH_PROTECTION=true
+      - MODELS_PATH=/root/.local/share/localai/models
+      - CONTEXT_SIZE=2048
+    volumes:
+      - localai_models:/root/.local/share/localai/models
+      - localai_data:/root/.local/share/localai
+    labels:
+      - traefik.enable=true
+      # HTTP Router for LocalAI UI
+      - traefik.http.routers.localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/localai`)
+      - traefik.http.routers.localai.entrypoints=web
+      
+      # HTTPS Router for LocalAI UI
+      - traefik.http.routers.localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/localai`)
+      - traefik.http.routers.localai-secure.entrypoints=websecure
+      - traefik.http.routers.localai-secure.tls.certresolver=sslresolver
+      
+      # Shared Service and Middleware
+      - traefik.http.routers.localai.service=localai-service
+      - traefik.http.routers.localai-secure.service=localai-service
+      - traefik.http.services.localai-service.loadbalancer.server.port=8080
+      
+      # Path Prefix Stripping for /localai
+      - traefik.http.middlewares.localai-stripprefix.stripprefix.prefixes=/localai
+      - traefik.http.routers.localai.middlewares=localai-stripprefix
+      - traefik.http.routers.localai-secure.middlewares=localai-stripprefix
+
   codx-junior-api:
     depends_on:
       - milvus
@@ -207,6 +247,10 @@ volumes:
     name: codx-junior-litellm_postgres_data # LITELLM: Named volume for Postgres data persistence
   milvus_data: # MILVUS data
     name: codx-junior-milvus_data
+  localai_models:
+    name: codx-junior-localai_models
+  localai_data:
+    name: codx-junior-localai_data
   codx-junior:
     name: codx-junior
   codx-junior-projects:

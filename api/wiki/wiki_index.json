@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782582015,
+  "updated_at": 1782660223,
   "files": {
     "/shared/codx-junior/api/README.md": {
       "path": "/shared/codx-junior/api/README.md",
@@ -47,6 +47,135 @@
       "imported_by": [],
       "external_deps": []
     },
+    "/codx/junior/chat/chat_engine.py": {
+      "path": "/codx/junior/chat/chat_engine.py",
+      "slug": "codx-junior-chat-chat-engine-py.md",
+      "category": "Engine Module",
+      "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-chat-chat-engine-py.md",
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/globals.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/settings.py",
+        "codx/junior/utils/chat_utils.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py",
+        "codx/junior/chat/chat_knowledge.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/tools/code_writer.py",
+        "tests/chat/test_chat_manager.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "re",
+        "time",
+        "uuid",
+        "contextlib",
+        "datetime",
+        "typing",
+        "langchain",
+        "langchain_core"
+      ]
+    },
+    "/codx/junior/engine/code_engine.py": {
+      "path": "/codx/junior/engine/code_engine.py",
+      "slug": "codx-junior-engine-code-engine-py.md",
+      "category": "Engine Module",
+      "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-code-engine-py.md",
+      "imports": [
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "re",
+        "subprocess",
+        "datetime",
+        "typing"
+      ]
+    },
+    "/codx/junior/app.py": {
+      "path": "/codx/junior/app.py",
+      "slug": "codx-junior-app-py.md",
+      "category": "Engine Module",
+      "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-app-py.md",
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/sio/sio.py",
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/api/chatGPTLikeApi.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/api/github.py",
+        "codx/junior/api/file_finder.py",
+        "codx/junior/api/db_router.py",
+        "codx/junior/api/global_settings.py",
+        "codx/junior/api/project_search.py",
+        "codx/junior/api/knowledge.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/logs.py",
+        "codx/junior/api/projects.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/chat/chat_export.py",
+        "codx/junior/globals.py",
+        "codx/junior/db.py",
+        "codx/junior/model/model.py",
+        "codx/junior/settings.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/engine.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/background.py",
+        "codx/junior/tools/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/main.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "faulthandler",
+        "logging",
+        "hashlib",
+        "os",
+        "shutil",
+        "time",
+        "traceback",
+        "uuid",
+        "socketio",
+        "flask",
+        "concurrent",
+        "fastapi",
+        "starlette",
+        "contextlib"
+      ]
+    },
     "/shared/codx-junior/api/codx/junior/agents/base_agent.py": {
       "path": "/shared/codx-junior/api/codx/junior/agents/base_agent.py",
       "slug": "shared-codx-junior-api-codx-junior-agents-base-agent-py.md",
@@ -91,6 +220,21 @@
       "imports": [],
       "imported_by": [],
       "external_deps": []
+    },
+    "/codx/junior/knowledge/embeddings.py": {
+      "path": "/codx/junior/knowledge/embeddings.py",
+      "slug": "codx-junior-knowledge-embeddings-py.md",
+      "category": "Models",
+      "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md",
+      "imports": [],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_db.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "sentence_transformers"
+      ]
     },
     "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_splitter.py": {
       "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_splitter.py",
@@ -191,6 +335,48 @@
       "imported_by": [],
       "external_deps": []
     },
+    "/codx/junior/db.py": {
+      "path": "/codx/junior/db.py",
+      "slug": "codx-junior-db-py.md",
+      "category": "Database and Data Storage",
+      "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/codx-junior-db-py.md",
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/agents/git_issues_agent.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/app.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_export.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/engine/wiki_engine.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/sio/model.py",
+        "codx/junior/tools/code_writer.py",
+        "tests/db/test_db.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "re",
+        "uuid",
+        "slugify",
+        "pydantic",
+        "typing",
+        "datetime",
+        "enum"
+      ]
+    },
     "/shared/codx-junior/api/codx/junior/security/github_oauth.py": {
       "path": "/shared/codx-junior/api/codx/junior/security/github_oauth.py",
       "slug": "shared-codx-junior-api-codx-junior-security-github-oauth-py.md",
@@ -256,10 +442,26 @@
     }
   },
   "domains": {
-    "uncategorized": {
-      "name": "uncategorized",
-      "slug": "uncategorized",
-      "description": "",
+    "knowledge-and-data-infrastructure": {
+      "name": "Knowledge and Data Infrastructure",
+      "slug": "knowledge-and-data-infrastructure",
+      "description": "This domain manages the structural foundation for persistent data storage and the implementation of knowledge retrieval systems. It integrates database management with advanced AI embedding models to facilitate efficient information organization and semantic search capabilities.",
+      "files": [
+        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+        "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md"
+      ],
+      "entry_points": [
+        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+        "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md"
+      ],
+      "keywords": [],
+      "depends_on_domains": [],
+      "wiki_path": "domains/knowledge-and-data-infrastructure.md"
+    },
+    "junior-analytics-engine": {
+      "name": "Junior Analytics Engine",
+      "slug": "junior-analytics-engine",
+      "description": "This module manages background processing and data tracking for the Junior analytics suite. It provides the necessary API endpoints and internal logic to collect, process, and expose analytical insights.",
       "files": [
         "/home/codx-junior/codx-junior/api/codx/junior/background.py",
         "/home/codx-junior/codx-junior/api/codx/junior/api/analytics.py",
@@ -272,18 +474,16 @@
       ],
       "keywords": [],
       "depends_on_domains": [],
-      "wiki_path": "domains/uncategorized.md"
+      "wiki_path": "domains/junior-analytics-engine.md"
     },
-    "general": {
-      "name": "general",
-      "slug": "general",
-      "description": "",
+    "change-management-system": {
+      "name": "Change Management System",
+      "slug": "change-management-system",
+      "description": "This module handles the lifecycle of software changes and updates within the Codx Junior ecosystem. It provides the necessary infrastructure to track, process, and manage modifications to the system's codebase or configuration.",
       "files": [
-        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
       ],
       "entry_points": [
-        "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "/home/codx-junior/codx-junior/api/codx/junior/changes/change_manager.py"
       ],
       "keywords": [
@@ -297,7 +497,7 @@
         "wiki-integration"
       ],
       "depends_on_domains": [],
-      "wiki_path": "domains/general.md"
+      "wiki_path": "domains/change-management-system.md"
     }
   }
 }

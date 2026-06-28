@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1782582096,
+  "updated_at": 1782660218,
   "files": {
     "README.md": {
       "imports": [],
@@ -483,6 +483,7 @@
         "codx/junior/knowledge/knowledge_ai_search.py",
         "codx/junior/api/__init__.py",
         "codx/junior/engine/session.py",
+        "codx/junior/engine/progress_callback.py",
         "codx/junior/sio/session_channel.py",
         "codx/junior/sio/sio.py"
       ],
@@ -1208,6 +1209,17 @@
       "imported_by": [],
       "external_deps": []
     },
+    "codx/junior/knowledge/embeddings.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_db.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "sentence_transformers"
+      ]
+    },
     "codx/junior/knowledge/knowledge_ai_search.py": {
       "imports": [
         "codx/junior/ai/__init__.py",
@@ -1291,6 +1303,7 @@
         "codx/junior/model/model.py",
         "codx/junior/ai/__init__.py",
         "codx/junior/settings.py",
+        "codx/junior/knowledge/embeddings.py",
         "codx/junior/utils/utils.py",
         "codx/junior/profiling/profiler.py"
       ],
@@ -1360,6 +1373,7 @@
         "codx/junior/settings.py",
         "codx/junior/knowledge/knowledge_code_splitter.py",
         "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/engine/progress_callback.py",
         "codx/junior/utils/utils.py"
       ],
       "imported_by": [
@@ -1374,6 +1388,7 @@
         "subprocess",
         "pathlib",
         "datetime",
+        "typing",
         "langchain_community"
       ]
     },
@@ -1381,6 +1396,7 @@
       "imports": [
         "codx/junior/knowledge/knowledge_db.py",
         "codx/junior/model/model.py",
+        "codx/junior/engine/progress_callback.py",
         "codx/junior/utils/utils.py",
         "codx/junior/ai/__init__.py",
         "codx/junior/settings.py",
@@ -1410,6 +1426,7 @@
         "datetime",
         "functools",
         "pathlib",
+        "typing",
         "concurrent",
         "langchain_core"
       ]
@@ -2543,6 +2560,20 @@
       "external_deps": [
         "unittest",
         "os"
+      ]
+    },
+    "codx/junior/engine/progress_callback.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/api/knowledge.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "external_deps": [
+        "abc",
+        "typing",
+        "enum",
+        "time"
       ]
     }
   }

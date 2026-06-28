@@ -38,17 +38,22 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             class="hover:text-info cursor-pointer"
             :class="editMode && 'text-warning'"
             @click.stop="onEdit"
+            title="Edit code"
           >
             <i class="fa-solid fa-edit"></i>
           </div>
 
-          <div class="hover:text-info cursor-pointer" @click.stop="createSubTask">
+          <div class="hover:text-info cursor-pointer" @click.stop="createSubTask" title="Create sub-task">
             <i class="fa-brands fa-trello"></i>
+          </div>
+
+          <div class="hover:text-info cursor-pointer" @click.stop="loadDiffInfo" title="Refresh diff stats">
+            <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
           </div>
 
           <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
             <span v-if="loadingStats">Loading...</span>
-            <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
+            <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats">
               <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
               <i class="fa-solid fa-code-compare" v-else></i>
               {{ stats }}
@@ -61,11 +66,25 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
             </span>
           </span>
+
+          <!-- Streaming last line preview -->
+          <div class="font-mono text-xs truncate trl" v-if="!finished">
+            {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
+          </div>
+
+          <!-- User-change badge: shows when localCode overrides the original prop -->
+          <span
+            v-if="hasLocalChanges"
+            class="badge badge-warning badge-xs gap-1"
+            title="You have unsaved local edits"
+          >
+            <i class="fa-solid fa-pen-nib"></i> edited
+          </span>
         </div>
 
         <!-- Diff percentage bar with danger indicator -->
         <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
-          <div 
+          <div
             class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
             :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
           >
@@ -91,6 +110,17 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #actions>
+      <!-- AI Patch: generates a full file version from partial content -->
+      <button class="btn btn-sm btn-info btn-outline"
+        @click.stop="applyPatchFromAI"
+        v-if="file && finished && (showCode || showDiff) && !isPatch"
+        :disabled="isApplyingPatch"
+        title="Generate improved version using AI patch">
+        <span class="loading loading-spinner loading-xs" v-if="isApplyingPatch"></span>
+        <i class="fa-solid fa-wand-magic-sparkles" v-else></i> Patch
+      </button>
+
+      <!-- Save: persists the current effective content to disk -->
       <button class="btn btn-sm btn-success btn-outline"
         @click.stop="saveToFile"
         v-if="file && finished && (showCode || showDiff)"
@@ -98,12 +128,23 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         title="Save to file">
         <i class="fa-solid fa-floppy-disk"></i> Save
       </button>
+
+      <!-- Discard: resets diff back to original generated code -->
       <button class="btn btn-sm btn-error btn-outline"
         @click.stop="discardChanges"
         v-if="showDiff && hasChanges"
         title="Discard changes">
         <i class="fa-solid fa-xmark"></i> Discard
       </button>
+
+      <!-- Reset local edits (patch / manual edit) back to AI-generated prop -->
+      <button class="btn btn-sm btn-ghost btn-outline"
+        @click.stop="resetLocalChanges"
+        v-if="hasLocalChanges"
+        title="Reset to original AI-generated code">
+        <i class="fa-solid fa-rotate-left"></i> Reset
+      </button>
+
       <button class="btn btn-sm btn-error btn-outline"
         @click.stop="$emit('close')"
         v-if="close"
@@ -120,16 +161,28 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
       <!-- Danger alert for heavy modifications -->
       <div v-if="isDangerousChange && !editMode && !showDiff" class="alert alert-warning">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
+        </svg>
         <span class="text-sm">
           <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
         </span>
       </div>
 
+      <!-- Patch loading overlay -->
+      <div v-if="isApplyingPatch" class="alert alert-info">
+        <span class="loading loading-spinner loading-sm"></span>
+        <span class="text-sm">Applying AI patch, please wait…</span>
+      </div>
+
       <!-- view-code grows to fill all available vertical space -->
       <div class="view-code grow overflow-auto">
         <div :style="{ zoom, height: `${editorHeight}px` }">
-          <!-- File diff view: original on disk vs generated code (editable) -->
+
+          <!--
+            Diff view: compares orgContent (on-disk) vs effectiveCode (generated/patched/edited).
+            diffEditContent is two-way so user edits inside the diff editor are captured.
+          -->
           <Editor
             :diff="true"
             :originalCode="orgContent"
@@ -139,7 +192,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="showDiff && !editMode && orgContent"
           />
 
-          <!-- Monaco editor: plain edit mode -->
+          <!-- Monaco plain edit mode -->
           <Editor
             v-model="editContent"
             :fileName="file"
@@ -148,18 +201,18 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="editMode"
           />
 
-          <!-- Syntax highlighted read-only view -->
+          <!-- Syntax-highlighted read-only view -->
           <VueCodeHighlighter
             class="h-full"
-            :code="code"
+            :code="effectiveCode"
             :lang="fileLanguage"
             :title="fileName"
-            v-if="code && !editMode && !showDiff"
+            v-if="effectiveCode && !editMode && !showDiff"
           />
         </div>
       </div>
 
-      <!-- Edit mode actions -->
+      <!-- Edit mode footer -->
       <div class="flex justify-end gap-2" v-if="editMode">
         <button class="btn btn-sm btn-outline" @click="cancelEdit">
           <i class="fa-solid fa-xmark"></i> Cancel
@@ -169,7 +222,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
       </div>
 
-      <!-- Read-only view actions -->
+      <!-- Read-only / diff view footer -->
       <div class="flex justify-end gap-2" v-else>
         <button class="btn btn-sm btn-outline" @click.stop="onCopy" title="Copy">
           <i class="fa-solid fa-copy"></i> Copy
@@ -192,8 +245,8 @@ export default {
   data() {
     return {
       showDiff: false,
-      orgContent: null,
-      diffEditContent: null,
+      orgContent: null,       // Content currently on disk
+      diffEditContent: null,  // Editable right-side of the diff editor
       diff: this.fileDiff,
       zoom: 1,
       editMode: false,
@@ -207,33 +260,56 @@ export default {
       prevScrollTop: 0,
       isAtBottom: true,
       isSaving: false,
+      isApplyingPatch: false,
       deletionPercentage: 0,
       additionPercentage: 0,
       deletionCount: 0,
       additionCount: 0,
       isDangerousChange: false,
       changeRiskMessage: '',
-      isNewFile: true
+      isNewFile: true,
+      // localCode: when set, overrides the `code` prop as the "current working version"
+      // This is populated by: AI patch response, manual edits applied via Apply button
+      localCode: null
     }
   },
   computed: {
+    /**
+     * The effective code to display/save.
+     * localCode takes priority over the prop when the user has made changes
+     * (patch result, applied edits, etc.).
+     */
+    effectiveCode() {
+      return this.localCode !== null ? this.localCode : this.code
+    },
+
+    /** True when the user has a locally-modified version overriding the AI prop */
+    hasLocalChanges() {
+      return this.localCode !== null && this.localCode !== this.code
+    },
+
     editorHeight() {
-      const lineCount = this.code?.split("\n").length || 10
+      const lineCount = this.effectiveCode?.split("\n").length || 10
       const estimated = Math.max(lineCount * 20, 200)
       return Math.min(estimated, 600)
     },
+
     isStreaming() {
       return !this.finished && this.code
     },
+
     isPatch() {
       return this.language === 'diff'
     },
+
     fileName() {
       return this.file?.split('/').reverse()[0]
     },
+
     isCommand() {
       return this.language === 'bash'
     },
+
     isNoChange() {
       if (!this.stats) return false
       const insertMatch = this.stats.match(/(\d+) insertion/)
@@ -241,30 +317,33 @@ export default {
       if (!insertMatch || !deleteMatch) return false
       return parseInt(insertMatch[1]) === parseInt(deleteMatch[1])
     },
+
     fileLanguage() {
       if (this.language) {
-        if (hljs.getLanguage(this.language)) {
-          return this.language
-        }
+        if (hljs.getLanguage(this.language)) return this.language
       }
       const ext = this.file?.split('.').reverse()[0]
-      if (ext) {
-        return EXTENSION_LANGUAGE_MAP[ext] || ext
-      }
+      if (ext) return EXTENSION_LANGUAGE_MAP[ext] || ext
       return 'markdown'
     },
+
+    /** True if the diff editor right-side diverges from effectiveCode */
     hasChanges() {
-      return this.diffEditContent !== this.code
+      return this.diffEditContent !== this.effectiveCode
     },
+
     $api() {
       return (this.project?.$api || this.$storex.api)
+    },
+
+    lastLine() {
+      return this.code?.split("\n").reverse()[0]
     }
   },
   watch: {
     async finished() {
       if (this.finished) {
         await this.loadDiffInfo()
-        // Show diff by default for existing files when generation is done
         if (!this.isNewFile && this.stats && !this.isNoChange) {
           this.showDiff = true
         }
@@ -300,12 +379,37 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
+    /**
+     * Central method for all user-initiated code changes.
+     * Stores the new version in localCode and opens the diff view so the
+     * user can review, further edit, or discard before saving.
+     *
+     * Sources that call this:
+     *   - applyPatchFromAI  (AI patch result)
+     *   - applyMessageChange (manual Monaco edit)
+     */
+    applyUserChange(newContent) {
+      if (!newContent) return
+      this.localCode = newContent
+      // Show diff: orgContent (disk) vs newContent (user/AI change)
+      this.diffEditContent = newContent
+      this.editMode = false
+      this.showDiff = !!this.orgContent
+      this.hasUnsavedFileChanges = true
+    },
+
+    /** Resets localCode back to the original AI-generated prop value */
+    resetLocalChanges() {
+      this.localCode = null
+      this.diffEditContent = this.code
+      this.hasUnsavedFileChanges = false
+      this.showDiff = !!this.orgContent && !this.isNoChange
+    },
+
     parseStatsString() {
       if (!this.stats) return { deletions: 0, insertions: 0 }
-      
       const deleteMatch = this.stats.match(/(\d+) deletion/)
       const insertMatch = this.stats.match(/(\d+) insertion/)
-      
       return {
         deletions: deleteMatch ? parseInt(deleteMatch[1]) : 0,
         insertions: insertMatch ? parseInt(insertMatch[1]) : 0
@@ -314,57 +418,42 @@ export default {
 
     calculateDiffPercentages() {
       if (!this.stats || !this.orgContent) return
-      
       const { deletions, insertions } = this.parseStatsString()
       const total = deletions + insertions
-      
       this.deletionCount = deletions
       this.additionCount = insertions
-      
       if (total === 0) {
         this.deletionPercentage = 0
         this.additionPercentage = 0
         return
       }
-      
       this.deletionPercentage = (deletions / total) * 100
       this.additionPercentage = (insertions / total) * 100
-      
       this.evaluateChangeRisk()
     },
 
     evaluateChangeRisk() {
       const { deletions, insertions } = this.parseStatsString()
       const originalLines = this.orgContent?.split('\n').length || 1
-      const newLines = this.code?.split('\n').length || 1
-      
+      const newLines = this.effectiveCode?.split('\n').length || 1
       const deletionRatio = deletions / originalLines
       const lineChangeRatio = Math.abs(newLines - originalLines) / originalLines
       const totalChanges = deletions + insertions
       const changeIntensity = totalChanges / originalLines
-      
       const DANGEROUS_DELETION_RATIO = 0.4
       const DANGEROUS_INTENSITY = 0.5
       const DANGEROUS_LINE_LOSS = 0.3
-      
       const isDeletion = deletionRatio > DANGEROUS_DELETION_RATIO
       const isHighIntensity = changeIntensity > DANGEROUS_INTENSITY
       const isLineLoss = lineChangeRatio > DANGEROUS_LINE_LOSS && deletions > insertions
-      
       this.isDangerousChange = isDeletion || isHighIntensity || isLineLoss
       this.changeRiskMessage = this.generateRiskMessage(deletionRatio, changeIntensity, lineChangeRatio, deletions, insertions)
     },
 
     generateRiskMessage(delRatio, intensity, lineRatio, deletions, insertions) {
-      if (delRatio > 0.4) {
-        return `${(delRatio * 100).toFixed(0)}% of original content deleted. Critical review recommended.`
-      }
-      if (lineRatio > 0.3 && deletions > insertions) {
-        return `File lost ~${Math.round(lineRatio * 100)}% of its content. Check if changes are intentional.`
-      }
-      if (intensity > 0.5) {
-        return `Over 50% of file modified. This may indicate significant structural changes.`
-      }
+      if (delRatio > 0.4) return `${(delRatio * 100).toFixed(0)}% of original content deleted. Critical review recommended.`
+      if (lineRatio > 0.3 && deletions > insertions) return `File lost ~${Math.round(lineRatio * 100)}% of its content. Check if changes are intentional.`
+      if (intensity > 0.5) return `Over 50% of file modified. This may indicate significant structural changes.`
       return 'High modification level detected.'
     },
 
@@ -372,8 +461,36 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
 
+    /**
+     * Calls the backend patch API which returns a fully-resolved file content.
+     * The result is treated as a user change: shown in diff view for validation.
+     */
+    async applyPatchFromAI() {
+      if (!this.file || this.isApplyingPatch) return
+      try {
+        this.isApplyingPatch = true
+        const response = await this.$api.run.patch({
+          file_path: this.file,
+          partial_content: this.effectiveCode
+        })
+        if (response?.content) {
+          // Route through applyUserChange so the diff view opens for review
+          this.applyUserChange(response.content)
+        } else {
+          console.warn('Patch API returned no content', response)
+        }
+      } catch (error) {
+        console.error('Error applying patch from AI:', error)
+        this.$ui?.showNotification?.({
+          type: 'error',
+          message: 'Failed to apply patch: ' + (error?.message || 'Unknown error')
+        })
+      } finally {
+        this.isApplyingPatch = false
+      }
+    },
+
     toggleView() {
-      if (this.isNoChange) return
       this.showDiff = !this.showDiff
     },
 
@@ -381,23 +498,32 @@ export default {
       try {
         this.loadingStats = true
         if (this.file) {
-          const { diff, stats, last_modification, size } = await this.$api.files.diff({ path: this.file, content: this.code })
+          const { diff, stats, last_modification, size } = await this.$api.files.diff({
+            path: this.file,
+            content: this.effectiveCode
+          })
           this.diff = diff
           this.stats = stats
           this.last_modification = last_modification
           this.size = size
-          if (!stats && diff) {
-            this.stats = 'File changes'
+          if (!stats && diff) this.stats = 'File changes'
+
+          // Read current on-disk content
+          let content = ""
+          try {
+            const { content: fileContent } = await this.$api.files.read(this.file)
+            content = fileContent
+            this.isNewFile = !fileContent
+          } catch (ex) {
+            console.error(ex)
+            this.isNewFile = true
           }
-          
-          // Determine if file is new
-          const { content } = await this.$api.files.read(this.file)
-          this.isNewFile = !content
-          
+
           if (!this.orgContent) {
             this.orgContent = content
           }
-          this.diffEditContent = this.code
+          // Seed the diff editor with effectiveCode (AI or patched version)
+          this.diffEditContent = this.effectiveCode
           this.calculateDiffPercentages()
         }
       } finally {
@@ -410,7 +536,8 @@ export default {
         this.cancelEdit()
         return
       }
-      this.editContent = this.code
+      // Pre-populate editor with the effective (possibly patched) code
+      this.editContent = this.effectiveCode
       this.editMode = true
       this.showDiff = false
       this.hasUnsavedFileChanges = false
@@ -426,57 +553,67 @@ export default {
       this.hasUnsavedFileChanges = true
     },
 
+    /**
+     * User clicks "Apply" in edit mode.
+     * Stores edits as localCode and opens diff view for final review.
+     */
     applyMessageChange() {
-      this.$emit('message-change', { orgContent: this.code, newContent: this.editContent })
-      this.hasUnsavedFileChanges = true
+      this.$emit('message-change', { orgContent: this.effectiveCode, newContent: this.editContent })
+      // Treat the manual edit as a user change → show diff
+      this.applyUserChange(this.editContent)
       this.cancelEdit()
     },
 
+    /**
+     * Discards diff editor changes: resets right-side back to effectiveCode.
+     * Does NOT clear localCode – the patched/edited version is kept.
+     */
     discardChanges() {
-      this.diffEditContent = this.code
+      this.diffEditContent = this.effectiveCode
       this.showDiff = false
     },
 
     async saveToFile() {
       this.triggerSaveAnimation()
-      const content = this.isNewFile ? this.code : 
-        (this.editMode ? this.editContent : this.diffEditContent)
+      // Determine what to save: diff-editor edits > localCode > original AI code
+      let content
+      if (this.editMode && this.editContent) {
+        content = this.editContent
+      } else if (this.showDiff && this.diffEditContent) {
+        // User may have further edited in the diff view
+        content = this.diffEditContent
+      } else {
+        content = this.effectiveCode
+      }
       this.$emit('save-file', { file: this.file, content })
       this.hasUnsavedFileChanges = false
-      if (this.editMode) {
-        this.cancelEdit()
-      }
+      if (this.editMode) this.cancelEdit()
       this.showDiff = false
+      // After saving, clear localCode so we're back in sync with the prop
+      this.localCode = null
       await this.loadDiffInfo()
     },
 
     triggerSaveAnimation() {
       this.isSaving = true
-      setTimeout(() => {
-        this.isSaving = false
-      }, 800)
+      setTimeout(() => { this.isSaving = false }, 800)
     },
 
     runCommand() {
       this.$storex.api.apps.runScript(this.code)
     },
 
-    zoomOut() {
-      this.zoom -= 0.1
-    },
-
-    zoomIn() {
-      this.zoom += 0.1
-    },
+    zoomOut() { this.zoom -= 0.1 },
+    zoomIn()  { this.zoom += 0.1 },
 
     onCopy() {
-      this.$ui.copyTextToClipboard(this.code)
+      this.$ui.copyTextToClipboard(this.effectiveCode)
     },
 
     createSubTask() {
       const content = [
         '```' + this.fileLanguage + ' ' + this.file,
-        this.code,
+        this.effectiveCode,
         '```'
       ].join('\n')
       this.$emit('sub-task', { file: this.file, content })
@@ -502,12 +639,8 @@ export default {
 }
 
 @keyframes blink-animation {
-  0%, 49% {
-    opacity: 1;
-  }
-  50%, 100% {
-    opacity: 0.4;
-  }
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.4; }
 }
 
 .blink-save {

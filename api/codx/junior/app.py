@@ -246,7 +246,7 @@ async def api_run_improve(chat: Chat, request: Request):
 @app.post("/api/run/improve/patch")
 async def api_run_improve_patch(data: dict, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.apply_patch(patch=data["patch"])
+    return await codx_junior_session.generate_full_file_content(file_path=data["file_path"], partial_content=data["partial_content"])
 
 @app.get("/api/run/changes/summary")
 def api_changes_summary(request: Request):
