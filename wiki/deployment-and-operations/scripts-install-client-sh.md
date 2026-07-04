@@ -1,29 +1,19 @@
-# Client Installation and Deployment
+# Client Deployment and Operations
 
-The client installation script is part of the `codx-junior` project and is designed to handle environment configuration, dependency management, and application building.
+The client installation process is managed through a automated script designed to configure the environment and prepare the application for production.
 
-## Overview
-This process automates the setup of the client environment by dynamically determining the project path, loading environment variables, and compiling the client application.
+## Environment Configuration
+The deployment process initializes the environment using the following steps:
+* **Path Definition**: The `CODX_JUNIOR_PATH` is dynamically set to the parent directory of the script location.
+* **Environment Sourcing**: The script executes `set_env.sh` to load required variables.
+* **Dependency Setup**: Calls `codx nodejs` and configures the Node Version Manager (NVM) by sourcing `$NVM_DIR/nvm.sh` and `bash_completion`.
 
-## Prerequisites and Environment Setup
-The script performs the following initialization steps:
-*   **Path Configuration:** Dynamically sets the `CODX_JUNIOR_PATH` to the parent directory of the script.
-*   **Environment Loading:** Sources the `set_env.sh` file to load necessary project configurations.
-*   **Node.js Initialization:** Invokes the `codx nodejs` command and initializes `nvm` (Node Version Manager) to manage the runtime environment.
+## Compilation Process
+To ensure a clean build environment, the script performs the following operations within the `client` directory:
+1. **Cleanup**: Removes existing `node_modules` and `dist` directories to prevent mapping issues.
+2. **Node Versioning**: Installs and switches to Node.js version `v24.12.0`.
+3. **Build**: Executes `npm i` to install dependencies followed by `npm run build-only` to generate the production build.
 
-## Installation Process
-The installation steps occur within the `client` directory of the project:
-
-1.  **Cleanup:** To prevent issues related to folder mapping, the script forces a clean state by removing existing `node_modules` and `dist` directories.
-2.  **Runtime Installation:** The script installs Node.js version `v24.12.0` using `nvm`. Note that the script documentation mentions that v25 requires extra dependencies on Debian/Ubuntu systems.
-3.  **Dependency Management:** Executes `npm i` to install the project dependencies.
-4.  **Compilation:** Runs `npm run build-only` to compile the client application.
-
-## Maintenance Notes
-*   The script contains a workaround regarding the removal of `node_modules` and `dist` folders to resolve issues with directory mapping. This is marked as a temporary measure intended for future removal.
-
-***
-
-**References**
-*   [Project: codx-junior]
-*   [Category: Deployment and Operations]
+### References
+* **Category**: Deployment and Operations
+* **Keywords**: deployment, operations, scripts, maintenance

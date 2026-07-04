@@ -1,32 +1,36 @@
-# VNC Application Deployment Script
+# VNC Application Deployment Tool
 
 ## Overview
-This script facilitates the deployment and operation of applications within a virtual VNC environment. It automates the creation of a virtual display and initiates the specified application process.
+This utility is designed for the deployment and operational maintenance of applications requiring a virtual display environment. It automates the initiation of VNC streaming sessions for specified applications.
 
 ## Usage
-To execute the script, use the following command structure:
+The script requires three mandatory parameters to function correctly. Execute the script using the following command structure:
 
-`./vnc_app.sh -c <command> -n <name> -d <display_number>`
+`./vnc_app.sh -c|--command <command> -n|--name <name> -d|--display <display_number>`
 
 ### Parameters
-| Parameter | Description | Required |
-| :--- | :--- | :--- |
-| `-c`, `--command` | The command to be executed for the application. | Yes |
-| `-n`, `--name` | The name of the application being deployed. | Yes |
-| `-d`, `--display` | The virtual display number (e.g., `1` for `:1`). | Yes |
+*   **-c | --command**: Specifies the command to be executed for the application.
+*   **-n | --name**: Defines the name of the application being deployed.
+*   **-d | --display**: Sets the virtual display number (e.g., passing '1' will result in display `:1`).
 
 ## Operational Workflow
-The script performs the following operations:
-1. **Argument Parsing**: Processes input flags to configure the command, application name, and display settings.
-2. **Validation**: Ensures all required parameters are provided before proceeding.
-3. **Display Configuration**: Sets the `DISPLAY` environment variable to the specified virtual display.
-4. **Initialization**: Launches the `vncserver` using the defined display, restricts access to localhost, and sets the `xstartup` configuration to the provided command.
+1.  **Input Parsing**: The script processes the provided arguments to identify the application name, execution command, and target display.
+2.  **Validation**: It verifies that all required parameters are provided before proceeding.
+3.  **Environment Setup**: It exports the `DISPLAY` variable using the provided display number.
+4.  **Execution**: It initializes the `vncserver` with the following configuration:
+    *   `-localhost yes`: Restricts VNC access to the local machine.
+    *   `-xstartup`: Configures the server to run the specified application command upon startup.
+5.  **Confirmation**: Upon successful execution, the script outputs the application name, the display utilized, and the associated window ID.
 
-## Maintenance and Deployment
-As defined in the project scope, this tool is categorized under **Deployment and Operations**. It is designed to maintain consistent application environments by isolating processes within virtual displays.
+## Requirements
+*   The script must be provided with a command, an application name, and a display number to prevent termination. 
+*   If any required parameter is missing, the script will output the correct usage syntax and exit with a status of 1.
 
-***
+---
 
-**References**
-* [Document: codx-junior /scripts/tools/vnc_app.sh]
-* [Category: Deployment and Operations]
+### References
+*   Document Project: `codx-junior`
+*   Category: `Deployment and Operations`
+*   Keywords: `deployment`, `operations`, `scripts`, `maintenance`
+
+[https://github.com/codx-junior/scripts/blob/main/tools/vnc_app.sh](https://github.com/codx-junior/scripts/blob/main/tools/vnc_app.sh)

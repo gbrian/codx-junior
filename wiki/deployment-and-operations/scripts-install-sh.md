@@ -1,32 +1,28 @@
 # Deployment and Operations: Installation Script
 
-The installation script is designed to automate the deployment and maintenance processes for the codx-junior project. It ensures the environment is correctly configured and that the specified applications are installed.
+The installation script facilitates the deployment and maintenance of the `codx-junior` project by automating user environment configuration and application installation.
 
 ## Prerequisites
-Before executing the script, the environment must be configured. The script relies on the `set_env.sh` file, which is sourced at the beginning of the process to load necessary `.env` variables.
+Before executing the script, the environment variables must be loaded using the `set_env.sh` script located in the `CODX_JUNIOR_PATH`.
 
-## User and Group Configuration
-The script includes functionality to synchronize system user and group IDs to ensure file permissions are correctly maintained within the deployment environment:
+## Functionality
 
-* **User ID:** If the `$USER_ID` variable is provided, the script updates the `codx-junior` user ID using `usermod`.
-* **Group ID:** If the `$USER_GROUP` variable is provided, the script updates the `codx-junior` group ID using `groupmod`.
-* **Permissions:** Once the IDs are set, the script recursively updates ownership of the user's home directory and the API virtual environment (`$CODX_JUNIOR_API_VENV`) to the `codx-junior` user.
+### User Identity Management
+The script ensures that the `codx-junior` system user and group IDs align with the environment configuration:
+* **User ID**: If `USER_ID` is defined, the script updates the user ID for `codx-junior`.
+* **Group ID**: If `USER_GROUP` is defined, the script updates the group ID for `codx-junior`.
+* **Permissions**: Ownership of the home directory and the API virtual environment (`CODX_JUNIOR_API_VENV`) is recursively assigned to the `codx-junior` user.
 
-## Installation Process
-The script initializes by displaying a project logo, then proceeds to install applications based on the `$CODX_JUNIOR_APPS` variable.
+### Application Installation
+The script iterates through the apps defined in the `CODX_JUNIOR_APPS` variable and executes the corresponding installation logic:
 
-### Supported Applications
-The script iterates through the list defined in `$CODX_JUNIOR_APPS` and triggers the corresponding installation script for each recognized application:
+* **client**: Executes `install_client` by running `scripts/install_client.sh`.
+* **api**: Executes `install_api` by running `scripts/install_api.sh`.
+* **Other**: Any undefined application name results in an "Unknown app" warning.
 
-* **client:** Executes `install_client.sh` to install the web client.
-* **api:** Executes `install_api.sh` to install the API.
+## Error Handling
+* The script is configured to stop execution immediately if any command fails (`set -e`).
+* Logging is provided via standard `log_info` and `log_error` helper functions to track the installation progress.
 
-If an entry in `$CODX_JUNIOR_APPS` does not match these categories, the script logs an "Unknown app" error.
-
-## Operational Safety
-* **Error Handling:** The script is configured with `set -e`, meaning it will terminate execution immediately if any command returns a non-zero exit status.
-* **Logging:** Standardized logging functions (`log_info` and `log_error`) are available for monitoring the progress and debugging potential issues during the installation process.
-
----
-### References
-* [codx-junior/scripts/install.sh](https://github.com/codx-junior/scripts/install.sh)
+## Initialization
+The script initiates the process by displaying the project logo via `scripts/logo.sh` and logs the status of the installation to the console.

@@ -1,11 +1,10 @@
-# Project Overview: codx-junior
+# Project Overview: Codx-Junior
 
 ## Purpose
-The project identified as `codx-junior` is represented by the stylized ASCII logo provided in the project documentation. The logo serves as the primary visual identifier for the project's codebase.
+The Codx-Junior project is represented by the stylized ASCII logo presented in the project documentation. The logo serves as the primary visual identifier for the architecture and purpose of this specific codebase.
 
 ## Architecture
-The project architecture, as indicated by the structural representation within the document, centers around the `codx-junior` namespace. The visual identity established in the `logo.sh` file establishes the project's branding and is designed for terminal-based output.
+The architectural identity of the project is defined by the header found in the project's scripting resources. The logo displays the project name "Codx-Junior" with a distinct typographic style, signaling the foundational structure of the repository.
 
-## References
-*   Project Overview: `codx-junior`
-*   Source: `/scripts/logo.sh`
+### References
+*   Project Overview: `scripts/logo.sh`

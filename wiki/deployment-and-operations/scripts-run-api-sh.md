@@ -1,36 +1,38 @@
-# API Deployment and Operations
+# Deployment and Operations: API Execution Script
 
-This script manages the lifecycle and execution of the FastAPI application for the codx-junior project.
+This documentation outlines the functionality and deployment requirements for the API execution script within the `codx-junior` project.
 
 ## Overview
-The deployment process handles environment initialization, dependency management, and server execution.
+The script serves as the primary entry point for launching the FastAPI application. It handles path configuration, environment sourcing, dependency management, and process execution.
 
-## Operational Workflow
+## Configuration and Environment Setup
+*   **Path Resolution**: The script dynamically determines the `CODX_JUNIOR_PATH` by identifying the parent directory of the script location.
+*   **Environment Variables**: It initializes the environment by sourcing `set_env.sh` from the base project directory.
+*   **Python Path**: The `PYTHONPATH` is explicitly set to the `/api` directory to ensure proper module resolution.
 
-### Initialization
-*   **Path Configuration**: The script dynamically determines the `CODX_JUNIOR_PATH` by identifying the parent directory of the script location.
-*   **Environment Setup**: It sources the `set_env.sh` file to load project-specific configurations.
-*   **Python Path**: The `PYTHONPATH` is explicitly set to the project's `api` directory.
+## Dependency Management
+The script verifies the existence of the virtual environment defined by `CODX_JUNIOR_API_VENV`. If the directory structure is missing, it automatically triggers the `install_api.sh` script to perform the installation. Once verified, it activates the virtual environment using the standard `bin/activate` path.
 
-### Dependency Management
-*   **Virtual Environment Validation**: Before starting the service, the script verifies if the virtual environment exists at the location defined by `CODX_JUNIOR_API_VENV`.
-*   **Automated Installation**: If the virtual environment directory is missing, the script automatically triggers the `install_api.sh` script to set up the environment.
-
-### Permissions
-Prior to launching the application, the script ensures the current user has ownership of the following directories:
+## Operational Permissions
+Prior to launching the application, the script ensures that the current user has ownership over the configuration and project storage directories to prevent permission errors during runtime:
 *   `CODX_JUNIOR_CONFIG_FOLDER`
 *   `CODX_JUNIOR_PROJECTS_PATH`
 
-### Execution Modes
-The FastAPI application is executed using `uvicorn`. The behavior is determined by the following logic:
+## Execution and Modes
+The API is launched using `uvicorn`. The behavior changes based on provided configuration variables:
 
-*   **Port Selection**: 
-    *   If `CODX_JUNIOR_API_BACKGROUND` is set, the application uses `CODX_JUNIOR_API_PORT_BACKGROUND`.
-    *   Otherwise, it defaults to `CODX_JUNIOR_API_PORT`.
-*   **Debug Mode**:
-    *   **Debug Enabled**: Runs with `--reload` enabled.
-    *   **Debug Disabled (Production)**: Runs with multiple workers (defaulting to 4 or the value of `WEB_CONCURRENCY`).
+### Port Selection
+*   If `CODX_JUNIOR_API_BACKGROUND` is set, the API uses the port defined by `CODX_JUNIOR_API_PORT_BACKGROUND`.
+*   Otherwise, it defaults to `CODX_JUNIOR_API_PORT`.
 
-## References
-*   **Category**: Deployment and Operations
-*   **Keywords**: deployment, operations, scripts, maintenance
+### Launch Modes
+*   **Production Mode**: Executed when `DEBUG` is empty. It runs with multiple workers (defaulting to 4 if `WEB_CONCURRENCY` is not set) on host `0.0.0.0`.
+*   **Debug Mode**: Executed when `DEBUG` is active. It enables the `--reload` feature for development convenience.
+
+---
+
+### Reference Documentation
+*   **Project Path**: `CODX_JUNIOR_PATH`
+*   **Environment Config**: `set_env.sh`
+*   **Dependency Script**: `/scripts/install_api.sh`
+*   **Application Entry Point**: `codx.junior.main:app`

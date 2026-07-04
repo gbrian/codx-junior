@@ -1,23 +1,18 @@
-# Project Configuration: codx-junior
+# Developer Settings Configuration
 
-## Overview
-This documentation outlines the editor settings applied to the **codx-junior** project, specifically focusing on workbench behavior and language-specific formatting.
+This documentation outlines specific configurations applied to the coding environment settings.
 
-## Settings Configuration
+## General Editor Behavior
 
-### Editor and Workbench Preferences
-*   **Auto-Save Behavior:** The `files.autoSaveDelay` is configured to 60,000 milliseconds (60 seconds).
-*   **Visual Theme:** The `workbench.colorTheme` is set to "Default Dark+".
-*   **AI Features:** AI features are explicitly disabled via the `chat.disableAIFeatures` setting.
+*   **Auto-Save Delay:** The automatic delay before files are saved is set to 60000 milliseconds (Referenced by `files.autoSaveDelay`).
+*   **Color Theme:** The primary workspace color theme is configured to "Default Dark+" (Referenced by `workbench.colorTheme`).
 
-### Language-Specific Configurations
-*   **Vue:** The project utilizes `Vue.volar` as the default formatter for files associated with the Vue language extension.
+## AI and Chat Functionality
 
-## References
-*   **Project:** codx-junior
-*   **Category:** Database and Data Storage
+*   **Disable AI Features:** AI features within the chat functionality are disabled, ensuring that these advanced features are not active upon startup (Referenced by `chat.disableAIFeatures`).
 
----
+## Language-Specific Settings
 
-**Link Preview**
-[codx-junior/code-server/User/settings.json](https://github.com/codx-junior/code-server/User/settings.json)
+Settings for Vue files (`[vue]`) dictate specialized formatting rules:
+
+*   **Default Formatter:** For any file identified as Vue, the specified default formatter is "Vue.volar" (Referenced by `editor.defaultFormatter` within the `[vue]` block).

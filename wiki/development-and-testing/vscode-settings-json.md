@@ -1,30 +1,25 @@
-# Development and Testing Environment Configuration
+## Project Configuration Settings
 
-This project is configured for development and testing using the following settings.
+This section outlines various development and environment configurations for testing, database connections, and code linting tools.
 
-## Testing Configuration
-The project uses `pytest` as the primary testing framework. 
-- **Pytest:** Enabled (`python.testing.pytestEnabled`: `true`).
-- **Unittest:** Disabled (`python.testing.unittestEnabled`: `false`).
-- **Unittest Arguments:** Although `unittest` is disabled, the configuration specifies parameters for test discovery:
-    - Verbose mode (`-v`)
-    - Search directory: `./tests`
-    - Pattern matching: `*test*.py`
+### Development and Testing Tools
 
-## SQL Tools
-The project utilizes the `sqltools` extension for database management.
-- **Node Runtime:** Enabled (`sqltools.useNodeRuntime`: `true`).
-- **Database Connection:** 
-    - **Name:** `app-ng-mro`
-    - **Driver:** `SQLite`
-    - **Preview Limit:** 50 records
-    - **Database Path:** `/shared/app-ng-mro/.vscode/.codx/db/shared-app-ng-mro/chroma.sqlite3`
+Configuration options govern Python testing frameworks:
+*   **Pytest:** Python testing using Pytest is enabled (`"python.testing.pytestEnabled": true`).
+*   **Unittest:** Use of unittest is explicitly disabled (`"python.testing.unittestEnabled": false`).
+*   **Unit Test Arguments:** If unit tests were run, detailed arguments are set: `["-v", "-s", "./tests", "-p", "*test*.py"]` (`"python.testing.unittestArgs"`).
 
-## Development Tools
-- **Pylint:** The working directory for the Pylint linter is set to `${workspaceFolder}/api`.
+### Database Connectivity (SQLTools)
 
-***
+The environment defines settings for SQL tools and connections:
+*   **Runtime:** The connection must use the Node runtime, indicated by `"sqltools.useNodeRuntime": true`.
+*   **Connection Definition:** A specific SQLite connection is configured:
+    *   **Name:** `app-ng-mro` (`"name"`).
+    *   **Driver:** SQLite (`"driver": "SQLite"`).
+    *   **Target Database Path:** `/shared/app-ng-mro/.vscode/.codx/db/shared-app-ng-mro/chroma.sqlite3` (`"database"`).
+    *   **Preview Limit:** The preview limit is set to 50 (`"previewLimit"`).
 
-**References**
-- Document Category: Development and Testing
-- Project: codx-junior
+### Code Linting (Pylint)
+
+The current working directory for Pylint analysis is set to the project's API folder:
+*   `pylint.cwd`: `${workspaceFolder}/api`

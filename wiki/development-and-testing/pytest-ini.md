@@ -1,13 +1,15 @@
-# Development and Testing Environment Configuration
+# Development and Testing Configuration
 
-This project utilizes `pytest` as its primary testing framework. To ensure proper module resolution during test execution, the configuration defines a specific search path.
+## Overview
+This project uses `pytest` as its primary testing framework. To ensure proper module resolution during test execution, the configuration defines specific paths for the Python interpreter.
 
-## Test Environment Setup
+## Configuration Details
+The testing environment is configured to include the `api` directory in the Python search path. This allows test suites to correctly import and interact with the application logic located within the `api` module.
 
-The testing environment is configured to include the `api` directory in the Python search path. This ensures that the test runner correctly locates and imports modules contained within the `api` component of the project.
+### Settings
+- **Python Path**: The configuration explicitly sets `pythonpath = api` to ensure that the internal API structure is accessible to the test runner.
 
-### Configuration Details
-- **Tool:** pytest
-- **Python Path:** `api`
+***
 
-For further details on this configuration, refer to the project's internal testing setup documentation.
+**References**
+- [Development and Testing] project="codx-junior" file="/pytest.ini"

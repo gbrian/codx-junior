@@ -1,57 +1,59 @@
 # Welcome to the Codx-Junior Project
 
-Codx-Junior is a comprehensive platform designed to streamline development workflows and automate operational tasks. This project integrates advanced AI capabilities with robust backend infrastructure to provide a seamless development experience.
+Codx-Junior is a comprehensive platform designed to streamline development workflows and automate operational tasks. This project integrates advanced AI capabilities with robust backend infrastructure to provide a seamless and highly standardized software engineering experience.
 
-## Project Overview
-The Codx-Junior architecture is built around several core pillars:
-*   **Intelligent Agent Framework**: Leveraging specialized AI agents (DevOps, Git Issues, and Base Agent) to assist with complex software engineering workflows.
-*   **Knowledge Management**: A robust system for processing, storing, and retrieving technical knowledge using advanced embeddings and document enrichment techniques.
-*   **Automation & Operations**: A dedicated CLI-driven system for managing deployments, process lifecycles, and real-time monitoring.
-*   **Infrastructure & Networking**: A modern service orchestration layer utilizing **Traefik** as a reverse proxy for automated service discovery and secure inter-container communication.
+## 🏛️ Project Overview
+The Codx-Junior architecture is built around several core, interconnected pillars:
+*   **Intelligent Agent Framework**: Utilizing specialized AI agents (DevOps, Git Issues, and Base Agent) to assist with complex software workflows, automating tasks from code generation to deployment preparation.
+*   **Knowledge Management System**: A robust system for ingesting, processing, storing, and retrieving technical knowledge using advanced embeddings, document chunking techniques, and vector databases (e.g., Milvus).
+*   **Automation & Operations**: A dedicated CLI-driven system overseeing process lifecycles, deployments across containers, and real-time monitoring via a standardized operational layer.
+*   **Infrastructure & Networking**: A modern service orchestration layer that utilizes **Traefik** as the automated reverse proxy for seamless service discovery and secure inter-container communication.
 
-## AI Model Configuration
-The platform utilizes the **Qwen2.5-7B-Instruct** model to drive its intelligent features, optimized for high-quality text generation, balanced sampling, and high-performance inference within the `codx-junior` ecosystem.
+## 🤖 AI Model Configuration
+The platform is powered by industry-leading AI models, primarily utilizing **Qwen2.5-7B-Instruct** for high-quality, balanced text generation, while also providing modular support for other accelerators like VLLM (optimized for CPU/GPU targeting) and OpenAI API integration, ensuring maximum flexibility for advanced NLP tasks within the `codx-junior` ecosystem.
 
-## Development Environment
-To ensure a consistent development experience, the project provides:
-*   **Environment Configuration**: Centralized management via `set_env.sh` and standardized documentation, which serves as the single source of truth for environment variables (e.g., API ports and VLLM target devices), workspace paths, and authentication.
-*   **Standardized Tooling**: Support for headless browser automation, containerized GUI rendering, and automated initialization of client and API components.
-*   **Workspace Templates**: Standardized folder structures to ensure seamless container orchestration.
-*   **Repository Standards**: Strict exclusion rules to maintain clean repositories by ignoring build artifacts, temporary metadata, and sensitive environment data.
+## ⚙️ Development Environment & Setup
+To ensure ultimate consistency and stability across all development instances, we mandate a highly standardized environment setup. The use of `set_env.sh` is the single source of truth for initialization.
 
----
+**Key Operational Standards:**
+*   **Environment Stability**: All deployments require strict environmental configuration checks (e.g., ensuring correct locale settings like `LANG=en_US:en`) before execution begins to guarantee repeatable and predictable behavior across operating system boundaries.
+*   **Key Management Principle ⚠️**: Critical credentials, such as API keys (`CODX_JUNIOR_LLMFACTORY_KEY`), **must never be hardcoded**. They must always be dynamically sourced from the external runtime environment variables for security best practices.
+*   **Path Initialization**: Environment paths are established reliably by prioritizing existing OS variables and falling back to defined default values, guaranteeing that internal modules can locate dependencies regardless of execution context.
 
-### 🚨 Key Updates (V5.6.0)
-*   **Configuration & Documentation Alignment**: Documentation is now systematically refined to ensure high traceability, linking environment variables directly to the project configuration document, and providing clear mapping for VLLM device targets and log storage paths.
-*   **Workflow Integration**: Image building and container management have been generalized to support dynamic `docker-compose` workflows.
-*   **Standardized Key Management**: `${CODX_JUNIOR_LLMFACTORY_KEY}` is now mapped to `${LITELLM_MASTER_KEY}` for secure, consistent API access.
-*   **Precision Localization**: Internationalization settings now utilize an explicit fallback hierarchy (`LANGUAGE=en_US:en`) for better Linux environment compatibility.
-*   **Dependency Management**: Shifted to `pyproject.toml` and `requirements.txt` for enhanced maintainability.
-
----
-
-## Getting Started
-To begin working with the platform, we recommend exploring the following documentation sections:
-
-1.  **Project Overview**: Understand the core philosophy and architectural design.
-2.  **Setup and Installation**: Follow the guide to initialize your environment, ensuring all `set_env.sh` exports are correctly configured.
-3.  **Deployment and Operations**: Utilize the `app.cli` interface and Traefik dashboard to manage your services.
-4.  **AI & Knowledge Management**: Learn how our agents and models integrate to provide intelligent insights.
+This rigorous standardization ensures seamless container orchestration and reproducible development experiences across all workspaces.
 
 ***
 
-### Useful Links
+### 🚨 Key Updates Since V5.6.0
+*   **Documentation & Traceability**: Documentation is continuously refined to link configuration variables directly to their sources, providing advanced traceability for both operational paths and core models.
+*   **Standardized Tooling**: Enhanced support for foundational tools like container management (`docker-compose`) and robust virtual environment handling (pyvenv).
+*   **Workflow Integration Flexibility**: Image building and dependency structures have been generalized to support dynamic deployments, enhancing maintainability.
+
+---
+
+## 🚀 Getting Started
+We recommend following this structured approach to master the platform:
+
+1.  **Startup & Configuration**: Begin by reviewing the **Setup and Installation** guide (check required system variables and execute `set_env.sh`).
+2.  **Architecture Deep Dive**: Explore the component files within dedicated modules like **App**, **Engine**, and the various AI components (`/ai/` and `/knowledge/`) to understand the "why" behind the codestructure.
+3.  **Operational Use**: Utilize the `app.cli` interface and inspect the Traefik dashboard for deploying, managing services, and observing real-time operations.
+
+***
+
+### Useful Links & Resources
 *   [GitHub Repository](https://github.com/codx-junior)
 *   [Docker Documentation](https://docs.docker.com/)
-*   [Python Virtual Environments](https://docs.python.org/3/library/venv.html)
-*   [Traefik Documentation](https://doc.traefik.io/traefik/)
-*   [LiteLLM Documentation](https://docs.litellm.ai/docs/)
+*   [Python Virtual Environments Guidance](/guides/venv)
+*   [Traefik Documentation (Reverse Proxy)](https://doc.traefik.io/traefik/)
+*   [LiteLLM Documentation (API Gateway)](https://docs.litellm.ai/docs/)
 
 ***
 
-### Links Preview
-* [Docker Documentation - Environment Variables](https://docs.docker.com/compose/environment-variables/)
-* [Traefik Proxy Documentation](https://doc.traefik.io/traefik/)
-* [Python Virtual Environments Guide](https://docs.python.org/3/library/venv.html)
-* [LiteLLM Documentation](https://docs.litellm.ai/docs/): Provides background on `LITELLM_MASTER_KEY` and how it manages API access for LLM gateways.
-* [Docker Compose Overview](https://docs.docker.com/compose/): Information on the container orchestration used for the `codx-junior` workflow.
+### Areas of Expertise: Our Core Modules
+
+| Module Area | Description | Key Components / Files |
+| :--- | :--- | :--- |
+| **AI & Knowledge Management** | The core intelligence layer, handling various agents (DevOps, Git Issues), models (OpenAI/VLLM integration), and specialized techniques for knowledge retrieval. | Agents, Models, Knowledge Processors: Code Splitters, Embeddings, Milvus Connectors |
+| **App Module** | Initializes the FastAPI application and defines its routing structure and real-time communication via Socket.IO. | `app-module` (FastAPI, Middleware) |
+| **Engine Module** | Contains the high-level business logic for project orchestration, session tracking, and resource management within the platform. | `engine-module` (Core Business Logic) |
+| **Security & Auth** | Manages user identity and access control using established protocols like GitHub OAuth. | Authentication/User Models |

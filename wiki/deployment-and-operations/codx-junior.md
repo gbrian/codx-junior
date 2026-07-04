@@ -1,40 +1,52 @@
-# CODX-Junior Deployment and Operations
+# codx-junior Deployment and Operations Guide
 
-The `codx-junior` project provides a command-line interface (CLI) script to manage the deployment, execution, and maintenance of the application.
+This document provides instructions for managing the deployment and operation of the `codx-junior` application using the provided CLI script.
 
-## Overview
-The script serves as the primary management tool for the API, client, and supervisor services. It ensures environment variables are loaded via `set_env.sh` and manages processes based on a project structure rooted in the `CODX_JUNIOR_PATH`.
+## CLI Usage
 
-## Commands
-The CLI supports the following commands, accessible via `app.cli [command]`:
+The application is managed through a central CLI interface. To view available commands, run:
+
+```bash
+./app.cli help
+```
+
+### Commands
 
 | Command | Description |
 | :--- | :--- |
-| `help` | Displays the help message containing available commands. |
-| `install` | Executes the installation process by triggering `scripts/install.sh`. |
-| `start` | Stops existing instances and runs the application (API and client). |
-| `stop` | Stops the API, client, and supervisor processes. |
-| `status` | Checks and reports the running status of processes based on PID files located in `./pids/`. |
-| `logs` | Displays the tail of specific log files. |
-| `supervisor` | Initializes and runs the supervisor service using `supervisor.conf`. |
+| `help` | Displays the help message with available commands. |
+| `install` | Executes the installation process by invoking `scripts/install.sh`. |
+| `run` / `start` | Starts the application by invoking the API and client run scripts. Note: This command automatically triggers `stop` before starting to ensure a clean state. |
+| `stop` | Stops all running application components (API, client, and supervisor processes). |
+| `status` | Checks the health of the application by inspecting PIDs stored in the `./pids/` directory. |
+| `logs [type]` | Displays the last 100 lines of a specified log file. |
+| `supervisor` | Initializes the supervisor process using the configuration at `supervisor.conf`. |
 
 ## Operations
 
+### Starting and Stopping
+The `start_codx` function performs a safe start by calling `stop_codx` first. This ensures that any existing instances of the API or client are terminated before new ones are launched via `run_api.sh` and `run_client.sh`.
+
+### Monitoring Status
+The `status` command iterates through all `.pid` files located in the `./pids/` folder. It verifies if the processes associated with these PIDs are currently active via the system `ps` command.
+
+### Accessing Logs
+To view logs, use the `logs` command followed by the log type:
+*   `api`: Displays `codx-junior-api.log`.
+*   `client`: Displays `codx-junior-web.log`.
+*   `supervisor`: Displays `supervisord.log`.
+
+Logs are tracked using the `tail -f` command, allowing for real-time monitoring of application output.
+
 ### Process Management
-The management of application processes is handled through:
-- **`stop_codx` / `kill_apps`**: Locates and terminates processes related to the API, client, and supervisor using `pgrep`. It includes a fallback to `kill -9` if a standard `kill` fails to terminate the process.
-- **`run_codx_apps`**: Launches the API and client components using defined shell scripts in the `scripts/` directory, redirecting output to log files.
-
-### Monitoring
-- **Status Check**: The `status` command iterates through files in the `./pids/` directory. It confirms if a process is active by checking the corresponding PID against the current system processes.
-- **Log Viewing**: Users can monitor logs by specifying a service type:
-    - `api`: Shows `codx-junior-api.log`.
-    - `client`: Shows `codx-junior-web.log`.
-    - `supervisor`: Shows `supervisord.log`.
-
-### Supervisor Execution
-The `run_supervisor` function manages the `supervisord` service. It ensures the necessary log folder is created and checks for root privileges. If not running as root, it attempts to switch context or execution mode; otherwise, it executes `supervisord` using the project's `supervisor.conf`.
+The system includes robust termination logic:
+1.  **Standard Kill**: Attempts to stop processes gracefully.
+2.  **Forced Kill**: If a process remains active after a standard `kill`, the script escalates to `kill -9`.
+3.  **Supervisor**: The supervisor can be run as root if the environment requires it; otherwise, it executes under the current user context.
 
 ---
+
 ### References
-- **Deployment and Operations Scripts**: The provided shell script document.
+*   **Deployment and Operations**: Primary script logic for installation, execution, and monitoring (`app.cli`).
+*   **Process Management**: `kill_pid` and `kill_apps` functions handling lifecycle operations.
+*   **Environment Configuration**: `set_env.sh` (sourced at runtime to load necessary variables).

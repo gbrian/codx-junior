@@ -1,14 +1,20 @@
 # API Restart Utility
 
 ## Overview
-This script is used for the deployment and operations of the `codx-junior` project to facilitate the maintenance of the API service.
+This script is used for maintenance tasks within the `codx-junior` project to manage the lifecycle of the API service.
 
 ## Functionality
-The script performs a forced termination of the API process to ensure a clean state during maintenance operations. It achieves this by identifying and killing any processes associated with `run_api.sh`.
+The script performs a forced termination of the API process to facilitate restarts. It identifies and kills any running instances associated with `run_api.sh` using the following command:
 
-## Usage
-The script executes a `kill -9` command on all processes matching the pattern `run_api.sh` using the `pgrep` utility.
+`kill -9 $(pgrep -f "run_api.sh")`
 
+## Category
+Deployment and Operations
+
+## Keywords
+deployment, operations, scripts, maintenance
+
+---
 ### References
-* **Category:** Deployment and Operations
-* **Keywords:** deployment, operations, scripts, maintenance
+*   **Project:** codx-junior
+*   **Category:** Deployment and Operations

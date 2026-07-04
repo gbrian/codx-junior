@@ -1,36 +1,32 @@
-# Client Deployment and Operations
+# Deployment and Operations: Client Execution
 
-The client-side deployment and maintenance of the `codx-junior` project is managed through automated shell scripts designed to ensure the correct environment configuration and application lifecycle management.
+This guide details the procedures for executing the client application within the **codx-junior** project.
 
 ## Overview
-The deployment process dynamically resolves the project path and ensures all necessary environment variables and dependencies are active before launching the client application.
+The client execution process relies on a shell script to manage environment configuration, dependency installation, and application launching.
 
 ## Prerequisites and Environment Setup
-Before starting the client, the following environment configurations are performed:
-* **Path Resolution:** The system automatically identifies the project root directory relative to the script location.
-* **Environment Loading:** The script sources `set_env.sh` to initialize project-specific environment variables.
-* **Node Version Management:** The script utilizes `nvm` (Node Version Manager) to install and use Node.js version `v24.12.0`. It also loads `nvm` bash completion for shell integration.
+The execution process performs the following automated setup steps:
+* **Path Configuration:** Automatically determines and sets the `CODX_JUNIOR_PATH` to the project's parent directory.
+* **Environment Loading:** Sources the `set_env.sh` script to configure required project variables.
+* **Node Version Management:** Utilizes `nvm` to ensure the environment is configured with **v24.12.0**.
+    * *Note:* Users on Debian/Ubuntu systems should ensure all necessary dependencies for v24+ are present on the host machine.
 
 ## Execution Modes
-The application supports two primary operational modes, which are toggled via the `DEBUG` environment variable.
+The application supports two distinct execution modes based on the presence of the `DEBUG` environment variable.
 
 ### Debug Mode
-When the `DEBUG` variable is set, the system executes in development mode:
-* **Dependency Installation:** Runs `npm install` to ensure all packages are up to date.
-* **Development Server:** Starts the client using `npm run dev`.
+When the `DEBUG` environment variable is defined, the script performs the following actions:
+1. Navigates to the `{CODX_JUNIOR_PATH}/client` directory.
+2. Executes `npm install` to ensure all dependencies are up to date.
+3. Starts the application using `npm run dev`.
 
 ### Production Mode
-When the `DEBUG` variable is not set (default), the system executes in production mode:
-* **Preview Server:** The client is started using `npm run preview`.
-
-## Operational Logs
-Upon execution, the script outputs the following diagnostic information to the console:
-* `CODX_JUNIOR_PATH`: The resolved root path of the project.
-* `USER`: The system user account executing the process.
-* `HOME`: The home directory of the current user.
-* Execution mode status (DEBUG vs. PRODUCTION).
+When the `DEBUG` environment variable is not defined, the system defaults to production mode:
+1. Navigates to the `{CODX_JUNIOR_PATH}/client` directory.
+2. Launches the application using `npm run preview`.
 
 ***
 
 ### References
-* [Deployment and Operations] - `scripts/run_client.sh`
+* [Deployment and Operations] - Script logic for environment initialization and application launching.

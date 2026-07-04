@@ -1,14 +1,16 @@
-# Project Overview: Vuefinder
+# Project Overview
 
-Vuefinder is a project designed to serve as a wiki. 
+Vuefinder is a project designed as a wiki application, leveraging the Vue framework for its architecture. 
 
-### Architecture
-The project is organized and maintained within the `vuefinder` repository. 
+## Purpose
+The primary purpose of the project is to serve as a platform for wiki-based content management and documentation, built upon the Vuefinder architectural framework.
 
-### Purpose
-The primary purpose of the `vuefinder` project is to function as a wiki platform.
+## Repository Information
+The source code and ongoing development for the project are hosted on GitHub:
+[https://github.com/n1crack/vuefinder](https://github.com/n1crack/vuefinder)
 
----
+***
+
 ### References
-- **Project Name/Purpose**: [Project Overview] - `description` field
-- **Repository**: [Project Overview] - `repository` field
+*   **Project Overview**: [config.json](file:///config.json) - Overview and purpose definitions.
+*   **Repository**: [config.json](file:///config.json) - Link to official source code repository.

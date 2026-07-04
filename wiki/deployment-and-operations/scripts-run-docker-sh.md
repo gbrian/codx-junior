@@ -1,24 +1,19 @@
-# Deployment and Operations: Container Initialization
+# Deployment and Operations: Docker Execution
 
 ## Overview
-This script manages the initialization and startup processes for the project environment, specifically focusing on the deployment of Docker services.
+This script is designed to initialize the environment and start the Docker daemon for the `codx-junior` project.
 
-## Operational Procedures
+## Environment Initialization
+The script dynamically configures the `CODX_JUNIOR_PATH` variable by locating the parent directory of the script's current execution path. Once determined, it logs the path along with the current system `USER` and `HOME` environment variables.
 
-### Path Configuration
-The script dynamically determines the project's base directory by identifying the parent directory of the execution location. This path is exported as `CODX_JUNIOR_PATH` and is used to establish the environment context.
+It then proceeds to load project-specific environment variables by sourcing the `set_env.sh` file located within the `CODX_JUNIOR_PATH`.
 
-### Environment Setup
-Before initiating service startup, the script sources the `set_env.sh` file located within the `CODX_JUNIOR_PATH` to ensure all necessary environment variables are configured.
+## Maintenance and Operations
+To ensure the Docker daemon starts correctly—specifically after instances where the service may have been stopped uncleanly—the script performs a cleanup operation. It searches the `/run` and `/var/run` directories for any existing `docker*.pid` files and deletes them before attempting to launch the `dockerd` process.
 
-### Docker Maintenance
-To ensure service reliability, particularly following unclean shutdowns, the script performs the following maintenance task:
-* **PID Cleanup:** It searches for and removes any existing Docker process ID (PID) files located in `/run` or `/var/run` that match the pattern `docker*.pid`. This prevents conflicts that might otherwise prevent the Docker daemon from starting properly.
+***
 
-### Service Startup
-After environment verification and cleanup, the script executes the `dockerd` command to start the Docker daemon.
-
-## References
-* **Category:** Deployment and Operations
-* **Keywords:** deployment, operations, scripts, maintenance
-* **Project:** codx-junior
+### References
+*   **Category:** Deployment and Operations
+*   **Keywords:** deployment, operations, scripts, maintenance
+*   **Project:** codx-junior

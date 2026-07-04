@@ -1,34 +1,27 @@
-# Deployment and Operations: Entry Point Script
+# Deployment and Operations: Entrypoint Script
 
-This script manages the initialization, installation, and deployment lifecycle of the project. It serves as the primary entry point for setting up the environment and launching application services.
+This script serves as the primary initialization process for the CODX Junior environment. It ensures the environment is properly configured, dependencies are installed, and core services are maintained.
 
-## Overview
-The script is responsible for:
-*   Determining the base installation path.
-*   Initializing environment variables.
-*   Performing first-time installation tasks.
-*   Deploying additional application modules.
-*   Maintaining a running process state.
+## Initialization and Environment Setup
+Upon execution, the script dynamically establishes the base directory for the application:
 
-## Initialization Process
-The script dynamically calculates `CODX_JUNIOR_PATH` by resolving the parent directory of the execution script. Once the path is set, it performs the following setup operations:
-1.  Switches user context using `su`.
-2.  Sources the environment configuration via `${CODX_JUNIOR_PATH}/set_env.sh`.
-3.  Displays the project logo using the script located at `${CODX_JUNIOR_PATH}/scripts/logo.sh`.
+*   **Path Configuration:** The `CODX_JUNIOR_PATH` is automatically set to the parent directory of the script location.
+*   **User Environment:** It switches to the current user context and sources the environment variables defined in `${CODX_JUNIOR_PATH}/set_env.sh`.
+*   **Visual Branding:** The script triggers the logo display via `scripts/logo.sh` to signify startup.
 
-## Installation and Deployment
-The script handles automated installation and app provisioning:
+## Installation Logic
+The script checks for the existence of an installation marker file (`codx-junior.installed`) to manage the deployment state:
 
-*   **Initial Setup:** It checks for the existence of the `codx-junior.installed` flag file. If not found, it executes the `codx-junior install` command and creates the flag file upon successful completion.
-*   **Application Provisioning:** The script reads the `CODX_APPS` environment variable. If defined, it iterates through a comma-separated list of application names and executes the `codx` command for each specified app.
+1.  **Initial Setup:** If the marker file does not exist, it runs the `codx-junior install` command and creates the marker file to prevent redundant installations.
+2.  **Application Deployment:** If the `CODX_APPS` environment variable is defined, the script iterates through the comma-separated list of applications and executes the `codx <app>` command for each to ensure all requested modules are installed.
 
-## Maintenance and Process Management
-After completing the installation and provisioning phases, the script enters a persistent loop. It remains active by executing `sleep 10` indefinitely, ensuring the container or process remains running.
+## Runtime Maintenance
+After the initialization and installation phases are complete, the script enters a persistent loop:
 
-*Note: A command to start the `codx-junior supervisor` is present in the script but is currently commented out.*
+*   **Supervisor Mode:** While the script contains a commented-out call to `codx-junior supervisor`, the active process currently utilizes a `while true` loop with a 10-second sleep interval to keep the container or service process alive.
 
-***
+---
 
-**References**
-*   Project File: `codx-junior/scripts/entrypoint.sh`
-*   Category: Deployment and Operations
+### Reference
+*   **Project:** codx-junior
+*   **Category:** Deployment and Operations
