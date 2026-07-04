@@ -10,11 +10,6 @@ import ChatEntry from '@/components/ChatEntry.vue'
       :key="message.doc_id || message.id"
       :class="[
         'max-w-full mb-4 rounded-md hover:bg-base-200 border border-slate-600/0 hover:border-slate-600/70 rounded-lg',
-        editMessage
-          ? editMessage === message
-            ? 'border border-warning'
-            : 'opacity-40'
-          : ''
       ]"
       :chat="chat"
       :message="message"
@@ -36,7 +31,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)"
       @add-file="$emit('add-file', $event)"
-      @edit-message="$emit('edit-message', { event: $event, message })"
+      @edit-message="$emit('edit-message', $event)"
       @code-file-shown.stop="$emit('code-file-shown', $event)"
       @thread="$emit('thread', $event)"
       @sub-task="$emit('sub-task', $event)"

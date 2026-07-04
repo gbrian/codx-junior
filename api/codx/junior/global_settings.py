@@ -97,8 +97,6 @@ def _resolve_model_price(model: AIModel, provider: AIProvider):
     )
     if price_list_entry:
         return price_list_entry.input_price_per_1k_tokens, price_list_entry.output_price_per_1k_tokens
-    else:
-        logger.error("No price list entry found for: %s, %s", provider.name, model.name)
 
     # 2. Fall back to provider-level prices
     input_price = provider.input_k_tokens_cxjcoins

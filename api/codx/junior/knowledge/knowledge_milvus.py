@@ -82,7 +82,7 @@ class Knowledge:
         return self.loader.is_valid_file(
                           ignore_paths=self.settings.get_ignore_patterns())
       
-    def reload(self, full: bool = False):
+    async def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
             return
         if full:
@@ -96,7 +96,7 @@ class Knowledge:
                                 current_sources=current_sources,
                                 ignore_paths=self.settings.get_ignore_patterns())
             if documents:
-                self.index_documents(documents)
+                await self.index_documents(documents)
 
             self.get_db().build_summary()
             logger.info('Knowledge reloaded')
@@ -105,20 +105,16 @@ class Knowledge:
         except Exception as ex:
             logger.error(f"Error loading knowledge {ex}")
 
-    def reload_path(self, path: str):
-        # Define the task for reloading the path
-        def task(path: str):
-            try:
-                documents = self.loader.load(path=path)
-                if documents:
-                    self.index_documents(documents, raiseIfError=True)
-                    logger.info(f"reload_path DONE {path} {len(documents)} documents")
-            except Exception as e:
-                logger.exception(f"Error in reload_path for {path}: {e}")
-
-        # Launch the task in a separate thread to ensure fire-and-forget behavior
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            executor.submit(task, path)
+    async def reload_path(self, path: str):
+        try:
+            documents = self.loader.load(path=path)
+            if documents:
+                await self.index_documents(documents, raiseIfError=True)
+                logger.info(f"reload_path DONE {path} {len(documents)} documents")
+            else:
+                logger.info("File '%s' produced no documents", path)
+        except Exception as e:
+            logger.exception(f"Error in reload_path for {path}: {e}")
 
     def get_all_documents(self, include=[]):
         return self.get_db().get_all_documents(include=include)
@@ -653,7 +649,7 @@ FROM THIS CONTENT:
         except Exception as ex:
             logger.exception(f"Error extracting query keywords: {ex}")
 
-    def index_document(self, text, metadata):
+    async def index_document(self, text, metadata):
         """
         Index a single document from text content.
         
@@ -666,7 +662,7 @@ FROM THIS CONTENT:
             self.delete_documents(documents)
         except:
             pass
-        self.index_documents(documents)
+        await self.index_documents(documents)
 
     def get_all_sources(self):
         """

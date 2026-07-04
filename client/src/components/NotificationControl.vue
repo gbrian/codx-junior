@@ -21,7 +21,7 @@ import moment from 'moment'
     <!-- Notifications Panel -->
     <div 
       v-if="showPanel"
-      class="absolute bottom-full right-0 mb-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto min-w-96"
+      class="absolute top-full right-0 mb-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto min-w-96"
     >
       <!-- Panel Header -->
       <div :class="getHeaderClass(activePanel)" class="sticky top-0 px-4 py-2 border-b border-base-300 flex justify-between items-center">
@@ -92,7 +92,7 @@ export default {
   },
   computed: {
     allNotifications() {
-      return this.$storex.session.notifications || []
+      return this.$storex.ui.notifications || []
     },
     filteredNotifications() {
       return this.allNotifications.filter(n => n.type === this.activePanel)
@@ -138,10 +138,10 @@ export default {
       this.showPanel = false
     },
     removeNotification(notification) {
-      this.$storex.session.notifications = this.$storex.session.notifications.filter(n => n !== notification)
+      this.$storex.ui.clearNotifications([notification])
     },
     clearAll() {
-      this.$storex.session.notifications = this.$storex.session.notifications.filter(n => n.type !== this.activePanel)
+      this.$storex.ui.clearNotifications(this.$storex.ui.notifications.filter(n => n.type !== this.activePanel))
     }
   }
 }

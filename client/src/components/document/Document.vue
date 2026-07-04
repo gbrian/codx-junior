@@ -21,6 +21,7 @@ import Code from '../Code.vue'
         :project="docProject"
         :finished="block.finished"
         :chat="chat"
+        :message="message"
         @generate-code="$emit('generate-code', $event)"
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
@@ -108,7 +109,7 @@ function parseContent(content, loading) {
 }
 
 export default {
-  props: ['content', 'files', 'project', 'chat', 'loading', 'documentId'],
+  props: ['content', 'files', 'project', 'chat', 'loading', 'documentId', 'message'],
   emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'sub-task'],
   data() {
     return {

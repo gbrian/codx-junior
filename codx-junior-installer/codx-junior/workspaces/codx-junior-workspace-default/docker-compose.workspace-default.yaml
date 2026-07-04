@@ -9,6 +9,8 @@ services:
     image: codxjunior/codx-junior-default-workspace:latest
     container_name: codx-junior-default-workspace
     restart: unless-stopped
+    build:
+      context: .
     cap_add:
       - NET_ADMIN
       - NET_RAW

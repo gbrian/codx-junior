@@ -14,7 +14,6 @@ from langchain.messages import (
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
-# from codx.junior.ai.vllm_cpu_ai import VllmCPUAI
 from codx.junior.ai.ai_logger import AILogger
 from codx.junior.ai.cancellation import CancellationToken, CancelledError
 
@@ -34,7 +33,6 @@ class AI:
     Mermaid Diagram:
     classDiagram
         AI --> OpenAI_AI : provider == "openai"
-        AI --> VllmCPUAI : provider == "vllm"
         AI --> AILogger : Logging operations
     """
     def __init__(
@@ -173,6 +171,8 @@ class AI:
                 f"Failed to pull Ollama model '{ollama_model_name}': {pull_exc}"
             ) from pull_exc
 
+    def _get_provider_type(self):
+        return getattr(self.llm_settings, "provider_type", None)
     def _handle_model_not_found(self, exc: Exception) -> None:
         """
         Handles a model_not_found error. If the provider is Ollama, attempts to pull the model.
@@ -180,7 +180,7 @@ class AI:
         :param exc: The original exception.
         :raises RuntimeError: If the provider is not Ollama or if the pull fails.
         """
-        provider_type = getattr(self.llm_settings, "provider_type", None)
+        provider_type = self._get_provider_type()
         if provider_type == "ollama":
             logger.warning(
                 "Model not found for Ollama provider. Attempting to pull model '%s'.",
@@ -483,8 +483,10 @@ class AI:
     def create_chat_model(self, llm_model: Optional[str]) -> Callable:
         """
         Initialize the correct synchronous chat completions target based on configuration.
+        Routes to the appropriate provider implementation.
         """
-        provider = self._get_provider()
+        
+        # Default to OpenAI_AI for "openai" or any other provider
         return OpenAI_AI(
             settings=self.settings, 
             llm_model=llm_model, 
@@ -495,8 +497,9 @@ class AI:
     def create_a_chat_model(self, llm_model: Optional[str]) -> Callable:
         """
         Initialize the correct asynchronous chat completions target based on configuration.
+        Routes to the appropriate provider implementation.
         """
-        provider = self._get_provider()
+        # Default to OpenAI_AI for "openai" or any other provider
         return OpenAI_AI(
             settings=self.settings, 
             llm_model=llm_model, 

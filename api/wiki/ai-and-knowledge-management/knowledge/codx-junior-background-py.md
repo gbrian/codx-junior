@@ -1,39 +1,42 @@
-# Background Processing System
+# Background Service Management Guide
 
-The background processing system in `codx-api` manages automated tasks such as project monitoring and wiki pipeline maintenance. These services operate asynchronously to ensure the system remains responsive while handling intensive tasks.
+The platform uses extensive background services to maintain data synchronization, manage project health, and update internal knowledge bases (Wiki). These services run asynchronously to ensure that long-running tasks do not affect primary request responsiveness.
 
-## Service Management
-Background services are controlled by the `CODX_JUNIOR_API_BACKGROUND` global configuration. 
-- **Start-up:** The `start_background_services` function initializes AI models via `reload_models` and launches the project checking loop in a dedicated background thread.
-- **Graceful Shutdown:** `stop_background_services` can be invoked to set the `RUN_BACKGROUND_PROCESSES` flag to `False`, safely halting active loops.
+## System Overview
 
-## Project Monitoring
-The system performs continuous project synchronization using a thread-managed architecture:
-- **`check_projects`:** Runs a continuous loop that identifies active, non-quarantined projects. It utilizes a `ThreadPoolExecutor` (configured with `MAX_PROJECT_WORKERS`) to process multiple projects concurrently.
-- **Concurrency Model:** Since `asyncio` event loops are not thread-safe, `run_project_check_thread` isolates each project task by creating a dedicated event loop for each worker thread.
-- **Quarantine Logic:** To prevent system strain from failing projects, `update_quarantine_status` tracks failure counts. Projects are excluded from checks based on the `QUARANTINE_DELAYS` schedule (0, 1, 10, 30, and 120 minutes), which increases back-off times as failure counts rise.
+Background processes are controlled by a global flag (`CODX_JUNIOR_API_BACKGROUND`). Services must be started explicitly through the `start_background_services` function and can be gracefully stopped via `stop_background_services`.
 
-## Wiki Pipeline
-The system includes a secondary, lower-frequency process for managing project wikis:
-- **`check_projects_wiki`:** Designed to run every 10 minutes (`WIKI_CHECK_INTERVAL_SECONDS`), this service checks for wiki-enabled projects that require a full pipeline rebuild.
-- **Pipeline Stages:** The `process_project_wiki` function executes three primary steps:
-    1. Building the dependency graph.
-    2. Detecting and building domain pages.
-    3. Indexing the wiki content.
-- **Status:** Note that currently, the Wiki check loop is disabled by default to manage high AI consumption.
+### 1. Project Change Watching (Synchronization)
 
-## Configuration and Tuning
-- **Intervals:** Project monitoring occurs every 3 seconds (`PROJECT_CHECK_INTERVAL_SECONDS`).
-- **Concurrency Limits:** `MAX_PROJECT_WORKERS` limits the system to 10 concurrent project processing threads.
-- **Global Settings:** The system relies on `read_global_settings` to synchronize AI model configurations during the initialization phase.
+This service is responsible for monitoring all associated projects to detect and process changes within their configurations or content.
 
-***
+*   **Purpose:** To run project-specific update pipelines using the `ChangeManager` class, ensuring internal data reflects external source state.
+*   **Execution Loop:** The check runs continuously in a dedicated thread at a fixed interval (`PROJECT_CHECK_INTERVAL_SECONDS`, currently set to 3 seconds).
+*   **Concurrency:** Instead of sequential processing, all eligible projects are submitted concurrently to a `ThreadPoolExecutor` (limited by `MAX_PROJECT_WORKERS`). This design maximizes throughput for simultaneous check cycles.
 
-### References
-- [Project Checking and Thread Management]: `check_projects`, `run_project_check_thread`
-- [Quarantine Mechanism]: `is_project_in_quarantine`, `update_quarantine_status`
-- [Wiki Pipeline]: `process_project_wiki`, `check_projects_wiki`
-- [Lifecycle Control]: `start_background_services`, `stop_background_services`
+### 2. Project Quarantine Mechanism
+
+To protect the stability of the core system from projects that consistently fail checks, a quarantine mechanism is enforced.
+
+*   **Detection:** If a project fails its processing cycle (`process_project_changes`), its failure counter increases, and it may be quarantined.
+*   **Quarantine State:** A quarantined project will have its subsequent background check attempts blocked.
+*   **Delay Schedule:** The service uses an escalating delay schedule defined in `QUARANTINE_DELAYS` (e.g., 0, 1, 10, 30, 120 minutes). This means the required wait time between consecutive failures increases with each failure count (`fail_count`).
+*   **Recovery:** A project must pass a full check cycle to reset its failure counter and exit quarantine.
+
+### 3. Wiki Pipeline Management (Content Indexing)
+
+This service is dedicated to maintaining the interconnected knowledge base accessible via the Wiki feature. It runs independently of general project changes but relies on project content for data sourcing.
+
+*   **Functionality:** The full wiki pipeline (`process_project_wiki`) involves three major, asynchronous stages:
+    1.  Building the dependency graph (identifying related pages and structures).
+    2.  Detecting and building domain-specific pages.
+    3.  Creating and indexing the comprehensive Wiki index.
+*   **Execution Loop:** This service runs on a separate background loop (`check_projects_wiki`) and is configured to rebuild the entire Wiki only after an interval of `WIKI_CHECK_INTERVAL_SECONDS` (currently 600 seconds, or 10 minutes), even if the project's general check cycle initiates.
+
+### 4. Model Management and Lifecycle
+
+*   **AI Model Reloading:** The system supports explicit reloading of advanced AI models using `AIManager().reload_models()`, which reads configuration from global settings to ensure components are always running against the latest ruleset.
+*   **Start/Stop Hooks:** Background services can be initialized (`start_background_services`) or shut down gracefully (`stop_background_services`), allowing for controlled deployment and maintenance cycles.
 
 ## Dependencies
 **Imports from:** codx/junior/ai/__init__.py, codx/junior/changes/change_manager.py, codx/junior/globals.py, codx/junior/project/project_discover.py, codx/junior/global_settings.py, codx/junior/wiki/wiki_manager.py

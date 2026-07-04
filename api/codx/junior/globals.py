@@ -48,3 +48,15 @@ CODX_JUNIOR_AI_RAW_LOG_PATH = os.environ.get(
     "CODX_JUNIOR_AI_RAW_LOG_PATH",
     "/home/codx-junior/analytics/chats"
 )
+
+# Workspaces folder - stores workspace configuration and files
+CODX_JUNIOR_WORKSPACES_FOLDER = os.environ.get(
+    "CODX_JUNIOR_WORKSPACES_FOLDER",
+    "/home/codx-junior/codx-junior-global-settings.json/workspaces"
+)
+
+# Default workspace template path - contains template files to copy when creating new workspaces
+CODX_JUNIOR_DEFAULT_WORKSPACE_PATH = os.environ.get(
+    "CODX_JUNIOR_DEFAULT_WORKSPACE_PATH",
+    "/home/codx-junior-projects/codx-junior/workspace-templates"
+)

@@ -5,12 +5,12 @@ from enum import Enum
 class ProgressEventType(Enum):
     """Event types emitted during indexing operations."""
     STARTED = "started"
-    DOCUMENT_PROCESSING = "document_processing"
-    DOCUMENT_ENRICHED = "document_enriched"
-    DOCUMENT_INDEXED = "document_indexed"
-    DOCUMENT_ERROR = "document_error"
-    BATCH_COMPLETE = "batch_complete"
-    ITERATION_COMPLETE = "iteration_complete"
+    DOCUMENT_PROCESSING = "document-processing"
+    DOCUMENT_ENRICHED = "document-enriched"
+    DOCUMENT_INDEXED = "document-indexed"
+    DOCUMENT_ERROR = "document-error"
+    BATCH_COMPLETE = "batch-complete"
+    ITERATION_COMPLETE = "iteration-complete"
     COMPLETED = "completed"
     ERROR = "error"
 

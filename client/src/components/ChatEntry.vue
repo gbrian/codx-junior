@@ -27,14 +27,11 @@ import DocumentSummary from './document/DocumentSummary.vue'
     :chatProject="chatProject"
     :messageContent="messageContent"
     :isDone="isDone"
-    :editting="editting"
     :srcView="srcView"
     :timeTaken="timeTaken"
     :thinkText="thinkText"
     :cancellationTokenId="cancellationTokenId"
     :cancellationTime="cancellationTime"
-    :canEditMessage="canEditMessage"
-    v-model:editting="editting"
     @thread="$emit('thread', $event)"
     @hide="$emit('hide', $event)"
     @remove="onRemove"
@@ -42,15 +39,11 @@ import DocumentSummary from './document/DocumentSummary.vue'
     @toggle-src-view="toggleSrcView"
     @cancel-message="cancelMessage"
     @copy-message="copyMessageToClipboard"
-    @edit-message-click="onEditMessage"
-    @save-editting="saveEditting"
-    @cancel-editting="cancelEditting"
     @generate-code="onGenerateCode"
     @reload-file="$emit('reload-file', $event)"
     @open-file="$emit('open-file', $event)"
     @save-file="$emit('save-file', $event)"
     @add-file="$emit('add-file', $event)"
-    @edit-message="$emit('edit-message', $event)"
     @sub-task="$emit('sub-task', $event)"
     @open-thread="openThread"
     @add-file-to-chat="$emit('add-file-to-chat', $event)"
@@ -71,14 +64,12 @@ import DocumentSummary from './document/DocumentSummary.vue'
     :chatProject="chatProject"
     :messageContent="messageContent"
     :isDone="isDone"
-    :editting="editting"
     :srcView="srcView"
     :showDiff="showDiff"
     :timeTaken="timeTaken"
     :thinkText="thinkText"
     :cancellationTokenId="cancellationTokenId"
     :cancellationTime="cancellationTime"
-    :canEditMessage="canEditMessage"
     :threadChat="threadChat"
     :isTopic="isTopic"
     :isWord="isWord"
@@ -94,15 +85,11 @@ import DocumentSummary from './document/DocumentSummary.vue'
     @toggle-show-diff="toggleShowDiff"
     @cancel-message="cancelMessage"
     @copy-message="copyMessageToClipboard"
-    @edit-message-click="onEditMessage"
-    @save-editting="saveEditting"
-    @cancel-editting="cancelEditting"
     @generate-code="onGenerateCode"
     @reload-file="$emit('reload-file', $event)"
     @open-file="$emit('open-file', $event)"
     @save-file="$emit('save-file', $event)"
     @add-file="$emit('add-file', $event)"
-    @edit-message="$emit('edit-message', $event)"
     @sub-task="$emit('sub-task', $event)"
     @open-thread="openThread"
     @add-file-to-chat="$emit('add-file-to-chat', $event)"
@@ -112,7 +99,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
     @run-agents="runAgents"
     @apply-patch="applyPatch"
     @image="$emit('image', $event)"
-    @update:editting="editting = $event"
   />
 
   <!-- Default desktop rendering -->
@@ -123,7 +109,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
       !isDone && 'border border-dashed border-sky-800 p-1',
       displayMessage.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
       isTopic && 'border-l p-2 bg-info/5 border-info/50',
-      editting && 'border border-dashed p-2 border-warning',
     ]"
   >
     <div class="w-full">
@@ -149,7 +134,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
               :selectedUser="usersList.find(u => u.name === displayMessage.user)"
               :profiles="usersList"
               @user-changed="displayMessage.profiles = [$event.name]"
-              v-if="editting"
+              v-if="false"
             />
             <i class="fa-solid fa-magnifying-glass" v-if="message.task_item === 'search'"></i>
             <div class="flex gap-2 grow">
@@ -191,7 +176,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
                     class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
                     data-tip="Thread" 
                     @click="$emit('thread', message)"
-                    v-if="!editting"
                   >
                     <i class="fa-solid fa-comment-dots"></i>
                   </button>      
@@ -199,7 +183,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
                     class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" 
                     data-tip="Right answer!" 
                     @click="$emit('answer', message)"
-                    v-if="!editting"
                   >
                     <i class="fa-solid fa-check-double"></i>
                   </button>      
@@ -207,7 +190,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
                     class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
                     data-tip="Copy message" 
                     @click="copyMessageToClipboard"
-                    v-if="!editting"
                   >
                     <i class="fa-solid fa-copy"></i>
                   </button>      
@@ -224,21 +206,10 @@ import DocumentSummary from './document/DocumentSummary.vue'
                     class="btn btn-xs hover:btn-outline tooltip tooltip-bottom hover:btn-warning" 
                     data-tip="Run agents" 
                     @click="runAgents"
-                    v-if="!editting"
                   >
                     <i class="fa-solid fa-people-group"></i>
                   </button>
-                  <button 
-                    v-if="canEditMessage && !editting" 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-                    data-tip="Edit message" 
-                    @click="onEditMessage"
-                  >
-                    <i class="fa-solid fa-pencil"></i>
-                  </button>
-                  <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
-                  <button v-if="editting" class="btn btn-xs btn-error" @click="cancelEditting">Cancel</button>
-                  <div class="dropdown dropdown-hover dropdown-end" v-if="!editting">
+                  <div class="dropdown dropdown-hover dropdown-end">
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
                     </button>
@@ -262,6 +233,9 @@ import DocumentSummary from './document/DocumentSummary.vue'
                       <li @click="toggleSrcView" v-if="isDone">
                         <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
+                      <li @click="$emit('edit-message', message)" v-if="isDone">
+                        <a><i class="fa-solid fa-pen"></i> Edit</a>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -271,7 +245,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
 
           <!-- Document summary TOC — documentId scopes anchors to this document instance -->
           <DocumentSummary
-            v-if="isDone && messageContent && !editting"
+            v-if="isDone && messageContent"
             :content="messageContent"
             :minHeadings="3"
             :documentId="documentId"
@@ -315,14 +289,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
               : 'h-fit'
           ]"
         >
-          <Editor 
-            class="h-[1024px] overflow-auto" 
-            style="height: 400px;"
-            language="markdown" 
-            v-model="editting" 
-            v-if="editting" 
-          />                
-          
           <pre v-if="srcView">{{ displayMessage.content }}</pre>
 
           <!-- Pass documentId so heading anchors are scoped to this message -->
@@ -333,15 +299,15 @@ import DocumentSummary from './document/DocumentSummary.vue'
             :chat="chat"
             :loading="!message.done"
             :documentId="documentId"
+            :message="message"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
-            @edit-message="$emit('edit-message', $event)"
             @sub-task="$emit('sub-task', $event)"
             :mentionList="mentionList"
-            v-if="!showDiff && !editting && !srcView && !code_patches && !isWord" 
+            v-if="!showDiff && !srcView && !code_patches && !isWord" 
           />
 
           <div class="alert alert-error text-xs" v-if="displayMessage.error">
@@ -443,9 +409,9 @@ export default {
   props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList'],
   emits: [
     'generate-code', 'reload-file', 'open-file', 'save-file',
-    'add-file', 'edit-message', 'sub-task', 'thread', 'hide',
+    'add-file', 'sub-task', 'thread', 'hide',
     'remove', 'answer', 'enhance', 'copy', 'add-file-to-chat',
-    'remove-file', 'image', 'run-agents', 'edited'
+    'remove-file', 'image', 'run-agents', 'edit-message'
   ],
   data() {
     return {
@@ -453,8 +419,6 @@ export default {
       isRemove: false,
       improvementData: null,
       showDiff: false,
-      editting: false,
-      // Unique id scopes heading anchors — stable for the lifetime of this entry
       documentId: 'doc-' + Math.random().toString(36).slice(2, 8)
     }
   },
@@ -638,21 +602,6 @@ export default {
     },
     openFile(file) {
       this.$emit('preview-file', file)
-    },
-    saveEditting() {
-      this.displayMessage.content = this.editting
-      this.editting = null
-      this.$emit('edited', this.message)
-    },
-    cancelEditting() {
-      this.editting = null
-    },
-    onEditMessage() {
-      if (this.threadChat) {
-        this.openThread()
-      } else {
-        this.editting = this.displayMessage.content
-      }
     },
     openThread() {
       this.$chats.setActiveChat(this.threadChat)

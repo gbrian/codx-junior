@@ -1,76 +1,149 @@
-# Knowledge Base API Reference
+# Knowledge Base API Documentation
 
-This section details the endpoints available for managing, querying, and enhancing the project's knowledge base. It supports status checks, content enrichment, general search (Q&A), agent-based planning, and background indexing processes.
+This documentation details the available RESTful API endpoints and SocketIO handlers for managing, querying, and utilizing the project's internal knowledge base (KnowledgeDB).
 
-## 📘 Status, Maintenance, and File Management
+## 📘 Knowledge Management Endpoints
 
-### Fetching Knowledge Status
-*   **GET `/api/knowledge/status`**: Returns the current knowledge base status for the project by calling `codx_junior_session.check_knowledge_status()`.
-*   **GET `/api/knowledge/files`**: Retrieves a list of files currently indexed in the knowledge base using `codx_junior_session.get_knowledge_files()`.
+### Get Status Check
+Retrieves the current status of the knowledge base.
 
-### Reloading and Deleting Sources
-*   **POST `/api/knowledge/reload-path`**: Triggers a reload for specific source paths, useful when content changes outside the deployment cycle. Requires providing the path via the request body (`KnowledgeReloadPath`).
-*   **GET `/api/knowledge/reload`**: Checks the general knowledge base status and triggers an internal check through the session.
-*   **POST `/api/knowledge/delete`**: Deletes knowledge documents for specific sources, requiring a list of source paths in the request body (`KnowledgeDeleteSources`).
-*   **DELETE `/api/knowledge/delete`**: Executes a full deletion of all indexed knowledge documents for the current project via `codx_junior_session.delete_knowledge()`.
+*   **Endpoint:** `GET /knowledge/status` [API: knowledge\_status]
+*   **Purpose:** Returns a dictionary detailing the accumulated knowledge base status for the project.
+    *   *(Reference: The function `api_knowledge_status` uses `codx_junior_session.check_knowledge_status()`.)*
 
-### Project Summary and Metrics
-*   **GET `/api/knowledge/summary`**: Generates and returns the project summary as plain Markdown text. The summary is retrieved by calling `get_knowledge().get_project_summary()` and returns a `text/markdown` response type.
-*   **GET `/api/knowledge/summary/json`**: Returns the project summary in a structured JSON object format (`{"summary": "..."}`).
-*   **POST `/api/knowledge/summary/rebuild`**: (Admin Required) Forces a full rebuild of the Project Summary (`Knowledge.build_project_summary()`). This operation regenerates the markdown document from scratch by reading all currently indexed sources. Requires `admin` permissions and returns the new summary along with the project name.
-*   **DELETE `/api/knowledge/summary`**: (Admin Required) Deletes the persisted project summary file on disk. This action forces a clean slate, requiring a subsequent rebuild to generate a new summary.
-*   **GET `/api/knowledge/metrics`**: Returns detailed collection-level metrics from the underlying Milvus store, including row count, load state, schema information, index metadata, and partition details.
+### Get Knowledge Files List
+Retrieves information regarding the files indexed in the knowledge base.
 
-## ✨ Content Enrichment: Keywords and Tags
+*   **Endpoint:** `GET /knowledge/files` [API: knowledge\_files]
+*   **Purpose:** Returns a dictionary containing details of the currently processed knowledge source file(s).
+    *   *(Reference: The function `api_knowledge_files` uses `codx_junior_session.get_knowledge_files()`.)*
 
-### Retrieving Keywords
-*   **GET `/api/knowledge/keywords`**: Retrieves keywords matching an optional search query provided via URL parameters (`?query=term`). This uses `codx_junior_session.get_keywords()`.
+### Get Collection Metrics
+Retrieves detailed metrics from the underlying Milvus storage collection used by the KnowledgeDB.
 
-### Extracting and Storing Tags
-*   **POST `/api/knowledge/keywords`**: Extracts and stores keyword tags from a submitted document object (`Document`). The function processes the document content and returns an updated dictionary containing the populated keyword metadata, executing `codx_junior_session.extract_tags(doc=doc)`.
+*   **Endpoint:** `GET /knowledge/metrics` [API: knowledge\_metrics]
+*   **Purpose:** Provides operational statistics, including row count, load state, schema details, index metadata, and partition information for troubleshooting and monitoring.
+    *   *(Reference: The function `api_knowledge_metrics` calls `KnowledgeDB.get_collection_metrics()`.)*
 
-## 🧠 AI Search Capabilities
+### Reload a Single Path
+Triggers the re-indexing of knowledge documents from a specific source path. This is crucial when local files change but full indexing isn't desired.
 
-These endpoints utilize specialized services for advanced knowledge retrieval: natural language question answering and agent-based resource planning.
+*   **Endpoint:** `POST /knowledge/reload-path` [API: knowledge\_reload\_path]
+*   **Payload:** Requires an object containing the path to reload (`KnowledgeReloadPath`).
+    *   *(Reference: This endpoint calls `codx_junior_session.index_knowledge_source(sources=[path])`.)*
 
-### 1. General Knowledge Question Answering
-*   **GET `/api/knowledge/ai-search`**: Performs an iterative, AI-driven search to answer a user's natural-language question (query).
-    *   The system executes multiple cycles, refining queries until the AI determines the documents are sufficient or reaches `max_iterations`.
-    *   **Parameters:** Requires `?query=...` and optionally `&max_iterations=N`.
-    *   **Returns (`AISearchResult`):** A JSON object containing the original query, the final answer (grounded in retrieved context), all supporting documents, the number of iterations performed (`total_iterations`), and a list of all executed search queries (`queries_used`).
+### Delete Knowledge Source by Path (Bulk)
+Deletes knowledge documents associated with a list of specified source paths. Use this for permanently removing old or incorrect documentation sets.
 
-### 2. Agent Resource Planning
-*   **POST `/api/knowledge/agent-search`**: Executes an AI-assisted agent task planner identifying necessary resources for fulfilling a user's request. This generates a structured **resource plan**, unlike general Q&A.
-    *   The process iterates to gather comprehensive context tailored for development tasks.
-    *   **Parameters:** Requires `?request=...` (the natural language objective) and optionally `&max_iterations=N`.
-    *   **Returns (`AgentResourcePlan`):** A JSON object detailing the plan, which includes:
-        *   `overview`: Narrative description of required steps.
-        *   `files_to_read`: Files the agent should inspect for context.
-        *   `files_to_modify`: Specific files to edit, with suggested actions and reasons.
-        *   `files_to_create`: New file paths that must be created.
-        *   `all_relevant_sources`: A flat list of all consulted source paths.
+*   **Endpoint:** `POST /knowledge/delete` [API: knowledge\_delete\_path]
+*   **Payload:** Requires an object listing the source paths to delete (`KnowledgeDeleteSources`).
+    *   *(Reference: This endpoint calls `codx_junior_session.delete_knowledge_source(sources=list_of_paths)`.)*
 
-## 🔌 Asynchronous Background Operations (WebSockets)
+### Delete All Knowledge (Full Reset)
+Performs a complete wipe of all indexed knowledge documents for the project, returning the database to a clean state.
 
-The system provides background endpoints for long-running, resource-intensive tasks via Signal-Operation over SocketIO (`sio`). These methods run asynchronously and report progress events to the client.
+*   **Endpoint:** `DELETE /knowledge/delete` [API: knowledge\_reload\_all]
+*   **Function:** Executes `codx_junior_session.delete_knowledge()` across all sources.
 
-### Knowledge Indexing
-*   **`@sio.on("codx-junior-index-knowledge")`**: Handles batch indexing of knowledge files in the background.
-    *   **Input Data:** Expected payload includes a list of `file_paths` and the project path (`codx_path`).
-    *   **Process:** The process iterates through paths, loads documents (`knowledge.loader.load`), and finally indexes them (`knowledge.index_documents`).
-    *   **Progress Reporting:** Emits detailed progress events:
-        1.  `codx-junior-index-progress-started`: Indexing has begun.
-        2.  `codx-junior-index-progress-document-processing`: Processing a specific document.
-        3.  `codx-junior-index-progress-document-enriched`: Document enrichment successful.
-        4.  `codx-junior-index-progress-document-indexed`: Document successfully indexed.
-        5.  `codx-junior-index-progress-batch-complete`: A batch of documents finished indexing.
-        6.  `codx-junior-index-progress-completed`: Full completion status.
+## 🔎 Search and Retrieval Endpoints
 
-### Agent Search Background Run
-*   **`@sio.on("codx-junior-agent-search")`**: Executes the sophisticated agent resource planning process asynchronously, preventing connection stalls during long computations.
-    *   **Input Data:** Expected payload contains a `request` string and an optional `max_iterations`.
-    *   **Progress Event (`codx-junior-agent-search-progress`):** Reports iterative status updates (e.g., documents found, sufficiency check).
-    *   **Completion Event (`codx-junior-agent-search-complete`):** Sends the final `AgentResourcePlan`, including a summary of files to read, modify, and create.
+### AI-Assisted Q&A Search
+Uses advanced LLM techniques to search the corpus iteratively, providing conversational answers grounded in retrieved context.
+
+*   **Endpoint:** `POST /knowledge/ai-search` [API: knowledge\_ai\_search]
+*   **Parameters (Query Params):**
+    *   `query`: The natural language question from the user (required).
+    *   `max_iterations`: Maximum search cycles allowed. Defaults to 3.
+*   **Process:** The system executes multiple search-and-check cycles, refining queries until the AI determines sufficient context has been gathered or the iteration limit is reached.
+*   **Response:** Returns an `AISearchResult` dictionary containing:
+    *   `answer`: The final synthesized answer.
+    *   `queries_used`: All initial and refined search queries executed.
+    *   `documents`: Supporting retrieved document chunks with metadata.
+
+### AI-Assisted Agent Planning Search
+Generates a structured "Resource Plan" detailing which project files an agent needs to interact with to complete a complex request (e.g., "Add contacts section").
+
+*   **Endpoint:** `POST /knowledge/agent-search` [API: knowledge\_agent\_search]
+*   **Parameters (Query Params):**
+    *   `request`: Natural language description of the task for the agent.
+    *   `max_iterations`: Maximum search cycles allowed. Defaults to 3.
+*   **Process:** The AI searches not just for answers, but for relevant *file locations*. It follows an iterative cycle similar to Q&A search, culminating in a structured plan generation.
+*   **Response:** Returns an `AgentResourcePlan` dictionary encompassing:
+    *   `overview`: Narrative summary of the required actions.
+    *   `files_to_read`: Paths for context gathering.
+    *   `files_to_modify`: Paths requiring suggested edits/reasoning.
+    *   `files_to_create`: Required new file paths.
+
+## 📝 Summary and Keyword Handling
+
+### Get Project Summary (Markdown)
+Generates a human-readable summary of the entire project, suitable for displaying in read-only markdown format.
+
+*   **Endpoint:** `GET /knowledge/summary` [API: knowledge\_summary]
+*   **Return Type:** `text/markdown`.
+    *   *(Reference: Uses `knowledge.get_project_summary()`.)*
+
+### Get Project Summary (JSON)
+Returns the project summary in a structured JSON format, ideal for API consumption by clients that need to parse markdown content programmatically.
+
+*   **Endpoint:** `GET /knowledge/summary/json` [API: knowledge\_summary\_json]
+*   **Response:** `{"summary": "Markdown Content..."}`
+
+### Manual Summary Rebuild (Admin Only)
+Forces the regeneration of the project summary document from all currently indexed sources. This should be used when existing source material changes and the summary becomes outdated.
+
+*   **Endpoint:** `POST /knowledge/summary/rebuild` [API: knowledge\_summary\_rebuild]
+*   **Authorization:** Requires Admin privileges (`require_admin`).
+*   **Process:** Triggers `Knowledge.build_project_summary()`.
+*   **Response:** Returns the newly generated summary and project name.
+
+### Delete Summary File (Admin Only)
+Deletes the persisted physical summary file from the disk, ensuring that the next rebuild operation starts completely fresh.
+
+*   **Endpoint:** `DELETE /knowledge/summary` [API: knowledge\_summary\_delete]
+*   **Authorization:** Requires Admin privileges (`require_admin`).
+*   **Process:** Manually removes the summary file path on the filesystem.
+
+### Keyword Search and Extraction
+Endpoints for managing metadata keywords associated with documentation.
+
+1.  **Extract Tags (Synchronous):**
+    *   **Endpoint:** `POST /knowledge/keywords` [API: knowledge\_extract\_tag]
+    *   **Payload:** Requires a document object (`Document`) to be analyzed.
+    *   **Action:** Runs the extraction process (`codx_junior_session.extract_tags(doc=doc)`), enriching the document with keyword metadata.
+
+2.  **Search Keywords (Filtered List):**
+    *   **Endpoint:** `GET /knowledge/keywords` [API: knowledge\_get\_keywords]
+    *   **Parameters (Query Params):**
+        *   `query`: Optional search term to filter displayed keywords.
+    *   **Purpose:** Retrieves a list of existing, indexed keyword tags matching optional search criteria.
+
+## ⚙️ Background Processing Handlers (SocketIO)**
+
+The following functions handle long-running or asynchronous operations using SocketIO events, allowing the application front-end to remain responsive.
+
+### Stream Knowledge Indexing
+This handler processes and indexes multiple files provided by a client over time (`codx-junior-index-knowledge`).
+
+*   **Endpoint:** `sio_on("codx-junior-index-knowledge")` [Socket: index\_knowledge]
+*   **Expected Data Payload (`data`):** Contains an array of file paths (`file_paths`) and the project path (`codx_path`).
+*   **Progress Reporting:** Emits progress events through `progress_callback`:
+    *   `codx-junior-index-progress-started`: Signals the start, providing total files.
+    *   `codx-junior-index-progress-document-processing`: Updates on per-file status (e.g., "Reloading X...").
+    *   `codx-junior-index-progress-completed`: Indicates all paths have been processed successfully.
+    *   `codx-junior-index-error`: Signals any failure during processing.
+
+### Stream Agent Search Execution
+Allows running the resource planning task asynchronously, preventing client timeouts during complex searches.
+
+*   **Endpoint:** `sio_on("codx-junior-agent-search")` [Socket: agent\_search]
+*   **Expected Data Payload (`data`):**
+    *   `request`: The natural language task description.
+    *   `max_iterations`: Maximum search cycles (default 3).
+*   **Progress Signaling:** The function continuously sends progress updates via `SessionChannel.send_event("codx-junior-agent-search-progress", ...)` during the iterative search phase.
+*   **Completion Event:** Upon successful generation of the plan, it emits:
+    *   `codx-junior-agent-search-complete`: Carries the full `AgentResourcePlan` object.
+*   **Error Handling:** Emits `codx-junior-agent-search-error` upon failure.
 
 ## Dependencies
 **Imports from:** codx/junior/model/model.py, codx/junior/knowledge/knowledge_ai_search.py, codx/junior/api/__init__.py, codx/junior/engine/session.py, codx/junior/engine/progress_callback.py, codx/junior/sio/session_channel.py, codx/junior/sio/sio.py

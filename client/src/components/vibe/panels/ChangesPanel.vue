@@ -4,7 +4,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full">
+  <div class="flex flex-col h-full w-full overflow-auto">
     <!-- Header -->
     <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
       <i class="fa-solid fa-code-compare text-warning text-sm"></i>
@@ -38,37 +38,60 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       </div>
 
       <template v-else>
-        <!-- Project tabs -->
-        <div class="shrink-0 border-b border-base-content/10 bg-base-200/30 overflow-x-auto scrollbar-none">
-          <div class="flex gap-1 px-2 py-1 min-w-max">
-            <button
-              v-for="proj in projectsWithBranches"
-              :key="projId(proj)"
-              @click="selectedProjectId = projId(proj)"
-              :class="selectedProjectId === projId(proj) ? 'tab-active' : 'opacity-30 hover:underline'"
-              class="tab tab-sm tab-bordered text-sm gap-1 whitespace-nowrap"
-            >
-              <span class="font-mono truncate max-w-[100px]">{{ proj.project_name }}</span>
-              <span
-                class="badge badge-xs"
-                :class="changeCountClass(projId(proj))"
-                v-if="changeCountByProject[projId(proj)]"
-              >{{ changeCountByProject[projId(proj)] }}</span>
-            </button>
+        <!-- Project selector + Branch selector row -->
+        <div class="shrink-0 border-b border-base-content/10 bg-base-200/30 px-2 py-2">
+          <div class="flex items-center gap-3">
+            <!-- Project Dropdown -->
+            <div class="dropdown dropdown-hover">
+              <button 
+                class="btn btn-sm btn-ghost gap-2 min-w-[200px] justify-start"
+                :title="selectedProject?.project_name"
+              >
+                <i class="fa-solid fa-folder text-base-content/60"></i>
+                <span class="truncate font-mono text-sm">{{ selectedProject?.project_name || 'Select project' }}</span>
+                <span
+                  class="badge badge-xs ml-auto"
+                  :class="changeCountClass(selectedProjectId)"
+                  v-if="changeCountByProject[selectedProjectId]"
+                >
+                  {{ changeCountByProject[selectedProjectId] }}
+                </span>
+              </button>
+              <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10">
+                <li v-for="proj in projectsWithBranches" :key="projId(proj)">
+                  <a 
+                    @click="selectedProjectId = projId(proj)"
+                    :class="{ active: selectedProjectId === projId(proj) }"
+                    class="flex justify-between"
+                  >
+                    <span class="truncate">{{ proj.project_name }}</span>
+                    <span
+                      class="badge badge-xs"
+                      :class="changeCountClass(projId(proj))"
+                      v-if="changeCountByProject[projId(proj)]"
+                    >
+                      {{ changeCountByProject[projId(proj)] }}
+                    </span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Branch selector -->
+            <div class="grow min-h-0">
+              <BranchSelector
+                v-if="selectedProject"
+                :project="selectedProject"
+                :current-branch="currentBranch"
+                :compare-branch="compareBranch"
+                :available-branches="selectedBranches"
+                :loading="false"
+                @branch-changed="onBranchChanged"
+                @compare-branch-changed="onCompareBranchChanged"
+              />
+            </div>
           </div>
         </div>
-
-        <!-- Branch selector -->
-        <BranchSelector
-          v-if="selectedProject"
-          :project="selectedProject"
-          :current-branch="currentBranch"
-          :compare-branch="compareBranch"
-          :available-branches="selectedBranches"
-          :loading="false"
-          @branch-changed="onBranchChanged"
-          @compare-branch-changed="onCompareBranchChanged"
-        />
 
         <!-- PRView: key forces re-mount when cache key changes -->
         <div v-if="cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
@@ -105,18 +128,13 @@ export default {
       loadingChanges: false,
       loadingStep: '',
       selectedProjectId: null,
-      // projectId -> branches[]
       branchesByProject: {},
-      // cacheKey -> repoChanges — always replaced as whole object for reactivity
       changesByProject: {},
-      // projectId -> fileCount
       changeCountByProject: {},
-      // per-project branch selections: projectId -> { current, compare }
-      branchSelectionByProject: {},
+      branchSelectionByProject: {}
     }
   },
   computed: {
-    // All projects from chat + subtasks
     allProjects() {
       if (!this.chat) return []
       const map = new Map()
@@ -132,7 +150,6 @@ export default {
       return Array.from(map.values())
     },
 
-    // Only projects that have branches loaded
     projectsWithBranches() {
       return this.allProjects.filter(p => {
         const branches = this.branchesByProject[this.projId(p)]
@@ -190,26 +207,21 @@ export default {
       return project_id || owner_project_id
     },
 
-    // Replace entire changesByProject object so Vue detects the new key reactively
     setChangesCache(key, value) {
       this.changesByProject = { ...this.changesByProject, [key]: value }
     },
 
-    // Replace entire changeCountByProject object for reactivity
     setChangeCount(projectId, count) {
       this.changeCountByProject = { ...this.changeCountByProject, [projectId]: count }
     },
 
-    // Replace entire branchesByProject object for reactivity
     setBranches(projectId, branches) {
       this.branchesByProject = { ...this.branchesByProject, [projectId]: branches }
     },
 
-    // Main entry: load branches for all projects, then load changes
     async loadAllProjects() {
       if (!this.chat) return
       this.loadingChanges = true
-      // Reset with fresh objects
       this.branchesByProject = {}
       this.changesByProject = {}
       this.changeCountByProject = {}
@@ -230,14 +242,12 @@ export default {
           }
         }
 
-        // Load changes for all valid projects
         for (const proj of this.projectsWithBranches) {
           const id = this.projId(proj)
           this.loadingStep = `Loading changes for ${proj.project_name}...`
           await this.loadChangesForProject(id)
         }
 
-        // Auto-select first project with branches — done AFTER changes are cached
         const first = this.projectsWithBranches[0]
         this.selectedProjectId = first ? this.projId(first) : null
 
@@ -247,7 +257,6 @@ export default {
       }
     },
 
-    // Init branch selection from chat.pr_view or defaults
     initBranchSelection(projectId, branches) {
       const prConfig = this.chat?.pr_view?.pull_requests?.[projectId]
       this.branchSelectionByProject = {
@@ -269,7 +278,6 @@ export default {
       const compare = sel.compare || 'local'
       const key = `${projectId}:${compare}:${current}`
 
-      // Skip if already cached
       if (this.changesByProject[key]) return
 
       try {
@@ -277,7 +285,6 @@ export default {
           from_branch: current,
           to_branch: compare
         })
-        // Use setter to replace whole object — guarantees Vue reactivity
         this.setChangesCache(key, changes)
         const count = Object.keys(changes?.branch_file_and_commits || {}).length
         this.setChangeCount(projectId, count)

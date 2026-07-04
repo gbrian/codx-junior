@@ -14,7 +14,7 @@ runcoder(){
   echo "Running coder for user: $(id -u):$(id -g)"
 
   # Ensure the install script runs
-  curl -fsSL https://code-server.dev/install.sh | sh
+  # curl -fsSL https://code-server.dev/install.sh | sh
 
   CODE_PORT=${CODE_SERVER_PORT:-9080}
   export CODER_HTTP_ADDRESS=0.0.0.0:${CODE_PORT}

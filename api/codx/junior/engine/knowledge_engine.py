@@ -63,26 +63,6 @@ class KnowledgeEngine:
         """Shortcut to session event manager."""
         return self.session.event_manager
 
-    def reload_knowledge(self, path: str = None) -> dict:
-        """
-        Reload knowledge for the project, optionally scoped to a path.
-
-        Args:
-            path: Optional file/dir path to reload.
-
-        Returns:
-            Dict with doc_count of reloaded documents.
-        """
-        knowledge = self.session.get_knowledge()
-        self.session.log_info("***** reload_knowledge: %s", path)
-        documents = None
-        if path:
-            documents = knowledge.reload_path(path)
-            self.session.log_info("reload_knowledge: %s - Docs: %d", path, len(documents))
-        else:
-            documents = knowledge.reload()
-        return {"doc_count": len(documents) if documents else 0}
-
     async def knowledge_search(self, knowledge_search: KnowledgeSearch) -> dict:
         """
         Perform a knowledge search with the given parameters.

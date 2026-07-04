@@ -21,22 +21,27 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 
         <!-- ── HEADER ─────────────────────────────────────────────────────── -->
         <div class="flex flex-col gap-1 w-full shrink-0">
-          <div class="flex items-center gap-2 w-full">
-            <div class="flex items-center gap-2 text-sm shrink-0">
-              <i class="fa-brands fa-trello text-primary"></i>
-              <template v-for="(board, index) in boardBreadcrumbs" :key="board.title">
-                <span class="hover:underline cursor-pointer font-bold text-primary" @click="navigateToBoard(board.title)">
-                  {{ board.title }}
-                </span>
-                <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content/40">/</span>
-              </template>
-              <template v-if="parentChat">
-                <span class="text-base-content/40">/</span>
-                <span class="hover:underline cursor-pointer font-bold text-secondary truncate max-w-[120px]"
-                  :title="parentChat.name" @click="navigateToParent(parentChat)">
-                  {{ parentChat.name }}
-                </span>
-              </template>
+          <div class="flex items-center gap-2 w-full min-w-0">
+            <div class="flex items-center gap-2 text-sm shrink-0 min-w-0 flex-1">
+              <i class="fa-brands fa-trello text-primary shrink-0"></i>
+              <div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                <template v-for="(board, index) in boardBreadcrumbs" :key="board.title">
+                  <span class="hover:underline cursor-pointer font-bold text-primary truncate min-w-0"
+                    :title="board.title"
+                    @click="navigateToBoard(board.title)">
+                    {{ board.title }}
+                  </span>
+                  <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content/40 shrink-0">/</span>
+                </template>
+                <template v-if="parentChat">
+                  <span class="text-base-content/40 shrink-0">/</span>
+                  <span class="hover:underline cursor-pointer font-bold text-secondary truncate min-w-0"
+                    :title="parentChat.name"
+                    @click="navigateToParent(parentChat)">
+                    {{ parentChat.name }}
+                  </span>
+                </template>
+              </div>
             </div>
             <div class="grow"></div>
             <div class="flex items-center gap-1 shrink-0">
@@ -239,12 +244,12 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
 
         <!-- Active subtask breadcrumb (shown in both views) -->
-        <div class="flex items-center gap-1 text-xs text-base-content/50 mt-1 shrink-0" v-if="showChildChat">
-          <button class="hover:underline hover:text-base-content" @click="selectChildChat(null)">
+        <div class="flex items-center gap-1 text-xs text-base-content/50 mt-1 shrink-0 min-w-0" v-if="showChildChat">
+          <button class="hover:underline hover:text-base-content truncate min-w-0" @click="selectChildChat(null)">
             {{ computedChatName }}
           </button>
-          <i class="fa-solid fa-chevron-right"></i>
-          <span class="text-warning font-semibold">{{ showChildChat.name }}</span>
+          <i class="fa-solid fa-chevron-right shrink-0"></i>
+          <span class="text-warning font-semibold truncate min-w-0">{{ showChildChat.name }}</span>
         </div>
 
         <!-- Content Area: History Wall OR Chat View -->
@@ -488,6 +493,12 @@ export default {
       }
       this.showChildChat = null
       this.showHistoryWall = false
+    },
+    workingChat(newVal) {
+      if (newVal) {
+        this.targetProject = this.$projects.allProjectsById[newVal.project_id] || this.$project
+        this.subtaskProject = this.targetProject
+      }
     }
   },
   methods: {
@@ -533,7 +544,7 @@ export default {
       this.confirmDelete = false
       await this.$chats.deleteChat(this.theChat)
       if (this.parentChat) {
-        this.$chats.setActiveChat(this.parentChat)
+        await this.$chats.setActiveChat(this.parentChat)
       } else {
         this.navigateToChats()
       }
@@ -660,8 +671,9 @@ export default {
       this.workingChat.mode = mode
       this.saveChat()
     },
-    navigateToParent(parentChat) {
+    async navigateToParent(parentChat) {
       if (parentChat) {
+        await this.$chats.setActiveChat(parentChat)
         this.$emit('chat', parentChat)
       } else {
         this.navigateToChats()

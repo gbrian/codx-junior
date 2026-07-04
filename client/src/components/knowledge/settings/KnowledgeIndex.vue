@@ -310,7 +310,8 @@ export default {
     // Handle file indexing
     async handleIndexFiles(filePaths) {
       try {
-        await this.$storex.projects.startIndexing(filePaths)
+        const  { project } = this 
+        await this.$storex.projects.startIndexing({ project, filePaths })
         this.$session.onInfo(`Indexing ${filePaths.length} file(s) in background...`)
       } catch (error) {
         this.$session.onError(`Failed to start indexing: ${error.message}`)

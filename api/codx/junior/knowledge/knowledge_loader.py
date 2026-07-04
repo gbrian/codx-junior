@@ -58,22 +58,27 @@ class KnowledgeLoader:
 
     def is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
         if not os.path.isfile(file):
+            logger.error(f"File '{file}' is not a valid file (not found or not a regular file).")
             return False
 
-        if path:
-            if not (path in file):
-                return False
+        if path and (path not in file):
+            logger.error(f"File '{file}' does not match the specified path '{path}'.")
+            return False
+
         file_errors = [err for err in knowledge_file_ignore if err in file]
         if file_errors:
+            logger.error(f"File '{file}' is ignored due to matching ignore patterns: {file_errors}.")
             return False
+
         last_update = None
         if current_sources_and_updates and file in current_sources_and_updates:
             last_update = current_sources_and_updates[file]["metadata"]["last_update"]
             last_update = datetime.fromisoformat(last_update)
-            
+
         if not self.should_index_doc(file_path=file, last_update=last_update, current_sources=current_sources):
+            logger.error(f"File '{file}' should not be indexed based on existing criteria (size, time, or content).")
             return False
-    
+
         return True
 
     async def load_with_progress(
@@ -232,9 +237,7 @@ class KnowledgeLoader:
                 full_file_paths = [path]
             else:  
                 full_file_paths = [str(file_path) for file_path in pathlib.Path(path).rglob("*")]
-            logging.info(f"Indexing {full_file_paths}")
         else:
-            
             # filter if we are in a sub-path
             full_file_paths = self.get_git_files()
                         
@@ -246,12 +249,18 @@ class KnowledgeLoader:
         knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
         knowledge_file_ignore = ignore_paths + [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
         # logger.info(f"knowledge ignore files {knowledge_file_ignore}")
-        changed_file_paths = [file for file in full_file_paths \
-                            if self.is_valid_file(file,
+        def check_if_file_is_valid(file_path: str):
+            is_valid = self.is_valid_file(file_path,
                                 current_sources_and_updates=current_sources_and_updates,
                                 path=path,
                                 current_sources=current_sources,
-                                knowledge_file_ignore=knowledge_file_ignore) ]
+                                knowledge_file_ignore=knowledge_file_ignore)
+            if not is_valid:
+                logger.error("File '%s' is not valid for indexing.")
+            return is_valid
+
+        changed_file_paths = [file for file in full_file_paths \
+                            if  check_if_file_is_valid(file_path=file)]
         
         return changed_file_paths
 

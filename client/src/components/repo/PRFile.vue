@@ -1,54 +1,58 @@
 <script setup>
-import "@git-diff-view/vue/styles/diff-view.css"
-import { DiffView, DiffModeEnum } from "@git-diff-view/vue"
 import Chat from "../chat/Chat.vue"
 import CodeViewer from "../CodeViewer.vue"
 import ChatEntry from "../ChatEntry.vue"
 import ProfileViewer from '../profiles/ProfileViewer.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
-import Editor from "../monaco/Editor.vue"
 </script>
+
 <template>
   <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
+    <!-- Header Controls -->
     <div class="px-1 flex gap-2 items-center border-slate-600 w-full">
       <div class="flex flex-col gap-1 grow"
         :class="file.selected && 'text-warning'"
       >
-        <div class="click flex gap-2 items-center truncate" :title="file.fileFullName" 
+        <div class="click flex gap-2 items-center truncate" 
+          :title="file.fileFullName" 
           @click="$ui.openFile(file.fileFullName)">
           <button @click.stop="toggleCollapse">
             <i class="fa-solid fa-chevron-up" v-if="file.collapse"></i>
             <i class="fa-solid fa-chevron-down" v-else></i>
           </button>
-          <span 
-            @click.stop="file.selected = !file.selected"
-            v-if="!file.profiles.length"  
-          >
+          
+          <!-- Profiles or file icon -->
+          <span v-if="!file.profiles.length" @click.stop="file.selected = !file.selected">
             <i class="w-5 h-5 fa-regular fa-file-lines"></i>
           </span>
           <div class="avatar-group -space-x-2" v-else>
-            
-            <div class="avatar" :title="profile.name" v-for="profile in file.profiles" :key="profile.name"
-              @click.stop="toggleProfile(profile)"
-            >
+            <div class="avatar" :title="profile.name" 
+              v-for="profile in file.profiles" :key="profile.name"
+              @click.stop="toggleProfile(profile)">
               <div class="w-5">
                 <img :src="profile.avatar" />
               </div>
             </div>
           </div>
+
           <span :class="[file.isDeleted && 'text-error', file.isNewFile && 'text-success']">
             {{ file.title }}
           </span>
-          {{ changes?.length }} 
+          {{ changes?.length }}
         </div>
       </div>
+
       <div class="grow"></div>
+
+      <!-- Error state -->
       <div class="text-error text-xs" v-if="!file.parsed">
         --no diff available--
       </div>
 
+      <!-- Column selector dropdown -->
       <div class="dropdown dropdown-left" @click.stop="">
-        <div tabindex="0" class="click border rounded-lg text-sm px-2 py-1 max-w-32 overflow-hidden text-nowrap text-ellipsis"
+        <div tabindex="0" 
+          class="click border rounded-lg text-sm px-2 py-1 max-w-32 overflow-hidden text-nowrap text-ellipsis"
           :title="file.column?.title"
           :class="`border-[${file.column?.color || 'gainsboro'}] text-[${file.column?.color || 'gainsboro'}]`">
           <i class="fa-solid fa-table-columns"></i> {{  file.column?.title || '...'  }}
@@ -61,163 +65,72 @@ import Editor from "../monaco/Editor.vue"
             @click="$emit('chat-column', { file, column: column.title})"
             >
             <a class="overflow-hidden text-nowrap text-ellipsis">
-            <i class="fa-solid fa-table-columns"></i>    {{ column.title }}
+              <i class="fa-solid fa-table-columns"></i> {{ column.title }}
             </a>
           </li>
         </ul>
       </div>
 
-      <div class="indicator" v-if="file.chat"
-        @click="navigateToChat"
-      >
-        <button class="btn btn-sm btn-outline" :class="showChat && 'btn-warning'"><i class="fa-regular fa-comment-dots"></i></button>
+      <!-- Chat button -->
+      <div class="indicator" v-if="file.chat" @click="navigateToChat">
+        <button class="btn btn-sm btn-outline" :class="showChat && 'btn-warning'">
+          <i class="fa-regular fa-comment-dots"></i>
+        </button>
       </div>
-      <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" data-tip="Start revision" 
-        @click="onShowChat(file)" v-else>
+      <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" 
+        data-tip="Start revision" 
+        @click="onShowChat" v-else>
         <i class="fa-solid fa-comments"></i>
       </button>
-
-      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File changes"
-        :class="showDiff && 'btn-warning'"
-        @click="showOption = 'diff'" 
-        disabled="!file.parsed || file.isNewFile">
-        <i class="fa-solid fa-code-merge"></i>
-      </button>
-
-      <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" 
-        data-tip="Review" 
-        :disabled="!review"
-        @click="showChat = true">
-        <a><i class="fa-solid fa-certificate"></i></a>
-      </button>
-
-      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File content"
-        :class="[
-          showFile && 'border-warning',
-        ]"
-        @click="showOption = 'file'">
-        <span :class="[
-          showFile && 'text-warning',
-        ]">
-          <i class="fa-solid fa-file-lines"></i>
-        </span>
-        <div class="dropdown dropdown-left" @click.stop="">
-          <div tabindex="0" role="button" class="btn btn-xs btn-ghost">
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-          </div>
-          <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-            <li @click.stop="validateFile" :disabled="file.isDeleted">
-              <a><i class="fa-solid fa-certificate"></i> Validate file</a></li>
-            <li @click.stop="loadFileContent">
-              <a><i class="fa-solid fa-arrows-rotate"></i> Reload file</a></li>
-            <li @click.stop="saveFileContent">
-              <a><i class="fa-solid fa-floppy-disk"></i> Save changes</a></li>
-          </ul>
-        </div>
-
-      </button>
-
     </div>
+
+    <!-- Content area with splitter -->
     <VerticalSplitter class="grow flex h-full min-h-96" 
       :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
       v-if="file.collapse === true">
       
       <template v-slot:left>
-        <div class="@container/prfile">
-          <div class="flex flex-col @xl/prfile:flex-row">
-            <div class="grow overflow-auto" v-if="false && file.parsed && showDiff">
-              <div class="flex items-center gap-2 px-2 py-1 text-xs">
-                <div class="flex gap-2 items-center">
-                  Split / Unified
-                  <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
-                </div>
-                <div class="flex gap-2 items-center">
-                  Text wrap
-                  <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
-                </div>
-              </div>
-              <DiffView
-                :data="file"
-                :diff-view-theme="'dark'" 
-                :diff-view-add-widget="true"
-                :diff-view-wrap="diffWrap"
-                :diff-view-highlight="true"
-                :diffViewFontSize="10"
-                :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"  
-                :extend-data="extendData"        
-              >
-                 <template #extend="{ data }">
-                  <div class="max-h-60 overflow-auto m-2 border rounded-lg">
-                    <ChatEntry 
-                      v-for="entry in data.entries" :key="entry.message.id"
-                      :message="entry.message" :chat="theChat" :menu-less="true"
-                    />
-                  </div>
-                  <div class="p-2 flex justify-end">
-                    <Chat class="overflow-auto h-96 grow" 
-                        :chat="theChat" 
-                        :enableDelete="true"
-                        :readOnly="false"
-                        :input-only="true"
-                        :message="{ metadata: { diff: { comment: data.entries[0].comment } } }"
-                        @send-message="data.AddMessage = false"
-                        v-if="data.AddMessage"
-                      />
-                      <button class="btn btn-sm btn-info" @click.stop="data.AddMessage = true" v-else>
-                        Add
-                      </button>
-                  </div>
-                </template>
-                <template #widget="{ onClose, lineNumber, side }">
-                  <div class="flex w-full pr-4 flex-col m-2">
-                    <Chat class="overflow-auto h-96" 
-                      :chat="theChat" 
-                      :enableDelete="true"
-                      :readOnly="false"
-                      :input-only="true"
-                      :message="{ metadata: { diff: { comment: { fileFullName: file.fileFullName, lineNumber, side } } } }"
-                      @send-message="onClose()"
-                    />
-                  </div>
-                </template>
-              </DiffView>
-            </div>
-            <Editor v-model="fileContent" 
-              :language="file.language"
-              :orifinalCode="''"
-              :diff="file.parsed && showDiff"
-              v-if="showFile && fileContent" />
-            
-            <CodeViewer class="grow overflow-auto mb-20 p-2" 
+        <div class="@container/prfile grow overflow-auto">
+          <div class="flex flex-col @xl/prfile:flex-row h-full">
+            <!-- CodeViewer delegates all file operations -->
+            <CodeViewer class="grow overflow-auto mb-20 p-2 border-none" 
               :code="fileContent"
               :language="file.extension"
               :file="file.fileFullName"
+              :finished="true"
               :diffOption="false"
-              v-if="false && showFile && fileContent" />
+              :showCodeOpened="true"
+              :message="message"
+              @save-file="onSaveFile"
+              @message-change="onMessageChange"
+              @sub-task="onCreateSubTask"
+              v-if="fileContent" />
+
+            <!-- Review message display -->
             <ChatEntry :chat="file.chat" :message="review" v-if="showChat && review" />
           </div>
         </div>
       </template>
+
+      <!-- Profile panel -->
       <template v-slot:right v-if="selectedProfile">
         <div class="max-h-[1024px] overflow-auto">
-          <ProfileViewer :profile="selectedProfile"  />
+          <ProfileViewer :profile="selectedProfile" />
         </div>
       </template>
     </VerticalSplitter>
   </div>
 </template>
+
 <script>
 export default {
   props: ['prChat', 'file', 'columns'],
+  emits: ['chat-column', 'new-chat'],
   data() {
     return {
-      showOption: null,
       fileContent: null,
-      diffSplit: false,
-      diffWrap: true,
       selectedProfile: null,
-      showChat: false,
-      fileContentChanged: false
+      showChat: false
     }
   },
   created() {
@@ -226,119 +139,74 @@ export default {
     }
   },
   computed: {
-    showFile() {
-      return this.showOption === 'file'
-    },
-    showDiff() {
-      return this.showOption === 'diff'
-    },
-    messages() {
-      return this.theChat?.messages || []
-    },
-    lastMessage() {
-      return this.messages.reverse().find(m => !m.hide)
-    },
     changes() {
       return this.file.diff?.split("\n")
-              .filter(l => ["+", "-"].includes(l[0]) )
+        .filter(l => ["+", "-"].includes(l[0]))
     },
     theChat() {
       return this.$projects.allChats.find(c => c.id === this.file.chat?.id)
     },
-    extendData() {
-      const data = {}
-      this.messages.filter(m => m.meta_data?.diff)
-                .map(m => {
-                  const  {
-                    meta_data: {
-                      diff: { 
-                        comment
-                      } 
-                    }
-                  } = m
-                  const { lineNumber, side } = comment
-                  const key = side === 1 ? 'oldFile': 'newFile'
-                  const fileSide = data[key] || {}
-                  const entries = (fileSide[lineNumber] || { data: { entries: [] }}).data.entries
-                  entries.push({ comment, message: m })
-                  data[key] = {
-                    ...data[key] || {},
-                    [lineNumber]: { data: { entries } }
-                  }
-                })
-      return data
-    },
     review() {
-      return this.file.chat?.messages.filter(m => !m.hide && m.task_item === 'review').reverse()[0]
+      return this.file.chat?.messages
+        .filter(m => !m.hide && m.task_item === 'review')
+        .reverse()[0]
+    },
+    message() {
+      // Provides context for CodeViewer sub-task creation
+      return { doc_id: this.file.chat?.id }
     }
   },
   watch: {
-    option(newVal) {
-      this.showOption = newVal
-    },
     file() {
-      this.showFile && this.loadFileContent()
-    },
-    showOption(newVal) {
-      newVal === 'file' && this.loadFileContent()
-      newVal === 'chat' && this.onShowChat()
-    },
-    fileContent(_, oldVal) {
-      if (!oldVal) {
-        this.fileContentChanged = true
-      }
+      this.loadFileContent()
     }
   },
   methods: {
+    async loadFileContent() {
+      try {
+        this.fileContent = null
+        const { content } = await this.$storex.api.files.read(this.file.fileFullName)
+        this.fileContent = content
+      } catch (error) {
+        console.error('Failed to load file content:', error)
+      }
+    },
+
+    toggleCollapse() {
+      this.file.collapse = !this.file.collapse
+      if (!this.fileContent) {
+        this.loadFileContent()
+      }
+    },
+
+    toggleProfile(profile) {
+      this.selectedProfile = this.selectedProfile === profile ? null : profile
+    },
+
     async onShowChat() {
       if (!this.file.chat) {
         await this.$emit('new-chat', { file: this.file })
       }
       this.showChat = !this.showChat
     },
-    async loadFileContent() {
-      this.fileContentChanged = null
-      this.fileContent = null
-      this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)
-      this.showOption = 'file'
-    },
-    async saveFileContent() {
-      await this.$storex.api.files.write(this.file.fileFullName, this.fileContent)
-    },
-    toggleProfile(profile) {
-      if (this.selectedProfile === profile) {
-        profile = null
-      }
-      this.selectedProfile = profile
-    },
-    onAddComment({ lineNumber, side, message, onClose }) {
-      const metadata = this.file.chat?.metadata || { }
-      if (!metadata.fileComments) {
-        metadata.fileComments = {}
-      }
-      if(!metadata.fileComments[this.file.fileFullName]) {
-        metadata.fileComments[this.file.fileFullName] = []
-      } 
-      metadata.fileComments[this.file.fileFullName].push({ lineNumber, side, message })
 
-      this.$emit('new-chat', { file: this.file, message, metadata })
-      onClose()
-    },
     async navigateToChat() {
       await this.$chats.setActiveChat(this.file.chat)
     },
-    toggleCollapse() {
-      this.file.collapse = !this.file.collapse
-      if (!this.showOption) {
-        if (!this.file.parsed || this.file.isNewFile) {
-          this.showOption = 'diff'
-        } else {
-          this.loadFileContent()
-        }
+
+    // Delegated from CodeViewer
+    async onSaveFile({ file, content }) {
+      await this.$storex.api.files.write(file, content)
+    },
+
+    async onMessageChange({ orgContent, newContent }) {
+      if (this.fileContent === orgContent) {
+        this.fileContent = newContent
       }
     },
-    async validateFile() {
-      this.$service.chat.validateFile({ file: this.file, parentChat: this.prChat })
+
+    onCreateSubTask({ file, content }) {
+      this.$emit('new-chat', { file: this.file, content })
     }
   },
   expose: ['file']

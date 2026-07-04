@@ -1,73 +1,152 @@
 <script setup>
-import ProjectDetailt from '../ProjectDetailt.vue';
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
-<div>
-  <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
-  
-  <ProjectDetailt 
-      v-model="boardProject" 
-      :options="{ folders: false }"
-      @select="board.project_id = $event.project_id" />
+  <div class="w-full">
+    <h2 class="font-bold text-3xl mb-4">{{ board?.id ? 'Edit Board' : 'Add New Board' }}</h2>
 
-    <div class="collapse bg-contain"
-      :style="`background-image:url('${ newBoardBackground }')`"
-    >
-      <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
-      <div class="hidden collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
-      <div class="collapse-content">
-        <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
-        <input type="text" v-model="board.title" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-        <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-        <input type="text" v-model="newBoardBackground" placeholder="Enter board backgorund image" class="input input-bordered w-full mt-2"/>
-        <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
-          <option value="">-- none --</option>
-          <option v-for="board in boards" :key="board.id" :value="board.id">{{ board.title }}</option>
+    <div class="space-y-4">
+      <!-- Board name input -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Board Name</span>
+        </label>
+        <input 
+          type="text" 
+          v-model="boardData.title" 
+          placeholder="Enter board name" 
+          class="input input-bordered w-full"
+        />
+      </div>
+
+      <!-- Board description input -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Description</span>
+        </label>
+        <textarea 
+          v-model="boardData.description" 
+          placeholder="Enter board description" 
+          class="textarea textarea-bordered w-full"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <!-- Board background image -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Background Image URL</span>
+        </label>
+        <input 
+          type="text" 
+          v-model="boardData.background" 
+          placeholder="Enter background image URL" 
+          class="input input-bordered w-full"
+        />
+        <div v-if="boardData.background" class="mt-2 h-20 rounded bg-cover bg-center opacity-50"
+          :style="{ backgroundImage: `url(${boardData.background})` }"
+        ></div>
+      </div>
+
+      <!-- Parent board selector -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Parent Board</span>
+        </label>
+        <select v-model="boardData.parent_id" class="select select-bordered w-full">
+          <option :value="null">-- None --</option>
+          <option v-for="b in availableBoards" :key="b.id" :value="b.id">
+            {{ b.title }}
+          </option>
         </select>
       </div>
-    </div>
-    <div class="modal-action">
-      <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !board.title">Save</button>
-      <button class="btn" @click="showBoardModal = false">Cancel</button>
+
+      <!-- Project selector -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Project</span>
+        </label>
+        <ProjectDetailt 
+          v-model="boardData.project_id" 
+          :options="{ showFolders: false, showIcon: true, showSelector: true }"
+        />
+      </div>
     </div>
 
-  <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
-    <i class="fa-solid fa-triangle-exclamation"></i>
-    All tasks will be deleted
-    <span @click="confirmDelete = false" class="text-error click underline">cancel</span>
+    <!-- Delete warning -->
+    <div class="mt-6 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>All tasks will be deleted</span>
+      <span @click="confirmDelete = false" class="text-error cursor-pointer underline">Cancel</span>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="modal-action mt-6">
+      <button 
+        class="btn btn-error" 
+        @click="deleteBoard" 
+        v-if="board?.id"
+      >
+        {{ confirmDelete ? 'Confirm Delete?' : 'Delete' }}
+      </button>
+      <div class="grow"></div>
+      <button class="btn" @click="$emit('cancel-edit')">Cancel</button>
+      <button 
+        class="btn btn-primary" 
+        @click="saveBoard"
+        :disabled="!boardData.title"
+      >
+        Save
+      </button>
+    </div>
   </div>
-</div>
 </template>
 
 <script>
 export default {
-  props: ['board'],
+  props: {
+    board: {
+      type: Object,
+      default: () => ({})
+    },
+    boards: {
+      type: Array,
+      default: () => []
+    }
+  },
   data() {
     return {
-      confirmDelete: false,
-      boardProject: this.$projects.allProjects.find(p => p.project_id === this.board.project_id) 
+      boardData: {},
+      confirmDelete: false
     }
   },
   computed: {
+    availableBoards() {
+      // Filter out current board from parent options
+      return (this.boards || []).filter(b => b.id !== this.board?.id)
+    }
+  },
+  watch: {
+    board: {
+      handler(newBoard) {
+        this.boardData = newBoard ? { ...newBoard } : {}
+      },
+      deep: true,
+      immediate: true
+    }
   },
   methods: {
-    updateBoardSettings() {
-      this.$emit('change', this.board)
-    },
-    cancelEdit() {
-      this.$emit('cancel-edit')
+    saveBoard() {
+      if (!this.boardData.title?.trim()) return
+      this.$emit('change', this.boardData)
     },
     deleteBoard() {
-      if (this.confirmDelete) {
-        this.$emit('delete', this.board)
-        this.board = null
-      } else {
+      if (!this.confirmDelete) {
         this.confirmDelete = true
+        return
       }
-    },
-    saveBoard() {
-      this.$emit('change', this.board)
+      this.$emit('delete', this.boardData)
     }
   }
 }

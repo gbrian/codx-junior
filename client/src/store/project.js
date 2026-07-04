@@ -1,3 +1,4 @@
+
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
 import { API } from '../api/api'
@@ -540,11 +541,11 @@ export const actions = actionTree(
       
       try {
         await $storex.api.settings.global.write(settings)
-      
+
+        await $storex.projects.realoadProject()
+
         // Force reload all projects with new global settings
         await $storex.projects.loadAllProjects()
-        
-        await $storex.projects.realoadProject()
       
       } finally {
         state.projectLoading = false
@@ -790,26 +791,21 @@ export const actions = actionTree(
       )
     },
     // Indexing actions
-    async startIndexing({ commit }, filePaths) {
-      commit('setIndexingFiles', filePaths)
-      commit('setIndexingError', null)
+    async startIndexing({ commit }, { project, filePaths }) {
+      $storex.projects.setIndexingFiles(filePaths)
+      $storex.projects.setIndexingError(null)
       
       try {
-        const api = $storex.projects.activeProject?.$api
+        const api = project.$api
         if (!api) {
           throw new Error('API not initialized')
         }
 
         await api.knowledge.indexFilesBackground(filePaths)
       } catch (error) {
-        commit('setIndexingError', error.message)
+        $storex.projects.setIndexingError(error.message)
         throw error
       }
-    },
-
-    // Handle socket progress events
-    updateIndexProgress({ commit }, progress) {
-      commit('updateIndexProgress', progress)
     },
 
     // Clear indexing state when complete or cancelled
@@ -827,17 +823,21 @@ export const actions = actionTree(
       // Started event
       socket.on('codx-junior-index-progress-started', (data) => {
         console.log(`📦 Indexing started: ${data.total_files} files`)
-        commit('updateIndexProgress', {
+        $storex.projects.updateIndexProgress({
           status: 'indexing',
           progress: 0,
           message: data.message,
+        })
+        $storex.ui.addNotification({ 
+          text: `📦 Indexing started: ${data.total_files} files`,
+          type: 'info'
         })
       })
 
       // Document processing events
       socket.on('codx-junior-index-progress-document-processing', (data) => {
         console.log(`📄 Processing: ${data.source}`)
-        commit('updateIndexProgress', {
+        $storex.projects.updateIndexProgress({
           status: 'processing',
           progress: Math.round((data.file_index / data.total_files) * 100),
           current_file: data.source,
@@ -848,7 +848,7 @@ export const actions = actionTree(
       // Document enriched events
       socket.on('codx-junior-index-progress-document-enriched', (data) => {
         console.log(`✨ Enriched: ${data.source} (${data.progress_percent}%)`)
-        commit('updateIndexProgress', {
+        $storex.projects.updateIndexProgress({
           status: 'enriching',
           progress: data.progress_percent,
           completed: data.completed,
@@ -860,27 +860,39 @@ export const actions = actionTree(
       // Document indexed events
       socket.on('codx-junior-index-progress-document-indexed', (data) => {
         console.log(`📚 Indexed: ${data.source} (${data.progress_percent}%)`)
-        commit('updateIndexProgress', {
+        $storex.projects.updateIndexProgress({
           status: 'indexing_db',
           progress: data.progress_percent,
           indexed_count: data.indexed_count,
           total: data.total,
           stage: 'Writing to database',
         })
+        $storex.ui.addNotification({ 
+          text: `✅ Indexed: ${data.source}`,
+          type: 'info'
+        })
       })
 
       // Batch complete
       socket.on('codx-junior-index-progress-batch-complete', (data) => {
         console.log(`✅ Batch complete: ${data.documents_loaded} documents`)
+        $storex.ui.addNotification({ 
+          text: `✅ Batch complete: ${data.documents_loaded} documents`,
+          type: 'info'
+        })
       })
 
       // Completion event
       socket.on('codx-junior-index-progress-completed', (data) => {
         console.log(`🎉 Indexing complete: ${data.indexed_count}/${data.total}`)
-        commit('updateIndexProgress', {
+        $storex.projects.updateIndexProgress({
           status: 'complete',
           progress: 100,
           message: `Successfully indexed ${data.indexed_count} documents`,
+        })
+        $storex.ui.addNotification({ 
+          text: `🎉 Indexing complete: ${data.indexed_count}/${data.total} documents`,
+          type: 'info'
         })
         // Clear indexing state after a short delay
         setTimeout(() => {
@@ -891,16 +903,20 @@ export const actions = actionTree(
       // Error event
       socket.on('codx-junior-index-error', (data) => {
         console.error(`❌ Error: ${data.error_type} - ${data.message}`)
-        commit('setIndexingError', data.message)
-        commit('updateIndexProgress', {
+        $storex.projects.setIndexingError(data.message)
+        $storex.projects.updateIndexProgress({
           status: 'error',
           error: data.message,
           context: data.context,
         })
+        $storex.ui.addNotification({ 
+          text: `❌ Indexing error: ${data.message}`,
+          type: 'error'
+        })
       })
     },
-
-    // Unsubscribe from index progress events
+  
+     // Unsubscribe from index progress events
     unsubscribeFromIndexProgress() {
       const socket = $storex.api.socket
       if (!socket) return

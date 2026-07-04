@@ -24,7 +24,7 @@ import ChatEntryVue from '../ChatEntry.vue'
         </div>
       </div>
     </header>
-    <div class="grow">
+    <div class="grow overflow-hidden">
       <div class="h-full flex flex-col" v-if="prShowOption === 'diff'">
         <div class="flex gap-2 py-2 items-center" v-if="files?.length">
           <div class="flex gap-2 items-center" v-if="reportFiles.length">
@@ -69,62 +69,62 @@ import ChatEntryVue from '../ChatEntry.vue'
           </div>
         </div>
         
-          <SplitterGroup id="splitter-group-1" 
-            class="h-full overflow-auto"
-            direction="horizontal" v-if="files">
-            <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :defaultSize="30" :collapsible="true" class="" :order="0">
-              <CodxMenu class="h-full overflow-auto"
-                :items="visibleFiles" :item-key="'folder'" 
-                :defaultExpanded="defaultExpanded"
-              >
-                <template v-slot:header>
-                  <h2 class="font-semibold !text-base text-blackA11 flex items-end gap-2 px-2 pt-1">
-                    <input type="checkbox" @change="toggleAllNoneSelected" class="checkbox checkbox-sm" />
-                    Files
-                    <span class="click ml-2 text-xs flex gap-1"><a @click="selectAll">all</a>/<a @click="selectNone">none</a></span>
-                  </h2>
-                </template>
-                <template v-slot:item="data">
-                  <div class="flex gap-1 items-center click px-2 text-nowrap"
-                    :class="!data.item.hasChildren && 'ml-6'"
-                    @click="onDataItemClick(data.item)"
-                  >
-                    <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm" 
-                      @click.stop=""
-                      @change="onDataItemSelected(data.item)" />
-                    <div class="avatar-group -space-x-2" v-if="data.item.value.profiles?.length">
-                      <div class="avatar" :title="profile.name" v-for="profile in data.item.value.profiles" :key="data.item.value.title + profile.name">
-                        <div class="w-4 h-4">
-                          <img :src="profile.avatar" />
-                        </div>
+        <SplitterGroup id="splitter-group-1" 
+          class="h-full"
+          direction="horizontal" v-if="files">
+          <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :defaultSize="30" :collapsible="true" class="overflow-y-auto" :order="0">
+            <CodxMenu class="h-full"
+              :items="visibleFiles" :item-key="'folder'" 
+              :defaultExpanded="defaultExpanded"
+            >
+              <template v-slot:header>
+                <h2 class="font-semibold !text-base text-blackA11 flex items-end gap-2 px-2 pt-1">
+                  <input type="checkbox" @change="toggleAllNoneSelected" class="checkbox checkbox-sm" />
+                  Files
+                  <span class="click ml-2 text-xs flex gap-1"><a @click="selectAll">all</a>/<a @click="selectNone">none</a></span>
+                </h2>
+              </template>
+              <template v-slot:item="data">
+                <div class="flex gap-1 items-center click px-2 text-nowrap"
+                  :class="!data.item.hasChildren && 'ml-6'"
+                  @click="onDataItemClick(data.item)"
+                >
+                  <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm" 
+                    @click.stop=""
+                    @change="onDataItemSelected(data.item)" />
+                  <div class="avatar-group -space-x-2" v-if="data.item.value.profiles?.length">
+                    <div class="avatar" :title="profile.name" v-for="profile in data.item.value.profiles" :key="data.item.value.title + profile.name">
+                      <div class="w-4 h-4">
+                        <img :src="profile.avatar" />
                       </div>
                     </div>
-                    <i class="fa-regular fa-comment-dots" :class="`text-[${data.item.value.column?.color}]`"
-                      v-if="data.item.value.chat"></i>
-
-                    <span :title="data.item.value.fileName">
-                      {{ data.item.value.title }}
-                    </span>
-
-                    <div class="" :class="`text-[${data.item.value.column.color}]`" v-if="data.item.value.column">
-                      ( {{ data.item.value.column.title }} )
-                    </div>
                   </div>
-                </template>
-              </CodxMenu>
-            </SplitterPanel>
-            <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
-            <SplitterPanel class="w-full h-full overflow-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
-              <PRReport  
-                ref="prReport"
-                :prChat="chat"
-                :files="visibleFiles"
-                :columns="columns"
-                @new-chat="onFileChat"
-                @chat-column="onSetChatColumn"  
-              />
-            </SplitterPanel>
-          </SplitterGroup>
+                  <i class="fa-regular fa-comment-dots" :class="`text-[${data.item.value.column?.color}]`"
+                    v-if="data.item.value.chat"></i>
+
+                  <span :title="data.item.value.fileName">
+                    {{ data.item.value.title }}
+                  </span>
+
+                  <div class="" :class="`text-[${data.item.value.column.color}]`" v-if="data.item.value.column">
+                    ( {{ data.item.value.column.title }} )
+                  </div>
+                </div>
+              </template>
+            </CodxMenu>
+          </SplitterPanel>
+          <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
+          <SplitterPanel class="overflow-y-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
+            <PRReport  
+              ref="prReport"
+              :prChat="chat"
+              :files="visibleFiles"
+              :columns="columns"
+              @new-chat="onFileChat"
+              @chat-column="onSetChatColumn"  
+            />
+          </SplitterPanel>
+        </SplitterGroup>
       </div>
     </div>
     <div v-if="prShowOption === 'chat'">

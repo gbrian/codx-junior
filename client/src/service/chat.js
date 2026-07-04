@@ -367,4 +367,52 @@ export class ChatService extends Service {
       compare_branch: compareBranch
     }
   }
+
+  findChildChatByFile({ chat, childrenChats, file }) {
+    const searchNode = (node, visited = new Set()) => {
+      if (!node || visited.has(node.id)) return null
+      visited.add(node.id)
+      if (node.file_list?.includes(file)) return node
+      if (node.children && Array.isArray(node.children)) {
+        for (const child of node.children) {
+          const found = searchNode(child, visited)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    if (childrenChats && Array.isArray(childrenChats)) {
+      for (const child of childrenChats) {
+        const found = searchNode(child)
+        if (found) return found
+      }
+    }
+
+    if (chat) {
+      return searchNode(chat)
+    }
+    return null
+  }
+
+  findChatByFileAndMessage({ chat, file, messageId }) {
+    if (!file) return null
+    const chats = this.$projects?.allChats || []
+    
+    // 1. Find directly-linked chat by file and messageId
+    let found = chats.find(c => 
+      c.file_list?.includes(file) && 
+      (c.message_id === messageId || (messageId && c.metadata?.message_id === messageId))
+    )
+    if (found) return found
+
+    // 2. Fallback to any child chat of parent chat that matches this file
+    if (chat) {
+      found = chats.find(c => 
+        c.file_list?.includes(file) && 
+        (c.parent_id === chat.id || c.metadata?.parent_id === chat.id)
+      )
+    }
+    return found || null
+  }
 }

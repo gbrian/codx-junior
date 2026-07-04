@@ -31,7 +31,6 @@ services:
       - traefik.enable=false
 
   ###################################################################
-  ## OLLAMA
   ## Model management
   ###################################################################
 
@@ -54,44 +53,8 @@ services:
       - traefik.enable=false
 
   ###################################################################
-  ## LocalAI
-  ## Local LLM API with security enabled
+  ## API
   ###################################################################
-
-  localai:
-    container_name: localai-codx-junior
-    image: localai/localai:latest-aio-gpu
-    restart: unless-stopped
-    shm_size: "20gb"
-    environment:
-      - DEBUG=1
-      - LOCALAI_API_AUTH_KEY=${LOCALAI_API_KEY:-your-secure-api-key-here}
-      - LOCALAI_AUTH_PROTECTION=true
-      - MODELS_PATH=/root/.local/share/localai/models
-      - CONTEXT_SIZE=2048
-    volumes:
-      - localai_models:/root/.local/share/localai/models
-      - localai_data:/root/.local/share/localai
-    labels:
-      - traefik.enable=true
-      # HTTP Router for LocalAI UI
-      - traefik.http.routers.localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/localai`)
-      - traefik.http.routers.localai.entrypoints=web
-      
-      # HTTPS Router for LocalAI UI
-      - traefik.http.routers.localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/localai`)
-      - traefik.http.routers.localai-secure.entrypoints=websecure
-      - traefik.http.routers.localai-secure.tls.certresolver=sslresolver
-      
-      # Shared Service and Middleware
-      - traefik.http.routers.localai.service=localai-service
-      - traefik.http.routers.localai-secure.service=localai-service
-      - traefik.http.services.localai-service.loadbalancer.server.port=8080
-      
-      # Path Prefix Stripping for /localai
-      - traefik.http.middlewares.localai-stripprefix.stripprefix.prefixes=/localai
-      - traefik.http.routers.localai.middlewares=localai-stripprefix
-      - traefik.http.routers.localai-secure.middlewares=localai-stripprefix
 
   codx-junior-api:
     depends_on:
@@ -112,7 +75,7 @@ services:
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
       - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
       # vLLM
-      - VLLM_DEVICE=cpu
+      - VLLM_TARGET_DEVICE=CPU
     volumes:
       # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
       - /home/codx-junior-projects:/home/codx-junior-projects

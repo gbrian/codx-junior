@@ -157,13 +157,13 @@ export const mutations = mutationTree(state, {
   addNotification(state, { text, type }) {
     const existing = state.notifications?.find(n => n.text === text)
     if (existing) {
-      existing.ts = moment().format("hh:mm:ss")
+      existing.ts = moment().format("HH:mm:ss")
       return
     }
     const notif = {
-      ts: moment().format("hh:mm:ss"),
+      ts: moment().format("HH:mm:ss"),
       text,
-      type
+      type: type || 'info'
     }
     state.notifications.push(notif)
     setTimeout(() => $storex.ui.removeNotification(notif), 30000)
@@ -171,6 +171,9 @@ export const mutations = mutationTree(state, {
   removeNotification(state, notification) {
     state.notifications.splice(
       state.notifications.findIndex(n => n === notification), 1)
+  },
+  clearNotifications(state, notifications) {
+    state.notifications = state.notifications.filter(n => !notifications.includes(n))
   },
   setNoVNCSettings(state, settings) {
     state.noVNCSettings = { ...state.noVNCSettings, ...settings }
@@ -185,6 +188,18 @@ export const mutations = mutationTree(state, {
     $storex.ui.showApp({ ...app, tabId: null })
   },
   showApp(state, app) {
+    // Check if panel already exists and activate it
+    if (state._desktopApi && app.params?.chat?.id) {
+      const existingPanel = state._desktopApi.panels
+          .find(({ _params }) => _params?.chat?.id === app.params?.chat?.id
+      )
+      if (existingPanel) {
+        existingPanel.api.setActive()
+        state.activeApp = app
+        return
+      }
+    }
+
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
@@ -233,7 +248,7 @@ export const mutations = mutationTree(state, {
   setAppShowMode(state, mode) {
     state.appShowMode = mode
   },
-  openChat(state, chat) {
+  openChat(_, chat) {
     $storex.ui.showApp({
       name: chat.name,
       component: 'chat',

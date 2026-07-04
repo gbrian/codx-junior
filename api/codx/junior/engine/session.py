@@ -306,10 +306,6 @@ class CODXJuniorSession:
     # Knowledge operations (delegated)
     # -------------------------------------------------------------------------
 
-    def reload_knowledge(self, path: str = None) -> dict:
-        """Reload knowledge, optionally for a specific path."""
-        return self._knowledge_engine.reload_knowledge(path=path)
-
     @profile_function
     async def knowledge_search(self, knowledge_search: KnowledgeSearch) -> dict:
         """Perform a knowledge search."""

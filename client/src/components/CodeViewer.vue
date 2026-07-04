@@ -43,8 +43,13 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             <i class="fa-solid fa-edit"></i>
           </div>
 
-          <div class="hover:text-info cursor-pointer" @click.stop="createSubTask" title="Create sub-task">
-            <i class="fa-brands fa-trello"></i>
+          <div
+            class="hover:text-info cursor-pointer"
+            :class="associatedChat && 'text-success'"
+            @click.stop="onTaskClick"
+            :title="associatedChat ? 'Open associated chat' : 'Create sub-task'"
+          >
+            <i :class="associatedChat ? 'fa-solid fa-comments' : 'fa-brands fa-trello'"></i>
           </div>
 
           <div class="hover:text-info cursor-pointer" @click.stop="loadDiffInfo" title="Refresh diff stats">
@@ -67,12 +72,10 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             </span>
           </span>
 
-          <!-- Streaming last line preview -->
           <div class="font-mono text-xs truncate trl" v-if="!finished">
             {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
           </div>
 
-          <!-- User-change badge: shows when localCode overrides the original prop -->
           <span
             v-if="hasLocalChanges"
             class="badge badge-warning badge-xs gap-1"
@@ -82,7 +85,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </span>
         </div>
 
-        <!-- Diff percentage bar with danger indicator -->
         <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
           <div
             class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
@@ -110,34 +112,32 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #actions>
-      <!-- AI Patch: generates a full file version from partial content -->
       <button class="btn btn-sm btn-info btn-outline"
         @click.stop="applyPatchFromAI"
-        v-if="file && finished && (showCode || showDiff) && !isPatch"
+        v-if="!isNoChange && file && finished && (showCode || showDiff) && !isPatch"
         :disabled="isApplyingPatch"
         title="Generate improved version using AI patch">
         <span class="loading loading-spinner loading-xs" v-if="isApplyingPatch"></span>
         <i class="fa-solid fa-wand-magic-sparkles" v-else></i> Patch
       </button>
 
-      <!-- Save: persists the current effective content to disk -->
       <button class="btn btn-sm btn-success btn-outline"
         @click.stop="saveToFile"
-        v-if="file && finished && (showCode || showDiff)"
+        v-if="!isNoChange && file && finished && (showCode || showDiff)"
         :class="{ 'blink-save': isSaving }"
         title="Save to file">
         <i class="fa-solid fa-floppy-disk"></i> Save
       </button>
 
-      <!-- Discard: resets diff back to original generated code -->
+      <span class="text-success font-console text-xs" v-if="isNoChange">No changes</span>
+
       <button class="btn btn-sm btn-error btn-outline"
-        @click.stop="discardChanges"
-        v-if="showDiff && hasChanges"
+        @click.stop="discardDiffChanges"
+        v-if="showDiff && hasDiffEdits"
         title="Discard changes">
         <i class="fa-solid fa-xmark"></i> Discard
       </button>
 
-      <!-- Reset local edits (patch / manual edit) back to AI-generated prop -->
       <button class="btn btn-sm btn-ghost btn-outline"
         @click.stop="resetLocalChanges"
         v-if="hasLocalChanges"
@@ -159,7 +159,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <!-- Danger alert for heavy modifications -->
       <div v-if="isDangerousChange && !editMode && !showDiff" class="alert alert-warning">
         <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
@@ -169,20 +168,14 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </span>
       </div>
 
-      <!-- Patch loading overlay -->
       <div v-if="isApplyingPatch" class="alert alert-info">
         <span class="loading loading-spinner loading-sm"></span>
         <span class="text-sm">Applying AI patch, please wait…</span>
       </div>
 
-      <!-- view-code grows to fill all available vertical space -->
       <div class="view-code grow overflow-auto">
         <div :style="{ zoom, height: `${editorHeight}px` }">
 
-          <!--
-            Diff view: compares orgContent (on-disk) vs effectiveCode (generated/patched/edited).
-            diffEditContent is two-way so user edits inside the diff editor are captured.
-          -->
           <Editor
             :diff="true"
             :originalCode="orgContent"
@@ -192,7 +185,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="showDiff && !editMode && orgContent"
           />
 
-          <!-- Monaco plain edit mode -->
           <Editor
             v-model="editContent"
             :fileName="file"
@@ -201,7 +193,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="editMode"
           />
 
-          <!-- Syntax-highlighted read-only view -->
           <VueCodeHighlighter
             class="h-full"
             :code="effectiveCode"
@@ -212,7 +203,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </div>
       </div>
 
-      <!-- Edit mode footer -->
       <div class="flex justify-end gap-2" v-if="editMode">
         <button class="btn btn-sm btn-outline" @click="cancelEdit">
           <i class="fa-solid fa-xmark"></i> Cancel
@@ -222,7 +212,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
       </div>
 
-      <!-- Read-only / diff view footer -->
       <div class="flex justify-end gap-2" v-else>
         <button class="btn btn-sm btn-outline" @click.stop="onCopy" title="Copy">
           <i class="fa-solid fa-copy"></i> Copy
@@ -235,18 +224,33 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
       </div>
     </div>
+
+    <modal v-if="showConfirmModal">
+        <h3 class="font-bold text-lg">Unsaved Changes</h3>
+        <p>You have unsaved changes in the diff editor. What would you like to do?</p>
+        <button class="btn btn-error" @click="confirmDiscardDiff">
+          <i class="fa-solid fa-trash"></i> Discard
+        </button>
+        <button class="btn btn-success" @click="confirmApplyDiff">
+          <i class="fa-solid fa-check"></i> Apply
+        </button>
+        <button class="btn" @click="cancelConfirm">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </button>
+    </modal>
   </Collapsible>
 </template>
 
 <script>
 export default {
-  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened'],
+  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
       showDiff: false,
-      orgContent: null,       // Content currently on disk
-      diffEditContent: null,  // Editable right-side of the diff editor
+      orgContent: null,
+      diffEditContent: null,
+      diffBaseContent: null,
       diff: this.fileDiff,
       zoom: 1,
       editMode: false,
@@ -268,24 +272,22 @@ export default {
       isDangerousChange: false,
       changeRiskMessage: '',
       isNewFile: true,
-      // localCode: when set, overrides the `code` prop as the "current working version"
-      // This is populated by: AI patch response, manual edits applied via Apply button
-      localCode: null
+      localCode: null,
+      showConfirmModal: false,
+      pendingViewSwitch: null
     }
   },
   computed: {
-    /**
-     * The effective code to display/save.
-     * localCode takes priority over the prop when the user has made changes
-     * (patch result, applied edits, etc.).
-     */
     effectiveCode() {
       return this.localCode !== null ? this.localCode : this.code
     },
 
-    /** True when the user has a locally-modified version overriding the AI prop */
     hasLocalChanges() {
       return this.localCode !== null && this.localCode !== this.code
+    },
+
+    hasDiffEdits() {
+      return this.diffEditContent !== this.diffBaseContent
     },
 
     editorHeight() {
@@ -311,11 +313,7 @@ export default {
     },
 
     isNoChange() {
-      if (!this.stats) return false
-      const insertMatch = this.stats.match(/(\d+) insertion/)
-      const deleteMatch = this.stats.match(/(\d+) deletion/)
-      if (!insertMatch || !deleteMatch) return false
-      return parseInt(insertMatch[1]) === parseInt(deleteMatch[1])
+      return this.orgContent === this.code
     },
 
     fileLanguage() {
@@ -327,17 +325,20 @@ export default {
       return 'markdown'
     },
 
-    /** True if the diff editor right-side diverges from effectiveCode */
-    hasChanges() {
-      return this.diffEditContent !== this.effectiveCode
-    },
-
     $api() {
       return (this.project?.$api || this.$storex.api)
     },
 
     lastLine() {
       return this.code?.split("\n").reverse()[0]
+    },
+
+    associatedChat() {
+      return this.$service.chat.findChatByFileAndMessage({
+        chat: this.chat,
+        file: this.file,
+        messageId: this.message?.doc_id
+      })
     }
   },
   watch: {
@@ -379,29 +380,20 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
-    /**
-     * Central method for all user-initiated code changes.
-     * Stores the new version in localCode and opens the diff view so the
-     * user can review, further edit, or discard before saving.
-     *
-     * Sources that call this:
-     *   - applyPatchFromAI  (AI patch result)
-     *   - applyMessageChange (manual Monaco edit)
-     */
     applyUserChange(newContent) {
       if (!newContent) return
       this.localCode = newContent
-      // Show diff: orgContent (disk) vs newContent (user/AI change)
       this.diffEditContent = newContent
+      this.diffBaseContent = newContent
       this.editMode = false
       this.showDiff = !!this.orgContent
       this.hasUnsavedFileChanges = true
     },
 
-    /** Resets localCode back to the original AI-generated prop value */
     resetLocalChanges() {
       this.localCode = null
       this.diffEditContent = this.code
+      this.diffBaseContent = this.code
       this.hasUnsavedFileChanges = false
       this.showDiff = !!this.orgContent && !this.isNoChange
     },
@@ -461,10 +453,6 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
 
-    /**
-     * Calls the backend patch API which returns a fully-resolved file content.
-     * The result is treated as a user change: shown in diff view for validation.
-     */
     async applyPatchFromAI() {
       if (!this.file || this.isApplyingPatch) return
       try {
@@ -474,7 +462,6 @@ export default {
           partial_content: this.effectiveCode
         })
         if (response?.content) {
-          // Route through applyUserChange so the diff view opens for review
           this.applyUserChange(response.content)
         } else {
           console.warn('Patch API returned no content', response)
@@ -491,7 +478,12 @@ export default {
     },
 
     toggleView() {
-      this.showDiff = !this.showDiff
+      if (this.hasDiffEdits) {
+        this.pendingViewSwitch = 'toggle'
+        this.showConfirmModal = true
+      } else {
+        this.showDiff = !this.showDiff
+      }
     },
 
     async loadDiffInfo() {
@@ -508,7 +500,6 @@ export default {
           this.size = size
           if (!stats && diff) this.stats = 'File changes'
 
-          // Read current on-disk content
           let content = ""
           try {
             const { content: fileContent } = await this.$api.files.read(this.file)
@@ -519,11 +510,9 @@ export default {
             this.isNewFile = true
           }
 
-          if (!this.orgContent) {
-            this.orgContent = content
-          }
-          // Seed the diff editor with effectiveCode (AI or patched version)
+          this.orgContent = content
           this.diffEditContent = this.effectiveCode
+          this.diffBaseContent = this.effectiveCode
           this.calculateDiffPercentages()
         }
       } finally {
@@ -536,7 +525,6 @@ export default {
         this.cancelEdit()
         return
       }
-      // Pre-populate editor with the effective (possibly patched) code
       this.editContent = this.effectiveCode
       this.editMode = true
       this.showDiff = false
@@ -553,34 +541,48 @@ export default {
       this.hasUnsavedFileChanges = true
     },
 
-    /**
-     * User clicks "Apply" in edit mode.
-     * Stores edits as localCode and opens diff view for final review.
-     */
     applyMessageChange() {
       this.$emit('message-change', { orgContent: this.effectiveCode, newContent: this.editContent })
-      // Treat the manual edit as a user change → show diff
       this.applyUserChange(this.editContent)
       this.cancelEdit()
     },
 
-    /**
-     * Discards diff editor changes: resets right-side back to effectiveCode.
-     * Does NOT clear localCode – the patched/edited version is kept.
-     */
-    discardChanges() {
-      this.diffEditContent = this.effectiveCode
+    discardDiffChanges() {
+      this.diffEditContent = this.diffBaseContent
       this.showDiff = false
+    },
+
+    confirmApplyDiff() {
+      this.localCode = this.diffEditContent
+      this.diffBaseContent = this.diffEditContent
+      this.showConfirmModal = false
+      this.pendingViewSwitch = null
+      if (this.pendingViewSwitch === 'toggle') {
+        this.showDiff = !this.showDiff
+      }
+    },
+
+    confirmDiscardDiff() {
+      this.diffEditContent = this.diffBaseContent
+      this.showConfirmModal = false
+      const shouldToggle = this.pendingViewSwitch === 'toggle'
+      this.pendingViewSwitch = null
+      if (shouldToggle) {
+        this.showDiff = !this.showDiff
+      }
+    },
+
+    cancelConfirm() {
+      this.showConfirmModal = false
+      this.pendingViewSwitch = null
     },
 
     async saveToFile() {
       this.triggerSaveAnimation()
-      // Determine what to save: diff-editor edits > localCode > original AI code
       let content
       if (this.editMode && this.editContent) {
         content = this.editContent
       } else if (this.showDiff && this.diffEditContent) {
-        // User may have further edited in the diff view
         content = this.diffEditContent
       } else {
         content = this.effectiveCode
@@ -589,8 +591,9 @@ export default {
       this.hasUnsavedFileChanges = false
       if (this.editMode) this.cancelEdit()
       this.showDiff = false
-      // After saving, clear localCode so we're back in sync with the prop
       this.localCode = null
+      this.diffEditContent = null
+      this.diffBaseContent = null
       await this.loadDiffInfo()
     },
 
@@ -619,6 +622,14 @@ export default {
       this.$emit('sub-task', { file: this.file, content })
     },
 
+    onTaskClick() {
+      if (this.associatedChat) {
+        this.$chats.setActiveChat(this.associatedChat)
+      } else {
+        this.createSubTask()
+      }
+    },
+
     saveScrollPosition() {
       const viewCode = this.$el?.querySelector('.view-code')
       if (!viewCode) return
@@ -629,7 +640,6 @@ export default {
   }
 }
 </script>
-
 <style>
 .header-code-highlight {
   display: none !important;

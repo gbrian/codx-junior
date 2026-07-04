@@ -553,8 +553,8 @@ async def api_knowledge_agent_search(
 @sio.on("codx-junior-index-knowledge")
 @sio_api_endpoint
 async def sio_index_knowledge(
-    sid, 
-    data: dict, 
+    sid,
+    data: dict,
     codxjunior_session: CODXJuniorSession
 ):
     """
@@ -566,10 +566,7 @@ async def sio_index_knowledge(
 
     Emitted events:
         - ``codx-junior-index-progress-started``: Indexing started
-        - ``codx-junior-index-progress-document-processing``: Processing document
-        - ``codx-junior-index-progress-document-enriched``: Document enriched
-        - ``codx-junior-index-progress-document-indexed``: Document indexed
-        - ``codx-junior-index-progress-batch-complete``: Batch finished
+        - ``codx-junior-index-progress-reload-path``: Reload path
         - ``codx-junior-index-progress-completed``: Full indexing done
         - ``codx-junior-index-error``: Error occurred
 
@@ -597,11 +594,10 @@ async def sio_index_knowledge(
             }
         )
 
-        # Get knowledge instance with callback
+        # Get knowledge instance
         knowledge = codxjunior_session.get_knowledge()
-        
-        # Load documents with progress reporting
-        all_documents = []
+
+        # Reload each file path
         for idx, file_path in enumerate(file_paths):
             await progress_callback.on_progress(
                 ProgressEventType.DOCUMENT_PROCESSING,
@@ -609,55 +605,45 @@ async def sio_index_knowledge(
                     "file_index": idx,
                     "total_files": len(file_paths),
                     "current_file": file_path,
-                    "message": f"Loading {file_path}...",
+                    "message": f"Reloading {file_path}...",
                 }
             )
-            
+
             try:
-                documents = knowledge.loader.load(path=file_path)
-                all_documents.extend(documents)
+                # Use reload_path method
+                await knowledge.reload_path(path=file_path)
             except Exception as ex:
+                logger.exception("Error processing file '%s': %s", file_path, ex)
                 await progress_callback.on_error(
                     ex,
                     {
                         "file_path": file_path,
-                        "stage": "loading",
+                        "stage": "reload",
                     }
                 )
-
-        # Index all documents with progress reporting
-        if all_documents:
-            await knowledge.index_documents(
-                documents=all_documents,
-                raiseIfError=False,
-                callback=progress_callback,
-            )
 
         # Final success event
         await progress_callback.on_progress(
             ProgressEventType.COMPLETED,
             {
                 "status": "success",
-                "documents_indexed": len(all_documents),
                 "files_indexed": len(file_paths),
-                "message": f"Successfully indexed {len(file_paths)} file(s) ({len(all_documents)} documents)",
+                "message": f"Successfully reloaded {len(file_paths)} file(s)",
             }
         )
 
         logger.info(
-            "Socket: index_knowledge complete | files=%d | documents=%d",
+            "Socket: index_knowledge complete | files=%d",
             len(file_paths),
-            len(all_documents),
         )
-        
+
         return {
             "status": "success",
-            "files_indexed": len(file_paths),
-            "documents_indexed": len(all_documents),
+            "files_reloaded": len(file_paths),
         }
 
     except Exception as ex:
-        logger.exception("Error indexing knowledge via socket")
+        logger.exception("Error reloading knowledge via socket")
         await progress_callback.on_error(
             ex,
             {

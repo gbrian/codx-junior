@@ -45,6 +45,8 @@ export CODX_JUNIOR_CONFIG_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER:-/home/codx-junior/
 
 # Workspaces
 export CODX_JUNIOR_WORKSPACES_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER}/workspaces
+# Default workspace template path (contains template files: Dockerfile, docker-compose.yaml, .env, etc.)
+export CODX_JUNIOR_DEFAULT_WORKSPACE_PATH=${CODX_JUNIOR_DEFAULT_WORKSPACE_PATH:-/home/codx-junior-projects/codx-junior/workspace-templates}
 
 # Analytics
 export CODX_JUNIOR_API_ANALYTICS_DATA_PATH=${CODX_JUNIOR_API_ANALYTICS_DATA_PATH:-/home/codx-junior/analytics}
@@ -58,3 +60,6 @@ export DEBIAN_FRONTEND=noninteractive
 export LANG=en_US.UTF-8  
 export LANGUAGE=en_US:en  
 export LC_ALL=en_US.UTF-8
+
+# vllm
+export VLLM_TARGET_DEVICE=CPU

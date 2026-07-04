@@ -7,6 +7,7 @@ import KanbanGridView from './KanbanGridView.vue'
 import KanbanFilesView from './KanbanFilesView.vue'
 import Collapsible from '../Collapsible.vue'
 import ChatHistory from './ChatHistory.vue'
+import KanbanBoardModal from './KanbanBoardModal.vue'
 </script>
 
 <template>
@@ -108,8 +109,8 @@ import ChatHistory from './ChatHistory.vue'
               </div>
               <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
                 <li @click="openAddColumnModal"><a><i class="fa-solid fa-plus"></i> Column</a></li>
-                <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
-                <li @click="onEditBoard()"><a><i class="fas fa-cogs"></i> Settings</a></li>
+                <li @click="openNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
+                <li @click="openEditBoardModal"><a><i class="fas fa-cogs"></i> Settings</a></li>
               </ul>
             </div>
           </div>
@@ -131,7 +132,7 @@ import ChatHistory from './ChatHistory.vue'
           <div class="p-2 overflow-auto">
             <KanbanList
               :boards="childBoards"
-              @new-board="showNewBoardModal"
+              @new-board="openNewBoardModal"
               @toogle-history="showActivity = !showActivity"
               @select="$emit('select-board', $event)"
             />
@@ -139,7 +140,6 @@ import ChatHistory from './ChatHistory.vue'
         </Collapsible>
 
         <div class="mt-3 grow relative flex flex-col gap-2 min-h-0">
-
           <!-- Board (grid) view -->
           <KanbanGridView
             v-if="activeView === 'board'"
@@ -163,28 +163,16 @@ import ChatHistory from './ChatHistory.vue'
         </div>
       </div>
 
-      <!-- New/Edit Board modal -->
+      <!-- Board modal (new/edit/delete) -->
       <modal close="true" @close="showBoardModal = false" v-if="showBoardModal">
-        <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
-        <div class="collapse bg-contain" :style="`background-image:url('${newBoardBackground}')`">
-          <input type="radio" name="newboard" v-model="newBoardType" value="manual" />
-          <div class="hidden collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
-          <div class="collapse-content">
-            <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
-            <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2" />
-            <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2" />
-            <input type="text" v-model="newBoardBackground" placeholder="Enter board background image" class="input input-bordered w-full mt-2" />
-            <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
-              <option value="">-- none --</option>
-              <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.title }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-action flex gap-2">
-          <button class="btn btn-error" @click="onDeleteBoard(newBoardName)">Delete</button>
-          <div class="grow"></div>
-          <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !newBoardName">Save</button>
-        </div>
+        <KanbanBoardModal 
+          :board="editingBoard"
+          :boards="parentBoardOptions"
+          :currentBoardId="board"
+          @save="onBoardSave"
+          @delete="onBoardDelete"
+          @cancel="showBoardModal = false"
+        />
       </modal>
 
       <!-- Add/Edit Column modal -->
@@ -252,13 +240,7 @@ export default {
       filter: null,
       showBoardModal: false,
       showColumnModal: false,
-      newBoardType: 'manual',
-      newBoardIssueLink: '',
-      newBoardName: '',
-      newBoardDescription: '',
-      newBoardBackground: '',
-      newBoardBranch: '',
-      newBoardParent: null,
+      editingBoard: null,
       columnTitle: '',
       columnColor: '#000000',
       isDropdownOpen: false,
@@ -268,8 +250,6 @@ export default {
       selectedTemplate: null,
       showChildrenBoards: false,
       childBoardsOpen: true,
-      editBoard: null,
-      originalBoardName: null,
       confirmDeleteColumn: false,
       showImportModalForColumn: null,
       importOption: 'clipboard',
@@ -279,9 +259,7 @@ export default {
       topChats: [],
       columnProject: null,
       loadingChats: false,
-      showHistory: false,
       showActivity: false,
-      // 'board' | 'files'
       activeView: 'board'
     }
   },
@@ -357,6 +335,10 @@ export default {
     parentBoard() {
       return this.rawBoards[this.activeBoard?.parent_id] || null
     },
+    parentBoardOptions() {
+      // Return all boards as options for parent selection
+      return Object.values(this.rawBoards)
+    },
     columnList() {
       const kanbanColumns = this.activeKanbanBoard?.columns?.map(c => c.title) || []
       const chatColumns = this.boardChats.map(c => c.column)
@@ -364,13 +346,6 @@ export default {
     },
     visibleTasks() {
       return this.viewColumns.reduce((a, col) => a.concat(col.tasks || []), [])
-    },
-    isBoardNameTaken() {
-      return (
-        this.newBoardName &&
-        this.newBoardName !== this.originalBoardName &&
-        !!this.kanban.boards[this.newBoardName]
-      )
     },
     historyProjects() {
       const allProjects = this.$projects.allProjects || []
@@ -700,53 +675,81 @@ export default {
       this.buildViewColumns()
     },
 
-    async addOrUpdateBoard() {
-      const oldName = this.originalBoardName
-      const boardName = this.newBoardName.trim()
-      if (!boardName) return
+    openNewBoardModal() {
+      this.editingBoard = null
+      this.showBoardModal = true
+    },
 
-      if (this.editBoard && boardName !== oldName && this.kanban.boards[boardName]) {
-        throw new Error(`Board '${boardName}' already exists`)
+    openEditBoardModal() {
+      const boardTitle = this.board
+      const boardData = this.kanban.boards[boardTitle]
+      this.editingBoard = {
+        id: boardTitle,
+        ...boardData
       }
+      this.showBoardModal = true
+    },
 
-      let board = this.editBoard
-        ? { ...this.kanban.boards[oldName] }
-        : { title: boardName, columns: [], id: boardName }
+    async onBoardSave({ originalTitle, board }) {
+      const oldName = originalTitle
+      const newName = board.title?.trim()
 
-      if (this.editBoard && boardName !== oldName) {
+      if (!newName) return
+
+      // Handle rename - update all references
+      if (oldName && oldName !== newName) {
         await Promise.all(
           this.chats
             .filter(c => c.board === oldName)
-            .map(c => this.$chats.saveChatInfo({ ...c, board: boardName }))
+            .map(c => this.$chats.saveChatInfo({ ...c, board: newName }))
         )
         delete this.kanban.boards[oldName]
         Object.values(this.kanban.boards)
           .filter(b => b.parent_id === oldName)
-          .forEach(b => (b.parent_id = boardName))
+          .forEach(b => (b.parent_id = newName))
       }
 
-      board.title = boardName
-      board.description = this.newBoardDescription?.trim()
-      board.background = this.newBoardBackground?.trim()
-      board.parent_id = this.newBoardParent
+      // Update board data
+      this.kanban.boards[newName] = {
+        ...this.kanban.boards[newName],
+        title: newName,
+        description: board.description || '',
+        background: board.background || '',
+        parent_id: board.parent_id || null,
+        project_id: board.project_id || null
+      }
 
-      this.kanban.boards[boardName] = board
       await this.saveKanban()
       this.showBoardModal = false
-      this.resetNewBoardInfo()
+      this.editingBoard = null
       this.buildViewColumns()
     },
 
-    resetNewBoardInfo() {
-      this.newBoardName = ''
-      this.newBoardDescription = ''
-      this.newBoardParent = null
-      this.newBoardBackground = ''
-      this.newBoardBranch = ''
-      this.selectedTemplate = null
-      this.newBoardIssueLink = ''
-      this.editBoard = null
-      this.originalBoardName = null
+    async onBoardDelete(board) {
+      const boardTitle = board.title
+
+      // Delete all chats in this board
+      const chatsToDelete = this.boardChats.filter(c => c.board === boardTitle)
+      await Promise.all(chatsToDelete.map(c => this.$chats.deleteChat(c)))
+
+      // Delete child boards recursively
+      const childBoardsList = Object.values(this.kanban.boards)
+        .filter(b => b.parent_id === boardTitle)
+      childBoardsList.forEach(b => this.onBoardDelete(b))
+
+      // Delete the board itself
+      delete this.kanban.boards[boardTitle]
+
+      await this.saveKanban()
+      this.showBoardModal = false
+      this.editingBoard = null
+      
+      // Switch to parent board or first available board
+      if (this.board === boardTitle) {
+        const parentTitle = board.parent_id || Object.keys(this.kanban.boards)[0]
+        await this.selectBoard(parentTitle)
+      }
+      this.buildViewColumns()
     },
 
     openColumnPropertiesModal(column) {
@@ -755,25 +758,6 @@ export default {
 
     async saveKanban() {
       await this.$projects.saveKanban()
-    },
-
-    showNewBoardModal() {
-      this.editBoard = null
-      this.originalBoardName = null
-      this.newBoardBackground = null
-      this.newBoardName = null
-      this.newBoardDescription = null
-      this.newBoardParent = this.activeBoard?.id || null
-      this.showBoardModal = true
-    },
-
-    onEditBoard() {
-      const title = this.board
-      this.$emit('edit-board', { title, ...this.kanban.boards[title] })
-    },
-
-    onDeleteBoard(boardTitle) {
-      // TODO: define logic for child boards and chats cleanup
     },
 
     onAddFile(filePaths) {

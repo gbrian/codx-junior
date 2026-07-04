@@ -1,131 +1,104 @@
-# Analytics Service API Reference
+# Analytics Service (`Analytics` Class)
 
-The `Analytics` class provides a high-level interface for recording, storing, and querying usage metrics related to LLM tokens consumed across various projects and models. By utilizing this service, applications can track resource consumption (tokens, duration, cost) over time and by specific dimensions like user or project.
+The `Analytics` class provides a high-level API for recording and querying LLM token usage metrics. It is designed to interact with persistent data storage to manage usage tracking across various dimensions, such as users, projects, and models.
 
 ## Initialization
 
-Instantiate the `Analytics` object by providing a path to the global storage directory:
+To initialize the service, an instance of `Analytics` must be created, passing the global path where the analytics data resides.
 
-```python
-analytics = Analytics(analytics_path=ANALYTICS_DATA_PATH)
-```
+**`__init__(self, analytics_path: str = ANALYTICS_DATA_PATH)`**
 
-The service internally initializes an `AnalyticsStorage` instance using the provided path (`codx.junior.globals.ANALYTICS_DATA_PATH`).
+*   **`analytics_path`**: The global directory for all analytic storage. By default, it reads from `codx.junior.globals.ANALYTICS_DATA_PATH`.
 
-## Recording Token Usage
+## Writing Usage Data
 
-Use the `record_token_usage` method to log a single LLM call's token consumption event. This function bundles all necessary metadata, including user identity, project context, model details, and financial cost data (CXJ coins).
+### `record_token_usage(...)`
 
-### `Analytics.record_token_usage()`
+This method is used to record consumption details for a single LLM call event. It aggregates various metrics including token counts, duration, and calculated costs (CXJ coins).
 
 **Parameters:**
 
-*   `username` (`str`): The user who initiated the LLM call.
-*   `project_name` (`str`): Descriptive name of the project context.
-*   `project_id` (`str`): Unique identifier for the project.
-*   `model` (`str`): The specific LLM model used (e.g., "gpt-4").
-*   `provider` (`str`): The external service provider (e.g., "OpenAI", "Anthropic").
-*   `input_tokens` (`int`): Count of tokens in the prompt/input sequence.
-*   `output_tokens` (`int`): Count of tokens generated in the response/completion.
-*   `duration_seconds` (`float`, default `0.0`): The total wall-clock time taken for the request/response cycle.
-*   `session_id` (`Optional[str]`): Identifier for an ongoing conversation or session.
-*   `tags` (`str`, default `""`): Comma-separated tag string, potentially derived from request headers.
-*   `input_k_tokens_cxjcoins` (`float`, default `0.0`): Calculated cost per 1K input tokens in CXJ coins (from AISettings).
-*   `output_k_tokens_cxjcoins` (`float`, default `0.0`): Calculated cost per 1K output tokens in CXJ coins (from AISettings).
-*   `request_id` (`Optional[str]`): Tracking ID for the specific API call request.
-*   `tokens_from_provider` (`bool`, default `False`): Flag indicating if tokens were sourced directly from an external provider mechanism.
+| Parameter | Type | Description | Required/Optional |
+| :--- | :--- | :--- | :--- |
+| `username` | `str` | The user who triggered the call. | Required |
+| `project_name` | `str` | The project context name. | Required |
+| `project_id` | `str` | The unique project identifier. | Required |
+| `model` | `str` | The specific LLM model used (e.g., "gpt-4"). | Required |
+| `provider` | `str` | The LLM provider (e.g., "openai", "anthropic"). | Required |
+| `input_tokens` | `int` | Token count for the prompt/input. | Required |
+| `output_tokens` | `int` | Token count for the completion/output. | Required |
+| `duration_seconds` | `float`| Wall-clock time taken by the request/response cycle. (Default: 0.0) | Optional |
+| `session_id` | `Optional[str]`| Identifier for a continuous work session or conversation. | Optional |
+| `tags` | `str` | Comma-separated tag string from request headers. (Default: "") | Optional |
+| `input_k_tokens_cxjcoins` | `float`| Price per 1K input tokens in CXJ coins. (From `AISettings`) | Required |
+| `output_k_tokens_cxjcoins` | `float`| Price per 1K output tokens in CXJ coins. (From `AISettings`) | Required |
+| `request_id` | `str` | Unique identifier for the specific API request. (Default: None) | Optional |
+| `tokens_from_provider` | `bool` | Indicates if token count originated directly from the provider. (Default: `False`) | Optional |
 
 **Returns:**
-A persisted instance of `TokenUsageEvent`.
+
+*   `TokenUsageEvent`: The persisted event object containing all recorded data points.
 
 ## Querying Analytics Data
 
-The service offers various querying methods to aggregate and retrieve usage statistics based on different dimensions. All query methods accept optional date range filters (`start_date` and `end_date`) in ISO format.
+The following methods retrieve aggregated usage statistics based on various filters and grouping levels. All query methods first read raw events using `self.storage.read_events()` before aggregation (`_aggregate`).
 
-### 1. Aggregate Usage by User
+### 1. Global Usage Totals
 
-Retrieves aggregated token usage metrics grouped by the unique `username`.
+**`get_total_usage(...)`**
+Returns a dictionary containing cumulative token totals, call counts, and costs across all filtered events.
 
-**Method Signature:**
-`get_usage_by_user(start_date: Optional[str], end_date: Optional[str], project_name: Optional[str] = None, project_id: Optional[str] = None)`
+*   **Parameters:**
+    *   `start_date`: Optional start date (ISO format, inclusive).
+    *   `end_date`: Optional end date (ISO format, inclusive).
+    *   `username`: Optional user filter.
+    *   `project_name`: Optional project filter.
+    *   `project_id`: Optional project ID filter.
+    *   `model`: Optional model name filter.
+*   **Returns:** `Dict[str, Any]` containing the totals for: `input_tokens`, `output_tokens`, `total_tokens`, `calls`, `total_duration_seconds`, `total_cxjcoins`, and `tokens_from_provider`.
 
-**Filters:**
-*   Date Range (`start_date`, `end_date`)
-*   Project Name (`project_name`)
-*   Project ID (`project_id`)
+### 2. Usage Grouped by Dimensions (Dictionary Output)
 
-**Returns:**
-A dictionary where keys are usernames and values are dictionaries containing aggregated statistics for that user:
-`Dict[username, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds, total_cxjcoins, tokens_from_provider}]`
+These methods aggregate usage, returning a dictionary where the key is the grouping dimension (e.g., username), and the value is a detailed metrics dictionary for that group.
 
-### 2. Aggregate Usage by Project
+**`get_usage_by_user(...)`**
+Aggregates token usage grouped by individual `username`.
 
-Retrieves token usage metrics grouped by the project's `project_name`.
+*   **Parameters:** Filters include `start_date`, `end_date`, `project_name`, and `project_id`.
+*   **Returns:** `Dict[username, {metrics}]`
 
-**Method Signature:**
-`get_usage_by_project(start_date: Optional[str], end_date: Optional[str], username: Optional[str] = None)`
+**`get_usage_by_project(...)`**
+Aggregates token usage grouped by `project_name`.
 
-**Filters:**
-*   Date Range (`start_date`, `end_date`)
-*   Username (`username`)
+*   **Parameters:** Filters include `start_date`, `end_date`, and optional `username`.
+*   **Returns:** `Dict[project_name, {metrics}]`
 
-**Returns:**
-A dictionary where keys are project names and values are dictionaries containing aggregated statistics for that project.
+**`get_usage_by_model(...)`**
+Aggregates token usage grouped by specific `model` name.
 
-### 3. Aggregate Usage by Model
+*   **Parameters:** Filters include `start_date`, `end_date`, optional `username`, and `project_name`.
+*   **Returns:** `Dict[model, {metrics}]`
 
-Retrieves token usage metrics grouped by the specific LLM model used.
+### 3. Period-Specific Usage (List Output)
 
-**Method Signature:**
-`get_usage_by_model(start_date: Optional[str], end_date: Optional[str], username: Optional[str] = None, project_name: Optional[str] = None)`
+**`get_daily_usage(...)`**
+Retrieves per-period aggregated token usage with configurable temporal grouping. The results are returned as a list of dictionaries, sorted by the period key ascendingly.
 
-**Filters:**
-*   Date Range (`start_date`, `end_date`)
-*   Username (`username`)
-*   Project Name (`project_name`)
+*   **Parameters:**
+    *   `start_date`: Optional start date (ISO format, inclusive).
+    *   `end_date`: Optional end date (ISO format, inclusive).
+    *   `username`: Optional user filter.
+    *   `project_name`: Optional project filter.
+    *   `grouping`: The time granularity level: `'day'` (default), `'hour'`, or `'minute'`.
+*   **Returns:** `List[Dict[str, Any]]` containing the period key (`period`) and aggregate metrics for that interval.
 
-**Returns:**
-A dictionary where keys are model names and values are dictionaries containing aggregated statistics for that model.
+### 4. Utility Methods
 
-### 4. Time-Series Usage (Grouping)
+**`list_available_dates()`**
+Retrieves all available dates with stored analytics data.
 
-This function calculates usage totals segmented into configurable time periods, making it suitable for trend analysis.
-
-**Method Signature:**
-`get_daily_usage(start_date: Optional[str], end_date: Optional[str], username: Optional[str] = None, project_name: Optional[str] = None, grouping: str = "day")`
-
-**Parameters:**
-*   Date Range (`start_date`, `end_date`)
-*   Username (`username`): Optional user filter.
-*   Project Name (`project_name`): Optional project filter.
-*   Grouping (`grouping`): The time granularity for aggregation. Accepts `'minute'`, `'hour'`, or `'day'`. Defaults to `'day'`.
-
-**Returns:**
-A sorted list of dictionaries, where each dictionary represents a specific time period and contains aggregated metrics:
-`List[{period, input_tokens, output_tokens, total_tokens, calls, total_duration_seconds, total_cxjcoins, tokens_from_provider}]`
-
-### 5. Global Total Usage
-
-Returns a single summary dictionary containing the cumulative token totals across all specified filters and events.
-
-**Method Signature:**
-`get_total_usage(start_date: Optional[str], end_date: Optional[str], username: Optional[str] = None, project_name: Optional[str] = None, project_id: Optional[str] = None, model: Optional[str] = None)`
-
-**Filters:**
-*   Date Range (`start_date`, `end_date`)
-*   Username (`username`): Optional user filter.
-*   Project Name (`project_name`): Optional project filter.
-*   Project ID (`project_id`): Optional project identifier filter.
-*   Model (`model`): Optional model name filter.
-
-**Returns:**
-A dictionary containing the sum of all metrics across the filtered dataset:
-`Dict with keys: input_tokens, output_tokens, total_tokens, calls, total_duration_seconds, total_cxjcoins, tokens_from_provider.`
-
-### Utility Methods
-
-#### `list_available_dates()`
-Returns a sorted list of dates available in the analytics storage, formatted as `"YYYY-MM-DD"`.
+*   **Parameters:** None.
+*   **Returns:** `List[str]` of sorted date strings in `YYYY-MM-DD` format, representing days for which usage is recorded.
 
 ## Dependencies
 **Imports from:** codx/junior/analytics/model.py, codx/junior/analytics/storage.py, codx/junior/globals.py

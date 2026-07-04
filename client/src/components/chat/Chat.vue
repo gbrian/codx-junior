@@ -9,48 +9,59 @@ import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatIntelliSense from './ChatIntelliSense.vue'
 import ChatFilePreview from './ChatFilePreview.vue'
+import ChatMessageEditor from './ChatMessageEditor.vue'
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-1 overflow-auto"
+  <div class="h-full flex flex-col gap-1 overflow-hidden"
     @dragover.prevent="draggingOver = true"
     @dragleave.prevent="draggingOver = false"
-    @drop.prevent="onDrop"
+    @drop.prevent="onDropChat"
   >
-    <div class="grow relative flex flex-col gap-1 min-h-0" v-if="!inputOnly">
-      <div class="flex gap-2 items-center justify-between">
-        <div class="w-full" v-if="chatFiles.length">
-          <ChatFileList
-            :files="chatFiles"
-            :chat-project="chatProject"
-            @remove="removeFileFromChat"
-            @add-as-message="addFileContentAsMessage"
-            @sync-notebook="syncNotebook"
-            @export-notebook="exportNotebook"
-            @preview-file="openFilePreview"
-            v-if="chatFiles?.length"
-          />
-        </div>
-        <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" v-if="!isVibe" />
+    <div class="flex gap-2 items-center justify-between overflow-auto">
+      <div class="w-full" v-if="chatFiles.length">
+        <ChatFileList
+          :files="chatFiles"
+          :chat-project="chatProject"
+          @remove="removeFileFromChat"
+          @add-as-message="addFileContentAsMessage"
+          @sync-notebook="syncNotebook"
+          @export-notebook="exportNotebook"
+          @preview-file="openFilePreview"
+          v-if="chatFiles?.length && !isPRView"
+        />
       </div>
+      <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" 
+        v-if="!isVibe && !isPRView" />
+    </div>
 
-      <!-- Changes Panel for PRView Mode -->
-      <div class="grow" v-show="isPRView">
-        <ChangesPanel
-          class="h-full overflow-auto"
-          :chat="chat"
-          @refresh="onRefreshChanges"
-          @select-branch="onPRViewBranchChanged"
-          @comment="onPRFileComment"
-          @change-column="$emit('change-column', $event)"
-          @new-chat="createChatSubTask"
-          @chat-message="onPRChatMessage"
+    <!-- Changes Panel for PRView Mode -->
+    <div class="grow overflow-auto" v-show="isPRView">
+      <ChangesPanel
+        class="h-full flex flex-col h-full overflow-auto"
+        :chat="chat"
+        @refresh="onRefreshChanges"
+        @select-branch="onPRViewBranchChanged"
+        @comment="onPRFileComment"
+        @change-column="$emit('change-column', $event)"
+        @new-chat="createChatSubTask"
+        @chat-message="onPRChatMessage"
+      />
+    </div>
+    <!-- Main chat area + optional file preview side panel -->
+    <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
+      
+      <!-- Message Editor Full Screen Mode -->
+      <div class="w-full h-full" v-if="editMessage">
+        <ChatMessageEditor
+          :message="editMessage"
+          @save="onMessageEdited"
+          @discard="onEditorDiscard"
         />
       </div>
 
-      <!-- Main chat area + optional file preview side panel -->
-      <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
-
+      <!-- Normal Chat View -->
+      <template v-else>
         <!-- Chat messages + input -->
         <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
           <div class="h-full flex flex-col relative">
@@ -59,13 +70,11 @@ import ChatFilePreview from './ChatFilePreview.vue'
               class="w-full grow overflow-y-auto overflow-x-hidden"
               :chat="chat"
               :messages="stableMessages"
-              :edit-message="editMessage"
               :mention-list="mentionList"
               :read-only="readOnly"
               :users-list="usersList"
               :children-chats="childrenChats"
               @edited="onMessageEdited"
-              @enhance="onEditMessage($event, true)"
               @remove="removeMessage"
               @remove-file="removeFileFromMessage($event.message, $event.file)"
               @hide="toggleHide"
@@ -79,7 +88,7 @@ import ChatFilePreview from './ChatFilePreview.vue'
               @open-file="onOpenFile"
               @save-file="onSaveFile"
               @add-file="onAddFile"
-              @edit-message="onEditMessage($event.event, $event.message)"
+              @edit-message="onEditMessage"
               @thread="onNewThread"
               @sub-task="onChatEntryCreateSubtask"
               @set-active-chat="$chats.setActiveChat($event)"
@@ -159,8 +168,8 @@ import ChatFilePreview from './ChatFilePreview.vue'
             @saved="onPreviewFileSaved"
           />
         </div>
+      </template>
 
-      </div>
     </div>
 
     <ChatImagePreviewModal
@@ -335,6 +344,13 @@ export default {
     }
   },
   methods: {
+    // ── Editor handlers ───────────────────────────────────────
+
+    onEditorDiscard() {
+      this.editMessage = null
+      this.onResetEdit()
+    },
+
     // ── File preview ──────────────────────────────────────────
 
     openFilePreview(filePath) {
@@ -498,16 +514,8 @@ export default {
       this.$refs.inputBox?.setEditorText(text)
     },
 
-    onEditMessage(message, enhance) {
-      if (this.editMessage === message) return this.onResetEdit()
-      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
-      this.editMessage = this.chat.messages[this.editMessageId]
-      const profile = this.editMessage.profiles?.[0]
-      if (profile) {
-        this.selectedUser = this.usersList.find(u => u.name === profile) || this.$user
-      }
-      try { this.images = message.images.map(JSON.parse) } catch { }
-      this.setEditorText(this.editMessage.content)
+    onEditMessage(message) {
+      this.editMessage = message
     },
 
     toggleHide({ doc_id }) {
@@ -635,22 +643,26 @@ export default {
       return this.chatSvc.saveChat(this.chat)
     },
 
-    onDrop(e) {
+    onDrop(e, chatDrop) {
       if (!e.dataTransfer.files) return
       const file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
       if (file) this.onInputImage(file)
       const textContent = e.dataTransfer.getData('text/plain')
-      if (textContent) this.processInputTextContent(textContent)
-      this.processDropUrls(e.dataTransfer)
+      if (textContent) this.processInputTextContent(textContent, chatDrop)
+      this.processDropUrls(e.dataTransfer, chatDrop)
     },
 
-    processDropUrls(dataTransfer) {
+    onDropChat(e) {
+      this.onDrop(e, true)
+    },
+
+    processDropUrls(dataTransfer, chatDrop) {
       const urls = dataTransfer.getData("resourceurls")
       if (urls) {
         JSON.parse(urls).map(url => {
           try {
             const { pathname } = new URL(url)
-            this.processInputTextContent(pathname)
+            this.processInputTextContent(pathname, chatDrop)
           } catch (ex) {
             console.error(ex)
           }
@@ -669,12 +681,16 @@ export default {
       if (handled) return stop()
     },
 
-    processInputTextContent(textContent) {
+    processInputTextContent(textContent, chatDrop) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
       if (imgUrl) { this.images.push(imgUrl); return true }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
-        this.addFileToMessage(textContent)
+        if (chatDrop) {
+          this.onAddFile(textContent)
+        } else {
+          this.addFileToMessage(textContent)
+        }
         this.setEditorText(this.editorText.replace(textContent, ""))
         return true
       }
@@ -846,6 +862,7 @@ export default {
 
     onMessageEdited({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
+      this.editMessage = null
       this.saveChat()
     },
 
@@ -880,6 +897,15 @@ export default {
     },
 
     onChatEntryCreateSubtask({ file, content }) {
+      const existingChat = this.chatSvc.findChildChatByFile({
+        chat: this.chat,
+        childrenChats: this.childrenChats,
+        file
+      })
+      if (existingChat) {
+        this.$chats.setActiveChat(existingChat)
+        return
+      }
       this.createChatSubTask({
         title: file.split("/").reverse()[0],
         description: content,

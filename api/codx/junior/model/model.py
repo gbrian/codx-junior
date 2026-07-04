@@ -41,6 +41,15 @@ from codx.junior.model.profile import (
     ProfileApiSettings,
 )
 
+# ---------------------------------------------------------------------------
+# Import workspace models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.workspace import (
+    Workspace,
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -148,27 +157,6 @@ class Bookmark(BaseModel):
     url: Optional[str] = Field(default="")
     port: Optional[int] = Field(default=None)
 
-class WorkspaceApp(BaseModel):
-    id: str = Field(default="")
-    name: str = Field(default="")
-    description: str = Field(default="")
-    icon: str = Field(default="")
-    path: str = Field(default="")
-    port: Optional[str] = Field(default="")
-    is_vnc: Optional[bool] = Field(default=False)
-    container_name: str = Field(default="")
-    roles: List[str] = Field(default=[])
-
-class Workspace(BaseModel):
-    id: str = Field(default="")
-    name: str = Field(default="")
-    description: str = Field(default="")
-    project_ids: List[str] = Field(default=[])
-    apps: Optional[List[WorkspaceApp]] = Field(default=[])
-    updated_at: Optional[str] = Field(default=None)
-    file_path: str = Field(default="")
-    user_ids: Optional[List[str]] = Field(default=[], description="Allowed user accounts (empty means all users)")
-
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
 
@@ -178,36 +166,6 @@ class OAuthProvider(BaseModel):
     secret: str = Field(default="")
     token_url: str = Field(default="")
 
-
-DEFAULT_WORKSPACE = Workspace(**{
-    "name": "codx-junior",
-    "description": "Default codx-junior workspace",
-    "file_path": "codx-junior-workspace-default",
-    "apps": [
-        { 
-        "icon": "fa-solid fa-code",
-        "name": "Coder",
-        "description": "Coder coding environment",
-        "path": "/workspace-default/coder/",
-        "roles": ["admin"]
-        },
-        { 
-        "icon": "fa-solid fa-desktop",
-        "name": "Desktop",
-        "description": "Virtual desktop",
-        "path": "/workspace-default/preview/index.html",
-        "roles": ["admin"]
-        },
-        { 
-        "icon": "https://framerusercontent.com/images/GtfMdzyrMj6FQY6lGLqI6bh2LYM.png",
-        "name": "LiteLLM",
-        "description": "LiteLLM Models manager",
-        "path": "/litellm/ui",
-        "roles": ["admin"]
-        },
-    ],
-    "project_ids": ["*"]
-})
 
 # Define the PluginArgument model
 class PluginArgument(BaseModel):
@@ -277,6 +235,27 @@ class GlobalSettings(BaseModel):
     env: Optional[dict] = Field(default={})
 
     plugins: List[Plugin] = Field(default=[])
+
+    chat_global_instructions: str = Field(default="""
+CRITICAL INFORMATION: 
+When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
+Example:
+
+```js /folder/file_name.js
+ import dummy from 'module'
+```
+
+Use valid file path based on the project and conversation context.
+New file changes must follow original file formating and identation.
+Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
+Keep changes simple and easy to review by the user.
+
+MISSING FILE CONTENT HANDLING:
+If a file is referenced in the conversation but its content is missing from the context:
+1. Do not invent or guess the full content of the file.
+2. If you only need to modify a known part, generate a code block with the language "patch" containing explicit instructions to apply the changes to the existing file.
+3. If you require the full content to proceed, generate an empty code block with the language "file-request" followed by the target file path.
+""")
     
     
 class Screen(BaseModel):

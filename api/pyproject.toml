@@ -8,22 +8,22 @@ description = "Your AI coding assistant"
 readme = "README.md"
 requires-python = ">=3.11, <4.0"
 dependencies = [
-  'openai==2.24.0',
-  'langchain==1.1.0',
-  'langchain-community==0.4.1',
-  'langchain-text-splitters==1.0.0',
+  'openai>=2.24.0',
+  'langchain>=1.1.0',
+  'langchain-community>=0.4.1',
+  'langchain-text-splitters>=1.0.0',
   'flask>=2.0.2',
   'python-slugify>=8.0.1',
   'llama-index>=0.9.42',
-  'uvicorn==0.38.0',
-  'fastapi_socketio==0.0.10',
-  'fastapi==0.122.0',
+  'uvicorn>=0.38.0',
+  'fastapi_socketio>=0.0.10',
+  'fastapi>=0.122.0',
   'python-multipart>=0.0.20',
   'pytesseract',
   'pillow',
   'beautifulsoup4',
   'markdownify',
-  'pymilvus==2.6.4',
+  'pymilvus>=2.4.0',
   'watchfiles>=1.0.4',
   'pyjwt>=2.10.1',
   'bcrypt>=4.3.0',
@@ -33,24 +33,13 @@ dependencies = [
   'watchdog',
   'pypandoc>=1.16',
   'jinja2>=3.0.3',
-  'vllm',
-  'torch', # Explicitly pin CPU version
+  'vllm>=0.5.0',
+  'sentence-transformers>=5.6.0',
+  'torch>=2.4.0', 
 ]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[[tool.uv.index]]
-name = "vllm-cpu"
-url = "https://vllm.ai"
 
 classifiers = [
   "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "License :: OSI Approved :: MIT License",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -63,72 +52,17 @@ test = [
 doc = [
 ]
 
-
 [project.scripts]
 codx-junior = 'codx.app:app'
 
 [tool.setuptools]
 packages = ["codx"]
 
-
 [tool.ruff]
 select = ["F", "E", "W", "I001"]
 line-length = 100
-show-fixes = false
 target-version = "py311"
-task-tags = ["TODO", "FIXME"]
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-]
 
 [project.urls]
-"Homepage" = "https://github.com/gbrian/codx-junior"
-"Bug Tracker" = "https://github.com/gbrian/codx-junior/issues"
-
-[tool.ruff.isort]
-known-first-party = []
-known-third-party = []
-section-order = [
-    "future",
-    "standard-library",
-    "third-party",
-    "first-party",
-    "local-folder",
-]
-combine-as-imports = true
-split-on-trailing-comma = false
-lines-between-types = 1
-
-[tool.black]
-line-length = 90
-target-version = ["py311"]
-include = '\.pyi?$'
-exclude = '''
-(
-  /(
-      \.direnv
-    | \.eggs
-    | \.git
-    | \.tox
-    | \.venv
-    | _build
-    | build
-    | dist
-    | venv
-  )/
-)
-'''
+"Homepage" = "https://github.com"
+"Bug Tracker" = "https://github.com/issues"

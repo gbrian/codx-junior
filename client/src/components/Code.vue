@@ -28,6 +28,7 @@ import CodeViewer from './CodeViewer.vue'
       :project="project"
       :finished="finished"
       :chat="chat"
+      :message="message"
       v-if="showCode"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
@@ -49,7 +50,7 @@ const languageMapping = {
 }
 
 export default {
-  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project'],
+  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'message'],
   emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed'],
   data() {
     return {

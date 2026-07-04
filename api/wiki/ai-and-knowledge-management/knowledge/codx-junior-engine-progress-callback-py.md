@@ -1,54 +1,50 @@
-## Progress Callbacks for Knowledge Operations
+# Progress Callback System
 
-This module provides a structured way to report progress during knowledge operations such as indexing or enrichment. It defines abstract callback mechanisms to decouple operation logic from specific transport layers (like sockets or HTTP).
+The progress callback system provides an abstract mechanism to report the status of knowledge operations (such as indexing, document enrichment, and code splitting) without coupling the core logic to specific transport layers like WebSockets or HTTP.
 
-### Components
+## Overview
 
-#### 1. `ProgressEventType`
-An enumeration that specifies the various stages and types of events that can occur during indexing to help consumers understand the state of the process.
+The architecture utilizes an abstract base class, `ProgressCallback`, which defines the interface for reporting progress and errors. Implementations of this class can be swapped depending on how the system needs to communicate status updates back to the client or monitoring service.
 
-Events defined include:
-*   **`STARTED`**: Indicates the commencement of operations.
-*   **`DOCUMENT_PROCESSING`**: Reports progress when a document is undergoing processing.
-*   **`DOCUMENT_ENRICHED`**: Signals that a document has been enriched with data.
-*   **`DOCUMENT_INDEXED`**: Confirms that a document has been successfully indexed.
-*   **`DOCUMENT_ERROR`**: Indicates an error occurring during document handling.
-*   **`BATCH_COMPLETE`**: Marks the successful completion of a batch process.
-*   **`ITERATION_COMPLETE`**: Reports the completion of individual iterations.
-*   **`COMPLETED`**: Signals that all operations are finished successfully.
-*   **`ERROR`**: A general error event signal.
+## Core Components
 
-#### 2. `ProgressCallback` (Abstract Base Class)
-The abstract base class establishes the contract for any progress callback implementation, ensuring a standardized way to report status regardless of the underlying communication channel.
+### ProgressEventType
+An enumeration representing the lifecycle of an indexing operation:
+* `STARTED`: The operation has begun.
+* `DOCUMENT_PROCESSING`: Active processing of a document.
+* `DOCUMENT_ENRICHED`: Enrichment steps are complete.
+* `DOCUMENT_INDEXED`: Document successfully indexed.
+* `DOCUMENT_ERROR`: An error occurred during document handling.
+* `BATCH_COMPLETE`: A batch of documents has finished processing.
+* `ITERATION_COMPLETE`: A full iteration cycle is complete.
+* `COMPLETED`: The entire operation has finished.
+* `ERROR`: A global or fatal error occurred.
 
-Required methods:
+### ProgressCallback (Abstract Base)
+Defines the required interface for all callback handlers:
+* `on_progress(event_type, data)`: Emits a progress update with the associated event type and payload.
+* `on_error(error, context)`: Reports exceptions encountered during the operation along with contextual information.
 
-*   `on_progress(self, event_type: ProgressEventType, data: Dict[str, Any])`: Responsible for emitting a progress event.
-    *   **Parameters:**
-        *   `event_type`: The specific type of progress event.
-        *   `data`: A dictionary containing the payload details relevant to the event type.
-*   `on_error(self, error: Exception, context: Dict[str, Any])`: Responsible for emitting an explicit error event.
-    *   **Parameters:**
-        *   `error`: The exception that was thrown.
-        *   `context`: Contextual information related to the occurrence of the error.
+## Implementations
 
-#### 3. `SocketProgressCallback`
-This class provides a concrete implementation of the `ProgressCallback` designed specifically for transmitting progress updates back to a client via **Socket.IO**.
+### SocketProgressCallback
+The `SocketProgressCallback` handles communication via a `SessionChannel` (e.g., Socket.IO). 
 
-**Functionality:**
+* **Event Emission**: When `on_progress` is called, it automatically tracks:
+    * `sequence`: The incrementing count of events sent.
+    * `elapsed_seconds`: The time passed since the first event was emitted.
+    * `event_type`: The string value of the triggered event.
+* **Socket Routing**: Events are routed through the socket channel using the naming convention: `codx-junior-index-progress-{event_type}`.
+* **Error Handling**: Errors are emitted through a dedicated `codx-junior-index-error` event, capturing the error type, message, and relevant context.
 
-*   It requires initialization with a `SessionChannel` instance, which is used to send events across the connected socket channel.
-*   When `on_progress` is called, it calculates the elapsed time since the beginning of the operation and builds a structured payload containing:
-    *   The event type (`event_type`).
-    *   A sequence number tracking progress (`sequence`).
-    *   The total time elapsed in seconds (`elapsed_seconds`).
-    *   Any additional data provided in the original `data` payload.
-    *   The resulting Socket.IO event name is formatted as `codx-junior-index-progress-[event_type.value]`.
-*   When `on_error` is called, it emits a standardized error payload via the `"codx-junior-index-error"` socket event, including:
-    *   The status (`"error"`).
-    *   The type name of the exception that occurred (`error_type`).
-    *   A string representation of the exception message (`message`).
-    *   The provided contextual information (`context`).
+## Integration
+To implement a custom transport layer, developers must subclass `ProgressCallback` and implement the `on_progress` and `on_error` methods. This ensures that the engine's core indexing logic remains decoupled from the infrastructure-specific delivery mechanisms.
+
+---
+### References
+* [ProgressEventType](#progresseventtype)
+* [ProgressCallback](#progresscallback-abstract-base)
+* [SocketProgressCallback](#socketprogresscallback)
 
 ## Dependencies
 **Imported by:** codx/junior/api/knowledge.py, codx/junior/knowledge/knowledge_loader.py, codx/junior/knowledge/knowledge_milvus.py

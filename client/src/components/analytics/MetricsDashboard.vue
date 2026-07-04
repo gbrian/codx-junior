@@ -242,9 +242,10 @@ import PriceEditor from './PriceEditor.vue'
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-medium truncate" :title="model">{{ model }}</span>
-                    <span class="text-xs text-base-content/60 ml-2">
-                      {{ formatTokens(stats.total_tokens) }}
+                    <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">
+                      {{ formatCoins(stats.total_cxjcoins) }}
                     </span>
+                    
                   </div>
                   <div class="w-full bg-base-200 rounded-full h-2">
                     <div
@@ -255,10 +256,14 @@ import PriceEditor from './PriceEditor.vue'
                   <div class="flex gap-2 mt-1 flex-wrap">
                     <span class="text-xs text-success">↑ {{ formatTokens(stats.input_tokens) }}</span>
                     <span class="text-xs text-warning">↓ {{ formatTokens(stats.output_tokens) }}</span>
-                    <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                    <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
-                      🪙 {{ formatCoins(stats.total_cxjcoins) }}
+                    <span class="text-xs text-base-content/60 ml-2">
+                      {{ formatTokens(stats.total_tokens) }}
+                      <span class="tooltip tooltip-left" :data-tip="stats.tokens_from_provider ? 'By provider': 'Stimated'" 
+                        :class="stats.tokens_from_provider ? 'text-info' : 'text-slate-500'">
+                        <i class="fa-solid fa-certificate"></i>
+                      </span>
                     </span>
+                    <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
                   </div>
                 </div>
               </div>
