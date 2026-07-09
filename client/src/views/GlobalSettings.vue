@@ -9,6 +9,7 @@ import OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'
 import PluginsEditor from '@/components/global_settings/plugins/PluginsEditor.vue'
 import EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.vue'
 import GeneralSettings from '@/components/global_settings/GeneralSettings.vue'
+import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vue'
 </script>
 
 <template>
@@ -79,6 +80,7 @@ import GeneralSettings from '@/components/global_settings/GeneralSettings.vue'
         <AISettings :settings="settings" v-if="activeTab === 'ai'" />
         <AgentSettings v-if="activeTab === 'agents'" />
         <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
+        <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
       </div>
     </main>
   </div>
@@ -94,6 +96,7 @@ export default {
         { id: 'general', label: 'General', icon: 'fa-sliders' },
         { id: 'ai', label: 'AI Models', icon: 'fa-brain' },
         { id: 'agents', label: 'Agents', icon: 'fa-robot' },
+        { id: 'chat', label: 'Chat Prompts', icon: 'fa-comments' },
         { id: 'plugins', label: 'Plugins', icon: 'fa-puzzle-piece' },
         { id: 'workspaces', label: 'Workspaces', icon: 'fa-cube' },
         { id: 'users', label: 'Users', icon: 'fa-users' },
@@ -139,6 +142,7 @@ export default {
         general: 'Configure basic settings and preferences',
         ai: 'Manage AI models and LLM configurations',
         agents: 'Define and configure AI agents',
+        chat: 'Set global prompts for all chat interactions',
         plugins: 'Install and manage plugins',
         workspaces: 'Organize and manage workspaces',
         users: 'Control user access and permissions',

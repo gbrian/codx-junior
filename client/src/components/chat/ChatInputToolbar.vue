@@ -1,5 +1,4 @@
 <script setup>
-import UserSelector from './UserSelector.vue'
 import LLMModelSelector from './LLMModelSelector.vue'
 import ChatImageCarousel from './ChatImageCarousel.vue'
 </script>
@@ -16,12 +15,6 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
     <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
 
     <div class="grow flex gap-2 items-end" v-else>
-      <UserSelector
-        class="dropdown-top"
-        :selectedUser="selectedUser"
-        :profiles="usersList"
-        @user-changed="$emit('user-changed', $event)"
-      />
       <LLMModelSelector
         class="dropdown-top"
         :selectedModel="selectedModel"

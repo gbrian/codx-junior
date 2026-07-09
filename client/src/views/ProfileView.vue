@@ -36,6 +36,7 @@ export default {
   data() {
     return {
       searchQuery: '',
+      searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tools', 'tags'],
       loadingProfile: false
     }
   },
@@ -47,9 +48,14 @@ export default {
       return this.$projects.selectedProfile
     },
     filteredProfiles() {
-      return this.profiles.filter(profile => 
-        Object.keys(profile).reduce((acc, k) => `${acc} ${profile[k]}`, '').toLowerCase().includes(this.searchQuery.toLowerCase())
-      ).sort((a, b) => a.name > b.name ? 1 : -1);
+      const filter = this.searchQuery.toLowerCase()
+      return this.profiles.filter(profile => {
+        try {
+          return this.searchKeys.reduce((acc, k) => `${acc} ${profile[k]}`, '').toLowerCase().includes(filter)
+        } catch(ex) {
+          console.error(ex)
+        }
+      }).sort((a, b) => a.name > b.name ? 1 : -1);
     }
   },
   created() {

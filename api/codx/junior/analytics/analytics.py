@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from codx.junior.analytics.model import TokenUsageEvent
+from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent
 from codx.junior.analytics.storage import AnalyticsStorage
 from codx.junior.globals import ANALYTICS_DATA_PATH
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class Analytics:
     """
-    High-level API for recording and querying LLM token usage analytics.
+    High-level API for recording and querying LLM token usage and tool usage analytics.
 
     The global analytics path is read from
     ``codx.junior.globals.ANALYTICS_DATA_PATH`` which is sourced from the
@@ -22,12 +22,17 @@ class Analytics:
         class Analytics {
             +AnalyticsStorage storage
             +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, duration_seconds, session_id, tags, k_tokens_cxjcoins)
+            +record_tool_usage(name, username, project_name, project_id, time_taken, success, error_message, chat_id, request_id)
             +get_usage_by_user(start_date, end_date) Dict
             +get_usage_by_project(start_date, end_date) Dict
             +get_usage_by_model(start_date, end_date) Dict
             +get_daily_usage(start_date, end_date, username, project_name, grouping) List
             +get_total_usage(start_date, end_date, username, project_name) Dict
             +list_available_dates() List[str]
+            +get_tools_by_chat(chat_id) List
+            +get_tool_metrics(start_date, end_date, tool_name, username, project_name) Dict
+            +get_tool_usage_by_user(start_date, end_date, project_name) Dict
+            +get_tool_usage_by_project(start_date, end_date, username) Dict
         }
     """
 
@@ -111,6 +116,58 @@ class Analytics:
         )
         return event
 
+    def record_tool_usage(
+        self,
+        *,
+        name: str,
+        username: str,
+        project_name: str,
+        project_id: str,
+        time_taken: float,
+        success: bool,
+        error_message: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> ToolUsageEvent:
+        """
+        Record a single tool execution event.
+
+        Args:
+            name:            Tool function name (e.g., "project_search").
+            username:        User who triggered the tool.
+            project_name:    Project context for the tool call.
+            project_id:      Project identifier.
+            time_taken:      Execution duration in seconds.
+            success:         Boolean flag indicating successful execution.
+            error_message:   Error details if execution failed (None if successful).
+            chat_id:         Reference to the parent chat/conversation session.
+            request_id:      Traceability link to the LLM request that triggered the tool.
+
+        Returns:
+            The persisted ``ToolUsageEvent``.
+        """
+        event = ToolUsageEvent(
+            name=name,
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            time_taken=time_taken,
+            success=success,
+            error_message=error_message,
+            chat_id=chat_id,
+            request_id=request_id,
+        )
+        self.storage.write_tool_event(event)
+        logger.info(
+            "Tool usage recorded: tool=%s user=%s project=%s success=%s time_taken=%.3fs",
+            name,
+            username,
+            project_name,
+            success,
+            time_taken,
+        )
+        return event
+
     # ── Query helpers ──────────────────────────────────────────────────────────
 
     @staticmethod
@@ -150,6 +207,47 @@ class Analytics:
             bucket["total_duration_seconds"] += event.duration_seconds
             bucket["total_cxjcoins"] += event.total_cxjcoins
             bucket["tokens_from_provider"] = bucket["tokens_from_provider"] or getattr(event, "tokens_from_provider", False)
+        return result
+
+    @staticmethod
+    def _aggregate_tool_events(
+        events: List[ToolUsageEvent],
+        key_fn,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Aggregate tool event metrics grouped by a key function.
+
+        Args:
+            events: Source tool events.
+            key_fn: Callable that extracts the grouping key from an event.
+
+        Returns:
+            Dict mapping key → {calls, successful, failed, total_time_taken, avg_time_taken}.
+        """
+        result: Dict[str, Dict[str, Any]] = {}
+        for event in events:
+            key = key_fn(event)
+            if key not in result:
+                result[key] = {
+                    "calls": 0,
+                    "successful": 0,
+                    "failed": 0,
+                    "total_time_taken": 0.0,
+                    "avg_time_taken": 0.0,
+                }
+            bucket = result[key]
+            bucket["calls"] += 1
+            if event.success:
+                bucket["successful"] += 1
+            else:
+                bucket["failed"] += 1
+            bucket["total_time_taken"] += event.time_taken
+
+        # Calculate averages
+        for key in result:
+            if result[key]["calls"] > 0:
+                result[key]["avg_time_taken"] = result[key]["total_time_taken"] / result[key]["calls"]
+
         return result
 
     @staticmethod
@@ -348,3 +446,98 @@ class Analytics:
             Sorted list of ``YYYY-MM-DD`` strings.
         """
         return self.storage.list_available_dates()
+
+    # ── Tool Usage Query API ───────────────────────────────────────────────────
+
+    def get_tools_by_chat(
+        self,
+        chat_id: str,
+    ) -> List[ToolUsageEvent]:
+        """
+        Get all tools executed in a specific chat/conversation.
+
+        Args:
+            chat_id: The chat/conversation session identifier.
+
+        Returns:
+            List of ``ToolUsageEvent`` objects ordered by timestamp.
+        """
+        return self.storage.read_tool_events(chat_id=chat_id)
+
+    def get_tool_metrics(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        tool_name: Optional[str] = None,
+        username: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Get aggregated tool execution metrics.
+
+        Args:
+            start_date:   Inclusive ISO date lower bound.
+            end_date:     Inclusive ISO date upper bound.
+            tool_name:    Filter by exact tool function name.
+            username:     Filter by exact username.
+            project_name: Filter by exact project name.
+
+        Returns:
+            Dict[tool_name, {calls, successful, failed, total_time_taken, avg_time_taken}]
+        """
+        events = self.storage.read_tool_events(
+            start_date=start_date,
+            end_date=end_date,
+            tool_name=tool_name,
+            username=username,
+            project_name=project_name,
+        )
+        return self._aggregate_tool_events(events, lambda e: e.name)
+
+    def get_tool_usage_by_user(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Aggregate tool usage grouped by username.
+
+        Args:
+            start_date:   Inclusive ISO date lower bound.
+            end_date:     Inclusive ISO date upper bound.
+            project_name: Optional project filter.
+
+        Returns:
+            Dict[username, {calls, successful, failed, total_time_taken, avg_time_taken}]
+        """
+        events = self.storage.read_tool_events(
+            start_date=start_date,
+            end_date=end_date,
+            project_name=project_name,
+        )
+        return self._aggregate_tool_events(events, lambda e: e.username)
+
+    def get_tool_usage_by_project(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Aggregate tool usage grouped by project name.
+
+        Args:
+            start_date: Inclusive ISO date lower bound.
+            end_date:   Inclusive ISO date upper bound.
+            username:   Optional user filter.
+
+        Returns:
+            Dict[project_name, {calls, successful, failed, total_time_taken, avg_time_taken}]
+        """
+        events = self.storage.read_tool_events(
+            start_date=start_date,
+            end_date=end_date,
+            username=username,
+        )
+        return self._aggregate_tool_events(events, lambda e: e.project_name)

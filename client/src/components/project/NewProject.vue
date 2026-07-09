@@ -2,96 +2,174 @@
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 justify-center items-center text-xs">
-    <div class="text-4xl font-bold">Welcome</div>
-    <div class="grow flex flex-col md:gap-2 justify-center items-center">
-      <div class="md:py-4 flex flex-col">
-        <div class="flex flex-col gap-2">
-          <div class="mx-4 rounded-xl grow flex flex-col gap-2 px-4 py-2 lg:py-6">
-            <div class="chat chat-start">
-              <div class="chat-image avatar">
-                <div class="w-10 rounded-full">
-                  <img class="h-8" src="/only_icon.png" />
-                </div>
-              </div>
-              <div class="chat-bubble">
-                this is codx-junior, a multi-personality AI ready to start collaborating with your open source projects! 
-              </div>
-            </div>
-            
-            <div class="ml-20 chat chat-start">
-              <div class="chat-image avatar">
-                <div class="w-10 rounded-full">
-                  <img class="h-8" src="https://cdn-icons-png.flaticon.com/512/3940/3940410.png" />
-                </div>
-              </div>
-              <div class="chat-bubble">
-                I can be your <span class="font-bold">@wiki</span> writter.<br/>
-              </div>
-            </div>
+  <div class="w-full h-full flex flex-col gap-4 p-4 overflow-y-auto">
 
-            <div class="ml-20 chat chat-start">
-              <div class="chat-image avatar">
-                <div class="w-10 rounded-full">
-                  <img class="h-8" src="https://cdn-icons-png.flaticon.com/512/2607/2607079.png" />
-                </div>
-              </div>
-              <div class="chat-bubble">
-                Or your <span class="font-bold">@analyst</span>.<br/>
-              </div>
-            </div>
+    <!-- Project Name -->
+    <div class="form-control">
+      <label class="label py-1">
+        <span class="label-text font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-primary"></i> Project name
+        </span>
+        <span class="label-text-alt text-error">*</span>
+      </label>
+      <input
+        v-model="formData.projectName"
+        type="text"
+        placeholder="my-awesome-project"
+        class="input input-bordered w-full"
+        autofocus
+      />
+    </div>
 
-            <div class="ml-20 chat chat-start">
-              <div class="chat-image avatar">
-                <div class="w-10 rounded-full">
-                  <img class="h-8" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAABGlBMVEX////v79JMJB21oZzB29y9U7VLIhv09dc9AAC5paBJHxg8AADy8tW+2dpGGhFJHhbF4eJDEw0/BgBEFgxiQDpBDQCfkH5ACgA/BQB4X1tEFQo4AACynZjn5cn59/dyWk3w7exTLCVJIxff7O2lj4pCEArg3MFqUUanmJbu9fXQyrF8OGPUzMvo5OPc1tVYMy1pS0a9srCIbmmAaVuUgX6/tp+vwMDLw6tePDaNemqokoyvo4+lSZdFIQtuM1K6rqzHvrx1W1eJiIaVgn9DIACQdnFsW1eep6aXhnWJdWa4rphqT0uOP3mxTqV+eHaYn55nVlJ1a2intLReR0NnL0ehR5JXKS1pMEpVJypfLDl3NV2VQoLEVr7M1tahwnmCAAAe4ElEQVR4nN1dfWOayNZPMR0QKESRoBiNZtV63SjGmMYkzY3Wus3Ldru73d273Zvn+3+NB5wzwwADopK0veevvgDy47yfOXNmZ+d/gho3o4nQHI6n9a/9Jk9DjbFkaUhAyJCE3Nd+mRA1Tk76Wz/kWLcFQkh6aGz/WtnRjSmVpe6WD5lKssCQITSyeLVsaKog96tXj7d6yEBCQoC0yTejjH1j+W7GYqunTHQhROY8oxfcluoOfjetss1TbiRQQMMydeCmFKvbg3Elx+HwzWixnSDxqQL2YTuEDlZC2V6c3DyY+Il2K+bim6qtlZ0w/vqDotnVuHs2p1ZZyADhoLzkGxIG3t9uTPw3xL+4UfX+W2s2Av9aH3qfGlW3N+pBOqEGYiuE0yKWyyn+69hY/rXa4F+MJToIsT7E95gZe9KBQi0gH+HxaDi7Wf2crhlg2kBZPlIZcC8GhC5En18EoGCm+LU1qKH7PoyLcFTVdF1yGqse1Foqszwkz61ilvLtRp18Vh8iBShkK6X1oSYkIuzir20Mo/8VuhDzUIO/HktJPNw5UchvNhv4RUoU4LaBR5BmfpjFRVi34WMr0xVPmmJ7VTzBfx3hL1eN8/k3UoCLlINo68gqQNh4JSE8Jt/aXvXDffzKyFzKJeaoIDux1xP3KWiO+xUeyItkC7A/MYQVCIlJEOyV4UlJBybMui0H/KGZ8L435OMVu77QKpkCnCKig3IswgYxCeWTlY8jb6nbNjwQmY2EG26qiPzsHLMQKVl6+/rC94Mz/CdeXArxjmyuDqJZo5VK5MAT22NipjIV0RPN9gGO8bsVp9HrGo4pu6FmOUW02NflIEB7tuollimNcrzTt+SMRXRaYvz8LD/Er8blU33smHolxugH6dgIZBfmcCXfTySprHghzNSSytm5iUauJPmvYo/yOQxQj/nk9X4j5ZMHTpF+OFkZpcgOG9MT/PBMagxLqk8rmulLk2ws8vk5FlIrg2ipa0uGruuaqTjT7Z+2AR2PlLLGZOLapJXP5WeYo0oji5+YjmfDYaWbLsurt4alufez9W6pNN7+948flIADlI1KLp/LHThLzPrD1j+wLtWHRV02S640zyT3D83Gdo9rjJSAIUCGx8BcLt/CQprknZ+GIBYtE4/PZhob0NQO8A9pTVcDcx5CCCHjKw5PRCQW9T3+VhC7VUb9kKxNAJ+LEPsKebVtz5ZosE09fjTrX4Pmio9P1rThPAf4qBq6v/OsRNMlr4jZ9/PFxmaP69IIDWlmaXGQp/hchEJmvmIN8gEuQ7UTKZISr0UnVES15igAz0OIvSMpsDwP+Rk9hGonVWELiA3ygWQ0ygXhMTxcmTxkSTTzprEoTaa0+JwylirwvfTJZQSfr4fZlynjaQAcQ0ywfaOkLSdE6BhYqA+jDPRtqb6yEpMhQckjmC6dQLa9vmOuYH8nT3j4XIQVHAjElMWehICHoXQJBHVti9AHXyPwRJSJaZ6ViUMTIRRJl26qrjhpMXXyeMpbWIFHfIAuYUUUrGfUxHrFNPWof5o2TXO4ti3FQRlqHsQBJGFbxmWgFdQfcGOowQa+ookzh1ksC3M5fImr+N/Ket9aVMfqqy3iEeYXxDuZw2c0N1kRLCBorQQe5h9ImUy3ZtOv/cbrUj8FwlyOrlAjXWlOv/Y7r0eEh/MkhPkDx8+OZeX7klVYW0nSQwyRqefq35fJKeGgrJKI0KUHg8mRzVLja793enrQ0yHMj5tMGU6TUxWBvwlKy0NXUkcMRtn+XiDWpVVBG4tx0aSyqgvPXZrakE6KKWypjzG/aBKrqpW+maatRCKNPLFhaYSPM1Jg+GaathIph1kol1KxEGNcgONAcX0G3xJNTbL4mR6hD1Ev7f3wr68NIYH6NyOTdNM11wDIQCx+2H316ttEWT+elxST2v61WOhBhOUo7ae93d1vEeR05Eg2s+SsD9cDmMsdQMaI3uwuyQP5tVFRGoz1MhuAJeb3sUyEvN/8sLe7S0F+C4xs3JSqQXheIT85c+IzEYuA8QtF6IHc/dqM7M/1YqQVWbbH6wOkVdRfWYRfG+OgYttB9iFZs7XhBhz0q6jCu91vBeNgVtWC2qdpzeHiMp/fBKDvMGzz3atvAWO/omgheKVRK7cZugBCAZlCBOOz25zG2GTxId0ujS63gOchnPuL4sicfNoLYXxeNnZtponS1T2hcrkVOkwO41Bl8/ObTEV1WmmWuo2UFx9Pyoz+6fpwngE8l4mXjsYGDdIvEVHdHODItRmyiVIF9vU508ElaGjWygSfBzG3KBkMRtv5EIS4uzEbobVa11ZfunNMelWX+PRKeAl7S4zzEhP8yeZvYTZuBrHRhIdKq3sH5or/Arrs4ssOHsaYb5V8H4Ts5u9hbdzEqPbpgvZo1ZVDyy8c6bPM8WGMY4cpT5XfhQT11QYQUyP0u5gFZGwWuaTCmFsIVNWR+dP2ktogG7+s5N0xXbqfEelonKX+RTAezPxw0HDCfmN9iHO8aCtLiaWuEe1yQtqM24KQJcaWX/SXpQ/buo36TJIRsq1pwjWNGbWhejNdoXA7iLmKn5SV34XtzboQd7oTxR4lucN+iUYxxsNaFiYfptQ3zmkhFZm/hD3j2hBXUJ/aGLRiTSkM7mC+GM2GE6fZbDqT0kNlMT9ICzN/MCRGFZm/hSFmWzzu2+Rr6k5MC0n0/XIHrdFQsA1N110dWJIs65phC8PRPF2gkB9Rv2H+tvuEEPvUeGvDdBKaz7VGJWS40AQOybrhokwTrOfHKB5ihgCpPtizVPDyrYqjazIPnI9SkyeRrkXOs1ok4BKigpoVwLpOABrplpNGjqEjLvMChJBmsI21cY+jy+Fhc7NNrhEASHcXpbAxHvt0bTU6ykljslgh9/mDEnkBKew0ssmKR8RNrC5ju/iGeqT05umdZhRc0jhqiTSH04IaoAPyjZEZdv1ZQCQ7y5G5GmBrGMLgpv9tS2o7h3e3+/v7t6dDXbLaeqS62lys0EfCRWSEA7jtyzd+r/AqgPnLoR3AJ2tFuXRxdV4TGaqdXx067ULQCpGNGPHPhs2Ubjj1ajdbiH1Sr1i1Zu3aF5mVT1SQJhdnHVUU1Rcsqe6/vOjtv5YKQWbbyYHSwQS+ifFTyKBua22IBmgr2g7yc7Y7BumSfturiWoQnQ/TA9mUAhqrN5OEJH8JvX6Cma21mUO0vWIpKX/AtsaggnV49kKMQUdBqmeHbZaRbsaZwMb8JVFFO0tVPIZWb9lJZiCTsLr40EVvBTwCsnOhsxi9pDP+R8akO/5zSBW3cfwQTqC4dmZg4IxhYMG47aTCBxhvtQLDRq2S8DvQPR6V081VsUX2BiVqCJOqCrpykR4f4aPCNkZNEiS1BB9cepORPR3Aknxis29+4TNQtg7XwwcYTy2mgIjis+tLCAX1h4wC1BnmDWrG48vlmHpKe3K2Nj6M8bzkl/AS8k/aWWx+ysSekuEGdvxHZUJGQZYuauIG+DwSX+y3fVtlxHomsgVcnmTi96GJN0FGXSdF36vg9DbFt8TYee2zUYv9yUudz8SN/D4MjkjaU9CiKojKFy82EVCfVHFfo59LG8b9JLQzIDnMxA3kFDxFfLSWX9AQWpbvt2EgsLE3bFOIpbjPCntRwh5jA2MDWohifX1+QY18odTZHqDLxhd3dO6CHgORLBQjYXdbJg6xyMTmhHmaNgrF0y0llJJ4TxfXYiFOEF8T12XiMdZ75MQCJEvSyNrPgoEAseeQECdGUMlauP55SyYCgDgW+lU+1M5ABX1Sa6+JMmr8aB+YiMzft2JiQ0NJWugGMsTGKOdZAlwqIx12xHUa5LeNcOVtPZ94k7i/Lj+GHlI3qcvExgRI3CcQ+aU92GOLhHCKsZZPfIAJTJd8VaB7lpzsAboQryhEnpKQHCNclVqLiQ3s7WWuJuRbwhNyEEOktRNe+aaF/bAWEdM1bM0NTps0bkJ60PQBZuQlIhDvSYFP4ERU1GHshik9QujXlXkymiM1IfnJAHoQSebG8RkkdLMiYpqaibA1S37gaQHkVG4it1WovQrilUQGj0Vf4hIHG3ZkTTG1rTnGMsJL1OgOXqQ8JUDGohrR5C2P9USehBG+SosQJpsYUR3It0jCK509KUAX4q0F1ibyGtCJivSwv0gtptgco0lURg+IGbWunhigC/G0EGPRSeQWDWtSimkd2xJO6puHeFxoXzw5QDe6gRw8GnccYFWxIylUSjHt2zFqSJVQe/3k+DyIHRmKFpFipsP3iGmdPow6NVoRJQQOynqN9RPeUoRHcTX8FTji7xbPoM8nvIUq/4Cl7HMEYTpFBH8fdbbEE1pMtK2KLzpn+xcXF7f7Z51VpfwoPLHWu9+/uHPvPu+okbvFfQwxHKDmR9jUOGFTk9Lp4/m8aBJCSGW06CeEqti7LRWKBUPTCoWyUbpNV8+nd5/fTdqWd7fRlozhfqTaKr6G2CP4LpDpI+1NGGA6McW5YdiE5S/JlPFD+hpi79BilwLlgnWYGqMqng2Lwbvbp6FAV+20YXZd8GVa2JhaUYSpxBQ7i7ApzZOauk6CNbV2oUTWc3XlLl3ZVOwcKpFuDU3aD1ZExHvuhtRL/LuR9CIlwiFvK7Y/joTk9GKn1A6/oUcFJ01SLJ4hjXd38XUw2lVPl5fJQed80FxeHC3WpPKIddwyH/JCxNcbpwRgT+b0JCy/TWF1vCNeFWPabTQnAFHtFOAUBfZ1yKSpiENM5RHrTc5IBLI9EAngKNQOs5yCdE1j5BVVV0EUr6pC3N26EIAI9hQJASbGI0xhauooijDfAjNjgYyqNbo5AtmK81CpzByJLtIgKTksF8/ovDrZlJxZpfLgKP4M3lLgYpUnU5NYhCkUsa5xEIKZ0akdPSRVP1tr4dk99UFLJ/Ub2aklWFQ3WCForGa3D3fPTVKBLdwFmHgmYSYeRBFG8qd0CKM8pJUZpYd/mwb+SJkzLYL1FjGPhbsEJqqHJMcMzBZr0CbkYiCuVw/1CBNjeZjG1PD0EKKZAgTc4hm8CzKnwZuPSUuUdB7LRJrAa+EDNfJkKLDUY+5We0ubHVgjitXDNFFN1Jbmx2TFB8ueWiP14GjfdB+GkeuvY5mowqKPPmmE7yaz72Un8EmAif43j7elaYxpPTK4g2ghqd+LRMp4876PraBARwGewaKPzZmCMccOPpieqefYnPr1aaiGcfzh7qsUjbXYMfgxDUk45UkNpAxew+Se9AP9DYW4FBI4ErNBhwyQsFgph/DUoLW/SxgHHolp0rkLHL34cSlhYRvrP3UU+oR/Pzb7qMnnoVrDhjTmEIM6eEadTUGB7X4WBXFpMRKXpkOIWeYXMSDkJroh3rbBysT09nfx9QW+mILIxc5nnYIqBuypiqXSvgxIFbJ5CFO4CxiqT0wXCWcoC0FGy3Hz8mDWl3XGRSju4w8kNWJuH2MpR0L0JmIb8mSqXzQ/TIWQ5Pjwwciwgzb82B329QljHfEHL/DXFcU7nLrEzvIGWy60mfvVjs1+dfjokTXEtAj7gZo+WVcu3GIWdrCQISkqo/VGfzDoN3ZwsU/jO30wNMZ4B66OEBk1qrGyDQ4DkqgSdtnhTsy0CBsw9xBEgtgZHA+Lt5iFRnibW326KOmSohSFBxxwaKdJCFHpwbtaQsPxNPwCw4Ba4Lvulx8WyvAH+AKuw0+VIeK1NbBcMGuUvG8Nw0dK0JnVu6hoLI0kQmAN4xC+Jpk0fpBulJuhLXPHWJFlJgJXO5C9eWKaB1PKcxbpEEIioS2FFCYdgN0Qr7CQhmZxT20Sc/u0AiFDcrEZHLkHK4RFxidS4c772Xi0TJMWIRz3hVcMHFgjCOiDUAxo4UKJ4FsHoReCB2a1gq1jNVm8wtbUi0NgeU12OCxMh7CBTc1SEcEZhuxM4ASc+tCMvrN7+xoIXecROFMHayJq1nwx7S0/OxLcdzqA6fiRgnBqhHDMkDcIia7V9VTmSwrlKQvQ5ryxl0uug1AwWYg5/M0kxqWKGozIptadq4YpEcLik9bK50sQgpGYG2MXmPC2Qjl4dP3+2iWyRMxHqBKER96176+PyN1lRrXJEZdMbCuekiwROhSRxPH3aRHCaGhX6A8g4YefUsk4PeZrkLaCo/d//Pz248c/f/zrKBkh1uTrL97Vb3/+8p7osMLMaAdz7kQU0Q2XLyFy/ZXHwrSFfRxWoGYOkvsiFhf1HMNhDjHqkwH611/evnx86dLjy/8crUZ49A+5+s+/r/ETkNUIS5HiF6Xgt13VIULKSZ3SIyRiuiBnbdTY78ieokim5V7/+JLSv9Mg/PHRvx4g2n42BocZsrFtbflPSL6EpiiNK6Rpl5/6OHCSh0Nsl0tQnjmFiJdeeAx9Idc/P26O8OU/ANH0wwgsLIHYFta2K+zYs40Rkh5vIOMWDA2O4JizxMA3H/2bed/1Eb78glWXiSOg8M48g7hiIL4lTY9wWmafRiLEGg6d/GM7gddI+PhyK4Qfr+E5DfJkfA5MwNRcMDsz3BCEiy99t0KdnYZDSl9qJ3z0BuhrQEY3Qfj443XoyXgRk00SxX0WITfqXgchPWkGSyk2aWoP/4Y/oBKE+e+XL7dD+PIjFlODiimOHBHyK8vEzGFu23w7s0ZPTV1iHudgU0oRUoOA4+2jfx7TI4SYJoTw8Y8jLHsUIfYNMuMu7i2GhdFqN1D65jaGiTJUhdSeEeQh2PTrP4M8/CMR4aHO+yo/YzGlp4hSHvrMP2dsgxnHwjXa9+oCzRfIagVZb6BRKdij649BhF9SZMBH/wne8/Y6+PFAD5uMeJ/7YhWrhWu1YN6UfYTkXaEQS8+iwXJzFHzZl/hl4+o04FP/Ct4DikhNzRjb0gnjLXoUIbcEtaah8ZhIJ9/TPAj8IT22kHRtBAXuT4ywmFxrex9iPEZI40GopDByoHYowpiAbUlrIKSVSwYhFGmItnARPv64fFm0ol4a8jAEIUTfUJFkSzU+D/VSLL41tweRHQd01VA9w9k/OccaEB4F3xW8dzOmql/Dq3fob567ICoOB7+xix++HkqRfrZNDI1H5FwqeUh/RgpU5E9AD1mBewSrGL9uAenT+4AFBksDxwc14CsI7CIb8RY2N7df39AseUR2dxGbDWaC2Bqop1y/ZZkBH1qJW0BUYWEnaGv+C94Cu9pxoHYCvw0xjczphNpMDT2C6rlJW2hAUmDNAk6y4CQWASsYhgi7m68Zp//4D1Zee/mzxAK02Z4FiEuRES+jG+zSG+DPXaZmkWToOj7cHUevR18iMipI8VtpiDUVrv/rQ/wb+9BlsabPrbhC+SMmtd9IDXdo+dt3beoZeElt4tlT2EFOxZQClEscaIRqJJjwIYKQLqWfzvsJWWMspPHx2gZquOOnaX78ewoGVhMG9CD0oz/gRX98j/8TWfHL+MxmA+H9z3Ajru0g79zOYzKxqX0bYCEoSFxeuJkaUpW3aHioUgbIVre+Ay0M7z1mPL79Ahxc1UOs0l6V6z8+PvrJkxtK1Of0YMFJ8LNgQ8NdM9xcSGn5m4lPxHM6mK44uSFzY6/fPv75b1oZ1CcrRkbUEEk/j47+cW8F1hvdXJMsD6ByUEZFrPP8QvfmQkpcIhs9+duSBNkkDEXCX37lU0ar9pq48QmN64+u/yJ/dG007bQqBzvHSERjJKnhRvvyyUoX0+Mk7vtpDOL8SRdWb8UQz9ty0kNQMWSLScBYTPAVm23Lh/SBXZB1uchbiSGkpdq3LvZ445aoFFjh3j+yqocSOJim0SRKZBubU2Nf7wyFB83Tjy+9TmppY57RKVn8R7huohn+SKSEkegrNpwAAuF3cAuJWDu1uCwoFK5Sd0GrtxaviRbpVnRzP3S4oGjf83Z2xiOIPYNM9JrQXxfD74cKVrhRewUbD6Xw5DO0bBWPXAlN+/qvCUK68Zwa2E/aDqXs6ovz0zbTiY4Kkpxy9A7znXp3hSIzHMUoG3e96M4LtQahbJK733ycEpkAIoVdgKrW7i8miiQVy5KkNG9XTk7iYqzd3yLvGUX3GZPbsxrvGSSQim4hYRFuCpA6DF63oTfKq9M7P+91xPBQrzVAiiJ+RmQwGAEIvX5P4CowQWuEEDNaQF3SZuhSPUPtkHbNyOSdbFhIT2hGxtNuqowjFWQUld88DQtdnwhN5nIznavLlmjHdXTSLkvbAPRad/FvaK+fH6F4D0qihwcLZcfCHf8k8fbpc0N0A1joHIzuGM2Ohb6cPsvm0QDAnk62BMYW8rNgIU3mBUF5+g3AAYAkpLCTyjNbj4f0KA9tQQg9o5yqPZJjJSphFlNMaU1KEKrPB5BW9ryzyp5WRl2AZFwxMp6Ph2oHDBzSkgBmMhO6r9NhxRnOTFqJENacBT2msyQ7GR3QyXPWxbO6C+hP5gwvy1ZGB7TgIN0+K0D1nO6vik+bMrCjjbJMAT5zYErrepHJsz5lIKOkdS3TuWVpIV7AGkdkCHSGSnhCaofSszp7QqQ8HhkCnZkSkgRYqGY6mC0tqTVycgB3G1cWwQz0zAjtpx5IEwexA9suuTtkMgBIOofaX0VEPSLzPwQzamwyOcQDLxGGFoKeFyKsqEbahDIJR0kHaUyDE6HlBJYtXOWKW/EaXnj3QUYAUyFUe4ftyW1vg2rii+V09loncZYG2e7265MAJFKatGqtnpc1JBeU0q13DsKaNWGxc3WqV9F+0prxhRY1NZkBpJYmwVeo5Lz4QrF5etVT040b8iS7dnb7WrN0JCAlIZoge7l/ehKA1FtE1rv8F9j3F5GQ3ra0w/2zTiJG7wSIF537C2/8DokIrdg6nggpBrs4miFA3+Mr+/y3VjuhIS5IL1hKKWGEi9rbvyu1FYs9rzKyLuID7DjRnduZnixLuzCtU+5nJn1SQdKt2JVu8UJqR49KCi1u0a+hXkEtim25zPjoXHpWEHfmM3XIIYrta1Pv+SvIFk/TxR6dZE4XR3nHytUHDfLHxmDtOKBB2wdkiSN70HCCLDswUkmOGxtBOvciXI8OgRNrF1XaukBmzvKC7XlVqcImkIX7x3H0imTyM2BUDisjMTNImHYfTNNf8IzZfujeMWQlFOk2uSk8LERV75t0AwIiZyDyALY8a2h5HWP1ivc6Sit6TTL1HbrF0AoO76aNu5bXr/V/n35rSnBpTBM0o7fIQ2d9fvf7J9jRGWx9FzuH/hgjBIdZcQ9ahbnO3g7GCrSHN9aFWK/QBpPChFVG8rrQcfqvvd03n+x4tcJcx4xBtv7ruw+v9vb2dsFYMjvV3M+43/YtmGbjvmd+OggtkoI5InsheUNFVlGLjI4RdM33jNTMVMlW5b29N/hXynGdbbDx3JtcuYfP3t57B+2k1Dip4rnjGzDZ/HWZVsSdW023FZCzB+TmJknHlB6ByFYzoBhm+Ftc//UhsnUwSHQTo58MvYIJ8GQUnNi5Y2a52U1gYGy622W2vyx/mzvQonEzGpaGo5tY/vYFeva5dIeVkeQ1iNlWR3ZKSPFLujhKYhz43i+wd/nQDd7dgOdK8Lc4keO5E486HgcgSrypMv2KYmm6rGumMovDWJ9RwfE8oxt97rNmhhDZdRY/RQnrNJvuvYF+Pc2573TO2DNZzNJyUe3VioLMuOgDtHjO4qZKzTzSpNhTgVv+EDLrdP92Aoj1EnsR7pyO2RO0ROhEBnXt/WaQ5yoKMwjO0N/tLgHurYpixlTADB7ArhSIMpR53HOmzJnHBRpWKoGJCBshfGNz4hxU/ulNOnzkV5dywDmY+kYJPZqvqR4NmoYQJjv4SCylSIvVwxroIbvxZe9dNPazmx/S4tuZMZsJzVn4f/vV8LN5o1mA6pVi6GLc8e3TCaebMcBC2AtqBVat934LTdbQ7F9cAX2VCl99FpjqYIZn35DTvgTDJg1YgakQIZoHA2d7ErJM5IO1r16IHHpB7G9oYMDeL4z+uRbGc4GuA0yVRcxDX90Kqlkf3lg3x92xSYbrJQQFJ7Y/IFGuVhrh/yenMbZLF/sRcrNeMJuRgww/NM3lAa1uNGfqn1KKp0e0y8Ag643+fmKPYAaFNvT+tfEQ2BQT88SxaRm67rqW8mQa/e8pUWu5ECWSGCIpUv3c2/30WbNN09Y+f3KDuR9SxyUkaivPxxBcBqM2mE9uY9gQAekRbQ0+82QxGz5Uunx1rfBHgQSI2wq7t/fqze+//+7BWyfHrePCf3FM/KLsBL7OkMxtwgSDwvQ1fiFMdEk8nrTIIYY4fPNgroVuSbkqEhDOCseK98fgpDQcWlKxBFNY3ALhTt/mTtClhOzw7qxXS9r9YX10S7qxq2RIQK5YtUOj4HBCahDzA+5sGx66cvMgJbBRlyp7ARl1pdLFlu1h6QyBHmr4B2C2Z/w4tZR0UlJsN9CNkBf5Pky3fum1iMwxqXgQ69C4nmhL09Fx101WIjQcxZinJyRS8jWa3ZNuE8xg9dlf4ymJrtPblg3eSkt2Ft8bDaL1y/Lx6tu+J+qGcwtp7Wrct06LYJ1D4mRY3zt1FaZyJ8UmwN8zHc8UryiPdLv68D+mg5QG3ZkjOLPn91ZPSP8PRUapMHktV0QAAAAASUVORK5CYII=" />
-                </div>
-              </div>
-              <div class="chat-bubble">
-                And I'm a good <span class="font-bold">@software_developer</span> too!
-                <br/>
-                I write high quality code non-stop
-              </div>
-            </div>
-
-            <div class="chat chat-end">
-              <div class="chat-bubble">
-                ...go to Team section for more persoinalities!
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>    
-
-      <div>
-        Let's start working together!
-      </div>
-      <div class="my-2 flex flex-col md:gap-2 rounded-md w-full px-4">
-        <div class="group input input-bordered flex gap-1 items-center"
-          :class="newProjectPath && 'border-warning'"
+    <!-- Git URL — always visible, optional -->
+    <div class="form-control">
+      <label class="label py-1">
+        <span class="label-text font-semibold text-sm flex items-center gap-2">
+          <i class="fa-brands fa-github"></i> Repository URL
+          <span class="text-base-content/40 font-normal">(optional)</span>
+        </span>
+      </label>
+      <input
+        v-model="formData.gitUrl"
+        type="text"
+        placeholder="https://github.com/user/repo.git"
+        class="input input-bordered input-sm w-full font-mono text-xs"
+      />
+      <div class="flex flex-wrap gap-2 mt-2">
+        <button
+          v-for="provider in gitProviders"
+          :key="provider.label"
+          @click="setGitPrefix(provider.prefix)"
+          class="btn btn-xs btn-ghost border border-base-300 gap-1"
         >
-          <i class="fa-solid fa-link group-hover:animate-pulse"></i>
-          <input type="text" class="grow"
-            placeholder="Paste a git issue link to start!" 
-            v-model="newProjectPath" />
-          <button class="btn btn-sm shrink-0"
-            :class="newProjectPath && 'btn-warning border-warning border'"
-            :disabled="newProjectPath?.length < 10" @click="createNewProject(newProjectPath)">
-            Go
-          </button>
-        </div>
-      </div>  
-      <div class="chat-footer opacity-50">
-        Paste project's path, repo, or issue link to start!
-      </div>
-      <div class="text-xs">
-        <div class="mt-2">Happy coding 🤩</div>
-        And don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us
-        <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a>
+          <i :class="provider.icon"></i> {{ provider.label }}
+        </button>
       </div>
     </div>
+
+    <!-- Prompt textarea -->
+    <div class="form-control">
+      <label class="label py-1">
+        <span class="label-text text-sm font-semibold flex items-center gap-1">
+          <i class="fa-solid fa-wand-magic-sparkles text-secondary"></i>
+          Project prompt
+          <span class="text-base-content/40 font-normal text-xs">(personalise before creating)</span>
+        </span>
+        <span class="label-text-alt text-base-content/40 text-xs" v-if="selectedTemplateObj">
+          {{ selectedTemplateObj.icon }} {{ selectedTemplateObj.name }}
+        </span>
+      </label>
+      <textarea
+        v-model="formData.projectPrompt"
+        class="textarea textarea-bordered w-full resize-none text-xs font-mono"
+        rows="7"
+        :placeholder="formData.selectedTemplate === 'blank' ? 'Describe your project...' : ''"
+      />
+    </div>
+
+    <!-- Template carousel -->
+    <div class="flex flex-col gap-2">
+      <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wide">
+        <i class="fa-solid fa-layer-group mr-1"></i> Templates
+      </span>
+      <div class="carousel carousel-center gap-3 pb-2 w-full">
+        <div
+          v-for="template in templates"
+          :key="template.id"
+          class="carousel-item"
+        >
+          <button
+            @click="selectTemplate(template)"
+            class="group flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border-2 transition-all w-28 h-28 justify-center"
+            :class="formData.selectedTemplate === template.id
+              ? 'border-primary bg-primary/10 shadow shadow-primary/20'
+              : 'border-base-300 hover:border-base-content/30 hover:bg-base-200'"
+          >
+            <span class="text-3xl group-hover:scale-110 transition-transform">{{ template.icon }}</span>
+            <span class="font-bold text-xs text-center leading-tight">{{ template.name }}</span>
+            <span class="text-xs text-base-content/50 text-center leading-tight">{{ template.description }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced section (collapsible) -->
+    <div class="collapse collapse-arrow border border-base-300 rounded-xl">
+      <input type="checkbox" />
+      <div class="collapse-title text-sm font-semibold flex items-center gap-2 py-2 min-h-0">
+        <i class="fa-solid fa-sliders text-warning"></i> Advanced settings
+      </div>
+      <div class="collapse-content flex flex-col gap-3 pt-1">
+
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text text-sm font-semibold flex items-center gap-1">
+              <i class="fa-solid fa-folder text-warning"></i> Project location path
+            </span>
+            <span class="label-text-alt text-base-content/40 text-xs">new or existing directory</span>
+          </label>
+          <input
+            v-model="formData.projectPath"
+            type="text"
+            placeholder="/home/projects/my-project"
+            class="input input-bordered input-sm w-full font-mono text-xs"
+          />
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/40 text-xs">Leave empty to use the default workspace folder</span>
+          </label>
+        </div>
+
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text text-sm font-semibold flex items-center gap-1">
+              <i class="fa-solid fa-gear text-warning"></i> .codx folder path
+            </span>
+            <span class="label-text-alt text-base-content/40 text-xs">optional — defaults to project root</span>
+          </label>
+          <input
+            v-model="formData.codxPath"
+            type="text"
+            placeholder="/home/.codx-settings/my-project"
+            class="input input-bordered input-sm w-full font-mono text-xs"
+          />
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/40 text-xs">
+              Allows storing .codx outside the project directory (useful for read-only or shared codebases)
+            </span>
+          </label>
+        </div>
+
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-bold text-sm">
+              Description <span class="text-base-content/40 font-normal">(optional)</span>
+            </span>
+          </label>
+          <textarea
+            v-model="formData.projectDescription"
+            placeholder="What is this project about?"
+            class="textarea textarea-bordered w-full resize-none text-sm"
+            rows="3"
+          />
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex justify-end items-center gap-2 pt-2 pb-1 mt-auto">
+      <button @click="$emit('close')" class="btn btn-ghost btn-sm">
+        Cancel
+      </button>
+      <button
+        @click="createProject"
+        :disabled="!isFormValid"
+        class="btn btn-primary btn-sm gap-2"
+      >
+        <i class="fa-solid fa-sparkles"></i> Create Project
+      </button>
+    </div>
+
   </div>
 </template>
 
@@ -99,24 +177,161 @@
 export default {
   data() {
     return {
-      newProjectPath: "",
+      formData: {
+        selectedTemplate: 'blank',
+        projectName: '',
+        gitUrl: '',
+        projectPrompt: '',
+        projectDescription: '',
+        projectPath: '',
+        codxPath: ''
+      },
+      gitProviders: [
+        { label: 'GitHub',       icon: 'fa-brands fa-github',    prefix: 'https://github.com/' },
+        { label: 'GitLab',       icon: 'fa-brands fa-gitlab',    prefix: 'https://gitlab.com/' },
+        { label: 'Azure DevOps', icon: 'fa-brands fa-microsoft', prefix: 'https://dev.azure.com/' },
+        { label: 'Bitbucket',    icon: 'fa-brands fa-bitbucket', prefix: 'https://bitbucket.org/' }
+      ],
+      templates: [
+        {
+          id: 'blank',
+          name: 'Blank',
+          description: 'From scratch',
+          icon: '🗒️',
+          prompt: ''
+        },
+        {
+          id: 'from-prompt',
+          name: 'From Prompt',
+          description: 'AI generated',
+          icon: '🤖',
+          prompt: `Create a new software project with the following requirements:
+
+Project goal: <describe the main purpose>
+Tech stack: <languages, frameworks, libraries>
+Key features:
+  - <feature 1>
+  - <feature 2>
+  - <feature 3>
+
+Additional context: <any extra details, constraints or preferences>`
+        },
+        {
+          id: 'react',
+          name: 'React + Vite',
+          description: 'Modern React',
+          icon: '⚛️',
+          prompt: `Scaffold a React 18 project using Vite as the build tool.
+
+Include:
+  - TypeScript support
+  - TailwindCSS for styling
+  - React Router for navigation
+  - A clean folder structure (src/components, src/pages, src/hooks)
+
+Project goal: <describe what this app will do>`
+        },
+        {
+          id: 'vue',
+          name: 'Vue 3 + TS',
+          description: 'Vue framework',
+          icon: '🍃',
+          prompt: `Scaffold a Vue 3 project using Vite and TypeScript.
+
+Include:
+  - Pinia for state management
+  - Vue Router for navigation
+  - TailwindCSS + DaisyUI for styling
+  - A clean folder structure (src/components, src/views, src/stores)
+
+Project goal: <describe what this app will do>`
+        },
+        {
+          id: 'nextjs',
+          name: 'Next.js',
+          description: 'Full-stack React',
+          icon: '⚡',
+          prompt: `Scaffold a Next.js 14 project using the App Router.
+
+Include:
+  - TypeScript
+  - TailwindCSS
+  - API routes under app/api
+  - A clean layout with shared header/footer
+
+Project goal: <describe what this app will do>`
+        },
+        {
+          id: 'node',
+          name: 'Node.js',
+          description: 'Backend API',
+          icon: '🟢',
+          prompt: `Scaffold a Node.js REST API using Express and TypeScript.
+
+Include:
+  - Express with typed request/response
+  - dotenv for environment config
+  - A modular folder structure (src/routes, src/controllers, src/services)
+  - Basic error handling middleware
+
+Project goal: <describe what this API will do>`
+        },
+        {
+          id: 'python',
+          name: 'Python',
+          description: 'Python project',
+          icon: '🐍',
+          prompt: `Scaffold a Python project with a virtual environment.
+
+Include:
+  - requirements.txt with key dependencies
+  - A clean package structure (src/, tests/)
+  - Basic logging setup
+  - A README with setup instructions
+
+Project goal: <describe what this project will do>`
+        },
+        {
+          id: 'rust',
+          name: 'Rust',
+          description: 'Rust application',
+          icon: '🦀',
+          prompt: `Scaffold a Rust project using Cargo.
+
+Include:
+  - Cargo.toml with key dependencies
+  - A modular src layout (main.rs, lib.rs, modules/)
+  - Basic error handling with anyhow or thiserror
+  - Unit test stubs
+
+Project goal: <describe what this app will do>`
+        }
+      ]
+    }
+  },
+  computed: {
+    selectedTemplateObj() {
+      return this.templates.find(t => t.id === this.formData.selectedTemplate) || null
+    },
+    isFormValid() {
+      return !!this.formData.projectName
     }
   },
   methods: {
-    async createNewProject(newProjectPath) {
-      if (!newProjectPath) {
-        return
-      }
-      await this.$service.project.cloneProject(newProjectPath)
-      if (newProjectPath.includes("github.com") &&
-        newProjectPath.includes("/issues/")) {
-        this.$projects.addWizard(new GitIssueWizard(this.$service, newProjectPath))
-      } else {
-        this.$ui.setActiveTab('tasks')
-      }
-      this.newProjectPath = null
-      this.$ui.showNewProject(false)
+    selectTemplate(template) {
+      this.formData.selectedTemplate = template.id
+      this.formData.projectPrompt = template.prompt
     },
+    setGitPrefix(prefix) {
+      if (!this.formData.gitUrl.startsWith('http')) {
+        this.formData.gitUrl = prefix
+      }
+    },
+    createProject() {
+      if (!this.isFormValid) return
+      this.$emit('project-created', { data: { ...this.formData } })
+      this.$emit('close')
+    }
   }
 }
 </script>

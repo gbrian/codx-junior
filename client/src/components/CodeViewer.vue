@@ -27,13 +27,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </div>
           <span class="text-sm font-medium opacity-60" v-else>Code</span>
 
-          <div class="hover:text-info cursor-pointer" @click.stop="zoomOut">
-            <i class="fa-solid fa-magnifying-glass-minus"></i>
-          </div>
-          <div class="hover:text-info cursor-pointer" @click.stop="zoomIn">
-            <i class="fa-solid fa-magnifying-glass-plus"></i>
-          </div>
-
           <div
             class="hover:text-info cursor-pointer"
             :class="editMode && 'text-warning'"
@@ -112,15 +105,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #actions>
-      <button class="btn btn-sm btn-info btn-outline"
-        @click.stop="applyPatchFromAI"
-        v-if="!isNoChange && file && finished && (showCode || showDiff) && !isPatch"
-        :disabled="isApplyingPatch"
-        title="Generate improved version using AI patch">
-        <span class="loading loading-spinner loading-xs" v-if="isApplyingPatch"></span>
-        <i class="fa-solid fa-wand-magic-sparkles" v-else></i> Patch
-      </button>
-
       <button class="btn btn-sm btn-success btn-outline"
         @click.stop="saveToFile"
         v-if="!isNoChange && file && finished && (showCode || showDiff)"
@@ -174,7 +158,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
       </div>
 
       <div class="view-code grow overflow-auto">
-        <div :style="{ zoom, height: `${editorHeight}px` }">
+        <div :style="{ height: `${editorHeight}px` }">
 
           <Editor
             :diff="true"
@@ -243,7 +227,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
 <script>
 export default {
-  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message'],
+  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
@@ -252,7 +236,6 @@ export default {
       diffEditContent: null,
       diffBaseContent: null,
       diff: this.fileDiff,
-      zoom: 1,
       editMode: false,
       editContent: null,
       hasUnsavedFileChanges: false,
@@ -343,7 +326,7 @@ export default {
   },
   watch: {
     async finished() {
-      if (this.finished) {
+      if (this.finished && this.showCode) {
         await this.loadDiffInfo()
         if (!this.isNewFile && this.stats && !this.isNoChange) {
           this.showDiff = true
@@ -363,13 +346,23 @@ export default {
           viewCode.scrollTop = this.prevScrollTop
         }
       })
+    },
+    fromBranch() {
+      if (this.showCode) {
+        this.loadDiffInfo()
+      }
+    },
+    toBranch() {
+      if (this.showCode) {
+        this.loadDiffInfo()
+      }
     }
   },
   mounted() {
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
-    if (this.finished) {
+    if (this.finished && this.showCode) {
       this.loadDiffInfo()
     }
     const viewCode = this.$el?.querySelector('.view-code')
@@ -490,10 +483,15 @@ export default {
       try {
         this.loadingStats = true
         if (this.file) {
-          const { diff, stats, last_modification, size } = await this.$api.files.diff({
+          // Build diff request with optional branch parameters
+          const diffRequest = {
             path: this.file,
             content: this.effectiveCode
-          })
+          }
+          if (this.fromBranch) diffRequest.from_branch = this.fromBranch
+          if (this.toBranch) diffRequest.to_branch = this.toBranch
+
+          const { diff, stats, last_modification, size } = await this.$api.files.diff(diffRequest)
           this.diff = diff
           this.stats = stats
           this.last_modification = last_modification
@@ -606,9 +604,6 @@ export default {
       this.$storex.api.apps.runScript(this.code)
     },
 
-    zoomOut() { this.zoom -= 0.1 },
-    zoomIn()  { this.zoom += 0.1 },
-
     onCopy() {
       this.$ui.copyTextToClipboard(this.effectiveCode)
     },
@@ -640,6 +635,7 @@ export default {
   }
 }
 </script>
+
 <style>
 .header-code-highlight {
   display: none !important;

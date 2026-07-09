@@ -8,6 +8,8 @@ Made with ❤️ by codx-junior
 import json
 import logging
 import os
+import subprocess
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -35,6 +37,7 @@ class GitEngine:
         GE --> get_commit_list
         GE --> get_commit_changes
         GE --> reset_project_file
+        GE --> diff_file
     ```
     """
 
@@ -47,6 +50,29 @@ class GitEngine:
         """Shortcut to session settings."""
         return self.session.settings
 
+    def _sanitize_branch_name(self, branch: str) -> str:
+        """
+        Sanitize branch name by removing prefixes like '* ' or '+ worktree/'.
+        Keeps the last part after splitting by space.
+        
+        Args:
+            branch: Raw branch name that may contain prefixes.
+            
+        Returns:
+            Cleaned branch name.
+        """
+        if not branch:
+            return branch
+        
+        # Remove common git branch prefixes
+        cleaned = branch.lstrip("* +").strip()
+        
+        # If there's still a space, take the last part (handles "worktree/branch" cases)
+        if " " in cleaned:
+            cleaned = cleaned.split()[-1]
+        
+        return cleaned
+
     def _get_file_last_modification(self, file_path: str) -> Optional[str]:
         """
         Return the last modification datetime of a file as an ISO 8601 string.
@@ -58,13 +84,88 @@ class GitEngine:
         mtime = os.path.getmtime(file_path)
         return datetime.fromtimestamp(mtime).isoformat()
 
+    def _get_git_root_for_file(self, file_path: str) -> str:
+        """
+        Determine the Git root for a given file, allowing for subprojects.
+
+        Args:
+            file_path: The path to the file.
+
+        Returns:
+            The absolute Git root path.
+        """
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
+            
+        current_path = os.path.dirname(file_path)
+        
+        while current_path != os.path.dirname(current_path):
+            if os.path.exists(os.path.join(current_path, '.git')):
+                return current_path
+            current_path = os.path.dirname(current_path)
+            
+        return self.find_git_root_path()
+
+    def diff_file(self, path: str, content: str, from_branch: str = None, to_branch: str = None) -> dict:
+        """
+        Diff a project file against provided content using git diff --no-index.
+        Optionally compare against specific branches.
+
+        Args:
+            path: File path.
+            content: New content to diff against.
+            from_branch: Optional source branch for comparison (git diff --no-index ignores this for file diffs).
+            to_branch: Optional target branch for comparison (git diff --no-index ignores this for file diffs).
+
+        Returns:
+            Dict with 'diff', 'stats', 'last_modification', and 'size'.
+        
+        Note:
+            For branch-based diffs, use git commands like:
+            `git diff from_branch to_branch -- path` instead of `git diff --no-index`.
+            This implementation uses --no-index for comparing working tree against provided content.
+        """
+        path = self._get_git_root_for_file(file_path
+        =path)
+
+        # For comparing against branches, we would use different git commands
+        # Currently using --no-index for comparing working file against new content
+        if from_branch and to_branch:
+            # Compare file between two branches
+            cmd = ["git", "diff", f"{from_branch}..{to_branch}", "--", path]
+            result = subprocess.run(cmd, text=True, capture_output=True, cwd=self.settings.abs_project_path)
+            diff_out = result.stdout
+            
+            git_stats_cmd = ["git", "diff", f"{from_branch}..{to_branch}", "--shortstat", "--", path]
+            stats_result = subprocess.run(git_stats_cmd, text=True, capture_output=True, cwd=self.settings.abs_project_path)
+            diff_stats_out = stats_result.stdout
+        else:
+            # Default behavior: compare provided content against current file
+            cmd = ["git", "diff", "--no-index", path, "-"]
+            result = subprocess.run(cmd, input=content, text=True, capture_output=True)
+            diff_out = result.stdout
+
+            git_command = f"""
+            cat << EOF | git --no-pager diff --shortstat --no-index -- - {path}
+            {content}
+            EOF
+            """
+            diff_stats_out = os.popen(git_command).read()
+
+        return {
+            "diff": diff_out.strip(),
+            "stats": diff_stats_out.strip(),
+        }
+
     def get_repo_branches(self) -> list:
         """
         Return all git branches (local and remote) for the project.
+        Sanitizes branch names by removing prefixes.
         """
         def get_branches(cmd: str) -> list:
             stdout, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            return [s.strip() for s in stdout.split("\n") if s.strip()]
+            branches = [s.strip() for s in stdout.split("\n") if s.strip()]
+            return [self._sanitize_branch_name(b) for b in branches]
 
         branches = list(set(get_branches("git branch") + get_branches("git branch -r")))
         branches.sort()
@@ -83,6 +184,7 @@ class GitEngine:
         """
         Return commits for a given branch.
         """
+        branch = self._sanitize_branch_name(branch)
         commits, _ = exec_command(
             f"git log {branch}", cwd=self.settings.abs_project_path
         )
@@ -110,6 +212,9 @@ class GitEngine:
         Returns:
             List of commit dicts with hash, author, date, message.
         """
+        if branch:
+            branch = self._sanitize_branch_name(branch)
+        
         ref = branch or "HEAD"
         pretty = "%H|%an|%ae|%ad|%s"
         cmd = f"git log --pretty=format:{pretty} --date=iso -n {limit} {ref}"
@@ -251,11 +356,11 @@ class GitEngine:
         Return file changes, diffs and PR details between two branches.
         Each file entry includes a 'last_modification' datetime (ISO 8601).
         """
-        is_current_branch = from_branch.startswith("* ")
-        if from_branch and is_current_branch:
-            from_branch = from_branch[2:]
-        if to_branch.startswith("* "):
-            to_branch = to_branch[2:]
+        # Sanitize branch names
+        from_branch = self._sanitize_branch_name(from_branch)
+        to_branch = self._sanitize_branch_name(to_branch)
+        
+        is_current_branch = from_branch != to_branch  # Simplified check after sanitization
 
         # Get list of changed files
         git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
@@ -363,6 +468,7 @@ class GitEngine:
         """
         Return structured commit list for a branch.
         """
+        from_branch = self._sanitize_branch_name(from_branch)
         git_log_command = (
             f"git log --pretty=format:%H|%an|%ae|%ad|%s {from_branch}"
         )
@@ -417,6 +523,7 @@ class GitEngine:
         """
         Extract commit details from a branch without checking it out.
         """
+        branch_name = self._sanitize_branch_name(branch_name)
         log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"
         stdout, _ = exec_command(log_command, cwd=self.settings.abs_project_path)
 
@@ -468,8 +575,8 @@ class GitEngine:
 
     def get_project_current_branch(self) -> str:
         """Return the current git branch name."""
-        stdout, _ = exec_command("git branch --show-current")
-        return stdout
+        stdout, _ = exec_command("git branch --show-current", cwd=self.settings.abs_project_path)
+        return stdout.strip()
 
     def get_project_parent_branch(self) -> str:
         """Determine the parent branch of the current branch via reflog."""
@@ -492,10 +599,10 @@ class GitEngine:
 
         if "refs/remotes/" in creation_line:
             ref_branch = creation_line.split(" ")[-1].replace("refs/remotes/", "")
-            return ref_branch
+            return self._sanitize_branch_name(ref_branch)
 
         ref_branch = creation_line.split(" (")[1].split(",")[0]
-        return ref_branch
+        return self._sanitize_branch_name(ref_branch)
 
     def get_project_changes(self, parent_branch: str = None) -> dict:
         """Return diff between current working tree and a parent branch."""
@@ -527,6 +634,10 @@ class GitEngine:
         Return PR review details (file changes, diffs, commits) between two branches.
         Each file entry includes a 'last_modification' datetime (ISO 8601).
         """
+        # Sanitize branch names
+        from_branch = self._sanitize_branch_name(from_branch)
+        to_branch = self._sanitize_branch_name(to_branch)
+        
         exec_command(
             f"git fetch origin {to_branch}:{to_branch}",
             cwd=self.settings.abs_project_path,
@@ -583,6 +694,9 @@ class GitEngine:
 
     def reset_project_file(self, file_path: str) -> None:
         """Reset file's last change."""
+        # Determine the correct Git root path for this file
+        git_root_path = self._get_git_root_for_file(file_path)
+
         cmd = f"git reset {file_path}"
-        exec_command(cmd, cwd=self.settings.abs_project_path)
+        exec_command(cmd, cwd=git_root_path)
         logger.info("Reset file: %s", file_path)

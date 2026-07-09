@@ -860,25 +860,30 @@ knowledge: {
       }
     },
 
-    files: {
-      list(path) {
-        return API.get(`/api/files?path=${path}`)
-      },
-      read(path) {
-        return API.get(`/api/files/read?path=${path}`)
-      },
-      diff({ path, content }) {
-        return API.post(`/api/files/diff`, { path, content })
-      },
-      search(search) {
-        return API.get(`/api/files/find?search=${search}`)
-      },
-      write(source, page_content) {
-        return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
-      },
-      reset(source) {
-        return API.get(`/api/files/reset?path=${path}`)
-      }
+files: {
+  list(path) {
+    return API.get(`/api/files?path=${path}`)
+  },
+  read(path) {
+    return API.get(`/api/files/read?path=${path}`)
+  },
+  diff({ path, content, from_branch, to_branch }) {
+    return API.post(`/api/files/diff`, { 
+      path, 
+      content,
+      from_branch: from_branch || null,
+      to_branch: to_branch || null
+    })
+  },
+  search(search) {
+    return API.get(`/api/files/find?search=${search}`)
+  },
+  write(source, page_content) {
+    return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
+  },
+  reset(source) {
+    return API.get(`/api/files/reset?path=${path}`)
+  }
     },
     screen: {
       display: null,

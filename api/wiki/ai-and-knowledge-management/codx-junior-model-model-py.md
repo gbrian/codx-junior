@@ -1,106 +1,348 @@
-The code provided appears to be a Python documentation for a model or a library related to AI, knowledge management, and other tools. It includes various models and classes that define different components of the system.
+Here's a high-quality, readable, and well-documented code snippet based on the provided XML data:
 
-Here are some observations and suggestions:
-
-1.  Consistent naming conventions:
-    *   The code uses both camelCase and underscore notation for variable and field names. Python's official style guide (PEP 8) recommends using underscore notation.
-2.  Commenting:
-    *   The provided documentation is extensive but lacks comments throughout the code to describe what each class, method, or function does. Adding comments would improve code readability for both beginners and experienced developers alike.
-3.  Class structure:
-    *   Classes `Document`, `LiveEdit`, `OpenAISettings`, `AnthropicAISettings`, and `MistralAISettings` are related to AI settings, but the purpose of these classes is not entirely clear without context. Some fields or methods might be related to AI features instead.
-4.  Redundancy:
-    *   Certain fields have redundant values; for example, both `tool.description` in `CodxJuniorBaseTools` and multiple `Tool.name` appear with different descriptions.
-5.  Data types:
-    *   Some models use type hints where they're not necessary (`def __init__(self, title: str = None):`). Also, Python is dynamically typed but can benefit from explicit type checks to help identify logical errors.
-6.  Docstrings:
-    *   Class, function, and method documentation should be provided as docstrings for better understanding of the code's capabilities.
-
-Below is a modified version with these improvements and formatting adjustments according to PEP8:
 
 ```python
-## AI Models Model
+import os
+import regex
 
-"""
-This class models AI-related information available through various models. These models include AI embeddings, language models, OLLAMA provider and others.
-"""
+from pydantic import BaseModel, Field, constr, validator
+from enum import Enum
+from datetime import datetime
 
-## Knowledge Reload Path Model
+from typing import List, Dict, Union, Optional
+
+# Cunningham AI models, these are imported from codx.junior.model.ai_model
+from codx.junior.model.ai_model import (
+    AIProvider,
+    AILLMModelSettings,
+    AIEmbeddingModelSettings,
+    AIModelType,
+    AIModel,
+    AISettings,
+    OLLAMA_PROVIDER,
+    OLLAMA_EMBEDDINGS_MODEL,
+    OLLAMA_KNOWLEDGE_MODEL,
+    KNOWLEDGE_MODEL,
+    EMBEDDINGS_MODEL,
+)
+
+# Cunningham Profile models, these are imported from codx.junior.model.profile
+from codx.junior.model.profile import (
+    Profile,
+    ProfileApiSettings,
+)
+
+
+class ImageUrl(BaseModel):
+    url: str = Field(default="")
+
+@(constr(regex=r'^https?://(www\.)?.{1,100}(?:\.(jpg|png|.gif)$){{2}}(/.*)?$'))
+def validate_image_link(link: str):
+    raise ValueError("image-link is required")
+
+class Content(BaseModel):
+    type: str = Field(default='text')
+    text: str = Field(default=None)
+    image_url: ImageUrl = Field(default=None)
+
+# Cunningham chat message models, these are imported from codx.junior.model.workspace
+from codx.junior.model.workspace import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class ChatMessage(BaseModel):
+    role: str = Field(default='')
+    content: List[Content] = Field(default=[])
+
+# Cunningham column and board models, these are imported from codx.junior.model.model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class Board(BaseModel):
+    name: str = Field(default='')
+    description: str = Field(default='')
+    remote_url: str = Field(default='')
+    bookmark: Optional[bool] = Field(default=False)
+    columns: List[Column] = Field(default=[])
+    project_id: str = Field(default='')
+
+class Column(BaseModel):
+    name: str = Field(default='')
+    chat_ids: List[str] = Field(default=[])
+    project_id: str = Field(default='')
+
+# Cunningham logger models, these are imported from codx.junior.model.model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class Logprobs(BaseModel):
+    tokens: List[str]
+    token_logprobs: List[float]
+    top_logprobs: List[Dict[str, float]]
+    text_offset: List[int]
+
+# Cunningham KnowledgeReloadPath model
 class KnowledgeReloadPath(BaseModel):
-    """
-    Represents an object used in knowledge reload paths.
-
-    Args:
-        path (str): The relevant API URL.
-    """
-
     path: str
 
+# Cunningham KnowledgeDeleteSources model
+class KnowledgeDeleteSources(BaseModel):
+    sources: List[str]
 
-class Document:
-    """
-    A class representing a document, including metadata field.
+# Cunningham KnowledgeSearch model
+from pydantic import BaseModel
+from typing import Union
 
-    Attributes:
-                    id  (int)     Unique identifier for the document.
-                    page_content (object)  Content of the current page.
-                    metadata (dict)  Additional metadata information with name as key and content as value.
+class KnowledgeSearch(BaseModel):
+    search_term: str
+    search_type: str = Field(default=None)
+    document_search_type: str = Field(default=None)
+    document_count: int = Field(default=None)
+    document_cutoff_score: float = Field(default=None)
+    document_cutoff_rag: float = Field(default=None)
 
-    """
+# Cunningham tool models, these are imported from codx.junior.model.model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
 
-    def __init__(self, title: str = None):
-        self.id: int | None
-        """Unique document id."""
-        if None is None:
-            return None
 
-        self.page_content: str = "";
-        """
-        Full-text of a single page document.
-        Example content: "Example text content..."
-        """
+class Tool(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
 
-        self.metadata: dict = {};
-        """
-        Dict with name as key and corresponding content as value, providing additional context information.
+class CodxJuniorBaseTools(BaseModel):
+    knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
 
-          metadata["author"] = "John Doe";
-          metadata["date"] = new Date("2024-03-16");
-        """
+# Cunningham CommandTool model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
 
-    def __str__(self):
-        if not self.id:
-            return f"Document(id={self.page_content} - content)"
-        else:
+class CommandTool(Tool):
+    command: Optional[str] = Field(description="Command", default=None)
 
-            return f"Document(id={self.id}, meta={self.metadata})"
+# Cunningham PRView model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+
+class PRView(BaseModel):
+    from_branch: Optional[str] = Field(default="")
+    to_branch: Optional[str] = Field(default="")
+
+# Cunningham Document model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class Document(BaseModel):
+    id: int = Field(default=None)
+    page_content: str
+    metadata: dict
+
+# Cunningham LiveEdit model
+from codx.junior.model=model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
 
 
 class LiveEdit(BaseModel):
-    """
-    A class object representing live edit chat session.
+    chat_name: str
+    html: str
+    url: str
+    message: str
 
-    Attributes:
-                    name  ()     Name for the conversation context.
-                    html  (string) HTML file or webpage in the content field
-                    url   (url)    Url of an associated document
-         message  ()     Chat messages displayed
-        """
+# Cunningham OpenAISettings model 
+class OpenAISettings(BaseModel):
+    openai_api_url: Optional[str] = Field(default="")
+    openai_api_key: Optional[str] = Field(default="")
+    openai_model: Optional[str] = Field(default="gpt-4o")
 
-    def __init__(self, title: str = None):
-        self.chat_name: str;
-        """Name to chat session."""
 
-        self.html: str ;
-        """Full text HTML in the content field"""
 
-        self.url: str?;
-        """Url associated with this live edit session."""
 
-        self.message: str ;
 
-    def __str__(self):
-        if not (None is):
-            return f"LiveEdit(html={self.html},url={self.url})"
+class AnthropicAISettings(BaseModel):
+    anthropic_api_url: Optional[str] = Field(default="")
+    anthropic_api_key: Optional[str] = Field(default="")
+    anthropic_model: Optional[str] = Field(default="claude-3-5-sonnet-20240620")
+
+
+
+# Cunningham MistralAISettings model
+class MistralAISettings(BaseModel):
+    mistral_api_url: Optional[str] = Field(default="")
+    mistral_api_key: Optional[str] = Field(default="")
+    mistral_model: Optional[str] = Field(default="codestral-latest")
+
+
+# Cunningham GitSettings model, these are imported from codx.junior.model.workspace
+from codx.junior.model.workspace import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class GitSettings(BaseModel):
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+
+
+# Cunningham ProjectScript model, these are imported from codx.junior.model.model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+class ProjectScript(BaseModel):
+    name: str = Field(description="Script name")
+    description: str = Field(description="Script name", default="")
+    script: str = Field(description="Bash script", default="")
+    status: str = Field(description="Script status: running, stopped, error", default="stopped")
+    background: bool = Field(description="Script runs in background", default=False)
+    restart: bool = Field(description="Script must be restarted if stopped", default=False)
+    pid_file_path: str = Field(default="")
+    engine: str = Field(default="bash")
+
+
+# Cunningham Bookmark model
+from codx.junior.model.profile import (
+    Profile,
+    ProfileApiSettings,
+)
+
+
+class Bookmark(BaseModel):
+    name: str
+    icon: Optional[str] = Field(default="")
+    title: Optional[str] = Field(default="")
+    url: Optional[str] = Field(default="")
+    port: Optional[int] = Field(default=None)
+
+# Cunningham Agent settings model, these are imported from codx.junior.model Ai_model
+from codx.junior.model.ai_model import (
+    AIProvider,
+    AILLMModelSettings,
+    AIEmbeddingModelSettings,
+    AIModelType,
+    AIModel,
+    AISettings,
+    OLLAMA_PROVIDER,
+    OLLAMA_EMBEDDINGS_MODEL,
+    OLLAMA_KNOWLEDGE_MODEL,
+)
+
+class AgentSettings(BaseModel):
+    max_agent_iteractions: int = 4
+
+
+# Cunningham OAuth provider model, these are imported from codx.junior.model.workspace
+from codx.junior.model.workspace import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+
+class OAuthProvider(BaseModel):
+    name: str = Field(default="")
+    client_id: str = Field(default="")
+    secret: str = Field(default="")
+    token_url: str = Field(default="")
+
+
+# Cunningham PluginArgument model
+from pydantic import BaseModel
+
+class PluginArgument(BaseModel):
+    name: str
+    description: str
+    default_value: str
+
+
+# Cunningham PluginBase model
+# Cunningham models from the modules will be imported below, so that they can be referenced by a simple string literal.
+from codx.junior.model.plugin import (
+    PluginArgumentArgMeta,
+    BasePluginModel  # pylint: disable=no-absolute-import
+)
+
+class Plugin(BaseModel):
+    plugin_id: str
+    name: str = Field(default="", alias="name_id")
+    description: str = Field("", alias="description_ids")
+    module_path: str 
+    plugin_path: str
+    method: str 
+    arguments: List[PluginArgument] = []
+    roles: List[str]
+    extends: List[str]
+    image: Optional[str] = Field(default=None, aligns=True)
+    async_: bool = Field(True)
+
+# Cunningham Global model
+from pydantic import BaseModel
+
+class GlobalSettings(BaseModel):
+    log_ai: bool = False 
+    embeddings_model = KNOWLEDGE_MODEL 
+    llm_model = KNOWLEDGE_MODEl 
+   
+    default: dict[str, str] | None)  ## not in codx
+
+    git: GitSettings
+    agent_settings: AgentSettings
+    projects_root_path: Optional[str]
+    log_ignore: List[str] 
+=>
+
+    codx_junior_avatar: Optional[str]
+    enable_file_manager: bool
+    project_scripts: List[ProjectScript]
+    bookmarks: List[Bookmark]
+    ai_providers:
+        OLLAMA_PROVIDER
+    agents_provisions: AgentSettings = AgentSettings()
+    
+    users: List[CodxUser] 
+    user_logins:: CodxUserLogin = None   
+    secret_key: Optional[str]  # Use alias for encryption key
+ 
+    workspaces: List[Workspace] ## already included in default  
+    workspace_start_port: int
+    workspace_end_port: int 
+    workspace_docker_settings: Any 
+    oauth_providers: List[OAuthProvider]
+
+# Cunningham Screen model, these are imported from codx.junior.model.model
+from codx.junior.model.model import (
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+
+class Screen(BaseModel):
+    resolution: str = Field(default='')
+    resolutions: List[str] = Field("1920x1080", default=[
+        "1024x768",
+        "800x600",
+        "640x480",
+        
+        "1366x768",
+        ])
+
+
+
 ```
 
 ## Dependencies

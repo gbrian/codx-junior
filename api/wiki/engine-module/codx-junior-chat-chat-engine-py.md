@@ -1,51 +1,98 @@
-# Chat Engine Module
+The provided code is a Python class implementation for a chat engine, which seems to be part of a conversational AI platform. The class provides methods for handling chat interactions with AI models, including message processing, knowledge search, context building, and AI response generation.
 
-The `ChatEngine` is the central component responsible for managing AI-driven interactions within the CODX Junior project. It orchestrates context building, knowledge retrieval, message processing, and AI response generation.
+Here's how the documentation can be generated based on the provided document:
+
+```markdown
+# Chat Engine Documentation
 
 ## Overview
-The engine serves as a bridge between user queries and AI models, supporting various interaction modes such as `task` (refinement), `agent` (iterative execution), `vibe` (AI-driven context search), and standard `chat`.
 
-### Core Flowchart
-The process follows a modular execution path:
-1. **Resolution**: Determine chat mode, profiles, and project context.
-2. **Pre-processing**: Execute optional `vibe` or `search` pre-searches to enrich the query.
-3. **Knowledge Retrieval**: Perform RAG (Retrieval-Augmented Generation) document search across project dependencies.
-4. **Context Building**: Assemble history, project files, and profile instructions into a prompt.
-5. **Execution**: Invoke the AI model and process the response.
-6. **Post-processing**: Extract file changes, generate summaries, and perform agent iterations if required.
+The `ChatEngine` class is a core component of the codx-junior conversational AI platform. It handles message processing, knowledge search, context building, and AI response generation for various chat modes.
 
-## Key Functionalities
+### Classes
 
-### Message Handling
-- **Message Conversion**: Transforms database `Message` objects into `LangChain` compatible formats (`AIMessage`, `HumanMessage`), supporting both text and image content.
-- **History Assembly**: Filters hidden or improvement-related messages to construct the conversation history for context (`_build_message_history`).
-- **File Extraction**: Parses markdown code blocks containing filenames from AI responses to track generated code updates (`_extract_files_from_response`).
+#### ChatEngine
 
-### Chat Modes
-- **Task/Refine Mode**: Used for document refinement. It manages parent-child task contexts and allows the model to apply comments to existing documents without modifying untouched sections (`_append_refine_message`).
-- **Agent Mode**: Executes iterative tasks where the AI attempts to solve a request until the `AGENT_DONE_WORD` is returned. It tracks iteration counts to prevent infinite loops (`_append_agent_message`).
-- **Vibe/Search Mode**: Triggers AI-driven pre-search to gather context before formulating the final response (`_run_pre_search`).
+*   **Methods**
 
-### Knowledge and Search
-- **RAG Integration**: Leverages `ChatKnowledge` to select documents based on the current query.
-- **Constraint Management**: Knowledge searches can be dynamically disabled via the `_evaluate_knowledge_flags` method based on project settings, user message flags, or the absence of search projects.
+    *   \*   `__init__`: Initializes the `ChatEngine` instance with project settings, event manager, and optional user.
+    *   `_get_global_system`: Returns the global system instructions for the current project.
+    *   `get_profile_manager`: Returns a `ProfileManager` instance for the current settings.
+    *   `get_chat_manager`: Returns a `ChatManager` instance for the current chat, optionally scoped to a specific project.
+    *   ...
 
-### Lifecycle and Session Management
-- **Cancellation**: Implements a `CancellationToken` system registered in a `CANCELLATION_REGISTRY`. This allows external processes to abort long-running requests by `chat.doc_id` or a specific `token_id`.
-- **Project Switching**: The engine can dynamically switch context to another project if the `chat.project_id` differs from the current instance's settings via `switch_project`.
-- **Auto-Initialization**: For chats flagged as `auto_initialize`, the engine invokes the AI to suggest metadata (name, board, column) based on conversation content, cleaning up the flag upon success.
+### Methods
 
-## Helper Utilities
-- **`chat_action`**: A context manager that ensures chat events (start, done, error) are properly emitted and logged.
-- **`get_query_mentions`**: Resolves `@mentions` (profiles, projects, files) from user input to determine the scope of the interaction.
-- **`get_chat_analysis_parents`**: Traverses ancestor chats to aggregate background context for complex task-oriented workflows.
+#### `_resolve_chat_mode_flags`
 
-## Configuration and Logging
-- **Logging**: Extensive logging captures the lifecycle of every chat request, including resolved mode flags, profile usage, and error states.
-- **Events**: Utilizes an `event_manager` to notify clients of real-time status updates, including search results, partial AI responses, and task completions.
+Resolves boolean flags that drive branching logic from the chat mode and task item.
 
----
-*Reference: `codx/junior/chat/chat_engine.py`*
+*   **Parameters**
+
+    *   `chat`: The current chat object.
+    *   `chat_mode`: Explicit mode override (may be None).
+    *   `task_item`: Task item from the latest user message.
+*   **Returns** A dict with keys: `chat_mode`, `is_refine`, `is_agent`, `is_vibe`, `is_search`, and `needs_pre_search`.
+
+#### `_build_message_history`
+
+Converts all non-hidden, non-improvement chat messages (excluding the last) into LangChain message objects.
+
+*   **Parameters**
+
+    *   `chat`: The chat whose history to convert.
+*   **Returns** A list of LangChain message objects.
+
+#### ...
+
+## Usage
+
+The `ChatEngine` class can be used as follows:
+
+```python
+from codx.junior.chat_engine import ChatEngine
+
+# Create a new ChatEngine instance with project settings, event manager, and optional user
+engine = ChatEngine(settings=codx_settings, event_manager=event_manager, user=user)
+
+# Get the profile manager instance for the current settings
+profile_manager = engine.get_profile_manager()
+
+# Get the chat manager instance for the current chat, optionally scoped to a specific project
+chat_manager = engine.get_chat_manager(project_id=project_id)
+```
+
+## API
+
+The `ChatEngine` class provides the following API:
+
+### Methods
+
+#### `__init__
+
+Initialize the `ChatEngine` instance with project settings, event manager, and optional user.
+
+#### `_get_global_system`
+Returns the global system instructions for the current project.
+
+#### `get_profile_manager`
+Returns a `ProfileManager` instance for the current settings.
+
+#### `get_chat_manager`
+Returns a `ChatManager` instance for the current chat, optionally scoped to a specific project.
+
+### Properties
+
+#### `chat`
+
+The current chat object.
+
+#### ...
+
+## Troubleshooting
+
+If you encounter any issues with the `ChatEngine`, refer to the documentation or seek help from the codx-junior community.
+```
 
 ## Dependencies
 **Imports from:** codx/junior/ai/__init__.py, codx/junior/ai/cancellation.py, codx/junior/chat_manager.py, codx/junior/context.py, codx/junior/db.py, codx/junior/globals.py, codx/junior/project/project_discover.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/knowledge/knowledge_ai_search.py, codx/junior/knowledge/knowledge_ai_search_message.py, codx/junior/profiles/profile_manager.py, codx/junior/profiling/profiler.py, codx/junior/settings.py, codx/junior/utils/chat_utils.py, codx/junior/utils/utils.py, codx/junior/model/model.py, codx/junior/chat/chat_knowledge.py

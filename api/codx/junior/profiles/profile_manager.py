@@ -91,7 +91,8 @@ class ProfileManager:
 
 
     def list_profiles(self):
-        return [self.load_profile(profile_path) for profile_path in self.project_profile_paths()]
+        profiles = [self.load_profile(profile_path) for profile_path in self.project_profile_paths()]
+        return [p for p in profiles if p is not None]
 
     def read_profile(self, profile_name) -> Profile:
         project_profile_paths = self.project_profile_paths()
@@ -103,7 +104,18 @@ class ProfileManager:
         try:
             with open(profile_path, 'r') as f:
                 content = f.read()
-                profile = Profile(**json.loads(content))
+                
+                # Validate content is not empty
+                if not content or not content.strip():
+                    logger.warning(f"Profile file is empty, using defaults: {profile_path}")
+                    profile = Profile(name=pathlib.Path(profile_path).stem)
+                else:
+                    try:
+                        profile = Profile(**json.loads(content))
+                    except json.JSONDecodeError as json_ex:
+                        logger.error(f"Invalid JSON in profile {profile_path}: {json_ex}. Using defaults.")
+                        profile = Profile(name=pathlib.Path(profile_path).stem)
+                
                 profile.path = profile_path
 
             #TODO: Old versions
@@ -120,7 +132,13 @@ class ProfileManager:
             return profile
         except Exception as ex:
             logger.exception(f"Error loading profile: {profile_path} {ex}")
-            raise ex
+            # Return a minimal valid profile instead of raising
+            return Profile(
+                name=pathlib.Path(profile_path).stem,
+                path=profile_path,
+                project_id=self.settings.project_id,
+                avatar=f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={pathlib.Path(profile_path).stem}"
+            )
 
     def save_profile(self, profile: Profile):
         if not profile.name:
@@ -215,4 +233,3 @@ class ProfileManager:
                     deduplicated_list.append(linked)
                     
         return deduplicated_list
-        

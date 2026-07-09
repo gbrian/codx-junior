@@ -1,4 +1,5 @@
 <script setup>
+import CodeViewer from '../CodeViewer.vue'
 </script>
 
 <template>
@@ -22,7 +23,7 @@
           </div>
         </div>
 
-        <!-- Textarea -->
+        <!-- CodeViewer for Prompt Editing -->
         <div class="form-control w-full">
           <label class="label">
             <span class="label-text font-semibold">Prompt Template</span>
@@ -30,33 +31,25 @@
               {{ characterCount }}/{{ maxCharacters }} characters
             </span>
           </label>
-          <textarea
-            v-model="settings.chat_global_instructions"
-            @input="onPromptChange"
-            :maxlength="maxCharacters"
-            placeholder="Enter global chat prompt template..."
-            class="textarea textarea-bordered h-64 font-mono text-sm resize-none focus:textarea-primary"
-          ></textarea>
+          
+          <div class="border border-base-300 rounded-lg overflow-hidden h-80">
+            <CodeViewer
+              v-model="promptContent"
+              :code="promptContent"
+              language="markdown"
+              file="prompt.md"
+              :finished="true"
+              :show-code-opened="true"
+              @save-file="onCodeChange"
+            />
+          </div>
+
           <label class="label">
             <span class="label-text-alt text-base-content/60">
               Tip: Use variables like {user}, {context}, {date} for dynamic content
             </span>
           </label>
         </div>
-
-        <!-- Preview Section -->
-        <div class="divider my-2"></div>
-        <details class="collapse border border-base-300 bg-base-200">
-          <summary class="collapse-title font-semibold flex items-center gap-2">
-            <i class="fa-solid fa-eye"></i>
-            Preview
-          </summary>
-          <div class="collapse-content">
-            <div class="bg-base-100 p-4 rounded-lg border border-base-300 font-mono text-sm whitespace-pre-wrap break-words">
-              {{ settings.chat_global_instructions || 'No prompt configured' }}
-            </div>
-          </div>
-        </details>
       </div>
     </div>
 
@@ -71,7 +64,7 @@
       </button>
       <div class="flex-1"></div>
       <span class="text-xs text-base-content/50 self-center">
-        Changes will be saved with global settings
+        Changes are saved automatically
       </span>
     </div>
   </div>
@@ -88,20 +81,33 @@ export default {
   data() {
     return {
       maxCharacters: 5000,
-      defaultPrompt: 'You are a helpful assistant. Provide clear and concise responses.'
+      defaultPrompt: 'You are a helpful assistant. Provide clear and concise responses.',
+      promptContent: ''
     }
   },
   computed: {
     characterCount() {
-      return this.settings.chat_global_instructions?.length || 0
+      return this.promptContent?.length || 0
+    }
+  },
+  watch: {
+    'settings.chat_global_instructions': {
+      handler(newVal) {
+        this.promptContent = newVal || ''
+      },
+      immediate: true
     }
   },
   methods: {
-    onPromptChange() {
+    onCodeChange({ content }) {
+      this.promptContent = content
+      this.settings.chat_global_instructions = content
       this.$emit('update:settings', this.settings)
     },
     resetToDefault() {
+      this.promptContent = this.defaultPrompt
       this.settings.chat_global_instructions = this.defaultPrompt
+      this.$emit('update:settings', this.settings)
       this.$ui.addNotification({ text: 'Reset to default prompt' })
     }
   }

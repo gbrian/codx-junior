@@ -49,6 +49,11 @@
           "path": "/shared/codx-junior/api/codx/junior/main.py",
           "slug": "shared-codx-junior-api-codx-junior-main-py.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/shared-codx-junior-api-codx-junior-main-py.md"
+        },
+        {
+          "path": "/codx/junior/engine/git_engine.py",
+          "slug": "codx-junior-engine-git-engine-py.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/codx-junior-engine-git-engine-py.md"
         }
       ],
       "id": "app-module",

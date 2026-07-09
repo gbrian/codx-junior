@@ -300,6 +300,7 @@ export const actions = actionTree(
               currentMessage.is_thinking = message.is_thinking
               currentMessage.done = message.done
               currentMessage.meta_data = message.meta_data
+              currentMessage.profiles = message.profiles
               if (message.is_thinking) {
                 currentMessage.think += message.think
               } else {

@@ -457,7 +457,12 @@ def api_get_file(request: Request):
 async def api_get_file_diff(request: Request):
     codx_junior_session = request.state.codx_junior_session
     data = await request.json()
-    return codx_junior_session.diff_file(path=data["path"], content=data["content"])
+    return codx_junior_session.diff_file(
+        path=data["path"],
+        content=data["content"],
+        from_branch=data.get("from_branch"),
+        to_branch=data.get("to_branch")
+    )
 
 @app.post("/api/files/diff/comments")
 async def api_get_file_diff_comments(request: Request):

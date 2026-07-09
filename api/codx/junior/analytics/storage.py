@@ -5,7 +5,7 @@ import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from codx.junior.analytics.model import TokenUsageEvent
+from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,13 @@ class AnalyticsStorage:
 
     Files are written under:
         <analytics_path>/<YYYY-MM-DD>_token_usage.jsonl
+        <analytics_path>/tools/<YYYY-MM-DD>_tool_usage.jsonl
 
     The analytics path is a global directory shared across all projects,
     initialised from the ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment
     variable (see ``codx.junior.globals.ANALYTICS_DATA_PATH``).
 
-    Each line is a JSON-encoded ``TokenUsageEvent`` dict (JSONL format).
+    Each line is a JSON-encoded event dict (JSONL format).
     A threading lock guards concurrent writes within the same process.
 
     Diagram:
@@ -32,7 +33,9 @@ class AnalyticsStorage:
         class AnalyticsStorage {
             +str base_path
             +write(event: TokenUsageEvent)
+            +write_tool_event(event: ToolUsageEvent)
             +read_events(start_date, end_date, username, project_name) List
+            +read_tool_events(start_date, end_date, chat_id, username, project_name, tool_name) List
             +list_available_dates() List[str]
             +rewrite_events_for_date_range(provider, model, start_date, end_date, input_k_tokens_cxjcoins, output_k_tokens_cxjcoins)
         }
@@ -48,7 +51,9 @@ class AnalyticsStorage:
                             ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH``.
         """
         self.base_path = analytics_path
+        self.tools_path = os.path.join(analytics_path, "tools")
         os.makedirs(self.base_path, exist_ok=True)
+        os.makedirs(self.tools_path, exist_ok=True)
         logger.info("AnalyticsStorage initialised at: %s", self.base_path)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -57,9 +62,17 @@ class AnalyticsStorage:
         """Return the JSONL file path for a given ISO date string."""
         return os.path.join(self.base_path, f"{iso_date}_token_usage.jsonl")
 
+    def _tool_file_path_for_date(self, iso_date: str) -> str:
+        """Return the tool usage JSONL file path for a given ISO date string."""
+        return os.path.join(self.tools_path, f"{iso_date}_tool_usage.jsonl")
+
     def _current_file_path(self) -> str:
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._file_path_for_date(today)
+
+    def _current_tool_file_path(self) -> str:
+        today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
+        return self._tool_file_path_for_date(today)
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -87,6 +100,31 @@ class AnalyticsStorage:
                 )
             except Exception as ex:
                 logger.error("AnalyticsStorage.write failed: %s", ex)
+
+    def write_tool_event(self, event: ToolUsageEvent) -> None:
+        """
+        Append a single ``ToolUsageEvent`` to today's tool usage JSONL file.
+
+        Thread-safe via a module-level lock.
+
+        Args:
+            event: The tool usage event to persist.
+        """
+        file_path = self._current_tool_file_path()
+        line = json.dumps(event.to_dict(), ensure_ascii=False)
+        with self._lock:
+            try:
+                with open(file_path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                logger.debug(
+                    "Analytics: wrote tool event name=%s user=%s success=%s time_taken=%.3fs",
+                    event.name,
+                    event.username,
+                    event.success,
+                    event.time_taken,
+                )
+            except Exception as ex:
+                logger.error("AnalyticsStorage.write_tool_event failed: %s", ex)
 
     # ── Read ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +178,64 @@ class AnalyticsStorage:
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def read_tool_events(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        username: Optional[str] = None,
+        project_name: Optional[str] = None,
+        project_id: Optional[str] = None,
+        tool_name: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> List[ToolUsageEvent]:
+        """
+        Read and optionally filter stored tool events from JSONL files.
+
+        Args:
+            start_date:   Inclusive ISO date lower bound (``YYYY-MM-DD``).
+            end_date:     Inclusive ISO date upper bound (``YYYY-MM-DD``).
+            chat_id:      Filter by exact chat/session id.
+            username:     Filter by exact username.
+            project_name: Filter by exact project name.
+            project_id:   Filter by exact project id.
+            tool_name:    Filter by exact tool function name.
+            request_id:   Filter by exact request id.
+
+        Returns:
+            List of matching ``ToolUsageEvent`` objects ordered by timestamp.
+        """
+        available = self.list_available_dates()
+        matching_files = []
+
+        for date_str in available:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            matching_files.append(self._tool_file_path_for_date(date_str))
+
+        events: List[ToolUsageEvent] = []
+        for file_path in matching_files:
+            events.extend(self._read_tool_file(file_path))
+
+        # Apply filters
+        if chat_id:
+            events = [e for e in events if e.chat_id == chat_id]
+        if username:
+            events = [e for e in events if e.username == username]
+        if project_name:
+            events = [e for e in events if e.project_name == project_name]
+        if project_id:
+            events = [e for e in events if e.project_id == project_id]
+        if tool_name:
+            events = [e for e in events if e.name == tool_name]
+        if request_id:
+            events = [e for e in events if e.request_id == request_id]
+
+        events.sort(key=lambda e: e.timestamp)
+        return events
+
     def _read_file(self, file_path: str) -> List[TokenUsageEvent]:
         """Parse a single JSONL file into a list of events, skipping bad lines."""
         events: List[TokenUsageEvent] = []
@@ -163,6 +259,31 @@ class AnalyticsStorage:
             pass
         except Exception as ex:
             logger.error("Error reading analytics file %s: %s", file_path, ex)
+        return events
+
+    def _read_tool_file(self, file_path: str) -> List[ToolUsageEvent]:
+        """Parse a single tool usage JSONL file into a list of events, skipping bad lines."""
+        events: List[ToolUsageEvent] = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                for line_no, line in enumerate(fh, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        events.append(ToolUsageEvent.from_dict(data))
+                    except Exception as ex:
+                        logger.warning(
+                            "Skipping malformed tool analytics line %d in %s: %s",
+                            line_no,
+                            file_path,
+                            ex,
+                        )
+        except FileNotFoundError:
+            pass
+        except Exception as ex:
+            logger.error("Error reading tool analytics file %s: %s", file_path, ex)
         return events
 
     def list_available_dates(self) -> List[str]:

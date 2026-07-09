@@ -8,6 +8,7 @@ Made with ❤️ by codx-junior
 import logging
 import os
 import subprocess
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -147,7 +148,7 @@ class FileEngine:
             **info,
         }
 
-    def diff_file(self, path: str, content: str) -> dict:
+    def diff_file(self, path: str, content: str, from_branch: str = None, to_branch: str = None) -> dict:
         """
         Diff a project file against provided content using git diff --no-index.
 

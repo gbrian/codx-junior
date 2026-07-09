@@ -24,7 +24,19 @@
     "github": "",
     "apps": [],
     "api_key": "",
-    "env": {}
+    "env": {},
+    "wallet": {
+      "wallet_id": "5294dd3c-eaf4-4aef-a8b1-2b37577fb10b",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-07-05T07:37:24.726544",
+      "updated_at": "2026-07-05T07:37:24.726555",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
   },
   "tools": [],
   "tags": [],

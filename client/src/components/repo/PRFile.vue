@@ -1,5 +1,4 @@
 <script setup>
-import Chat from "../chat/Chat.vue"
 import CodeViewer from "../CodeViewer.vue"
 import ChatEntry from "../ChatEntry.vue"
 import ProfileViewer from '../profiles/ProfileViewer.vue'
@@ -101,6 +100,9 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
               :diffOption="false"
               :showCodeOpened="true"
               :message="message"
+              :fromBranch="fromBranch"
+              :toBranch="toBranch"
+              :project="chatProject"
               @save-file="onSaveFile"
               @message-change="onMessageChange"
               @sub-task="onCreateSubTask"
@@ -124,7 +126,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 
 <script>
 export default {
-  props: ['prChat', 'file', 'columns'],
+  props: ['prChat', 'file', 'columns', 'fromBranch', 'toBranch'],
   emits: ['chat-column', 'new-chat'],
   data() {
     return {
@@ -152,8 +154,12 @@ export default {
         .reverse()[0]
     },
     message() {
-      // Provides context for CodeViewer sub-task creation
       return { doc_id: this.file.chat?.id }
+    },
+    chatProject() {
+      return this.$storex.projects.allProjectsById[this.prChat?.project_id]
+        || this.$projects.allProjectsById[this.prChat?.owner_project_id]
+        || this.$project
     }
   },
   watch: {
@@ -194,7 +200,6 @@ export default {
       await this.$chats.setActiveChat(this.file.chat)
     },
 
-    // Delegated from CodeViewer
     async onSaveFile({ file, content }) {
       await this.$storex.api.files.write(file, content)
     },

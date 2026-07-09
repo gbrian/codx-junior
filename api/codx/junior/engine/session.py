@@ -47,28 +47,6 @@ from codx.junior.engine.wiki_engine import WikiEngine
 
 logger = logging.getLogger(__name__)
 
-GLOBAL_CHAT_INSTRUCTIONS = """
-CRITICAL INFORMATION: 
-When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
-Example:
-
-```js /folder/file_name.js
- import dummy from 'module'
-```
-
-Use valid file path based on the project and conversation context.
-New file changes must follow original file formating and identation.
-Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
-Keep changes simple and easy to review by the user.
-
-MISSING FILE CONTENT HANDLING:
-If a file is referenced in the conversation but its content is missing from the context:
-1. Do not invent or guess the full content of the file.
-2. If you only need to modify a known part, generate a code block with the language "patch" containing explicit instructions to apply the changes to the existing file.
-3. If you require the full content to proceed, generate an empty code block with the language "file-request" followed by the target file path.
-"""
-
-
 class CODXJuniorSession:
     """
     Main session class that orchestrates all sub-engine modules.
@@ -563,10 +541,15 @@ class CODXJuniorSession:
         """Read a project file and return its content."""
         return self._file_engine.read_file(path=path)
 
-    def diff_file(self, path: str, content: str) -> dict:
-        """Diff a file against provided content."""
-        return self._file_engine.diff_file(path=path, content=content)
-
+    def diff_file(self, path: str, content: str, from_branch: str = None, to_branch: str = None) -> dict:
+        """Diff a file against provided content, optionally comparing against specific branches."""
+        return self._file_engine.diff_file(
+            path=path,
+            content=content,
+            from_branch=from_branch,
+            to_branch=to_branch
+        )
+    
     def diff_file_comments(
         self, path: str, content: str, comments: dict = None
     ) -> None:

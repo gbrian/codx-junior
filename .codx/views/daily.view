@@ -1,0 +1,286 @@
+{
+  "name": "daily",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "desktop": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "codx-junior-Coder-1783327986741"
+              ],
+              "activeView": "codx-junior-Coder-1783327986741",
+              "id": "1"
+            },
+            "size": 788
+          },
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "tasks-1782974695603",
+                "chat-1783153383878",
+                "-1783231171441",
+                "Tools test-1783236300812",
+                "profiles-1783241347789",
+                "chat tools-1783241377219",
+                "chat-1783323117521"
+              ],
+              "activeView": "chat-1783323117521",
+              "id": "3"
+            },
+            "size": 1152.6875
+          }
+        ],
+        "size": 1081.375
+      },
+      "width": 1940.6875,
+      "height": 1081.375,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "codx-junior-Coder-1783327986741": {
+        "id": "codx-junior-Coder-1783327986741",
+        "contentComponent": "app-window",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "id": "",
+            "name": "Coder",
+            "description": "Coder coding environment",
+            "icon": "fa-solid fa-code",
+            "path": "/workspace-default/coder/",
+            "port": "",
+            "is_vnc": false,
+            "container_name": "",
+            "roles": [
+              "admin"
+            ],
+            "workspaceName": "codx-junior",
+            "key": "codx-junior-Coder",
+            "left": true,
+            "ts": 1783327986739,
+            "tabId": "codx-junior-Coder-1783327986741",
+            "params": {},
+            "openedAt": 1783349405647
+          },
+          "tabName": "Coder"
+        },
+        "title": "Coder",
+        "renderer": "always"
+      },
+      "tasks-1782974695603": {
+        "id": "tasks-1782974695603",
+        "contentComponent": "tasks",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "name": "tasks",
+            "component": "tasks",
+            "tabId": "tasks-1782974695603",
+            "params": {},
+            "openedAt": 1783349405647
+          },
+          "tabName": "tasks"
+        },
+        "title": "tasks",
+        "renderer": "always"
+      },
+      "chat-1783153383878": {
+        "id": "chat-1783153383878",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "e2921ee2-4e46-42fa-808c-313815682b11",
+            "mode": "chat",
+            "profiles": [],
+            "chat_index": 0,
+            "messages": [],
+            "auto_initialize": true,
+            "chat": {
+              "name": "Quick chat",
+              "mode": "chat",
+              "auto_initialize": true
+            }
+          },
+          "app": {
+            "key": "chat",
+            "name": "Chat",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "e2921ee2-4e46-42fa-808c-313815682b11",
+                "mode": "chat",
+                "profiles": [],
+                "chat_index": 0,
+                "messages": [],
+                "auto_initialize": true,
+                "chat": {
+                  "name": "Quick chat",
+                  "mode": "chat",
+                  "auto_initialize": true
+                }
+              }
+            },
+            "tabId": "chat-1783153383878",
+            "openedAt": 1783153383878
+          },
+          "tabName": "Chat"
+        },
+        "title": "Chat",
+        "renderer": "always"
+      },
+      "-1783231171441": {
+        "id": "-1783231171441",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "3a3f32ec-0c1f-45c5-8650-9f389980e1b5",
+            "name": "",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "3a3f32ec-0c1f-45c5-8650-9f389980e1b5",
+                "name": "",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "-1783231171441",
+            "openedAt": 1783231171441
+          },
+          "tabName": ""
+        },
+        "title": "",
+        "renderer": "always"
+      },
+      "Tools test-1783236300812": {
+        "id": "Tools test-1783236300812",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "82831017-8031-40d2-8aa7-e64628f2a3c1",
+            "name": "Tools test",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "Tools test",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "82831017-8031-40d2-8aa7-e64628f2a3c1",
+                "name": "Tools test",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "Tools test-1783236300812",
+            "openedAt": 1783236300812
+          },
+          "tabName": "Tools test"
+        },
+        "title": "Tools test",
+        "renderer": "always"
+      },
+      "profiles-1783241347789": {
+        "id": "profiles-1783241347789",
+        "contentComponent": "profiles",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "name": "profiles",
+            "component": "profiles",
+            "tabId": "profiles-1783241347789",
+            "params": {},
+            "openedAt": 1783349406048
+          },
+          "tabName": "profiles"
+        },
+        "title": "profiles",
+        "renderer": "always"
+      },
+      "chat tools-1783241377219": {
+        "id": "chat tools-1783241377219",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "459b955b-1497-4cc3-ad03-c4f76b9cdc63",
+            "name": "chat tools",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "chat tools",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "459b955b-1497-4cc3-ad03-c4f76b9cdc63",
+                "name": "chat tools",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "chat tools-1783241377219",
+            "openedAt": 1783241377219
+          },
+          "tabName": "chat tools"
+        },
+        "title": "chat tools",
+        "renderer": "always"
+      },
+      "chat-1783323117521": {
+        "id": "chat-1783323117521",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "4a4c9bb9-e9ec-4e22-b040-4da4d861e426",
+            "mode": "chat",
+            "profiles": [],
+            "chat_index": 0,
+            "messages": [],
+            "auto_initialize": true,
+            "chat": {
+              "name": "Quick chat",
+              "mode": "chat",
+              "auto_initialize": true
+            }
+          },
+          "app": {
+            "key": "chat",
+            "name": "Chat",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "4a4c9bb9-e9ec-4e22-b040-4da4d861e426",
+                "mode": "chat",
+                "profiles": [],
+                "chat_index": 0,
+                "messages": [],
+                "auto_initialize": true,
+                "chat": {
+                  "name": "Quick chat",
+                  "mode": "chat",
+                  "auto_initialize": true
+                }
+              }
+            },
+            "tabId": "chat-1783323117521",
+            "openedAt": 1783323117521
+          },
+          "tabName": "Chat"
+        },
+        "title": "Chat",
+        "renderer": "always"
+      }
+    },
+    "activeGroup": "3"
+  }
+}

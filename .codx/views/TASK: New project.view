@@ -1,5 +1,5 @@
 {
-  "name": "codx-junior",
+  "name": "TASK: New project",
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "desktop": {
     "grid": {
@@ -10,34 +10,35 @@
             "type": "leaf",
             "data": {
               "views": [
-                "codx-junior-Coder-1780556273340"
+                "codx-junior-Coder-1783349496977",
+                "tasks-1783349499067"
               ],
-              "activeView": "codx-junior-Coder-1780556273340",
+              "activeView": "codx-junior-Coder-1783349496977",
               "id": "1"
             },
-            "size": 1286
+            "size": 970
           },
           {
             "type": "leaf",
             "data": {
               "views": [
-                "Desktop-1780859526468"
+                "-1783349519328"
               ],
-              "activeView": "Desktop-1780859526468",
+              "activeView": "-1783349519328",
               "id": "2"
             },
-            "size": 1299.546875
+            "size": 970.6875
           }
         ],
-        "size": 870.28125
+        "size": 1081.375
       },
-      "width": 2585.546875,
-      "height": 870.28125,
+      "width": 1940.6875,
+      "height": 1081.375,
       "orientation": "HORIZONTAL"
     },
     "panels": {
-      "codx-junior-Coder-1780556273340": {
-        "id": "codx-junior-Coder-1780556273340",
+      "codx-junior-Coder-1783349496977": {
+        "id": "codx-junior-Coder-1783349496977",
         "contentComponent": "app-window",
         "tabComponent": "tabComponent",
         "params": {
@@ -56,43 +57,62 @@
             "workspaceName": "codx-junior",
             "key": "codx-junior-Coder",
             "left": true,
-            "ts": 1780556273340,
-            "tabId": "codx-junior-Coder-1780556273340",
-            "params": {}
+            "ts": 1783349496977,
+            "tabId": "codx-junior-Coder-1783349496977",
+            "params": {},
+            "openedAt": 1783349496977
           },
           "tabName": "Coder"
         },
         "title": "Coder",
         "renderer": "always"
       },
-      "Desktop-1780859526468": {
-        "id": "Desktop-1780859526468",
+      "tasks-1783349499067": {
+        "id": "tasks-1783349499067",
+        "contentComponent": "tasks",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "name": "tasks",
+            "component": "tasks",
+            "tabId": "tasks-1783349499067",
+            "params": {},
+            "openedAt": 1783349499067
+          },
+          "tabName": "tasks"
+        },
+        "title": "tasks",
+        "renderer": "always"
+      },
+      "-1783349519328": {
+        "id": "-1783349519328",
         "contentComponent": "chat",
         "tabComponent": "tabComponent",
         "params": {
           "chat": {
-            "id": "bc50cad4-dc74-4fc2-96a3-0f42fba21f8b",
-            "name": "Desktop",
+            "id": "4b504f61-2a8a-4baf-a3d7-9a8bafa3f4b3",
+            "name": "",
             "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
           },
           "app": {
-            "name": "Desktop",
+            "name": "",
             "component": "chat",
             "params": {
               "chat": {
-                "id": "bc50cad4-dc74-4fc2-96a3-0f42fba21f8b",
-                "name": "Desktop",
+                "id": "4b504f61-2a8a-4baf-a3d7-9a8bafa3f4b3",
+                "name": "",
                 "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
               }
             },
-            "tabId": "Desktop-1780859526468"
+            "tabId": "-1783349519328",
+            "openedAt": 1783349519328
           },
-          "tabName": "Desktop"
+          "tabName": ""
         },
-        "title": "Desktop",
+        "title": "",
         "renderer": "always"
       }
     },
-    "activeGroup": "2"
+    "activeGroup": "1"
   }
 }

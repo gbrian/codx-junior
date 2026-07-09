@@ -18,7 +18,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
     @dragleave.prevent="draggingOver = false"
     @drop.prevent="onDropChat"
   >
-    <div class="flex gap-2 items-center justify-between overflow-auto">
+    <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
       <div class="w-full" v-if="chatFiles.length">
         <ChatFileList
           :files="chatFiles"
@@ -132,7 +132,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 @cancel-edit="onResetEdit"
                 @paste="onContentPaste"
                 @keydown="onChatInputKeyDown"
-                @drop="onDrop"
+                @drop.stop="onDrop"
                 @add-document="onAddDocument"
                 @close-search="closeDocumentSearch"
                 @replace-emoji="replaceEmoji"
@@ -344,6 +344,24 @@ export default {
     }
   },
   methods: {
+    // ── File duplicate prevention helpers ──────────────────────
+
+    hasFile(fileToCheck, fileList) {
+      return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
+    },
+
+    normalizeFilePath(path) {
+      return path?.toLowerCase().trim() || ''
+    },
+
+    hasFileInChat(file) {
+      return this.hasFile(file, this.chatFiles)
+    },
+
+    hasFileInMessage(file) {
+      return this.hasFile(file, this.files)
+    },
+
     // ── Editor handlers ───────────────────────────────────────
 
     onEditorDiscard() {
@@ -422,7 +440,9 @@ export default {
       const right = text.slice(caretIndex)
       let insert = '@' + name
       if (file) {
-        this.addFileToMessage(file)
+        if (!this.hasFileInMessage(file)) {
+          this.addFileToMessage(file)
+        }
         insert = ""
       }
       this.setEditorText(left + insert + ' ' + right)
@@ -437,8 +457,13 @@ export default {
       const right = text.slice(caretIndex)
       const mentionInserts = []
       items.forEach(({ file, name }) => {
-        if (file) this.addFileToMessage(file)
-        else mentionInserts.push('@' + name)
+        if (file) {
+          if (!this.hasFileInMessage(file)) {
+            this.addFileToMessage(file)
+          }
+        } else {
+          mentionInserts.push('@' + name)
+        }
       })
       const insert = mentionInserts.join(' ')
       this.setEditorText(left + insert + (insert ? ' ' : '') + right)
@@ -644,12 +669,47 @@ export default {
     },
 
     onDrop(e, chatDrop) {
-      if (!e.dataTransfer.files) return
-      const file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
-      if (file) this.onInputImage(file)
+      console.log('[DROP] Starting drop operation', {
+        isChatDrop: chatDrop,
+        hasFiles: !!e.dataTransfer.files?.length,
+        filesCount: e.dataTransfer.files?.length || 0,
+        hasTextContent: !!e.dataTransfer.getData('text/plain'),
+        timestamp: new Date().toISOString()
+      })
+
+      let itemsAdded = false
+
+      if (e.dataTransfer.files) {
+        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)
+        if (imageFiles.length > 0) {
+          console.log('[DROP] Found images', { count: imageFiles.length, files: imageFiles.map(f => f.name) })
+          this.onInputImage(imageFiles[0])
+          itemsAdded = true
+        }
+      }
+
       const textContent = e.dataTransfer.getData('text/plain')
-      if (textContent) this.processInputTextContent(textContent, chatDrop)
+      if (textContent) {
+        console.log('[DROP] Found text content', { length: textContent.length, preview: textContent.substring(0, 100) })
+        if (this.processInputTextContent(textContent, chatDrop)) {
+          itemsAdded = true
+        }
+      }
+
       this.processDropUrls(e.dataTransfer, chatDrop)
+      if (e.dataTransfer.getData("resourceurls")) {
+        itemsAdded = true
+      }
+
+      if (!itemsAdded) {
+        console.warn('[DROP] No items were added to chat from drop operation')
+        this.$ui?.addNotification?.({
+          text: 'No valid content was added from the dropped items',
+          type: 'warning'
+        })
+      } else {
+        console.log('[DROP] Drop operation completed successfully', { itemsAdded: true })
+      }
     },
 
     onDropChat(e) {
@@ -683,9 +743,14 @@ export default {
 
     processInputTextContent(textContent, chatDrop) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
-      if (imgUrl) { this.images.push(imgUrl); return true }
+      if (imgUrl) {
+        console.log('[INPUT] Adding image URL from content', { url: imgUrl })
+        this.images.push(imgUrl)
+        return true
+      }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
+        console.log('[INPUT] Processing project file', { file: textContent, chatDrop })
         if (chatDrop) {
           this.onAddFile(textContent)
         } else {
@@ -698,7 +763,9 @@ export default {
     },
 
     addFileToMessage(file) {
-      if (!this.files.includes(file)) this.files = [...this.files, file]
+      if (!this.hasFileInMessage(file) && !this.files.includes(file)) {
+        this.files = [...this.files, file]
+      }
     },
 
     onInputImage(file) {
@@ -831,7 +898,9 @@ export default {
 
     onAddDocument(doc) {
       const source = doc.file || doc.metadata?.source
-      if (source) this.addFileToMessage(source)
+      if (source && !this.hasFileInMessage(source)) {
+        this.addFileToMessage(source)
+      }
     },
 
     async onReloadMessageFile({ file, message }) {
@@ -855,7 +924,7 @@ export default {
     },
 
     async onAddFile(file) {
-      if (this.chatSvc.addFileToChat({ chat: this.chat, file })) {
+      if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {
         await this.saveChat()
       }
     },

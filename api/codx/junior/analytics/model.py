@@ -119,3 +119,76 @@ class TokenUsageEvent:
                 pass
 
         return cls(**cleaned)
+
+
+@dataclass
+class ToolUsageEvent:
+    """
+    Represents a single tool execution with metadata.
+
+    Fields:
+        name:              Tool function name (e.g., "project_search").
+        username:          User who triggered the tool.
+        project_name:      Project context for the tool call.
+        project_id:        Project identifier.
+        time_taken:        Execution duration in seconds.
+        success:           Boolean flag indicating successful execution.
+        error_message:     Error details if execution failed (None if successful).
+        chat_id:           Reference to the parent chat/conversation session.
+        request_id:        Traceability link to the LLM request that triggered the tool.
+        timestamp:         Unix epoch timestamp of when the tool was executed.
+        iso_date:          ISO-8601 date string (YYYY-MM-DD) for partitioning.
+    """
+    name: str
+    username: str
+    project_name: str
+    project_id: str
+    time_taken: float
+    success: bool
+    error_message: Optional[str] = None
+    chat_id: Optional[str] = None
+    request_id: Optional[str] = None
+    timestamp: float = field(default_factory=time.time)
+    iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ToolUsageEvent":
+        """
+        Build a ToolUsageEvent from a dict, tolerating missing/incorrect fields.
+
+        Any field that is missing or of an incompatible type falls back to
+        the dataclass default (or default_factory) for that field.
+        """
+        cleaned: dict = {}
+        known_fields = {f.name: f for f in fields(cls)}
+
+        for name, f in known_fields.items():
+            raw = data.get(name)
+
+            # If missing, skip so the dataclass default / default_factory kicks in
+            if raw is None:
+                continue
+
+            # Attempt type coercion; on failure fall back to dataclass default
+            try:
+                target_type = f.type
+                origin = getattr(target_type, "__origin__", None)
+                if origin is type(None):
+                    cleaned[name] = raw
+                    continue
+
+                # Simple coercion for primitive types
+                if target_type in (int, float, str, bool):
+                    cleaned[name] = target_type(raw)
+                elif target_type == Optional[str] or str(target_type) in ("typing.Optional[str]", "Optional[str]"):
+                    cleaned[name] = str(raw) if raw is not None else None
+                else:
+                    cleaned[name] = raw
+            except (TypeError, ValueError):
+                # Skip field; dataclass will use its default
+                pass
+
+        return cls(**cleaned)

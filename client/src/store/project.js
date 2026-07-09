@@ -493,6 +493,7 @@ export const actions = actionTree(
 
           $storex.projects.addRecentProject(state.activeProject) 
           state.workspaces = API.workspaces
+          $storex.ui.loadViews()
           $storex.ui.saveState()
         } catch(ex) {
           console.error("Error setting active project", ex)
@@ -500,8 +501,7 @@ export const actions = actionTree(
           state.projectLoading = false
         }
       }
-    },
-    async loadProjectKnowledge({ state }) {
+    },    async loadProjectKnowledge({ state }) {
       const data = await API.knowledge.status()
       state.knowledge = data
     },

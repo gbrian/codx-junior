@@ -65,4 +65,14 @@ target-version = "py311"
 
 [project.urls]
 "Homepage" = "https://github.com"
-"Bug Tracker" = "https://github.com/issues"
+"Bug Tracker" = "https://github.com"
+
+# --- UV-SPECIFIC CONFIGURATION ---
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }

@@ -115,14 +115,16 @@ import ChatEntryVue from '../ChatEntry.vue'
           </SplitterPanel>
           <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
           <SplitterPanel class="overflow-y-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
-            <PRReport  
-              ref="prReport"
-              :prChat="chat"
-              :files="visibleFiles"
-              :columns="columns"
-              @new-chat="onFileChat"
-              @chat-column="onSetChatColumn"  
-            />
+<PRReport  
+  ref="prReport"
+  :prChat="chat"
+  :files="visibleFiles"
+  :columns="columns"
+  :fromBranch="fromBranchSelected"
+  :toBranch="toBranchSelected"
+  @new-chat="onFileChat"
+  @chat-column="onSetChatColumn"  
+/>
           </SplitterPanel>
         </SplitterGroup>
       </div>
@@ -283,7 +285,7 @@ export default {
       return this.files.reduce((acc, file) => ({ ...acc, [file.fileName]: file }), {})
     },
     columns() {
-      return this.$projects.kanban?.boards[this.chat.board].columns
+      return this.$projects.kanban?.boards[this.chat.board]?.columns
         .reduce((acc, col) => ({
           ...acc,
           [col.title]: {

@@ -228,6 +228,42 @@ class OpenAI_AI:
         except Exception as ex:
             logger.warning("_record_usage failed (non-fatal): %s", ex)
 
+    def _record_tool_usage(
+        self,
+        tool_name: str,
+        time_taken: float,
+        success: bool,
+        error_message: str = None,
+        chat_id: str = None,
+        request_id: str = None,
+    ) -> None:
+        """
+        Record a tool execution event to analytics.
+
+        Args:
+            tool_name:      Name of the tool that was executed.
+            time_taken:     Execution duration in seconds.
+            success:        Whether the tool executed successfully.
+            error_message:  Error details if execution failed (None if successful).
+            chat_id:        Reference to the parent chat/conversation session.
+            request_id:     Traceability link to the LLM request that triggered the tool.
+        """
+        try:
+            analytics = _get_analytics()
+            analytics.record_tool_usage(
+                name=tool_name,
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                time_taken=time_taken,
+                success=success,
+                error_message=error_message,
+                chat_id=chat_id,
+                request_id=request_id,
+            )
+        except Exception as ex:
+            logger.warning("_record_tool_usage failed (non-fatal): %s", ex)
+
     def log(self, msg):
         if self.settings.get_log_ai():
             self.ai_logger.info(msg)
@@ -457,7 +493,7 @@ class OpenAI_AI:
             "stream_options": {"include_usage": True},
         }
         selected_tools = config.get("tools", [])
-        chat_tools = [t for t in self.tools if t["tool_json"]["function"]["name"] in selected_tools]
+        chat_tools = [t["tool_json"] for t in self.tools if t["tool_json"]["function"]["name"] in selected_tools]
         if chat_tools:
             kwargs["tools"] = chat_tools
 
@@ -614,7 +650,11 @@ class OpenAI_AI:
                     for tool_call_data in all_tool_calls.values():
                         func_name = tool_call_data["function"]
                         try:
-                            tools_response = await self.process_tool_calls(tool_call_data)
+                            tools_response = await self.process_tool_calls(
+                                tool_call_data=tool_call_data,
+                                request_id=request_id,
+                                chat_id=session_id
+                            )
                             tool_output = tools_response["output"] if "output" in tools_response else tools_response 
                             ai_tool_response = AIMessage(content=tool_output)
                         except Exception as ex:
@@ -697,27 +737,66 @@ class OpenAI_AI:
         return messages
 
     @profile_function
-    async def process_tool_calls(self, tool_call_data):
+    async def process_tool_calls(self, tool_call_data, request_id: str = None, chat_id: str = None):
+        """
+        Process and execute a tool call with analytics recording.
+
+        Args:
+            tool_call_data:  Dict with keys: id, function, arguments
+            request_id:      Traceability link to the LLM request that triggered this tool
+            chat_id:         Chat/session identifier for tool usage tracking
+
+        Returns:
+            Dict with keys: type, call_id, output
+        """
         tool_response = None
+        success = True
+        error_message = None
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
         params = json.loads(tool_call_data["arguments"])
         
         tool = next((t for t in self.tools if t["tool_json"]["function"]["name"] == func_name), None)
-        if tool:
-            settings = tool.get("settings", {
-              "project_settings": False,
-              "async": False
-            })
+        
+        tool_start = time.monotonic()
+        
+        try:
+            if tool:
+                settings = tool.get("settings", {
+                  "project_settings": False,
+                  "async": False
+                })
 
-            if settings.get("project_settings"):
-                params["settings"] = self.settings
-            
-            content = tool["tool_call"](**params)
-            if settings["async"]:
-                content = await content
-            
-            tool_response = content
+                if settings.get("project_settings"):
+                    params["settings"] = self.settings
+                
+                content = tool["tool_call"](**params)
+                if settings["async"]:
+                    content = await content
+                
+                tool_response = content
+            else:
+                success = False
+                error_message = f"Tool '{func_name}' not found"
+                tool_response = error_message
+                
+        except Exception as ex:
+            success = False
+            error_message = str(ex)
+            tool_response = f"Error executing tool '{func_name}': {ex.message}"
+            logger.exception("Exception in process_tool_calls for tool '%s'", func_name)
+        
+        finally:
+            # Record tool usage
+            time_taken = time.monotonic() - tool_start
+            self._record_tool_usage(
+                tool_name=func_name,
+                time_taken=time_taken,
+                success=success,
+                error_message=error_message,
+                chat_id=chat_id,
+                request_id=request_id,
+            )
 
         tool_output = {
             "type": "function_call_output",

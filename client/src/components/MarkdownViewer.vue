@@ -2,10 +2,33 @@
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
 import highlight from 'markdown-it-highlightjs'
+import InteractiveTable from './InteractiveTable.vue'
 </script>
 
 <template>
-  <div class="text-wrap overflow-y-auto prose max-w-full" v-html="html" @click="handleClick">
+  <div class="text-wrap overflow-y-auto prose max-w-full">
+    <!-- Render markdown content with mixed elements -->
+    <div class="space-y-4">
+      <div 
+        v-for="(element, idx) in renderedElements" 
+        :key="`element-${idx}`"
+        @click="handleClick"
+      >
+        <!-- Markdown/HTML content -->
+        <div 
+          v-if="element.type === 'markdown'"
+          v-html="element.content"
+        ></div>
+
+        <!-- Interactive table component -->
+        <InteractiveTable 
+          v-else-if="element.type === 'table'"
+          :initial-data="element.data"
+          :table-index="idx"
+          @update-table="handleTableUpdate"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -13,6 +36,7 @@ import highlight from 'markdown-it-highlightjs'
 import MarkdownIt from 'markdown-it'
 import { full as emoji } from 'markdown-it-emoji'
 import highlight from 'markdown-it-highlightjs'
+import InteractiveTable from './InteractiveTable.vue'
 
 function createMd(documentId) {
   const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
@@ -23,7 +47,6 @@ function createMd(documentId) {
     return self.renderToken(tokens, idx, options)
   }
 
-  // Prefix heading anchors with documentId to keep them unique across documents
   md.renderer.rules.heading_open = function(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const inlineToken = tokens[idx + 1]
@@ -44,7 +67,25 @@ function createMd(documentId) {
     return defaultHeadingRenderer(tokens, idx, options, env, self)
   }
 
-  // Add anchor to fenced code blocks that have a file path as info string
+  md.core.ruler.push('table_marker', (state) => {
+    let rowIdx = 0
+    for (let i = 0; i < state.tokens.length; i++) {
+      const token = state.tokens[i]
+      if (token.type === 'table_open') {
+        token.attrSet('data-interactive-table', 'true')
+        rowIdx = 0
+      }
+      if (token.type === 'tr_open') {
+        token.attrSet('data-row', rowIdx.toString())
+        rowIdx++
+      }
+      if (token.type === 'th_open' || token.type === 'td_open') {
+        const colIdx = token.map ? state.tokens.slice(0, i).filter(t => t.type === token.type && t.map && t.map[0] === token.map[0]).length : 0
+        token.attrSet('data-col', colIdx.toString())
+      }
+    }
+  })
+
   const defaultFenceRenderer = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
     return self.renderToken(tokens, idx, options)
   }
@@ -52,23 +93,18 @@ function createMd(documentId) {
   md.renderer.rules.fence = function(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const info = token.info ? token.info.trim() : ''
-    // Match "language file/path" — file path must contain at least one slash
     const infoMatch = info.match(/^(\w+)\s+([\w\-_.\/]+)$/)
     const filePath = infoMatch ? infoMatch[2] : null
-
     const rendered = defaultFenceRenderer(tokens, idx, options, env, self)
 
     if (!filePath) return rendered
 
-    // Derive slug from file path, prefix with documentId
     const slug = filePath
       .toLowerCase()
       .replace(/[^\w\s\-./]/g, '')
       .trim()
       .replace(/[\s/]+/g, '-')
     const anchor = documentId ? `${documentId}-${slug}` : slug
-
-    // Wrap rendered block with an anchor element
     return `<div id="${anchor}" class="code-block-anchor scroll-mt-4">${rendered}</div>`
   }
 
@@ -89,15 +125,61 @@ function addFileUploadIcons(html) {
   )
 }
 
+function parseTableFromHtml(tableHtml) {
+  if (typeof document === 'undefined') return null
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(tableHtml, 'text/html')
+  const table = doc.querySelector('table')
+  if (!table) return null
+
+  const data = []
+  const rows = table.querySelectorAll('tr')
+  
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td, th')
+    const row = Array.from(cells).map(cell => cell.textContent.trim())
+    if (row.length > 0) data.push(row)
+  })
+
+  return data.length > 0 ? data : null
+}
+
 export default {
   props: {
     text: { type: String, default: '' },
     files: { type: Array, default: null },
     documentId: { type: String, default: '' }
   },
-  emits: ['add-file'],
+  emits: ['add-file', 'table-updated'],
+  components: {
+    InteractiveTable
+  },
+  data() {
+    return {
+      renderedElements: []
+    }
+  },
   computed: {
-    html() {
+    sanitizedText() {
+      let text = ''
+      if (this.text) {
+        text = this.text
+          .replace('```thymeleaf', '```html')
+          .replace('```md', '')
+      }
+      return text
+    }
+  },
+  watch: {
+    text() {
+      this.renderContent()
+    }
+  },
+  mounted() {
+    this.renderContent()
+  },
+  methods: {
+    renderContent() {
       try {
         const md = createMd(this.documentId)
         const textWithLinks = this.sanitizedText.replace(
@@ -110,22 +192,72 @@ export default {
           }
         )
         const rendered = md.render(textWithLinks)
-        return addFileUploadIcons(rendered)
+        this.parseElements(rendered)
       } catch (ex) {
         console.error("Message can't be rendered", this.text)
+        this.renderedElements = []
       }
     },
-    sanitizedText() {
-      let text = ''
-      if (this.text) {
-        text = this.text
-          .replace('```thymeleaf', '```html')
-          .replace('```md', '')
+    parseElements(html) {
+      const elements = []
+      const tableRegex = /<table[^>]*>[\s\S]*?<\/table>/g
+      let lastIndex = 0
+      let match
+
+      // Extract all tables with their positions
+      const tables = []
+      while ((match = tableRegex.exec(html)) !== null) {
+        tables.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          html: match[0],
+          data: parseTableFromHtml(match[0])
+        })
       }
-      return text
-    }
-  },
-  methods: {
+
+      // Split content by tables
+      tables.forEach((table, idx) => {
+        // Add markdown content before table
+        if (table.start > lastIndex) {
+          const mdHtml = html.substring(lastIndex, table.start).trim()
+          if (mdHtml) {
+            elements.push({
+              type: 'markdown',
+              content: addFileUploadIcons(mdHtml)
+            })
+          }
+        }
+
+        // Add table element
+        if (table.data && table.data.length > 0) {
+          elements.push({
+            type: 'table',
+            data: table.data
+          })
+        }
+
+        lastIndex = table.end
+      })
+
+      // Add remaining markdown content
+      if (lastIndex < html.length) {
+        const mdHtml = html.substring(lastIndex).trim()
+        if (mdHtml) {
+          elements.push({
+            type: 'markdown',
+            content: addFileUploadIcons(mdHtml)
+          })
+        }
+      }
+
+      this.renderedElements = elements.length > 0 ? elements : [{ 
+        type: 'markdown', 
+        content: addFileUploadIcons(html) 
+      }]
+    },
+    handleTableUpdate(payload) {
+      this.$emit('table-updated', payload)
+    },
     handleClick(event) {
       const btn = event.target.closest('.file-path-upload-btn')
       if (!btn) return

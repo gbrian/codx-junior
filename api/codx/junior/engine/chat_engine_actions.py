@@ -33,19 +33,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-GLOBAL_CHAT_INSTRUCTIONS = """
-CRITICAL INFORMATION: 
-When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
-Example:
-
-```js /folder/file_name.js
- import dummy from 'module'
-```
-
-Use valid file path based on the project and conversation context.
-"""
-
-
 @dataclass
 class SubTaskStatus:
     """Tracks the status of a single sub-task."""
@@ -286,7 +273,6 @@ class ChatEngineActions:
                 append_references=append_references,
                 chat_mode=chat_mode,
                 iteration=iteration,
-                system=GLOBAL_CHAT_INSTRUCTIONS,
             )
             logger.info("chat_with_project save chat: %s", chat.name)
             await self.session.save_chat(chat)

@@ -14,7 +14,7 @@ import TeamView from './views/TeamView.vue';
       <HomeMobile v-if="$ui.isMobile" />
       <TeamView />
 
-      <modal class="w-full h-full md:w-1/3 md:h-fit" 
+      <modal class="w-fit h-2/3" 
         close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
         <NewProject  />
       </modal>

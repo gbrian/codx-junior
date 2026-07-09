@@ -1001,7 +1001,14 @@ class KnowledgeDB:
             collection_name=self.index_fulltext_name,
             data=[query],
             anns_field=FIELD_SPARSE,
-            output_fields=[FIELD_PAGE_CONTENT, FIELD_METADATA],
+            output_fields=[
+                FIELD_PAGE_CONTENT,
+                FIELD_METADATA,
+                FIELD_SOURCE,
+                FIELD_KEYWORDS,
+                FIELD_CATEGORY,
+                FIELD_LAST_UPDATE,
+            ],
             limit=_limit,
             search_params=search_params,
         )
@@ -1043,7 +1050,14 @@ class KnowledgeDB:
             collection_name=self.index_fulltext_name,
             data=[query_vector],
             anns_field=FIELD_DENSE,
-            output_fields=[FIELD_PAGE_CONTENT, FIELD_METADATA],
+            output_fields=[
+                FIELD_PAGE_CONTENT,
+                FIELD_METADATA,
+                FIELD_SOURCE,
+                FIELD_KEYWORDS,
+                FIELD_CATEGORY,
+                FIELD_LAST_UPDATE,
+            ],
             limit=_limit,
             search_params=search_params,
         )
@@ -1116,7 +1130,14 @@ class KnowledgeDB:
                 collection_name=self.index_fulltext_name,
                 reqs=[sparse_request, dense_request],
                 ranker=ranker,
-                output_fields=[FIELD_PAGE_CONTENT, FIELD_METADATA],
+                output_fields=[
+                    FIELD_PAGE_CONTENT,
+                    FIELD_METADATA,
+                    FIELD_SOURCE,
+                    FIELD_KEYWORDS,
+                    FIELD_CATEGORY,
+                    FIELD_LAST_UPDATE,
+                ],
                 limit=_limit,
             )
         except Exception as ex:
@@ -1167,13 +1188,15 @@ class KnowledgeDB:
         documents: List[Document] = []
         try:
             for entry in list(results):
+                logger.info(f"Converting entry: {entry}")
                 _id = entry.get("id", 0)
                 entity = entry.get("entity") or entry
                 distance = float(entry.get("distance", "0"))
 
                 metadata = entity.get("metadata", {})
+                # Extract metadata fields from entity (where they are now returned by Milvus)
                 for prop in [FIELD_SOURCE, FIELD_KEYWORDS, FIELD_CATEGORY, FIELD_LAST_UPDATE]:
-                    value = entry.get(prop)
+                    value = entity.get(prop)
                     if value:
                         metadata[prop] = value
 
@@ -1186,7 +1209,7 @@ class KnowledgeDB:
                         distance,
                     )
                 metadata["project_id"] = self.settings.project_id
-                metadata["project_name"] = self.settings.project_name,
+                metadata["project_name"] = self.settings.project_name
 
                 documents.append(
                     Document(
@@ -1198,7 +1221,7 @@ class KnowledgeDB:
             return documents
         except Exception as ex:
             logger.exception(
-                "ERROR db_results_to_documents: %s\n%s", ex, results[0]
+                "ERROR db_results_to_documents: %s\n%s", ex, results[0] if results else ""
             )
         return documents
 

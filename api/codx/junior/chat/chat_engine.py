@@ -37,6 +37,9 @@ from codx.junior.utils.utils import document_to_code_block
 from codx.junior.model.model import CodxUser
 from codx.junior.chat.chat_knowledge import ChatKnowledge
 
+from codx.junior.global_settings import (
+  read_global_settings
+)
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -103,6 +106,9 @@ class ChatEngine:
             event_manager=event_manager
         )
         self.user = user
+
+    def _get_gloabal_system(self):
+        return read_global_settings().chat_global_instructions
 
     def get_profile_manager(self) -> ProfileManager:
         """Return a ProfileManager instance for the current settings."""
@@ -948,7 +954,6 @@ class ChatEngine:
             logger.info("Added %d extracted files to response metadata", len(extracted_files))
 
         response_message.meta_data = base_meta
-        response_message.profiles = chat_profile_names
 
     # -------------------------------------------------------------------------
     # Helper: generate chat description and history entry
@@ -1229,7 +1234,7 @@ class ChatEngine:
                 append_references=append_references,
                 chat_mode=chat_mode,
                 iteration=iteration,
-                system=system,
+                system=system or self._get_gloabal_system(),
                 cancellation_token=cancellation_token,
             )
         finally:
@@ -1397,6 +1402,8 @@ class ChatEngine:
                     message=f"Chat profiles: {chat_profile_names}"
                 )
 
+            response_message.profiles = chat_profile_names
+            
             # ------------------------------------------------------------------
             # 10. Resolve search projects
             # ------------------------------------------------------------------
