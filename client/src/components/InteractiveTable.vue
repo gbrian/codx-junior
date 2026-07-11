@@ -7,46 +7,59 @@ import { nextTick } from 'vue'
     <!-- Toolbar -->
     <div class="flex flex-wrap gap-2 p-3 bg-base-200 border-b border-base-300">
       <button 
-        @click="addRow" 
-        class="btn btn-sm btn-outline gap-1 text-xs"
-        title="Add new row"
+        @click="toggleEditMode" 
+        class="btn btn-sm gap-1 text-xs"
+        :class="isEditMode ? 'btn-primary' : 'btn-outline'"
+        title="Toggle edition mode"
       >
-        <i class="fa-solid fa-plus"></i> Row
+        <i :class="isEditMode ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'"></i>
+        {{ isEditMode ? 'Lock' : 'Edit' }}
       </button>
-      <button 
-        @click="addColumn" 
-        class="btn btn-sm btn-outline gap-1 text-xs"
-        title="Add new column"
-      >
-        <i class="fa-solid fa-plus"></i> Column
-      </button>
-      <button 
-        @click="deleteSelected" 
-        :disabled="!hasSelection"
-        class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
-        title="Delete selected rows"
-      >
-        <i class="fa-solid fa-trash"></i> Delete
-      </button>
-      <button 
-        @click="copySelected" 
-        :disabled="!hasSelection"
-        class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
-        title="Copy selected cells (Ctrl+C)"
-      >
-        <i class="fa-solid fa-copy"></i> Copy
-      </button>
-      <button 
-        @click="pasteSelected" 
-        :disabled="!clipboard"
-        class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
-        title="Paste (Ctrl+V)"
-      >
-        <i class="fa-solid fa-paste"></i> Paste
-      </button>
+
+      <template v-if="isEditMode">
+        <button 
+          @click="addRow" 
+          class="btn btn-sm btn-outline gap-1 text-xs"
+          title="Add new row"
+        >
+          <i class="fa-solid fa-plus"></i> Row
+        </button>
+        <button 
+          @click="addColumn" 
+          class="btn btn-sm btn-outline gap-1 text-xs"
+          title="Add new column"
+        >
+          <i class="fa-solid fa-plus"></i> Column
+        </button>
+        <button 
+          @click="deleteSelected" 
+          :disabled="!hasSelection"
+          class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
+          title="Delete selected rows"
+        >
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+        <button 
+          @click="copySelected" 
+          :disabled="!hasSelection"
+          class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
+          title="Copy selected cells (Ctrl+C)"
+        >
+          <i class="fa-solid fa-copy"></i> Copy
+        </button>
+        <button 
+          @click="pasteSelected" 
+          :disabled="!clipboard"
+          class="btn btn-sm btn-outline gap-1 text-xs disabled:opacity-50"
+          title="Paste (Ctrl+V)"
+        >
+          <i class="fa-solid fa-paste"></i> Paste
+        </button>
+      </template>
+
       <div class="flex-1"></div>
       <span class="text-xs text-base-content opacity-60 self-center">
-        {{ selectedCells.size }} cell(s) selected
+        {{ isEditMode ? `${selectedCells.size} cell(s) selected` : 'View mode' }}
       </span>
     </div>
 
@@ -56,7 +69,7 @@ import { nextTick } from 'vue'
         <thead>
           <tr class="bg-base-300 border-b border-base-300">
             <!-- Select All Checkbox -->
-            <th class="w-10 p-2 text-center sticky left-0 bg-base-300 border-r border-base-300">
+            <th v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-300 border-r border-base-300">
               <input 
                 type="checkbox" 
                 @change="toggleSelectAll"
@@ -68,13 +81,17 @@ import { nextTick } from 'vue'
             <th 
               v-for="(header, colIdx) in headers" 
               :key="`header-${colIdx}`"
-              class="p-2 text-left font-semibold text-sm border-r border-base-300 cursor-pointer hover:bg-primary hover:bg-opacity-10 whitespace-nowrap bg-base-300 group relative"
-              @click="selectColumn(colIdx)"
-              :class="{ 'bg-primary bg-opacity-20': selectedColumns.has(colIdx) }"
+              class="p-2 text-left font-semibold text-sm border-r border-base-300 whitespace-nowrap bg-base-300"
+              :class="{ 
+                'cursor-pointer hover:bg-primary hover:bg-opacity-10 group relative': isEditMode,
+                'bg-primary bg-opacity-20': isEditMode && selectedColumns.has(colIdx)
+              }"
+              @click="isEditMode && selectColumn(colIdx)"
             >
               <div class="flex items-center justify-between gap-2">
                 <span>{{ header }}</span>
                 <button 
+                  v-if="isEditMode"
                   @click.stop="deleteColumn(colIdx)"
                   class="opacity-0 group-hover:opacity-100 text-base-content opacity-40 hover:text-error transition-opacity text-xs"
                   title="Delete column"
@@ -89,11 +106,14 @@ import { nextTick } from 'vue'
           <tr 
             v-for="(row, rowIdx) in tableData" 
             :key="`row-${rowIdx}`"
-            class="border-b border-base-300 hover:bg-base-200 transition-colors"
-            :class="{ 'bg-primary bg-opacity-10': isRowSelected(rowIdx) }"
+            class="border-b border-base-300"
+            :class="{ 
+              'hover:bg-base-200 transition-colors': isEditMode,
+              'bg-primary bg-opacity-10': isEditMode && isRowSelected(rowIdx)
+            }"
           >
             <!-- Row Checkbox -->
-            <td class="w-10 p-2 text-center sticky left-0 bg-base-100 border-r border-base-300">
+            <td v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-100 border-r border-base-300">
               <input 
                 type="checkbox" 
                 @change="toggleSelectRow(rowIdx)"
@@ -106,20 +126,22 @@ import { nextTick } from 'vue'
             <td 
               v-for="(cell, colIdx) in row" 
               :key="`cell-${rowIdx}-${colIdx}`"
-              class="p-2 border-r border-base-300 text-sm min-w-24 group relative cursor-cell select-none"
+              class="p-2 border-r border-base-300 text-sm min-w-24 select-none"
               :class="{ 
-                'bg-primary bg-opacity-20 border-2 border-primary': isSelected(rowIdx, colIdx),
-                'bg-base-100': !isSelected(rowIdx, colIdx)
+                'group relative cursor-cell': isEditMode,
+                'bg-primary bg-opacity-20 border-2 border-primary': isEditMode && isSelected(rowIdx, colIdx),
+                'bg-base-100': !isEditMode || !isSelected(rowIdx, colIdx)
               }"
-              @click="selectCell(rowIdx, colIdx, $event)"
-              @dblclick="editCell(rowIdx, colIdx)"
-              @mousedown="startDragSelection(rowIdx, colIdx, $event)"
-              @mouseover="updateDragSelection(rowIdx, colIdx)"
+              @click="isEditMode && selectCell(rowIdx, colIdx, $event)"
+              @dblclick="isEditMode && editCell(rowIdx, colIdx)"
+              @mousedown="isEditMode && startDragSelection(rowIdx, colIdx, $event)"
+              @mouseover="isEditMode && updateDragSelection(rowIdx, colIdx)"
             >
               <!-- Display Mode -->
               <div 
                 v-if="!isEditing(rowIdx, colIdx)"
-                class="truncate group-hover:bg-base-300 p-1 rounded transition-colors"
+                class="truncate p-1 rounded"
+                :class="{ 'group-hover:bg-base-300 transition-colors': isEditMode }"
               >
                 {{ cell || '–' }}
               </div>
@@ -147,7 +169,7 @@ import { nextTick } from 'vue'
       v-if="tableData.length === 0"
       class="p-8 text-center text-base-content opacity-50 bg-base-200"
     >
-      <p class="text-sm">No data in table. Click "Add Row" to get started.</p>
+      <p class="text-sm">No data in table. Click "Edit" to get started.</p>
     </div>
   </div>
 </template>
@@ -176,7 +198,8 @@ export default {
       lastSelectedCell: null,
       isDragging: false,
       dragStart: null,
-      dragEnd: null
+      dragEnd: null,
+      isEditMode: false
     }
   },
   computed: {
@@ -215,6 +238,16 @@ export default {
     document.removeEventListener('keydown', this.handleKeyDown)
   },
   methods: {
+    toggleEditMode() {
+      this.isEditMode = !this.isEditMode
+      this.clearSelection()
+    },
+    clearSelection() {
+      this.selectedRows.clear()
+      this.selectedColumns.clear()
+      this.selectedCells.clear()
+      this.editingCell = null
+    },
     getCellKey(rowIdx, colIdx) {
       return `${rowIdx},${colIdx}`
     },
@@ -255,7 +288,7 @@ export default {
     },
     // Drag selection
     startDragSelection(rowIdx, colIdx, event) {
-      if (event.button !== 0) return // Only left click
+      if (event.button !== 0) return
       if (this.isEditing(rowIdx, colIdx)) return
       
       this.isDragging = true
@@ -277,7 +310,6 @@ export default {
       
       this.dragEnd = { row: rowIdx, col: colIdx }
       
-      // Clear previous selection and apply new range
       this.selectedCells.clear()
       const rangeCells = this.getRangeOfCells(
         this.dragStart.row, 
@@ -297,7 +329,6 @@ export default {
       const key = this.getCellKey(rowIdx, colIdx)
       
       if (event.shiftKey && this.lastSelectedCell) {
-        // Range selection with Shift+Click
         this.selectedCells.clear()
         const rangeCells = this.getRangeOfCells(
           this.lastSelectedCell.row,
@@ -307,10 +338,8 @@ export default {
         )
         rangeCells.forEach(cell => this.selectedCells.add(cell))
       } else if (event.ctrlKey || event.metaKey) {
-        // Toggle selection with Ctrl/Cmd+Click
         this.selectedCells.has(key) ? this.selectedCells.delete(key) : this.selectedCells.add(key)
       } else {
-        // Single selection
         this.selectedCells.clear()
         this.selectedRows.clear()
         this.selectedColumns.clear()
@@ -378,7 +407,6 @@ export default {
         rowsToDelete.forEach(idx => this.tableData.splice(idx, 1))
         this.selectedRows.clear()
       } else if (this.selectedCells.size > 0) {
-        // Clear selected cells
         this.selectedCells.forEach(key => {
           const { row, col } = this.parseKey(key)
           this.tableData[row][col] = ''
@@ -389,21 +417,18 @@ export default {
     // Copy and paste
     copySelected() {
       if (this.selectedRows.size > 0) {
-        // Copy entire rows
         const rows = Array.from(this.selectedRows)
           .sort((a, b) => a - b)
           .map(idx => this.tableData[idx])
         this.clipboard = { type: 'rows', data: rows }
         navigator.clipboard.writeText(rows.map(row => row.join('\t')).join('\n'))
       } else if (this.selectedCells.size > 0) {
-        // Copy cell range
         const cells = Array.from(this.selectedCells)
         const cellArray = cells.map(key => {
           const { row, col } = this.parseKey(key)
           return { row, col, value: this.tableData[row][col] }
         })
         
-        // Get bounds
         const rows = cellArray.map(c => c.row)
         const cols = cellArray.map(c => c.col)
         const minRow = Math.min(...rows)
@@ -411,7 +436,6 @@ export default {
         const minCol = Math.min(...cols)
         const maxCol = Math.max(...cols)
         
-        // Format as grid
         const grid = []
         for (let r = minRow; r <= maxRow; r++) {
           const row = []
@@ -455,6 +479,8 @@ export default {
     },
     // Keyboard shortcuts
     handleKeyDown(e) {
+      if (!this.isEditMode) return
+      
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'c' || e.key === 'C') {
           e.preventDefault()

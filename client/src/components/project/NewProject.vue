@@ -156,17 +156,24 @@
       </div>
     </div>
 
+    <!-- Error -->
+    <div v-if="error" class="alert alert-error text-xs py-2">
+      <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+    </div>
+
     <!-- Actions -->
     <div class="flex justify-end items-center gap-2 pt-2 pb-1 mt-auto">
-      <button @click="$emit('close')" class="btn btn-ghost btn-sm">
+      <button @click="onCancel" class="btn btn-ghost btn-sm">
         Cancel
       </button>
       <button
         @click="createProject"
-        :disabled="!isFormValid"
+        :disabled="!isFormValid || loading"
         class="btn btn-primary btn-sm gap-2"
       >
-        <i class="fa-solid fa-sparkles"></i> Create Project
+        <span v-if="loading" class="loading loading-spinner loading-xs"></span>
+        <i v-else class="fa-solid fa-sparkles"></i>
+        {{ loading ? 'Creating...' : 'Create Project' }}
       </button>
     </div>
 
@@ -175,8 +182,11 @@
 
 <script>
 export default {
+  emits: ['close'],
   data() {
     return {
+      loading: false,
+      error: null,
       formData: {
         selectedTemplate: 'blank',
         projectName: '',
@@ -327,10 +337,31 @@ Project goal: <describe what this app will do>`
         this.formData.gitUrl = prefix
       }
     },
-    createProject() {
-      if (!this.isFormValid) return
-      this.$emit('project-created', { data: { ...this.formData } })
+    onCancel() {
       this.$emit('close')
+    },
+    async createProject() {
+      if (!this.isFormValid) return
+      this.loading = true
+      this.error = null
+      try {
+        // Build the project path: use explicit path or derive from name
+        const projectPath = this.formData.projectPath || this.formData.projectName
+        await this.$storex.projects.createNewProject({
+          project_name: this.formData.projectName,
+          project_path: projectPath,
+          codx_path: this.formData.codxPath || null,
+          git_path: this.formData.gitUrl || null,
+          description: this.formData.projectDescription || null,
+          prompt: this.formData.projectPrompt || null
+        })
+        // Close modal via ui store on success
+        this.$storex.ui.showNewProject(false)
+      } catch (err) {
+        this.error = err?.message || 'Failed to create project. Please try again.'
+      } finally {
+        this.loading = false
+      }
     }
   }
 }

@@ -166,7 +166,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-model="diffEditContent"
             :fileName="file"
             class="h-full"
-            v-if="showDiff && !editMode && orgContent"
+            v-if="showDiff && !editMode"
           />
 
           <Editor
@@ -180,7 +180,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <VueCodeHighlighter
             class="h-full"
             :code="effectiveCode"
-            :lang="fileLanguage"
+            :lang="validatedLanguage"
             :title="fileName"
             v-if="effectiveCode && !editMode && !showDiff"
           />
@@ -231,7 +231,7 @@ export default {
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
-      showDiff: false,
+      showDiff: this.diffOption,
       orgContent: null,
       diffEditContent: null,
       diffBaseContent: null,
@@ -305,6 +305,20 @@ export default {
       }
       const ext = this.file?.split('.').reverse()[0]
       if (ext) return EXTENSION_LANGUAGE_MAP[ext] || ext
+      return 'markdown'
+    },
+
+    validatedLanguage() {
+      const lang = this.fileLanguage
+      try {
+        // Validate language is supported by hljs
+        if (lang && hljs.getLanguage(lang)) {
+          return lang
+        }
+      } catch (error) {
+        console.warn(`Invalid language detected: ${lang}`, error)
+      }
+      // Safe fallback to markdown
       return 'markdown'
     },
 

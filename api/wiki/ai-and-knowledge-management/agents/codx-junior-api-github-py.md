@@ -1,38 +1,129 @@
-## GitHub Issues Agents
+# GitHub API Module
 
-This document outlines the API endpoints for interacting with GitHub issues within the CODX Junior project.
+## Overview
 
-### Help Wanted Issues
+This module provides a set of REST API endpoints for interacting with GitHub issues and Git repository information. It is part of the **Agents** category and covers functionality related to DevOps, Git issues, and base agent operations.
 
-This endpoint allows you to search for "help wanted" issues on GitHub. You can either provide a specific query to narrow down your search or retrieve issues from the CODX Junior dependencies project.
+---
 
-```python /codx/junior/api/github.py
-@router.get('/github/issues/help-wanted')
-def get_github_issues_help_wanted(request: Request):
-    query = request.query_params.get("query")
-    if query:
-      return search_github_issues(query=query)
-    return search_codx_junior_dependencies_project_isssues()
-```
+## Endpoints
 
-### Read GitHub Issue
+### GitHub Issues
 
-This endpoint retrieves detailed information about a specific GitHub issue. You need to provide the URL of the issue.
+#### GET `/github/issues/help-wanted`
 
-```python /codx/junior/api/github.py
-@router.get("/github/issues/read")
-def read_github_issue(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    issue_url = request.query_params.get("issue_url")
-    return download_issue_info(issue_url)
-```
+Retrieves GitHub issues labeled as "help wanted."
 
-### Process GitHub Issue with AI
+- **Query Parameters:**
+  - `query` *(optional)*: A custom search query string. If provided, searches GitHub issues using that query.
+  - If no query is provided, it returns issues from the `codx-junior` dependencies project by default.
 
-This endpoint utilizes the `GitIssuesAgent` to process a GitHub issue using AI. It requires an authenticated user and the URL of the issue to be processed.
+- **Authentication:** Not required.
 
-```python /codx/junior/api/github.py
-@router.get("/github/issues/ai/process")
-async def process_github_issue(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    codx_junior_session = request.state.codx_junior_session
-    return await GitIssuesAgent(session=codx_junior_session).run(issue_url=issue_url)
-```
+- **Behavior:**
+  - If `query` parameter is present → calls `search_github_issues(query=query)`
+  - If `query` parameter is absent → calls `search_codx_junior_dependencies_project_isssues()`
+
+---
+
+#### GET `/github/issues/read`
+
+Downloads and returns detailed information about a specific GitHub issue.
+
+- **Query Parameters:**
+  - `issue_url` *(required)*: The URL of the GitHub issue to read.
+
+- **Authentication:** Required (authenticated user via `get_authenticated_user`).
+
+- **Behavior:** Calls `download_issue_info(issue_url)` to fetch issue details.
+
+---
+
+#### GET `/github/issues/ai/process`
+
+Processes a GitHub issue using the AI-powered `GitIssuesAgent`.
+
+- **Query Parameters:**
+  - `issue_url` *(required)*: The URL of the GitHub issue to process.
+
+- **Authentication:** Required (authenticated user via `get_authenticated_user`).
+
+- **Behavior:** Instantiates `GitIssuesAgent` with the current session and runs it against the given issue URL. This is an **async** endpoint.
+
+---
+
+### Git Repository
+
+#### GET `/github/repo/info`
+
+Returns general repository information for the current project.
+
+- **Authentication:** Not required.
+
+- **Response Fields:**
+  - `active_branch`: The currently active Git branch.
+  - `git_root`: The root path of the Git repository.
+  - `repo_path`: The absolute path of the project.
+
+---
+
+#### GET `/github/repo/branches`
+
+Returns all available branches (local and remote) for the project.
+
+- **Authentication:** Not required.
+
+- **Behavior:** Calls `get_project_branches()` on the project's Git engine.
+
+---
+
+#### GET `/github/repo/branch/commits`
+
+Returns all commits for a specific branch.
+
+- **Query Parameters:**
+  - `branch` *(required)*: The name of the branch to retrieve commits for.
+
+- **Authentication:** Not required.
+
+- **Behavior:** Calls `get_project_branch_commits(branch=branch)` on the project's Git engine.
+
+---
+
+#### GET `/github/repo/changes`
+
+Returns file changes, diffs, and PR details between two branches or commits.
+
+- **Query Parameters:**
+  - `from_branch` *(required)*: The source branch or commit reference.
+  - `to_branch` *(required)*: The target branch or commit reference.
+
+- **Authentication:** Not required.
+
+- **Behavior:** Calls `get_repo_changes(from_branch=from_branch, to_branch=to_branch)` on the project's Git engine.
+
+---
+
+## Dependencies
+
+| Component | Description |
+|---|---|
+| `CODXJuniorSession` | Manages the active session for the project |
+| `get_authenticated_user` | Security dependency for user authentication |
+| `search_github_issues` | Searches GitHub issues by query |
+| `download_issue_info` | Downloads details for a specific issue URL |
+| `search_codx_junior_dependencies_project_isssues` | Returns issues from the codx-junior dependencies project |
+| `GitIssuesAgent` | AI agent that processes GitHub issues |
+
+---
+
+## Authentication
+
+Some endpoints require an authenticated user, resolved via the `get_authenticated_user` dependency. The following endpoints are protected:
+
+- `/github/issues/read`
+- `/github/issues/ai/process`
+
+## Dependencies
+**Imports from:** codx/junior/engine.py, codx/junior/security/user_management.py, codx/junior/misc/github.py, codx/junior/model/model.py, codx/junior/agents/git_issues_agent.py
+**Imported by:** codx/junior/app.py

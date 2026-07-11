@@ -304,7 +304,11 @@ export const actions = actionTree(
               if (message.is_thinking) {
                 currentMessage.think += message.think
               } else {
-                currentMessage.content += message.content
+                if (isDone) {
+                  currentMessage.content = message.content
+                } else {
+                  currentMessage.content += message.content
+                }
               }
               currentMessage.updated_at = new Date().toISOString()
             }

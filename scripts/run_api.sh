@@ -33,5 +33,5 @@ sudo chown -R $USER ${CODX_JUNIOR_PROJECTS_PATH}
 if [ "$DEBUG" == "" ]; then
   uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-4} --host 0.0.0.0 --port $API_PORT
 else
-  uvicorn codx.junior.main:app --reload --host 0.0.0.0 --port $API_PORT
+  uvicorn codx.junior.main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port $API_PORT
 fi

@@ -1,137 +1,264 @@
-## CODXJuniorSession API Reference
+# CODXJuniorSession — Engine Session Module
 
-The `CODXJuniorSession` class acts as the primary orchestration layer for the entire codx-junior engine. It manages settings, initializes core sub-engines (Knowledge, Code, Git, File, Chat), and provides unified methods for interacting with project context, AI services, and file operations.
+## Overview
 
-### Initialization and Configuration
+`CODXJuniorSession` is the main orchestration class for the codx-junior engine. It acts as the central coordinator that initializes, manages, and delegates to a set of specialized sub-engine modules. All high-level operations — from chat management and knowledge indexing to code generation and git operations — are accessible through this single session object.
 
-**`__init__(self, settings: CODXJuniorSettings = None, codx_path: str = None, channel: SessionChannel = None, user: CodxUser = None)`**
-Initializes the session, loading configuration from `project.json` or provided settings. It instantiates all required sub-engines, including `KnowledgeEngine`, `CodeEngine`, `GitEngine`, etc., using the given project context.
+---
 
-### Core Session Methods
+## Architecture
 
-**`update_last_access_time() -> None`**
-Updates the system settings with the current timestamp for tracking last access activity.
+The session follows a delegation pattern, where `CODXJuniorSession` owns instances of each sub-engine and exposes their functionality through its own public interface.
 
-**`switch_project(self, project_id: str) -> "CODXJuniorSession"`**
-Switches the operational session context to a different project using its unique ID. Returns a new `CODXJuniorSession` instance if a matching project is found.
+```mermaid
+classDiagram
+    CODXJuniorSession --> KnowledgeEngine
+    CODXJuniorSession --> CodeEngine
+    CODXJuniorSession --> GitEngine
+    CODXJuniorSession --> FileEngine
+    CODXJuniorSession --> ChatEngineActions
+    CODXJuniorSession --> WikiEngine
+```
 
-**`log_info(self, msg: str, *args) -> None`**
-Logs an informational message, automatically prepending the current project name for context.
+---
 
-**`log_error(self, msg: str, *args) -> None`**
-Logs an error message, automatically prepending the current project name for context.
+## Initialization
 
-**`log_exception(self, msg: str, *args) -> None`**
-Logs a full stack trace exception, automatically prepending the current project name for context.
+The session is created with optional parameters:
 
-**`coder_open_file(self, file_name: str) -> dict`**
-Opens a specified file in an external code server editor command.
+| Parameter  | Type                  | Description                                      |
+|------------|-----------------------|--------------------------------------------------|
+| `settings` | `CODXJuniorSettings`  | Project settings object                          |
+| `codx_path`| `str`                 | Path to the `.codx` project directory            |
+| `channel`  | `SessionChannel`      | Communication channel for real-time events       |
+| `user`     | `CodxUser`            | The authenticated user for this session          |
 
-**`chat_action(self, chat: Chat, event: str)`**
-A context manager (`@contextmanager`) used to wrap complex chat actions. It notifies the system about the start and completion (or error) of an action within the `EventManager`.
+If `settings` is not provided, it is loaded automatically from `{codx_path}/project.json`.
 
-**`delete_project(self) -> None`**
-Deletes the entire project directory associated with the current session settings using `shutil.rmtree()`.
+Upon initialization, the following sub-engines are instantiated:
 
-### Manager Factories
+- `KnowledgeEngine`
+- `CodeEngine`
+- `GitEngine`
+- `FileEngine`
+- `ChatEngineActions`
+- `WikiEngine`
 
-These methods provide controlled access points to specialized manager classes, ensuring proper dependency injection (e.g., passing the `EventManager` and `settings`).
+Additionally, `EventManager` and `AudioManager` are initialized for event handling and audio processing respectively.
 
-*   **`get_mention_manager(self) -> MentionManager`**: Returns an instance of `MentionManager` for handling `@mentions`.
-*   **`get_chat_manager(self) -> ChatManager`**: Returns an instance of `ChatManager` responsible for chat history management.
-*   **`get_profile_manager(self, settings: CODXJuniorSettings = None) -> ProfileManager`**: Returns an instance of `ProfileManager` for handling user/AI profiles.
-*   **`get_ai(self, llm_model: str = None) -> AI`**: Returns an `AI` instance configured with the session's settings and optionally a specific LLM model.
-*   **`get_knowledge(self) -> Knowledge`**: Returns the primary `Knowledge` management instance.
-*   **`get_wiki(self)`**: Returns a dedicated `WikiManager`.
-*   **`get_browser(self) -> Browser`**: Returns an instance of `Browser` for web interaction tasks.
+---
 
-### Chat Management Operations
+## Core Session Methods
 
-These methods wrap `ChatManager` functionality and are crucial for persistent conversations.
+### `update_last_access_time()`
+Updates the `last_access_time` on settings to the current datetime.
 
-**`load_chat(self, board: str, chat_name: str)`**
-Loads a specific chat history based on the board identifier and name. (Uses `@profile_function`).
+### `switch_project(project_id: str) → CODXJuniorSession`
+Switches the current session to a different project identified by `project_id`. Returns the current session if the ID matches or is not found.
 
-**`list_chats(self, from_date: str = None) -> list`**
-Retrieves a list of all existing chats. Optionally filters the results by `from_date`.
+### `delete_project()`
+Permanently removes the project directory using `shutil.rmtree`.
 
-**`save_chat(self, chat: Chat, chat_only: bool = False) -> Chat`**
-Persists or updates an existing chat object in the database. Ensures data integrity and availability for later context retrieval.
+### `coder_open_file(file_name: str) → dict`
+Opens a file in the code-server editor. Resolves relative paths against the project's absolute path.
 
-**`delete_chat(self, chat_id: str) -> None`**
-Deletes a specific chat thread given its unique ID.
+### `chat_action(chat, event)` *(context manager)*
+Wraps a chat operation with start/done/error event notifications via `EventManager`.
 
-### Profile Management Operations
+### Logging helpers
+- `log_info(msg, *args)` — Logs at INFO level, prefixed with the project name.
+- `log_error(msg, *args)` — Logs at ERROR level, prefixed with the project name.
+- `log_exception(msg, *args)` — Logs exceptions, prefixed with the project name.
 
-These methods utilize `ProfileManager` to read, write, and manage user or system profiles.
+---
 
-**`list_profiles() -> list`**: Lists all available saved profiles (e.g., "project", "developer"). (Uses `@profile_function`).
-**`save_profile(self, profile: Profile) -> Profile`**: Persists a `Profile` object to be used in the session's configuration or context. (Async, Uses `@profile_function`).
-**`watch_project(self, watching: bool) -> None`**: Changes and saves the project settings watch status (`watching`).
-**`read_profile(self, profile_name: str) -> Profile`**: Retrieves a specific `Profile` by name.
-**`delete_profile(self, profile_name: str) -> None`**: Removes a saved profile by its name.
+## Manager Factories
 
-### Utilities and Helper Methods
+The session provides factory methods to create supporting manager objects:
 
-**`extract_query_mentions(self, query: str) -> list`**
-Parses an input string (`query`) to identify all `@mention` references (e.g., `@user`, `@project`).
+| Method                                      | Returns           | Description                          |
+|---------------------------------------------|-------------------|--------------------------------------|
+| `get_mention_manager()`                     | `MentionManager`  | Manages `@mention` parsing           |
+| `get_chat_manager()`                        | `ChatManager`     | Manages chat persistence             |
+| `get_profile_manager(settings?)`            | `ProfileManager`  | Manages project profiles             |
+| `get_ai(llm_model?)`                        | `AI`              | Returns an AI instance               |
+| `get_knowledge()`                           | `Knowledge`       | Returns a Knowledge (Milvus) instance|
+| `get_wiki()`                                | `WikiManager`     | Returns a wiki manager               |
+| `get_browser()`                             | `Browser`         | Returns a browser utility            |
+| `get_git_engine()`                          | `GitEngine`       | Returns the git sub-engine           |
 
-**`get_query_mentions(self, query: str) -> list`**
-A generalized function that retrieves *all* types of mentions (User, Project, etc.) from a given query string.
+---
 
-### Knowledge Base Operations (`KnowledgeEngine`)
+## Chat Management
 
-These methods handle indexing, searching, and managing contextual knowledge documents. They delegate core logic to the `KnowledgeEngine`.
+Chat operations are managed via the `ChatManager` factory.
 
-*   **`knowledge_search(self, knowledge_search: KnowledgeSearch) -> dict`**: Executes a comprehensive search across all indexed project knowledge bases using criteria defined in `KnowledgeSearch`. (Async, Uses `@profile_function`).
-*   **`delete_knowledge_source(self, sources: list) -> dict`**: Removes documents from the index based on their filesystem paths.
-*   **`index_knowledge_source(self, sources: list) -> dict`**: Processes and indexes new knowledge by ingesting document content from specified source paths.
-*   **`find_project_documents(self, query: str) -> list`**: Finds documents within the context of a specific project relevant to the search `query`. (Uses `@profile_function`).
-*   **`select_afefcted_documents_from_knowledge(...) -> tuple`**: Advanced selection method used to determine the most pertinent knowledge documents based on chat history, AI state, and query constraints. (Uses `@profile_function`).
+| Method                                         | Description                                        |
+|------------------------------------------------|----------------------------------------------------|
+| `load_chat(board, chat_name)`                  | Load a chat by board and name                      |
+| `list_chats(from_date?)`                       | List all chats, optionally filtered by date        |
+| `save_chat(chat, chat_only?)`                  | Persist a chat object                              |
+| `delete_chat(chat_id)`                         | Delete a chat by ID                                |
+| `find_chat(chat_id, owner_project_id)`         | Find a chat, switching projects if needed          |
 
-### Code and File System Operations (`CodeEngine`, `FileEngine`)
+---
 
-These methods are responsible for physical file interaction and code generation/modification within the project structure.
+## Profile Management
 
-**`excute_bash_code(self, chat: Chat, code_block_info: dict) -> None`**: Executes a bash code block provided by the AI or user in a sandbox environment. (Async).
-**`generate_code(self, chat: Chat, code_block_info: dict) -> None`**: Requests and applies generated code content based on an instruction set (`code_block_info`). (Async).
-**`improve_existing_code_patch(...) -> tuple`**: Applies a targeted patch to improve existing source code. (Async).
+Profiles define reusable AI configurations at the project level.
 
-**`apply_improve_code_changes(...) -> None`**: Takes structured `AICodeGenerator` output and writes the changes back into the local file system. (Sends the actual code diffs). (Async, Uses `@profile_function`).
+| Method                              | Description                              |
+|-------------------------------------|------------------------------------------|
+| `list_profiles()`                   | List all available profiles              |
+| `save_profile(profile)`             | Persist a profile                        |
+| `read_profile(profile_name)`        | Read a specific profile by name          |
+| `delete_profile(profile_name)`      | Delete a profile by name                 |
+| `get_project_profile()`             | Return the reserved `"project"` profile  |
+| `watch_project(watching)`           | Enable/disable project file watching     |
 
-**`change_file(self, context_documents: list, query: str, file_path: str, org_content: str, save_changes: bool = False) -> str`**: The primary mechanism for complex file rewriting. It takes existing content (`org_content`), relevant knowledge documents, and a rewriting `query`, then optionally saves the resulting file. (Async, Uses `@profile_function`).
+---
 
-**`read_file(self, path: str) -> str`**: Reads the raw text content of any project file given its path.
-**`write_project_file(self, file_path: str, content: str, process: bool = True) -> dict`**: Writes new `content` to a specified file. If `process=True`, it runs configured file profiles and hooks before committing the change. (Async).
+## Mention Utilities
 
-### Git Operations (`GitEngine`)
+Methods for parsing and resolving `@mention` references in query strings:
 
-A comprehensive set of methods for interacting with version control history.
+| Method                                    | Description                                      |
+|-------------------------------------------|--------------------------------------------------|
+| `extract_query_mentions(query)`           | Extract raw mention strings from a query         |
+| `find_projects_by_mentions(mentions)`     | Resolve mentions to project objects              |
+| `find_profiles_by_mentions(mentions)`     | Resolve mentions to profile objects              |
+| `get_query_mentions(query)`               | Get all mentions from a query string             |
 
-*   **`get_repo_branches() -> list`**: Lists all accessible git branches in the repository.
-*   **`get_project_changes(self, parent_branch: str = None) -> dict`**: Calculates and returns file differences (`diff`) between the project's current state and a specified `parent_branch`.
-*   **`get_pr_review_details(self, from_branch: str, to_branch: str) -> list`**: Retrieves detailed review information, typically used for Pull Requests, comparing changes between two branches.
-*   **`build_code_changes_summary(self, force: bool = False) -> object`**: Generates a high-level summary of all code file changes, often useful for reporting or PR descriptions.
+---
 
-### Chat Flow Operations (`ChatEngineActions`)
+## Knowledge Operations
 
-These methods facilitate complex interactions between chat history and system context.
+All knowledge operations are delegated to `KnowledgeEngine`.
 
-**`chat_search(self, chat_id: str, query: str) -> tuple`**: Executes a search while maintaining the conversational context of a specific chat ID. (Async, Uses `@profile_function`).
-**`api_chat_with_project(...) -> Chat`**: Initiates a sophisticated chat session treating the project itself as an API endpoint for interaction. (Async, Uses `@profile_function`).
-**`chat_with_project(self, ...)`**: The core chat interaction method. Manages state by using AI, leveraging knowledge bases (`disable_knowledge`), and maintaining conversation context over multiple iterations. (Async, Uses `@profile_function`).
+| Method                                                                   | Description                                              |
+|--------------------------------------------------------------------------|----------------------------------------------------------|
+| `knowledge_search(knowledge_search)`                                     | Perform a vector knowledge search                        |
+| `delete_knowledge_source(sources)`                                       | Delete indexed documents by source paths                 |
+| `index_knowledge_source(sources)`                                        | Index documents by source paths                          |
+| `delete_knowledge()`                                                     | Reset all knowledge                                      |
+| `check_knowledge_status()`                                               | Return current knowledge index status                    |
+| `get_knowledge_files()`                                                  | Return list of indexed files                             |
+| `find_project_documents(query)`                                          | Find relevant project documents for a query              |
+| `project_search(query)`                                                  | Search knowledge for a query string                      |
+| `select_afefcted_documents_from_knowledge(chat, ai, query, ...)`         | Select documents relevant to a query using AI            |
+| `extract_tags(doc)`                                                      | Extract tags/keywords from a document                    |
+| `get_keywords(query)`                                                    | Get keywords for a query                                 |
+| `create_knowledge_search_query(query)`                                   | Convert free text into a structured search query         |
+| `process_project_changes()`                                              | Process pending project file changes for indexing        |
+| `process_project_mentions()`                                             | Process pending project file mention checks              |
+| `get_project_dependencies()`                                             | Return child and dependency projects                     |
+| `get_all_search_projects()`                                              | Return all projects relevant for search                  |
 
-### Wiki Operations (`WikiEngine`)
+---
 
-Methods related to managing internal project documentation systems.
+## Code Operations
 
-*   **`process_wiki_changes() -> None`**: Handles asynchronous processing of changes detected in wiki documentation sources.
-*   **`update_wiki(self, file_path: str) -> None`**: Triggers the system to update or regenerate parts of the wiki based on external file changes.
+All code operations are delegated to `CodeEngine`.
 
-### Misc Utility Methods
+| Method                                                          | Description                                            |
+|-----------------------------------------------------------------|--------------------------------------------------------|
+| `excute_bash_code(chat, code_block_info)`                       | Execute a bash code block                              |
+| `generate_code(chat, code_block_info)`                          | Generate or apply code from a code block               |
+| `improve_existing_code_patch(chat, code_generator)`             | Apply a patch-based code improvement                   |
+| `generate_full_file_content(file_path, partial_content)`        | Expand partial content into a complete file            |
+| `improve_existing_code(chat, apply_changes?)`                   | Use AI to improve existing code                        |
+| `get_ai_code_generator_changes(response)`                       | Parse an AI response into a code generator object      |
+| `apply_improve_code_changes(code_generator, chat?)`             | Apply AI-generated changes to project files            |
+| `change_file_with_instructions(instruction_list, file_path, content)` | Rewrite a file following a list of instructions |
+| `project_script_test()`                                         | Run the project test script and return output          |
+| `apply_patch(patch)`                                            | Apply a git-style patch to the project                 |
+| `extract_changes(content)`                                      | Extract change objects from AI response content        |
+| `change_file(context_documents, query, file_path, org_content, save_changes?)` | Rewrite a file based on context and query |
 
-**`check_project() -> None`**: Runs a self-diagnostic check to validate and fix the underlying project knowledge loading mechanism.
-**`run_app(self, app_name: str) -> None`**: Executes predefined command sequences or tools associated with the project (e.g., running specific build scripts).
+---
+
+## Chat Engine Actions
+
+High-level conversational operations are delegated to `ChatEngineActions`.
+
+| Method                                                              | Description                                            |
+|---------------------------------------------------------------------|--------------------------------------------------------|
+| `init_chat_from_url(chat)`                                          | Initialize a chat by downloading and parsing a URL     |
+| `chat_search(chat_id, query)`                                       | Search knowledge and respond within a chat context     |
+| `api_chat_with_project(profile_name, messages)`                     | Chat via the external API                              |
+| `chat_with_project(chat_id?, owner_project_id?, chat?, ...)`        | Core chat method using AI and knowledge                |
+| `summarize_chat(chat, instructions?)`                               | Summarize a chat conversation                          |
+| `generate_tasks(chat, instructions?)`                               | Generate sub-tasks from a chat                         |
+| `get_chat_analysis_parents(chat)`                                   | Collect parent chat messages for context analysis      |
+| `convert_message(m)`                                                | Convert a DB Message to a LangChain message object     |
+
+---
+
+## File Operations
+
+All file system operations are delegated to `FileEngine`.
+
+| Method                                                        | Description                                              |
+|---------------------------------------------------------------|----------------------------------------------------------|
+| `parse_file_line(file, base_path)`                            | Parse a file entry into a structured dict                |
+| `read_directory(path)`                                        | List contents of a directory                             |
+| `get_project_file_path(path)`                                 | Resolve a path to an absolute project path               |
+| `read_file(path)`                                             | Read a project file and return its content               |
+| `diff_file(path, content, from_branch?, to_branch?)`          | Diff a file against provided content                     |
+| `diff_file_comments(path, content, comments?)`                | Diff a file with inline comments                         |
+| `process_project_file_before_saving(file_path, content)`      | Apply file profiles to content before saving             |
+| `apply_file_profile(file_path, content, profile)`             | Apply a single file profile to content                   |
+| `get_valid_project_file_path(file_path)`                      | Validate and resolve a file path                         |
+| `write_project_file(file_path, content, process?)`            | Write content to a project file                          |
+| `reset_project_file(file_path)`                               | Reset a file to its last committed state (via git)       |
+| `search_files(search)`                                        | Search for files whose paths match a string              |
+| `get_wiki_file(file_path)`                                    | Read a wiki file and return its content                  |
+| `get_readme()`                                                | Read the project README                                  |
+| `api_image_to_text(image_bytes)`                              | Convert image bytes to text via OCR                      |
+
+---
+
+## Git Operations
+
+All git operations are delegated to `GitEngine`.
+
+| Method                                             | Description                                             |
+|----------------------------------------------------|---------------------------------------------------------|
+| `get_repo_branches()`                              | Return all git branches                                 |
+| `get_project_branches()`                           | Return branches and repo tree                           |
+| `get_project_branch_commits(branch)`               | Return commits for a given branch                       |
+| `find_git_root_path()`                             | Find the root path of the git repository                |
+| `get_repo_changes(from_branch, to_branch)`         | Return file changes between two branches                |
+| `get_branch_commits(from_branch, repo_path)`       | Return commits for a branch                             |
+| `get_repo_tree()`                                  | Return full repo tree with all branches and commits     |
+| `get_branch_details(branch_name)`                  | Return detailed commit info for a branch                |
+| `get_project_current_branch()`                     | Return current git branch name                          |
+| `get_project_parent_branch()`                      | Return the parent branch of the current branch          |
+| `get_project_changes(parent_branch?)`              | Return diff between current state and a parent branch   |
+| `build_code_changes_summary(force?)`               | Build a summary of code changes                         |
+| `get_pr_review_details(from_branch, to_branch)`    | Return PR review details between two branches           |
+
+---
+
+## Wiki Operations
+
+Wiki operations are delegated to `WikiEngine`.
+
+| Method                               | Description                                        |
+|--------------------------------------|----------------------------------------------------|
+| `process_wiki_changes()`             | Process pending wiki changes                       |
+| `update_wiki(file_path)`             | Update the wiki based on a changed file            |
+| `update_project_profile(file_path)`  | Deprecated: Update project profile from a file     |
+
+---
+
+## Miscellaneous
+
+| Method                      | Description                                                  |
+|-----------------------------|--------------------------------------------------------------|
+| `check_project()`           | Check and fix the project knowledge loader via `KnowledgeLoader` |
+| `run_app(app_name)`         | Run a named application from the global `APPS_COMMANDS` map  |
+| `get_project_apps()`        | Return available project applications from global `APPS`     |
 
 ## Dependencies
 **Imports from:** codx/junior/ai/__init__.py, codx/junior/chat_manager.py, codx/junior/context.py, codx/junior/db.py, codx/junior/events/event_manager.py, codx/junior/knowledge/knowledge_keywords.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/mentions/mention_manager.py, codx/junior/model/model.py, codx/junior/profiles/profile_manager.py, codx/junior/profiling/profiler.py, codx/junior/project/project_discover.py, codx/junior/settings.py, codx/junior/sio/session_channel.py, codx/junior/utils/chat_utils.py, codx/junior/utils/utils.py, codx/junior/whisper/audio_manager.py, codx/junior/engine/knowledge_engine.py, codx/junior/engine/code_engine.py, codx/junior/engine/git_engine.py, codx/junior/engine/file_engine.py, codx/junior/engine/chat_engine_actions.py, codx/junior/engine/wiki_engine.py, codx/junior/wiki/wiki_manager.py, codx/junior/knowledge/knowledge_loader.py, codx/junior/globals.py

@@ -6,54 +6,15 @@ import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
 import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
-import Editor from './monaco/Editor.vue'
-import ChatEntrySlack from './ChatEntrySlack.vue'
 import ChatEntryMobile from './ChatEntryMobile.vue'
 import DocumentSummary from './document/DocumentSummary.vue'
+import MessagePRView from './chat/MessagePRView.vue'
 </script>
 
 <template>
-  <!-- Slack-style rendering for user messages in topic mode -->
-  <ChatEntrySlack
-    v-if="isSlackStyle"
-    :chat="chat"
-    :message="message"
-    :displayMessage="displayMessage"
-    :messageProfiles="messageProfiles"
-    :mentionList="mentionList"
-    :menuLess="menuLess"
-    :threadChat="threadChat"
-    :chatFiles="chatFiles"
-    :chatProject="chatProject"
-    :messageContent="messageContent"
-    :isDone="isDone"
-    :srcView="srcView"
-    :timeTaken="timeTaken"
-    :thinkText="thinkText"
-    :cancellationTokenId="cancellationTokenId"
-    :cancellationTime="cancellationTime"
-    @thread="$emit('thread', $event)"
-    @hide="$emit('hide', $event)"
-    @remove="onRemove"
-    @confirm-remove="confirmRemove"
-    @toggle-src-view="toggleSrcView"
-    @cancel-message="cancelMessage"
-    @copy-message="copyMessageToClipboard"
-    @generate-code="onGenerateCode"
-    @reload-file="$emit('reload-file', $event)"
-    @open-file="$emit('open-file', $event)"
-    @save-file="$emit('save-file', $event)"
-    @add-file="$emit('add-file', $event)"
-    @sub-task="$emit('sub-task', $event)"
-    @open-thread="openThread"
-    @add-file-to-chat="$emit('add-file-to-chat', $event)"
-    @remove-file="$emit('remove-file', $event)"
-    @message-copy="onMessageCopy"
-  />
-
   <!-- Mobile rendering -->
   <ChatEntryMobile
-    v-else-if="$ui.isMobile"
+    v-if="$ui.isMobile"
     :chat="chat"
     :message="message"
     :mentionList="mentionList"
@@ -203,6 +164,15 @@ import DocumentSummary from './document/DocumentSummary.vue'
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
                   <button 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    :class="showPRView && 'btn-warning'"
+                    data-tip="View PR changes" 
+                    @click="togglePRView"
+                    v-if="hasPRViewBlocks"
+                  >
+                    <i class="fa-solid fa-code-branch"></i>
+                  </button>
+                  <button 
                     class="btn btn-xs hover:btn-outline tooltip tooltip-bottom hover:btn-warning" 
                     data-tip="Run agents" 
                     @click="runAgents"
@@ -307,7 +277,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
             @add-file="$emit('add-file', $event)"
             @sub-task="$emit('sub-task', $event)"
             :mentionList="mentionList"
-            v-if="!showDiff && !srcView && !code_patches && !isWord" 
+            v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord" 
           />
 
           <div class="alert alert-error text-xs" v-if="displayMessage.error">
@@ -318,11 +288,11 @@ import DocumentSummary from './document/DocumentSummary.vue'
             :new-string="displayMessage.diffMessage.content"
             :old-string="messageContent"
             theme="dark"
-            v-if="showDiff"
+            v-if="showDiff && !showPRView"
           />
 
           <!-- Code patches list -->
-          <div v-if="code_patches">
+          <div v-if="code_patches && !showPRView">
             <div 
               class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" 
               v-for="patch in code_patches" 
@@ -350,8 +320,21 @@ import DocumentSummary from './document/DocumentSummary.vue'
             </div>
           </div>
 
+          <!-- PR View component -->
+          <MessagePRView
+            v-if="showPRView && !srcView && !showDiff"
+            :codeBlocks="prViewCodeBlocks"
+            :chat="chat"
+            :message="message"
+            :activeBranch="activeBranch"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+          />
+
           <!-- Image carousel -->
-          <div v-if="images">
+          <div v-if="images && !showPRView">
             <div class="carousel gap-2" v-if="images?.length">
               <div 
                 class="carousel-item click mt-2" 
@@ -373,7 +356,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
           </div>
 
           <!-- Linked files list -->
-          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length">
+          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length && !showPRView">
             Linked files:
             <div 
               v-for="file in displayMessage.files" 
@@ -419,11 +402,15 @@ export default {
       isRemove: false,
       improvementData: null,
       showDiff: false,
-      documentId: 'doc-' + Math.random().toString(36).slice(2, 8)
+      showPRView: false,
+      documentId: 'doc-' + Math.random().toString(36).slice(2, 8),
+      activeBranch: null,
+      branchLoading: false
     }
   },
   created() {
     this.loadThreadChat()
+    this.loadActiveBranch()
   },
   computed: {
     isDone() {
@@ -517,6 +504,12 @@ export default {
     },
     cancellationTime() {
       return this.displayMessage.meta_data?.cancelled_at
+    },
+    hasPRViewBlocks() {
+      return this.$service.chat.hasCodeBlocksWithFilePaths(this.displayMessage)
+    },
+    prViewCodeBlocks() {
+      return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
     }
   },
   watch: {
@@ -560,13 +553,23 @@ export default {
     toggleSrcView() {
       if (this.srcView = !this.srcView) {
         this.showDiff = false
+        this.showPRView = false
         this.collapsed = false
       }
     },
     toggleShowDiff() {
       if (this.showDiff = !this.showDiff) {
         this.srcView = false
+        this.showPRView = false
         this.collapsed = false
+      }
+    },
+    togglePRView() {
+      this.showPRView = !this.showPRView
+      if (this.showPRView) {
+        this.srcView = false
+        this.showDiff = false
+        this.loadActiveBranch()
       }
     },
     onRemove() {
@@ -621,6 +624,19 @@ export default {
         await this.$storex.api.chats.cancelMessage(tokenId)
       } catch (ex) {
         console.error('Failed to cancel message', ex)
+      }
+    },
+    async loadActiveBranch() {
+      if (this.branchLoading) return
+      this.branchLoading = true
+      try {
+        const repoInfo = await this.chatProject.$api.github.repo.info()
+        this.activeBranch = repoInfo?.active_branch
+      } catch (ex) {
+        console.error('Failed to load active branch', ex)
+        this.activeBranch = null
+      } finally {
+        this.branchLoading = false
       }
     }
   },

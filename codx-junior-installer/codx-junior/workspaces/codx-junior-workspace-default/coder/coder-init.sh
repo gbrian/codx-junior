@@ -10,6 +10,20 @@ if [ "$(id -u)" != "$TARGET_UID" ] || [ "$(id -g)" != "$TARGET_GID" ]; then
     exec sudo -u "#$TARGET_UID" -g "#$TARGET_GID" "$0" "$@"
 fi
 
+install_dependencies() {
+  # Check if codx is already installed and available in PATH
+  if command -v codx &> /dev/null; then
+    echo "codx is already installed. Skipping installation."
+  else
+    echo "codx not found. Installing now..."
+    curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
+  fi
+
+  # Run your configurations
+  codx docker
+  codx code-server
+}
+
 runcoder(){
   echo "Running coder for user: $(id -u):$(id -g)"
 
@@ -33,6 +47,7 @@ cert: false
   exec code-server --config ${CODE_SERVER_DIR}/config.yaml
 }
 
+install_dependencies
 runcoder
 
 while true; do 

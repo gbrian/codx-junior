@@ -192,6 +192,9 @@ class CODXJuniorSession:
         from codx.junior.browser.browser import Browser
         return Browser(session=self)
 
+    def get_git_engine(self):
+        return self._git_engine
+
     # -------------------------------------------------------------------------
     # Chat management
     # -------------------------------------------------------------------------

@@ -570,8 +570,8 @@ export const actions = actionTree(
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
     },
-    async createNewProject(_, projectPath) {
-      const newProject = await API.projects.create(projectPath)
+    async createNewProject(_, { project_name, git_path }) {
+      const newProject = await API.projects.create(git_path || project_name)
       if (!newProject) {
         return null
       }

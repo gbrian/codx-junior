@@ -3,7 +3,7 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="kanban-list w-full flex flex-col gap-2" v-if="displayBoards.length || allStoredBoards.length">
+  <div class="kanban-list w-full flex flex-col gap-2">
     <div class="sticky top-0 z-20 flex flex-col gap-1">
       <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">
         <div class="flex-1 flex gap-2">

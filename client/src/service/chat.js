@@ -1,5 +1,6 @@
 import moment from 'moment'
 import Service from "./service"
+import { extractCodeBlocks, hasCodeBlocksWithPaths } from '../utils/codeBlockExtractor'
 
 export class ChatService extends Service {
   getUserMessage({ message, files, profiles, images, metadata, user, taskItem, task_item }) {
@@ -415,4 +416,14 @@ export class ChatService extends Service {
     }
     return found || null
   }
+  
+  // Add these methods to the ChatService class
+  extractCodeBlocksFromMessage(message) {
+    return extractCodeBlocks(message?.content || '')
+  }
+
+  hasCodeBlocksWithFilePaths(message) {
+    return hasCodeBlocksWithPaths(message?.content || '')
+  }
+
 }

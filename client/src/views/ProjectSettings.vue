@@ -273,7 +273,7 @@ export default {
       this.settings = await this.$project?.$api.settings.read()
     },
     async saveSettings() {
-      await this.$projects.saveSettings(this.settings)
+      await this.$project.$api.settings.save(this.settings)
       this.reloadSettings()
     },
     deleteProject() {

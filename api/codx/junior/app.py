@@ -345,24 +345,6 @@ async def api_chat_metrics(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.project_metrics()
 
-@app.get("/api/projects/repo/branches")
-def api_find_all_repo_branches(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_project_branches()
-
-@app.get("/api/projects/repo/branch/commits")
-def api_find_all_repo_branch_commits(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    branch = request.query_params.get("branch")
-    return codx_junior_session.get_project_branch_commits(branch=branch)
-
-@app.get("/api/projects/repo/changes")
-def api_find_all_repo_changes(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    from_branch = request.query_params.get("from_branch")
-    to_branch = request.query_params.get("to_branch")
-    return codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)
-
 @app.get("/api/projects/readme")
 def api_project_readme(request: Request):
     codx_junior_session = request.state.codx_junior_session

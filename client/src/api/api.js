@@ -286,16 +286,33 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.put(`/api/views/${encodeURIComponent(oldName)}`, { name: newName })
       }
     },
-    repo: {
-      branches() {
-        return API.get('/api/projects/repo/branches')
+    github: {
+      issues: {
+        helpWanted(query) {
+          const qs = query ? `?query=${encodeURIComponent(query)}` : ''
+          return API.get(`/api/github/issues/help-wanted${qs}`)
+        },
+        read(issueUrl) {
+          return API.get(`/api/github/issues/read?issue_url=${encodeURIComponent(issueUrl)}`)
+        },
+        async process(issueUrl) {
+          return await API.get(`/api/github/issues/ai/process?issue_url=${encodeURIComponent(issueUrl)}`)
+        }
       },
-      commits(branch) {
-        return API.get(`/api/projects/repo/branch/commits?branch=${branch}`)
-      },
-      changes({ from_branch, to_branch }) {
-        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)
-      },
+      repo: {
+        info() {
+          return API.get('/api/github/repo/info')
+        },
+        branches() {
+          return API.get('/api/github/repo/branches')
+        },
+        commits(branch) {
+          return API.get(`/api/github/repo/branch/commits?branch=${encodeURIComponent(branch)}`)
+        },
+        changes({ from_branch, to_branch }) {
+          return API.get(`/api/github/repo/changes?from_branch=${encodeURIComponent(from_branch)}&to_branch=${encodeURIComponent(to_branch)}`)
+        }
+      }
     },
     settings: {
       async read() {
@@ -336,131 +353,131 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       }
     },
-knowledge: {
-  status() {
-    return API.get('/api/knowledge/status')
-  },
-  files() {
-    return API.get('/api/knowledge/files')
-  },
-  reload() {
-    return API.get('/api/knowledge/reload')
-  },
-  reloadFolder(path) {
-    return API.post(`/api/knowledge/reload-path`, { path })
-  },
-  indexFilesBackground(filePaths) {
-    if (!_staticSocketManager) {
-      throw new Error('Socket not connected')
-    }
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Index operation timed out'))
-      }, 30000)
-      
-      _staticSocketManager.emit('codx-junior-index-knowledge', {
-        file_paths: filePaths,
-        codx_path: API.activeProject?.codx_path
-      }, (response) => {
-        clearTimeout(timeoutId)
-        if (response?.error) {
-          reject(new Error(response.error))
-        } else {
-          resolve(response)
+    knowledge: {
+      status() {
+        return API.get('/api/knowledge/status')
+      },
+      files() {
+        return API.get('/api/knowledge/files')
+      },
+      reload() {
+        return API.get('/api/knowledge/reload')
+      },
+      reloadFolder(path) {
+        return API.post(`/api/knowledge/reload-path`, { path })
+      },
+      indexFilesBackground(filePaths) {
+        if (!_staticSocketManager) {
+          throw new Error('Socket not connected')
         }
-      })
-    })
-  },
-  search({
-    searchTerm: search_term,
-    searchType: search_type,
-    documentSearchType: document_search_type,
-    cutoffScore: document_cutoff_score,
-    cutoffRag: document_cutoff_rag,
-    documentCount: document_count
-  }) {
-    return API.post(`/api/knowledge/reload-search`, {
-      search_term,
-      search_type,
-      document_search_type,
-      document_cutoff_score,
-      document_cutoff_rag,
-      document_count
-    })
-  },
-  aiSearch(query) {
-    return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`)
-  },
-  agentSearch(request, maxIterations = 3) {
-    return API.get(
-      `/api/knowledge/agent-search?request=${encodeURIComponent(request)}&max_iterations=${maxIterations}`
-    )
-  },
-  agentSearchBackground(request, maxIterations = 3) {
-    if (!_staticSocketManager) {
-      throw new Error('Socket not connected')
-    }
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Agent search operation timed out'))
-      }, 300000) // 5 minute timeout for long-running searches
-      
-      _staticSocketManager.emit('codx-junior-agent-search', {
-        request: request,
-        max_iterations: maxIterations
-      }, (response) => {
-        clearTimeout(timeoutId)
-        if (response?.error) {
-          reject(new Error(response.error))
-        } else {
-          resolve(response)
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Index operation timed out'))
+          }, 30000)
+          
+          _staticSocketManager.emit('codx-junior-index-knowledge', {
+            file_paths: filePaths,
+            codx_path: API.activeProject?.codx_path
+          }, (response) => {
+            clearTimeout(timeoutId)
+            if (response?.error) {
+              reject(new Error(response.error))
+            } else {
+              resolve(response)
+            }
+          })
+        })
+      },
+      search({
+        searchTerm: search_term,
+        searchType: search_type,
+        documentSearchType: document_search_type,
+        cutoffScore: document_cutoff_score,
+        cutoffRag: document_cutoff_rag,
+        documentCount: document_count
+      }) {
+        return API.post(`/api/knowledge/reload-search`, {
+          search_term,
+          search_type,
+          document_search_type,
+          document_cutoff_score,
+          document_cutoff_rag,
+          document_count
+        })
+      },
+      aiSearch(query) {
+        return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`)
+      },
+      agentSearch(request, maxIterations = 3) {
+        return API.get(
+          `/api/knowledge/agent-search?request=${encodeURIComponent(request)}&max_iterations=${maxIterations}`
+        )
+      },
+      agentSearchBackground(request, maxIterations = 3) {
+        if (!_staticSocketManager) {
+          throw new Error('Socket not connected')
         }
-      })
-    })
-  },
-  onAgentSearchProgress(callback) {
-    if (!_staticSocketManager) {
-      throw new Error('Socket not connected')
-    }
-    _staticSocketManager.on('codx-junior-agent-search-progress', callback)
-  },
-  onAgentSearchComplete(callback) {
-    if (!_staticSocketManager) {
-      throw new Error('Socket not connected')
-    }
-    _staticSocketManager.on('codx-junior-agent-search-complete', callback)
-  },
-  onAgentSearchError(callback) {
-    if (!_staticSocketManager) {
-      throw new Error('Socket not connected')
-    }
-    _staticSocketManager.on('codx-junior-agent-search-error', callback)
-  },
-  delete(sources) {
-    return API.post(`/api/knowledge/delete`, { sources })
-  },
-  deleteIndex(index) {
-    return API.del(`/api/knowledge/delete?index=${index}`)
-  },
-  keywords() {
-    return API.get(`/api/knowledge/keywords`)
-  },
-  searchKeywords(searchQuery) {
-    return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
-  },
-  query(searchQuery) {
-    return API.get(`/api/project/search?query=${searchQuery}`)
-  },
-  summary() {
-    return API.get(`/api/knowledge/summary`)
-  },
-  rebuildSummary() {
-    return API.post(`/api/knowledge/summary/rebuild`, {})
-  },
-  deleteSummary() {
-    return API.delete(`/api/knowledge/summary`)
-  }
-},
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Agent search operation timed out'))
+          }, 300000) // 5 minute timeout for long-running searches
+          
+          _staticSocketManager.emit('codx-junior-agent-search', {
+            request: request,
+            max_iterations: maxIterations
+          }, (response) => {
+            clearTimeout(timeoutId)
+            if (response?.error) {
+              reject(new Error(response.error))
+            } else {
+              resolve(response)
+            }
+          })
+        })
+      },
+      onAgentSearchProgress(callback) {
+        if (!_staticSocketManager) {
+          throw new Error('Socket not connected')
+        }
+        _staticSocketManager.on('codx-junior-agent-search-progress', callback)
+      },
+      onAgentSearchComplete(callback) {
+        if (!_staticSocketManager) {
+          throw new Error('Socket not connected')
+        }
+        _staticSocketManager.on('codx-junior-agent-search-complete', callback)
+      },
+      onAgentSearchError(callback) {
+        if (!_staticSocketManager) {
+          throw new Error('Socket not connected')
+        }
+        _staticSocketManager.on('codx-junior-agent-search-error', callback)
+      },
+      delete(sources) {
+        return API.post(`/api/knowledge/delete`, { sources })
+      },
+      deleteIndex(index) {
+        return API.del(`/api/knowledge/delete?index=${index}`)
+      },
+      keywords() {
+        return API.get(`/api/knowledge/keywords`)
+      },
+      searchKeywords(searchQuery) {
+        return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
+      },
+      query(searchQuery) {
+        return API.get(`/api/project/search?query=${searchQuery}`)
+      },
+      summary() {
+        return API.get(`/api/knowledge/summary`)
+      },
+      rebuildSummary() {
+        return API.post(`/api/knowledge/summary/rebuild`, {})
+      },
+      deleteSummary() {
+        return API.delete(`/api/knowledge/summary`)
+      }
+    },
     chats: {
       stream() {
         return API.get('/api/stream')
@@ -860,30 +877,30 @@ knowledge: {
       }
     },
 
-files: {
-  list(path) {
-    return API.get(`/api/files?path=${path}`)
-  },
-  read(path) {
-    return API.get(`/api/files/read?path=${path}`)
-  },
-  diff({ path, content, from_branch, to_branch }) {
-    return API.post(`/api/files/diff`, { 
-      path, 
-      content,
-      from_branch: from_branch || null,
-      to_branch: to_branch || null
-    })
-  },
-  search(search) {
-    return API.get(`/api/files/find?search=${search}`)
-  },
-  write(source, page_content) {
-    return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
-  },
-  reset(source) {
-    return API.get(`/api/files/reset?path=${path}`)
-  }
+    files: {
+      list(path) {
+        return API.get(`/api/files?path=${path}`)
+      },
+      read(path) {
+        return API.get(`/api/files/read?path=${path}`)
+      },
+      diff({ path, content, from_branch, to_branch }) {
+        return API.post(`/api/files/diff`, { 
+          path, 
+          content,
+          from_branch: from_branch || null,
+          to_branch: to_branch || null
+        })
+      },
+      search(search) {
+        return API.get(`/api/files/find?search=${search}`)
+      },
+      write(source, page_content) {
+        return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
+      },
+      reset(source) {
+        return API.get(`/api/files/reset?path=${path}`)
+      }
     },
     screen: {
       display: null,

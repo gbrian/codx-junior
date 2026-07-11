@@ -9,6 +9,7 @@ from codx.junior.engine import CODXJuniorSession
 from codx.junior.model.model import CodxUser
 
 from codx.junior.utils.utils import exec_command
+from codx.junior.globals import CODX_JUNIOR_PROJECTS_PATH
 
 from codx.junior.project.project_discover import find_project_by_project_path, get_projects_root_path
     
@@ -35,6 +36,9 @@ def create_project(project_path: str, user: CodxUser):
         return existing_project
 
     settings = CODXJuniorSettings()
+    if project_path[0] != '/':
+        project_path = os.path.join(CODX_JUNIOR_PROJECTS_PATH, project_path)
+    
     settings.project_name = project_path.split("/")[-1]
     settings.codx_path = f"{project_path}/.codx"
     settings.watching = True
