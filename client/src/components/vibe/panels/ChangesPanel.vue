@@ -9,12 +9,33 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
     <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
       <i class="fa-solid fa-code-compare text-warning text-sm"></i>
       <span class="text-sm font-bold truncate grow">Changes</span>
+      <button 
+        v-if="availableProjectsToAdd.length > 0"
+        class="btn btn-xs btn-ghost" 
+        @click="toggleAddProjectDropdown" 
+        title="Add more projects"
+      >
+        <i class="fa-solid fa-plus text-base-content/60"></i>
+      </button>
       <button class="btn btn-xs btn-ghost" @click="loadAllProjects" :disabled="loadingChanges" title="Reload branches & changes">
         <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': loadingChanges }"></i>
       </button>
       <button class="btn btn-xs btn-ghost" @click="$emit('refresh')" title="Refresh changes">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
+
+      <!-- Add Projects Dropdown Menu -->
+      <div 
+        v-if="showAddProjectDropdown && availableProjectsToAdd.length > 0"
+        class="absolute top-12 right-2 dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10"
+      >
+        <li v-for="proj in availableProjectsToAdd" :key="projId(proj)">
+          <a @click="addProjectToPanel(proj)" class="text-info gap-2">
+            <i class="fa-solid fa-plus"></i>
+            <span class="truncate">{{ proj.project_name }}</span>
+          </a>
+        </li>
+      </div>
     </div>
 
     <!-- Loading state -->
@@ -31,10 +52,10 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         <span class="text-sm">No active session</span>
       </div>
 
-      <!-- No projects with git -->
+      <!-- No active projects -->
       <div v-else-if="projectsWithBranches.length === 0" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
         <i class="fa-solid fa-exclamation-triangle text-4xl text-warning"></i>
-        <span class="text-sm">No projects with git initialized</span>
+        <span class="text-sm">No projects added. Click + to add projects</span>
       </div>
 
       <template v-else>
@@ -62,16 +83,35 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
                   <a 
                     @click="selectedProjectId = projId(proj)"
                     :class="{ active: selectedProjectId === projId(proj) }"
-                    class="flex justify-between"
+                    class="flex justify-between items-center group"
                   >
-                    <span class="truncate">{{ proj.project_name }}</span>
-                    <span
-                      class="badge badge-xs"
-                      :class="changeCountClass(projId(proj))"
-                      v-if="changeCountByProject[projId(proj)]"
+                    <div class="flex justify-between flex-1">
+                      <span class="truncate">{{ proj.project_name }}</span>
+                      <span
+                        class="badge badge-xs"
+                        :class="changeCountClass(projId(proj))"
+                        v-if="changeCountByProject[projId(proj)]"
+                      >
+                        {{ changeCountByProject[projId(proj)] }}
+                      </span>
+                    </div>
+                    <!-- Remove button visible on hover -->
+                    <button
+                      @click.stop="removeProjectFromPanel(projId(proj))"
+                      class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                      title="Remove project"
                     >
-                      {{ changeCountByProject[projId(proj)] }}
-                    </span>
+                      <i class="fa-solid fa-times text-error text-xs"></i>
+                    </button>
+                  </a>
+                </li>
+                <!-- Divider -->
+                <li v-if="availableProjectsToAdd.length > 0" class="divider my-1"></li>
+                <!-- Add more projects section -->
+                <li v-for="proj in availableProjectsToAdd" :key="projId(proj)">
+                  <a @click="addProjectToPanel(proj)" class="text-info gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="truncate">{{ proj.project_name }}</span>
                   </a>
                 </li>
               </ul>
@@ -131,29 +171,52 @@ export default {
       branchesByProject: {},
       changesByProject: {},
       changeCountByProject: {},
-      branchSelectionByProject: {}
+      branchSelectionByProject: {},
+      showAddProjectDropdown: false
     }
   },
   computed: {
-    allProjects() {
+    chatProject() {
+      return this.$chats.chatProject(this.chat)
+    },
+
+    relatedProjects() {
       if (!this.chat) return []
-      const map = new Map()
-      const allChats = this.$storex.chats.allChats || []
-      const related = [this.chat, ...allChats.filter(c => c.parent_id === this.chat.id)]
-      related.forEach(c => {
-        const id = this.projId(c)
-        if (id && !map.has(id)) {
-          const proj = this.$storex.projects.allProjectsById?.[id]
-          if (proj) map.set(id, proj)
-        }
+      
+      const related = new Map()
+      const state = this.chatProject.$state
+
+      // Get child projects from state getter
+      const childProjects = state.childProjects || []
+      childProjects.forEach(p => {
+        const id = this.projId(p)
+        if (id) related.set(id, p)
       })
-      return Array.from(map.values())
+
+      // Get linked projects from state getter
+      const linkedProjects = state.linkedProjects || []
+      linkedProjects.forEach(p => {
+        const id = this.projId(p)
+        if (id) related.set(id, p)
+      })
+
+      return Array.from(related.values())
+    },
+
+    activeProjectIds() {
+      return Object.keys(this.chat?.pr_view?.pull_requests || {})
     },
 
     projectsWithBranches() {
-      return this.allProjects.filter(p => {
-        const branches = this.branchesByProject[this.projId(p)]
-        return Array.isArray(branches) && branches.length > 0
+      return this.activeProjectIds
+        .map(id => this.$storex.projects.allProjectsById?.[id])
+        .filter(p => p && Array.isArray(this.branchesByProject[this.projId(p)]) && this.branchesByProject[this.projId(p)].length > 0)
+    },
+
+    availableProjectsToAdd() {
+      return this.relatedProjects.filter(p => {
+        const id = this.projId(p)
+        return !this.activeProjectIds.includes(id)
       })
     },
 
@@ -201,10 +264,26 @@ export default {
   },
   mounted() {
     if (this.chat) this.loadAllProjects()
+    document.addEventListener('click', this.closeDropdown)
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeDropdown)
   },
   methods: {
     projId({ project_id, owner_project_id } = {}) {
       return project_id || owner_project_id
+    },
+
+    toggleAddProjectDropdown() {
+      this.showAddProjectDropdown = !this.showAddProjectDropdown
+    },
+
+    closeDropdown(event) {
+      const headerBtn = event.target.closest('[title="Add more projects"]')
+      const dropdown = event.target.closest('.dropdown-content')
+      if (!headerBtn && !dropdown) {
+        this.showAddProjectDropdown = false
+      }
     },
 
     setChangesCache(key, value) {
@@ -219,6 +298,23 @@ export default {
       this.branchesByProject = { ...this.branchesByProject, [projectId]: branches }
     },
 
+    async loadBranchesForProject(project) {
+      const id = this.projId(project)
+      if (!id) return false
+
+      try {
+        const { branches } = await project.$api.repo.branches()
+        if (Array.isArray(branches) && branches.length > 0) {
+          this.setBranches(id, branches)
+          this.initBranchSelection(id, branches)
+          return true
+        }
+        return false
+      } catch {
+        return false
+      }
+    },
+
     async loadAllProjects() {
       if (!this.chat) return
       this.loadingChanges = true
@@ -228,32 +324,108 @@ export default {
       this.branchSelectionByProject = {}
 
       try {
-        for (const proj of this.allProjects) {
-          const id = this.projId(proj)
-          this.loadingStep = `Loading branches for ${proj.project_name}...`
-          try {
-            const { branches } = await proj.$api.repo.branches()
-            if (Array.isArray(branches) && branches.length > 0) {
-              this.setBranches(id, branches)
-              this.initBranchSelection(id, branches)
-            }
-          } catch {
-            // no git — skip
-          }
+        // Load branches for all active projects from pr_view
+        for (const projectId of this.activeProjectIds) {
+          const project = this.$storex.projects.allProjectsById?.[projectId]
+          if (!project) continue
+          
+          this.loadingStep = `Loading branches for ${project.project_name}...`
+          await this.loadBranchesForProject(project)
         }
 
+        // Load changes for projects with branches
         for (const proj of this.projectsWithBranches) {
           const id = this.projId(proj)
           this.loadingStep = `Loading changes for ${proj.project_name}...`
           await this.loadChangesForProject(id)
         }
 
+        // Select first project if none selected
         const first = this.projectsWithBranches[0]
         this.selectedProjectId = first ? this.projId(first) : null
 
       } finally {
         this.loadingChanges = false
         this.loadingStep = ''
+      }
+    },
+
+    async addProjectToPanel(project) {
+      const id = this.projId(project)
+      if (!id) return
+
+      // Create entry in pr_view with empty config
+      const updatedChat = {
+        ...this.chat,
+        pr_view: {
+          ...(this.chat.pr_view || {}),
+          pull_requests: {
+            ...(this.chat.pr_view?.pull_requests || {}),
+            [id]: {
+              url: '',
+              fromBranch: '',
+              toBranch: ''
+            }
+          }
+        }
+      }
+
+      // Save to storage immediately
+      await this.$storex.chats.saveChat(updatedChat)
+      this.showAddProjectDropdown = false
+
+      // Load branches for newly added project
+      this.loadingStep = `Loading branches for ${project.project_name}...`
+      const hasBranches = await this.loadBranchesForProject(project)
+
+      if (hasBranches) {
+        // Load changes for added project
+        this.loadingStep = `Loading changes for ${project.project_name}...`
+        await this.loadChangesForProject(id)
+
+        // Select the newly added project
+        this.selectedProjectId = id
+      }
+    },
+
+    async removeProjectFromPanel(projectId) {
+      const project = this.$storex.projects.allProjectsById?.[projectId]
+      if (!project) return
+
+      // Remove from pr_view
+      const { [projectId]: _, ...remainingProjects } = this.chat.pr_view?.pull_requests || {}
+      const updatedChat = {
+        ...this.chat,
+        pr_view: {
+          ...(this.chat.pr_view || {}),
+          pull_requests: remainingProjects
+        }
+      }
+
+      // Save to storage immediately
+      await this.$storex.chats.saveChat(updatedChat)
+
+      // Clear data for removed project
+      const keysToDelete = Object.keys(this.changesByProject).filter(key => 
+        key.startsWith(`${projectId}:`)
+      )
+      const newChanges = { ...this.changesByProject }
+      keysToDelete.forEach(key => delete newChanges[key])
+      this.changesByProject = newChanges
+
+      // Clear other data
+      const { [projectId]: __, ...restBranches } = this.branchesByProject
+      const { [projectId]: ___, ...restCounts } = this.changeCountByProject
+      const { [projectId]: ____, ...restSelection } = this.branchSelectionByProject
+
+      this.branchesByProject = restBranches
+      this.changeCountByProject = restCounts
+      this.branchSelectionByProject = restSelection
+
+      // Reset selection if removed project is selected
+      if (this.selectedProjectId === projectId) {
+        const first = this.projectsWithBranches[0]
+        this.selectedProjectId = first ? this.projId(first) : null
       }
     },
 

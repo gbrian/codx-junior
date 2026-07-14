@@ -37,6 +37,9 @@ export const getters = getterTree(state, {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0
   },
   activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
+  chatProject: state => ({ project_id, owner_project_id }) => {
+    return $storex.projects.allProjectsById[project_id || owner_project_id]
+  },
 })
 
 export const mutations = mutationTree(state, {

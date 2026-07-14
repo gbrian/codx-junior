@@ -138,6 +138,21 @@ const initProject = async project => {
             get mentionList() {
               return this._mentionList
             },
+            get childProjects() {
+              const parentPath = project.abs_project_path
+              const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`
+              return $storex.projects.allProjects.filter(p =>
+                p.abs_project_path !== parentPath &&
+                p.abs_project_path?.startsWith(normalizedParentPath)
+              )
+            },
+            get linkedProjects() {
+              const { project_dependencies } = project
+              return project_dependencies?.split(",")
+                .map(project_name => $storex.projects.allProjects
+                  .find(p => p.project_name === project_name))
+                .filter(f => !!f) || []
+            },
             async searchMentions(query, limit = 10) {
               // Collect mention lists from current project + subprojects + linked projects
               const relatedProjects = getRelatedProjects(project)
