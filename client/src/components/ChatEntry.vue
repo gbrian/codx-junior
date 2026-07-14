@@ -630,7 +630,7 @@ export default {
       if (this.branchLoading) return
       this.branchLoading = true
       try {
-        const repoInfo = await this.chatProject.$api.github.repo.info()
+        const repoInfo = await this.chatProject.$api.repo.info()
         this.activeBranch = repoInfo?.active_branch
       } catch (ex) {
         console.error('Failed to load active branch', ex)

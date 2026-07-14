@@ -232,7 +232,7 @@ export default {
           const id = this.projId(proj)
           this.loadingStep = `Loading branches for ${proj.project_name}...`
           try {
-            const branches = await proj.$api.repo.branches()
+            const { branches } = await proj.$api.repo.branches()
             if (Array.isArray(branches) && branches.length > 0) {
               this.setBranches(id, branches)
               this.initBranchSelection(id, branches)

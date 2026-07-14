@@ -81,7 +81,7 @@ function parseContent(content, loading) {
   }
 
   for (const line of lines) {
-    const openMatch = line.match(/^```(\w+)\s*(.*)$/)
+    const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
     const closeMatch = line === '```'
 
     if (nestingDepth === 0 && openMatch) {

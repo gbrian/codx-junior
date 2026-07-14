@@ -66,7 +66,7 @@ import AppIcon from '../apps/AppIcon.vue'
               <input v-model="app.icon" class="input input-xs input-bordered w-28 text-xs" placeholder="fa-..." />
               <input v-model="app.description" class="input input-xs input-bordered flex-1" placeholder="Description" />
               <input v-model="app.path" class="input input-xs input-bordered w-28" placeholder="/path" />
-              <input v-model="app.port" type="number" class="input input-xs input-bordered w-16" placeholder="port" />
+              <input v-model.number="app.port" type="number" class="input input-xs input-bordered w-16" placeholder="port" />
               <label class="flex items-center gap-1 text-xs cursor-pointer whitespace-nowrap">
                 <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
                 VNC
@@ -105,7 +105,7 @@ import AppIcon from '../apps/AppIcon.vue'
           </div>
 
           <div class="flex flex-col gap-1 mb-3 max-h-48 overflow-y-auto">
-            <div v-if="!workspace.project_ids?.length" class="text-xs text-base-content-ERROR-40 py-2 text-center">
+            <div v-if="!workspace.project_ids?.length" class="text-xs text-base-content/40 py-2 text-center">
               No projects linked
             </div>
             <div
@@ -151,10 +151,10 @@ import AppIcon from '../apps/AppIcon.vue'
               {{ workspaceUserIds.length ? 'restricted' : 'all users' }}
             </div>
           </div>
-          <p class="text-xs text-base-content-ERROR-40 mb-3">Empty list = all users allowed</p>
+          <p class="text-xs text-base-content/40 mb-3">Empty list = all users allowed</p>
 
           <div class="flex flex-col gap-1 mb-3 max-h-48 overflow-y-auto">
-            <div v-if="!workspaceUserIds.length" class="text-xs text-base-content-ERROR-40 py-4 text-center">
+            <div v-if="!workspaceUserIds.length" class="text-xs text-base-content/40 py-4 text-center">
               <i class="fa-solid fa-circle-check text-success text-lg block mb-1"></i>
               Open to all users
             </div>
@@ -197,6 +197,7 @@ import AppIcon from '../apps/AppIcon.vue'
 <script>
 export default {
   props: ['workspace', 'availableProjects'],
+  emits: ['close', 'save', 'delete'],
   data() {
     return {
       selectedProjectId: null,
@@ -205,7 +206,7 @@ export default {
   },
   computed: {
     availableUsers() {
-      return this.$storex.users.users || []
+      return this.$storex?.users?.users || []
     },
     workspaceUserIds() {
       return this.workspace.user_ids || []
@@ -215,12 +216,19 @@ export default {
     }
   },
   async mounted() {
-    await this.$storex.users.loadUsers()
+    try {
+      await this.$storex.users.loadUsers()
+    } catch (error) {
+      console.error('Failed to load users', error)
+    }
   },
   methods: {
     toggleProjectSelection(projectId) {
+      if (!this.workspace.project_ids) this.workspace.project_ids = []
       const idx = this.workspace.project_ids.indexOf(projectId)
-      idx > -1 ? this.workspace.project_ids.splice(idx, 1) : this.workspace.project_ids.push(projectId)
+      idx > -1
+        ? this.workspace.project_ids.splice(idx, 1)
+        : this.workspace.project_ids.push(projectId)
     },
     getProjectName(projectId) {
       if (projectId === '*') return 'All Projects'
@@ -230,15 +238,29 @@ export default {
       if (!username) return
       if (!this.workspace.user_ids) this.workspace.user_ids = []
       const idx = this.workspace.user_ids.indexOf(username)
-      idx > -1 ? this.workspace.user_ids.splice(idx, 1) : this.workspace.user_ids.push(username)
+      idx > -1
+        ? this.workspace.user_ids.splice(idx, 1)
+        : this.workspace.user_ids.push(username)
       if (idx === -1) this.selectedUserId = ''
     },
-    addApp() { this.workspace.apps.push({}) },
-    removeApp(index) { this.workspace.apps.splice(index, 1) },
+    addApp() {
+      if (!this.workspace.apps) this.workspace.apps = []
+      this.workspace.apps.push({
+        name: '',
+        icon: 'fa-globe',
+        description: '',
+        path: '',
+        port: null,
+        roles: ['admin']
+      })
+    },
+    removeApp(index) {
+      this.workspace.apps.splice(index, 1)
+    },
     toggleRole(app, role) {
-      app.roles = app.roles?.includes(role)
-        ? app.roles.filter(r => r !== role)
-        : [...(app.roles || []), role]
+      if (!app.roles) app.roles = []
+      const idx = app.roles.indexOf(role)
+      idx > -1 ? app.roles.splice(idx, 1) : app.roles.push(role)
     }
   }
 }

@@ -1,50 +1,73 @@
-# Workspace Data Models
+# Workspace Model Compatibility Shim
 
-The `codx-api` project utilizes structured data models to manage workspaces and their associated applications. These models are defined using Pydantic for validation and schema enforcement.
+## Overview
 
-## WorkspaceApp
-The `WorkspaceApp` model defines the configuration for individual applications running within a workspace.
+This module serves as a compatibility shim, re-exporting workspace-related models that have been moved to `codx.junior.workspaces.model`. It ensures backward compatibility for any code that imports from the original location.
 
-| Field | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `str` | `""` | Unique identifier for the application. |
-| `name` | `str` | `""` | Name of the application. |
-| `description` | `str` | `""` | Description of the application. |
-| `icon` | `str` | `""` | Icon path or URL. |
-| `path` | `str` | `""` | The URL path for the application. |
-| `port` | `Optional[str]` | `""` | Port number for the application. |
-| `is_vnc` | `Optional[bool]` | `False` | Whether the application uses VNC. |
-| `container_name` | `str` | `""` | Name of the associated container. |
-| `roles` | `List[str]` | `[]` | List of roles authorized to access this app. |
+---
 
-## Workspace
-The `Workspace` model represents a collection of projects and applications, defining how the environment is structured and who can access it.
+## Imported Models
 
-| Field | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `str` | `""` | Unique identifier for the workspace. |
-| `name` | `str` | `""` | Name of the workspace. |
-| `description` | `str` | `""` | Description of the workspace. |
-| `project_ids` | `List[str]` | `[]` | List of associated project IDs. |
-| `apps` | `Optional[List[WorkspaceApp]]` | `[]` | List of `WorkspaceApp` objects. |
-| `updated_at` | `Optional[str]` | `None` | Timestamp of the last update. |
-| `folder_path` | `str` | `""` | Folder name under `CODX_JUNIOR_WORKSPACES_FOLDER` where files are stored. |
-| `user_ids` | `Optional[List[str]]` | `[]` | Allowed user accounts (empty list implies all users). |
+The following models are imported from `codx.junior.workspaces.model` and made available through this module:
 
-## Default Workspace Configuration
-The system provides a default workspace configuration (`DEFAULT_WORKSPACE`) used for initialization:
+| Model | Description |
+|---|---|
+| `Workspace` | Core workspace data model |
+| `WorkspaceApp` | Represents an application within a workspace |
+| `WorkspaceResources` | Defines resources associated with a workspace |
+| `WorkspaceStatus` | Represents the status of a workspace |
 
-*   **Name**: `codx-junior`
-*   **Description**: Default codx-junior workspace
-*   **Folder Path**: `codx-junior-workspace-default`
-*   **Default Apps**:
-    *   **Coder**: Coding environment located at `/workspace-default/coder/`.
-    *   **Desktop**: Virtual desktop located at `/workspace-default/preview/index.html`.
-    *   **LiteLLM**: Models manager located at `/litellm/ui`.
-*   **Project Access**: Allows all projects (`"*"`)
+---
 
-***
+## Default Workspace
 
-**References**
-*   `codx/junior/model/workspace.py` - Workspace and WorkspaceApp Pydantic definitions.
-*   `codx/junior/model/workspace.py` - DEFAULT_WORKSPACE instance configuration.
+A pre-configured default workspace instance is exposed as `DEFAULT_WORKSPACE`. It is constructed using the `Workspace` model with the following configuration:
+
+### General Properties
+
+| Property | Value |
+|---|---|
+| `name` | `codx-junior` |
+| `description` | Default codx-junior workspace |
+| `folder_path` | `codx-junior-workspace-default` |
+| `template` | `custom` |
+| `project_ids` | `["*"]` (applies to all projects) |
+
+### Included Applications
+
+The default workspace includes three pre-configured applications:
+
+#### 1. Coder
+| Property | Value |
+|---|---|
+| `icon` | `fa-solid fa-code` |
+| `name` | Coder |
+| `description` | Coder coding environment |
+| `path` | `/workspace-default/coder/` |
+| `roles` | `["admin"]` |
+
+#### 2. Desktop
+| Property | Value |
+|---|---|
+| `icon` | `fa-solid fa-desktop` |
+| `name` | Desktop |
+| `description` | Virtual desktop |
+| `path` | `/workspace-default/preview/index.html` |
+| `roles` | `["admin"]` |
+
+#### 3. LiteLLM
+| Property | Value |
+|---|---|
+| `icon` | External image URL (Framer) |
+| `name` | LiteLLM |
+| `description` | LiteLLM Models manager |
+| `path` | `/litellm/ui` |
+| `roles` | `["admin"]` |
+
+---
+
+## Notes
+
+- All applications within the default workspace are restricted to the `admin` role.
+- The `project_ids` value of `["*"]` indicates this workspace applies to all projects.
+- The actual model definitions reside in `codx.junior.workspaces.model`; this file only re-exports them for backward compatibility.

@@ -364,7 +364,8 @@ export default {
     async setProjectContext() {
       if (!this.api) return
       try {
-        this.repoBranches = await this.api.repo.branches()
+        const { branches } = await this.api.repo.branches()
+        this.repoBranches = branches
       } catch (error) {
         console.error('Error loading project branches:', error)
         this.repoBranches = {}
@@ -470,7 +471,7 @@ export default {
     },
 
     getFileProfiles(fileName) {
-      return this.$projects.profiles.filter(p => p.file_match && fileName.match(p.file_match))
+      return this.$projects.profiles?.filter(p => p.file_match && fileName.match(p.file_match)) || []
     },
 
     buildDiffFile(diff, repoPath) {

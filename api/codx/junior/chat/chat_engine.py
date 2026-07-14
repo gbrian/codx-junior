@@ -676,7 +676,9 @@ class ChatEngine:
         :return: Updated messages list.
         """
         existing_document = last_ai_message.content if last_ai_message else ""
-        parent_task = self.get_chat_analysis_parents(chat=chat)
+        parent_task = ""
+        if not chat.ignore_parent_knowledge:
+            parent_task = self.get_chat_analysis_parents(chat=chat)
         task_content = ""
 
         answer_messages = [
@@ -726,7 +728,9 @@ class ChatEngine:
         :param iterations_left: How many iterations remain.
         :return: Updated messages list.
         """
-        parent_context = self.get_chat_analysis_parents(chat=chat)
+        parent_context = ""
+        if not chat.ignore_parent_knowledge:
+            parent_context = self.get_chat_analysis_parents(chat=chat)
         agent_content = (
             f"\nYou are responsible to end this task.\n"
             f"Follow instructions and try to solve it with the minimum iterations needed.\n"
@@ -1370,9 +1374,18 @@ class ChatEngine:
             # Merge in files from query mentions (e.g. @file references)
             if query_mentions.files:
                 chat_files = sorted(set(chat_files + query_mentions.files))
-            # Merge in parent chat file list if present
-            if parent_chat and parent_chat.file_list:
+            # Merge in parent chat file list if present and not ignored
+            if parent_chat and parent_chat.file_list and not chat.ignore_parent_files:
                 chat_files = sorted(set(chat_files + parent_chat.file_list))
+                logger.info(
+                    "Merged parent chat files into context for chat '%s'",
+                    chat.doc_id,
+                )
+            elif parent_chat and chat.ignore_parent_files:
+                logger.info(
+                    "Skipping parent chat files for chat '%s' (ignore_parent_files=True)",
+                    chat.doc_id,
+                )
 
             logger.info(
                 "Resolved %d unique chat files for chat '%s': %s",

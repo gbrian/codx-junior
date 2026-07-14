@@ -52,6 +52,16 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
                 </span>
                 <span v-else><i class="fa-solid fa-magnifying-glass"></i></span>
               </div>
+              <!-- Parent Knowledge Disconnect Button -->
+              <button 
+                v-if="workingChat.parent_id"
+                class="btn btn-sm tooltip" 
+                data-tip="Disconnect from parent knowledge & files"
+                @click="toggleParentDisconnect"
+                :class="isDisconnectedFromParent ? 'btn-ghost text-gray-500' : 'btn-ghost text-info'"
+              >
+                <i class="fa-solid fa-link"></i>
+              </button>
               <button class="btn btn-sm" @click="showHidden = !showHidden">
                 <div class="flex items-center gap-1 tooltip" data-tip="Archived messages"
                   :class="showHidden ? 'text-warning' : ''">
@@ -109,22 +119,6 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
                       :title="computedChatName" @dblclick="editName = true" @click="showChildChat = null">
                       {{ computedChatName }}
                     </span>
-                    <div class="flex flex-wrap gap-2 text-xs text-base-content/50 mt-0.5">
-                      <span v-if="showTaskProjectName">
-                        <i class="fa-solid fa-house text-xs"></i> {{ ownerProject?.title }}
-                      </span>
-                      <span>[{{ formattedChatUpdatedDate }}]</span>
-                      <span 
-                        v-if="theChat.history?.length"
-                        class="click text-xs flex items-center gap-1 transition-all"
-                        :class="showHistoryWall ? 'text-warning' : 'hover:text-warning'"
-                        @click="toggleHistoryWall"
-                        title="Toggle history wall view"
-                      >
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                        <span class="">History</span>
-                    </span>
-                    </div>
                   </div>
                 </div>
               </template>
@@ -136,110 +130,118 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
           </div>
 
           <!-- ── SUBTASKS: Collapsible kanban-style progress card strip ──── -->
-          <template v-if="childrenChats.length">
-            <Collapsible :defaultOpen="subtasksOpen" @update:modelValue="subtasksOpen = $event">
-              <!-- Icon -->
-              <template #icon>
-                <i class="fa-solid fa-layer-group text-xs opacity-60"></i>
-              </template>
+          <Collapsible
+            :defaultOpen="subtasksOpen" @update:modelValue="subtasksOpen = $event">
+            <!-- Icon -->
+            <template #icon>
+              <i class="fa-solid fa-layer-group text-xs opacity-60"></i>
+            </template>
 
-              <!-- Title -->
-              <template #title>
+            <!-- Title -->
+            <template #title>
+              <div class="flex flex-wrap gap-2 text-xs text-base-content/50 mt-0.5">
+                <span v-if="showTaskProjectName">
+                  <i class="fa-solid fa-house text-xs"></i> {{ ownerProject?.title }}
+                </span>
+                <span>[{{ formattedChatUpdatedDate }}]</span>
+                <span 
+                  v-if="theChat.history?.length"
+                  class="click text-xs flex items-center gap-1 transition-all"
+                  :class="showHistoryWall ? 'text-warning' : 'hover:text-warning'"
+                  @click="toggleHistoryWall"
+                  title="Toggle history wall view"
+                >
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span class="">History</span>
+                </span>
                 <span>Subtasks</span>
                 <span class="text-xs font-normal text-base-content/50 ml-1">({{ childrenChats.length }})</span>
-              </template>
+              </div>
+            </template>
 
-              <!-- Summary: column pills shown when collapsed -->
-              <template #summary>
-              </template>
+            <!-- Summary: column pills shown when collapsed -->
+            <template #summary>
+            </template>
 
-              <!-- Actions: add button always visible -->
-              <template #actions>
-                <button
-                  class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
-                  @click.stop="newSubChat()"
-                >
-                  <i class="fa-solid fa-plus text-xs"></i>
-                </button>
-              </template>
+            <!-- Actions: add button always visible -->
+            <template #actions>
+              <button
+                class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
+                @click.stop="newSubChat()"
+              >
+                <i class="fa-solid fa-plus text-xs"></i>
+              </button>
+            </template>
 
-              <!-- Body: scrollable card row -->
-              <div class="flex gap-2 overflow-x-auto p-2 scrollbar-thin">
-                <!-- Parent card -->
-                <div
-                  class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
-                  :class="!showChildChat
-                    ? 'border-primary bg-primary/10'
-                    : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
-                  @click="selectChildChat(null)"
-                  v-if="showChildChat"
-                >
-                  <div class="flex items-center gap-1">
-                    <img class="w-4 h-4 rounded-full"
-                      :src="($projects.allProjectsById[theChat.project_id] || $project).project_icon" />
-                    <span class="text-xs font-bold truncate flex-1">Parent</span>
-                    <i class="fa-solid fa-house text-xs text-base-content/30"></i>
-                  </div>
-                  <div class="text-xs truncate text-base-content/70 leading-tight">{{ computedChatName }}</div>
-                  <div class="text-xs text-base-content/40">
-                    {{ (theChat.messages || []).length }} msgs
-                  </div>
+            <!-- Body: scrollable card row -->
+            <div class="flex gap-2 overflow-x-auto p-2 scrollbar-thin">
+              <!-- Parent card -->
+              <div
+                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
+                :class="!showChildChat
+                  ? 'border-primary bg-primary/10'
+                  : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
+                @click="selectChildChat(null)"
+                v-if="showChildChat"
+              >
+                <div class="flex items-center gap-1">
+                  <img class="w-4 h-4 rounded-full"
+                    :src="($projects.allProjectsById[theChat.project_id] || $project).project_icon" />
+                  <span class="text-xs font-bold truncate flex-1">Parent</span>
+                  <i class="fa-solid fa-house text-xs text-base-content/30"></i>
                 </div>
-
-                <!-- Subtask cards -->
-                <div
-                  v-for="(childChat, idx) in childrenChats"
-                  :key="childChat.id"
-                  class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
-                  :class="showChildChat?.id === childChat.id
-                    ? 'border-warning bg-warning/10'
-                    : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
-                  @click="selectChildChat(childChat)"
-                >
-                  <div class="flex items-center gap-1">
-                    <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
-                    <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
-                    <div 
-                      class="loading loading-bars text-info loading-sm opacity-60"
-                      title="Running..."
-                      v-if="$chats.isChatUpdating(childChat.id)"
-                    ></div>
-                    <img class="w-3 h-3 rounded-full ml-auto"
-                      :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
-                  </div>
-                  <div class="font-bold text-xs truncate text-base-content/80 font-medium leading-tight" :title="childChat.name">
-                    {{ childChat.name }}
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-base-content/40">
-                      {{ (childChat.messages || []).length }} msgs
-                    </span>
-                    <span class="badge badge-xs truncate"
-                      :class="childChat.column === 'Done' ? 'badge-success' : childChat.column === 'In Progress' ? 'badge-warning' : 'badge-ghost'">
-                      {{ childChat.column || '?' }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Add card -->
-                <div
-                  class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content/40"
-                  @click="newSubChat()"
-                >
-                  <i class="fa-solid fa-plus text-lg"></i>
-                  <span class="text-xs">Add</span>
+                <div class="text-xs truncate text-base-content/70 leading-tight">{{ computedChatName }}</div>
+                <div class="text-xs text-base-content/40">
+                  {{ (theChat.messages || []).length }} msgs
                 </div>
               </div>
-            </Collapsible>
-          </template>
 
-          <!-- No children: simple add button -->
-          <div v-else class="flex">
-            <button class="btn btn-xs btn-ghost gap-1 text-base-content/40 hover:text-primary" @click="newSubChat()">
-              <i class="fa-solid fa-plus text-xs"></i>
-              <span class="text-xs">Add subtask</span>
-            </button>
-          </div>
+              <!-- Subtask cards -->
+              <div
+                v-for="(childChat, idx) in childrenChats"
+                :key="childChat.id"
+                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
+                :class="showChildChat?.id === childChat.id
+                  ? 'border-warning bg-warning/10'
+                  : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
+                @click="selectChildChat(childChat)"
+              >
+                <div class="flex items-center gap-1">
+                  <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
+                  <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
+                  <div 
+                    class="loading loading-bars text-info loading-sm opacity-60"
+                    title="Running..."
+                    v-if="$chats.isChatUpdating(childChat.id)"
+                  ></div>
+                  <img class="w-3 h-3 rounded-full ml-auto"
+                    :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
+                </div>
+                <div class="font-bold text-xs truncate text-base-content/80 font-medium leading-tight" :title="childChat.name">
+                  {{ childChat.name }}
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-base-content/40">
+                    {{ (childChat.messages || []).length }} msgs
+                  </span>
+                  <span class="badge badge-xs truncate"
+                    :class="childChat.column === 'Done' ? 'badge-success' : childChat.column === 'In Progress' ? 'badge-warning' : 'badge-ghost'">
+                    {{ childChat.column || '?' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Add card -->
+              <div
+                class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content/40"
+                @click="newSubChat()"
+              >
+                <i class="fa-solid fa-plus text-lg"></i>
+                <span class="text-xs">Add</span>
+              </div>
+            </div>
+          </Collapsible>
+
         </div>
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
 
@@ -484,6 +486,10 @@ export default {
     boardBreadcrumbs() {
       const boardTitle = this.kanban?.title || this.theChat?.board
       return this.$storex.projects.boardHierarchy(boardTitle)
+    },
+    isDisconnectedFromParent() {
+      const chat = this.workingChat
+      return chat.ignore_parent_knowledge || chat.ignore_parent_files
     }
   },
   watch: {
@@ -694,6 +700,17 @@ export default {
     },
     toggleHistoryWall() {
       this.showHistoryWall = !this.showHistoryWall
+    },
+    toggleParentDisconnect() {
+      const chat = this.workingChat
+      if (chat.ignore_parent_knowledge || chat.ignore_parent_files) {
+        chat.ignore_parent_knowledge = false
+        chat.ignore_parent_files = false
+      } else {
+        chat.ignore_parent_knowledge = true
+        chat.ignore_parent_files = true
+      }
+      this.saveChat(chat)
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.$chats.createNewChat({

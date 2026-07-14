@@ -700,3 +700,40 @@ class GitEngine:
         cmd = f"git reset {file_path}"
         exec_command(cmd, cwd=git_root_path)
         logger.info("Reset file: %s", file_path)
+
+    def get_file_content_from_branch(self, file_path: str, branch: str) -> str:
+        """
+        Get file content from a specific branch without checking it out.
+        
+        Args:
+            file_path: Relative path to the file in the repository.
+            branch: Branch name to fetch content from.
+            
+        Returns:
+            File content as string. Empty string if file doesn't exist in branch.
+            
+        Raises:
+            Exception: If git command fails.
+        """
+        branch = self._sanitize_branch_name(branch)
+        git_root_path = self._get_git_root_for_file(file_path)
+        
+        # Normalize file path to be relative to git root
+        if file_path.startswith(git_root_path):
+            git_file_path = file_path[len(git_root_path):].lstrip('/')
+        else:
+            git_file_path = file_path
+        
+        cmd = f'git show "{branch}:{git_file_path}"'
+        
+        stdout, stderr = exec_command(cmd, cwd=git_root_path)
+        
+        # Check for errors in both stdout and stderr
+        error_indicators = ["fatal", "does not exist", "exists on disk, but not in"]
+        combined_output = f"{stdout} {stderr}".lower()
+        
+        if any(indicator in combined_output for indicator in error_indicators):
+            logger.warning(f"File {file_path} not found in branch {branch}")
+            return ""
+        
+        return stdout

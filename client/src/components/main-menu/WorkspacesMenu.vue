@@ -25,6 +25,11 @@ import AppIcon from '../apps/AppIcon.vue';
         </button>
       </MenubarItem>
     </MenubarSub>
+    <MenubarItem class="flex gap-2 hover:bg-base-300"
+      @click.stop="$ui.openWorkspaces()"
+    >
+      Manage workspaces
+    </MenubarItem>
   </MenubarSub>
 </template>
 <script>

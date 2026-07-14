@@ -511,8 +511,8 @@ export const actions = actionTree(
     async loadBranches({ state }, project) {
       const projectState = project?.$state || state
       const api = project?.$api || $storex.api
-      
-      projectState.project_branches = await api.repo.branches()
+      const { branches } = await api.repo.branches()
+      projectState.project_branches = branches
     },
     async loadPR({ state }, { fromBranch, toBranch }) {
       state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })

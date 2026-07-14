@@ -466,6 +466,15 @@ export const actions = actionTree(
       })
     },
 
+    openWorkspaces() {
+      $storex.ui.showApp({
+        key: 'workspaces',
+        name: 'Workspaces',
+        component: 'workspaces',
+        params: {}
+      })
+    },
+
     openTasks() {
       $storex.ui.setActiveTab('tasks')
     },

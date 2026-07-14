@@ -117,6 +117,14 @@ class Chat(BaseModel):
             "When True, AI will auto-fill board, column and name fields on first response."
         )
     )
+    ignore_parent_knowledge: Optional[bool] = Field(
+        default=False,
+        description="When True, disconnects from parent chat knowledge/context and only uses own messages"
+    )
+    ignore_parent_files: Optional[bool] = Field(
+        default=False,
+        description="When True, excludes parent chat file list from the working context"
+    )
     
 PROJECT_DATABASES = {}
 

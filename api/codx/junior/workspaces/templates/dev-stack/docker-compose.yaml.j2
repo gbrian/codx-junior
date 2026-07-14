@@ -1,0 +1,35 @@
+services:
+  devbox:
+    build:
+      context: .
+    container_name: codx-ws-{{ workspace.slug }}-devbox
+    # Sysbox: systemd + inner Docker daemon, no --privileged, no host docker.sock
+    runtime: sysbox-runc
+    restart: unless-stopped
+    shm_size: '{{ workspace.resources.shm_size }}'
+    volumes:
+{% for project in projects %}
+      - {{ project.host_path }}:{{ project.container_path }}
+{% endfor %}
+      - workspace-docker:/var/lib/docker
+      - workspace-home:/home/dev
+    environment:
+{% for key, value in workspace.env.items() %}
+      - {{ key }}={{ value }}
+{% endfor %}
+    labels:
+{% for app in workspace.apps %}
+{% for label in traefik_labels(workspace, app) %}
+      - {{ label }}
+{% endfor %}
+{% endfor %}
+    networks:
+      - workspace
+
+volumes:
+  workspace-docker:
+  workspace-home:
+
+networks:
+  workspace:
+    name: {{ workspace.network_name }}

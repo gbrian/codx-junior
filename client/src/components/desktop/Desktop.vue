@@ -28,6 +28,8 @@ import TeamChannel from '../teams/TeamChannel.vue'
 import TeamDM from '../teams/TeamDM.vue'
 import TeamMediaLibrary from '../teams/TeamMediaLibrary.vue'
 import VibeCodingView from '@/views/VibeCodingView.vue'
+import WorkspacesList from '../workspaces/WorkspacesList.vue'
+
 </script>
 
 <template>
@@ -82,6 +84,7 @@ export default {
     'team-media-library': TeamMediaLibrary,
     // Vibe coding view
     'vibe-coding': VibeCodingView,
+    'workspaces': WorkspacesList,
     tabComponent: Tab,
     ViewProperties
   },

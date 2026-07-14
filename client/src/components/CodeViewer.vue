@@ -157,6 +157,20 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <span class="text-sm">Applying AI patch, please wait…</span>
       </div>
 
+      <div v-if="changesetErrors.length" class="alert alert-error">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
+        </svg>
+        <div class="flex flex-col gap-1">
+          <span class="font-bold">Changeset Errors:</span>
+          <div class="text-sm space-y-1">
+            <div v-for="(error, idx) in changesetErrors" :key="idx" class="text-xs">
+              • {{ error }}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="view-code grow overflow-auto">
         <div :style="{ height: `${editorHeight}px` }">
 
@@ -257,7 +271,8 @@ export default {
       isNewFile: true,
       localCode: null,
       showConfirmModal: false,
-      pendingViewSwitch: null
+      pendingViewSwitch: null,
+      changesetErrors: []
     }
   },
   computed: {
@@ -311,14 +326,12 @@ export default {
     validatedLanguage() {
       const lang = this.fileLanguage
       try {
-        // Validate language is supported by hljs
         if (lang && hljs.getLanguage(lang)) {
           return lang
         }
       } catch (error) {
         console.warn(`Invalid language detected: ${lang}`, error)
       }
-      // Safe fallback to markdown
       return 'markdown'
     },
 
@@ -336,6 +349,9 @@ export default {
         file: this.file,
         messageId: this.message?.doc_id
       })
+    },
+    isJSONChangeset() {
+      return this.language === 'json-changeset'
     }
   },
   watch: {
@@ -351,6 +367,7 @@ export default {
       }
     },
     code() {
+      this.changesetErrors = []
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
         if (!viewCode) return
@@ -387,6 +404,62 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
+    applyChangeset() {
+      try {
+        const changeset = JSON.parse(this.code)
+        if (!Array.isArray(changeset)) {
+          this.changesetErrors.push('Changeset must be a JSON array')
+          return
+        }
+
+        let processedCode = this.code
+        changeset.forEach((change, idx) => {
+          try {
+            const { search_type, search, replace, replace_all } = change
+            if (!search_type || !search || replace === undefined) {
+              throw new Error('Missing required fields: search_type, search, or replace')
+            }
+
+            let result
+            if (search_type === 'plain') {
+              // Plain text search: exact match
+              const searchIndex = processedCode.indexOf(search)
+              if (searchIndex === -1) {
+                throw new Error(`Pattern not found in code`)
+              }
+
+              if (replace_all) {
+                // Replace all occurrences
+                processedCode = processedCode.split(search).join(replace)
+              } else {
+                // Replace only first occurrence
+                processedCode = processedCode.substring(0, searchIndex) +
+                  replace +
+                  processedCode.substring(searchIndex + search.length)
+              }
+            } else if (search_type === 'regex') {
+              // Regex search: use replace_all to determine global flag
+              try {
+                const flags = replace_all ? 'g' : ''
+                const regex = new RegExp(search, flags)
+                processedCode = processedCode.replace(regex, replace)
+              } catch (regexError) {
+                throw new Error(`Invalid regex pattern: ${regexError.message}`)
+              }
+            } else {
+              throw new Error(`Unknown search_type: ${search_type}. Must be 'plain' or 'regex'`)
+            }
+          } catch (error) {
+            this.changesetErrors.push(`[Item ${idx}] ${error.message}`)
+          }
+        })
+
+        this.localCode = processedCode
+      } catch (parseError) {
+        this.changesetErrors.push(`Failed to parse changeset JSON: ${parseError.message}`)
+      }
+    },
+
     applyUserChange(newContent) {
       if (!newContent) return
       this.localCode = newContent
@@ -493,11 +566,11 @@ export default {
       }
     },
 
+    // In the methods section, update loadDiffInfo:
     async loadDiffInfo() {
       try {
         this.loadingStats = true
         if (this.file) {
-          // Build diff request with optional branch parameters
           const diffRequest = {
             path: this.file,
             content: this.effectiveCode
@@ -514,9 +587,17 @@ export default {
 
           let content = ""
           try {
-            const { content: fileContent } = await this.$api.files.read(this.file)
-            content = fileContent
-            this.isNewFile = !fileContent
+            // NEW: Load from branch if available
+            if (this.fromBranch) {
+              const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
+              content = fileContent
+              this.isNewFile = !fileContent
+            } else {
+              // Fallback to current file content
+              const { content: fileContent } = await this.$api.files.read(this.file)
+              content = fileContent
+              this.isNewFile = !fileContent
+            }
           } catch (ex) {
             console.error(ex)
             this.isNewFile = true
@@ -526,6 +607,10 @@ export default {
           this.diffEditContent = this.effectiveCode
           this.diffBaseContent = this.effectiveCode
           this.calculateDiffPercentages()
+
+          if (this.isJSONChangeset) {
+            this.applyChangeset()
+          }
         }
       } finally {
         this.loadingStats = false

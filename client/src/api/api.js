@@ -270,6 +270,56 @@ const initializeAPI = ({ project, user } = {}) => {
       async metrics() {
         const data = await API.get('/api/projects/metrics')
         return data
+      },
+      workspaces: {
+        async list() {
+          return API.get('/api/workspaces')
+        },
+        async get(workspaceId) {
+          return API.get(`/api/workspaces/${workspaceId}`)
+        },
+        async create(workspace) {
+          return API.post('/api/workspaces', workspace)
+        },
+        async update(workspace, reprovision = false) {
+          return API.put(`/api/workspaces?reprovision=${reprovision ? 1 : 0}`, workspace)
+        },
+        async delete(workspaceId) {
+          return API.del(`/api/workspaces/${workspaceId}`)
+        },
+        templates: {
+          async list() {
+            return API.get('/api/workspaces/templates')
+          }
+        },
+        lifecycle: {
+          async start(workspaceId) {
+            return API.post(`/api/workspaces/${workspaceId}/start`, {})
+          },
+          async stop(workspaceId) {
+            return API.post(`/api/workspaces/${workspaceId}/stop`, {})
+          },
+          async status(workspaceId) {
+            return API.get(`/api/workspaces/${workspaceId}/status`)
+          },
+          async logs(workspaceId, tail = 200) {
+            return API.get(`/api/workspaces/${workspaceId}/logs?tail=${tail}`)
+          }
+        },
+        files: {
+          async list(workspaceId) {
+            return API.get(`/api/workspaces/${workspaceId}/files`)
+          },
+          async read(workspaceId, filePath) {
+            return API.get(`/api/workspaces/${workspaceId}/file?path=${encodeURIComponent(filePath)}`)
+          },
+          async write(workspaceId, filePath, content) {
+            return API.post(`/api/workspaces/${workspaceId}/file?path=${encodeURIComponent(filePath)}`, 
+              { content }, 
+              { embedBody: true }
+            )
+          }
+        }
       }
     },
     views: {
@@ -298,21 +348,24 @@ const initializeAPI = ({ project, user } = {}) => {
         async process(issueUrl) {
           return await API.get(`/api/github/issues/ai/process?issue_url=${encodeURIComponent(issueUrl)}`)
         }
-      },
-      repo: {
-        info() {
-          return API.get('/api/github/repo/info')
-        },
-        branches() {
-          return API.get('/api/github/repo/branches')
-        },
-        commits(branch) {
-          return API.get(`/api/github/repo/branch/commits?branch=${encodeURIComponent(branch)}`)
-        },
-        changes({ from_branch, to_branch }) {
-          return API.get(`/api/github/repo/changes?from_branch=${encodeURIComponent(from_branch)}&to_branch=${encodeURIComponent(to_branch)}`)
-        }
       }
+    },
+    repo: {
+      info() {
+        return API.get('/api/git/repo/info')
+      },
+      branches() {
+        return API.get('/api/git/repo/branches')
+      },
+      commits(branch) {
+        return API.get(`/api/git/repo/branch/commits?branch=${encodeURIComponent(branch)}`)
+      },
+      changes({ from_branch, to_branch }) {
+        return API.get(`/api/git/repo/changes?from_branch=${encodeURIComponent(from_branch)}&to_branch=${encodeURIComponent(to_branch)}`)
+      },
+      readFromBranch(path, branch) {
+        return API.get(`/api/git/files/content?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`)
+      },
     },
     settings: {
       async read() {
@@ -940,7 +993,7 @@ const initializeAPI = ({ project, user } = {}) => {
         isAdmin,
         isProjectAdmin
       }
-    }
+    },
   }
 
   API.initConnection()

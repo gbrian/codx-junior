@@ -25,7 +25,7 @@ from codx.junior.profiling.profiler import profile_function
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
-from codx.junior.api.github import router as github_router
+from codx.junior.api.git import router as git_router
 from codx.junior.api.file_finder import router as file_finder_router
 from codx.junior.api.db_router import router as db_router
 from codx.junior.api.global_settings import router as global_settings_router
@@ -142,7 +142,7 @@ app.mount("/api/socket.io", sio_asgi_app)
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(wiki_router, prefix="/api")
-app.include_router(github_router, prefix="/api")
+app.include_router(git_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
 app.include_router(global_settings_router, prefix="/api")
