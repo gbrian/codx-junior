@@ -19,7 +19,12 @@ import ProfileCard from '@/components/ProfileCard.vue';
       </p>  
       <div class="flex items-center justify-between mb-4">
         <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
-        <button class="btn btn-sm btn-primary ml-4" @click="createNewProfile">Create New</button>
+        <div class="flex gap-2 ml-4">
+          <button class="btn btn-sm btn-ghost" @click="loadProfiles" title="Reload profiles">
+            <i class="fa fa-rotate" :class="{ 'animate-spin': loadingProfiles }"></i>
+          </button>
+          <button class="btn btn-sm btn-primary" @click="createNewProfile">Create New</button>
+        </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" v-if="profiles">
         <div v-for="profile in filteredProfiles" :key="profile.name"
@@ -37,7 +42,8 @@ export default {
     return {
       searchQuery: '',
       searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tools', 'tags'],
-      loadingProfile: false
+      loadingProfile: false,
+      loadingProfiles: false
     }
   },
   computed: {
@@ -49,24 +55,32 @@ export default {
     },
     filteredProfiles() {
       const filter = this.searchQuery.toLowerCase()
-      return this.profiles.filter(profile => {
+      return (this.profiles || []).filter(profile => {
         try {
-          return this.searchKeys.reduce((acc, k) => `${acc} ${profile[k]}`, '').toLowerCase().includes(filter)
+          // Safely stringify each key value, joining arrays if needed
+          const text = this.searchKeys
+            .map(k => Array.isArray(profile[k]) ? profile[k].join(' ') : (profile[k] || ''))
+            .join(' ')
+            .toLowerCase()
+          return text.includes(filter)
         } catch(ex) {
           console.error(ex)
+          return true // Don't hide profiles on error
         }
-      }).sort((a, b) => a.name > b.name ? 1 : -1);
+      }).sort((a, b) => a.name > b.name ? 1 : -1)
     }
   },
   created() {
     this.loadProfiles()
   },
-  mounted() {
-    this.loadProfiles()
-  },
   methods: {
-    loadProfiles() {
-      this.$projects.loadProfiles()
+    async loadProfiles() {
+      this.loadingProfiles = true
+      try {
+        await this.$projects.loadProfiles()
+      } finally {
+        this.loadingProfiles = false
+      }
     },
     openEditProfile(selectedProfile) {
       this.$projects.setSelectedProfile(selectedProfile)

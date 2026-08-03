@@ -96,6 +96,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
               @message-changed="onMessageChanged"
               @run-agents="onMessageRunAgents"
               @preview-file="handleFilePreview"
+              @search-files="onSelectionSearchFiles"
             />
 
             <!-- Input Section -->
@@ -457,23 +458,24 @@ export default {
       this.$refs.changesPanel?.loadAllProjects()
     },
 
-    scheduleIntelliSense() {
+    // Schedule IntelliSense with optional word parameter
+    scheduleIntelliSense(word = null) {
       if (this.intelliSenseDismissed) {
-        const { word } = this.cursorWord
-        if (word !== this.intelliSenseQuery) this.intelliSenseDismissed = false
+        const currentWord = word || this.cursorWord.word
+        if (currentWord !== this.intelliSenseQuery) this.intelliSenseDismissed = false
       }
       clearTimeout(this.intelliSenseDebounce)
-      this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(), 220)
+      this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(word), 220)
     },
 
-    async runIntelliSense() {
+    async runIntelliSense(word = null) {
       if (this.intelliSenseDismissed) return
-      const { word } = this.cursorWord
-      if (!word?.startsWith('@')) {
+      const searchWord = word || this.cursorWord.word
+      if (!searchWord?.startsWith('@')) {
         this.cancelIntelliSense()
         return
       }
-      const rawQuery = word.slice(1)
+      const rawQuery = searchWord.slice(1)
       if (!rawQuery || rawQuery.trim().length < 3) {
         this.cancelIntelliSense()
         return
@@ -1153,6 +1155,10 @@ export default {
         message,
         instructions: ""
       })
+    },
+    async onSelectionSearchFiles({ query }) {
+      // TODO: We must avoid this trick, fix this when possible, make sure the "@" check only applies for user typing in the message 
+      this.scheduleIntelliSense("@" + query)
     }
   }
 }

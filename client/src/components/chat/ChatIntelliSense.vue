@@ -1,11 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
 </script>
 
 <template>
   <div
     v-if="suggestions.length || isSearching"
-    class="absolute bottom-full left-0 right-0 z-50"
+    class="absolute left-0 right-0 z-50"
+    :class="top ? 'top-full' : 'bottom-full'"
   >
     <div class="flex flex-wrap gap-1 p-2 bg-base-200 border rounded-lg shadow-lg">
       <!-- Header with controls -->
@@ -172,7 +172,8 @@ export default {
     query: { type: String, default: '' },
     maxVisible: { type: Number, default: 8 },
     searchController: { type: Object, default: null },
-    progress: { type: String }
+    progress: { type: String },
+    top: { type: Boolean, default: false }
   },
   emits: ['select', 'hover', 'accept-multi', 'reload', 'cancel'],
   data() {

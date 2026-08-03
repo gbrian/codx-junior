@@ -38,6 +38,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
       @message-changed="$emit('message-changed', $event)"
       @run-agents="$emit('run-agents', $event)"
       @preview-file="$emit('preview-file', $event)"
+      @search-files="$emit('search-files', $event)"
     />
 
     <!-- Scroll anchor -->
@@ -79,7 +80,8 @@ export default {
     'sub-task',
     'set-active-chat',
     'message-changed',
-    'run-agents'
+    'run-agents',
+    'search-files'
   ],
   computed: {
     isVibe() {

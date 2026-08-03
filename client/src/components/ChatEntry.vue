@@ -78,13 +78,16 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
         <progress class="progress w-full" v-if="!isDone"></progress>
 
         <!-- Sticky selection action bar — shown when text is selected -->
-          <ChatEntrySelectionMenu
-            v-if="showSelectionMenu"
-            :selectedText="selectedText"
-            @copy="onSelectionCopy"
-            @create-subtask="onSelectionCreateSubtask"
-            @close="onCloseSelectionMenu"
-          />
+        <!-- In the ChatEntrySelectionMenu component -->
+        <ChatEntrySelectionMenu
+          v-if="showSelectionMenu"
+          :selectedText="selectedText"
+          :chatProject="chatProject"
+          @copy="onSelectionCopy"
+          @create-subtask="onSelectionCreateSubtask"
+          @search-files="onSelectionSearchFiles"
+          @close="onCloseSelectionMenu"
+        />
 
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
@@ -406,7 +409,7 @@ export default {
     'generate-code', 'reload-file', 'open-file', 'save-file',
     'add-file', 'sub-task', 'thread', 'hide',
     'remove', 'answer', 'enhance', 'copy', 'add-file-to-chat',
-    'remove-file', 'image', 'run-agents', 'edit-message'
+    'remove-file', 'image', 'run-agents', 'edit-message', 'search-files'
   ],
   data() {
     return {
@@ -574,6 +577,13 @@ export default {
     onSelectionCreateSubtask(content) {
       this.$emit('sub-task', {
         content,
+      })
+    },
+    onSelectionSearchFiles({ query, fromSelection }) {
+      // Emit search-files event to parent Chat component
+      this.$emit('search-files', {
+        query,
+        fromSelection: true
       })
     },
     onCloseSelectionMenu() {

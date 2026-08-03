@@ -77,15 +77,21 @@ class ProfileManager:
         
         all_profiles = {}
         
-        # Project and parent profiles
-        for project in parent_projects :
+        # 1. Parent and codx-junior project profiles
+        for project in parent_projects:
             profiles = ProfileManager(settings=project).list_profiles()
             for profile in profiles:
                 all_profiles[profile.name] = profile
         
-        # Base profiles
+        # 2. Current project profiles (can override parent profiles)
         for profile in self.list_profiles():
             all_profiles[profile.name] = profile
+
+        # 3. Built-in base profiles from source code (only if not already defined)
+        for profile_path in self.base_profiles():
+            profile = self.load_profile(profile_path)
+            if profile and profile.name not in all_profiles:
+                all_profiles[profile.name] = profile
         
         return [self.get_profile_With_content(profile=p) for p in list(all_profiles.values())]
 

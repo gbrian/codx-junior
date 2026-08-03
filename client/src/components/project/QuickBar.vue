@@ -1,13 +1,12 @@
 <script setup>
 import BarButton from './BarButton.vue'
+import QuickChatSelector from '../QuickChatSelector.vue'
 </script>
 
 <template>
   <div class="flex items-center px-1 py-2 bg-base-100 gap-4">
 
-    <BarButton tab="home" @click="onNewQuickChat">
-      <i class="fa-solid fa-comments"></i>
-    </BarButton>
+    <QuickChatSelector />
 
     <BarButton tab="home" @click="$ui.setActiveTab('home')">
       <i class="fa-solid fa-home"></i>
@@ -73,16 +72,11 @@ export default {
     }
   },
   computed: {
-    // Only show vibe coding button in expert view mode
     isExpertMode() {
       return this.$storex.ui.viewMode === 'expert'
     }
   },
   methods: {
-    async onNewQuickChat() {
-      const chat = await this.$service.chat.newQuickChat()
-      this.$ui.openChat(chat)
-    },
     openVibeCoding() {
       this.$ui.showApp({
         key: 'vibe-coding',

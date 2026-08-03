@@ -20,13 +20,66 @@ import InteractiveTable from './InteractiveTable.vue'
           v-html="element.content"
         ></div>
 
-        <!-- Interactive table component -->
-        <InteractiveTable 
+        <!-- Table with toggle header -->
+        <div 
           v-else-if="element.type === 'table'"
-          :initial-data="element.data"
-          :table-index="idx"
-          @update-table="handleTableUpdate"
-        />
+          class="space-y-2"
+        >
+          <div class="flex items-center justify-end">
+            <label class="toggle toggle-sm text-base-content cursor-pointer">
+              <input 
+                type="checkbox"
+                :checked="element.viewMode === 'interactive'"
+                @change="toggleTableMode(idx, element.viewMode === 'markdown' ? 'interactive' : 'markdown')"
+              />
+              <svg 
+                aria-label="Interactive" 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24"
+                class="w-4 h-4"
+              >
+                <g
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                  stroke-width="2"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 11h6m-6 4h6" />
+                </g>
+              </svg>
+              <svg
+                aria-label="Standard"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M7 7h10M7 11h10M7 15h4" />
+              </svg>
+            </label>
+          </div>
+
+          <!-- Interactive table component -->
+          <InteractiveTable 
+            v-if="element.viewMode === 'interactive'"
+            :initial-data="element.data"
+            :table-index="idx"
+            @update-table="handleTableUpdate"
+          />
+
+          <!-- Standard markdown table -->
+          <div 
+            v-else
+            v-html="element.markdownHtml"
+          ></div>
+        </div>
       </div>
     </div>
   </div>
@@ -185,7 +238,6 @@ export default {
       this.renderContent()
     },
     documentId() {
-      // Re-render when documentId changes to apply new IDs
       this.renderContent()
     }
   },
@@ -195,7 +247,6 @@ export default {
   methods: {
     renderContent() {
       try {
-        // Pass documentId to markdown parser
         const md = createMd(this.documentId)
         const textWithLinks = this.sanitizedText.replace(
           /`((?:\/[^\s:]+)+)(?::(\d+))?`/g,
@@ -243,11 +294,13 @@ export default {
           }
         }
 
-        // Add table element
+        // Add table element with view mode toggle
         if (table.data && table.data.length > 0) {
           elements.push({
             type: 'table',
-            data: table.data
+            data: table.data,
+            markdownHtml: table.html,
+            viewMode: 'markdown'
           })
         }
 
@@ -269,6 +322,11 @@ export default {
         type: 'markdown', 
         content: addFileUploadIcons(html) 
       }]
+    },
+    toggleTableMode(idx, mode) {
+      if (this.renderedElements[idx] && this.renderedElements[idx].type === 'table') {
+        this.renderedElements[idx].viewMode = mode
+      }
     },
     handleTableUpdate(payload) {
       this.$emit('table-updated', payload)

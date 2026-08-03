@@ -22,7 +22,7 @@
     <transition name="toc-slide">
       <div
         v-if="open"
-        class="bg-base-200 border border-base-300 rounded-lg px-4 py-3 mb-4 max-h-64 overflow-y-auto"
+        class="bg-base-200 border border-base-300 rounded-lg px-4 py-3 mb-4"
       >
         <p class="text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Table of Contents</p>
         <ul class="space-y-0.5">

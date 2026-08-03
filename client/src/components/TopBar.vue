@@ -1,7 +1,8 @@
 <script setup>
 import EventBar from './EventBar.vue'
 import UserInfo from '@/components/UserInfo.vue'
-import ProjectDetailt from './ProjectDetailt.vue';
+import ProjectDetailt from './ProjectDetailt.vue'
+import TopBarSearch from './TopBarSearch.vue'
 </script>
 
 <template>
@@ -12,6 +13,9 @@ import ProjectDetailt from './ProjectDetailt.vue';
       :options="{ folders: true, showIcon: true }"
       @select="$storex.projects.setActiveProject($event)"
     />
+
+    <!-- Search Bar -->
+    <TopBarSearch />
 
     <div class="grow"></div>
 

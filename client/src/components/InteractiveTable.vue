@@ -104,7 +104,7 @@ import { nextTick } from 'vue'
         </thead>
         <tbody>
           <tr 
-            v-for="(row, rowIdx) in tableData" 
+            v-for="(row, rowIdx) in dataRows" 
             :key="`row-${rowIdx}`"
             class="border-b border-base-300"
             :class="{ 
@@ -149,7 +149,7 @@ import { nextTick } from 'vue'
               <!-- Edit Mode -->
               <input 
                 v-else
-                v-model="tableData[rowIdx][colIdx]"
+                v-model="dataRows[rowIdx][colIdx]"
                 type="text"
                 class="input input-sm input-bordered w-full"
                 @keydown.enter="saveCell(rowIdx, colIdx)"
@@ -166,7 +166,7 @@ import { nextTick } from 'vue'
 
     <!-- Empty State -->
     <div 
-      v-if="tableData.length === 0"
+      v-if="dataRows.length === 0"
       class="p-8 text-center text-base-content opacity-50 bg-base-200"
     >
       <p class="text-sm">No data in table. Click "Edit" to get started.</p>
@@ -184,12 +184,17 @@ export default {
     tableIndex: {
       type: Number,
       required: true
+    },
+    useFirstRowAsHeader: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update-table'],
   data() {
     return {
       tableData: [],
+      headerRow: [],
       selectedRows: new Set(),
       selectedColumns: new Set(),
       selectedCells: new Set(),
@@ -199,24 +204,36 @@ export default {
       isDragging: false,
       dragStart: null,
       dragEnd: null,
-      isEditMode: false
+      isEditMode: true
     }
   },
   computed: {
     headers() {
-      if (!this.tableData.length) return []
-      const headerCount = this.tableData[0].length
+      // Use first row as headers if option enabled and data exists
+      if (this.useFirstRowAsHeader && this.headerRow.length > 0) {
+        return this.headerRow
+      }
+      
+      // Fallback to auto-generated headers
+      if (!this.dataRows.length) return []
+      const headerCount = this.dataRows[0].length
       return Array.from({ length: headerCount }, (_, idx) => {
         const letter = String.fromCharCode(65 + (idx % 26))
         const prefix = idx >= 26 ? Math.floor(idx / 26) : ''
         return `${prefix}${letter}`
       })
     },
+    dataRows() {
+      // Return all rows except first if using first row as header
+      return this.useFirstRowAsHeader && this.tableData.length > 0 
+        ? this.tableData.slice(1) 
+        : this.tableData
+    },
     hasSelection() {
       return this.selectedRows.size > 0 || this.selectedColumns.size > 0 || this.selectedCells.size > 0
     },
     allRowsSelected() {
-      return this.tableData.length > 0 && this.selectedRows.size === this.tableData.length
+      return this.dataRows.length > 0 && this.selectedRows.size === this.dataRows.length
     }
   },
   watch: {
@@ -231,13 +248,21 @@ export default {
     }
   },
   mounted() {
-    this.tableData = JSON.parse(JSON.stringify(this.initialData))
+    this.initializeData()
     document.addEventListener('keydown', this.handleKeyDown)
   },
   beforeUnmount() {
     document.removeEventListener('keydown', this.handleKeyDown)
   },
   methods: {
+    initializeData() {
+      this.tableData = JSON.parse(JSON.stringify(this.initialData))
+      
+      // Extract header row if option enabled
+      if (this.useFirstRowAsHeader && this.tableData.length > 0) {
+        this.headerRow = [...this.tableData[0]]
+      }
+    },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode
       this.clearSelection()
@@ -271,7 +296,6 @@ export default {
     isEditing(rowIdx, colIdx) {
       return this.editingCell === this.getCellKey(rowIdx, colIdx)
     },
-    // Range selection helpers
     getRangeOfCells(startRow, startCol, endRow, endCol) {
       const cells = new Set()
       const minRow = Math.min(startRow, endRow)
@@ -286,7 +310,6 @@ export default {
       }
       return cells
     },
-    // Drag selection
     startDragSelection(rowIdx, colIdx, event) {
       if (event.button !== 0) return
       if (this.isEditing(rowIdx, colIdx)) return
@@ -322,7 +345,6 @@ export default {
     endDragSelection() {
       this.isDragging = false
     },
-    // Cell selection
     selectCell(rowIdx, colIdx, event) {
       if (this.isDragging) return
       
@@ -364,14 +386,13 @@ export default {
         this.selectedRows.clear()
       } else {
         this.selectedRows.clear()
-        for (let i = 0; i < this.tableData.length; i++) {
+        for (let i = 0; i < this.dataRows.length; i++) {
           this.selectedRows.add(i)
         }
       }
       this.selectedColumns.clear()
       this.selectedCells.clear()
     },
-    // Edit operations
     editCell(rowIdx, colIdx) {
       this.editingCell = this.getCellKey(rowIdx, colIdx)
     },
@@ -381,16 +402,17 @@ export default {
     cancelEdit() {
       this.editingCell = null
     },
-    // Row operations
     addRow() {
-      const newRow = new Array(this.tableData[0]?.length || 3).fill('')
+      const colCount = this.tableData[0]?.length || 3
+      const newRow = new Array(colCount).fill('')
       this.tableData.push(newRow)
     },
     deleteRow(rowIdx) {
-      this.tableData.splice(rowIdx, 1)
+      // Adjust index for data rows (skip header if applicable)
+      const dataRowIdx = this.useFirstRowAsHeader ? rowIdx + 1 : rowIdx
+      this.tableData.splice(dataRowIdx, 1)
       this.selectedRows.delete(rowIdx)
     },
-    // Column operations
     addColumn() {
       this.tableData.forEach(row => row.push(''))
     },
@@ -398,35 +420,40 @@ export default {
       this.tableData.forEach(row => row.splice(colIdx, 1))
       this.selectedColumns.delete(colIdx)
     },
-    // Deletion
     deleteSelected() {
       if (this.selectedRows.size === 0 && this.selectedCells.size === 0) return
       
       if (this.selectedRows.size > 0) {
-        const rowsToDelete = Array.from(this.selectedRows).sort((a, b) => b - a)
+        const rowsToDelete = Array.from(this.selectedRows)
+          .sort((a, b) => b - a)
+          .map(idx => this.useFirstRowAsHeader ? idx + 1 : idx)
         rowsToDelete.forEach(idx => this.tableData.splice(idx, 1))
         this.selectedRows.clear()
       } else if (this.selectedCells.size > 0) {
         this.selectedCells.forEach(key => {
           const { row, col } = this.parseKey(key)
-          this.tableData[row][col] = ''
+          const dataRowIdx = this.useFirstRowAsHeader ? row + 1 : row
+          this.tableData[dataRowIdx][col] = ''
         })
       }
       this.selectedCells.clear()
     },
-    // Copy and paste
     copySelected() {
       if (this.selectedRows.size > 0) {
         const rows = Array.from(this.selectedRows)
           .sort((a, b) => a - b)
-          .map(idx => this.tableData[idx])
+          .map(idx => {
+            const dataRowIdx = this.useFirstRowAsHeader ? idx + 1 : idx
+            return this.tableData[dataRowIdx]
+          })
         this.clipboard = { type: 'rows', data: rows }
         navigator.clipboard.writeText(rows.map(row => row.join('\t')).join('\n'))
       } else if (this.selectedCells.size > 0) {
         const cells = Array.from(this.selectedCells)
         const cellArray = cells.map(key => {
           const { row, col } = this.parseKey(key)
-          return { row, col, value: this.tableData[row][col] }
+          const dataRowIdx = this.useFirstRowAsHeader ? row + 1 : row
+          return { row, col, value: this.tableData[dataRowIdx][col] }
         })
         
         const rows = cellArray.map(c => c.row)
@@ -458,17 +485,18 @@ export default {
       if (!this.clipboard || !this.lastSelectedCell) return
       
       const { row: startRow, col: startCol } = this.lastSelectedCell
+      const dataStartRow = this.useFirstRowAsHeader ? startRow + 1 : startRow
       
       if (this.clipboard.type === 'rows') {
         this.clipboard.data.forEach((rowData, idx) => {
-          if (startRow + idx < this.tableData.length) {
-            this.tableData[startRow + idx] = [...rowData]
+          if (dataStartRow + idx < this.tableData.length) {
+            this.tableData[dataStartRow + idx] = [...rowData]
           }
         })
       } else if (this.clipboard.type === 'cells') {
         this.clipboard.data.forEach((rowData, rIdx) => {
           rowData.forEach((cellValue, cIdx) => {
-            const targetRow = startRow + rIdx
+            const targetRow = dataStartRow + rIdx
             const targetCol = startCol + cIdx
             if (targetRow < this.tableData.length && targetCol < this.tableData[0].length) {
               this.tableData[targetRow][targetCol] = cellValue
@@ -477,7 +505,6 @@ export default {
         })
       }
     },
-    // Keyboard shortcuts
     handleKeyDown(e) {
       if (!this.isEditMode) return
       

@@ -1,4 +1,5 @@
 <script setup>
+import { API } from '@/api/api'
 </script>
 
 <template>
@@ -21,6 +22,17 @@
       <i class="fa-solid fa-list-check"></i>
       Create sub-task
     </button>
+    <div class="divider my-1" v-if="isSingleWord"></div>
+    <button 
+      v-if="isSingleWord"
+      class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm"
+      @click="onSearchFiles"
+      :disabled="isSearching"
+    >
+      <i class="fa-solid fa-magnifying-glass"></i>
+      Search files
+      <i v-if="isSearching" class="fa-solid fa-spinner animate-spin ml-auto"></i>
+    </button>
     <div class="divider my-1"></div>
     <button 
       class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm"
@@ -36,26 +48,23 @@
 export default {
   props: {
     selectedText: { type: String, default: '' },
-    position: { type: Object, default: () => ({ x: 0, y: 0 }) },
+    position: { type: Object, default: () => ({ x: 0, y: 0 }) }
   },
-  emits: ['copy', 'create-subtask', 'close'],
+  emits: ['copy', 'create-subtask', 'search-files', 'close'],
   data() {
     return {
-      menuPosition: { x: 0, y: 0 }
+      menuPosition: { x: 0, y: 0 },
+      isSearching: false
+    }
+  },
+  computed: {
+    isSingleWord() {
+      return this.selectedText && !this.selectedText.includes(' ') && this.selectedText.length > 0
     }
   },
   watch: {
     position(newPos) {
       this.menuPosition = { ...newPos }
-    },
-    isVisible(visible) {
-      if (visible) {
-        document.addEventListener('click', this.closeMenu)
-        document.addEventListener('contextmenu', this.closeMenu)
-      } else {
-        document.removeEventListener('click', this.closeMenu)
-        document.removeEventListener('contextmenu', this.closeMenu)
-      }
     }
   },
   beforeUnmount() {
@@ -70,6 +79,27 @@ export default {
     onCreateSubtask() {
       this.$emit('create-subtask', this.selectedText)
       this.onClose()
+    },
+    async onSearchFiles() {
+      if (!this.isSingleWord) return
+      
+      this.isSearching = true
+      try {
+        const results = await API.files.search({
+          search: this.selectedText,
+          page: 0,
+          pageSize: 50
+        })
+        this.$emit('search-files', {
+          query: this.selectedText,
+          results
+        })
+        this.onClose()
+      } catch (error) {
+        console.error('File search failed:', error)
+      } finally {
+        this.isSearching = false
+      }
     },
     onClose() {
       this.$emit('close')

@@ -335,6 +335,7 @@ class ChatEngineActions:
                 doc_id=str(uuid.uuid4()),
                 task_item="status",
                 content=gen_status.render(),
+                done=True
             )
             chat.messages.append(status_message)
 
@@ -383,7 +384,8 @@ class ChatEngineActions:
             ]
             """
             prompt = f"""
-            Split the following content into a list of subtasks.
+            Split the following content into a list of subtasks. 
+            If content already contain a list of tasks copy each one into the description without modifications.
 
             <content>
             { self.session.get_chat_analysis_parents(chat=chat) }
@@ -486,7 +488,7 @@ class ChatEngineActions:
                     sub_task.board = chat.board
                     sub_task.column = chat.column
                     sub_task.project_id = chat.project_id
-                    sub_task.mode = "vibe"
+                    sub_task.mode = "chat"
                     sub_task.messages = [
                         Message(
                             role="user",
