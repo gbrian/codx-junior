@@ -55,7 +55,20 @@
 
 <script>
 export default {
-  props: ['board', 'boards'],
+  props: {
+    board: {
+      type: Object,
+      default: null
+    },
+    boards: {
+      type: Array,
+      default: () => []
+    },
+    project: {
+      type: Object,
+      default: null
+    }
+  },
   data() {
     return {
       newBoardType: 'manual',
@@ -66,12 +79,14 @@ export default {
     }
   },
   computed: {
-    // Check if name is taken by another board (not the one being edited)
+    kanban() {
+      return this.project?.$state?.kanban || { boards: {} }
+    },
     isBoardNameTaken() {
       return (
         this.newBoardName &&
         this.newBoardName !== this.board?.title &&
-        !!this.$storex.projects.kanban.boards[this.newBoardName]
+        !!this.kanban.boards[this.newBoardName]
       )
     }
   },
@@ -80,9 +95,8 @@ export default {
       const boardName = this.newBoardName.trim()
       if (!boardName) return
 
-      // Build updated or new board object without mutating prop
       const existing = this.board
-        ? { ...this.$storex.projects.kanban.boards[this.board.title] }
+        ? { ...this.kanban.boards[this.board.title] }
         : { title: boardName, columns: [], id: boardName }
 
       const updatedBoard = {
@@ -95,24 +109,21 @@ export default {
 
       // Remove old key if title changed
       if (this.board && this.board.title !== boardName) {
-        delete this.$storex.projects.kanban.boards[this.board.title]
+        delete this.kanban.boards[this.board.title]
       }
 
-      this.$storex.projects.kanban.boards[boardName] = updatedBoard
-      this.$storex.projects.saveKanban()
-      this.showBoardModal = false
+      this.kanban.boards[boardName] = updatedBoard
+      this.$storex.projects.saveKanban({ project: this.project })
       this.onClose()
     },
-
     onDeleteBoard() {
       if (!this.board?.title) return
-      delete this.$storex.projects.kanban.boards[this.board.title]
-      this.$storex.projects.saveKanban()
-      this.showBoardModal = false
+      delete this.kanban.boards[this.board.title]
+      this.$storex.projects.saveKanban({ project: this.project })
       this.onClose()
     },
     onClose() {
-        this.$emit('close')
+      this.$emit('close')
     }
   }
 }

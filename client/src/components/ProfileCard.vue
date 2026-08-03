@@ -3,8 +3,8 @@ import ChatIcon from './chat/ChatIcon.vue'
 </script>
 
 <template>
-  <!-- Rich Overlay Card with Stats -->
-  <div class="relative group card w-full overflow-hidden border border-base-300 bg-base-100 shadow-md rounded-xl flex flex-col" style="min-height: 320px;">
+  <!-- Full card version (default) -->
+  <div v-if="!mini" class="relative group card w-full overflow-hidden border border-base-300 bg-base-100 shadow-md rounded-xl flex flex-col" style="min-height: 320px;">
     <!-- Header strip with category color -->
     <div class="h-2 w-full rounded-t-xl flex-shrink-0"
       :class="{
@@ -94,11 +94,63 @@ import ChatIcon from './chat/ChatIcon.vue'
       </div>
     </div>
   </div>
+
+  <!-- Mini card version for profile selector -->
+  <div v-else class="card w-full border border-base-300 bg-base-100 shadow-sm rounded-lg p-3 flex flex-row items-center gap-3 hover:shadow-md transition-shadow">
+    <!-- Header strip indicator -->
+    <div class="h-8 w-1 rounded-full flex-shrink-0"
+      :class="{
+        'bg-primary': profile.category === 'assistant',
+        'bg-secondary': profile.category === 'chat',
+        'bg-accent': profile.category === 'agent',
+        'bg-info': profile.category === 'file',
+        'bg-neutral': profile.category === 'project'
+      }">
+    </div>
+
+    <!-- Avatar + name section -->
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+      <div class="avatar flex-shrink-0">
+        <div class="w-10 h-10 rounded-full ring ring-primary ring-offset-base-100 ring-offset-1">
+          <img :src="useAvatar" :alt="profile.name" />
+        </div>
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <h3 class="font-semibold text-sm truncate">{{ profile.name }}</h3>
+        <p class="text-xs text-base-content/60 truncate">{{ profile.category }}</p>
+      </div>
+    </div>
+
+    <!-- Quick indicators -->
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <div v-if="profile.use_knowledge" class="tooltip" data-tip="Uses Knowledge">
+        <i class="fa-solid fa-book text-info text-xs"></i>
+      </div>
+      <div v-if="profile.api_settings?.active" class="tooltip" data-tip="API Active">
+        <i class="fa-solid fa-share-nodes text-warning text-xs"></i>
+      </div>
+      <div v-if="profile.tools?.length" class="tooltip" :data-tip="toolsTooltip">
+        <div class="badge badge-xs badge-success">
+          {{ profile.tools.length }}
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
 export default {
-  props: ['profile'],
+  props: {
+    profile: {
+      type: Object,
+      required: true
+    },
+    mini: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {}
   },
@@ -109,6 +161,9 @@ export default {
     useAvatar() {
       return this.profile.avatar ||
         `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`
+    },
+    toolsTooltip() {
+      return this.profile.tools?.join(', ') || 'No tools'
     }
   },
   watch: {},

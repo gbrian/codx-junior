@@ -42,7 +42,7 @@ export default {
   },
   computed: {
     profiles() {
-      return this.$storex.profiles.profiles
+      return this.$storex.projects.profiles
     },
     selectedProfile() {
       return this.$projects.selectedProfile

@@ -21,7 +21,12 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
       <div class="flex gap-2 items-center">
         <div class="flex gap-2 items-center flex-1">
           <div class="underline text-link flex gap-2 items-center cursor-pointer" v-if="fileName">
-            <div class="hover:text-info tooltip" :data-tip="file" @click.stop="$emit('open-file', file)">
+            <div 
+              class="hover:text-info tooltip" 
+              :data-tip="file" 
+              @click.stop="handleFileNameClick($event)"
+              :title="file"
+            >
               {{ fileName }}
             </div>
           </div>
@@ -114,6 +119,13 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
       </button>
 
       <span class="text-success font-console text-xs" v-if="isNoChange">No changes</span>
+
+      <button class="btn btn-sm btn-info btn-outline"
+        @click.stop="applyPatchFromPattern"
+        v-if="hasPatchPattern && !editMode && !showDiff"
+        title="Apply find-and-replace patch">
+        <i class="fa-solid fa-band-aid"></i> Patch
+      </button>
 
       <button class="btn btn-sm btn-error btn-outline"
         @click.stop="discardDiffChanges"
@@ -272,7 +284,8 @@ export default {
       localCode: null,
       showConfirmModal: false,
       pendingViewSwitch: null,
-      changesetErrors: []
+      changesetErrors: [],
+      patchPattern: null
     }
   },
   computed: {
@@ -352,6 +365,9 @@ export default {
     },
     isJSONChangeset() {
       return this.language === 'json-changeset'
+    },
+    hasPatchPattern() {
+      return this.patchPattern !== null
     }
   },
   watch: {
@@ -368,6 +384,7 @@ export default {
     },
     code() {
       this.changesetErrors = []
+      this.detectPatchPattern()
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
         if (!viewCode) return
@@ -396,6 +413,7 @@ export default {
     if (this.finished && this.showCode) {
       this.loadDiffInfo()
     }
+    this.detectPatchPattern()
     const viewCode = this.$el?.querySelector('.view-code')
     if (viewCode) viewCode.addEventListener('scroll', this.saveScrollPosition)
   },
@@ -404,6 +422,62 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
+    detectPatchPattern() {
+      if (!this.code) {
+        this.patchPattern = null
+        return
+      }
+
+      const patchRegex = /^<<<<\s*\n([\s\S]*?)\n====\s*\n([\s\S]*?)\n>>>>\s*$/m
+      const match = this.code.match(patchRegex)
+
+      if (match) {
+        this.patchPattern = {
+          oldContent: match[1],
+          newContent: match[2]
+        }
+      } else {
+        this.patchPattern = null
+      }
+    },
+
+    async applyPatchFromPattern() {
+      if (!this.patchPattern || !this.file) return
+
+      try {
+        this.isApplyingPatch = true
+        
+        const patchedContent = this.patchPattern.newContent
+        
+        await this.$api.files.patch({
+          file_path: this.file,
+          content: patchedContent
+        })
+
+        this.applyUserChange(patchedContent)
+        this.$ui?.showNotification?.({
+          type: 'success',
+          message: 'Patch applied successfully'
+        })
+      } catch (error) {
+        console.error('Error applying patch pattern:', error)
+        this.$ui?.showNotification?.({
+          type: 'error',
+          message: 'Failed to apply patch: ' + (error?.message || 'Unknown error')
+        })
+      } finally {
+        this.isApplyingPatch = false
+      }
+    },
+
+    handleFileNameClick(event) {
+      if (event.ctrlKey || event.metaKey) {
+        this.$storex.ui.openFileInViewer(this.file)
+      } else {
+        this.$emit('open-file', this.file)
+      }
+    },
+
     applyChangeset() {
       try {
         const changeset = JSON.parse(this.code)
@@ -422,23 +496,19 @@ export default {
 
             let result
             if (search_type === 'plain') {
-              // Plain text search: exact match
               const searchIndex = processedCode.indexOf(search)
               if (searchIndex === -1) {
                 throw new Error(`Pattern not found in code`)
               }
 
               if (replace_all) {
-                // Replace all occurrences
                 processedCode = processedCode.split(search).join(replace)
               } else {
-                // Replace only first occurrence
                 processedCode = processedCode.substring(0, searchIndex) +
                   replace +
                   processedCode.substring(searchIndex + search.length)
               }
             } else if (search_type === 'regex') {
-              // Regex search: use replace_all to determine global flag
               try {
                 const flags = replace_all ? 'g' : ''
                 const regex = new RegExp(search, flags)
@@ -566,7 +636,6 @@ export default {
       }
     },
 
-    // In the methods section, update loadDiffInfo:
     async loadDiffInfo() {
       try {
         this.loadingStats = true
@@ -587,13 +656,11 @@ export default {
 
           let content = ""
           try {
-            // NEW: Load from branch if available
             if (this.fromBranch) {
               const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
               content = fileContent
               this.isNewFile = !fileContent
             } else {
-              // Fallback to current file content
               const { content: fileContent } = await this.$api.files.read(this.file)
               content = fileContent
               this.isNewFile = !fileContent
@@ -739,7 +806,7 @@ export default {
 .header-code-highlight {
   display: none !important;
 }
-.wrapper-code-highlight {
+.wrapper-code-highlighter {
   height: 100%;
 }
 

@@ -1,34 +1,66 @@
 <script setup>
+import { computed, ref } from 'vue'
 </script>
 
 <template>
   <div
-    v-if="suggestions.length"
+    v-if="suggestions.length || isSearching"
     class="absolute bottom-full left-0 right-0 z-50"
   >
     <div class="flex flex-wrap gap-1 p-2 bg-base-200 border rounded-lg shadow-lg">
-      <!-- Keyboard hint + reload -->
+      <!-- Header with controls -->
       <div class="w-full flex items-center gap-2 text-base-content/80 pb-1 border-b border-base-300">
-        <kbd class="kbd kbd-xs">Tab</kbd> accept
-        <kbd class="kbd kbd-xs">Space</kbd> select
-        <kbd class="kbd kbd-xs">Esc</kbd> dismiss
+        <div class="flex gap-1">
+          <kbd class="kbd kbd-xs">Tab</kbd>
+          <span class="text-xs">accept</span>
+          <kbd class="kbd kbd-xs">Space</kbd>
+          <span class="text-xs">select</span>
+          <kbd class="kbd kbd-xs">Esc</kbd>
+          <span class="text-xs">dismiss</span>
+        </div>
+
         <span v-if="selectedItems.length" class="ml-1 text-info font-semibold flex items-center gap-1">
           {{ selectedItems.length }} selected
           <button class="btn btn-xs btn-info ml-1" @mousedown.prevent="$emit('accept-multi', selectedItems)">
             Add all
           </button>
         </span>
-        <span class="ml-auto opacity-60">{{ suggestions.length }} suggestion{{ suggestions.length > 1 ? 's' : '' }}</span>
-        <!-- Reload button -->
-        <button
-          class="btn btn-xs btn-ghost gap-1 opacity-70 hover:opacity-100"
-          :class="{ 'loading loading-spinner': reloading }"
-          @mousedown.prevent="onReload"
-          title="Reload mentions"
-        >
-          <i v-if="!reloading" class="fa-solid fa-rotate text-[10px]" />
-          <span class="text-[10px]">Reload</span>
-        </button>
+
+        <div class="ml-auto flex items-center gap-2">
+          <!-- Search status -->
+          <span class="opacity-60 flex items-center gap-1 text-xs">
+            <span v-if="isSearching" class="loading loading-spinner loading-xs" />
+            <span v-if="!isSearching && suggestions.length">
+              {{ suggestions.length }} suggestion{{ suggestions.length > 1 ? 's' : '' }}
+            </span>
+            <span v-else-if="isSearching" class="text-info font-semibold">
+              {{ progress }}
+            </span>
+          </span>
+
+          <!-- Cancel button -->
+          <button
+            v-if="isSearching"
+            class="btn btn-xs btn-ghost gap-1 opacity-70 hover:opacity-100"
+            @mousedown.prevent="onCancel"
+            title="Cancel search"
+          >
+            <i class="fa-solid fa-circle-stop text-[10px]" />
+            <span class="text-[10px]">Cancel</span>
+          </button>
+
+          <!-- Reload button -->
+          <button
+            v-if="!isSearching && suggestions.length"
+            class="btn btn-xs btn-ghost gap-1 opacity-70 hover:opacity-100"
+            :class="{ 'loading loading-spinner': reloading }"
+            @mousedown.prevent="onReload"
+            title="Reload mentions"
+          >
+            <i v-if="!reloading" class="fa-solid fa-rotate text-[10px]" />
+            <span class="text-[10px]">Reload</span>
+          </button>
+        </div>
       </div>
 
       <!-- Project filter pills -->
@@ -52,7 +84,7 @@
       </div>
 
       <!-- Scrollable suggestion list -->
-      <div ref="listRef" class="w-full flex flex-col gap-0.5 overflow-y-auto max-h-52 pr-1">
+      <div v-if="suggestions.length" ref="listRef" class="w-full flex flex-col gap-0.5 overflow-y-auto max-h-52 pr-1">
         <div
           v-for="(s, i) in filteredSuggestions"
           :key="i"
@@ -88,11 +120,11 @@
             v-html="highlightMatch(s.name, query)"
           />
 
-          <!-- Duplicate path hint — shown inline when name collides -->
+          <!-- Duplicate path hint -->
           <span
             v-if="hasDuplicateName(s) && s.file"
             class="flex-1 truncate text-[10px] font-mono opacity-80"
-            :class="hasDuplicateName(s) ? 'text-warning/80' : 'text-base-content-ERROR-40'"
+            :class="hasDuplicateName(s) ? 'text-warning/80' : 'text-base-content/40'"
             :title="s.file"
           >{{ shortPath(s.file, 4) }}</span>
           <span v-else class="flex-1" />
@@ -109,7 +141,7 @@
             {{ s.project.project_name }}
           </span>
 
-          <!-- File path hint (non-duplicate) -->
+          <!-- File path hint -->
           <span
             v-if="s.file && !hasDuplicateName(s)"
             class="flex-none truncate max-w-24 text-[10px]"
@@ -123,8 +155,10 @@
       </div>
 
       <!-- Result count footer -->
-      <div class="w-full text-base-content-ERROR-40 text-xs text-right pt-1 border-t border-base-300">
-        {{ filteredSuggestions.length }} result{{ filteredSuggestions.length !== 1 ? 's' : '' }}
+      <div class="w-full text-base-content/40 text-xs text-right pt-1 border-t border-base-300">
+        <span>
+          {{ filteredSuggestions.length }} result{{ filteredSuggestions.length !== 1 ? 's' : '' }}
+        </span>
       </div>
     </div>
   </div>
@@ -136,9 +170,11 @@ export default {
     suggestions: { type: Array, default: () => [] },
     activeIndex: { type: Number, default: 0 },
     query: { type: String, default: '' },
-    maxVisible: { type: Number, default: 8 }
+    maxVisible: { type: Number, default: 8 },
+    searchController: { type: Object, default: null },
+    progress: { type: String }
   },
-  emits: ['select', 'hover', 'accept-multi', 'reload'],
+  emits: ['select', 'hover', 'accept-multi', 'reload', 'cancel'],
   data() {
     return {
       activeProject: null,
@@ -146,7 +182,6 @@ export default {
       selectedItems: [],
       activeEl: null,
       reloading: false,
-      // Cache of names that appear more than once in suggestions
       duplicateNames: new Set()
     }
   },
@@ -165,6 +200,9 @@ export default {
     }
   },
   computed: {
+    isSearching() {
+      return this.searchController?.isSearching || false
+    },
     uniqueProjects() {
       const seen = new Set()
       return this.suggestions
@@ -177,7 +215,6 @@ export default {
     }
   },
   methods: {
-    /** Build a set of names that appear more than once (for path disambiguation) */
     buildDuplicateNames(suggestions) {
       const counts = {}
       for (const s of suggestions) {
@@ -241,7 +278,6 @@ export default {
       }
       return result
     },
-    /** Reload mentions: clears cache then notifies parent to re-fetch */
     async onReload() {
       if (this.reloading) return
       this.reloading = true
@@ -251,6 +287,12 @@ export default {
       } finally {
         this.reloading = false
       }
+    },
+    onCancel() {
+      if (this.searchController) {
+        this.searchController.cancel()
+      }
+      this.$emit('cancel')
     }
   }
 }

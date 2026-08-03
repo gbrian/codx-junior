@@ -51,6 +51,8 @@ class ChatUtils:
         profiles = self.profile_manager.list_all_profiles()
         logger.info("Project profiles: %s", [p.name for p in profiles])
         mention_profiles = [p for p in profiles if p.name in mentions]
-        logger.info("Extracted profiles for '%s': %s", mentions, mention_profiles)
+        logger.info("Extracted profiles for '%s': %s", 
+            mentions, [p.name for p in mention_profiles]
+        )
         return self.profile_manager.reduce_linked_profiles(profiles=mention_profiles)
 

@@ -1,30 +1,6 @@
 <script setup>
-import Window from './Window.vue'
-import AppWindow from '../windowManager/AppWindow.vue'
-import LogViewer from '../LogViewer.vue'
-import KnowledgeViewVue from "../../views/KnowledgeView.vue"
-import KnowledgeSettingsVue from "../../views/KnowledgeSettings.vue"
-import ProfileViewVue from "../../views/ProfileView.vue"
-import CodxWelcomeView from "../../views/CodxWelcomeView.vue"
-import ProjectSettingsVue from "../../views/ProjectSettings.vue"
-import WikiViewVue from "../../views/WikiView.vue"
-import DocsViewVue from "../../views/DocsView.vue"
-import GlobalSettingsVue from "../../views/GlobalSettings.vue"
-import KanbanContainerVue from "../kanban/KanbanContainer.vue"
-import Files from "../apps/Files.vue"
-import MetricsViewer from "../metrics/MetricsViewer.vue"
-import AccountSettings from '../security/AccountSettings.vue'
-import FileFinderVue from '../filebrowser/FileFinder.vue'
-import ProjectOverview from "../project/ProjectOverview.vue"
-import Wall from "../wall/Wall.vue"
-import ChatView from '@/views/ChatView.vue'
+import { APP_COMPONENTS_MAP, ADDITIONAL_COMPONENTS } from '../../config/appComponentsMap.js'
 import ViewProperties from '../main-menu/ViewProperties.vue'
-import AnalyticsDashboard from '../analytics/index.vue'
-import LogsAnalyzerDashboard from '../logs/LogsAnalyzerDashboard.vue'
-import TeamChannel from '../teams/TeamChannel.vue'
-import TeamDM from '../teams/TeamDM.vue'
-import TeamMediaLibrary from '../teams/TeamMediaLibrary.vue'
-import VibeCodingView from '@/views/VibeCodingView.vue'
 import EmptyStateWelcome from './EmptyStateWelcome.vue'
 </script>
 
@@ -59,31 +35,8 @@ import EmptyStateWelcome from './EmptyStateWelcome.vue'
 export default {
   name: 'VibeDesktop',
   components: {
-    'window': Window,
-    'app-window': AppWindow,
-    'log-viewer': LogViewer,
-    'knowledge': KnowledgeViewVue,
-    'knowledge_settings': KnowledgeSettingsVue,
-    'profiles': ProfileViewVue,
-    'home': CodxWelcomeView,
-    'settings': ProjectSettingsVue,
-    'wiki': WikiViewVue,
-    'docs': DocsViewVue,
-    'global-settings': GlobalSettingsVue,
-    'tasks': KanbanContainerVue,
-    'files': Files,
-    'metrics': MetricsViewer,
-    'account': AccountSettings,
-    'file-finder': FileFinderVue,
-    'projects': ProjectOverview,
-    'activity': Wall,
-    'chat': ChatView,
-    'analytics': AnalyticsDashboard,
-    'chat-logs': LogsAnalyzerDashboard,
-    'team-channel': TeamChannel,
-    'team-dm': TeamDM,
-    'team-media-library': TeamMediaLibrary,
-    'vibe-coding': VibeCodingView,
+    ...APP_COMPONENTS_MAP,
+    ...ADDITIONAL_COMPONENTS,
     ViewProperties,
     EmptyStateWelcome
   },

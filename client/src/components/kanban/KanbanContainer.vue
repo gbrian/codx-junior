@@ -2,7 +2,7 @@
 import KanbanList from './KanbanList.vue'
 import Kanban from './Kanban.vue'
 import NewEditBoardModal from './NewEditBoardModal.vue'
-import ChatView from '@/views/ChatView.vue';
+import ChatView from '@/views/ChatView.vue'
 </script>
 
 <template>
@@ -31,11 +31,12 @@ import ChatView from '@/views/ChatView.vue';
       v-if="showKanban"
     />
 
-    <!-- New/Edit Board modal — uses KanbanSettings -->
+    <!-- New/Edit Board modal -->
     <modal close="true" @close="closeBoardModal" v-if="showBoardModal">
       <NewEditBoardModal
         :board="editingBoard"
         :boards="boards"
+        :project="project"
         @close="closeBoardModal"
       />
     </modal>
@@ -50,7 +51,6 @@ export default {
     return {
       showHistory: false,
       showBoardModal: false,
-      // editingBoard: board config object passed into KanbanSettings
       editingBoard: null
     }
   },
@@ -58,7 +58,7 @@ export default {
     this.projectChanged()
   },
   watch: {
-    $project() {
+    project() {
       this.projectChanged()
     }
   },
@@ -67,7 +67,7 @@ export default {
       return this.$project
     },
     kanban() {
-      return this.$projects.kanban || { boards: {} }
+      return this.project?.$state?.kanban || { boards: {} }
     },
     boards() {
       const keys = Object.keys(this.kanban.boards || {})
@@ -95,15 +95,14 @@ export default {
   },
   methods: {
     async projectChanged() {
-      await this.$projects.loadKanban()
+      if (!this.project?.$state?.kanban) {
+        await this.$storex.projects.loadKanban({ project: this.project })
+      }
       this.selectBoard()
     },
-
     async selectBoard(board) {
       await this.$projects.setActiveBoard(board)
     },
-
-    // Open modal for creating a new board (blank editingBoard)
     showNewBoardModal() {
       this.editingBoard = {
         title: '',
@@ -115,56 +114,36 @@ export default {
       }
       this.showBoardModal = true
     },
-
-    // Open modal for editing an existing board
     onEditBoard(board) {
       const title = board?.title || this.activeBoard
       this.editingBoard = { title, ...this.kanban.boards[title] }
       this.showBoardModal = true
     },
-
-    // Save new or updated board from KanbanSettings @change
-    async onSaveBoard(board) {
-      if (!board?.title) return
-      this.kanban.boards[board.title] = {
-        ...board,
-        id: board.id || board.title
-      }
-      await this.$projects.saveKanban()
-      this.closeBoardModal()
-    },
-
     closeBoardModal() {
       this.showBoardModal = false
       this.editingBoard = null
     },
-
     toggleBookmark({ title } = {}) {
       const boardTitle = title || this.activeBoard
       const board = this.kanban.boards[boardTitle]
       if (!board) return
       board.bookmark = !board.bookmark
-      this.$projects.saveKanban()
+      this.$storex.projects.saveKanban({ project: this.project })
     },
-
     async onDeleteBoard(board) {
-      // Accept either a board object or a plain title string
       const boardTitle = board?.title || board
       if (!boardTitle || !this.kanban.boards[boardTitle]) return
       delete this.kanban.boards[boardTitle]
-      await this.$projects.saveKanban()
+      await this.$storex.projects.saveKanban({ project: this.project })
       this.closeBoardModal()
     },
-
     onChatEditDone() {
       this.$chats.setActiveChat()
     },
-
     async setActiveChat(chat) {
       chat && await this.$chats.reloadChat(chat)
       this.$chats.setActiveChat(chat)
     },
-
     async moveChatsToColumn({ chats, column }) {
       await Promise.all(
         chats.map(chat => this.$chats.saveChatInfo({ ...chat, column }))

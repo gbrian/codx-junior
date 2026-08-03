@@ -40,7 +40,8 @@
   },
   "tools": [
     "project_search",
-    "fetch_webpage"
+    "fetch_webpage",
+    "project_read_file"
   ],
   "tags": [],
   "api_settings": {

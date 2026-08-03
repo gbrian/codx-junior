@@ -10,87 +10,78 @@
             "type": "leaf",
             "data": {
               "views": [
-                "codx-junior-Coder-1783349496977",
-                "tasks-1783349499067"
+                "file-explorer-1784652903146",
+                "tasks-1784190689314"
               ],
-              "activeView": "codx-junior-Coder-1783349496977",
+              "activeView": "file-explorer-1784652903146",
               "id": "1"
             },
-            "size": 970
+            "size": 695
           },
           {
             "type": "leaf",
             "data": {
               "views": [
-                "-1783349519328"
+                "-1784188751604",
+                "workspaces-1783785500036",
+                "kanban store-1784192738605",
+                "-1784285710967",
+                "FileExplorer.vue-1784652962013"
               ],
-              "activeView": "-1783349519328",
+              "activeView": "FileExplorer.vue-1784652962013",
               "id": "2"
             },
-            "size": 970.6875
+            "size": 1309.3125
           }
         ],
-        "size": 1081.375
+        "size": 1125.5
       },
-      "width": 1940.6875,
-      "height": 1081.375,
+      "width": 2004.3125,
+      "height": 1125.5,
       "orientation": "HORIZONTAL"
     },
     "panels": {
-      "codx-junior-Coder-1783349496977": {
-        "id": "codx-junior-Coder-1783349496977",
-        "contentComponent": "app-window",
+      "file-explorer-1784652903146": {
+        "id": "file-explorer-1784652903146",
+        "contentComponent": "file-explorer",
         "tabComponent": "tabComponent",
         "params": {
           "app": {
-            "id": "",
-            "name": "Coder",
-            "description": "Coder coding environment",
-            "icon": "fa-solid fa-code",
-            "path": "/workspace-default/coder/",
-            "port": "",
-            "is_vnc": false,
-            "container_name": "",
-            "roles": [
-              "admin"
-            ],
-            "workspaceName": "codx-junior",
-            "key": "codx-junior-Coder",
-            "left": true,
-            "ts": 1783349496977,
-            "tabId": "codx-junior-Coder-1783349496977",
+            "name": "file-explorer",
+            "component": "file-explorer",
+            "tabId": "file-explorer-1784652903146",
             "params": {},
-            "openedAt": 1783349496977
+            "openedAt": 1784652903146
           },
-          "tabName": "Coder"
+          "tabName": "file-explorer"
         },
-        "title": "Coder",
+        "title": "file-explorer",
         "renderer": "always"
       },
-      "tasks-1783349499067": {
-        "id": "tasks-1783349499067",
+      "tasks-1784190689314": {
+        "id": "tasks-1784190689314",
         "contentComponent": "tasks",
         "tabComponent": "tabComponent",
         "params": {
           "app": {
             "name": "tasks",
             "component": "tasks",
-            "tabId": "tasks-1783349499067",
+            "tabId": "tasks-1784190689314",
             "params": {},
-            "openedAt": 1783349499067
+            "openedAt": 1784652895448
           },
           "tabName": "tasks"
         },
         "title": "tasks",
         "renderer": "always"
       },
-      "-1783349519328": {
-        "id": "-1783349519328",
+      "-1784188751604": {
+        "id": "-1784188751604",
         "contentComponent": "chat",
         "tabComponent": "tabComponent",
         "params": {
           "chat": {
-            "id": "4b504f61-2a8a-4baf-a3d7-9a8bafa3f4b3",
+            "id": "9645277e-ae29-4299-9729-38d64f7c24a8",
             "name": "",
             "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
           },
@@ -99,20 +90,122 @@
             "component": "chat",
             "params": {
               "chat": {
-                "id": "4b504f61-2a8a-4baf-a3d7-9a8bafa3f4b3",
+                "id": "9645277e-ae29-4299-9729-38d64f7c24a8",
                 "name": "",
                 "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
               }
             },
-            "tabId": "-1783349519328",
-            "openedAt": 1783349519328
+            "tabId": "-1784188751604",
+            "openedAt": 1784188751604
           },
           "tabName": ""
         },
         "title": "",
         "renderer": "always"
+      },
+      "workspaces-1783785500036": {
+        "id": "workspaces-1783785500036",
+        "contentComponent": "workspaces",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "key": "workspaces",
+            "name": "Workspaces",
+            "component": "workspaces",
+            "params": {},
+            "tabId": "workspaces-1783785500036",
+            "openedAt": 1784652895518
+          },
+          "tabName": "Workspaces"
+        },
+        "title": "Workspaces",
+        "renderer": "always"
+      },
+      "kanban store-1784192738605": {
+        "id": "kanban store-1784192738605",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "c018f594-7abe-4e91-ad8e-ee612f7d738c",
+            "name": "kanban store",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "kanban store",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "c018f594-7abe-4e91-ad8e-ee612f7d738c",
+                "name": "kanban store",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "kanban store-1784192738605",
+            "openedAt": 1784192738605
+          },
+          "tabName": "kanban store"
+        },
+        "title": "kanban store",
+        "renderer": "always"
+      },
+      "-1784285710967": {
+        "id": "-1784285710967",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "4c05d7fe-d066-44e8-b2e6-dd71ff85e494",
+            "name": "",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "4c05d7fe-d066-44e8-b2e6-dd71ff85e494",
+                "name": "",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "-1784285710967",
+            "openedAt": 1784285710967
+          },
+          "tabName": ""
+        },
+        "title": "",
+        "renderer": "always"
+      },
+      "FileExplorer.vue-1784652962013": {
+        "id": "FileExplorer.vue-1784652962013",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "27ee3cb5-12c2-4662-80b4-34d921655079",
+            "name": "FileExplorer.vue",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "FileExplorer.vue",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "27ee3cb5-12c2-4662-80b4-34d921655079",
+                "name": "FileExplorer.vue",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "FileExplorer.vue-1784652962013",
+            "openedAt": 1784652962013
+          },
+          "tabName": "FileExplorer.vue"
+        },
+        "title": "FileExplorer.vue",
+        "renderer": "always"
       }
     },
-    "activeGroup": "1"
+    "activeGroup": "2"
   }
 }

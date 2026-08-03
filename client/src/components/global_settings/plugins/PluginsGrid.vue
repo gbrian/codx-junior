@@ -18,7 +18,7 @@ import LoadPluginModal from './LoadPluginModal.vue'
         @click="editablePlugin = plugin"
       />
     </div>
-    <modal close="true" @close="editablePlugin = null" v-if="editablePlugin">
+    <modal close="true" class="w-2/3" @close="editablePlugin = null" v-if="editablePlugin">
       <PluginModal :plugin="editablePlugin" @remove="removePlugin" @save="savePlugin" @close="editablePlugin = null" />
     </modal>
     <LoadPluginModal v-if="showLoader" @close="showLoader = false" @loadPlugin="loadFromfile" />

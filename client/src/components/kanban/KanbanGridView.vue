@@ -154,6 +154,19 @@ import Collapsible from '../Collapsible.vue'
       </div>
     </Collapsible>
 
+    <!-- Bulk actions toolbar -->
+    <div v-if="selectedTasks.length > 0" class="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/30">
+      <i class="fa-solid fa-check-circle text-primary"></i>
+      <span class="text-sm font-semibold">{{ selectedTasks.length }} task(s) selected</span>
+      <div class="grow border-l border-primary/30 ml-2"></div>
+      <button class="btn btn-sm btn-ghost gap-1" @click="clearSelection">
+        <i class="fa-solid fa-xmark"></i> Clear
+      </button>
+      <button class="btn btn-sm btn-error gap-1" @click="showDeleteConfirm = true">
+        <i class="fa-solid fa-trash"></i> Delete
+      </button>
+    </div>
+
     <!-- Grid content -->
     <div class="grow overflow-y-auto">
 
@@ -212,21 +225,42 @@ import Collapsible from '../Collapsible.vue'
             @dragleave="onDragLeave(groupKey)"
             @drop.prevent="onDrop($event, groupKey)"
           >
-            <TaskCard
+            <div
               v-for="task in group"
               :key="task.id"
-              :task="task"
-              class="cursor-pointer bg-base-200 overflow-hidden"
-              :class="[
-                task.pinned && 'border-warning border',
-                lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',
-                draggingTaskId === task.id ? 'opacity-40' : ''
-              ]"
-              draggable="true"
-              @dragstart="onDragStart($event, task)"
-              @dragend="onDragEnd"
-              @click="$emit('open-task', task)"
-            />
+              class="relative group"
+              @click="openTask(task)"
+            >
+              <!-- Selection checkbox overlay - isolated click zone -->
+              <div class="absolute top-4 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity" 
+                :class="isTaskSelected(task.id) && 'opacity-100'"
+                @click.stop>
+                <label class="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm checkbox-primary"
+                    :checked="isTaskSelected(task.id)"
+                    @change="toggleTaskSelection(task.id)"
+                  />
+                </label>
+              </div>
+
+              <TaskCard
+                :task="task"
+                class="pl-5 cursor-pointer bg-base-200 overflow-hidden h-full flex flex-col transition-all"
+                :class="[
+                  task.pinned && 'border-warning border',
+                  lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',
+                  draggingTaskId === task.id ? 'opacity-40' : '',
+                  isTaskSelected(task.id) && 'bg-info/30',
+                ]"
+                draggable="true"
+                @dragstart="onDragStart($event, task)"
+                @dragend="onDragEnd"
+                @click.stop="$emit('open-task', task)"
+              />
+            </div>
+
             <!-- Empty drop hint -->
             <div
               v-if="group.length === 0"
@@ -256,27 +290,68 @@ import Collapsible from '../Collapsible.vue'
 
       <!-- Flat grid view (no grouping) -->
       <div v-else class="grid grid-cols-1 @sm:grid-cols-2 @lg:grid-cols-3 @2xl:grid-cols-4 gap-3">
-        <TaskCard
+        <div
           v-for="task in filteredTasks"
           :key="task.id"
-          :task="task"
-          class="cursor-pointer bg-base-200 overflow-hidden"
-          :class="[
-            task.pinned && 'border-warning border',
-            lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',
-            draggingTaskId === task.id ? 'opacity-40' : ''
-          ]"
-          draggable="true"
-          @dragstart="onDragStart($event, task)"
-          @dragend="onDragEnd"
-          @click="$emit('open-task', task)"
-        />
+          class="relative group"
+          @click="openTask(task)"
+        >
+          <!-- Selection checkbox overlay - isolated click zone -->
+          <div class="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+            <label class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm checkbox-primary"
+                :checked="isTaskSelected(task.id)"
+                @change="toggleTaskSelection(task.id)"
+              />
+            </label>
+          </div>
+
+          <TaskCard
+            :task="task"
+            class="cursor-pointer bg-base-200 overflow-hidden h-full flex flex-col transition-all"
+            :class="[
+              task.pinned && 'border-warning border',
+              lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',
+              draggingTaskId === task.id ? 'opacity-40' : '',
+              isTaskSelected(task.id) ? 'ring-2 ring-primary ring-offset-2 shadow-lg' : ''
+            ]"
+            draggable="true"
+            @dragstart="onDragStart($event, task)"
+            @dragend="onDragEnd"
+            @click.stop
+          />
+        </div>
+
         <div v-if="filteredTasks.length === 0" class="col-span-full text-center opacity-40 py-10">
           <i class="fa-solid fa-inbox text-4xl mb-2"></i>
           <div>No tasks match your filters</div>
         </div>
       </div>
     </div>
+
+    <!-- Delete confirmation modal -->
+    <modal close="true" @close="showDeleteConfirm = false" v-if="showDeleteConfirm">
+      <div class="p-6">
+        <h3 class="font-bold text-lg mb-2">Confirm Deletion</h3>
+        <p class="mb-6 text-base-content/70 text-sm">
+          Are you sure you want to delete <span class="font-semibold text-error">{{ selectedTasks.length }} task(s)</span>? This action cannot be undone.
+        </p>
+        <div class="flex justify-end gap-2">
+          <button class="btn btn-ghost btn-sm" @click="showDeleteConfirm = false">
+            Cancel
+          </button>
+          <button class="btn btn-error btn-sm" @click="performBulkDelete" :disabled="isDeleting">
+            <span v-if="isDeleting" class="loading loading-dots loading-xs"></span>
+            <span v-else>
+              <i class="fa-solid fa-trash"></i>
+              Delete {{ selectedTasks.length }} task(s)
+            </span>
+          </button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -289,7 +364,7 @@ const MODE_LABELS = {
 }
 
 export default {
-  emits: ['open-task', 'new-task', 'new-column', 'edit-column', 'move-task'],
+  emits: ['open-task', 'new-task', 'new-column', 'edit-column', 'move-task', 'delete-tasks'],
   props: {
     columns: { type: Array, default: () => [] },
     lastUpdatedTaskId: { type: String, default: null }
@@ -304,10 +379,12 @@ export default {
       pinnedOnly: false,
       groupBy: 'column',
       sortBy: 'date_desc',
-      // drag state
       draggingTaskId: null,
       draggingTask: null,
-      dragOverGroup: null
+      dragOverGroup: null,
+      selectedTaskIds: [],
+      showDeleteConfirm: false,
+      isDeleting: false
     }
   },
   computed: {
@@ -340,7 +417,6 @@ export default {
               ...task.messages?.map(m => m.content) || [],
               ...task.files || []
           ].join("").includes(text)
-          
           if (!inTask) return false
         }
         if (this.dateFilter) {
@@ -363,7 +439,6 @@ export default {
       }))
     },
     groupedTasks() {
-      // Preserve column order from columns prop when grouping by column
       if (this.groupBy === 'column') {
         const columnOrder = this.columns.map(c => c.title)
         const grouped = this.filteredTasks.reduce((acc, task) => {
@@ -409,9 +484,15 @@ export default {
       if (this.dateFilter) chips.push({ key: 'dateFilter', label: this.dateFilter })
       if (this.pinnedOnly) chips.push({ key: 'pinnedOnly', label: 'Pinned' })
       return chips
+    },
+    selectedTasks() {
+      return this.filteredTasks.filter(t => this.selectedTaskIds.includes(t.id))
     }
   },
   methods: {
+    openTask(task) {
+      this.$emit('open-task', task)
+    },
     toggleFilter(filterKey, value) {
       const arr = this[filterKey]
       const idx = arr.indexOf(value)
@@ -442,13 +523,39 @@ export default {
         return 0
       })
     },
-
-    // Emit new-task with column context resolved from the column title
     emitNewTaskForColumn(column, mode) {
       this.$emit('new-task', { column, mode })
     },
-
-    // --- Drag & Drop ---
+    isTaskSelected(taskId) {
+      return this.selectedTaskIds.includes(taskId)
+    },
+    toggleTaskSelection(taskId) {
+      const idx = this.selectedTaskIds.indexOf(taskId)
+      if (idx === -1) {
+        this.selectedTaskIds.push(taskId)
+      } else {
+        this.selectedTaskIds.splice(idx, 1)
+      }
+    },
+    clearSelection() {
+      this.selectedTaskIds = []
+    },
+    async performBulkDelete() {
+      this.isDeleting = true
+      try {
+        for (const task of this.selectedTasks) {
+          await this.$storex.chats.deleteChat(task)
+        }
+        this.$emit('delete-tasks', this.selectedTasks)
+        this.showDeleteConfirm = false
+        this.clearSelection()
+      } catch (error) {
+        console.error('Error deleting tasks:', error)
+        this.$ui.addNotification({ text: 'Failed to delete tasks', type: 'error' })
+      } finally {
+        this.isDeleting = false
+      }
+    },
     onDragStart(event, task) {
       this.draggingTaskId = task.id
       this.draggingTask = task
@@ -477,7 +584,6 @@ export default {
       this.dragOverGroup = null
       this.draggingTaskId = null
 
-      // Only emit move when grouping by column and target differs
       if (this.groupBy !== 'column') return
       if (!taskId || fromColumn === groupKey) return
 

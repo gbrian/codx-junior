@@ -273,6 +273,7 @@ class RawLogRecordSummary(BaseModel):
         default=None,
         description="First 200 characters of the payload string representation.",
     )
+    tools: Optional[dict]
 
 
 class RawLogListResponse(BaseModel):

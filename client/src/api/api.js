@@ -932,10 +932,10 @@ const initializeAPI = ({ project, user } = {}) => {
 
     files: {
       list(path) {
-        return API.get(`/api/files?path=${path}`)
+        return API.get(`/api/files?path=${encodeURIComponent(path)}`)
       },
       read(path) {
-        return API.get(`/api/files/read?path=${path}`)
+        return API.get(`/api/files/read?path=${encodeURIComponent(path)}`)
       },
       diff({ path, content, from_branch, to_branch }) {
         return API.post(`/api/files/diff`, { 
@@ -945,14 +945,32 @@ const initializeAPI = ({ project, user } = {}) => {
           to_branch: to_branch || null
         })
       },
-      search(search) {
-        return API.get(`/api/files/find?search=${search}`)
+      search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false }) {
+        const params = new URLSearchParams()
+        params.append('search', search)
+        if (searchPath) {
+          params.append('search_path', searchPath)
+        }
+        params.append('page', page)
+        params.append('page_size', pageSize)
+        return API.get(`/api/files/search?${params.toString()}`)
+      },
+      searchContent({ query, searchPath, page = 0, pageSize = 50, caseSensitive = false, rawSearch = false }) {
+        const params = new URLSearchParams()
+        params.append('q', query)
+        if (searchPath) {
+          params.append('search_path', searchPath)
+        }
+        params.append('page', page)
+        params.append('page_size', pageSize)
+        params.append('case_sensitive', caseSensitive)
+        return API.get(`/api/files/search-content?${params.toString()}`)
       },
       write(source, page_content) {
-        return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
+        return API.post(`/api/files/write?path=${encodeURIComponent(source)}`, { page_content, metadata: { source } })
       },
       reset(source) {
-        return API.get(`/api/files/reset?path=${path}`)
+        return API.get(`/api/files/reset?path=${encodeURIComponent(path)}`)
       }
     },
     screen: {

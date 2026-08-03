@@ -9,9 +9,12 @@ import Code from '../Code.vue'
       <MarkdownViewer
         :files="files"
         :documentId="documentId"
+        :heading-actions="headingActions"
+        :include-heading-menu="includeHeadingMenu"
         v-if="block.renderer === 'md'"
         :text="block.content"
         @add-file="$emit('add-file', $event)"
+        @heading-action="handleHeadingAction"
       />
       <Code
         :text="block.content"
@@ -109,11 +112,29 @@ function parseContent(content, loading) {
 }
 
 export default {
-  props: ['content', 'files', 'project', 'chat', 'loading', 'documentId', 'message'],
-  emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'sub-task'],
+  props: {
+    content: { type: String, default: '' },
+    files: { type: Array, default: null },
+    project: { type: Object, default: null },
+    chat: { type: Object, default: null },
+    loading: { type: Boolean, default: false },
+    documentId: { type: String, default: '' },
+    message: { type: Object, default: null },
+    headingActions: { type: Array, default: null },
+    includeHeadingMenu: { type: Boolean, default: false }
+  },
+  emits: [
+    'generate-code',
+    'reload-file',
+    'open-file',
+    'save-file',
+    'add-file',
+    'edit-message',
+    'sub-task',
+    'heading-action'
+  ],
   data() {
-    return {
-    }
+    return {}
   },
   computed: {
     blocks() {
@@ -121,6 +142,11 @@ export default {
     },
     docProject() {
       return this.project || this.$project
+    }
+  },
+  methods: {
+    handleHeadingAction(actionData) {
+      this.$emit('heading-action', actionData)
     }
   }
 }

@@ -10,7 +10,6 @@ import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue'
 import SettingsMenu from './SettingsMenu.vue'
 import MenuDivider from './MenuDivider.vue'
-import ViewsMenu from './ViewsMenu.vue'
 </script>
 
 <template>
@@ -61,7 +60,7 @@ import ViewsMenu from './ViewsMenu.vue'
               <i class="fa-solid fa-people-group"></i>
               Team
             </MenubarItem>
-            <MenubarItem @click="$ui.setActiveTab('file-finder')">
+            <MenubarItem @click="$ui.setActiveTab('file-explorer')">
               <i class="fa-regular fa-folder-open"></i>
               File explorer
             </MenubarItem>
@@ -79,9 +78,6 @@ import ViewsMenu from './ViewsMenu.vue'
               <i class="fa-solid fa-chart-area"></i>
               Analytics
             </MenubarItem>
-            <MenuDivider />
-            <!-- Views submenu -->
-            <ViewsMenu />
             <MenuDivider />
             <WorkspacesMenu />
             <MenuDivider />

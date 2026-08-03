@@ -9,6 +9,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
 import ChatEntryMobile from './ChatEntryMobile.vue'
 import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
+import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 </script>
 
 <template>
@@ -73,8 +74,18 @@ import MessagePRView from './chat/MessagePRView.vue'
     ]"
   >
     <div class="w-full">
-      <div class="w-full flex flex-col gap-1 hover:rounded-md group">
+      <div class="w-full flex flex-col gap-1 hover:rounded-md group relative">
         <progress class="progress w-full" v-if="!isDone"></progress>
+
+        <!-- Sticky selection action bar — shown when text is selected -->
+          <ChatEntrySelectionMenu
+            v-if="showSelectionMenu"
+            :selectedText="selectedText"
+            @copy="onSelectionCopy"
+            @create-subtask="onSelectionCreateSubtask"
+            @close="onCloseSelectionMenu"
+          />
+
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
@@ -99,7 +110,7 @@ import MessagePRView from './chat/MessagePRView.vue'
             />
             <i class="fa-solid fa-magnifying-glass" v-if="message.task_item === 'search'"></i>
             <div class="flex gap-2 grow">
-              <span class="badge bagde-xs badge-error" v-if="cancellationTime">Cancelled</span>
+              <span class="badge badg-xs badge-error" v-if="cancellationTime">Cancelled</span>
               [{{ formatDate(displayMessage.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }})</span>
               <div class="badge badge-sm badge-success flex gap-1" v-if="displayMessage.is_answer">
@@ -109,7 +120,7 @@ import MessagePRView from './chat/MessagePRView.vue'
                 <ChatIcon mode="topic" /> Topic 
               </div>
               <div 
-                class="badge badge-sm border-dashed badge-outline flex gap-1" 
+                class="badge badge-sm border-dashed badge-outline flex gap-1 click" 
                 @click="openThread"
                 v-if="threadChat"
               >
@@ -164,7 +175,7 @@ import MessagePRView from './chat/MessagePRView.vue'
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
                   <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
                     :class="showPRView && 'btn-warning'"
                     data-tip="View PR changes" 
                     @click="togglePRView"
@@ -251,9 +262,10 @@ import MessagePRView from './chat/MessagePRView.vue'
         <!-- Message content area — ref used by DocumentSummary to scroll within -->
         <div 
           ref="contentArea"
-          @copy.stop="onMessageCopy" 
+          @copy.stop="onMessageCopy"
+          @mouseup="onContentMouseUp"
           :class="[
-            'max-w-full border-slate-300/20', 
+            'max-w-full border-slate-300/20 relative', 
             (isCollapsed === undefined ? displayMessage.hide : isCollapsed) 
               ? 'h-6 overflow-hidden' 
               : 'h-fit'
@@ -405,7 +417,9 @@ export default {
       showPRView: false,
       documentId: 'doc-' + Math.random().toString(36).slice(2, 8),
       activeBranch: null,
-      branchLoading: false
+      branchLoading: false,
+      showSelectionMenu: false,
+      selectedText: ''
     }
   },
   created() {
@@ -542,6 +556,28 @@ export default {
         this.copyTextToClipboard(text)
         ev.preventDefault()
       }
+    },
+    onContentMouseUp() {
+      const selection = window.getSelection()
+      const selectedText = selection.toString().trim()
+      if (selectedText.length > 0) {
+        this.selectedText = selectedText
+        this.showSelectionMenu = true
+      } else {
+        this.showSelectionMenu = false
+      }
+    },
+    onSelectionCopy(text) {
+      this.copyTextToClipboard(text)
+      this.$ui.showNotification('Copied to clipboard', 'success')
+    },
+    onSelectionCreateSubtask(content) {
+      this.$emit('sub-task', {
+        content,
+      })
+    },
+    onCloseSelectionMenu() {
+      this.showSelectionMenu = false
     },
     toggleCollapse() {
       if (this.displayMessage.collapsed !== undefined) {

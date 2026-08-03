@@ -42,8 +42,6 @@ export const state = () => ({
   newProject: false,
   activeApp: null,
   appShowMode: null,
-  views: [],
-  lastView: null,
   _desktopApi: null,
   viewEditor: null,
   activeTeam: null,
@@ -52,6 +50,12 @@ export const state = () => ({
     chat: 30,
     changes: 33,
     preview: 37
+  },
+  projectLoadingState: {
+    isLoading: false,
+    projectName: '',
+    currentStep: null,
+    error: null
   }
 })
 
@@ -240,7 +244,7 @@ export const mutations = mutationTree(state, {
     }
     if (!Object.keys(state.openApps).length) {
       if (!state.activeTab) {
-        $storex.ui.showTab(state.lastActiveTab || 'home')
+        $storex.ui.showTab(state.lastActiveTab || 'tasks')
       }
     }
     $storex.ui.saveState()
@@ -261,11 +265,17 @@ export const mutations = mutationTree(state, {
       }
     })
   },
+  openFileInViewer(_, filePath) {
+    const fileName = filePath.split('/').pop()
+    $storex.ui.showApp({
+      key: `file-viewer-${filePath}`,
+      name: fileName,
+      component: 'file-viewer',
+      params: { filePath }
+    })
+  },
   setDesktopApi(state, api) {
     state._desktopApi = api
-  },
-  setViews(state, views) {
-    state.views = views || []
   },
   openViewEditor(state, view = null) {
     state.viewEditor = { view: view || null }
@@ -287,6 +297,12 @@ export const mutations = mutationTree(state, {
       [panel]: width
     }
     $storex.ui.saveState()
+  },
+  setProjectLoadingState(state, loadingState) {
+    state.projectLoadingState = {
+      ...state.projectLoadingState,
+      ...loadingState
+    }
   }
 })
 
@@ -310,8 +326,13 @@ export const actions = actionTree(
         uiReady: false,
         openApps: {},
         _desktopApi: null,
-        views: [],
-        viewEditor: null
+        viewEditor: null,
+        projectLoadingState: {
+          isLoading: false,
+          projectName: '',
+          currentStep: null,
+          error: null
+        }
       }
       localStorage.setItem('uiState', JSON.stringify(data))
     },
@@ -505,131 +526,20 @@ export const actions = actionTree(
       })
     },
 
-    // --- Views actions ---
+    // --- Project loading state actions ---
 
-    async loadViews({ state }) {
-      try {
-        const projectApi = $storex.projects.activeProject?.$api
-        if (!projectApi) return
-        const views = await projectApi.views.list()
-        state.views = views || []
-      } catch (ex) {
-        console.error("Error loading views", ex)
-        state.views = []
-      }
+    setProjectLoading(_, isLoading) {
+      $storex.ui.setProjectLoadingState({ isLoading })
     },
 
-    async saveView({ state }, name) {
-      const project = $storex.projects.activeProject
-      if (!project) return
-      const projectApi = project.$api
-      if (!projectApi) return
-      const desktop = state._desktopApi ? state._desktopApi.toJSON() : {}
-      const view = {
-        name,
-        project_id: project.project_id,
-        desktop
-      }
-      await projectApi.views.save(view)
-      await $storex.ui.loadViews()
-      $storex.ui.persistLastView({ project_id: project.project_id, view })
-      $storex.ui.addNotification({ text: `View "${name}" saved` })
-      return view
+    updateProjectLoadingStep(_, { stepId, status, options = {} }) {
+      window.dispatchEvent(new CustomEvent('project-loading-step', {
+        detail: { stepId, status, options }
+      }))
     },
 
-    resetDesktop({ state }) {
-      const api = state._desktopApi
-      if (!api) return
-      const panelIds = api.panels.map(p => p.id)
-      panelIds.forEach(id => {
-        try {
-          const panel = api.getPanel(id)
-          if (panel) api.removePanel(panel)
-        } catch (ex) {
-          console.warn("Could not remove panel", id, ex)
-        }
-      })
-      state.openApps = {}
-    },
-
-    async loadView({ state }, view) {
-      if (!state._desktopApi || !view?.desktop) return
-      try {
-        state._desktopApi.fromJSON(view.desktop)
-        state.lastView = view
-        const project = $storex.projects.activeProject
-        if (project) {
-          $storex.ui.persistLastView({ project_id: project.project_id, view })
-        }
-        $storex.ui.addNotification({ text: `View "${view.name}" loaded` })
-      } catch (ex) {
-        console.error("Error loading view", ex)
-      }
-    },
-
-    persistLastView(_, { project_id, view }) {
-      try {
-        const key = `lastView_${project_id}`
-        localStorage.setItem(key, JSON.stringify({ name: view.name }))
-      } catch (ex) {
-        console.error("Error persisting last view", ex)
-      }
-    },
-
-    async restoreLastView({ state }) {
-      const project = $storex.projects.activeProject
-      if (!project) return
-      try {
-        const key = `lastView_${project.project_id}`
-        const stored = localStorage.getItem(key)
-        if (!stored) return
-        const { name } = JSON.parse(stored)
-        const view = state.views.find(v => v.name === name)
-        if (view) {
-          await $storex.ui.loadView(view)
-        }
-      } catch (ex) {
-        console.error("Error restoring last view", ex)
-      }
-    },
-
-    async deleteView({ state }, name) {
-      const projectApi = $storex.projects.activeProject?.$api
-      if (!projectApi) return
-      await projectApi.views.delete(name)
-      await $storex.ui.loadViews()
-      const project = $storex.projects.activeProject
-      if (project) {
-        const key = `lastView_${project.project_id}`
-        const stored = localStorage.getItem(key)
-        if (stored) {
-          const { name: storedName } = JSON.parse(stored)
-          if (storedName === name) {
-            localStorage.removeItem(key)
-            state.lastView = null
-          }
-        }
-      }
-      $storex.ui.addNotification({ text: `View "${name}" deleted` })
-    },
-
-    async renameView({ state }, { oldName, newName }) {
-      const projectApi = $storex.projects.activeProject?.$api
-      if (!projectApi) return
-      await projectApi.views.rename(oldName, newName)
-      await $storex.ui.loadViews()
-      const project = $storex.projects.activeProject
-      if (project) {
-        const key = `lastView_${project.project_id}`
-        const stored = localStorage.getItem(key)
-        if (stored) {
-          const { name: storedName } = JSON.parse(stored)
-          if (storedName === oldName) {
-            localStorage.setItem(key, JSON.stringify({ name: newName }))
-          }
-        }
-      }
-      $storex.ui.addNotification({ text: `View renamed to "${newName}"` })
+    setProjectLoadingError(_, error) {
+      $storex.ui.setProjectLoadingState({ error })
     }
   },
 )

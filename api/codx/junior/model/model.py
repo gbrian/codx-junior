@@ -241,14 +241,15 @@ CRITICAL INFORMATION:
 When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
 Example:
 
-```js /folder/file_name.js
+```js folder/file_name.js
  import dummy from 'module'
 ```
 
-Use valid file path based on the project and conversation context.
+Use valid file path (absolute or relative) based on the project and conversation context.
 New file changes must follow original file formating and identation.
 Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
 Keep changes simple and easy to review by the user.
+Focus on the task and avoid changing other parts not related.
 
 MISSING FILE CONTENT HANDLING:
 If a file is referenced in the conversation but its content is missing from the context:

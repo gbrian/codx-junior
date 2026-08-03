@@ -68,6 +68,23 @@ class OpenAI_AI:
         # Raw request/response logger — enabled when a log path is configured
         self.raw_logger: RawAILogger = RawAILogger()
 
+    def _parse_tool_call(self, response_content, request_id):
+        try:
+            if response_content.strip().startswith("{"):
+                parsed_response = json.loads(response_content)
+                if 'name' in parsed_response and 'arguments' in parsed_response:
+                    tool_name = parsed_response['name']
+                    if any(tool["tool_json"]["function"]["name"] == tool_name for tool in self.tools):
+                        # Create an OpenAI compatible tool_call object
+                        return {
+                            "id": request_id,  # Assuming we need a unique ID for each call
+                            "function": parsed_response['name'],
+                            "arguments": parsed_response['arguments']
+                        }
+        except json.JSONDecodeError:
+            pass
+        return None
+
     # ── Raw logging helpers ────────────────────────────────────────────────────
 
     def _raw_log_ctx(self, session_id, tags_joined, request_id, parent_request_id):
@@ -417,6 +434,7 @@ class OpenAI_AI:
                     continue
                 chunk_content = clean_string(chunk_content)
                 content_parts.append(chunk_content)
+
                 send_callback(chunk_content)
 
             send_callback("", flush=True)
@@ -671,8 +689,11 @@ class OpenAI_AI:
                 chunk_content = choice.delta.content
                 if not chunk_content:
                     continue
-                chunk_content = clean_string(chunk_content)
-                content_parts.append(chunk_content)
+
+                # Check for tool call JSON in the chunk content
+                chunk_content_cleaned = clean_string(chunk_content)
+                content_parts.append(chunk_content_cleaned)
+
                 send_callback(chunk_content)
 
             send_callback("", flush=True)
@@ -707,6 +728,13 @@ class OpenAI_AI:
         duration_seconds = time.monotonic() - request_start
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
+
+        # Check for tool call JSON in the chunk content
+        tool_call = self._parse_tool_call(response_content, request_id)
+        if tool_call:
+            logger.info(f"Detected tool call: {tool_call}")
+            tool_output = await self.process_tool_calls(tool_call_data=tool_call, request_id=request_id, chat_id=session_id)
+            messages.append(AIMessage(content=json.dumps(tool_output)))
 
         # ── Raw-log the completed response ─────────────────────────────────────
         self._raw_log_response(
@@ -754,8 +782,13 @@ class OpenAI_AI:
         error_message = None
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
-        params = json.loads(tool_call_data["arguments"])
         
+        extracted_arguments = tool_call_data["arguments"]
+        if isinstance(extracted_arguments, str):
+            params = json.loads(extracted_arguments)
+        elif isinstance(extracted_arguments, dict):
+            params = extracted_arguments
+
         tool = next((t for t in self.tools if t["tool_json"]["function"]["name"] == func_name), None)
         
         tool_start = time.monotonic()
@@ -783,7 +816,7 @@ class OpenAI_AI:
         except Exception as ex:
             success = False
             error_message = str(ex)
-            tool_response = f"Error executing tool '{func_name}': {ex.message}"
+            tool_response = f"Error executing tool '{func_name}': {ex}"
             logger.exception("Exception in process_tool_calls for tool '%s'", func_name)
         
         finally:
@@ -800,7 +833,7 @@ class OpenAI_AI:
 
         tool_output = {
             "type": "function_call_output",
-            "call_id": tool_call_data["id"],
+            "call_id": tool_call_data.get("id", ""),
             "output": tool_response
         }
 

@@ -181,15 +181,15 @@ class AI:
         :raises RuntimeError: If the provider is not Ollama or if the pull fails.
         """
         provider_type = self._get_provider_type()
-        if provider_type == "ollama":
+        try:
             logger.warning(
                 "Model not found for Ollama provider. Attempting to pull model '%s'.",
                 self.llm_model,
             )
             self._pull_ollama_model()
-        else:
+        except Exception as ex:
             raise RuntimeError(
-                f"Model not found and provider is not Ollama (provider_type={provider_type}). {exc}"
+                f"Pull model failed: {ex}"
             ) from exc
 
     @profile_function

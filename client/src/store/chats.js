@@ -185,6 +185,7 @@ export const actions = actionTree(
         chat_index: 0,
         messages: [],
         auto_initialize: !chat.name,
+        owner_project_id: $storex.projects.activeProject.project_id,
         ...chat
       }
       registerChat(state, chat)

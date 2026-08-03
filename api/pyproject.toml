@@ -36,6 +36,7 @@ dependencies = [
   'vllm>=0.5.0',
   'sentence-transformers>=5.6.0',
   'torch>=2.4.0', 
+  'pathspec>=1.1.1',
 ]
 
 classifiers = [

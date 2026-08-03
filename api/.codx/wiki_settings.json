@@ -15,6 +15,11 @@
           "path": "/shared/codx-junior/api/README.md",
           "slug": "shared-codx-junior-api-readme-md.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/shared-codx-junior-api-readme-md.md"
+        },
+        {
+          "path": "/pyproject.toml",
+          "slug": "pyproject-toml.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/pyproject-toml.md"
         }
       ],
       "id": "project-overview",
@@ -90,6 +95,11 @@
           "path": "/codx/junior/app.py",
           "slug": "codx-junior-app-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-app-py.md"
+        },
+        {
+          "path": "/codx/junior/engine/file_engine.py",
+          "slug": "codx-junior-engine-file-engine-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-file-engine-py.md"
         }
       ],
       "id": "engine-module",

@@ -155,7 +155,7 @@ export default {
     async loadWorkspaces() {
       this.isLoading = true
       try {
-        this.workspaces = await this.theProject.$api.workspaces.list()
+        this.workspaces = await this.theProject.$api.projects.workspaces.list()
       } catch (error) {
         this.showNotification('Failed to load workspaces', 'alert-error')
         console.error(error)
@@ -179,7 +179,7 @@ export default {
     },
     async saveWorkspaceChanges(workspace) {
       try {
-        await this.theProject.$api.workspaces.update(workspace)
+        await this.theProject.$api.projects.workspaces.update(workspace)
         await this.loadWorkspaces()
         this.editingWorkspace = null
         this.showNotification('Workspace updated successfully', 'alert-success')
@@ -199,7 +199,7 @@ export default {
     async confirmDelete() {
       if (!this.deleteConfirmWorkspace) return
       try {
-        await this.theProject.$api.workspaces.delete(this.deleteConfirmWorkspace.id)
+        await this.theProject.$api.projects.workspaces.delete(this.deleteConfirmWorkspace.id)
         await this.loadWorkspaces()
         this.showNotification('Workspace deleted', 'alert-success')
         this.deleteConfirmWorkspace = null
@@ -210,7 +210,7 @@ export default {
     },
     async startWorkspace(workspace) {
       try {
-        await this.theProject.$api.workspaces.lifecycle.start(workspace.id)
+        await this.theProject.$api.projects.workspaces.lifecycle.start(workspace.id)
         await this.loadWorkspaces()
         this.showNotification('Workspace starting...', 'alert-info')
       } catch (error) {
@@ -220,7 +220,7 @@ export default {
     },
     async stopWorkspace(workspace) {
       try {
-        await this.theProject.$api.workspaces.lifecycle.stop(workspace.id)
+        await this.theProject.$api.projects.workspaces.lifecycle.stop(workspace.id)
         await this.loadWorkspaces()
         this.showNotification('Workspace stopped', 'alert-success')
       } catch (error) {

@@ -1,0 +1,51 @@
+{
+  "name": "guide-builder",
+  "url": "",
+  "avatar": "https://i.pinimg.com/474x/00/cb/19/00cb193bc5bee5e556041fac64cb7509.jpg?nii=t",
+  "description": "Assists on creating guides and how-to documents",
+  "category": "assistant",
+  "file_match": "",
+  "content": "# How To Guide Profile\n\n## Purpose\nCreate step-by-step recipe-style guides that enable users to complete specific tasks independently.\n\n## Structure\n\n### 1. **Title**\nClear, action-oriented heading (e.g., \"How to Set Up Authentication\")\n\n### 2. **Overview**\n- 1-2 sentence summary of what the guide accomplishes\n- Who should use it\n\n### 3. **Prerequisites**\n- Required knowledge, tools, or setup\n- Files or dependencies needed\n\n### 4. **Steps**\nNumbered list with:\n- **Action**: Clear imperative statement\n- **Context**: Brief explanation of why\n- **Code/Details**: Minimal examples with file paths\n- **Verification**: How to confirm success\n\n### 5. **Troubleshooting** (if needed)\nCommon issues and solutions\n\n### 6. **Next Steps**\nRelated guides or what to do next\n\n## Writing Guidelines\n- Use active voice, second person (\"you\")\n- One task per step\n- Include file paths in code blocks\n- Be concise\u2014assume moderate technical knowledge\n- **Keep guides as short as possible** to maximize clarity and LLM efficiency\n- Use minimal examples; avoid lengthy explanations or context-filling content\n- Test accuracy before finalizing\n",
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/guide-builder.profile",
+  "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/guide-builder.profile.md",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "4df5e080-b2f6-4e30-ae0d-7adb3d6a8019",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-07-23T08:05:34.370268",
+      "updated_at": "2026-07-23T08:05:34.370279",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": ""
+}

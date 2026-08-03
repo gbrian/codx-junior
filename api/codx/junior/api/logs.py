@@ -148,6 +148,7 @@ def _build_summary(record: Dict[str, Any]) -> RawLogRecordSummary:
         tags=record.get("tags", ""),
         duration_seconds=record.get("duration_seconds"),
         payload_preview=payload_preview,
+        tools=raw_payload.get("tools")
     )
 
 

@@ -1,0 +1,161 @@
+{
+  "id": "18e8a74c-131e-48a2-8419-003c7fadf728",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project",
+    "VueDeveloper",
+    "daisyui_components"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "codx-junior-ui Project Initialization",
+  "pinned": false,
+  "description": "The user reported that AI model lists were not updating after changes to global settings. Analysis of `src/store/project.js` revealed that the `saveSettings` action contained redundant, unawaited calls to `setActiveProject`. These calls caused race conditions that could overwrite the refreshed model list fetched during the reload process. The solution was to remove these lines and rely solely on the existing `realoadProject()` flow. This ensures global settings are synchronized and AI models are updated correctly in the state.",
+  "messages": [
+    {
+      "doc_id": "f52c4fe6-b50f-4c24-8e47-9a79d5c13c20",
+      "role": "user",
+      "task_item": "",
+      "content": "When global settings change the ai models list is not updated, update ai models when global settings change",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-30 10:27:36.319569",
+      "updated_at": "2026-07-30 10:27:36.319591",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/chat/LLMModelSelector.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/project.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/chat/LLMModelSelector.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/project.js"
+      ],
+      "meta_data": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "26ee8579-10c5-47cf-9097-900eecf62e0d",
+      "role": "user",
+      "task_item": "",
+      "content": "When global settings are stored the ai models are not updated in project store.\nWe must be careful as we have project settings and global settings, make sure all methods have clear naming and check the settings passed are valid (not null)\u00a0 project settings has \"project_name\" and global settings not.",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-30 10:27:36.319569",
+      "updated_at": "2026-07-30 10:27:36.319591",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/views/GlobalSettings.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/views/GlobalSettings.vue"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "3d168f69-193a-458e-87e0-c44cdd003f6d",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Ops, sorry! There was an error with latest request: Failed to process AI request after retries. Connection error.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-30 10:27:36.319569",
+      "updated_at": "2026-07-30 10:27:36.319591",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1785426941.6416554,
+        "cancellation_token_id": "85cff092-fd44-471a-88a3-b9dca6df8d28",
+        "model": "DeepSeek-Coder",
+        "time_taken": 925.3204717636108,
+        "first_chunk_time_taken": 0.13628554344177246
+      },
+      "profiles": [
+        "VueDeveloper",
+        "project",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": "Failed to process AI request after retries. Connection error.",
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-07-30 10:27:36.322906",
+  "updated_at": "2026-07-30T16:11:09.732113",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/codx-junior-ui-project-initialization.18e8a74c-131e-48a2-8419-003c7fadf728.json",
+  "llm_model": "DeepSeek-Coder",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-07-30T15:28:27.934164+00:00",
+      "summary": "Here is a 5-line summary of the conversation so far:\n\n1. The user initiated the chat with a greeting.\n2. The project profile for `codx-junior-ui` was provided.\n3. The root directory was established as `/home/codx-junior-projects/codx-junior/client`.\n4. The assistant acknowledged the project context and confirmed readiness to help.\n5. The user requested a concise five-line summary of these interactions.",
+      "message_ids": [
+        "8a91af02-8078-454b-8bc7-2f49b9ce7cd8",
+        "6dc6e6ab-bfaf-4224-9a0d-b359b6c5aa8e"
+      ]
+    },
+    {
+      "timestamp": "2026-07-30T15:32:19.582724+00:00",
+      "summary": "The user reported that AI model lists were not updating after changes to global settings. Analysis of `src/store/project.js` revealed that the `saveSettings` action contained redundant, unawaited calls to `setActiveProject`. These calls caused race conditions that could overwrite the refreshed model list fetched during the reload process. The solution was to remove these lines and rely solely on the existing `realoadProject()` flow. This ensures global settings are synchronized and AI models are updated correctly in the state.",
+      "message_ids": [
+        "8a91af02-8078-454b-8bc7-2f49b9ce7cd8",
+        "6dc6e6ab-bfaf-4224-9a0d-b359b6c5aa8e",
+        "f52c4fe6-b50f-4c24-8e47-9a79d5c13c20",
+        "db2c6fb3-1a7d-4aea-bb33-e2a4bd506fb0"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

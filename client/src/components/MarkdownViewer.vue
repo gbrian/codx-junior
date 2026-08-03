@@ -47,6 +47,7 @@ function createMd(documentId) {
     return self.renderToken(tokens, idx, options)
   }
 
+  // Add IDs to heading elements - CRITICAL for DocumentSummary scroll-to functionality
   md.renderer.rules.heading_open = function(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const inlineToken = tokens[idx + 1]
@@ -55,12 +56,17 @@ function createMd(documentId) {
         .filter(t => t.type === 'text' || t.type === 'code_inline')
         .map(t => t.content)
         .join('')
+      
+      // Generate slug matching DocumentSummary format
       const slug = text
         .toLowerCase()
         .replace(/[^\w\s-]/g, '')
         .trim()
         .replace(/\s+/g, '-')
+      
+      // Create anchor ID with documentId scope
       const anchor = documentId ? `${documentId}-${slug}` : slug
+      
       token.attrSet('id', anchor)
       token.attrSet('class', 'heading-anchor scroll-mt-4')
     }
@@ -90,6 +96,7 @@ function createMd(documentId) {
     return self.renderToken(tokens, idx, options)
   }
 
+  // Add IDs to code block anchors - CRITICAL for DocumentSummary scroll-to functionality
   md.renderer.rules.fence = function(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const info = token.info ? token.info.trim() : ''
@@ -99,11 +106,14 @@ function createMd(documentId) {
 
     if (!filePath) return rendered
 
+    // Generate slug matching DocumentSummary format
     const slug = filePath
       .toLowerCase()
       .replace(/[^\w\s\-./]/g, '')
       .trim()
       .replace(/[\s/]+/g, '-')
+    
+    // Create anchor ID with documentId scope
     const anchor = documentId ? `${documentId}-${slug}` : slug
     return `<div id="${anchor}" class="code-block-anchor scroll-mt-4">${rendered}</div>`
   }
@@ -173,6 +183,10 @@ export default {
   watch: {
     text() {
       this.renderContent()
+    },
+    documentId() {
+      // Re-render when documentId changes to apply new IDs
+      this.renderContent()
     }
   },
   mounted() {
@@ -181,6 +195,7 @@ export default {
   methods: {
     renderContent() {
       try {
+        // Pass documentId to markdown parser
         const md = createMd(this.documentId)
         const textWithLinks = this.sanitizedText.replace(
           /`((?:\/[^\s:]+)+)(?::(\d+))?`/g,

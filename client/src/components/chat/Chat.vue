@@ -18,6 +18,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
     @dragleave.prevent="draggingOver = false"
     @drop.prevent="onDropChat"
   >
+    <!-- File list section -->
     <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
       <div class="w-full" v-if="chatFiles.length">
         <ChatFileList
@@ -35,10 +36,10 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
         v-if="!isVibe && !isPRView" />
     </div>
 
-    <!-- Changes Panel for PRView Mode -->
+    <!-- PR View Section -->
     <div class="grow overflow-auto" v-show="isPRView">
       <ChangesPanel
-        class="h-full flex flex-col h-full overflow-auto"
+        class="h-full flex flex-col overflow-auto"
         :chat="chat"
         @refresh="onRefreshChanges"
         @select-branch="onPRViewBranchChanged"
@@ -48,10 +49,11 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
         @chat-message="onPRChatMessage"
       />
     </div>
-    <!-- Main chat area + optional file preview side panel -->
+
+    <!-- Main Chat View -->
     <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
       
-      <!-- Message Editor Full Screen Mode -->
+      <!-- Message Editor Mode -->
       <div class="w-full h-full" v-if="editMessage">
         <ChatMessageEditor
           :message="editMessage"
@@ -60,9 +62,8 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
         />
       </div>
 
-      <!-- Normal Chat View -->
+      <!-- Normal Chat Mode -->
       <template v-else>
-        <!-- Chat messages + input -->
         <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
           <div class="h-full flex flex-col relative">
             <ChatMessageList
@@ -94,19 +95,22 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
               @set-active-chat="$chats.setActiveChat($event)"
               @message-changed="onMessageChanged"
               @run-agents="onMessageRunAgents"
-              @preview-file="openFilePreview"
+              @preview-file="handleFilePreview"
             />
 
-            <!-- Input + IntelliSense wrapper -->
+            <!-- Input Section -->
             <div class="relative" v-if="readOnly !== true">
               <ChatIntelliSense
                 ref="intelliSense"
                 :suggestions="intelliSenseSuggestions"
                 :active-index="intelliSenseIndex"
                 :query="intelliSenseQuery"
+                :search-controller="searchController"
+                :progress="intelliSenseProgress"
                 @select="onIntelliSenseSelect"
                 @hover="intelliSenseIndex = $event"
                 @accept-multi="onIntelliSenseAcceptMulti"
+                @cancel="cancelIntelliSense"
               />
               <ChatInputBox
                 ref="inputBox"
@@ -116,13 +120,11 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 :searching="searchingInKnowledge"
                 :read-only="readOnly"
                 :has-test-script="!!API.activeProject.script_test"
-                :show-document-search="showDocumentSearchModal"
-                :chat-project="chatProject"
-                :selected-user="selectedUser"
-                :users-list="usersList"
                 :selected-model="chat.llm_model"
                 :ai-models="aiModels"
                 :images="images"
+                :profiles="profiles"
+                :selected-profiles="selectedProfiles"
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
                 @close.knowledge="showDocumentSearchModal = false"
@@ -133,15 +135,8 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 @paste="onContentPaste"
                 @keydown="onChatInputKeyDown"
                 @drop.stop="onDrop"
-                @add-document="onAddDocument"
-                @close-search="closeDocumentSearch"
-                @replace-emoji="replaceEmoji"
-                @user-changed="selectedUser = $event"
                 @model-changed="onLLMModelChanged"
-                @toggle-search="toggleDocumentSearch"
-                @hide-all="hideAll"
-                @attach-files="selectFile = true"
-                @test-project="testProject"
+                @profiles-selected="onProfilesSelected"
                 @toggle-voice="toggleVoiceSession"
                 @remove-image="removeImage"
                 @preview-image="imagePreview = $event"
@@ -151,15 +146,15 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 :chat-project="chatProject"
                 @remove="removeFileFromFiles"
                 @add-as-message="addFileContentAsMessage"
-                @preview-file="openFilePreview"
+                @preview-file="handleFilePreview"
                 v-if="files?.length"
               />
             </div>
           </div>
         </div>
 
-        <!-- File preview side panel -->
-        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile">
+        <!-- File Preview Panel -->
+        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
           <ChatFilePreview
             class="h-full"
             :file-path="previewFile"
@@ -172,6 +167,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
 
     </div>
 
+    <!-- Modals -->
     <ChatImagePreviewModal
       :image-preview="imagePreview"
       @cancel="imagePreview = null"
@@ -188,6 +184,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
       @file-change="handleFileChange"
     />
 
+    <!-- Notification Toast -->
     <div v-if="notebookStatus" class="toast toast-top toast-center z-50">
       <div class="alert alert-info text-xs">
         <i class="fa-solid fa-book-open mr-1"></i>
@@ -221,6 +218,7 @@ export default {
       metadata: null,
       pasteWithShift: false,
       mentions: [],
+      selectedProfileNames: [],
       cursorWord: {},
       notebookStatus: null,
       editorText: "",
@@ -229,8 +227,11 @@ export default {
       intelliSenseSuggestions: [],
       intelliSenseIndex: 0,
       intelliSenseQuery: '',
+      intelliSenseProgress: '',
       intelliSenseDebounce: null,
       intelliSenseDismissed: false,
+      searchController: null,
+      previousQuery: null
     }
   },
   created() {
@@ -245,6 +246,7 @@ export default {
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
+    this.cancelIntelliSense()
   },
   computed: {
     chatSvc() {
@@ -259,7 +261,7 @@ export default {
     isPRView() {
       return this.chat.mode === 'prview'
     },
-    isBrowser() {
+    isVibe() {
       return this.chat.mode === 'vibe'
     },
     visibleMessages() {
@@ -298,9 +300,6 @@ export default {
     isTopic() {
       return this.chat?.mode === 'topic'
     },
-    isVibe() {
-      return this.chat?.mode === 'vibe'
-    },
     chatProject() {
       return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
         || this.$project
@@ -327,6 +326,9 @@ export default {
     },
     hasIntelliSense() {
       return this.intelliSenseSuggestions.length > 0
+    },
+    selectedProfiles() {
+      return this.profiles.filter(p => this.selectedProfileNames.includes(p.name))
     }
   },
   watch: {
@@ -344,8 +346,6 @@ export default {
     }
   },
   methods: {
-    // ── File duplicate prevention helpers ──────────────────────
-
     hasFile(fileToCheck, fileList) {
       return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
     },
@@ -362,17 +362,84 @@ export default {
       return this.hasFile(file, this.files)
     },
 
-    // ── Editor handlers ───────────────────────────────────────
+    isProjectFile(textContent) {
+      return this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
+    },
+
+    async processFilePath(filePath, chatDrop) {
+      if (!this.isProjectFile(filePath)) return false
+
+      if (chatDrop) {
+        await this.onAddFile(filePath)
+      } else {
+        this.addFileToMessage(filePath)
+      }
+      return true
+    },
+
+    async processMultipleFilePaths(textContent, chatDrop) {
+      const filePaths = textContent
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p && p.length > 0 && this.isProjectFile(p))
+
+      if (filePaths.length === 0) return false
+
+      for (const filePath of filePaths) {
+        await this.processFilePath(filePath, chatDrop)
+      }
+
+      return true
+    },
+
+    async processJsonFileList(jsonData, chatDrop) {
+      try {
+        const { files } = JSON.parse(jsonData)
+        if (!files || files.length === 0) return false
+
+        for (const file of files) {
+          if (!file.is_dir) {
+            await this.processFilePath(file.path, chatDrop)
+          }
+        }
+        return true
+      } catch (ex) {
+        console.error('[DROP] Error parsing file list JSON', ex)
+        return false
+      }
+    },
+
+    async processImageFile(imageFile) {
+      this.onInputImage(imageFile)
+      await this.onAddImage()
+    },
+
+    async processMultipleImages(imageFiles) {
+      for (const imageFile of imageFiles) {
+        await this.processImageFile(imageFile)
+      }
+      return imageFiles.length > 0
+    },
 
     onEditorDiscard() {
       this.editMessage = null
       this.onResetEdit()
     },
 
-    // ── File preview ──────────────────────────────────────────
+    handleFilePreview(filePath) {
+      if (this.$ui.isVibeMode) {
+        this.openFilePreview(filePath)
+      } else {
+        this.$storex.ui.openFileInViewer(filePath)
+      }
+    },
 
     openFilePreview(filePath) {
-      this.previewFile = this.previewFile === filePath ? null : filePath
+      if (this.$ui.isVibeMode) {
+        this.previewFile = this.previewFile === filePath ? null : filePath
+      } else {
+        this.$ui.openFileInViewer(filePath)
+      }
     },
 
     closeFilePreview() {
@@ -380,16 +447,15 @@ export default {
     },
 
     onPreviewFileSaved({ file, content }) {
-      this.$ui?.addNotification?.({ text: `Saved: ${file.split('/').reverse()[0]}` })
+      this.$ui?.addNotification?.({ 
+        text: `Saved: ${file.split('/').reverse()[0]}`,
+        type: 'success'
+      })
     },
-
-    // ── PRView / ChangesPanel handlers ────────────────────────
 
     onRefreshChanges() {
       this.$refs.changesPanel?.loadAllProjects()
     },
-
-    // ── IntelliSense ──────────────────────────────────────────
 
     scheduleIntelliSense() {
       if (this.intelliSenseDismissed) {
@@ -404,32 +470,57 @@ export default {
       if (this.intelliSenseDismissed) return
       const { word } = this.cursorWord
       if (!word?.startsWith('@')) {
-        this.intelliSenseSuggestions = []
+        this.cancelIntelliSense()
         return
       }
       const rawQuery = word.slice(1)
       if (!rawQuery || rawQuery.trim().length < 3) {
-        this.intelliSenseSuggestions = []
+        this.cancelIntelliSense()
         return
       }
+      
+      if (this.previousQuery !== rawQuery && this.searchController) {
+        this.cancelIntelliSense()
+      }
+      
+      this.previousQuery = rawQuery
+      this.searchController = await this.$storex.projects.createSearchController()
       this.intelliSenseQuery = rawQuery
       this.intelliSenseIndex = 0
-      const results = await (
-        this.chatProject?.$state?.searchMentions(rawQuery, 10)
-        || this.$projects.searchMentions?.(rawQuery, 10)
-        || Promise.resolve([])
-      )
-      this.intelliSenseSuggestions = results
+      
+      this.searchController.onProgress = ({ stage, project }) => {
+        console.log('[IntelliSense]', stage, project)
+        this.intelliSenseProgress = `${stage}: ${project}`
+      }
+      
+      try {
+        await this.chatProject?.$state?.searchMentions?.({
+          query: rawQuery,
+          limit: 10,
+          controller: this.searchController,
+          onResults: (results) => {
+            if (!this.searchController.isCancelled) {
+              this.intelliSenseSuggestions = results
+              this.intelliSenseIndex = 0
+            }
+          }
+        })
+      } catch (error) {
+        if (error.message !== 'Search cancelled') {
+          console.error('[IntelliSense] Search error:', error)
+        }
+      }
+      this.intelliSenseProgress = ''
     },
 
-    dismissIntelliSense() {
-      this.intelliSenseDismissed = true
+    cancelIntelliSense() {
+      if (this.searchController) {
+        this.searchController.cancel()
+        this.searchController = null
+      }
       this.intelliSenseSuggestions = []
-    },
-
-    acceptIntelliSense() {
-      const suggestion = this.intelliSenseSuggestions[this.intelliSenseIndex]
-      if (suggestion) this.onIntelliSenseSelect(suggestion)
+      this.intelliSenseQuery = ''
+      this.previousQuery = null
     },
 
     onIntelliSenseSelect(suggestion) {
@@ -471,6 +562,10 @@ export default {
       this.$nextTick(() => this.$refs.inputBox?.focusEditor())
     },
 
+    dismissIntelliSense() {
+      this.intelliSenseDismissed = true
+    },
+
     onChatInputKeyDown(event) {
       const hasSuggestions = this.intelliSenseSuggestions.length > 0
 
@@ -478,7 +573,7 @@ export default {
         if (event.key === 'Tab') {
           event.preventDefault()
           event.stopPropagation()
-          this.acceptIntelliSense()
+          this.onIntelliSenseSelect(this.intelliSenseSuggestions[this.intelliSenseIndex])
           return
         }
         if (event.key === 'Escape') {
@@ -510,8 +605,6 @@ export default {
 
       this.onEditMessageKeyDown(event)
     },
-
-    // ── Message sync ──────────────────────────────────────────
 
     syncStableMessages(newMessages) {
       const newIds = newMessages.map(m => m.doc_id).join(',')
@@ -576,7 +669,7 @@ export default {
       return this.chatSvc.getUserMessage({
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
-        profiles: this.chatSvc.getMessageProfiles({ messageMentions: this.messageMentions, selectedUser: this.selectedUser, currentUser: this.$user }),
+        profiles: this.selectedProfileNames,
         images: this.images,
         metadata: this.metadata,
         user: this.$user.username,
@@ -596,6 +689,7 @@ export default {
       this.images = []
       this.files = []
       this.mentions = []
+      this.selectedProfileNames = []
       this.metadata = null
     },
 
@@ -638,7 +732,7 @@ export default {
     async updateMessage() {
       const innerText = this.$refs.inputBox?.getEditorText() ?? ''
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = this.chatSvc.getMessageProfiles({ messageMentions: this.messageMentions, selectedUser: this.selectedUser, currentUser: this.$user })
+      this.editMessage.profiles = this.selectedProfileNames
       this.editMessage.content = innerText
       this.editMessage.images = this.images.map(JSON.stringify)
       this.editMessage.updated_at = new Date().toISOString()
@@ -650,6 +744,7 @@ export default {
       this.setEditorText("")
       this.editMessageId = null
       this.images = []
+      this.selectedProfileNames = []
     },
 
     removeMessage(message) {
@@ -668,30 +763,52 @@ export default {
       return this.chatSvc.saveChat(this.chat)
     },
 
-    onDrop(e, chatDrop) {
+    async onDrop(e, chatDrop) {
+      this.pasteWithShift = false
+      let itemsAdded = false
+
       console.log('[DROP] Starting drop operation', {
         isChatDrop: chatDrop,
         hasFiles: !!e.dataTransfer.files?.length,
         filesCount: e.dataTransfer.files?.length || 0,
-        hasTextContent: !!e.dataTransfer.getData('text/plain'),
         timestamp: new Date().toISOString()
       })
 
-      let itemsAdded = false
-
-      if (e.dataTransfer.files) {
-        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)
+      if (e.dataTransfer.files?.length) {
+        const imageFiles = [...e.dataTransfer.files]
+          .filter(f => f.type.indexOf("image") !== -1)
         if (imageFiles.length > 0) {
-          console.log('[DROP] Found images', { count: imageFiles.length, files: imageFiles.map(f => f.name) })
-          this.onInputImage(imageFiles[0])
-          itemsAdded = true
+          console.log('[DROP] Found images', {
+            count: imageFiles.length,
+            files: imageFiles.map(f => f.name)
+          })
+          if (await this.processMultipleImages(imageFiles)) {
+            itemsAdded = true
+          }
         }
       }
 
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
-        console.log('[DROP] Found text content', { length: textContent.length, preview: textContent.substring(0, 100) })
-        if (this.processInputTextContent(textContent, chatDrop)) {
+        console.log('[DROP] Found text content', {
+          length: textContent.length,
+          preview: textContent.substring(0, 100)
+        })
+
+        if (await this.processMultipleFilePaths(textContent, chatDrop)) {
+          itemsAdded = true
+        } else if (this.isProjectFile(textContent) && !this.pasteWithShift) {
+          console.log('[DROP] Processing as single project file', { file: textContent, chatDrop })
+          await this.processFilePath(textContent, chatDrop)
+          this.setEditorText(this.editorText.replace(textContent, ""))
+          itemsAdded = true
+        } 
+      }
+
+      const jsonData = e.dataTransfer.getData('application/x-file-list-json')
+      if (jsonData && !itemsAdded) {
+        console.log('[DROP] Found JSON file list')
+        if (await this.processJsonFileList(jsonData, chatDrop)) {
           itemsAdded = true
         }
       }
@@ -966,19 +1083,19 @@ export default {
     },
 
     onChatEntryCreateSubtask({ file, content }) {
-      const existingChat = this.chatSvc.findChildChatByFile({
+      const existingChat = file ? this.chatSvc.findChildChatByFile({
         chat: this.chat,
         childrenChats: this.childrenChats,
         file
-      })
+      }) : null
       if (existingChat) {
         this.$chats.setActiveChat(existingChat)
         return
       }
       this.createChatSubTask({
-        title: file.split("/").reverse()[0],
+        title: file?.split("/").reverse()[0],
         description: content,
-        files: [file]
+        files: file ? [file]: []
       })
     },
 
@@ -1016,6 +1133,10 @@ export default {
 
     addMention(mention) {
       this.mentions.push({ ...mention, active: true })
+    },
+
+    onProfilesSelected(selectedProfiles) {
+      this.selectedProfileNames = selectedProfiles.map(p => p.name || p)
     },
 
     replaceEmoji({ emoji }) {

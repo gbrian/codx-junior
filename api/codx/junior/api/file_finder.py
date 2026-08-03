@@ -775,8 +775,72 @@ async def save_file_content(request: Request, payload: Dict[str, str] = Body(...
         logger.error("Error saving content to file '%s': %s", file_path_param, e)
         return JSONResponse(content={"error": f"Error saving content to file: {e}"}, status_code=500)
 
-# Removed the original /file-finder endpoint as its functionality is now distributed across new endpoints.
-# If there's a need to keep a general endpoint, it would require careful design to avoid ambiguity.
-# For now, assume the new specific endpoints are preferred.
+@router.get("/file-finder/search-content")
+async def search_file_content(request: Request) -> Dict[str, Any]:
+    """
+    Search for files based on their content.
+
+    Args:
+        request (Request): The incoming request object with query parameters.
+                           Expected query parameters:
+                           - adapter (str, optional): The file adapter to use (default: "local").
+                           - path (str, optional): The directory to search within (default: "/").
+                           - query (str): The search query/pattern to find in file contents.
+                           - include_extensions (str, optional): Comma-separated file extensions to include (e.g., ".txt,.py,.js").
+                           - exclude_extensions (str, optional): Comma-separated file extensions to exclude.
+                           - case_sensitive (bool, optional): Whether search is case-sensitive (default: false).
+
+    Returns:
+        Dict[str, Any]: A dictionary containing search results with matched files and line numbers.
+    """
+    codx_junior_session: CODXJuniorSession = request.state.codx_junior_session
+    settings = codx_junior_session.settings
+    file_manager = FileManager(settings=settings)
+
+    adapter = request.query_params.get(QUERY_PARAM_ADAPTER, QUERY_VALUE_LOCAL)
+    path = request.query_params.get(QUERY_PARAM_PATH, "/")
+    search_query = request.query_params.get(QUERY_PARAM_QUERY)
+    include_extensions = request.query_params.get("include_extensions")
+    exclude_extensions = request.query_params.get("exclude_extensions")
+    case_sensitive = request.query_params.get("case_sensitive", "false").lower() == "true"
+
+    # Normalize path
+    if path.startswith(f"{QUERY_VALUE_LOCAL}://"):
+        path = path.split("://")[-1]
+    if not path.startswith('/'):
+        path = '/' + path
+    if path == "//":
+        path = "/"
+
+    if not search_query:
+        logger.warning("Search content endpoint called without a 'query' parameter.")
+        return JSONResponse(content={"error": "Search 'query' parameter is required."}, status_code=400)
+
+    logger.info("Searching file content with query: '%s' in path: '%s' using adapter: %s", search_query, path, adapter)
+
+    try:
+        # Parse extension filters
+        include_exts = [ext.strip() for ext in include_extensions.split(",")] if include_extensions else None
+        exclude_exts = [ext.strip() for ext in exclude_extensions.split(",")] if exclude_extensions else None
+
+        # Assuming FileManager has a search_content method
+        file_response = await asyncio.to_thread(
+            file_manager.search_content,
+            adapter=adapter,
+            path=path,
+            query=search_query,
+            include_extensions=include_exts,
+            exclude_extensions=exclude_exts,
+            case_sensitive=case_sensitive
+        )
+    except ValueError as e:
+        logger.error("Error during content search: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+    except AttributeError:
+        logger.error("FileManager does not have search_content method")
+        return JSONResponse(content={"error": "Content search not supported"}, status_code=501)
+    
+    return file_response
+
 
 # Made with ❤️ by codx-junior

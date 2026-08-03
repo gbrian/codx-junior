@@ -35,6 +35,7 @@ from codx.junior.api.chat import router as chat_router
 from codx.junior.api.views import router as views_router
 from codx.junior.api.analytics import router as analytics_router
 from codx.junior.api.logs import router as logs_router
+from codx.junior.api.files import router as files_router
 from codx.junior.api.projects import router as projects_router
 
 
@@ -153,6 +154,7 @@ app.include_router(views_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(logs_router, prefix="/api")
 app.include_router(projects_router, prefix="/api")
+app.include_router(files_router, prefix="/api")
 
 APP_STOP_EVENT = asyncio.Event()
     
@@ -419,21 +421,6 @@ def api_file_open(request: Request):
     file_name = request.query_params.get("file_name")
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.coder_open_file(file_name=file_name)
-
-@app.get("/api/files")
-def api_get_files(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    path = request.query_params.get("path")
-    return codx_junior_session.read_directory(path=path)
-
-@app.get("/api/files/read")
-def api_get_file(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    path = request.query_params.get("path")
-    try:
-        return codx_junior_session.read_file(path=path)
-    except Exception as ex:
-        logger.error("Error reading file: %s: %s", path, str(ex))
 
 @app.post("/api/files/diff")
 async def api_get_file_diff(request: Request):

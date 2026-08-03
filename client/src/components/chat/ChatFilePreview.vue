@@ -1,5 +1,5 @@
 <script setup>
-import CodeViewer from '../CodeViewer.vue';
+import CodeViewer from '../CodeViewer.vue'
 </script>
 
 <template>
@@ -18,17 +18,21 @@ import CodeViewer from '../CodeViewer.vue';
       </div>
     </div>
 
-    <!-- Editor -->
+    <!-- File editor -->
     <div class="grow min-h-0 overflow-hidden" v-else>
-      <CodeViewer class="h-full overflow-auto mb-20 p-2"
-          :close="true"
-          :code="content"
-          :file="filePath"
-          :diffOption="false"
-          :finished="loaded"
-          :showCodeOpened="true"
-          @close="$emit('close')"
-       />
+      <CodeViewer 
+        class="h-full overflow-auto"
+        :close="true"
+        :code="content"
+        :file="filePath"
+        :language="fileLanguage"
+        :diff-option="true"
+        :finished="loaded"
+        :show-code-opened="true"
+        @close="$emit('close')"
+        @save-file="onSaveFile"
+        @message-change="onMessageChange"
+      />
     </div>
   </div>
 </template>
@@ -45,15 +49,23 @@ export default {
       content: '',
       originalContent: '',
       loaded: false,
-      error: null
+      error: null,
+      isSaving: false
     }
   },
   computed: {
     fileName() {
       return this.filePath?.split('/').reverse()[0] || ''
     },
+    fileLanguage() {
+      const ext = this.filePath?.split('.').reverse()[0]
+      return ext || 'markdown'
+    },
     isDirty() {
       return this.content !== this.originalContent
+    },
+    api() {
+      return this.chatProject?.$api || this.$storex.api
     }
   },
   watch: {
@@ -68,34 +80,50 @@ export default {
     async loadFile() {
       if (!this.filePath) return
       this.error = null
+      this.loaded = false
       try {
-        const api = this.chatProject?.$api || this.$storex.api
-        const result = await api.files.read(this.filePath)
-        // API may return { page_content } or a plain string
+        const result = await this.api.files.read(this.filePath)
         this.content = result?.content ?? ''
         this.originalContent = this.content
       } catch (err) {
-        this.error = `Could not load file: ${err?.message || err}`
+        this.error = `Could not load file: ${err?.message || 'Unknown error'}`
+        console.error('Error loading file:', err)
       } finally {
         this.loaded = true
       }
     },
 
-    onContentChange(value) {
-      this.content = value
+    async onSaveFile({ file, content }) {
+      if (!file || !content) return
+      await this.saveFile(content)
     },
 
-    async saveFile() {
-      if (!this.isDirty) return
+    async saveFile(newContent) {
+      if (this.isSaving) return
+      this.isSaving = true
       try {
-        const api = this.chatProject?.$api || this.$storex.api
-        await api.files.write(this.filePath, this.content)
-        this.originalContent = this.content
-        this.$emit('saved', { file: this.filePath, content: this.content })
-        this.$ui?.addNotification?.({ text: `Saved: ${this.fileName}` })
+        await this.api.files.write(this.filePath, newContent)
+        this.originalContent = newContent
+        this.content = newContent
+        this.$emit('saved', { file: this.filePath, content: newContent })
+        this.$ui?.addNotification?.({ 
+          text: `Saved: ${this.fileName}`,
+          type: 'success'
+        })
       } catch (err) {
-        this.$ui?.addNotification?.({ text: `Error saving: ${err?.message || err}`, type: 'error' })
+        this.error = `Error saving: ${err?.message || 'Unknown error'}`
+        this.$ui?.addNotification?.({ 
+          text: `Error saving: ${err?.message || 'Unknown error'}`,
+          type: 'error'
+        })
+        console.error('Error saving file:', err)
+      } finally {
+        this.isSaving = false
       }
+    },
+
+    onMessageChange({ orgContent, newContent }) {
+      this.content = newContent
     }
   }
 }

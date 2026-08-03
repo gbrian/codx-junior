@@ -132,6 +132,7 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           <div class="p-2 overflow-auto">
             <KanbanList
               :boards="childBoards"
+              :project="project"
               @new-board="openNewBoardModal"
               @toogle-history="showActivity = !showActivity"
               @select="$emit('select-board', $event)"
@@ -169,6 +170,7 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           :board="editingBoard"
           :boards="parentBoardOptions"
           :currentBoardId="board"
+          :project="project"
           @save="onBoardSave"
           @delete="onBoardDelete"
           @cancel="showBoardModal = false"
@@ -286,7 +288,7 @@ export default {
         .slice(0, 1)[0] || {}
     },
     kanban() {
-      return this.$projects.kanban || { boards: {} }
+      return this.project?.$state?.kanban || { boards: {} }
     },
     rawBoards() {
       const { boards = {} } = this.kanban
@@ -336,7 +338,6 @@ export default {
       return this.rawBoards[this.activeBoard?.parent_id] || null
     },
     parentBoardOptions() {
-      // Return all boards as options for parent selection
       return Object.values(this.rawBoards)
     },
     columnList() {
@@ -394,13 +395,11 @@ export default {
         this.$ui.openVibeCoding()
       }
     },
-
     async projectChanged() {
-      await this.$projects.loadKanban()
+      await this.$storex.projects.loadKanban({ project: this.project })
       this.selectBoard()
       this.buildViewColumns()
     },
-
     async selectBoard(board) {
       this.loadingChats += 1
       board = board || this.board
@@ -423,13 +422,11 @@ export default {
         this.loadingChats -= 1
       }
     },
-
     setView(view) {
       if (!this.activeKanbanBoard) return
       this.activeKanbanBoard.view = view
       this.saveKanban()
     },
-
     buildViewColumns() {
       if (!this.kanban) return
       const columnTitles = this.columnList
@@ -459,7 +456,6 @@ export default {
         ? this.boardChats.filter(t => t.pinned)
         : []
     },
-
     applyFilter(columns) {
       if (!this.filter) return columns
       const text = this.filter.toLowerCase()
@@ -472,12 +468,10 @@ export default {
         )
       }))
     },
-
     onColumnOrderChanged(reorderedColumns) {
       this.viewColumns = reorderedColumns
       this.onColumnTaskListChanged()
     },
-
     async onColumnTaskListChanged(column) {
       if (this.$ui.isMobile) return
       const kboard = this.kanban.boards[this.board]
@@ -504,7 +498,6 @@ export default {
       kboard.last_update = new Date().toISOString()
       this.saveKanban()
     },
-
     newTask({ mode, column }) {
       this.createNewChat({
         mode: mode || 'chat',
@@ -512,7 +505,6 @@ export default {
         column
       })
     },
-
     async createNewChat(base, activateChat) {
       const chat = await this.$chats.createNewChat({
         ...base,
@@ -522,11 +514,9 @@ export default {
       if (activateChat !== false) this.setActiveChat(chat)
       return chat
     },
-
     async importTask(column) {
       this.showImportModalForColumn = column
     },
-
     async confirmImportTask() {
       if (this.importOption === 'clipboard') {
         const text = await navigator.clipboard.readText()
@@ -549,17 +539,14 @@ export default {
       this.showImportModalForColumn = null
       this.importUrl = null
     },
-
     async openChat(element) {
       element.id === -1 ? this.newTask({}) : await this.setActiveChat(element)
     },
-
     async onChatEditDone(board) {
       if (this.board !== board) this.selectBoard(board)
       await this.setActiveChat()
       this.buildViewColumns()
     },
-
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.createNewChat({
         board: parent.board,
@@ -577,11 +564,9 @@ export default {
       await this.$chats.saveChat(chat)
       if (description) this.$storex.projects.chatWihProject(chat)
     },
-
     async createSubTasks(event) {
       this.$projects.createSubtasks(event)
     },
-
     openAddColumnModal() {
       this.selectedColumn = null
       this.columnTitle = ''
@@ -591,7 +576,6 @@ export default {
       this.editColumnError = null
       this.showColumnModal = true
     },
-
     openEditColumnModal(columnTitle) {
       const storeCol = this.activeKanbanBoard?.columns?.find(c => c.title === columnTitle) || null
       this.selectedColumn = storeCol
@@ -602,7 +586,6 @@ export default {
       this.editColumnError = null
       this.showColumnModal = true
     },
-
     async addOrUpdateColumn() {
       this.columnTitle = this.columnTitle.trim()
       if (!this.columnTitle) return this.resetColumnModal()
@@ -640,7 +623,6 @@ export default {
       this.resetColumnModal()
       this.buildViewColumns()
     },
-
     async deleteColumn() {
       if (!this.confirmDeleteColumn) {
         this.confirmDeleteColumn = true
@@ -657,7 +639,6 @@ export default {
       this.resetColumnModal()
       this.buildViewColumns()
     },
-
     resetColumnModal() {
       this.showColumnModal = false
       this.columnTitle = ''
@@ -667,19 +648,16 @@ export default {
       this.confirmDeleteColumn = false
       this.columnProject = null
     },
-
     async onMoveTask({ taskId, toColumn }) {
       const task = this.visibleTasks.find(t => t.id === taskId)
       if (!task) return
       await this.$chats.saveChatInfo({ ...task, column: toColumn })
       this.buildViewColumns()
     },
-
     openNewBoardModal() {
       this.editingBoard = null
       this.showBoardModal = true
     },
-
     openEditBoardModal() {
       const boardTitle = this.board
       const boardData = this.kanban.boards[boardTitle]
@@ -689,14 +667,13 @@ export default {
       }
       this.showBoardModal = true
     },
-
     async onBoardSave({ originalTitle, board }) {
       const oldName = originalTitle
       const newName = board.title?.trim()
 
       if (!newName) return
 
-      // Handle rename - update all references
+      // Handle rename
       if (oldName && oldName !== newName) {
         await Promise.all(
           this.chats
@@ -724,7 +701,6 @@ export default {
       this.editingBoard = null
       this.buildViewColumns()
     },
-
     async onBoardDelete(board) {
       const boardTitle = board.title
 
@@ -751,15 +727,12 @@ export default {
       }
       this.buildViewColumns()
     },
-
     openColumnPropertiesModal(column) {
       this.openEditColumnModal(column.title)
     },
-
     async saveKanban() {
-      await this.$projects.saveKanban()
+      await this.$storex.projects.saveKanban({ project: this.project })
     },
-
     onAddFile(filePaths) {
       if (this.activeKanbanBoard) {
         this.activeKanbanBoard.file_list = [
@@ -769,7 +742,6 @@ export default {
         this.saveKanban()
       }
     },
-
     toggleBookmark({ title } = {}) {
       const boardTitle = title || this.activeBoard?.title
       const board = this.kanban.boards[boardTitle]
@@ -778,7 +750,6 @@ export default {
         this.saveKanban()
       }
     },
-
     async moveChatsToColumn({ chats, column }) {
       await Promise.all(
         chats.map(chat => this.$chats.saveChatInfo({ ...chat, column }))

@@ -1,10 +1,10 @@
 <script setup>
-import LLMModelSelector from './LLMModelSelector.vue'
-import ChatImageCarousel from './ChatImageCarousel.vue'
+import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
+import ChatProfileSelector from './ChatProfileSelector.vue'
 </script>
 
 <template>
-  <div class="flex justify-between items-end px-2 rounded-b-md">
+  <div class="flex justify-between items-end px-2 rounded-b-md gap-2">
     <ChatImageCarousel
       :images="images"
       @remove="$emit('remove-image', $event)"
@@ -15,13 +15,22 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
     <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
 
     <div class="grow flex gap-2 items-end" v-else>
-      <LLMModelSelector
-        class="dropdown-top"
-        :selectedModel="selectedModel"
-        :models="aiModels"
-        @model-changed="$emit('model-changed', $event)"
-        v-if="aiModels?.length"
-      />
+      <!-- Selectors on the left -->
+      <div class="flex gap-2 items-center flex-wrap" v-if="!readOnly">
+        <ChatLLMModelSelector
+          :selected-model="selectedModel"
+          :models="aiModels"
+          @model-changed="$emit('model-changed', $event)"
+          v-if="aiModels?.length"
+        />
+        
+        <ChatProfileSelector
+          :profiles="profiles"
+          :selected-profiles="selectedProfiles"
+          @update:selected-profiles="$emit('profiles-selected', $event)"
+          v-if="profiles?.length"
+        />
+      </div>
 
       <div class="grow"></div>
 
@@ -90,24 +99,32 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
 </template>
 
 <script>
+import ChatImageCarousel from './ChatImageCarousel.vue'
+
 export default {
+  components: {
+    ChatImageCarousel,
+    ChatLLMModelSelector,
+    ChatProfileSelector
+  },
   props: {
     waiting: Boolean,
     isEditing: Boolean,
     isVoiceSession: Boolean,
     searching: Boolean,
+    readOnly: Boolean,
     hasTestScript: Boolean,
-    selectedUser: Object,
-    usersList: { type: Array, default: () => [] },
     selectedModel: String,
     aiModels: { type: Array, default: () => [] },
     images: { type: Array, default: () => [] },
-    voiceLanguageLabel: String
+    voiceLanguageLabel: String,
+    profiles: { type: Array, default: () => [] },
+    selectedProfiles: { type: Array, default: () => [] }
   },
   emits: [
-    'send', 'add-message', 'cancel-edit', 'user-changed', 'model-changed',
+    'send', 'add-message', 'search-message', 'cancel-edit', 'model-changed',
     'toggle-search', 'hide-all', 'attach-files', 'test-project',
-    'toggle-voice', 'remove-image', 'preview-image'
+    'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected'
   ]
 }
 </script>

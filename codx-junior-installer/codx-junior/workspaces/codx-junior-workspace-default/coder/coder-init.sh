@@ -1,55 +1,35 @@
 #!/usr/bin/with-contenv bash
 
-TARGET_UID=$PUID
-TARGET_GID=$PGID
-
-# Check if the current process matches the target
-if [ "$(id -u)" != "$TARGET_UID" ] || [ "$(id -g)" != "$TARGET_GID" ]; then
-    echo "Re-executing as UID $TARGET_UID and GID $TARGET_GID..."
-    # -u: specify user/UID, -g: specify group/GID
-    exec sudo -u "#$TARGET_UID" -g "#$TARGET_GID" "$0" "$@"
-fi
-
-install_dependencies() {
-  # Check if codx is already installed and available in PATH
-  if command -v codx &> /dev/null; then
-    echo "codx is already installed. Skipping installation."
-  else
-    echo "codx not found. Installing now..."
-    curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-  fi
-
-  # Run your configurations
-  codx docker
-  codx code-server
-}
+# Define target execution IDs
+TARGET_UID=${PUID:-1001}
+TARGET_GID=${PGID:-1001}
 
 runcoder(){
-  echo "Running coder for user: $(id -u):$(id -g)"
+  echo "Preparing environments for code-server..."
 
-  # Ensure the install script runs
-  # curl -fsSL https://code-server.dev/install.sh | sh
-
+  # Establish port variables
   CODE_PORT=${CODE_SERVER_PORT:-9080}
   export CODER_HTTP_ADDRESS=0.0.0.0:${CODE_PORT}
 
-  # Ensure directory exists before sed
+  # Define profile directory paths
   CODE_SERVER_DIR=/config/.local/share/code-server
-  mkdir -p ${CODE_SERVER_DIR}
+  
+  # Ensure the directory exists and has correct ownership before creating configs
+  mkdir -p "${CODE_SERVER_DIR}"
+  chown -R "${TARGET_UID}:${TARGET_GID}" /config
 
+  # Write out configuration file
   echo "
 bind-addr: 0.0.0.0:9080
 auth: none
 password: 8e240165f98d107aade5dbdc
 cert: false
-" > ${CODE_SERVER_DIR}/config.yaml 
+" > "${CODE_SERVER_DIR}/config.yaml"
 
-  exec code-server --config ${CODE_SERVER_DIR}/config.yaml
+  echo "Launching code-server as user ${TARGET_UID}:${TARGET_GID}..."
+
+  # Execute code-server directly as user 1001 inside the foreground process thread
+  exec sudo -E -u "#${TARGET_UID}" -g "#${TARGET_GID}" code-server --config "${CODE_SERVER_DIR}/config.yaml" &
 }
 
-install_dependencies
 runcoder
-
-while true; do 
-  sleep 10
-done

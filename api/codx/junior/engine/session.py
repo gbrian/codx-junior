@@ -195,6 +195,9 @@ class CODXJuniorSession:
     def get_git_engine(self):
         return self._git_engine
 
+    def get_file_engine(self):
+        return self._file_engine
+
     # -------------------------------------------------------------------------
     # Chat management
     # -------------------------------------------------------------------------

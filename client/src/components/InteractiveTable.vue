@@ -126,7 +126,7 @@ import { nextTick } from 'vue'
             <td 
               v-for="(cell, colIdx) in row" 
               :key="`cell-${rowIdx}-${colIdx}`"
-              class="p-2 border-r border-base-300 text-sm min-w-24 select-none"
+              class="p-2 border-r border-base-300 text-sm min-w-24"
               :class="{ 
                 'group relative cursor-cell': isEditMode,
                 'bg-primary bg-opacity-20 border-2 border-primary': isEditMode && isSelected(rowIdx, colIdx),

@@ -125,6 +125,10 @@ export default {
       type: Array,
       default: null
     },
+    project: {
+      type: Object,
+      default: null
+    },
     options: {
       type: Object,
       default: () => ({})
@@ -137,25 +141,20 @@ export default {
   },
   computed: {
     kanban() {
-      return this.$storex.projects.kanban || { boards: {} }
+      return this.project?.$state?.kanban || { boards: {} }
     },
-
     allStoredBoards() {
       return Object.values(this.kanban.boards || {})
     },
-
-    // Use passed boards prop if available, otherwise use stored boards
     displayBoards() {
       if (this.boards && Array.isArray(this.boards) && this.boards.length > 0) {
         return this.boards
       }
       return this.allStoredBoards
     },
-
     allChats() {
-      return this.$storex.chats.allChats || []
+      return this.$projects.allChats || []
     },
-
     chatMap() {
       const map = {}
       this.allChats.forEach(chat => {
@@ -163,11 +162,9 @@ export default {
       })
       return map
     },
-
     bookmarks() {
       return this.displayBoards.filter(b => b.bookmark && this.matchesFilter(b))
     },
-
     sortedBoards() {
       return this.filteredBoards
         .filter(b => !b.bookmark)
@@ -177,8 +174,6 @@ export default {
               a.last_update ? -1 : 1
         )
     },
-
-    // Only filter by root boards if not using passed boards prop
     rootBoards() {
       if (this.boards && Array.isArray(this.boards)) {
         return this.boards
@@ -186,7 +181,6 @@ export default {
       const allBoardIds = this.allStoredBoards.map(b => b.id)
       return this.allStoredBoards.filter(b => !allBoardIds.includes(b.parent_id))
     },
-
     filteredBoards() {
       if (!this.boardFilter) return this.rootBoards
       return this.rootBoards.filter(board => this.matchesFilter(board))
@@ -223,7 +217,6 @@ export default {
 
       return false
     },
-
     chatMatches(chat, filterLower) {
       if (!chat) return false
 
@@ -240,7 +233,6 @@ export default {
 
       return false
     },
-
     getMatchingContent(board) {
       const filterLower = this.boardFilter.toLowerCase()
       const matchingColumns = []
@@ -275,15 +267,12 @@ export default {
         chatCount
       }
     },
-
     selectBoard(board) {
       this.$emit('select', board.title)
     },
-
     openRemoteBoard(board) {
       window.open(board.remote_url, '_blank')
     },
-
     toggleBookmark(board) {
       this.$emit('bookmark', board)
     }

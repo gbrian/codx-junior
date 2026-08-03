@@ -173,8 +173,13 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
               </button>
             </template>
 
-            <!-- Body: scrollable card row -->
-            <div class="flex gap-2 overflow-x-auto p-2 scrollbar-thin">
+            <!-- Body: scrollable card row with drag-drop support -->
+            <div 
+              class="flex gap-2 overflow-x-auto p-2 scrollbar-thin transition-colors"
+              @dragover.prevent="onDragOver"
+              @drop="onDrop"
+              :class="isDraggingOver ? 'bg-primary/5 rounded-lg' : ''"
+            >
               <!-- Parent card -->
               <div
                 class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
@@ -196,15 +201,25 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
                 </div>
               </div>
 
-              <!-- Subtask cards -->
+              <!-- Subtask cards with drag support -->
               <div
-                v-for="(childChat, idx) in childrenChats"
+                v-for="(childChat, idx) in orderedChildrenChats"
                 :key="childChat.id"
-                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
-                :class="showChildChat?.id === childChat.id
-                  ? 'border-warning bg-warning/10'
-                  : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
+                :data-chat-id="childChat.id"
+                draggable="true"
+                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-move shrink-0 w-36 transition-all duration-200"
+                :class="[
+                  showChildChat?.id === childChat.id
+                    ? 'border-warning bg-warning/10'
+                    : 'border-base-content/10 bg-base-200 hover:border-base-content/30',
+                  draggedItem?.id === childChat.id ? 'opacity-50 scale-95' : '',
+                  dragOverIndex === idx ? 'ring-2 ring-primary ring-offset-2 ring-offset-base-300' : ''
+                ]"
                 @click="selectChildChat(childChat)"
+                @dragstart="onDragStart(childChat, idx, $event)"
+                @dragend="onDragEnd"
+                @dragover.prevent="onDragOver"
+                @dragenter="onDragEnter(idx)"
               >
                 <div class="flex items-center gap-1">
                   <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
@@ -410,7 +425,11 @@ export default {
       ownerProject: null,
       targetProject: null,
       subtasksOpen: false,
-      showHistoryWall: false
+      showHistoryWall: false,
+      draggedItem: null,
+      draggedItemIndex: null,
+      dragOverIndex: null,
+      isDraggingOver: false
     }
   },
   created() {
@@ -451,6 +470,19 @@ export default {
       return this.$chats.allChats
         .filter(c => c.parent_id === this.theChat.id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
+    },
+    orderedChildrenChats() {
+      // Apply stored order from metadata if available
+      const order = this.theChat.meta_data?.childOrder || []
+      const ordered = [...this.childrenChats].sort((a, b) => {
+        const indexA = order.indexOf(a.id)
+        const indexB = order.indexOf(b.id)
+        if (indexA === -1 && indexB === -1) return 0
+        if (indexA === -1) return 1
+        if (indexB === -1) return -1
+        return indexA - indexB
+      })
+      return ordered
     },
     subtasksByColumn() {
       return this.childrenChats.reduce((acc, c) => {
@@ -711,6 +743,59 @@ export default {
         chat.ignore_parent_files = true
       }
       this.saveChat(chat)
+    },
+    onDragStart(childChat, index, event) {
+      this.draggedItem = childChat
+      this.draggedItemIndex = index
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/html', event.currentTarget)
+    },
+    onDragOver(event) {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      this.isDraggingOver = true
+    },
+    onDragEnter(index) {
+      if (!this.draggedItem || index === this.draggedItemIndex) return
+      this.dragOverIndex = index
+    },
+    async onDrop(event) {
+      event.preventDefault()
+      this.isDraggingOver = false
+      
+      if (!this.draggedItem || this.draggedItemIndex === null || this.dragOverIndex === null) {
+        this.resetDragState()
+        return
+      }
+      
+      if (this.dragOverIndex === this.draggedItemIndex) {
+        this.resetDragState()
+        return
+      }
+      
+      await this.reorderChildChats(this.dragOverIndex)
+      this.resetDragState()
+    },
+    onDragEnd() {
+      this.isDraggingOver = false
+      this.resetDragState()
+    },
+    resetDragState() {
+      this.draggedItem = null
+      this.draggedItemIndex = null
+      this.dragOverIndex = null
+    },
+    async reorderChildChats(targetIndex) {
+      const newOrder = [...this.orderedChildrenChats]
+      const [removed] = newOrder.splice(this.draggedItemIndex, 1)
+      newOrder.splice(targetIndex, 0, removed)
+      
+      if (!this.theChat.meta_data) {
+        this.theChat.meta_data = {}
+      }
+      this.theChat.meta_data.childOrder = newOrder.map(c => c.id)
+      
+      await this.saveChat(this.theChat)
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.$chats.createNewChat({

@@ -1,13 +1,14 @@
 <script setup>
 import SplitViewVue from '@/views/SplitView.vue'
-import Login from './components/user/Login.vue';
-import NewProject from './components/project/NewProject.vue';
-import HomeMobile from './views/HomeMobile.vue';
-import TeamView from './views/TeamView.vue';
+import Login from './components/user/Login.vue'
+import NewProject from './components/project/NewProject.vue'
+import ProjectLoadingOverlay from './components/project/ProjectLoadingOverlay.vue'
+import HomeMobile from './views/HomeMobile.vue'
+import TeamView from './views/TeamView.vue'
 </script>
 
 <template>
-  <div class="w-full h-full relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full relative bg-base-300" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     
     <div class="h-full w-full" v-else>
@@ -16,8 +17,18 @@ import TeamView from './views/TeamView.vue';
 
       <modal class="w-fit h-2/3" 
         close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
-        <NewProject  />
+        <NewProject />
       </modal>
+
+      <!-- Project Loading Overlay -->
+      <!-- ProjectLoadingOverlay 
+        ref="loadingOverlay"
+        data-test="project-loading-overlay"
+        @retry="retryProjectLoad"
+        @cancel="cancelProjectLoad"
+      /-->
+
+      <!-- Notifications Panel -->
       <div class="hidden absolute top-0 right-0 p-2">
         <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
           <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
@@ -32,17 +43,18 @@ import TeamView from './views/TeamView.vue';
       </div>
     </div>
   </div>
+  
   <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2" v-else>
     <div class="animate-pulse font-mono text-green-600">Wake up, codx-junior...</div>
   </div>
 </template>
+
 <script>
 export default {
-  data () {
+  data() {
     return {
+      pendingProjectSwitch: null
     }
-  },
-  created () {
   },
   computed: {
     infoNotifications() {
@@ -51,23 +63,43 @@ export default {
     errorNotifications() {
       return this.$ui.notifications.filter(n => n.type === 'error')
     },
-    isSharedScreen () {
+    isSharedScreen() {
       return this.$user && this.$route.name === 'codx-junior-shared'
     },
-    isMobileScreen () {
+    isMobileScreen() {
       return this.$user && !this.isSharedScreen && this.$ui.isMobile
     },
-    isSplitterScreen () {
+    isSplitterScreen() {
       return this.$user && !this.isSharedScreen && !this.$ui.isMobile
     },
-    isLogin () {
+    isLogin() {
       return !this.$user
     }
   },
   watch: {
+    '$ui.projectLoadingState': {
+      handler(newState) {
+        if (!newState || !newState.isLoading) return
+        
+        const overlay = this.$refs.loadingOverlay
+        if (overlay && typeof overlay.startLoading === 'function') {
+          overlay.startLoading(newState.projectName)
+        }
+      },
+      deep: true
+    }
   },
   methods: {
-  },
-  expose: []
+    retryProjectLoad() {
+      if (this.pendingProjectSwitch) {
+        this.$storex.projects.setActiveProject(this.pendingProjectSwitch)
+      }
+    },
+
+    cancelProjectLoad() {
+      this.pendingProjectSwitch = null
+      this.$storex.ui.setProjectLoadingState({ isLoading: false })
+    }
+  }
 }
 </script>

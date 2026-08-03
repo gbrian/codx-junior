@@ -1,65 +1,39 @@
 <script setup>
-import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
-import EmojiPicker from './EmojiPicker.vue'
 import ChatInputToolbar from './ChatInputToolbar.vue'
 </script>
 
 <template>
-  <div
-    class="p-1 border border-primary rounded-md bg-base-100 flex shadow indicator w-full flex-col"
-    :class="{
-      'border-warning': isEditing,
-      'bg-warning/10': draggingOver
-    }"
-    @dragover.prevent="draggingOver = true"
-    @dragleave.prevent="draggingOver = false"
-    @drop.prevent="onDrop"
-    v-if="!readOnly"
-  >
-    <!-- Document search autocomplete -->
-    <modal close="true" @close="$emit('close-knowledge')" v-if="showDocumentSearch">
-      <ProjectResourcesAutoCompleteVue
-        :project="chatProject"
-        @select-result="$emit('add-document', $event)"
-        @close="$emit('close-search')"
-        v-if="showDocumentSearch"
-      />
-    </modal>
+  <div class="flex flex-col gap-2 px-2 py-2 bg-base-100 rounded-md border border-base-300">
+    <!-- Editor area -->
+    <div class="relative">
+      <textarea
+        ref="editor"
+        class="textarea textarea-bordered w-full min-h-24"
+        placeholder="Type your message..."
+        @keydown="$emit('keydown', $event)"
+        @paste="$emit('paste', $event)"
+        @drop="$emit('drop', $event)"
+      ></textarea>
+    </div>
 
-    <!-- Emoji picker -->
-    <EmojiPicker
-      class="px-2 py-1"
-      :emoji-name="cursorWord.word"
-      v-if="cursorWord.word?.startsWith(':')"
-      @emoji="$emit('replace-emoji', $event)"
-    />
-
-    <!-- Contenteditable editor -->
-    <div
-      class="editor max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none"
-      :contenteditable="!waiting"
-      ref="editor"
-      @paste="$emit('paste', $event)"
-      @keydown="$emit('keydown', $event)"
-    ></div>
-
+    <!-- Toolbar with action buttons and selectors -->
     <ChatInputToolbar
       :waiting="waiting"
-      :isEditing="isEditing"
-      :isVoiceSession="isVoiceSession"
+      :is-editing="isEditing"
+      :is-voice-session="isVoiceSession"
       :searching="searching"
-      :hasTestScript="hasTestScript"
-      :selectedUser="selectedUser"
-      :usersList="usersList"
-      :selectedModel="selectedModel"
-      :aiModels="aiModels"
+      :read-only="readOnly"
+      :has-test-script="hasTestScript"
+      :selected-model="selectedModel"
+      :ai-models="aiModels"
       :images="images"
-      :voiceLanguageLabel="voiceLanguageLabel"
+      :profiles="profiles"
+      :selected-profiles="selectedProfiles"
+      :voice-language-label="voiceLanguageLabel"
       @send="$emit('send')"
-      @search-message="$emit('search-message')"
       @add-message="$emit('add-message')"
+      @search-message="$emit('search-message')"
       @cancel-edit="$emit('cancel-edit')"
-      @user-changed="$emit('user-changed', $event)"
       @model-changed="$emit('model-changed', $event)"
       @toggle-search="$emit('toggle-search')"
       @hide-all="$emit('hide-all')"
@@ -68,6 +42,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
       @toggle-voice="$emit('toggle-voice')"
       @remove-image="$emit('remove-image', $event)"
       @preview-image="$emit('preview-image', $event)"
+      @profiles-selected="$emit('profiles-selected', $event)"
     />
   </div>
 </template>
@@ -81,60 +56,49 @@ export default {
     searching: Boolean,
     readOnly: Boolean,
     hasTestScript: Boolean,
-    showDocumentSearch: Boolean,
-    chatProject: Object,
-    selectedUser: Object,
-    usersList: { type: Array, default: () => [] },
     selectedModel: String,
     aiModels: { type: Array, default: () => [] },
     images: { type: Array, default: () => [] },
-    cursorWord: { type: Object, default: () => ({}) },
-    voiceLanguageLabel: String
+    voiceLanguageLabel: String,
+    profiles: { type: Array, default: () => [] },
+    selectedProfiles: { type: Array, default: () => [] }
   },
   emits: [
-    'close-knowledge',
-    'send', 'add-message', 'search-message', 'cancel-edit',
-    'paste', 'keydown', 'drop',
-    'add-document', 'close-search', 'replace-emoji',
-    'user-changed', 'model-changed', 'toggle-search', 'hide-all',
-    'attach-files', 'test-project', 'toggle-voice',
-    'remove-image', 'preview-image'
+    'send', 'add-message', 'search-message', 'cancel-edit', 'model-changed',
+    'toggle-search', 'hide-all', 'attach-files', 'test-project',
+    'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
+    'drop', 'profiles-selected'
   ],
-  data() {
-    return {
-      draggingOver: false
-    }
-  },
   methods: {
-    onDrop(e) {
-      this.draggingOver = false
-      this.$emit('drop', e)
-    },
-
-    // ── Public editor API ─────────────────────────────────────
-
     getEditorText() {
-      return this.$refs.editor?.innerText ?? ''
+      return this.$refs.editor?.value || ''
     },
-
     setEditorText(text) {
       if (this.$refs.editor) {
-        this.$refs.editor.innerText = text
+        this.$refs.editor.value = text
       }
     },
-
     appendEditorText(text) {
       if (this.$refs.editor) {
-        this.$refs.editor.innerText += text
+        this.$refs.editor.value += text
       }
     },
-
     focusEditor() {
       this.$refs.editor?.focus()
     },
-
     getCaretWordInfo() {
-      return this.$service.chat.getCaretWordInfo(this.$refs.editor)
+      const textarea = this.$refs.editor
+      if (!textarea) return {}
+      const caretIndex = textarea.selectionStart
+      const text = textarea.value
+      let wordStart = caretIndex
+      while (wordStart > 0 && /\S/.test(text[wordStart - 1])) {
+        wordStart--
+      }
+      return {
+        word: text.slice(wordStart, caretIndex),
+        caretIndex
+      }
     }
   },
   expose: [

@@ -40,6 +40,10 @@ from codx.junior.chat.chat_knowledge import ChatKnowledge
 from codx.junior.global_settings import (
   read_global_settings
 )
+from codx.junior.globals import (
+  LANGUAGE_PARSER_MAPPING,
+)
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -308,8 +312,9 @@ class ChatEngine:
 
             for profile in all_profiles:
                 chat_tools = chat_tools + profile.tools
+                logger.info("Profile '%s (%s)' tools: '%s'", profile.name, profile.project_id, profile.tools)
             chat_tools = list(set(chat_tools))
-            logger.info("Profile tools: '%s'", chat_tools)
+            
 
             if not chat_model:
                 profile_models = [p for p in all_profiles if p.llm_model]
@@ -425,7 +430,7 @@ class ChatEngine:
                         chat_file_full_path,
                         source
                     )
-                    doc_context = document_to_code_block(
+                    doc_context = self._document_to_context(
                         Document(
                             page_content=fh.read(),
                             metadata={"source": source}
@@ -436,6 +441,25 @@ class ChatEngine:
                 logger.error("Error adding context file to chat: %s", ex)
 
         return chat_files_content
+
+    def _document_to_context(self, doc: Document) -> str:
+        content = doc.page_content
+        source = doc.metadata['source']
+        language = doc.metadata.get('language')
+        extension = source.split(".")[-1] if "." in source else ""
+
+        language = language or extension
+        language = LANGUAGE_PARSER_MAPPING.get(language, language)
+        
+        return "\n".join([
+            "### FILE CONTEXT",
+            f"File path is '{source}', use same file path in your response.",
+            "",
+            f"```{ language } {source}", 
+            content,
+            "```",
+            ""
+        ])
 
     def _resolve_chat_file_path(self, chat_file: str) -> Optional[str]:
         """
@@ -1831,7 +1855,12 @@ class ChatEngine:
         query = f"{content} {chat_profiles} @project"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug(
-            "Query mentions extracted for '%s...': %s", query[0:10], query_mentions
+            "Query mentions extracted for '%s...': %s", 
+            query[0:10], 
+            {
+                "projects": [p.name for p in query_mentions.projects],
+                "profiles": [p.name for p in query_mentions.profiles]
+            }
         )
         return query_mentions
 

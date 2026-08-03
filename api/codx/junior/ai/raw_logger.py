@@ -136,14 +136,20 @@ class RawAILogger:
             tags:              Comma-separated tag string.
             messages:          The ``openai_messages`` list sent to the API.
             kwargs:            Additional keyword args passed to
-                               ``client.chat.completions.create``
-                               (model, temperature, stream, tools, etc.).
+                            ``client.chat.completions.create``
+                            (model, temperature, stream, tools, etc.).
             request_id:        Unique identifier for this request/response pair.
             parent_request_id: ``request_id`` of the parent call when this
-                               request was spawned from a tool-call response.
+                            request was spawned from a tool-call response.
         """
         # Exclude large/non-serialisable items from kwargs safely
         safe_kwargs = {k: v for k, v in kwargs.items() if k != "messages"}
+
+        tools = None
+        if "tools" in kwargs:
+            tools = kwargs["tools"]
+            # Remove the tools key from kwargs to avoid duplication in payload
+            del safe_kwargs["tools"]
 
         record = self._base_record(
             direction="request",
@@ -161,6 +167,7 @@ class RawAILogger:
         record["payload"] = {
             "kwargs": safe_kwargs,
             "messages": messages,
+            "tools": tools,
         }
         self._write(record)
         logger.debug(
