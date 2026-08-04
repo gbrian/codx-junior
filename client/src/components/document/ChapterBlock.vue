@@ -12,26 +12,34 @@ import ChapterBlock from './ChapterBlock.vue'
   >
     <!-- Chapter header with copy button -->
     <div 
-      v-if="chapter.level > 0"
-      class="flex items-center justify-between"
-    >
-      <div :class="`heading-${chapter.level}`">
-        <h1 v-if="chapter.level === 1" class="text-3xl font-bold">{{ chapter.title }}</h1>
-        <h2 v-else-if="chapter.level === 2" class="text-2xl font-bold">{{ chapter.title }}</h2>
-        <h3 v-else-if="chapter.level === 3" class="text-xl font-bold">{{ chapter.title }}</h3>
-        <h4 v-else-if="chapter.level === 4" class="text-lg font-bold">{{ chapter.title }}</h4>
-        <h5 v-else-if="chapter.level === 5" class="font-bold">{{ chapter.title }}</h5>
-        <h6 v-else class="font-bold text-sm">{{ chapter.title }}</h6>
-      </div>
-      <div class="flex gap-2">
-        <button
-          class="btn btn-sm btn-ghost gap-2"
-          @click="copyChapterMarkdown"
-          :title="`Copy chapter: ${chapter.title}`"
-        >
-          <i class="fa-solid fa-copy"></i>
-          Copy
-        </button>
+      v-if="chapter.level > 0">
+      <div class="flex items-center justify-between group/header">
+        <div :class="`heading-${chapter.level}`">
+          <h1 v-if="chapter.level === 1" class="text-3xl font-bold">{{ chapter.title }}</h1>
+          <h2 v-else-if="chapter.level === 2" class="text-2xl font-bold">{{ chapter.title }}</h2>
+          <h3 v-else-if="chapter.level === 3" class="text-xl font-bold">{{ chapter.title }}</h3>
+          <h4 v-else-if="chapter.level === 4" class="text-lg font-bold">{{ chapter.title }}</h4>
+          <h5 v-else-if="chapter.level === 5" class="font-bold">{{ chapter.title }}</h5>
+          <h6 v-else class="font-bold text-sm">{{ chapter.title }}</h6>
+        </div>
+        <div class="hidden group-hover/header:flex gap-2 items-center">
+          <!-- Custom actions slot -->
+          <slot 
+            name="chapter-actions" 
+            :chapter="chapter"
+            :full-content="fullChapterContent"
+          >
+            <!-- Default action: copy button -->
+            <button
+              class="btn btn-sm btn-ghost gap-2"
+              @click="copyChapterMarkdown"
+              :title="`Copy chapter: ${chapter.title}`"
+            >
+              <i class="fa-solid fa-copy"></i>
+              Copy
+            </button>
+          </slot>
+        </div>
       </div>
     </div>
 
@@ -88,7 +96,16 @@ import ChapterBlock from './ChapterBlock.vue'
         @save-file="$emit('save-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         @sub-task="$emit('sub-task', $event)"
-      />
+      >
+        <!-- Pass down custom actions to child chapters -->
+        <template #chapter-actions="{ chapter: childChapter, fullContent }">
+          <slot 
+            name="chapter-actions" 
+            :chapter="childChapter"
+            :full-content="fullContent"
+          />
+        </template>
+      </ChapterBlock>
     </div>
   </div>
 </template>
@@ -227,11 +244,14 @@ export default {
     chapterBlocks() {
       const contentWithoutHeader = stripHeaderFromContent(this.chapter.content || '')
       return parseBlocks(contentWithoutHeader)
+    },
+    fullChapterContent() {
+      return collectAllChildContent(this.chapter)
     }
   },
   methods: {
     copyChapterMarkdown() {
-      const fullContent = collectAllChildContent(this.chapter)
+      const fullContent = this.fullChapterContent
       navigator.clipboard.writeText(fullContent).then(() => {
         this.$emit('copy-chapter', {
           title: this.chapter.title,

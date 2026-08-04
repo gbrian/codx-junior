@@ -314,7 +314,27 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
             @create-task="onCreateTask"
             :mentionList="mentionList"
             v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord" 
-          />
+          >
+            <!-- Custom chapter actions -->
+            <template #chapter-actions="{ chapter, fullContent }">
+              <button
+                class="btn btn-sm btn-ghost gap-2"
+                @click="copyChapterMarkdown(chapter, fullContent)"
+                :title="`Copy chapter: ${chapter.title}`"
+              >
+                <i class="fa-solid fa-copy"></i>
+                Copy
+              </button>
+              <button
+                class="btn btn-sm btn-ghost gap-2"
+                @click="createTaskFromChapter(chapter, fullContent)"
+                :title="`Create task from: ${chapter.title}`"
+              >
+                <i class="fa-solid fa-plus"></i>
+                Task
+              </button>
+            </template>
+          </Document>
 
           <div class="alert alert-error text-xs" v-if="displayMessage.error">
             {{ displayMessage.error }}
@@ -592,7 +612,6 @@ export default {
       const range = selection.getRangeAt(0)
       const rect = range.getBoundingClientRect()
       
-      // Get floating element dimensions - must be visible to measure
       const floatingEl = this.$refs.floatingDisplay
       let floatingHeight = 0
       
@@ -603,7 +622,6 @@ export default {
         floatingEl.style.visibility = 'visible'
       }
       
-      // Center horizontally on selection, position above with padding
       const { x, y } = this.$el.parentNode.getBoundingClientRect()
       const left = rect.left - x
       const top = rect.top + window.scrollY - floatingHeight + rect.height
@@ -631,7 +649,6 @@ export default {
       if (selectedText.length > 0) {
         this.selectedText = selectedText
         this.showSelectionMenu = true
-        // Wait for DOM update, then calculate position
         this.$nextTick(() => {
           this.selectionPosition = this.getSelectionPosition()
         })
@@ -641,7 +658,6 @@ export default {
     },
     onSelectionCopy(text) {
       this.copyTextToClipboard(text)
-      this.$ui.showNotification('Copied to clipboard', 'success')
     },
     onSelectionCreateSubtask(content) {
       this.$emit('sub-task', {
@@ -753,16 +769,23 @@ export default {
         this.branchLoading = false
       }
     },
+    copyChapterMarkdown(chapter, fullContent) {
+      this.copyTextToClipboard(fullContent)
+    },
+    createTaskFromChapter(chapter, fullContent) {
+      this.$emit('sub-task', {
+        content: fullContent,
+        title: chapter.title
+      })
+    },
     onCopyChapter(chapterData) {
       this.copyTextToClipboard(chapterData.content)
-      this.$ui.showNotification(`Copied chapter: ${chapterData.headingText}`, 'success')
     },
     onCreateTask(taskData) {
       this.$emit('sub-task', {
         content: taskData.content,
-        title: taskData.headingText
+        title: taskData.title
       })
-      this.$ui.showNotification(`Task created from: ${taskData.headingText}`, 'success')
     }
   },
   mounted() {

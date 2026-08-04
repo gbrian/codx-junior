@@ -1084,7 +1084,7 @@ export default {
       }
     },
 
-    onChatEntryCreateSubtask({ file, content }) {
+    onChatEntryCreateSubtask({ file, content, title }) {
       const existingChat = file ? this.chatSvc.findChildChatByFile({
         chat: this.chat,
         childrenChats: this.childrenChats,
@@ -1095,7 +1095,7 @@ export default {
         return
       }
       this.createChatSubTask({
-        title: file?.split("/").reverse()[0] || content.split("\n")[0],
+        title: title || file?.split("/").reverse()[0] || content.split("\n")[0],
         description: content,
         files: file ? [file]: []
       })

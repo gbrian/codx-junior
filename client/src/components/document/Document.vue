@@ -22,7 +22,16 @@ import ChapterBlock from './ChapterBlock.vue'
       @save-file="$emit('save-file', $event)"
       @edit-message="$emit('edit-message', $event)"
       @sub-task="$emit('sub-task', $event)"
-    />
+    >
+      <!-- Pass down custom actions slot -->
+      <template #chapter-actions="{ chapter, fullContent }">
+        <slot 
+          name="chapter-actions" 
+          :chapter="chapter"
+          :full-content="fullContent"
+        />
+      </template>
+    </ChapterBlock>
   </div>
 </template>
 
@@ -62,7 +71,6 @@ function parseChapters(content, loading) {
       chapters.push(chapter)
       i = chapter.endIndex
     } else if (!chapters.length && line.trim()) {
-      // Handle introduction content before any heading
       const introContent = []
       while (i < lines.length && !isHeading(lines[i])) {
         introContent.push(lines[i])
@@ -84,7 +92,6 @@ function parseChapters(content, loading) {
     }
   }
 
-  // Mark all as finished if not loading
   if (!loading) {
     markAllFinished(chapters)
   } else if (chapters.length > 0) {
@@ -94,7 +101,6 @@ function parseChapters(content, loading) {
   return chapters
 }
 
-// Parse chapter with full markdown context including header
 function parseChapter(lines, startIndex) {
   const headingLine = lines[startIndex]
   const level = getHeadingLevel(headingLine)
@@ -103,19 +109,16 @@ function parseChapter(lines, startIndex) {
   const children = []
   let i = startIndex + 1
 
-  // Collect content and children
   while (i < lines.length) {
     const line = lines[i]
 
     if (isHeading(line)) {
       const nextLevel = getHeadingLevel(line)
 
-      // If same or higher level, stop
       if (nextLevel <= level) {
         break
       }
 
-      // If next level is direct child (level + 1), parse as child chapter
       if (nextLevel === level + 1) {
         const childChapter = parseChapter(lines, i)
         children.push(childChapter)
@@ -123,7 +126,6 @@ function parseChapter(lines, startIndex) {
         continue
       }
 
-      // Otherwise collect as content (nested children will be handled by recursive calls)
       if (nextLevel > level + 1) {
         content.push(line)
         i++
