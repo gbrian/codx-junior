@@ -72,6 +72,8 @@ import { EXTENSION_LANGUAGE_MAP } from '../../store'
       theme="vs-dark"
       :options="diffEditorOptions"
       @update:value="onDiffChange"
+      @editorWillMount="onEditorWillMount"
+      @editorDidMount="onEditorDidMount('diff')"
       v-if="diff && isReady"
     />
     <CodeEditor
@@ -79,6 +81,8 @@ import { EXTENSION_LANGUAGE_MAP } from '../../store'
       :language="resolvedLanguage"
       theme="vs-dark"
       :options="editorOptions"
+      @editorWillMount="onEditorWillMount"
+      @editorDidMount="onEditorDidMount('code')"
       v-else-if="!diff && isReady"
     />
     <!-- Loading placeholder while Monaco initializes -->
@@ -102,7 +106,7 @@ export default {
     renderIndicators: { type: Boolean, default: true },
     enableSplitViewResizing: { type: Boolean, default: true },
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'save'],
   data() {
     return {
       isReady: false,
@@ -112,6 +116,7 @@ export default {
       localRenderIndicators: this.renderIndicators,
       localEnableSplitViewResizing: this.enableSplitViewResizing,
       diffEditorKey: 0,
+      editorInstance: null,
       editorOptions: {
         fontSize: 14,
         minimap: { enabled: true },
@@ -164,6 +169,34 @@ export default {
     }
   },
   methods: {
+    // Invoked before Monaco editor initializes
+    onEditorWillMount() {
+      // Placeholder for future initialization logic
+    },
+
+    // Invoked after Monaco editor mounts
+    onEditorDidMount(editorType) {
+      // Store editor reference for keyboard binding setup
+      this.editorInstance = editorType
+      this.setupSaveKeybinding()
+    },
+
+    // Setup Ctrl+S / Cmd+S to trigger save
+    setupSaveKeybinding() {
+      // Note: monaco-editor-vue3 doesn't expose editor directly
+      // This intercepts the native keyboard event at component level
+      this.$el.addEventListener('keydown', this.handleKeydown)
+    },
+
+    // Handle keyboard shortcuts
+    handleKeydown(event) {
+      const isSaveKey = (event.ctrlKey || event.metaKey) && event.key === 's'
+      if (isSaveKey) {
+        event.preventDefault()
+        this.$emit('save')
+      }
+    },
+
     refreshDiffEditor() {
       this.diffEditorKey++
     },

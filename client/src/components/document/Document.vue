@@ -1,40 +1,28 @@
 <script setup>
-import MarkdownViewer from '../MarkdownViewer.vue'
-import Code from '../Code.vue'
+import ChapterBlock from './ChapterBlock.vue'
 </script>
 
 <template>
   <div class="flex flex-col @container/document">
-    <div v-for="block in blocks" :key="block.hash">
-      <MarkdownViewer
-        :files="files"
-        :documentId="documentId"
-        :heading-actions="headingActions"
-        :include-heading-menu="includeHeadingMenu"
-        v-if="block.renderer === 'md'"
-        :text="block.content"
-        @add-file="$emit('add-file', $event)"
-        @heading-action="handleHeadingAction"
-      />
-      <Code
-        :text="block.content"
-        :text-language="block.type"
-        :fileName="block.fileName"
-        :files="files"
-        :project="docProject"
-        :finished="block.finished"
-        :chat="chat"
-        :message="message"
-        @generate-code="$emit('generate-code', $event)"
-        @reload-file="$emit('reload-file', { file: $event, message })"
-        @open-file="$emit('open-file', $event)"
-        @save-file="$emit('save-file', $event)"
-        @add-file="$emit('add-file', $event)"
-        @edit-message="$emit('edit-message', $event)"
-        @sub-task="$emit('sub-task', $event)"
-        v-else
-      />
-    </div>
+    <ChapterBlock
+      v-for="chapter in chapters"
+      :key="chapter.hash"
+      :chapter="chapter"
+      :files="files"
+      :documentId="documentId"
+      :docProject="docProject"
+      :chat="chat"
+      :message="message"
+      @add-file="$emit('add-file', $event)"
+      @copy-chapter="handleCopyChapter"
+      @create-task="handleCreateTask"
+      @generate-code="$emit('generate-code', $event)"
+      @reload-file="$emit('reload-file', { file: $event, message })"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)"
+      @edit-message="$emit('edit-message', $event)"
+      @sub-task="$emit('sub-task', $event)"
+    />
   </div>
 </template>
 
@@ -48,67 +36,139 @@ function generateHash(str) {
   return hash
 }
 
-function getRenderer(blockType) {
-  if (['markdown', 'md'].includes(blockType)) return 'md'
-  if (['html'].includes(blockType)) return blockType
-  return 'code'
+function isHeading(line) {
+  return /^#{1,6}\s+/.test(line)
 }
 
-function parseContent(content, loading) {
-  const blocks = []
+function getHeadingLevel(line) {
+  const match = line.match(/^(#+)\s+/)
+  return match ? match[1].length : 0
+}
+
+function getHeadingText(line) {
+  return line.replace(/^#+\s+/, '').trim()
+}
+
+function parseChapters(content, loading) {
   const lines = content.split('\n')
-  let currentType = 'markdown'
-  let currentContent = []
-  let currentFileName = ''
-  let nestingDepth = 0
+  const chapters = []
+  let i = 0
 
-  function setAllFinished() {
-    blocks.forEach(b => b.finished = true)
-  }
+  while (i < lines.length) {
+    const line = lines[i]
 
-  function addBlock() {
-    const blockContent = currentContent.join('\n')
-    const hash = generateHash(blockContent)
-    setAllFinished()
-    blocks.push({
-      type: currentType,
-      content: blockContent,
-      hash,
-      fileName: currentFileName,
-      renderer: getRenderer(currentType),
-      finished: false
-    })
-    currentType = 'markdown'
-    currentContent = []
-    currentFileName = ''
-  }
-
-  for (const line of lines) {
-    const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
-    const closeMatch = line === '```'
-
-    if (nestingDepth === 0 && openMatch) {
-      if (currentContent.length) addBlock()
-      nestingDepth = 1
-      currentType = openMatch[1]
-      currentFileName = openMatch[2] || ''
-    } else if (nestingDepth === 1 && closeMatch) {
-      addBlock()
-      nestingDepth = 0
-    } else if (nestingDepth >= 1 && openMatch) {
-      nestingDepth++
-      currentContent.push(line)
-    } else if (nestingDepth > 1 && closeMatch) {
-      nestingDepth--
-      currentContent.push(line)
+    if (isHeading(line)) {
+      const chapter = parseChapter(lines, i)
+      chapters.push(chapter)
+      i = chapter.endIndex
+    } else if (!chapters.length && line.trim()) {
+      // Handle introduction content before any heading
+      const introContent = []
+      while (i < lines.length && !isHeading(lines[i])) {
+        introContent.push(lines[i])
+        i++
+      }
+      const fullContent = introContent.join('\n').trim()
+      if (fullContent) {
+        chapters.push({
+          level: 0,
+          title: 'Introduction',
+          content: fullContent,
+          children: [],
+          hash: generateHash(fullContent),
+          finished: false
+        })
+      }
     } else {
-      currentContent.push(line)
+      i++
     }
   }
 
-  if (currentContent.length) addBlock()
-  if (!loading) setAllFinished()
-  return blocks
+  // Mark all as finished if not loading
+  if (!loading) {
+    markAllFinished(chapters)
+  } else if (chapters.length > 0) {
+    markLastUnfinished(chapters)
+  }
+
+  return chapters
+}
+
+// Parse chapter with full markdown context including header
+function parseChapter(lines, startIndex) {
+  const headingLine = lines[startIndex]
+  const level = getHeadingLevel(headingLine)
+  const title = getHeadingText(headingLine)
+  const content = [headingLine]
+  const children = []
+  let i = startIndex + 1
+
+  // Collect content and children
+  while (i < lines.length) {
+    const line = lines[i]
+
+    if (isHeading(line)) {
+      const nextLevel = getHeadingLevel(line)
+
+      // If same or higher level, stop
+      if (nextLevel <= level) {
+        break
+      }
+
+      // If next level is direct child (level + 1), parse as child chapter
+      if (nextLevel === level + 1) {
+        const childChapter = parseChapter(lines, i)
+        children.push(childChapter)
+        i = childChapter.endIndex
+        continue
+      }
+
+      // Otherwise collect as content (nested children will be handled by recursive calls)
+      if (nextLevel > level + 1) {
+        content.push(line)
+        i++
+        continue
+      }
+    }
+
+    content.push(line)
+    i++
+  }
+
+  const fullContent = content.join('\n')
+
+  return {
+    level,
+    title,
+    content: fullContent,
+    children,
+    hash: generateHash(fullContent),
+    endIndex: i,
+    finished: false
+  }
+}
+
+function markAllFinished(chapters) {
+  chapters.forEach(chapter => {
+    chapter.finished = true
+    if (chapter.children && chapter.children.length) {
+      markAllFinished(chapter.children)
+    }
+  })
+}
+
+function markLastUnfinished(chapters) {
+  if (!chapters.length) return
+
+  for (let i = chapters.length - 1; i >= 0; i--) {
+    const chapter = chapters[i]
+    if (chapter.children && chapter.children.length) {
+      markLastUnfinished(chapter.children)
+      return
+    }
+    chapter.finished = false
+    return
+  }
 }
 
 export default {
@@ -119,9 +179,7 @@ export default {
     chat: { type: Object, default: null },
     loading: { type: Boolean, default: false },
     documentId: { type: String, default: '' },
-    message: { type: Object, default: null },
-    headingActions: { type: Array, default: null },
-    includeHeadingMenu: { type: Boolean, default: false }
+    message: { type: Object, default: null }
   },
   emits: [
     'generate-code',
@@ -131,22 +189,26 @@ export default {
     'add-file',
     'edit-message',
     'sub-task',
-    'heading-action'
+    'copy-chapter',
+    'create-task'
   ],
   data() {
     return {}
   },
   computed: {
-    blocks() {
-      return parseContent(this.content || '', this.loading)
+    chapters() {
+      return parseChapters(this.content || '', this.loading)
     },
     docProject() {
       return this.project || this.$project
     }
   },
   methods: {
-    handleHeadingAction(actionData) {
-      this.$emit('heading-action', actionData)
+    handleCopyChapter(chapterData) {
+      this.$emit('copy-chapter', chapterData)
+    },
+    handleCreateTask(taskData) {
+      this.$emit('create-task', taskData)
     }
   }
 }

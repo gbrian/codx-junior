@@ -3,16 +3,13 @@
 
 <template>
   <div 
-    class="sticky top-0 z-20 bg-base-100/95 border border-info backdrop-blur border-b border-base-300 rounded-t-md px-3 py-1 flex items-center gap-2 shadow-sm"
+    class="sticky top-0 z-20 bg-base-100/95 border border-info backdrop-blur border-b border-base-300 rounded-md px-3 py-2 flex items-center gap-2 shadow-sm w-fit"
     @mousedown.stop
   >
-    <span class="truncate max-w-xs italic">
-      "{{ selectedText.slice(0, 60) }}{{ selectedText.length > 60 ? '...' : '' }}"
-    </span>
-    <div class="flex-1"></div>
     <button 
       class="btn btn-ghost btn-sm gap-1"
       @click.stop="onCopy"
+      title="Copy selected text"
     >
       <i class="fa-solid fa-copy"></i>
       Copy
@@ -20,9 +17,10 @@
     <button 
       class="btn btn-ghost btn-sm gap-1"
       @click.stop="onCreateSubtask"
+      title="Create task from selection"
     >
       <i class="fa-solid fa-list-check"></i>
-      Create task
+      Task
     </button>
     <div v-if="isSingleWord" class="divider divider-horizontal mx-1"></div>
     <button 
@@ -30,13 +28,15 @@
       class="btn btn-ghost btn-sm gap-1"
       @click.stop="onSearchFiles"
       :disabled="isSearching"
+      title="Search files for this word"
     >
       <i :class="['fa-solid', isSearching ? 'fa-spinner animate-spin' : 'fa-magnifying-glass']"></i>
       Search
     </button>
     <button 
-      class="btn btn-ghost btn-sm text-base-content/50"
+      class="btn btn-ghost btn-sm text-base-content/50 hover:text-base-content"
       @click="onClose"
+      title="Close menu"
     >
       <i class="fa-solid fa-times"></i>
     </button>
@@ -46,8 +46,14 @@
 <script>
 export default {
   props: {
-    selectedText: { type: String, default: '' },
-    chatProject: { type: Object, default: null }
+    selectedText: {
+      type: String,
+      default: ''
+    },
+    chatProject: {
+      type: Object,
+      default: null
+    }
   },
   emits: ['copy', 'create-subtask', 'search-files', 'close'],
   data() {
@@ -77,8 +83,6 @@ export default {
     },
     onSearchFiles() {
       if (!this.isSingleWord) return
-      
-      // Emit search event with the selected text to parent (ChatEntry)
       this.$emit('search-files', {
         query: this.selectedText,
         fromSelection: true

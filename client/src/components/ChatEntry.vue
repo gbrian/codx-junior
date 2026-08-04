@@ -89,7 +89,26 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           @close="onCloseSelectionMenu"
         />
 
-    
+        <!-- Floating selected text display — positioned above and centered on selection -->
+        <div 
+          v-if="false && showSelectionMenu && selectedText"
+          ref="floatingDisplay"
+          class="floating-display fixed bg-base-200 border border-base-300 rounded-lg shadow-lg p-3 z-50 pointer-events-none relative"
+          :style="{ 
+            top: selectionPosition.top + 'px', 
+            left: selectionPosition.left + 'px',
+          }"
+        >
+          <ChatEntrySelectionMenu
+            :selectedText="selectedText"
+            :chatProject="chatProject"
+            @copy="onSelectionCopy"
+            @create-subtask="onSelectionCreateSubtask"
+            @search-files="onSelectionSearchFiles"
+            @close="onCloseSelectionMenu"
+          />
+        </div>
+
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
             :class="[displayMessage.hide && 'text-slate-50']">
@@ -291,6 +310,8 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
             @sub-task="$emit('sub-task', $event)"
+            @copy-chapter="onCopyChapter"
+            @create-task="onCreateTask"
             :mentionList="mentionList"
             v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord" 
           />
@@ -422,7 +443,11 @@ export default {
       activeBranch: null,
       branchLoading: false,
       showSelectionMenu: false,
-      selectedText: ''
+      selectedText: '',
+      selectionPosition: {
+        top: 0,
+        left: 0
+      }
     }
   },
   created() {
@@ -560,31 +585,56 @@ export default {
         ev.preventDefault()
       }
     },
+    getSelectionPosition() {
+      const selection = window.getSelection()
+      if (selection.rangeCount === 0) return { top: 0, left: 0 }
+      
+      const range = selection.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      
+      // Get floating element dimensions - must be visible to measure
+      const floatingEl = this.$refs.floatingDisplay
+      let floatingHeight = 0
+      
+      if (floatingEl) {
+        floatingEl.style.visibility = 'hidden'
+        floatingEl.style.display = 'block'
+        floatingHeight = floatingEl.offsetHeight
+        floatingEl.style.visibility = 'visible'
+      }
+      
+      // Center horizontally on selection, position above with padding
+      const { x, y } = this.$el.parentNode.getBoundingClientRect()
+      const left = rect.left - x
+      const top = rect.top + window.scrollY - floatingHeight + rect.height
+      
+      return {
+        top: Math.max(10, top),
+        left: left
+      }
+    },
     onContentMouseUp() {
       function getSelectedHTML() {
-        const selection = window.getSelection();
+        const selection = window.getSelection()
         
-        // Check if there is an active selection on the page
         if (selection.rangeCount > 0) {
-            // Get the first range boundary of the selection
-            const range = selection.getRangeAt(0);
-            
-            // Clone the content into a DocumentFragment (holds the actual DOM nodes)
-            const clonedContent = range.cloneContents();
-            
-            // Create a temporary container to turn the elements into an HTML string
-            const div = document.createElement('div');
-            div.appendChild(clonedContent);
-            
-            return div.innerHTML; // Returns the full HTML string with tags
+          const range = selection.getRangeAt(0)
+          const clonedContent = range.cloneContents()
+          const div = document.createElement('div')
+          div.appendChild(clonedContent)
+          return div.innerHTML
         }
-        return "";
+        return ""
       }
 
       const selectedText = getSelectedHTML()
       if (selectedText.length > 0) {
         this.selectedText = selectedText
         this.showSelectionMenu = true
+        // Wait for DOM update, then calculate position
+        this.$nextTick(() => {
+          this.selectionPosition = this.getSelectionPosition()
+        })
       } else {
         this.showSelectionMenu = false
       }
@@ -599,7 +649,6 @@ export default {
       })
     },
     onSelectionSearchFiles({ query, fromSelection }) {
-      // Emit search-files event to parent Chat component
       this.$emit('search-files', {
         query,
         fromSelection: true
@@ -703,6 +752,17 @@ export default {
       } finally {
         this.branchLoading = false
       }
+    },
+    onCopyChapter(chapterData) {
+      this.copyTextToClipboard(chapterData.content)
+      this.$ui.showNotification(`Copied chapter: ${chapterData.headingText}`, 'success')
+    },
+    onCreateTask(taskData) {
+      this.$emit('sub-task', {
+        content: taskData.content,
+        title: taskData.headingText
+      })
+      this.$ui.showNotification(`Task created from: ${taskData.headingText}`, 'success')
     }
   },
   mounted() {

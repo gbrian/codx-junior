@@ -27,6 +27,15 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <span class="text-xs opacity-50" v-if="fileMeta.last_modification">
         {{ moment(fileMeta.last_modification).fromNow() }}
       </span>
+      
+      <!-- Unsaved changes indicator -->
+      <div class="flex items-center gap-2" v-if="editMode && hasChanges">
+        <div class="flex items-center gap-1 px-2 py-1 bg-warning rounded text-warning-content text-xs">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>Unsaved changes</span>
+        </div>
+      </div>
+
       <div class="grow"></div>
 
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
@@ -50,10 +59,18 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
         >
           <i class="fa-solid fa-code-compare"></i> Diff
         </button>
+        <button 
+          class="btn btn-xs btn-ghost" 
+          :disabled="!hasChanges"
+          @click="discardChanges"
+          title="Discard unsaved changes"
+        >
+          <i class="fa-solid fa-times"></i> Discard
+        </button>
         <button class="btn btn-xs btn-ghost" @click="cancelEdit">
           <i class="fa-solid fa-xmark"></i> Cancel
         </button>
-        <button class="btn btn-xs btn-success" :disabled="saving" @click="saveFile">
+        <button class="btn btn-xs btn-success" :disabled="saving || !hasChanges" @click="saveFile">
           <span class="loading loading-spinner loading-xs" v-if="saving"></span>
           <i class="fa-solid fa-floppy-disk" v-else></i> Save
         </button>
@@ -70,6 +87,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
         :diff="showDiff"
         :originalCode="fileContent"
         :fileName="displayFilePath"
+        @save="saveFile"
         class="h-full"
         v-else-if="editMode"
       />
@@ -105,6 +123,23 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       </div>
       <div class="modal-backdrop" @click="cancelDelete"></div>
     </div>
+
+    <!-- Discard changes confirmation modal -->
+    <div class="modal" :class="{ 'modal-open': showDiscardModal }">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg">Discard changes?</h3>
+        <p class="py-4 text-sm opacity-75">
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="cancelDiscard">Keep editing</button>
+          <button class="btn btn-warning" @click="confirmDiscard">
+            <i class="fa-solid fa-trash"></i> Discard
+          </button>
+        </div>
+      </div>
+      <div class="modal-backdrop" @click="cancelDiscard"></div>
+    </div>
   </div>
 </template>
 
@@ -129,13 +164,14 @@ export default {
       isDraggingFileName: false,
       showDiff: false,
       showDeleteModal: false,
-      deleting: false
+      deleting: false,
+      showDiscardModal: false
     }
   },
   computed: {
     filePath() {
-      return this.params.filePath ||
-              this.$app.params.filePath
+      return this.params?.filePath ||
+              this.$app?.params.filePath || ""
     },
     fileName() {
       return this.filePath.split("/").reverse()[0]
@@ -144,7 +180,7 @@ export default {
       return this.$project.$api
     },
     displayFilePath() {
-      return this.filePath || ''
+      return this.filePath
     },
     displayFileName() {
       if (this.fileName) return this.fileName
@@ -164,6 +200,10 @@ export default {
         console.warn(`Invalid language detected: ${lang}`, ex)
       }
       return 'markdown'
+    },
+    // Check if current content differs from original file content
+    hasChanges() {
+      return this.editContent !== this.fileContent
     }
   },
   mounted() {
@@ -210,7 +250,6 @@ export default {
       try {
         await this.$api.files.write(this.displayFilePath, this.editContent)
         this.fileContent = this.editContent
-        this.editMode = false
         this.showDiff = false
         this.$ui.addNotification({ text: `${this.displayFileName} saved` })
         const { last_modification, size } = await this.$api.files.read(this.displayFilePath)
@@ -221,6 +260,20 @@ export default {
       } finally {
         this.saving = false
       }
+    },
+    discardChanges() {
+      if (this.hasChanges) {
+        this.showDiscardModal = true
+      }
+    },
+    cancelDiscard() {
+      this.showDiscardModal = false
+    },
+    confirmDiscard() {
+      this.editContent = this.fileContent
+      this.showDiscardModal = false
+      this.showDiff = false
+      this.$ui.addNotification({ text: 'Changes discarded' })
     },
     copyContent() {
       this.$ui.copyTextToClipboard(this.fileContent)
@@ -254,11 +307,7 @@ export default {
     },
     onDragStart(event) {
       this.isDraggingFileName = true
-      
-      // Set plain text drag data
       event.dataTransfer.setData('text/plain', this.filePath)
-
-      // Set simplified JSON drag format
       const fileData = JSON.stringify({
         files: [{
           path: this.filePath,

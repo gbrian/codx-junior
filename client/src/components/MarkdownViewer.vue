@@ -213,7 +213,7 @@ export default {
     files: { type: Array, default: null },
     documentId: { type: String, default: '' }
   },
-  emits: ['add-file', 'table-updated'],
+  emits: ['add-file', 'table-updated', 'copy-chapter', 'create-task'],
   components: {
     InteractiveTable
   },
