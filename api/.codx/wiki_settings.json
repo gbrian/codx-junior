@@ -447,6 +447,11 @@
           "path": "/codx/junior/globals.py",
           "slug": "codx-junior-globals-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-globals-py.md"
+        },
+        {
+          "path": "/codx/junior/utils/content_formatter.py",
+          "slug": "codx-junior-utils-content-formatter-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-utils-content-formatter-py.md"
         }
       ],
       "id": "utility-functions",

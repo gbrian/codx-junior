@@ -561,8 +561,27 @@ export default {
       }
     },
     onContentMouseUp() {
-      const selection = window.getSelection()
-      const selectedText = selection.toString().trim()
+      function getSelectedHTML() {
+        const selection = window.getSelection();
+        
+        // Check if there is an active selection on the page
+        if (selection.rangeCount > 0) {
+            // Get the first range boundary of the selection
+            const range = selection.getRangeAt(0);
+            
+            // Clone the content into a DocumentFragment (holds the actual DOM nodes)
+            const clonedContent = range.cloneContents();
+            
+            // Create a temporary container to turn the elements into an HTML string
+            const div = document.createElement('div');
+            div.appendChild(clonedContent);
+            
+            return div.innerHTML; // Returns the full HTML string with tags
+        }
+        return "";
+      }
+
+      const selectedText = getSelectedHTML()
       if (selectedText.length > 0) {
         this.selectedText = selectedText
         this.showSelectionMenu = true

@@ -1095,7 +1095,7 @@ export default {
         return
       }
       this.createChatSubTask({
-        title: file?.split("/").reverse()[0],
+        title: file?.split("/").reverse()[0] || content.split("\n")[0],
         description: content,
         files: file ? [file]: []
       })
