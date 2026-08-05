@@ -11,8 +11,7 @@ import ChapterBlock from './ChapterBlock.vue'
     @mouseleave="isHovered = false"
   >
     <!-- Chapter header with copy button -->
-    <div 
-      v-if="chapter.level > 0">
+    <div v-if="chapter.level > 0">
       <div class="flex items-center justify-between group/header">
         <div :class="`heading-${chapter.level}`">
           <h1 v-if="chapter.level === 1" class="text-3xl font-bold">{{ chapter.title }}</h1>
@@ -23,13 +22,11 @@ import ChapterBlock from './ChapterBlock.vue'
           <h6 v-else class="font-bold text-sm">{{ chapter.title }}</h6>
         </div>
         <div class="hidden group-hover/header:flex gap-2 items-center">
-          <!-- Custom actions slot -->
           <slot 
             name="chapter-actions" 
             :chapter="chapter"
             :full-content="fullChapterContent"
           >
-            <!-- Default action: copy button -->
             <button
               class="btn btn-sm btn-ghost gap-2"
               @click="copyChapterMarkdown"
@@ -45,7 +42,7 @@ import ChapterBlock from './ChapterBlock.vue'
 
     <!-- Render blocks within chapter -->
     <div class="space-y-4">
-      <div v-for="block in chapterBlocks" :key="block.hash">
+      <div v-for="block in blocks" :key="block.hash">
         <MarkdownViewer
           :files="files"
           :documentId="documentId"
@@ -76,12 +73,13 @@ import ChapterBlock from './ChapterBlock.vue'
       </div>
     </div>
 
-    <!-- Render child chapters without extra padding/margin -->
+    <!-- Render child chapters -->
     <div v-if="chapter.children && chapter.children.length">
       <ChapterBlock
         v-for="childChapter in chapter.children"
         :key="childChapter.hash"
         :chapter="childChapter"
+        :blocks="getChildChapterBlocks(childChapter)"
         :files="files"
         :documentId="documentId"
         :docProject="docProject"
@@ -97,7 +95,6 @@ import ChapterBlock from './ChapterBlock.vue'
         @edit-message="$emit('edit-message', $event)"
         @sub-task="$emit('sub-task', $event)"
       >
-        <!-- Pass down custom actions to child chapters -->
         <template #chapter-actions="{ chapter: childChapter, fullContent }">
           <slot 
             name="chapter-actions" 
@@ -137,67 +134,15 @@ function stripHeaderFromContent(content) {
   return content
 }
 
-function getRenderer(blockType) {
-  if (['markdown', 'md'].includes(blockType)) return 'md'
-  if (['html'].includes(blockType)) return blockType
-  return 'code'
-}
-
-function parseBlocks(content) {
-  const blocks = []
-  const lines = content.split('\n')
-  let currentType = 'markdown'
-  let currentContent = []
-  let currentFileName = ''
-  let nestingDepth = 0
-
-  function setAllFinished() {
-    blocks.forEach(b => b.finished = true)
-  }
-
-  function addBlock() {
-    const blockContent = currentContent.join('\n')
-    const hash = generateHash(blockContent)
-    setAllFinished()
-    blocks.push({
-      type: currentType,
-      content: blockContent,
-      hash,
-      fileName: currentFileName,
-      renderer: getRenderer(currentType),
-      finished: false
-    })
-    currentType = 'markdown'
-    currentContent = []
-    currentFileName = ''
-  }
-
-  for (const line of lines) {
-    const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
-    const closeMatch = line === '```'
-
-    if (nestingDepth === 0 && openMatch) {
-      if (currentContent.length) addBlock()
-      nestingDepth = 1
-      currentType = openMatch[1]
-      currentFileName = openMatch[2] || ''
-    } else if (nestingDepth === 1 && closeMatch) {
-      addBlock()
-      nestingDepth = 0
-    } else if (nestingDepth >= 1 && openMatch) {
-      nestingDepth++
-      currentContent.push(line)
-    } else if (nestingDepth > 1 && closeMatch) {
-      nestingDepth--
-      currentContent.push(line)
-    } else {
-      currentContent.push(line)
+// Check if we're inside a code fence at this line index
+function isInsideCodeFence(lines, lineIndex) {
+  let inCodeFence = false
+  for (let i = 0; i < lineIndex; i++) {
+    if (lines[i].match(/^```/)) {
+      inCodeFence = !inCodeFence
     }
   }
-
-  if (currentContent.length) addBlock()
-  setAllFinished()
-  return blocks
+  return inCodeFence
 }
 
 function collectAllChildContent(chapter) {
@@ -218,6 +163,7 @@ function collectAllChildContent(chapter) {
 export default {
   props: {
     chapter: { type: Object, required: true },
+    blocks: { type: Array, required: true },
     files: { type: Array, default: null },
     documentId: { type: String, default: '' },
     docProject: { type: Object, default: null },
@@ -241,15 +187,70 @@ export default {
     }
   },
   computed: {
-    chapterBlocks() {
-      const contentWithoutHeader = stripHeaderFromContent(this.chapter.content || '')
-      return parseBlocks(contentWithoutHeader)
-    },
     fullChapterContent() {
       return collectAllChildContent(this.chapter)
     }
   },
   methods: {
+    getChildChapterBlocks(childChapter) {
+      const contentWithoutHeader = stripHeaderFromContent(childChapter.content || '')
+      return this.parseChildBlocks(contentWithoutHeader)
+    },
+    parseChildBlocks(content) {
+      const blocks = []
+      const lines = content.split('\n')
+      let currentType = 'markdown'
+      let currentContent = []
+      let currentFileName = ''
+      let inCodeBlock = false
+
+      const setAllFinished = () => {
+        blocks.forEach(b => (b.finished = true))
+      }
+
+      const addBlock = () => {
+        const blockContent = currentContent.join('\n')
+        const hash = generateHash(blockContent)
+        setAllFinished()
+        blocks.push({
+          type: currentType,
+          content: blockContent,
+          hash,
+          fileName: currentFileName,
+          renderer: this.getRenderer(currentType),
+          finished: false
+        })
+        currentType = 'markdown'
+        currentContent = []
+        currentFileName = ''
+      }
+
+      for (const line of lines) {
+        const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
+        const closeMatch = line === '```'
+
+        if (!inCodeBlock && openMatch) {
+          if (currentContent.length) addBlock()
+          inCodeBlock = true
+          currentType = openMatch[1]
+          currentFileName = openMatch[2] || ''
+        } else if (inCodeBlock && closeMatch) {
+          addBlock()
+          inCodeBlock = false
+        } else {
+          currentContent.push(line)
+        }
+      }
+
+      if (currentContent.length) addBlock()
+      setAllFinished()
+      return blocks
+    },
+    getRenderer(blockType) {
+      if (['markdown', 'md'].includes(blockType)) return 'md'
+      if (['html'].includes(blockType)) return blockType
+      return 'code'
+    },
     copyChapterMarkdown() {
       const fullContent = this.fullChapterContent
       navigator.clipboard.writeText(fullContent).then(() => {

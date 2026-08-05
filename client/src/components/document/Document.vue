@@ -8,6 +8,7 @@ import ChapterBlock from './ChapterBlock.vue'
       v-for="chapter in chapters"
       :key="chapter.hash"
       :chapter="chapter"
+      :blocks="getChapterBlocks(chapter)"
       :files="files"
       :documentId="documentId"
       :docProject="docProject"
@@ -23,7 +24,6 @@ import ChapterBlock from './ChapterBlock.vue'
       @edit-message="$emit('edit-message', $event)"
       @sub-task="$emit('sub-task', $event)"
     >
-      <!-- Pass down custom actions slot -->
       <template #chapter-actions="{ chapter, fullContent }">
         <slot 
           name="chapter-actions" 
@@ -58,6 +58,82 @@ function getHeadingText(line) {
   return line.replace(/^#+\s+/, '').trim()
 }
 
+function stripHeaderFromContent(content) {
+  const lines = content.split('\n')
+  if (lines.length > 0 && isHeading(lines[0])) {
+    return lines.slice(1).join('\n').trim()
+  }
+  return content
+}
+
+function getRenderer(blockType) {
+  if (['markdown', 'md'].includes(blockType)) return 'md'
+  if (['html'].includes(blockType)) return blockType
+  return 'code'
+}
+
+// Check if we're inside a code fence at this line index
+function isInsideCodeFence(lines, lineIndex) {
+  let inCodeFence = false
+  for (let i = 0; i < lineIndex; i++) {
+    if (lines[i].match(/^```/)) {
+      inCodeFence = !inCodeFence
+    }
+  }
+  return inCodeFence
+}
+
+function parseBlocks(content) {
+  const blocks = []
+  const lines = content.split('\n')
+  let currentType = 'markdown'
+  let currentContent = []
+  let currentFileName = ''
+  let inCodeBlock = false
+
+  function setAllFinished() {
+    blocks.forEach(b => (b.finished = true))
+  }
+
+  function addBlock() {
+    const blockContent = currentContent.join('\n')
+    const hash = generateHash(blockContent)
+    setAllFinished()
+    blocks.push({
+      type: currentType,
+      content: blockContent,
+      hash,
+      fileName: currentFileName,
+      renderer: getRenderer(currentType),
+      finished: false
+    })
+    currentType = 'markdown'
+    currentContent = []
+    currentFileName = ''
+  }
+
+  for (const line of lines) {
+    const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
+    const closeMatch = line === '```'
+
+    if (!inCodeBlock && openMatch) {
+      if (currentContent.length) addBlock()
+      inCodeBlock = true
+      currentType = openMatch[1]
+      currentFileName = openMatch[2] || ''
+    } else if (inCodeBlock && closeMatch) {
+      addBlock()
+      inCodeBlock = false
+    } else {
+      currentContent.push(line)
+    }
+  }
+
+  if (currentContent.length) addBlock()
+  setAllFinished()
+  return blocks
+}
+
 function parseChapters(content, loading) {
   const lines = content.split('\n')
   const chapters = []
@@ -66,13 +142,14 @@ function parseChapters(content, loading) {
   while (i < lines.length) {
     const line = lines[i]
 
-    if (isHeading(line)) {
+    // Only treat as heading if not inside a code fence
+    if (isHeading(line) && !isInsideCodeFence(lines, i)) {
       const chapter = parseChapter(lines, i)
       chapters.push(chapter)
       i = chapter.endIndex
     } else if (!chapters.length && line.trim()) {
       const introContent = []
-      while (i < lines.length && !isHeading(lines[i])) {
+      while (i < lines.length && (!isHeading(lines[i]) || isInsideCodeFence(lines, i))) {
         introContent.push(lines[i])
         i++
       }
@@ -112,7 +189,8 @@ function parseChapter(lines, startIndex) {
   while (i < lines.length) {
     const line = lines[i]
 
-    if (isHeading(line)) {
+    // Only check heading if not inside code fence
+    if (isHeading(line) && !isInsideCodeFence(lines, i)) {
       const nextLevel = getHeadingLevel(line)
 
       if (nextLevel <= level) {
@@ -206,6 +284,10 @@ export default {
     }
   },
   methods: {
+    getChapterBlocks(chapter) {
+      const contentWithoutHeader = stripHeaderFromContent(chapter.content || '')
+      return parseBlocks(contentWithoutHeader)
+    },
     handleCopyChapter(chapterData) {
       this.$emit('copy-chapter', chapterData)
     },
