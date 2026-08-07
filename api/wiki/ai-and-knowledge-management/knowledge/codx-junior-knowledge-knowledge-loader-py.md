@@ -1,95 +1,150 @@
-# KnowledgeLoader API Documentation
+# Knowledge Loader Documentation
 
-The `KnowledgeLoader` class is responsible for orchestrating the process of discovering, filtering, validating, and loading documents from a project's filesystem while supporting incremental updates based on source changes.
+## Overview
+
+The `KnowledgeLoader` class is responsible for loading documents from a filesystem and preparing them for knowledge indexing. It handles file validation, incremental loading, progress tracking, and integration with code splitting utilities.
 
 ## Initialization
 
-The loader requires an instance of settings (`CODXJuniorSettings`) upon initialization. It optionally accepts a progress callback object (`ProgressCallback`).
-
 ```python
-__init__(self, settings: CODXJuniorSettings, callback: Optional[ProgressCallback] = None)
+KnowledgeLoader(settings: CODXJuniorSettings, callback: Optional[ProgressCallback] = None)
 ```
 
-## File Discovery and Validation
+Creates a new instance with project settings and optional progress callback for tracking loading operations.
 
-The class utilizes several internal methods to determine which files are eligible for indexing.
+**Parameters:**
+- `settings`: Configuration object containing project paths and knowledge settings
+- `callback`: Optional callback for progress event notifications
 
-### `should_index_doc(file_path, last_update, current_sources)`
+## File Validation
 
-This method evaluates whether a given file should be indexed based on several criteria:
+### should_index_doc
 
-*   **Initial Pass:** If no `last_update` timestamp is provided, the file is considered indexable (`True`).
-*   **Size Check:** The file must have a size greater than zero bytes and less than 50 KB. Files failing this check return `False`.
-*   **Time Sensitivity:** If the file was modified within the last 10 minutes of the current runtime, it is considered *not* indexable for incremental runs (`False`).
-*   **Content Check (MD5):** If tracking sources (`current_sources`) is active, the function compares the current MD5 hash of the file against the previously stored one. If they match, indexing is skipped (`False`).
-*   **Metadata Check:** Finally, the physical last modification time (`st_mtime`) must be newer than the provided historical `last_update` timestamp to proceed with indexing.
+Determines whether a file should be indexed based on multiple criteria:
 
-### `is_valid_file(file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[])`
+- **Size constraints**: Files must be between 0 and 50KB
+- **Modification recency**: Files modified within the last 10 minutes are excluded
+- **Content changes**: Uses MD5 hash comparison to detect file modifications
+- **Update timestamp**: Compares file modification time against the last update timestamp
 
-This comprehensive validation function verifies a file against multiple constraints:
+Returns `True` if the file meets all indexing criteria, `False` otherwise.
 
-1.  Checks if the provided `file` is an actual existing file on disk.
-2.  If a specific resource `path` is required, it ensures the file matches that path.
-3.  It checks if the file name or path matches any configured ignore patterns (`knowledge_file_ignore`). If matched, the file is ignored.
-4.  It attempts to retrieve a historical `last_update` timestamp from metadata.
-5.  Crucially, it calls `should_index_doc`. The file is marked as invalid if this internal check returns `False` (due to size, time, or content stability).
+### is_valid_file
 
-### `list_repository_files(...)`
+Validates whether a file is eligible for indexing by checking:
 
-This main directory listing method generates a list of file paths that are valid and eligible for indexing.
+- File existence and type validation
+- Path matching (if a specific path is provided)
+- Ignore pattern matching against configured exclusion patterns
+- Historical update checks using `should_index_doc`
 
-*   **Functionality:** It collects files from the repository using Git tracking (`git ls-files`, including unversioned files) and also integrates any configured external knowledge folders.
-*   **Filtering:** Every identified file path is passed through `is_valid_file` to ensure only current, meaningful sources are returned.
+Returns `True` if the file passes all validation checks.
 
-## Loading Operations
+## Document Loading
 
-### `load_with_progress(...)` (Asynchronous API)
+### load_with_progress
 
-This asynchronous method facilitates the loading of documents from disk while providing detailed progress updates via an optional callback mechanism.
+Asynchronously loads documents with progress event callbacks:
 
-**Arguments:**
+```python
+async def load_with_progress(
+    path: Optional[str] = None,
+    last_update: Optional[float] = None,
+    current_sources: Optional[Dict] = None,
+    ignore_paths: Optional[List[str]] = None,
+    current_sources_and_updates: Optional[Dict] = None,
+) -> List
+```
 
-*   `path` (Optional[str]): Specific path to load if not searching the whole repository.
-*   `last_update` (Optional[float]): Limits loading to files modified after this timestamp for incremental runs.
-*   `current_sources` (Optional[Dict]): The currently indexed sources map used for content checks.
-*   `ignore_paths` (Optional[List[str]]): Explicit paths to ignore during the run.
-*   `current_sources_and_updates` (Optional[Dict]): Sources containing metadata necessary for tracking updates, including historical `last_update` times.
+**Parameters:**
+- `path`: Optional specific path to load
+- `last_update`: Only load files modified after this timestamp
+- `current_sources`: Currently indexed sources dictionary
+- `ignore_paths`: List of paths to exclude from loading
+- `current_sources_and_updates`: Sources with update metadata
 
-**Process Flow:**
-1.  Retrieves all files using `list_repository_files`.
-2.  For each file, it uses the internal splitter (`KnowledgeCodeSplitter`) to generate documents.
-3.  During processing, if a callback is provided, progress events are emitted for `STARTED`, individual `DOCUMENT_PROCESSING` steps (showing source and document count), and finally, `BATCH_COMPLETE`.
+**Progress Events:**
+- `STARTED`: Initial event with total file count
+- `DOCUMENT_PROCESSING`: Per-file progress updates
+- `BATCH_COMPLETE`: Final summary with document statistics
 
-**Returns:**
-A list of processed documents (`List[Document]`), filtered to exclude those with empty page content.
+Filters out empty documents and returns only documents with valid content.
 
-### `load(...)` (Synchronous API)
+### load
 
-This synchronous method provides a standard way to load and process files from the repository without progress reporting.
+Synchronous version of document loading:
 
-**Arguments:**
+```python
+def load(
+    current_sources_and_updates: datetime = None,
+    path: str = None,
+    current_sources=None,
+    ignore_paths=[]
+) -> List
+```
 
-*   `current_sources_and_updates` (Optional[datetime]): Metadata map for tracking source updates needed for incremental runs.
-*   `path` (Optional[str]): Specific path to limit loading scope.
-*   `current_sources` (Optional[Dict]): The currently indexed sources map used for content checks.
-*   `ignore_paths` (List[str]): Paths that should be ignored during the run.
+Loads documents without progress callbacks. Applies the same filtering logic to return only documents with valid page content.
 
-**Returns:**
-A list of loaded documents (`List[Document]`) with empty-content documents filtered out.
+## Repository File Discovery
 
-## Utilities and Helpers
+### get_git_files
 
-### `get_git_files()`
+Retrieves all tracked and untracked files from a Git repository:
 
-This method executes Git commands to identify all files within the configured path:
+- Executes `git ls-files` to get versioned files
+- Executes `git ls-files --others --exclude-standard` to get unversioned files
+- Returns full file paths filtered to the current project path
 
-*   It determines the repository's parent folder by querying `.git/dir`.
-*   It uses `git ls-files` to retrieve both versioned files and files that are unversioned but tracked (`--others --exclude-standard`).
-*   The resulting file paths are filtered to ensure they start with the root project path.
+### list_repository_files
 
-### `list_repository_folders()`
+Compiles a comprehensive list of files to process:
 
-Delegates internal calls to `list_repository_files()` and extracts all top-level directories found among the valid source files, returning a set of unique folder paths.
+```python
+def list_repository_files(
+    current_sources_and_updates = None,
+    path: str = None,
+    current_sources=None,
+    ignore_paths=[]
+) -> List[str]
+```
+
+**Behavior:**
+- If `path` is specified: Returns files from that path
+- If no path: Uses Git repository files
+- Includes external folders from `knowledge_external_folders` setting
+- Applies ignore patterns from configuration and parameters
+- Validates each file using `is_valid_file`
+
+### list_repository_folders
+
+Returns a deduplicated list of all folders containing valid documents.
+
+## Git Integration
+
+### run_git_command
+
+Executes Git commands and returns stdout/stderr:
+
+```python
+def run_git_command(command, cwd: str = None) -> Tuple[List[str], Optional[str]]
+```
+
+Splits command output by newlines for file path processing.
+
+### fix_repo
+
+Resolves Git dubious ownership errors by executing the suggested `git config` fix command from error messages.
+
+## Ignore Patterns
+
+File exclusion is controlled through the `knowledge_file_ignore` setting, which accepts comma-separated patterns. Files matching any pattern are excluded from indexing.
+
+## Error Handling
+
+- File loading errors are logged and skipped during batch processing
+- Invalid documents (empty content) are filtered out with debug logging
+- Progress callbacks receive error details when exceptions occur
+- Git command errors are captured and processed for repository repair
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/knowledge/knowledge_code_splitter.py, codx/junior/knowledge/knowledge_code_to_dcouments.py, codx/junior/engine/progress_callback.py, codx/junior/utils/utils.py

@@ -6,7 +6,7 @@ services:
     ## 
     ## Use codx-junior-auth middleware to secure the workspace endpoints
     #####################################################################################
-    image: ghcr.io/linuxserver/webtop:debian-i3
+    image: codxjunior/codx-junior-default-workspace:latest
     #build:
     #  context: .
     #  args:
@@ -35,8 +35,8 @@ services:
       - /home/codx-junior-projects:/home/codx-junior-projects
       # coder config
       - ./coder:/coder
-      # - codx-junior-config:/config
-      # - ./coder/coder-init.sh:/custom-cont-init.d/coder-init.sh
+      - codx-junior-config:/config
+      - ./coder/coder-init.sh:/custom-cont-init.d/coder-init.sh
       # Access docker
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:

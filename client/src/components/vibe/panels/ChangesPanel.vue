@@ -204,7 +204,14 @@ export default {
     },
 
     activeProjectIds() {
-      return Object.keys(this.chat?.pr_view?.pull_requests || {})
+      // First priority: use pr_view if it exists
+      if (this.chat?.pr_view?.pull_requests) {
+        return Object.keys(this.chat.pr_view.pull_requests)
+      }
+
+      // Fallback: use chat's own project_id or owner_project_id for first load
+      const chatProjectId = this.chat?.project_id || this.chat?.owner_project_id
+      return chatProjectId ? [chatProjectId] : []
     },
 
     projectsWithBranches() {

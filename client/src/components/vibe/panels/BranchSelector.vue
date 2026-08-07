@@ -5,9 +5,6 @@ import { ref } from 'vue'
 <template>
   <div class="shrink-0 border-b border-base-content/10 px-2 py-2 bg-base-200/30">
     <div class="flex items-center gap-2 text-xs min-w-0">
-      <!-- Project name -->
-      <span class="text-base-content/60 font-mono truncate shrink-0">{{ project.project_name }}</span>
-
       <!-- Current branch dropdown -->
       <div class="flex items-center gap-1 min-w-0">
         <i class="fa-solid fa-code-branch text-success text-[10px] shrink-0"></i>

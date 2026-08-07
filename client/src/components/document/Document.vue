@@ -66,21 +66,99 @@ function stripHeaderFromContent(content) {
   return content
 }
 
-function getRenderer(blockType) {
+function getRenderer(blockType, fileName) {
+  if (fileName) return 'code'
   if (['markdown', 'md'].includes(blockType)) return 'md'
   if (['html'].includes(blockType)) return blockType
   return 'code'
 }
 
+function isMarkdownBlockType(blockType) {
+  return ['markdown', 'md'].includes(blockType)
+}
+
+function getFence(line) {
+  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
+  if (!match) return null
+
+  return {
+    char: match[2][0],
+    length: match[2].length,
+    info: match[3].trim()
+  }
+}
+
+function isClosingFence(line, fence) {
+  const lineFence = getFence(line)
+  return !!(
+    lineFence &&
+    fence &&
+    lineFence.char === fence.char &&
+    lineFence.length >= fence.length &&
+    !lineFence.info
+  )
+}
+
+// Count matching closing fences after fromIndex
+// Used to disambiguate anonymous fences inside markdown blocks
+function countClosingFencesAhead(lines, fromIndex, fence) {
+  let count = 0
+  for (let i = fromIndex + 1; i < lines.length; i++) {
+    if (isClosingFence(lines[i], fence)) count++
+  }
+  return count
+}
+
+// An anonymous fence inside a markdown block opens a nested block
+// only if enough closing fences remain to also close the outer block
+function isNestedAnonymousFence(lines, index, currentType, currentFence) {
+  return (
+    isMarkdownBlockType(currentType) &&
+    countClosingFencesAhead(lines, index, currentFence) >= 2
+  )
+}
+
 // Check if we're inside a code fence at this line index
 function isInsideCodeFence(lines, lineIndex) {
-  let inCodeFence = false
+  let currentFence = null
+  let currentType = ''
+  let nestedFences = []
+
   for (let i = 0; i < lineIndex; i++) {
-    if (lines[i].match(/^```/)) {
-      inCodeFence = !inCodeFence
+    const fence = getFence(lines[i])
+    if (!fence) continue
+
+    if (!currentFence) {
+      currentFence = fence
+      currentType = fence.info.split(/\s+/)[0] || ''
+      nestedFences = []
+      continue
+    }
+
+    const nestedFence = nestedFences[nestedFences.length - 1]
+    if (nestedFence && isClosingFence(lines[i], nestedFence)) {
+      nestedFences.pop()
+      continue
+    }
+
+    if (isMarkdownBlockType(currentType) && fence.info && !isClosingFence(lines[i], currentFence)) {
+      nestedFences.push(fence)
+      continue
+    }
+
+    if (!nestedFences.length && isClosingFence(lines[i], currentFence)) {
+      // Anonymous fence: pre-count ahead to decide open vs close
+      if (isNestedAnonymousFence(lines, i, currentType, currentFence)) {
+        nestedFences.push(fence)
+        continue
+      }
+      currentFence = null
+      currentType = ''
+      nestedFences = []
     }
   }
-  return inCodeFence
+
+  return !!currentFence
 }
 
 function parseBlocks(content) {
@@ -90,9 +168,19 @@ function parseBlocks(content) {
   let currentContent = []
   let currentFileName = ''
   let inCodeBlock = false
+  let currentFence = null
+  let nestedFences = []
 
   function setAllFinished() {
     blocks.forEach(b => (b.finished = true))
+  }
+
+  function resetCurrentBlock() {
+    currentType = 'markdown'
+    currentContent = []
+    currentFileName = ''
+    currentFence = null
+    nestedFences = []
   }
 
   function addBlock() {
@@ -104,29 +192,55 @@ function parseBlocks(content) {
       content: blockContent,
       hash,
       fileName: currentFileName,
-      renderer: getRenderer(currentType),
+      renderer: getRenderer(currentType, currentFileName),
       finished: false
     })
-    currentType = 'markdown'
-    currentContent = []
-    currentFileName = ''
+    resetCurrentBlock()
   }
 
-  for (const line of lines) {
-    const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
-    const closeMatch = line === '```'
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const fence = getFence(line)
 
-    if (!inCodeBlock && openMatch) {
+    if (!inCodeBlock && fence && fence.info) {
       if (currentContent.length) addBlock()
+      const infoParts = fence.info.split(/\s+/).filter(Boolean)
       inCodeBlock = true
-      currentType = openMatch[1]
-      currentFileName = openMatch[2] || ''
-    } else if (inCodeBlock && closeMatch) {
-      addBlock()
-      inCodeBlock = false
-    } else {
-      currentContent.push(line)
+      currentFence = fence
+      currentType = infoParts[0] || 'text'
+      currentFileName = infoParts.slice(1).join(' ')
+      continue
     }
+
+    if (inCodeBlock) {
+      const nestedFence = nestedFences[nestedFences.length - 1]
+
+      if (nestedFence && isClosingFence(line, nestedFence)) {
+        nestedFences.pop()
+        currentContent.push(line)
+        continue
+      }
+
+      if (isMarkdownBlockType(currentType) && fence && fence.info && !isClosingFence(line, currentFence)) {
+        nestedFences.push(fence)
+        currentContent.push(line)
+        continue
+      }
+
+      if (!nestedFences.length && isClosingFence(line, currentFence)) {
+        // Anonymous fence: pre-count ahead to decide open vs close
+        if (isNestedAnonymousFence(lines, i, currentType, currentFence)) {
+          nestedFences.push(fence)
+          currentContent.push(line)
+          continue
+        }
+        addBlock()
+        inCodeBlock = false
+        continue
+      }
+    }
+
+    currentContent.push(line)
   }
 
   if (currentContent.length) addBlock()

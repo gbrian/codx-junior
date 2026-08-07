@@ -181,10 +181,10 @@ function addFileUploadIcons(html) {
     FILE_PATH_REGEX,
     (match) =>
       `<span
-        class="file-path-upload-btn underline ml-1 cursor-pointer inline-flex items-center align-middle"
+        class=""
         data-file-path="${match}"
         title="Add '${match}' to chat files"
-      ><i class="fa-solid fa-file-arrow-up"></i>&nbsp;${match}</span>`
+      >${match}</span>`
   )
 }
 
@@ -254,7 +254,7 @@ export default {
             const slashCount = (filePath.match(/\//g) || []).length
             if (slashCount < 2) return match
             const lineInfo = lineNumber ? `:${lineNumber}` : ''
-            return `<a class="file-link btn btn-link" href="${filePath}${lineInfo}">${filePath}${lineInfo}</a>`
+            return `<span>${filePath}${lineInfo}</span>`
           }
         )
         const rendered = md.render(textWithLinks)

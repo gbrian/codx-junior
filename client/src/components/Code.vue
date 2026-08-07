@@ -93,7 +93,7 @@ export default {
       return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
     },
     showMarkdown() {
-      return this.language === 'md'
+      return this.language === 'md' && !this.fileName
     },
     codeBlockInfo() {
       return {

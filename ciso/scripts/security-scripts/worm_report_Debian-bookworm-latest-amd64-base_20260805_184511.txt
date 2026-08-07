@@ -1,0 +1,840 @@
+############################################################
+# Worm / Compromise Detection Report
+# Host: Debian-bookworm-latest-amd64-base
+# Generated: Wed Aug  5 06:45:11 PM CEST 2026
+############################################################
+
+==============================================================
+  SYSTEM OVERVIEW
+==============================================================
+
+--- Uname ---
+Linux Debian-bookworm-latest-amd64-base 6.1.0-52-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.180-1 (2026-08-03) x86_64 GNU/Linux
+
+--- Uptime ---
+ 18:45:11 up  3:02,  4 users,  load average: 0.11, 0.58, 1.08
+
+--- OS release ---
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+
+==============================================================
+  ACTIVE NETWORK CONNECTIONS (ss)
+==============================================================
+
+--- Established TCP connections w/ PID ---
+Recv-Q Send-Q Local Address:Port  Peer Address:Port Process                          
+0      0          127.0.0.1:48718    127.0.0.1:8080  users:(("sshd",pid=70301,fd=16))
+0      0          127.0.0.1:48722    127.0.0.1:8080  users:(("sshd",pid=70301,fd=17))
+0      0       135.181.0.35:22     31.4.129.22:34035 users:(("sshd",pid=77763,fd=4)) 
+0      0          127.0.0.1:8080     127.0.0.1:48718 users:(("node",pid=8378,fd=48)) 
+0      560     135.181.0.35:22    31.4.129.107:1298  users:(("sshd",pid=70301,fd=4)) 
+0      0       135.181.0.35:22    31.4.129.107:1331  users:(("sshd",pid=75084,fd=4)) 
+0      0          127.0.0.1:8080     127.0.0.1:48722 users:(("node",pid=2072,fd=38)) 
+
+--- All listening sockets w/ PID ---
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=1589,fd=3))        
+LISTEN 0      4096       127.0.0.1:42337      0.0.0.0:*    users:(("containerd",pid=34377,fd=10))
+LISTEN 0      4096       127.0.0.1:19999      0.0.0.0:*    users:(("netdata",pid=1553,fd=6))     
+LISTEN 0      511        127.0.0.1:8080       0.0.0.0:*    users:(("node",pid=2072,fd=22))       
+LISTEN 0      4096       127.0.0.1:8125       0.0.0.0:*    users:(("netdata",pid=1553,fd=54))    
+LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=1589,fd=4))        
+
+--- All UDP sockets w/ PID ---
+Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+==============================================================
+  SUSPICIOUS PORT PATTERNS
+==============================================================
+
+--- Connections to common malicious/scan ports (25,445,135,139,6667,6697,23,2323,4444) ---
+(none found)
+
+--- Connections with unusually high remote port ranges (possible scan/backconnect) ---
+127.0.0.1:48718 users:(("node",pid=8378,fd=48))
+127.0.0.1:48722 users:(("node",pid=2072,fd=38))
+
+==============================================================
+  LSOF NETWORK CONNECTIONS (non-listening)
+==============================================================
+
+--- lsof -i (established/outbound) ---
+COMMAND     PID    USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+netdata    1553 netdata   49u  IPv4  77872      0t0  UDP 127.0.0.1:8125 
+node       2072    root   38u  IPv4 582939      0t0  TCP 127.0.0.1:8080->127.0.0.1:48722 (ESTABLISHED)
+node       8378    root   48u  IPv4 582938      0t0  TCP 127.0.0.1:8080->127.0.0.1:48718 (ESTABLISHED)
+sshd      70301    root    4u  IPv4 508865      0t0  TCP 135.181.0.35:22->31.4.129.107:1298 (ESTABLISHED)
+sshd      70301    root   16u  IPv4 548348      0t0  TCP 127.0.0.1:48718->127.0.0.1:8080 (ESTABLISHED)
+sshd      70301    root   17u  IPv4 548349      0t0  TCP 127.0.0.1:48722->127.0.0.1:8080 (ESTABLISHED)
+sshd      75084    root    4u  IPv4 571678      0t0  TCP 135.181.0.35:22->31.4.129.107:1331 (ESTABLISHED)
+sshd      77763    root    4u  IPv4 798149      0t0  TCP 135.181.0.35:22->31.4.129.22:34035 (ESTABLISHED)
+
+==============================================================
+  CONNTRACK TABLE
+==============================================================
+conntrack not installed (sudo apt install conntrack)
+
+==============================================================
+  PROCESS AUDIT
+==============================================================
+
+--- Full process list ---
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.0 168376  7808 ?        Ss   15:42   0:07 /sbin/init
+root           2  0.0  0.0      0     0 ?        S    15:42   0:00 [kthreadd]
+root           3  0.0  0.0      0     0 ?        I<   15:42   0:00 [rcu_gp]
+root           4  0.0  0.0      0     0 ?        I<   15:42   0:00 [rcu_par_gp]
+root           5  0.0  0.0      0     0 ?        I<   15:42   0:00 [slub_flushwq]
+root           6  0.0  0.0      0     0 ?        I<   15:42   0:00 [netns]
+root           8  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/0:0H-events_highpri]
+root          10  0.0  0.0      0     0 ?        I<   15:42   0:00 [mm_percpu_wq]
+root          11  0.0  0.0      0     0 ?        I    15:42   0:00 [rcu_tasks_kthread]
+root          12  0.0  0.0      0     0 ?        I    15:42   0:00 [rcu_tasks_rude_kthread]
+root          13  0.0  0.0      0     0 ?        I    15:42   0:00 [rcu_tasks_trace_kthread]
+root          14  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/0]
+root          15  0.2  0.0      0     0 ?        I    15:42   0:24 [rcu_preempt]
+root          16  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/0]
+root          18  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/0]
+root          19  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/1]
+root          20  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/1]
+root          21  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/1]
+root          23  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/1:0H-events_highpri]
+root          24  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/2]
+root          25  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/2]
+root          26  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/2]
+root          28  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/2:0H-events_highpri]
+root          29  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/3]
+root          30  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/3]
+root          31  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/3]
+root          33  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/3:0H-events_highpri]
+root          34  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/4]
+root          35  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/4]
+root          36  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/4]
+root          38  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/4:0H-events_highpri]
+root          39  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/5]
+root          40  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/5]
+root          41  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/5]
+root          43  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/5:0H-events_highpri]
+root          44  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/6]
+root          45  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/6]
+root          46  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/6]
+root          48  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/6:0H-events_highpri]
+root          49  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/7]
+root          50  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/7]
+root          51  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/7]
+root          53  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/7:0H-events_highpri]
+root          54  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/8]
+root          55  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/8]
+root          56  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/8]
+root          58  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/8:0H-events_highpri]
+root          59  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/9]
+root          60  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/9]
+root          61  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/9]
+root          63  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/9:0H-events_highpri]
+root          64  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/10]
+root          65  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/10]
+root          66  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/10]
+root          68  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/10:0H-events_highpri]
+root          69  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/11]
+root          70  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/11]
+root          71  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/11]
+root          73  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/11:0H-events_highpri]
+root          74  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/12]
+root          75  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/12]
+root          76  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/12]
+root          78  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/12:0H-events_highpri]
+root          79  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/13]
+root          80  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/13]
+root          81  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/13]
+root          83  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/13:0H-events_highpri]
+root          84  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/14]
+root          85  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/14]
+root          86  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/14]
+root          88  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/14:0H-events_highpri]
+root          89  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/15]
+root          90  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/15]
+root          91  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/15]
+root          93  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/15:0H-events_highpri]
+root          94  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/16]
+root          95  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/16]
+root          96  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/16]
+root          98  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/16:0H-events_highpri]
+root          99  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/17]
+root         100  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/17]
+root         101  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/17]
+root         103  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/17:0H-events_highpri]
+root         104  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/18]
+root         105  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/18]
+root         106  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/18]
+root         108  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/18:0H-events_highpri]
+root         109  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/19]
+root         110  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/19]
+root         111  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/19]
+root         113  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/19:0H-events_highpri]
+root         114  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/20]
+root         115  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/20]
+root         116  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/20]
+root         118  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/20:0H-events_highpri]
+root         119  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/21]
+root         120  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/21]
+root         121  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/21]
+root         123  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/21:0H-events_highpri]
+root         124  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/22]
+root         125  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/22]
+root         126  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/22]
+root         128  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/22:0H-events_highpri]
+root         129  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/23]
+root         130  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/23]
+root         131  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/23]
+root         133  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/23:0H-events_highpri]
+root         134  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/24]
+root         135  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/24]
+root         136  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/24]
+root         138  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/24:0H-events_highpri]
+root         139  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/25]
+root         140  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/25]
+root         141  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/25]
+root         143  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/25:0H-events_highpri]
+root         144  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/26]
+root         145  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/26]
+root         146  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/26]
+root         148  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/26:0H-events_highpri]
+root         149  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/27]
+root         150  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/27]
+root         151  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/27]
+root         153  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/27:0H-events_highpri]
+root         154  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/28]
+root         155  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/28]
+root         156  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/28]
+root         158  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/28:0H-events_highpri]
+root         159  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/29]
+root         160  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/29]
+root         161  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/29]
+root         163  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/29:0H-events_highpri]
+root         164  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/30]
+root         165  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/30]
+root         166  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/30]
+root         168  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/30:0H-events_highpri]
+root         169  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/31]
+root         170  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/31]
+root         171  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/31]
+root         173  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/31:0H-events_highpri]
+root         174  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/32]
+root         175  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/32]
+root         176  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/32]
+root         178  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/32:0H-events_highpri]
+root         179  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/33]
+root         180  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/33]
+root         181  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/33]
+root         183  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/33:0H-events_highpri]
+root         184  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/34]
+root         185  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/34]
+root         186  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/34]
+root         188  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/34:0H-events_highpri]
+root         189  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/35]
+root         190  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/35]
+root         191  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/35]
+root         193  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/35:0H-events_highpri]
+root         194  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/36]
+root         195  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/36]
+root         196  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/36]
+root         198  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/36:0H-events_highpri]
+root         199  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/37]
+root         200  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/37]
+root         201  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/37]
+root         203  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/37:0H-events_highpri]
+root         204  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/38]
+root         205  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/38]
+root         206  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/38]
+root         208  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/38:0H-events_highpri]
+root         209  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/39]
+root         210  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/39]
+root         211  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/39]
+root         213  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/39:0H-events_highpri]
+root         214  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/40]
+root         215  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/40]
+root         216  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/40]
+root         218  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/40:0H-events_highpri]
+root         219  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/41]
+root         220  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/41]
+root         221  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/41]
+root         223  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/41:0H-events_highpri]
+root         224  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/42]
+root         225  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/42]
+root         226  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/42]
+root         228  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/42:0H-events_highpri]
+root         229  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/43]
+root         230  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/43]
+root         231  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/43]
+root         233  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/43:0H-events_highpri]
+root         234  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/44]
+root         235  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/44]
+root         236  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/44]
+root         238  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/44:0H-events_highpri]
+root         239  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/45]
+root         240  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/45]
+root         241  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/45]
+root         243  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/45:0H-events_highpri]
+root         244  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/46]
+root         245  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/46]
+root         246  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/46]
+root         248  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/46:0H-events_highpri]
+root         249  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/47]
+root         250  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/47]
+root         251  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/47]
+root         253  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/47:0H-events_highpri]
+root         254  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/48]
+root         255  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/48]
+root         256  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/48]
+root         258  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/48:0H-events_highpri]
+root         259  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/49]
+root         260  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/49]
+root         261  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/49]
+root         263  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/49:0H-events_highpri]
+root         264  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/50]
+root         265  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/50]
+root         266  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/50]
+root         268  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/50:0H-events_highpri]
+root         269  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/51]
+root         270  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/51]
+root         271  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/51]
+root         273  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/51:0H-events_highpri]
+root         274  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/52]
+root         275  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/52]
+root         276  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/52]
+root         278  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/52:0H-events_highpri]
+root         279  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/53]
+root         280  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/53]
+root         281  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/53]
+root         283  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/53:0H-events_highpri]
+root         284  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/54]
+root         285  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/54]
+root         286  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/54]
+root         288  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/54:0H-events_highpri]
+root         289  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/55]
+root         290  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/55]
+root         291  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/55]
+root         293  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/55:0H-events_highpri]
+root         294  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/56]
+root         295  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/56]
+root         296  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/56]
+root         298  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/56:0H-events_highpri]
+root         299  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/57]
+root         300  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/57]
+root         301  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/57]
+root         303  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/57:0H-events_highpri]
+root         304  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/58]
+root         305  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/58]
+root         306  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/58]
+root         308  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/58:0H-events_highpri]
+root         309  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/59]
+root         310  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/59]
+root         311  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/59]
+root         313  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/59:0H-events_highpri]
+root         314  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/60]
+root         315  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/60]
+root         316  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/60]
+root         318  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/60:0H-events_highpri]
+root         319  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/61]
+root         320  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/61]
+root         321  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/61]
+root         323  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/61:0H-events_highpri]
+root         324  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/62]
+root         325  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/62]
+root         326  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/62]
+root         328  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/62:0H-events_highpri]
+root         329  0.0  0.0      0     0 ?        S    15:42   0:00 [cpuhp/63]
+root         330  0.0  0.0      0     0 ?        S    15:42   0:00 [migration/63]
+root         331  0.0  0.0      0     0 ?        S    15:42   0:00 [ksoftirqd/63]
+root         333  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/63:0H-events_highpri]
+root         398  0.0  0.0      0     0 ?        S    15:42   0:00 [kdevtmpfs]
+root         399  0.0  0.0      0     0 ?        I<   15:42   0:00 [inet_frag_wq]
+root         400  0.0  0.0      0     0 ?        S    15:42   0:00 [kauditd]
+root         404  0.0  0.0      0     0 ?        S    15:42   0:00 [khungtaskd]
+root         405  0.0  0.0      0     0 ?        S    15:42   0:00 [oom_reaper]
+root         406  0.0  0.0      0     0 ?        I<   15:42   0:00 [writeback]
+root         407  0.0  0.0      0     0 ?        S    15:42   0:04 [kcompactd0]
+root         408  0.0  0.0      0     0 ?        SN   15:42   0:00 [ksmd]
+root         409  0.1  0.0      0     0 ?        SN   15:42   0:14 [khugepaged]
+root         410  0.0  0.0      0     0 ?        I<   15:42   0:00 [kintegrityd]
+root         411  0.0  0.0      0     0 ?        I<   15:42   0:00 [kblockd]
+root         412  0.0  0.0      0     0 ?        I<   15:42   0:00 [blkcg_punt_bio]
+root         413  0.0  0.0      0     0 ?        I<   15:42   0:00 [tpm_dev_wq]
+root         414  0.0  0.0      0     0 ?        I<   15:42   0:00 [edac-poller]
+root         415  0.0  0.0      0     0 ?        I<   15:42   0:00 [devfreq_wq]
+root         416  0.0  0.0      0     0 ?        I<   15:42   0:00 [quota_events_un]
+root         417  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/0:1H-kblockd]
+root         419  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/26-AMD-Vi]
+root         420  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/27-AMD-Vi]
+root         421  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/28-AMD-Vi]
+root         422  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/29-AMD-Vi]
+root         423  0.4  0.0      0     0 ?        S    15:42   0:48 [kswapd0]
+root         431  0.0  0.0      0     0 ?        I<   15:42   0:00 [kthrotld]
+root         433  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/36-pciehp]
+root         434  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/37-pciehp]
+root         435  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/38-pciehp]
+root         436  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/39-pciehp]
+root         437  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/45-pciehp]
+root         438  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/46-pciehp]
+root         439  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/52-pciehp]
+root         440  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/53-pciehp]
+root         441  0.0  0.0      0     0 ?        S    15:42   0:00 [irq/54-pciehp]
+root         501  0.0  0.0      0     0 ?        I<   15:42   0:00 [acpi_thermal_pm]
+root         502  0.0  0.0      0     0 ?        I<   15:42   0:00 [amd_iommu_v2]
+root         503  0.0  0.0      0     0 ?        I<   15:42   0:00 [mld]
+root         504  0.0  0.0      0     0 ?        I<   15:42   0:00 [ipv6_addrconf]
+root         509  0.0  0.0      0     0 ?        I<   15:42   0:00 [kstrp]
+root         514  0.0  0.0      0     0 ?        I<   15:42   0:00 [zswap-shrink]
+root         515  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/u129:0]
+root         563  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/13:1H-kblockd]
+root         574  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/47:1H-kblockd]
+root         575  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/43:1H-kblockd]
+root         576  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/40:1H-kblockd]
+root         577  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/41:1H-kblockd]
+root         578  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/11:1H-kblockd]
+root         579  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/42:1H-kblockd]
+root         580  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/8:1H-kblockd]
+root         581  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/9:1H-kblockd]
+root         582  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/10:1H-kblockd]
+root         583  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/44:1H-kblockd]
+root         584  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/46:1H-kblockd]
+root         587  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/32:1H-kblockd]
+root         590  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/38:1H-kblockd]
+root         592  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/55:1H-kblockd]
+root         593  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/18:1H-kblockd]
+root         595  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/26:1H-kblockd]
+root         597  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/12:1H-kblockd]
+root         599  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/61:1H-kblockd]
+root         603  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/7:1H-kblockd]
+root         610  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/1:1H-kblockd]
+root         637  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/45:1H-kblockd]
+root         638  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/14:1H-kblockd]
+root         639  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/15:1H-kblockd]
+root         641  0.0  0.0      0     0 ?        I<   15:42   0:02 [kworker/62:1H-kblockd]
+root         642  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/21:1H-kblockd]
+root         643  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/19:1H-kblockd]
+root         644  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/2:1H-kblockd]
+root         645  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/20:1H-kblockd]
+root         646  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/48:1H-kblockd]
+root         647  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/52:1H-kblockd]
+root         650  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/27:1H-kblockd]
+root         651  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/50:1H-kblockd]
+root         652  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/49:1H-kblockd]
+root         654  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/3:1H-kblockd]
+root         659  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/39:1H-kblockd]
+root         660  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/56:1H-kblockd]
+root         661  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/63:1H-kblockd]
+root         662  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/23:1H-kblockd]
+root         663  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/53:1H-kblockd]
+root         665  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/59:1H-kblockd]
+root         666  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/22:1H-kblockd]
+root         667  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/58:1H-kblockd]
+root         670  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/24:1H-kblockd]
+root         671  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/25:1H-kblockd]
+root         672  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/57:1H-kblockd]
+root         678  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/28:1H-kblockd]
+root         679  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/51:1H-kblockd]
+root         680  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/54:1H-kblockd]
+root         687  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/4:1H-kblockd]
+root         703  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/34:1H-kblockd]
+root         704  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/5:1H-kblockd]
+root         736  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/35:1H-kblockd]
+root         737  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/33:1H-kblockd]
+root         738  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/16:1H-kblockd]
+root         739  0.0  0.0      0     0 ?        I<   15:42   0:01 [kworker/29:1H-kblockd]
+root         740  0.0  0.0      0     0 ?        I<   15:42   0:02 [kworker/30:1H-kblockd]
+root         741  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/6:1H-kblockd]
+root         742  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/36:1H-kblockd]
+root         743  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/37:1H-kblockd]
+root         744  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/31:1H-kblockd]
+root         745  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/60:1H-kblockd]
+root         747  0.0  0.0      0     0 ?        I<   15:42   0:00 [cryptd]
+root         748  0.0  0.0      0     0 ?        I<   15:42   0:00 [ata_sff]
+root         778  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_0]
+root         779  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_0]
+root         789  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_1]
+root         790  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_1]
+root         799  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_2]
+root         800  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_2]
+root         804  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_3]
+root         805  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_3]
+root         810  0.0  0.0      0     0 ?        I<   15:42   0:00 [kworker/17:1H-kblockd]
+root         814  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_4]
+root         815  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_4]
+root         821  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_5]
+root         822  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_5]
+root         823  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_6]
+root         824  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_6]
+root         825  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_7]
+root         826  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_7]
+root         829  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_8]
+root         830  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_8]
+root         832  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_9]
+root         833  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_9]
+root         834  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_10]
+root         835  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_10]
+root         836  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_11]
+root         837  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_11]
+root         838  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_12]
+root         839  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_12]
+root         840  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_13]
+root         841  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_13]
+root         842  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_14]
+root         843  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_14]
+root         844  0.0  0.0      0     0 ?        S    15:42   0:00 [scsi_eh_15]
+root         845  0.0  0.0      0     0 ?        I<   15:42   0:00 [scsi_tmf_15]
+root         891  0.0  0.0      0     0 ?        I<   15:42   0:00 [md]
+root         901  0.0  0.0      0     0 ?        I<   15:42   0:00 [raid5wq]
+root         940  0.0  0.0      0     0 ?        S    15:42   0:01 [jbd2/sda4-8]
+root         941  0.0  0.0      0     0 ?        I<   15:42   0:00 [ext4-rsv-conver]
+root         992  0.0  0.0  98228 35164 ?        Ss   15:42   0:03 /lib/systemd/systemd-journald
+root        1021  0.1  0.0  27840  4636 ?        Ss   15:42   0:12 /lib/systemd/systemd-udevd
+root        1170  0.0  0.0      0     0 ?        I<   15:42   0:00 [ipmi-msghandler]
+root        1179  0.0  0.0      0     0 ?        S    15:42   0:00 [watchdogd]
+root        1197  0.0  0.0      0     0 ?        SN   15:42   0:00 [kipmi0]
+root        1222  0.0  0.0      0     0 ?        S    15:42   0:00 [jbd2/sda3-8]
+root        1223  0.0  0.0      0     0 ?        I<   15:42   0:00 [ext4-rsv-conver]
+root        1230  0.0  0.0      0     0 ?        S    15:42   0:08 [jbd2/sda5-8]
+root        1231  0.0  0.0      0     0 ?        I<   15:42   0:00 [ext4-rsv-conver]
+systemd+    1538  0.0  0.0  90104  1272 ?        Ssl  15:42   0:00 /lib/systemd/systemd-timesyncd
+root        1545  0.0  0.0 1115856 11476 ?       Ssl  15:42   0:00 /usr/lib/code-server/lib/node /usr/lib/code-server
+root        1546  0.0  0.0   6616   256 ?        Ss   15:42   0:00 /usr/sbin/cron -f
+message+    1547  0.0  0.0   9252  2072 ?        Ss   15:42   0:00 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+netdata     1553  2.4  0.0 592576 148500 ?       SNsl 15:42   4:26 /usr/sbin/netdata -D
+root        1559  0.0  0.0 2571320 9584 ?        Ssl  15:43   0:00 /usr/bin/sysbox-mgr
+root        1560  0.0  0.0  17204  4112 ?        Ss   15:43   0:00 /lib/systemd/systemd-logind
+daemon      1562  0.0  0.0   3588   140 ?        Ss   15:43   0:00 /usr/sbin/atd -f
+root        1564  0.0  0.0   5880    84 tty1     Ss+  15:43   0:00 /sbin/agetty -o -p -- \u --noclear - linux
+netdata     1585  0.0  0.0  46764  1404 ?        SNl  15:43   0:00 /usr/sbin/netdata --special-spawn-server
+root        1589  0.0  0.0  15452  3544 ?        Ss   15:43   0:01 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+root        1722  0.0  0.0 1831212 4108 ?        Ssl  15:43   0:00 /usr/bin/sysbox-fs
+netdata     1765  4.4  0.0 139276 13776 ?        SNl  15:43   8:00 /usr/lib/netdata/plugins.d/apps.plugin 1
+netdata     1773  0.0  0.0   9484    72 ?        SN   15:43   0:00 /usr/lib/netdata/plugins.d/nfacct.plugin 1
+root        1958  0.0  0.0   2584    88 ?        Ss   15:43   0:00 /bin/sh -c /usr/bin/sysbox-runc --version && /usr/bin/sysbox-mgr --version && /usr/bin/sysbox-fs --version && /bin/sleep infinity
+root        2014  0.0  0.0   5472    88 ?        S    15:43   0:00 /bin/sleep infinity
+root        2072  0.2  0.0 11869824 120644 ?     Sl   15:43   0:28 /usr/lib/code-server/lib/node /usr/lib/code-server/out/node/entry
+root        4678  0.0  0.0  19032  1880 ?        Ss   15:45   0:02 /lib/systemd/systemd --user
+root        4679  0.0  0.0 168924  1980 ?        S    15:45   0:00 (sd-pam)
+root        8378  5.0  0.0 33499344 179096 ?     Sl   15:48   9:01 /usr/lib/code-server/lib/node --dns-result-order=ipv4first /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=extensionHost --transformURIs --useHostProxy=false
+root        8604  0.2  0.0 1330144 130844 ?      Sl   15:48   0:28 /usr/lib/code-server/lib/node /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=fileWatcher
+root        8623  0.1  0.0 1180204 56256 ?       Sl   15:48   0:15 /usr/lib/code-server/lib/node /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=ptyHost --logsPath /root/.local/share/code-server/logs/20260805T154602
+root        8639  0.0  0.0  13740  4636 pts/1    Ss+  15:48   0:00 /usr/bin/bash --init-file /usr/lib/code-server/lib/vscode/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh
+root       10966  0.0  0.0      0     0 ?        I    15:49   0:00 [kworker/59:2-rcu_par_gp]
+root       14464  0.0  0.0      0     0 ?        I    15:53   0:00 [kworker/29:0-rcu_gp]
+root       16818  0.0  0.0      0     0 ?        I    15:55   0:00 [kworker/38:1-rcu_gp]
+root       17034  0.0  0.0      0     0 ?        I    15:55   0:00 [kworker/14:1-rcu_gp]
+root       17433  0.0  0.0      0     0 ?        I    15:55   0:00 [kworker/36:1-rcu_gp]
+root       17997  0.0  0.0      0     0 ?        I    15:56   0:00 [kworker/50:2-rcu_par_gp]
+root       18647  0.0  0.0      0     0 ?        I    15:56   0:00 [kworker/19:2-events]
+root       21229  0.0  0.0      0     0 ?        I    15:59   0:00 [kworker/6:2-rcu_gp]
+root       22072  0.0  0.0      0     0 ?        I    15:59   0:00 [kworker/5:0-rcu_par_gp]
+root       22729  0.0  0.0      0     0 ?        I    16:00   0:00 [kworker/55:1-rcu_par_gp]
+root       22730  0.0  0.0      0     0 ?        I    16:00   0:00 [kworker/20:0-events]
+root       22891  0.0  0.0      0     0 ?        I    16:00   0:00 [kworker/62:1-events]
+root       23167  0.0  0.0      0     0 ?        I    16:00   0:00 [kworker/13:0-rcu_par_gp]
+root       23174  0.0  0.0 1016704 29924 ?       Sl   16:00   0:00 /usr/lib/code-server/lib/node /usr/lib/code-server/lib/vscode/extensions/json-language-features/server/dist/node/jsonServerMain --node-ipc --clientProcessId=8378
+root       24450  0.0  0.0      0     0 ?        I    16:02   0:00 [kworker/25:0-rcu_par_gp]
+root       26694  0.0  0.0      0     0 ?        I    16:08   0:00 [kworker/3:2-events]
+root       26742  0.0  0.0      0     0 ?        I    16:08   0:00 [kworker/47:1-events]
+root       26764  0.0  0.0      0     0 ?        I    16:08   0:00 [kworker/1:1-rcu_gp]
+root       27013  0.0  0.0      0     0 ?        I    16:08   0:00 [kworker/11:2-mm_percpu_wq]
+root       27014  0.0  0.0      0     0 ?        I    16:08   0:00 [kworker/10:1-mm_percpu_wq]
+root       27704  0.0  0.0      0     0 ?        I    16:09   0:00 [kworker/49:0-rcu_par_gp]
+root       27737  0.0  0.0      0     0 ?        I    16:09   0:00 [kworker/61:0-events]
+root       27769  0.0  0.0      0     0 ?        I    16:09   0:00 [kworker/27:0-mm_percpu_wq]
+root       28335  0.0  0.0 1017752 31892 ?       Sl   16:10   0:00 /usr/lib/code-server/lib/node /root/.local/share/code-server/extensions/ms-azuretools.vscode-containers-2.4.5-universal/dist/dockerfile-language-server-nodejs/lib/server.js --node-ipc --node-ipc --clientProcessId=8378
+root       28336  0.0  0.0 1018556 33192 ?       Sl   16:10   0:00 /usr/lib/code-server/lib/node /root/.local/share/code-server/extensions/ms-azuretools.vscode-containers-2.4.5-universal/dist/compose-language-service/lib/server.js --node-ipc --node-ipc --clientProcessId=8378
+root       29852  0.0  0.0      0     0 ?        I    16:11   0:00 [kworker/48:2-rcu_par_gp]
+root       29880  0.0  0.0      0     0 ?        I    16:11   0:00 [kworker/45:1-rcu_par_gp]
+root       33522  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/51:3-rcu_gp]
+root       33528  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/52:2-rcu_par_gp]
+root       33622  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/24:2-rcu_par_gp]
+root       33644  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/18:2-mm_percpu_wq]
+root       33709  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/60:0-rcu_gp]
+root       33759  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/39:2-rcu_par_gp]
+root       33946  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/40:1-rcu_par_gp]
+root       34030  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/8:1-events]
+root       34283  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/12:1-rcu_par_gp]
+root       34328  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/57:0-events]
+root       34376  0.0  0.0      0     0 ?        I    16:37   0:00 [kworker/49:2-mm_percpu_wq]
+root       34377  0.0  0.0 3587204 30528 ?       Ssl  16:37   0:06 /usr/bin/containerd
+root       34678  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/4:2-rcu_par_gp]
+root       34748  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/15:2-rcu_par_gp]
+root       34830  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/44:1-rcu_gp]
+root       35195  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/63:2-rcu_par_gp]
+root       35728  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/46:1-rcu_par_gp]
+root       36337  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/55:2-events]
+root       36341  0.0  0.0      0     0 ?        I    16:38   0:00 [kworker/43:0-mm_percpu_wq]
+root       36630  0.0  0.0      0     0 ?        I    16:39   0:00 [kworker/27:1-events]
+root       36737  0.0  0.0      0     0 ?        I    16:39   0:00 [kworker/30:2-events]
+root       37383  0.0  0.0      0     0 ?        I    16:39   0:00 [kworker/5:1-mm_percpu_wq]
+root       38081  0.0  0.0      0     0 ?        I    16:39   0:00 [kworker/61:2-events]
+root       38796  0.0  0.0      0     0 ?        I    16:39   0:00 [kworker/0:1-mm_percpu_wq]
+root       39887  0.0  0.0      0     0 ?        I    16:40   0:00 [kworker/32:2-rcu_par_gp]
+root       41112  0.0  0.0      0     0 ?        I    16:40   0:00 [kworker/26:0-events]
+root       41170  0.0  0.0      0     0 ?        I    16:40   0:00 [kworker/62:2-rcu_par_gp]
+root       47746  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/25:2-events]
+root       47815  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/20:1-inet_frag_wq]
+root       47877  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/24:0-mm_percpu_wq]
+root       47885  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/34:0-mm_percpu_wq]
+root       48503  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/33:1-events]
+root       48508  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/52:1-mm_percpu_wq]
+root       48509  0.0  0.0      0     0 ?        I    16:42   0:00 [kworker/53:2-rcu_par_gp]
+root       49151  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/7:0-events]
+root       49274  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/2:1-events]
+root       49490  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/41:1-rcu_gp]
+root       49529  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/42:1-rcu_gp]
+root       49947  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/11:1-rcu_par_gp]
+root       49948  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/40:0-events]
+root       51087  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/23:2-events]
+root       51366  0.0  0.0      0     0 ?        I    16:43   0:02 [kworker/31:1-rcu_par_gp]
+root       51368  0.0  0.0      0     0 ?        I    16:43   0:02 [kworker/4:0-events]
+root       51388  0.0  0.0      0     0 ?        I    16:43   0:00 [kworker/10:2-rcu_par_gp]
+root       52589  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/22:3-events]
+root       52814  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/30:3-mm_percpu_wq]
+root       53202  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/45:2-mm_percpu_wq]
+root       54240  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/57:1-rcu_par_gp]
+root       54250  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/59:0-mm_percpu_wq]
+root       54769  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/48:1-mm_percpu_wq]
+root       54811  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/9:2-mm_percpu_wq]
+root       54834  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/58:0-events]
+root       54835  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/43:2-rcu_par_gp]
+root       54837  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/58:3-mm_percpu_wq]
+root       55460  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/54:0-rcu_par_gp]
+root       55629  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/46:2-events]
+root       55938  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/19:0-mm_percpu_wq]
+root       56444  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/37:1-rcu_gp]
+root       57061  0.0  0.0      0     0 ?        I    16:44   0:00 [kworker/6:1-mm_percpu_wq]
+root       58110  0.0  0.0  13744  9416 pts/4    Ss   16:45   0:00 /usr/bin/bash --init-file /usr/lib/code-server/lib/vscode/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh
+root       58512  0.0  0.0      0     0 ?        I    16:45   0:00 [kworker/56:2-mm_percpu_wq]
+root       58820  0.0  0.0      0     0 ?        I    16:45   0:00 [kworker/16:1-events]
+root       60102  0.0  0.0      0     0 ?        I    16:46   0:00 [kworker/21:1-mm_percpu_wq]
+root       60419  0.0  0.0      0     0 ?        I    16:46   0:00 [kworker/63:0-events]
+root       61141  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/26:1-events]
+root       61142  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/53:0-mm_percpu_wq]
+root       61145  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/17:2-events]
+root       61179  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/51:0-events]
+root       61208  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/34:1-rcu_par_gp]
+root       61209  0.0  0.0      0     0 ?        I    16:48   0:00 [kworker/35:1-events]
+root       62034  0.0  0.0      0     0 ?        I    16:49   0:00 [kworker/13:2-mm_percpu_wq]
+root       62266  0.0  0.0      0     0 ?        I    16:50   0:00 [kworker/39:0-mm_percpu_wq]
+root       62565  0.0  0.0      0     0 ?        I    16:50   0:00 [kworker/14:0-events]
+root       62574  0.0  0.0      0     0 ?        I    16:50   0:00 [kworker/23:0-events]
+root       62852  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/41:0-events]
+root       63089  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/16:0-events]
+root       63090  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/18:0-mm_percpu_wq]
+root       63109  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/37:0-events]
+root       63111  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/8:0-events]
+root       63113  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/33:0-mm_percpu_wq]
+root       63115  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/32:1-mm_percpu_wq]
+root       63116  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/42:0-mm_percpu_wq]
+root       63157  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/38:2-events]
+root       63188  0.4  0.0      0     0 ?        I    16:51   0:32 [kworker/31:2-mm_percpu_wq]
+root       63189  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/60:1-mm_percpu_wq]
+root       63198  0.0  0.0      0     0 ?        I    16:51   0:00 [kworker/36:2-mm_percpu_wq]
+root       63670  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/50:1-events]
+root       64065  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/22:0-mm_percpu_wq]
+root       64074  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/54:2-mm_percpu_wq]
+root       64075  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/21:0]
+root       64077  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/17:3-mm_percpu_wq]
+root       64088  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/12:0-mm_percpu_wq]
+root       64089  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/1:0-mm_percpu_wq]
+root       64113  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/15:1-mm_percpu_wq]
+root       64119  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/56:0]
+root       64128  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/2:2-mm_percpu_wq]
+root       64135  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/3:1]
+root       64144  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/29:1-events]
+root       64230  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/47:0-events]
+root       64359  0.0  0.0      0     0 ?        I    16:52   0:00 [kworker/28:1-mm_percpu_wq]
+root       66988  0.0  0.0      0     0 ?        I    17:13   0:00 [kworker/9:1-cgroup_free]
+root       66989  0.0  0.0      0     0 ?        I    17:13   0:00 [kworker/0:0]
+root       70301  0.0  0.0  18536  4212 ?        Ss   17:53   0:00 sshd: root@pts/0
+root       70311  0.0  0.0  13728  9592 pts/0    Ss+  17:53   0:00 -bash
+root       72912  0.1  0.0      0     0 ?        I    18:08   0:02 [kworker/u128:0-writeback]
+root       73448  0.0  0.0      0     0 ?        I    18:12   0:00 [kworker/7:2]
+root       73449  0.0  0.0      0     0 ?        I    18:12   0:00 [kworker/44:0-mm_percpu_wq]
+root       74721  0.0  0.0      0     0 ?        I    18:23   0:00 [kworker/u128:3-events_unbound]
+root       75084  0.0  0.0  18020 11224 ?        Ss   18:26   0:00 sshd: root@pts/2
+root       75095  0.0  0.0  12464  9072 pts/2    Ss   18:27   0:00 -bash
+root       76761  0.0  0.0      0     0 ?        I    18:30   0:00 [kworker/35:0]
+root       77320  0.0  0.0      0     0 ?        I    18:35   0:00 [kworker/u128:4-flush-8:0]
+root       77430  0.0  0.0  10020  4612 pts/2    S+   18:36   0:00 sudo iftop -P
+root       77431  0.0  0.0  10020   488 pts/5    Ss   18:36   0:00 sudo iftop -P
+root       77432  0.1  0.0 234516  8724 pts/5    Sl+  18:36   0:00 iftop -P
+root       77459  0.0  0.0      0     0 ?        I    18:36   0:00 [kworker/28:2-mm_percpu_wq]
+root       77763  0.0  0.0  18020 11172 ?        Ss   18:39   0:00 sshd: root@pts/6
+root       77772  0.0  0.0  12464  9140 pts/6    Ss+  18:39   0:00 -bash
+root       79130  0.0  0.0      0     0 ?        I    18:42   0:00 [kworker/28:0-events]
+netdata    79228  0.2  0.0   4196  3180 ?        SN   18:43   0:00 bash /usr/lib/netdata/plugins.d/tc-qos-helper.sh 1
+root       79462  0.0  0.0   6940  3368 pts/4    S+   18:45   0:00 bash worm_detection_report.sh
+root       79472  0.0  0.0      0     0 ?        I    18:45   0:00 [kworker/u128:1]
+root       79474  0.0  0.0      0     0 ?        I    18:45   0:00 [kworker/37:2-events]
+root       79476  0.0  0.0  27844  4624 ?        S    18:45   0:00 (udev-worker)
+root       79477  0.0  0.0  27844  4624 ?        S    18:45   0:00 (udev-worker)
+root       79488  0.0  0.0  11180  4736 pts/4    R+   18:45   0:00 ps auxww
+
+--- Processes with deleted/missing binaries (common rootkit/worm trait) ---
+
+--- Processes running from suspicious/writable dirs (/tmp, /dev/shm, /var/tmp, uploads) ---
+
+--- Processes with no matching command on disk (name mismatch / masquerading) ---
+
+==============================================================
+  RESOURCE HOGS (possible flood/scan source)
+==============================================================
+
+--- Top CPU consumers ---
+    PID    PPID USER     %CPU %MEM     ELAPSED CMD
+  79462   58110 root      6.8  0.0       00:06 bash worm_detection_report.sh
+   8378    2072 root      5.0  0.0    02:56:57 /usr/lib/code-server/lib/node --dns-result-order=ipv4first /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=extensionHost --transformURIs --useHostProxy=false
+   1765    1553 netdata   4.4  0.0    03:02:06 /usr/lib/netdata/plugins.d/apps.plugin 1
+   1553       1 netdata   2.4  0.0    03:02:17 /usr/sbin/netdata -D
+  63188       2 root      0.4  0.0    01:53:55 [kworker/31:2-events]
+    423       2 root      0.4  0.0    03:02:40 [kswapd0]
+   8604    2072 root      0.2  0.0    02:56:56 /usr/lib/code-server/lib/node /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=fileWatcher
+   2072    1545 root      0.2  0.0    03:01:38 /usr/lib/code-server/lib/node /usr/lib/code-server/out/node/entry
+  79228    1553 netdata   0.2  0.0       01:51 bash /usr/lib/netdata/plugins.d/tc-qos-helper.sh 1
+     15       2 root      0.2  0.0    03:02:41 [rcu_preempt]
+   8623    2072 root      0.1  0.0    02:56:54 /usr/lib/code-server/lib/node /usr/lib/code-server/lib/vscode/out/bootstrap-fork --type=ptyHost --logsPath /root/.local/share/code-server/logs/20260805T154602
+    409       2 root      0.1  0.0    03:02:40 [khugepaged]
+  72912       2 root      0.1  0.0       36:47 [kworker/u128:0-events_unbound]
+  77432   77431 root      0.1  0.0       09:13 iftop -P
+   1021       1 root      0.1  0.0    03:02:31 /lib/systemd/systemd-udevd
+  34377       1 root      0.0  0.0    02:07:17 /usr/bin/containerd
+   1230       2 root      0.0  0.0    03:02:26 [jbd2/sda5-8]
+  74721       2 root      0.0  0.0       21:38 [kworker/u128:3-events_unbound]
+      1       0 root      0.0  0.0    03:02:41 /sbin/init
+
+==============================================================
+  PERSISTENCE CHECKS
+==============================================================
+
+--- Root crontab ---
+no crontab for root
+
+--- System crontab ---
+# /etc/crontab: system-wide crontab
+# Unlike any other crontab you don't have to run the `crontab'
+# command to install the new version when you edit this file
+# and files in /etc/cron.d. These files also have username fields,
+# that none of the other crontabs do.
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+17 *	* * *	root	cd / && run-parts --report /etc/cron.hourly
+25 6	* * *	root	test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }
+47 6	* * 7	root	test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }
+52 6	1 * *	root	test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }
+#
+
+--- Cron.d entries ---
+total 20
+drwxr-xr-x  2 root root 4096 Aug  5 12:20 .
+drwxr-xr-x 78 root root 4096 Aug  5 18:30 ..
+-rw-r--r--  1 root root  201 Mar  5  2023 e2scrub_all
+-rw-r--r--  1 root root  563 Dec  6  2025 mdadm
+-rw-r--r--  1 root root  102 Mar  2  2023 .placeholder
+--/etc/cron.d/e2scrub_all--
+30 3 * * 0 root test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/x86_64-linux-gnu/e2fsprogs/e2scrub_all_cron
+10 3 * * * root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r
+--/etc/cron.d/mdadm--
+#
+# cron.d/mdadm -- schedules periodic redundancy checks of MD devices
+#
+# Copyright © martin f. krafft <madduck@madduck.net>
+# distributed under the terms of the Artistic Licence 2.0
+#
+
+# By default, run at 00:57 on every Sunday, but do nothing unless the day of
+# the month is less than or equal to 7. Thus, only run on the first Sunday of
+# each month. crontab(5) sucks, unfortunately, in this regard; therefore this
+# hack (see #380425).
+6 3 18 * * root if [ -x /usr/share/mdadm/checkarray ]; then /usr/share/mdadm/checkarray --cron --all --idle --quiet; fi
+
+--- Cron.daily/hourly/weekly listing ---
+/etc/cron.daily:
+total 36
+drwxr-xr-x  2 root root 4096 Aug  5 12:12 .
+drwxr-xr-x 78 root root 4096 Aug  5 18:30 ..
+-rwxr-xr-x  1 root root 1478 May 25  2023 apt-compat
+-rwxr-xr-x  1 root root  314 Aug 17  2021 aptitude
+-rwxr-xr-x  1 root root  123 Mar 27  2023 dpkg
+-rwxr-xr-x  1 root root  377 Dec 14  2022 logrotate
+-rwxr-xr-x  1 root root 1395 Mar 12  2023 man-db
+-rwxr-xr-x  1 root root  622 Feb 24  2023 mdadm
+-rw-r--r--  1 root root  102 Mar  2  2023 .placeholder
+
+/etc/cron.hourly:
+total 12
+drwxr-xr-x  2 root root 4096 Aug 31  2025 .
+drwxr-xr-x 78 root root 4096 Aug  5 18:30 ..
+-rw-r--r--  1 root root  102 Mar  2  2023 .placeholder
+
+/etc/cron.weekly:
+total 16
+drwxr-xr-x  2 root root 4096 Aug 31  2025 .
+drwxr-xr-x 78 root root 4096 Aug  5 18:30 ..
+-rwxr-xr-x  1 root root 1055 Mar 12  2023 man-db
+-rw-r--r--  1 root root  102 Mar  2  2023 .placeholder
+
+--- Systemd timers ---
+NEXT                         LEFT          LAST                         PASSED       UNIT                         ACTIVATES
+Thu 2026-08-06 00:00:00 CEST 5h 14min left -                            -            dpkg-db-backup.timer         dpkg-db-backup.service
+Thu 2026-08-06 00:00:00 CEST 5h 14min left Wed 2026-08-05 00:00:13 CEST 18h ago      logrotate.timer              logrotate.service
+Thu 2026-08-06 00:04:06 CEST 5h 18min left -                            -            lynis.timer                  lynis.service
+Thu 2026-08-06 02:59:31 CEST 8h left       Wed 2026-08-05 02:16:26 CEST 16h ago      man-db.timer                 man-db.service
+Thu 2026-08-06 05:09:51 CEST 10h left      Wed 2026-08-05 12:08:09 CEST 6h ago       apt-daily.timer              apt-daily.service
+Thu 2026-08-06 06:15:13 CEST 11h left      Wed 2026-08-05 06:15:04 CEST 12h ago      apt-daily-upgrade.timer      apt-daily-upgrade.service
+Thu 2026-08-06 15:57:36 CEST 21h left      Wed 2026-08-05 15:57:36 CEST 2h 47min ago systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+Sun 2026-08-09 03:10:13 CEST 3 days left   Sun 2026-08-02 03:10:54 CEST 3 days ago   e2scrub_all.timer            e2scrub_all.service
+Mon 2026-08-10 01:11:19 CEST 4 days left   Mon 2026-08-03 00:10:17 CEST 2 days ago   fstrim.timer                 fstrim.service
+
+9 timers listed.
+
+--- Non-standard running services ---
+  atd.service               loaded active running Deferred execution scheduler
+  code-server@root.service  loaded active running code-server
+  containerd.service        loaded active running containerd container runtime
+  netdata.service           loaded active running netdata - Real-time performance monitoring
+  sysbox-fs.service         loaded active running sysbox-fs (part of the Sysbox container runtime)
+  sysbox-mgr.service        loaded active running sysbox-mgr (part of the Sysbox container runtime)
+  sysbox.service            loaded active running Sysbox container runtime
+
+--- Root authorized_keys ---
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC6jxo0DIT20ODXJyKYkNgq/SDMbNzEx3fatexxd/yBI6hFrgN/6MGmTNR+Khu5KSIE0vaDKXUJ+G9qBzEfN8Nn54xzcyAOjhPqfI25NkqHO9kUbq9gNgt7atmbAFIDtnIbPPbv1JB0daV6c8jWdkaHCDf7Fh7nzo8Yd15/J8VrY9/bdRT8GA82uaQ9G0LPSJfmOuqETsoqji7dpBQNJwN4bZPy0Tfnubh0CcwoMTeZv7sNhiJjDstR/MFUam2rvP9haeUkC9r591imc2r5Mr+jdDMTU+YEwCb57wXvM4LwbGRXqU4YPRH+jAmReri7jV3idAJXf+O3sUp/3DRRCijz gustavo.brian@Gustavos-MacBook-Air.local
+
+--- All authorized_keys on system ---
+-- /home/shared/terapiaorganica/root/.ssh/authorized_keys --
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC6BzW6wX9dOTve/3KgwoYa0uTRaCQzTgzpfM/oT9LcuLk3sek2T+gwR4DPIauKaf+SxzyOBYhQr7bf3zrRewSXV/Seq2StSGXOXAXteoQST2bjTm1lMonOsLxLgF26zaDe85sCILn5cJP9imkUJKyBljndxvF0562e0hn5v389GUa1Y72r7ETizJTcEMV7QJr7QajBWGRExMUSHXFhO9gx+eJx/moz5Dov9SN7KW5sOZOPtar8AfQxVRluRmCtrknNNli1qQ6rUwPbFPGO2Gkdz+eNM34awcHonNsBsTkU0vZv2AOdF9AwQ24X++GFfylJQCiVFPRMGiObxw1v329BiZKBPORXmZVl51FbsPJYwDclfrWtbz33KNZGiOcwB5EGY5J0HuUulDqevc2BoM+7aglmNflR92sYOA1xZkWwFnhVrIqTzlecG6hhqQ2mlZgMHBI1XfFAZvDFFpSMHORHq78kq6rtVtQztS5AmvTrh8VlXTuZ3Cqe/195fRnjiR0= root@terapiaorganica
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC3fJpU2fRKHQQ8wZTXu93duJA5NjcRioyr3zn1ajWk4TXJfhEf/kr3FCHASOvJFeeX1OwjkEZFocWAg1tdlVTAY7jVGZzxibYqUReReyMXyt1hiZbzk9+2Tn8CS/OO2PqNZt29BA0iHSVQHOhcGIPZZBfjCiktWI7xqjHgdBNdfh+56kELJ/qgJU8nQOi6DUCCXr6qrIKnd9WEmC41O/c9ri5JtM4FNosFqy+RCJORubTH0pFDYua2YgWRL2ntvxcTcLli/HXM5KVo6qD5tJQ6obeiHSIZdq78C1dy80VXVK4JXF1dyWxONVR37+kTA2OJvbyB+S2pPTq9IIG4CRRGIwaDXb78Q24uyjZ/vIvX0qes6tK0fGvB2eQtcr06VhwVB1NXEUvQDEoROZxtBsLAWVK/emHr9z7J6i2eu2WWE6i4sBgpdSlO/2lrFXbeQ7ceJ/hmYZkr4tyCyozWTFUca0gFIJKbxQSXgtD+coWZinhGgKI/kwflcXAR2wuj0bM= gustavobrian@penguin
+-- /root/.ssh/authorized_keys --
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC6jxo0DIT20ODXJyKYkNgq/SDMbNzEx3fatexxd/yBI6hFrgN/6MGmTNR+Khu5KSIE0vaDKXUJ+G9qBzEfN8Nn54xzcyAOjhPqfI25NkqHO9kUbq9gNgt7atmbAFIDtnIbPPbv1JB0daV6c8jWdkaHCDf7Fh7nzo8Yd15/J8VrY9/bdRT8GA82uaQ9G0LPSJfmOuqETsoqji7dpBQNJwN4bZPy0Tfnubh0CcwoMTeZv7sNhiJjDstR/MFUam2rvP9haeUkC9r591imc2r5Mr+jdDMTU+YEwCb57wXvM4LwbGRXqU4YPRH+jAmReri7jV3idAJXf+O3sUp/3DRRCijz gustavo.brian@Gustavos-MacBook-Air.local
+
+--- LD_PRELOAD env check ---
+System-wide: none
+
+--- rc.local / init scripts ---
+cat: /etc/rc.local: No such file or directory
+
+==============================================================
+  RECENTLY MODIFIED FILES (last 3 days, executable)
+==============================================================
+
+--- Recently modified executables ---

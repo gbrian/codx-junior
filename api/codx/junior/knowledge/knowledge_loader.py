@@ -256,7 +256,7 @@ class KnowledgeLoader:
                                 current_sources=current_sources,
                                 knowledge_file_ignore=knowledge_file_ignore)
             if not is_valid:
-                logger.error("File '%s' is not valid for indexing.")
+                logger.error("File '%s' is not valid for indexing.", file_path)
             return is_valid
 
         changed_file_paths = [file for file in full_file_paths \

@@ -42,16 +42,7 @@ import ChapterBlock from './ChapterBlock.vue'
 
     <!-- Render blocks within chapter -->
     <div class="space-y-4">
-      <div v-for="block in blocks" :key="block.hash">
-        <MarkdownViewer
-          :files="files"
-          :documentId="documentId"
-          v-if="block.renderer === 'md'"
-          :text="block.content"
-          @add-file="$emit('add-file', $event)"
-          @copy-chapter="$emit('copy-chapter', $event)"
-          @create-task="$emit('create-task', $event)"
-        />
+      <div v-for="block in blocks" :title="`${block.type} - ${block.fileName}`" :key="block.hash">
         <Code
           :text="block.content"
           :text-language="block.type"
@@ -68,8 +59,17 @@ import ChapterBlock from './ChapterBlock.vue'
           @add-file="$emit('add-file', $event)"
           @edit-message="$emit('edit-message', $event)"
           @sub-task="$emit('sub-task', $event)"
-          v-else
+          v-if="block.fileName"
         />
+        <MarkdownViewer
+          :files="files"
+          :documentId="documentId"
+          :text="block.content"
+          @add-file="$emit('add-file', $event)"
+          @copy-chapter="$emit('copy-chapter', $event)"
+          @create-task="$emit('create-task', $event)"
+          v-else
+        />        
       </div>
     </div>
 
@@ -134,15 +134,50 @@ function stripHeaderFromContent(content) {
   return content
 }
 
-// Check if we're inside a code fence at this line index
-function isInsideCodeFence(lines, lineIndex) {
-  let inCodeFence = false
-  for (let i = 0; i < lineIndex; i++) {
-    if (lines[i].match(/^```/)) {
-      inCodeFence = !inCodeFence
-    }
+function isMarkdownBlockType(blockType) {
+  return ['markdown', 'md'].includes(blockType)
+}
+
+// Detect fence markers (``` or ~~~) with optional info string
+function getFence(line) {
+  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
+  if (!match) return null
+
+  return {
+    char: match[2][0],
+    length: match[2].length,
+    info: match[3].trim()
   }
-  return inCodeFence
+}
+
+function isClosingFence(line, fence) {
+  const lineFence = getFence(line)
+  return !!(
+    lineFence &&
+    fence &&
+    lineFence.char === fence.char &&
+    lineFence.length >= fence.length &&
+    !lineFence.info
+  )
+}
+
+// Count matching closing fences after fromIndex
+// Used to disambiguate anonymous fences inside markdown blocks
+function countClosingFencesAhead(lines, fromIndex, fence) {
+  let count = 0
+  for (let i = fromIndex + 1; i < lines.length; i++) {
+    if (isClosingFence(lines[i], fence)) count++
+  }
+  return count
+}
+
+// An anonymous fence inside a markdown block opens a nested block
+// only if enough closing fences remain to also close the outer block
+function isNestedAnonymousFence(lines, index, currentType, currentFence) {
+  return (
+    isMarkdownBlockType(currentType) &&
+    countClosingFencesAhead(lines, index, currentFence) >= 2
+  )
 }
 
 function collectAllChildContent(chapter) {
@@ -196,6 +231,7 @@ export default {
       const contentWithoutHeader = stripHeaderFromContent(childChapter.content || '')
       return this.parseChildBlocks(contentWithoutHeader)
     },
+    // Parse content into blocks, keeping nested fences inside markdown file blocks
     parseChildBlocks(content) {
       const blocks = []
       const lines = content.split('\n')
@@ -203,9 +239,19 @@ export default {
       let currentContent = []
       let currentFileName = ''
       let inCodeBlock = false
+      let currentFence = null
+      let nestedFences = []
 
       const setAllFinished = () => {
         blocks.forEach(b => (b.finished = true))
+      }
+
+      const resetCurrentBlock = () => {
+        currentType = 'markdown'
+        currentContent = []
+        currentFileName = ''
+        currentFence = null
+        nestedFences = []
       }
 
       const addBlock = () => {
@@ -217,36 +263,64 @@ export default {
           content: blockContent,
           hash,
           fileName: currentFileName,
-          renderer: this.getRenderer(currentType),
+          renderer: this.getRenderer(currentType, currentFileName),
           finished: false
         })
-        currentType = 'markdown'
-        currentContent = []
-        currentFileName = ''
+        resetCurrentBlock()
       }
 
-      for (const line of lines) {
-        const openMatch = line.match(/^```([^\s]+)\s*(.*)$/)
-        const closeMatch = line === '```'
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const fence = getFence(line)
 
-        if (!inCodeBlock && openMatch) {
+        if (!inCodeBlock && fence && fence.info) {
           if (currentContent.length) addBlock()
+          const infoParts = fence.info.split(/\s+/).filter(Boolean)
           inCodeBlock = true
-          currentType = openMatch[1]
-          currentFileName = openMatch[2] || ''
-        } else if (inCodeBlock && closeMatch) {
-          addBlock()
-          inCodeBlock = false
-        } else {
-          currentContent.push(line)
+          currentFence = fence
+          currentType = infoParts[0] || 'text'
+          currentFileName = infoParts.slice(1).join(' ')
+          continue
         }
+
+        if (inCodeBlock) {
+          const nestedFence = nestedFences[nestedFences.length - 1]
+
+          if (nestedFence && isClosingFence(line, nestedFence)) {
+            nestedFences.pop()
+            currentContent.push(line)
+            continue
+          }
+
+          if (isMarkdownBlockType(currentType) && fence && fence.info && !isClosingFence(line, currentFence)) {
+            nestedFences.push(fence)
+            currentContent.push(line)
+            continue
+          }
+
+          if (!nestedFences.length && isClosingFence(line, currentFence)) {
+            // Anonymous fence: pre-count ahead to decide open vs close
+            if (isNestedAnonymousFence(lines, i, currentType, currentFence)) {
+              nestedFences.push(fence)
+              currentContent.push(line)
+              continue
+            }
+            addBlock()
+            inCodeBlock = false
+            continue
+          }
+        }
+
+        currentContent.push(line)
       }
 
       if (currentContent.length) addBlock()
       setAllFinished()
       return blocks
     },
-    getRenderer(blockType) {
+    // Blocks with a file path are always rendered as code files
+    getRenderer(blockType, fileName) {
+      if (fileName) return 'code'
       if (['markdown', 'md'].includes(blockType)) return 'md'
       if (['html'].includes(blockType)) return blockType
       return 'code'

@@ -12,6 +12,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
 import Markdown from '../components/Markdown.vue'
 import Collapsible from '../components/Collapsible.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
+import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue'
 </script>
 
 <template>
@@ -44,6 +45,13 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
               </div>
             </div>
             <div class="grow"></div>
+            <!-- Parent Knowledge Disconnect Button -->
+            <ParentContentIndicator
+              v-if="parentChat"
+              :parentChat="parentChat"
+              :isDisconnected="isDisconnectedFromParent"
+              @toggle-disconnect="toggleParentDisconnect"
+            />
             <div class="flex items-center gap-1 shrink-0">
               <div class="flex input input-sm input-bordered items-center gap-1 w-36">
                 <input v-model="chatSearch" class="bg-transparent w-full min-w-0" placeholder="Search..." />
@@ -52,16 +60,6 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
                 </span>
                 <span v-else><i class="fa-solid fa-magnifying-glass"></i></span>
               </div>
-              <!-- Parent Knowledge Disconnect Button -->
-              <button 
-                v-if="workingChat.parent_id"
-                class="btn btn-sm tooltip" 
-                data-tip="Disconnect from parent knowledge & files"
-                @click="toggleParentDisconnect"
-                :class="isDisconnectedFromParent ? 'btn-ghost text-gray-500' : 'btn-ghost text-info'"
-              >
-                <i class="fa-solid fa-link"></i>
-              </button>
               <button class="btn btn-sm" @click="showHidden = !showHidden">
                 <div class="flex items-center gap-1 tooltip" data-tip="Archived messages"
                   :class="showHidden ? 'text-warning' : ''">
@@ -260,14 +258,6 @@ import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
         </div>
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
 
-        <!-- Active subtask breadcrumb (shown in both views) -->
-        <div class="flex items-center gap-1 text-xs text-base-content/50 mt-1 shrink-0 min-w-0" v-if="showChildChat">
-          <button class="hover:underline hover:text-base-content truncate min-w-0" @click="selectChildChat(null)">
-            {{ computedChatName }}
-          </button>
-          <i class="fa-solid fa-chevron-right shrink-0"></i>
-          <span class="text-warning font-semibold truncate min-w-0">{{ showChildChat.name }}</span>
-        </div>
 
         <!-- Content Area: History Wall OR Chat View -->
         <div class="flex-1 min-h-0 mt-2">
@@ -492,7 +482,7 @@ export default {
       }, {})
     },
     parentChat() {
-      return this.$chats.chats[this.theChat?.parent_id]
+      return this.$chats.chats[this.workingChat?.parent_id]
     },
     images() {
       return (this.workingChat.messages || [])
