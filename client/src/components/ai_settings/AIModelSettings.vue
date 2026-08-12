@@ -1,5 +1,6 @@
 <script setup>
 import Chat from '../chat/Chat.vue'
+import Editor from '../monaco/Editor.vue'
 </script>
 
 <template>
@@ -28,7 +29,10 @@ import Chat from '../chat/Chat.vue'
       <a role="tab" class="tab" :class="tabIx === 0 && 'tab-active'" @click="tabIx = 0">
         <i class="fa-solid fa-sliders mr-1"></i> Settings
       </a>
-      <a role="tab" class="tab" :class="[tabIx === 1 && 'tab-active', model.model_type !== 'llm' && 'tab-disabled opacity-40']" @click="newChat">
+      <a role="tab" class="tab" :class="tabIx === 1 && 'tab-active'" @click="tabIx = 1">
+        <i class="fa-solid fa-file-code mr-1"></i> Modelfile
+      </a>
+      <a role="tab" class="tab" :class="[tabIx === 2 && 'tab-active', model.model_type !== 'llm' && 'tab-disabled opacity-40']" @click="newChat">
         <i class="fa-solid fa-comment mr-1"></i> Test chat
       </a>
     </div>
@@ -71,7 +75,7 @@ import Chat from '../chat/Chat.vue'
             <i class="fa-solid fa-tag"></i> Identity
           </div>
 
-          <!-- Model Name (friendly) - Always editable -->
+          <!-- Model Name (friendly) -->
           <div class="form-control">
             <label class="label py-1">
               <span class="label-text text-xs">Model Name (friendly name)</span>
@@ -79,7 +83,7 @@ import Chat from '../chat/Chat.vue'
             <input class="input input-bordered input-sm" v-model="model.name" placeholder="Friendly display name" />
           </div>
 
-          <!-- Dropdown list (Always visible if the provider has a price list) -->
+          <!-- Provider model list dropdown -->
           <div class="form-control" v-if="currentProviderPriceList.length">
             <label class="label py-1">
               <span class="label-text text-xs">
@@ -94,7 +98,7 @@ import Chat from '../chat/Chat.vue'
             </select>
           </div>
 
-          <!-- Manual override checkbox for provider model name -->
+          <!-- Manual override toggle -->
           <div class="form-control" v-if="currentProviderPriceList.length">
             <label class="label py-1 cursor-pointer justify-start gap-2">
               <input type="checkbox" class="toggle toggle-sm toggle-secondary" v-model="manualOverride" />
@@ -102,7 +106,7 @@ import Chat from '../chat/Chat.vue'
             </label>
           </div>
 
-          <!-- AI Provider Model's Name - Manual input or read-only text -->
+          <!-- AI Provider Model's Name input -->
           <div class="form-control">
             <label class="label py-1">
               <span class="label-text text-xs">AI Provider Model's Name (ai_model)</span>
@@ -115,6 +119,7 @@ import Chat from '../chat/Chat.vue'
             </div>
           </div>
 
+          <!-- Model URL -->
           <div class="form-control">
             <label class="label py-1">
               <span class="label-text text-xs"><i class="fa-solid fa-network-wired mr-1 text-info"></i> Model URL</span>
@@ -129,7 +134,7 @@ import Chat from '../chat/Chat.vue'
             <i class="fa-solid fa-coins"></i> Billing
           </div>
 
-          <!-- Pricing preview from selected provider entry -->
+          <!-- Pricing preview -->
           <div v-if="selectedIdentityEntry" class="flex gap-3 px-2 py-1 bg-base-300 rounded text-xs">
             <span class="text-green-500">
               <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i>
@@ -141,7 +146,7 @@ import Chat from '../chat/Chat.vue'
             </span>
           </div>
 
-          <!-- Manual inputs -->
+          <!-- Price inputs -->
           <div class="grid grid-cols-2 gap-3">
             <div class="form-control">
               <label class="label py-1">
@@ -246,8 +251,20 @@ import Chat from '../chat/Chat.vue'
       </div>
     </div>
 
-    <!-- Test chat tab -->
+    <!-- Modelfile tab -->
     <div class="w-full grow flex flex-col min-h-0" v-if="tabIx === 1">
+      <div class="flex-1 min-h-0 overflow-hidden rounded-lg border border-base-300">
+        <Editor
+          v-model="model.model_file"
+          language="dockerfile"
+          :file-name="'Modelfile'"
+          :render-side-by-side="false"
+        />
+      </div>
+    </div>
+
+    <!-- Test chat tab -->
+    <div class="w-full grow flex flex-col min-h-0" v-if="tabIx === 2">
       <div v-if="!currentModelIsLLM" class="flex items-center gap-2 p-4 bg-warning/10 rounded-lg text-warning text-sm">
         <i class="fa-solid fa-triangle-exclamation"></i>
         Test chat is only available for LLM models
@@ -257,7 +274,7 @@ import Chat from '../chat/Chat.vue'
         {{ testChatError }}
       </div>
       <Chat v-else-if="testChat" class="w-full grow min-h-0" :chat="testChat" />
-      <div v-else class="flex items-center justify-center gap-2 p-8 text-base-content-ERROR-40">
+      <div v-else class="flex items-center justify-center gap-2 p-8 text-base-content/40">
         <span class="loading loading-spinner loading-sm"></span>
         Creating test chat...
       </div>
@@ -322,11 +339,12 @@ export default {
   },
   mounted() {
     this.syncSelectedIdentity()
+    this.initializeModelFile()
   },
   methods: {
     async newChat() {
       if (!this.currentModelIsLLM) return
-      this.tabIx = 1
+      this.tabIx = 2
       if (this.testChat) return
       this.testChatError = null
       try {
@@ -350,27 +368,38 @@ export default {
     applyIdentityEntry() {
       if (!this.selectedIdentityEntry) return
       const entry = this.selectedIdentityEntry
-      
-      // friendly name is initialized to the selected model if empty.
+
       if (!this.model.name) {
         this.model.name = entry.model_name
       }
-      
+
       this.model.ai_model = entry.model_name
       this.model.input_k_tokens_cxjcoins = entry.input_price_per_1k_tokens
       this.model.output_k_tokens_cxjcoins = entry.output_price_per_1k_tokens
     },
-    // Synchronizes UI selected list entry with model.ai_model on load or switch
     syncSelectedIdentity() {
       if (this.model?.ai_model && this.currentProviderPriceList.length) {
         const found = this.currentProviderPriceList.find(e => e.model_name === this.model.ai_model)
         if (found) {
           this.selectedIdentityEntry = found
         } else {
-          // auto enable manual override if a non-listed custom name is currently saved
           this.manualOverride = true
         }
       }
+    },
+    initializeModelFile() {
+      if (!this.model.model_file) {
+        this.model.model_file = this.getDefaultModelfile()
+      }
+    },
+    getDefaultModelfile() {
+      return `# Modelfile for ${this.model.name || 'AI Model'}
+FROM base
+
+PARAMETER temperature ${this.model.settings?.temperature || 0.7}
+PARAMETER context_length ${this.model.settings?.context_length || 2048}
+
+SYSTEM ${this.model.system || 'You are a helpful assistant.'}`
     }
   }
 }

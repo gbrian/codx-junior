@@ -248,7 +248,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
           <!-- Document summary TOC — documentId scopes anchors to this document instance -->
           <DocumentSummary
-            v-if="isDone && messageContent"
+            v-if="isDone && messageContent && !showPRView"
             :content="messageContent"
             :minHeadings="3"
             :documentId="documentId"

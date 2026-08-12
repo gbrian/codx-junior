@@ -246,7 +246,6 @@ class RawLogRecord(BaseModel):
 
 # ── List / pagination wrappers ─────────────────────────────────────────────────
 
-
 class RawLogRecordSummary(BaseModel):
     """
     Lightweight summary of a :class:`RawLogRecord` suitable for list views.
@@ -273,7 +272,7 @@ class RawLogRecordSummary(BaseModel):
         default=None,
         description="First 200 characters of the payload string representation.",
     )
-    tools: Optional[dict]
+    tools: Optional[Any] = {}
 
 
 class RawLogListResponse(BaseModel):

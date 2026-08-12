@@ -15,18 +15,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
   <MenubarRoot>
     <MenubarMenu>
       <MenubarTrigger class="MenubarTrigger click">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 mx-1">
           <!-- Show loading ring when loading prop is true -->
           <div class="" v-if="loading" >
             <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
           </div>
           <template v-else>
-            <img
-              class="w-5 rounded-full"
-              :src="currentProject?.project_icon"
-              v-if="currentProject && currentProject !== $project"
-            />
-            <i class="fa-solid fa-bars mx-1" v-else></i>
+            <i class="fa-solid fa-file-lines" v-if="isFileViewer"></i>
+            <i class="fa-solid fa-bars" v-else></i>
           </template>
         </div>
       </MenubarTrigger>
@@ -79,6 +75,10 @@ export default {
           params: { project_id: project.project_id }
         })
       }
+    },
+    // Check if app is file viewer by app name or id
+    isFileViewer() {
+      return !!this.app?.params?.filePath
     },
     awesomeIcon() {
       if (this.app.icon?.includes("fa"))

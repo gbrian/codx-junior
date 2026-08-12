@@ -5,8 +5,8 @@ import ChapterBlock from './ChapterBlock.vue'
 <template>
   <div class="flex flex-col @container/document">
     <ChapterBlock
-      v-for="chapter in chapters"
-      :key="chapter.hash"
+      v-for="(chapter, index) in chapters"
+      :key="`chapter-${chapter.level}-${index}`"
       :chapter="chapter"
       :blocks="getChapterBlocks(chapter)"
       :files="files"
@@ -99,8 +99,6 @@ function isClosingFence(line, fence) {
   )
 }
 
-// Count matching closing fences after fromIndex
-// Used to disambiguate anonymous fences inside markdown blocks
 function countClosingFencesAhead(lines, fromIndex, fence) {
   let count = 0
   for (let i = fromIndex + 1; i < lines.length; i++) {
@@ -109,8 +107,6 @@ function countClosingFencesAhead(lines, fromIndex, fence) {
   return count
 }
 
-// An anonymous fence inside a markdown block opens a nested block
-// only if enough closing fences remain to also close the outer block
 function isNestedAnonymousFence(lines, index, currentType, currentFence) {
   return (
     isMarkdownBlockType(currentType) &&
@@ -118,7 +114,6 @@ function isNestedAnonymousFence(lines, index, currentType, currentFence) {
   )
 }
 
-// Check if we're inside a code fence at this line index
 function isInsideCodeFence(lines, lineIndex) {
   let currentFence = null
   let currentType = ''
@@ -147,7 +142,6 @@ function isInsideCodeFence(lines, lineIndex) {
     }
 
     if (!nestedFences.length && isClosingFence(lines[i], currentFence)) {
-      // Anonymous fence: pre-count ahead to decide open vs close
       if (isNestedAnonymousFence(lines, i, currentType, currentFence)) {
         nestedFences.push(fence)
         continue
@@ -228,7 +222,6 @@ function parseBlocks(content) {
       }
 
       if (!nestedFences.length && isClosingFence(line, currentFence)) {
-        // Anonymous fence: pre-count ahead to decide open vs close
         if (isNestedAnonymousFence(lines, i, currentType, currentFence)) {
           nestedFences.push(fence)
           currentContent.push(line)
@@ -256,7 +249,6 @@ function parseChapters(content, loading) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Only treat as heading if not inside a code fence
     if (isHeading(line) && !isInsideCodeFence(lines, i)) {
       const chapter = parseChapter(lines, i)
       chapters.push(chapter)
@@ -303,7 +295,6 @@ function parseChapter(lines, startIndex) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Only check heading if not inside code fence
     if (isHeading(line) && !isInsideCodeFence(lines, i)) {
       const nextLevel = getHeadingLevel(line)
 

@@ -42,7 +42,8 @@ import ChapterBlock from './ChapterBlock.vue'
 
     <!-- Render blocks within chapter -->
     <div class="space-y-4">
-      <div v-for="block in blocks" :title="`${block.type} - ${block.fileName}`" :key="block.hash">
+      <div v-for="block in blocks" :title="`${block.type} - ${block.fileName}`" 
+        :key="block.hash">
         <Code
           :text="block.content"
           :text-language="block.type"

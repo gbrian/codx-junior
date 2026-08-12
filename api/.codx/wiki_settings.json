@@ -59,6 +59,11 @@
           "path": "/codx/junior/engine/git_engine.py",
           "slug": "codx-junior-engine-git-engine-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/codx-junior-engine-git-engine-py.md"
+        },
+        {
+          "path": "/codx/junior/api/files.py",
+          "slug": "codx-junior-api-files-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/codx-junior-api-files-py.md"
         }
       ],
       "id": "app-module",
@@ -210,6 +215,16 @@
               "path": "/codx/junior/profiles/profile_manager.py",
               "slug": "codx-junior-profiles-profile-manager-py.md",
               "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-profiles-profile-manager-py.md"
+            },
+            {
+              "path": "/codx/junior/model/logs.py",
+              "slug": "codx-junior-model-logs-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-logs-py.md"
+            },
+            {
+              "path": "/codx/junior/model/ai_model.py",
+              "slug": "codx-junior-model-ai-model-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-ai-model-py.md"
             }
           ],
           "id": "models",

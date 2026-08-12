@@ -219,7 +219,8 @@ export default {
       metadata: null,
       pasteWithShift: false,
       mentions: [],
-      selectedProfileNames: [],
+      selectorProfileNames: [],
+      textProfileNames: [],
       cursorWord: {},
       notebookStatus: null,
       editorText: "",
@@ -232,7 +233,8 @@ export default {
       intelliSenseDebounce: null,
       intelliSenseDismissed: false,
       searchController: null,
-      previousQuery: null
+      previousQuery: null,
+      previousEditorText: ''
     }
   },
   created() {
@@ -329,7 +331,8 @@ export default {
       return this.intelliSenseSuggestions.length > 0
     },
     selectedProfiles() {
-      return this.profiles.filter(p => this.selectedProfileNames.includes(p.name))
+      const allSelectedNames = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
+      return this.profiles.filter(p => allSelectedNames.includes(p.name))
     }
   },
   watch: {
@@ -340,6 +343,7 @@ export default {
     },
     editorText() {
       this.updateCursorWord()
+      this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
     },
     messages(newMessages) {
@@ -347,6 +351,40 @@ export default {
     }
   },
   methods: {
+    updateProfileMentionsFromText() {
+      const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
+      const mentionedNames = mentionMatches.map(m => m[1])
+
+      const profileNames = this.profiles.map(p => p.name)
+      const detectedProfiles = mentionedNames.filter(name => profileNames.includes(name))
+
+      // Track which profiles were mentioned in previous text
+      const previousMentionMatches = [...this.previousEditorText?.matchAll(/@([^\s]+)/mg) || []]
+      const previousMentionedNames = previousMentionMatches.map(m => m[1])
+      const previousDetectedProfiles = previousMentionedNames.filter(name => profileNames.includes(name))
+
+      // Only keep text profiles that still exist in the text or were from selector
+      const profilesToRemove = previousDetectedProfiles.filter(
+        name => !detectedProfiles.includes(name) && !this.selectorProfileNames.includes(name)
+      )
+
+      profilesToRemove.forEach(name => {
+        const idx = this.textProfileNames.indexOf(name)
+        if (idx > -1) {
+          this.textProfileNames.splice(idx, 1)
+        }
+      })
+
+      // Add newly detected profiles
+      detectedProfiles.forEach(name => {
+        if (!this.textProfileNames.includes(name)) {
+          this.textProfileNames.push(name)
+        }
+      })
+
+      this.previousEditorText = this.editorText
+    },
+
     hasFile(fileToCheck, fileList) {
       return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
     },
@@ -458,7 +496,6 @@ export default {
       this.$refs.changesPanel?.loadAllProjects()
     },
 
-    // Schedule IntelliSense with optional word parameter
     scheduleIntelliSense(word = null) {
       if (this.intelliSenseDismissed) {
         const currentWord = word || this.cursorWord.word
@@ -502,8 +539,12 @@ export default {
           controller: this.searchController,
           onResults: (results) => {
             if (!this.searchController.isCancelled) {
-              this.intelliSenseSuggestions = results
-              this.intelliSenseIndex = 0
+              if (results.length === 1 && results[0].name === rawQuery) {
+                this.onIntelliSenseSelect(results[0])
+              } else {
+                this.intelliSenseSuggestions = results
+                this.intelliSenseIndex = 0
+              }
             }
           }
         })
@@ -671,7 +712,7 @@ export default {
       return this.chatSvc.getUserMessage({
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
-        profiles: this.selectedProfileNames,
+        profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
         images: this.images,
         metadata: this.metadata,
         user: this.$user.username,
@@ -691,8 +732,9 @@ export default {
       this.images = []
       this.files = []
       this.mentions = []
-      this.selectedProfileNames = []
+      this.textProfileNames = []
       this.metadata = null
+      this.previousEditorText = ''
     },
 
     async addNewMessage({ task_item } = {}) {
@@ -734,7 +776,7 @@ export default {
     async updateMessage() {
       const innerText = this.$refs.inputBox?.getEditorText() ?? ''
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = this.selectedProfileNames
+      this.editMessage.profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       this.editMessage.content = innerText
       this.editMessage.images = this.images.map(JSON.stringify)
       this.editMessage.updated_at = new Date().toISOString()
@@ -746,7 +788,8 @@ export default {
       this.setEditorText("")
       this.editMessageId = null
       this.images = []
-      this.selectedProfileNames = []
+      this.textProfileNames = []
+      this.previousEditorText = ''
     },
 
     removeMessage(message) {
@@ -1138,7 +1181,7 @@ export default {
     },
 
     onProfilesSelected(selectedProfiles) {
-      this.selectedProfileNames = selectedProfiles.map(p => p.name || p)
+      this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
     },
 
     replaceEmoji({ emoji }) {
@@ -1156,8 +1199,8 @@ export default {
         instructions: ""
       })
     },
+
     async onSelectionSearchFiles({ query }) {
-      // TODO: We must avoid this trick, fix this when possible, make sure the "@" check only applies for user typing in the message 
       this.scheduleIntelliSense("@" + query)
     }
   }

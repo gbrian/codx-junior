@@ -1,14 +1,9 @@
 <script setup>
-import AIProviders from '@/components/ai_settings/AIProviders.vue'
-import AIModels from '@/components/ai_settings/AIModels.vue';
+import AIProvidersAndModels from '@/components/ai_settings/AIProvidersAndModels.vue'
 </script>
 
 <template lang="pug">
-  .flex.flex-col.gap-2
-    .text-2xl Providers
-    AIProviders(:settings="settings")
-    .text-2xl Models
-    AIModels(:settings="settings")
+    AIProvidersAndModels(:settings="settings")
 </template>
 
 <script>

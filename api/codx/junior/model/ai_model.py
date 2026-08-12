@@ -55,6 +55,7 @@ class AIModel(BaseModel):
     url: Optional[str] = Field(description="Model info", default="")
     system: Optional[str] = Field(description="Model system instructions", default="")
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
+    model_file: Optional[str] = Field(description="Custom Modelfile", default=None)
 
 class AISettings(BaseModel):
     provider: Optional[str] = Field(default="")

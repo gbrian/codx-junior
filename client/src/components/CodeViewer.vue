@@ -6,12 +6,21 @@ import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
 import { EXTENSION_LANGUAGE_MAP } from '../store'
+
+function generateHash(str) {
+  let hash = 0
+  for (const char of str) {
+    hash = (hash << 5) - hash + char.charCodeAt(0)
+    hash |= 0
+  }
+  return hash
+}
 </script>
 
 <template>
   <Collapsible v-model="showCode" class="h-full">
     <template #icon>
-      <span class="loading loading-spinner loading-xs" v-if="isStreaming"></span>
+      <span class="loading loading-spinner loading-xs" v-if="!finished"></span>
       <div class="hover:text-info" @click.stop="$emit('add-file', file)" v-else>
         <i class="fa-solid fa-file-arrow-up"></i>
       </div>
@@ -27,7 +36,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               @click.stop="handleFileNameClick($event)"
               :title="file"
             >
-              {{ fileName }}
+              {{ fileName }} <span class="text-xs text-warning">{{ codeHash }}</span>
             </div>
           </div>
           <span class="text-sm font-medium opacity-60" v-else>Code</span>
@@ -204,6 +213,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           />
 
           <VueCodeHighlighter
+            :key="highlighterKey"
             class="h-full"
             :code="effectiveCode"
             :lang="validatedLanguage"
@@ -285,7 +295,10 @@ export default {
       showConfirmModal: false,
       pendingViewSwitch: null,
       changesetErrors: [],
-      patchPattern: null
+      patchPattern: null,
+      highlighterKey: 0,
+      codeUpdateCounter: 0,
+      codeHash: 0
     }
   },
   computed: {
@@ -349,7 +362,19 @@ export default {
     },
 
     $api() {
-      return (this.project?.$api || this.$storex.api)
+      // Priority: project.$api > chat.project_id.$api > activeProject.$api
+      if (this.project?.$api) {
+        return this.project.$api
+      }
+      
+      if (this.chat?.project_id) {
+        const chatProject = this.$storex.projects.allProjectsById[this.chat.project_id]
+        if (chatProject?.$api) {
+          return chatProject.$api
+        }
+      }
+      
+      return this.$storex.projects.activeProject?.$api || this.$storex.api
     },
 
     lastLine() {
@@ -385,6 +410,9 @@ export default {
     code() {
       this.changesetErrors = []
       this.detectPatchPattern()
+      this.codeUpdateCounter++
+      this.codeHash = this.generateCodeHash(this.code)
+      this.highlighterKey++
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
         if (!viewCode) return
@@ -414,6 +442,7 @@ export default {
       this.loadDiffInfo()
     }
     this.detectPatchPattern()
+    this.codeHash = this.generateCodeHash(this.code)
     const viewCode = this.$el?.querySelector('.view-code')
     if (viewCode) viewCode.addEventListener('scroll', this.saveScrollPosition)
   },
@@ -422,6 +451,16 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
+    generateCodeHash(code) {
+      if (!code) return 0
+      let hash = 0
+      for (const char of code) {
+        hash = (hash << 5) - hash + char.charCodeAt(0)
+        hash |= 0
+      }
+      return Math.abs(hash)
+    },
+
     detectPatchPattern() {
       if (!this.code) {
         this.patchPattern = null
@@ -639,6 +678,9 @@ export default {
     async loadDiffInfo() {
       try {
         this.loadingStats = true
+        // Ensure code section is opened when loading diff
+        this.showCode = true
+        
         if (this.file) {
           const diffRequest = {
             path: this.file,
@@ -674,6 +716,11 @@ export default {
           this.diffEditContent = this.effectiveCode
           this.diffBaseContent = this.effectiveCode
           this.calculateDiffPercentages()
+
+          // Switch to diff view if file has changes
+          if (!this.isNewFile && this.stats && !this.isNoChange) {
+            this.showDiff = true
+          }
 
           if (this.isJSONChangeset) {
             this.applyChangeset()
@@ -804,18 +851,18 @@ export default {
 
 <style>
 .header-code-highlight {
-  display: none !important;
+  display: none !important
 }
 .wrapper-code-highlighter {
-  height: 100%;
+  height: 100%
 }
 
 @keyframes blink-animation {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0.4; }
+  0%, 49% { opacity: 1 }
+  50%, 100% { opacity: 0.4 }
 }
 
 .blink-save {
-  animation: blink-animation 0.8s ease-in-out;
+  animation: blink-animation 0.8s ease-in-out
 }
 </style>

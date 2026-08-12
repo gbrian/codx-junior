@@ -24,7 +24,7 @@ import Chat from '../chat/Chat.vue'
     <!-- Filter bar -->
     <div class="flex flex-wrap gap-2 items-center bg-base-200 rounded-xl p-3">
       <div class="relative grow min-w-48">
-        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content-ERROR-40 text-xs"></i>
+        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 text-xs"></i>
         <input
           v-model="filterText"
           type="text"
@@ -71,7 +71,7 @@ import Chat from '../chat/Chat.vue'
         </thead>
         <tbody>
           <tr v-if="filteredModels.length === 0">
-            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content-ERROR-40">
+            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content/40">
               <i class="fa-solid fa-ghost text-2xl mb-2 block"></i>
               No models found
             </td>
@@ -90,7 +90,7 @@ import Chat from '../chat/Chat.vue'
                   </div>
                   <div>
                     <div class="font-semibold text-primary text-sm">{{ model.name }}</div>
-                    <div class="text-xs text-base-content-ERROR-40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
+                    <div class="text-xs text-base-content/40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
                   </div>
                 </div>
               </td>
@@ -111,6 +111,11 @@ import Chat from '../chat/Chat.vue'
               <td class="text-sm text-center">
                 <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
                 <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
+              </td>
+              <!-- Model File -->
+              <td class="text-center">
+                <i v-if="model.model_file" class="fa-solid fa-file-code text-secondary text-sm" title="Custom model file"></i>
+                <span v-else class="text-base-content/30 text-xs">-</span>
               </td>
               <!-- Cost -->
               <td class="text-right">
@@ -243,7 +248,6 @@ export default {
       filterProvider: '',
       sortKey: 'name',
       sortAsc: true,
-      // Quick inline test chat
       quickTestModel: null,
       quickTestChat: null,
       columns: [
@@ -252,7 +256,8 @@ export default {
         { key: 'ai_provider', label: 'Provider' },
         { key: 'temperature', label: 'Temp / Vector', align: 'center' },
         { key: 'context', label: 'Context / Chunk', align: 'center' },
-        { key: 'cost', label: 'Cost (cxj)', align: 'right' },
+        { key: 'model_file', label: 'File', align: 'center' },
+        { key: 'cost', label: 'Cost (cxj)', align: 'right' }
       ]
     }
   },
@@ -305,6 +310,7 @@ export default {
         ai_provider: model.ai_provider?.toLowerCase() || '',
         temperature: model.settings?.temperature ?? 0,
         context: model.settings?.context_length ?? model.settings?.vector_size ?? 0,
+        model_file: model.model_file ? 1 : 0,
         cost: model.k_tokens_cxjcoins ?? model.input_k_tokens_cxjcoins ?? 0
       }
       return map[this.sortKey] ?? ''
@@ -324,7 +330,13 @@ export default {
     },
     editModel(model) {
       if (!model) {
-        model = { settings: {}, k_tokens_cxjcoins: null, input_k_tokens_cxjcoins: null, output_k_tokens_cxjcoins: null }
+        model = {
+          settings: {},
+          k_tokens_cxjcoins: null,
+          input_k_tokens_cxjcoins: null,
+          output_k_tokens_cxjcoins: null,
+          model_file: null
+        }
         this.aiModels.push(model)
       }
       this.currentModel = model
@@ -353,9 +365,7 @@ export default {
         model.loading = false
       }
     },
-    // Toggle inline test chat for a model row
     async toggleQuickTestChat(model) {
-      // Close if same model clicked again
       if (this.quickTestModel?.name === model.name) {
         this.closeQuickTestChat()
         return
@@ -369,7 +379,6 @@ export default {
           temp: true,
           test: true
         })
-        // Ensure model is assigned
         chat.llm_model = model.name
         this.quickTestChat = chat
       } catch (err) {

@@ -76,8 +76,24 @@ import moment from 'moment'
       <span class="text-sm">{{ error }}</span>
     </div>
 
+    <!-- Upload progress -->
+    <div class="alert alert-info py-2" v-if="isUploading">
+      <i class="fa-solid fa-arrow-up-from-bracket animate-bounce"></i>
+      <div class="flex-1">
+        <div class="text-sm font-semibold">Uploading {{ uploadingFileName }}</div>
+        <progress class="progress progress-primary w-full h-2 mt-1" :value="uploadProgress" max="100"></progress>
+        <div class="text-xs opacity-70 mt-1">{{ uploadProgress }}% • {{ formatSize(uploadProgressBytes) }} / {{ formatSize(uploadTotalBytes) }}</div>
+      </div>
+    </div>
+
     <!-- Directory tree listing -->
-    <div class="grow overflow-auto border border-base-300 rounded-lg">
+    <div 
+      class="grow overflow-auto border border-base-300 rounded-lg"
+      @dragover.prevent="onDragOver"
+      @dragleave.prevent="onDragLeave"
+      @drop.prevent="onDrop"
+      :class="isDragOverBlank && 'bg-blue-50 dark:bg-blue-900 border-blue-400'"
+    >
       <div class="flex items-center justify-center h-32" v-if="loading">
         <span class="loading loading-spinner loading-md"></span>
       </div>
@@ -99,12 +115,17 @@ import moment from 'moment'
           class="flex flex-col px-3 py-2 cursor-pointer hover:bg-base-200 group transition-colors"
           :class="[
             isEntrySelected(entry) && 'bg-blue-100 dark:bg-blue-900',
-            entry.is_ignored && 'opacity-50'
+            entry.is_ignored && 'opacity-50',
+            isDragOverFolder === entryPath(entry) && entry.is_dir && 'bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-400'
           ]"
           @click="handleEntryClick(entry, $event)"
           @dragstart="onDragStart($event, entry)"
           @dragend="onDragEnd"
+          @dragover.prevent="onDragOverEntry($event, entry)"
+          @dragleave.prevent="onDragLeaveEntry"
+          @drop.prevent="onDropEntry($event, entry)"
           draggable="true"
+          :data-folder-path="entry.is_dir ? entryPath(entry) : null"
         >
           <!-- First row: icon, name, size, date -->
           <div class="flex items-center gap-3">
@@ -193,7 +214,14 @@ export default {
       searchDebounceTimer: null,
       currentPage: 0,
       totalFiles: 0,
-      pageSize: 50
+      pageSize: 50,
+      isDragOverBlank: false,
+      isDragOverFolder: null,
+      isUploading: false,
+      uploadProgress: 0,
+      uploadProgressBytes: 0,
+      uploadTotalBytes: 0,
+      uploadingFileName: ''
     }
   },
   computed: {
@@ -469,7 +497,9 @@ export default {
     },
     formatSize(size) {
       if (size === null || size === undefined) return ''
-      return size > 1024 ? `${Math.round(size / 1024)} KB` : `${size} B`
+      if (size < 1024) return `${size} B`
+      if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`
     },
     formatLastModification(timestamp) {
       if (!timestamp) return '—'
@@ -498,6 +528,76 @@ export default {
     },
     onDragEnd() {
       this.draggedEntry = null
+      this.isDragOverBlank = false
+      this.isDragOverFolder = null
+    },
+    onDragOver(event) {
+      if (this.draggedEntry) return
+      event.dataTransfer.dropEffect = 'copy'
+      this.isDragOverBlank = true
+    },
+    onDragLeave(event) {
+      if (event.target === event.currentTarget) {
+        this.isDragOverBlank = false
+      }
+    },
+    onDragOverEntry(event, entry) {
+      if (this.draggedEntry || !entry.is_dir) return
+      event.dataTransfer.dropEffect = 'copy'
+      this.isDragOverFolder = this.entryPath(entry)
+    },
+    onDragLeaveEntry() {
+      this.isDragOverFolder = null
+    },
+    async onDrop(event) {
+      this.isDragOverBlank = false
+      const files = event.dataTransfer.files
+      if (files.length === 0) return
+      
+      const targetPath = this.getAbsolutePath(this.currentPath)
+      await this.handleFilesUpload(targetPath, files)
+    },
+    async onDropEntry(event, entry) {
+      this.isDragOverFolder = null
+      if (!entry.is_dir) return
+      
+      const files = event.dataTransfer.files
+      if (files.length === 0) return
+      
+      const targetPath = this.entryPath(entry)
+      await this.handleFilesUpload(targetPath, files)
+    },
+    async handleFilesUpload(targetPath, fileList) {
+      if (fileList.length === 0) return
+      
+      this.isUploading = true
+      this.uploadProgress = 0
+      this.uploadProgressBytes = 0
+      this.uploadTotalBytes = 0
+      this.error = null
+      
+      try {
+        const files = Array.from(fileList)
+        
+        this.uploadTotalBytes = files.reduce((sum, f) => sum + f.size, 0)
+        this.uploadingFileName = files.length === 1 ? files[0].name : `${files.length} files`
+        
+        await this.$api.files.upload(targetPath, files, (progress) => {
+          this.uploadProgress = progress.percent
+          this.uploadProgressBytes = progress.loaded
+          this.uploadTotalBytes = progress.total
+        })
+        
+        await this.refresh()
+      } catch (error) {
+        console.error('Upload error:', error)
+        this.error = `Upload failed: ${error.message}`
+      } finally {
+        this.isUploading = false
+        this.uploadProgress = 0
+        this.uploadProgressBytes = 0
+        this.uploadTotalBytes = 0
+      }
     }
   }
 }

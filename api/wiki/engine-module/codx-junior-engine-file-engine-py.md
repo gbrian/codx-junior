@@ -1,185 +1,156 @@
-# File Engine Module Documentation
+# File Engine Documentation
 
 ## Overview
 
-The File Engine is a comprehensive subsystem for managing file operations within the codx-junior project. It handles reading, writing, diffing files, and manages git-ignore rules efficiently through the `GitIgnoreManager` class. The engine integrates with the session management system and provides file profile application capabilities.
+The File Engine is a core module responsible for handling all file system operations within the codx-junior project. It manages file reading, writing, diffing, and profile application while maintaining security through path validation and git-ignore rule enforcement.
 
-## Core Components
+## Key Components
 
 ### GitIgnoreManager
 
-The `GitIgnoreManager` class provides efficient checking of whether files are git-ignored by pre-loading all `.gitignore` rules found within a directory tree.
+A specialized class that efficiently manages `.gitignore` rules across a directory tree without spawning subprocesses for each file check.
 
-#### Key Features
+#### Features
 
-- **In-Memory Rule Processing**: Reads every `.gitignore` file once and performs all checks in memory using the `pathspec` library instead of spawning subprocesses
-- **Nested .gitignore Support**: Each `.gitignore` applies to its own directory and all subdirectories, matching git's actual behavior
-- **Directory Cascade Handling**: Correctly handles the case where a parent directory is ignored - any file or directory inside an ignored directory is also considered ignored
+- **Pre-loading**: Loads all `.gitignore` files once during initialization rather than checking them repeatedly
+- **Nested Support**: Correctly handles `.gitignore` files at multiple directory levels
+- **Cascade Behavior**: Files inside ignored directories are automatically marked as ignored, matching git's actual behavior
+- **Performance**: Uses the `pathspec` library for in-memory pattern matching
 
-#### Main Methods
+#### How It Works
 
-**`__init__(root_path: str)`**
-- Initializes and pre-loads all `.gitignore` rules under the specified root path
-- Stores directory-to-PathSpec mappings and maintains an ignored directories cache
+The GitIgnoreManager walks the directory tree to compile all `.gitignore` rules into `PathSpec` objects, storing them mapped by their containing directory. When checking if a path is ignored, it:
 
-**`is_ignored(abs_path: str) -> bool`**
-- Checks whether a file or directory is matched by any `.gitignore` rule
-- Handles both direct pattern matches and cascade from parent directories
-- Returns `False` for paths outside the root tree
-
-**`_is_dir_ignored(abs_dir_path: str) -> bool`**
-- Checks whether a directory itself is matched by any `.gitignore` rule
-- Results are cached to avoid redundant work
-- Bounded by two base cases: reaching the root or escaping the root path
+1. Checks if the parent directory is ignored (cascade check)
+2. Walks up from the file's directory to root, checking each `.gitignore`
+3. Caches results to avoid redundant work for child lookups
 
 ### FileEngine
 
-The `FileEngine` class serves as the main interface for file system operations within the project scope.
+The main class handling file system operations with integrated git-ignore awareness.
 
-#### Initialization
+#### Core Methods
 
-**`__init__(session: "CODXJuniorSession")`**
-- Initializes with a reference to the parent session
-- Provides access to session settings and profile management
-
-## Core Methods
-
-### Reading Files
-
-**`read_file(path: str) -> dict`**
+**`read_file(path: str)`**
 - Reads a project file and returns its content along with metadata
 - Accepts relative or absolute paths
-- Returns dictionary containing `content`, `last_modification`, and `size`
+- Returns: Dictionary with `content`, `last_modification`, and `size`
 
-**`read_directory(path: str) -> dict`**
-- Lists the contents of a directory, flagging git-ignored entries
-- Automatically cascades ignored status to children
-- Returns directory metadata and sorted file list with ignore flags
+**`write_project_file(file_path: str, content: str, process: bool = True)`**
+- Writes content to a project file with optional file profile processing
+- Creates parent directories automatically
+- Validates path security before writing
+- Returns: Metadata including file location and modification time
 
-**`get_file_info(file_path: str) -> dict`**
-- Returns metadata for a file: `last_modification` (ISO 8601) and `size` in bytes
-- Handles both relative and absolute paths
-- Returns `None` values if file doesn't exist
+**`upload_file(file_path: str, file_content: bytes, process: bool = False, max_file_size: int)`**
+- Uploads a single file with size validation
+- Handles both text and binary files
+- Supports file profile application during upload
+- Returns: Upload metadata with file information
 
-### Writing Files
+**`upload_files(file_uploads: List[Tuple[str, bytes]], ...)`**
+- Batch uploads multiple files
+- Validates total size across all files
+- Continues processing even if individual uploads fail
+- Returns: Dictionary with successful/failed uploads breakdown
 
-**`write_project_file(file_path: str, content: str, process: bool = True) -> dict`**
-- Writes content to a project file
-- Optionally processes content through file profiles before writing
-- Creates parent directories as needed
-- Returns file and project metadata including modification time and size
+**`diff_file(path: str, content: str)`**
+- Creates a diff between a project file and provided content
+- Uses git diff --no-index for comparison
+- Returns: Dictionary with `diff`, `stats`, and file metadata
 
-**`process_project_file_before_saving(file_path: str, content: str) -> str`**
-- Applies all matching file profiles to content before saving
-- Retrieves profiles from the session's profile manager
-- Returns processed file content
-
-**`apply_file_profile(file_path: str, content: str, profile: Profile) -> str`**
-- Applies a single file profile to content using AI
-- Uses the chat system with project knowledge disabled
-- Returns improved file content without decorations
-
-### File Comparison
-
-**`diff_file(path: str, content: str, from_branch: str = None, to_branch: str = None) -> dict`**
-- Diffs a project file against provided content using `git diff --no-index`
-- Returns dictionary with `diff`, `stats`, `last_modification`, and `size`
-- Branch parameters reserved for future use
-
-**`diff_file_comments(path: str, content: str, comments: dict = None) -> None`**
-- Placeholder for diffing files with inline comments (not yet implemented)
-
-### File Search Operations
-
-**`search_files(search: str, search_path: str = None, page: int = 0, page_size: int = 50, raw_search: bool = False) -> dict`**
+**`search_files(search: str, search_path: str = None, ...)`**
 - Searches for files whose paths contain the search pattern
-- Performs filesystem search within the project
-- Respects `.gitignore` rules unless `raw_search=True`
-- Returns paginated results with ignore flags
+- Respects `.gitignore` rules by default
+- Supports pagination and raw search mode
+- Returns: Paginated file listing with ignore status
 
-**`search_files_content(query: str, search_path: str = None, page: int = 0, page_size: int = 50, case_sensitive: bool = False, raw_search: bool = False) -> dict`**
-- Searches for file content matching a query pattern
-- Supports case-sensitive and case-insensitive searches
-- Respects `.gitignore` rules unless `raw_search=True`
-- Returns paginated results with match metadata including line numbers and match counts
+**`search_files_content(query: str, search_path: str = None, ...)`**
+- Searches within file contents using pattern matching
+- Supports case-sensitive and case-insensitive modes
+- Excludes git-ignored files unless raw_search is enabled
+- Returns: Results sorted by match count with line-level details
 
-### Path Validation
+**`read_directory(path: str)`**
+- Lists directory contents with git-ignore awareness
+- Marks all children as ignored if parent directory is ignored
+- Returns: Directory structure with ignore flags
 
-**`get_valid_project_file_path(file_path: str) -> Tuple[str, any]`**
-- Validates and resolves a file path within allowed user projects
-- Handles both absolute and relative paths
-- Prevents path traversal attacks using `..` sequences
-- Returns tuple of `(absolute_path, project_settings)`
+## File Validation and Security
 
-**`get_project_file_path(path: str) -> str`**
-- Convenience method that resolves a path to absolute project path
-- Returns only the absolute path string
+### Path Resolution
 
-**`_resolve_absolute_path(file_path: str) -> Tuple[str, any]`**
-- Resolves and validates absolute file paths
-- Checks current project first, then falls back to all user projects
-- Raises `ValueError` if path is outside all allowed projects
+The `get_valid_project_file_path()` method ensures all file operations stay within allowed project boundaries:
 
-**`_resolve_relative_path(norm_input_path: str, original_path: str) -> Tuple[str, any]`**
-- Resolves and validates relative paths within current project root
-- Ensures path doesn't escape project using `..` sequences
-- Raises `ValueError` if traversal is attempted
+- **Absolute Paths**: Validated against the current project and all user projects
+- **Relative Paths**: Resolved within the current project root
+- **Traversal Prevention**: Blocks `..` sequences that escape project boundaries
+- **Cross-Drive Safety**: Handles Windows drive letter differences
 
-### Project Documentation
+The method has two internal helpers:
 
-**`get_readme() -> dict`**
-- Reads the project `README.md` file
-- Returns dictionary with `content`, `last_modification`, and `size`
-- Returns empty content if README doesn't exist
+- `_resolve_absolute_path()`: Checks absolute paths against all allowed projects
+- `_resolve_relative_path()`: Resolves relative paths within project root with traversal detection
 
-**`get_wiki_file(file_path: str) -> dict`**
-- Reads a wiki file from the project wiki directory
-- Accepts relative paths within wiki structure
-- Returns file content with metadata or "not found" message
+## File Profiles
 
-### Utility Methods
+File profiles allow automatic code improvements through AI-powered transformations.
 
-**`get_file_info(file_path: str) -> dict`**
-- Returns file metadata with last modification time (ISO 8601 format) and size in bytes
+**`process_project_file_before_saving(file_path: str, content: str)`**
+- Identifies all matching file profiles for a given file path
+- Applies profiles sequentially to the content
+- Returns: Content after all profile transformations
 
-**`parse_file_line(file: str, base_path: str, gitignore_manager: Optional[GitIgnoreManager] = None, parent_is_ignored: bool = False) -> dict`**
-- Parses a file name into a structured dictionary for directory listings
-- Supports cascade of ignored status from parent directories
-- Returns entry with name, path, directory flag, ignored flag, and file metadata
+**`apply_file_profile(file_path: str, content: str, profile: Profile)`**
+- Applies a single profile using AI assistance
+- Sends content and profile instructions to the chat system
+- Returns: Improved file content without decorations or fences
 
-**`_build_gitignore_manager(search_root: str) -> GitIgnoreManager`**
-- Creates a GitIgnoreManager pre-loaded with all `.gitignore` rules under the search root
-- Ensures `.gitignore` files are read once per search operation
+## File Information and Metadata
 
-**`_resolve_search_root(search_path: Optional[str]) -> Optional[str]`**
-- Resolves the root directory for search operations
-- Returns `None` if the specified path is not a directory
+**`get_file_info(file_path: str)`**
+- Returns metadata for a file: modification time and size
+- Modification time is returned in ISO 8601 format
+- Returns: Dictionary with `last_modification` and `size` (or None if file not found)
 
-**`_search_in_file(...) -> Optional[dict]`**
-- Searches for a pattern inside a single file
-- Returns match metadata including line numbers and match counts per line
-- Returns `None` if no matches found
+**`parse_file_line(file: str, base_path: str, ...)`**
+- Converts a file name into a structured dictionary for directory listings
+- Includes name, path, directory flag, ignore status, and metadata
+- Supports ignore cascade from parent directories
+- Returns: Structured file entry dictionary
 
-### Image Processing
+## Project Documentation
 
-**`api_image_to_text(image_bytes: bytes) -> str`**
-- Converts image bytes to text using OCR (pytesseract)
-- Accepts raw image bytes
-- Returns extracted text string
+**`get_wiki_file(file_path: str)`**
+- Reads wiki files from the project wiki directory
+- Returns: File content with metadata, or not-found message
+
+**`get_readme()`**
+- Reads the project's README.md file
+- Returns: README content with metadata, or empty content if not found
+
+## Utility Methods
+
+**`api_image_to_text(image_bytes: bytes)`**
+- Converts image bytes to text using OCR with pytesseract
+- Requires PIL and pytesseract dependencies
+- Returns: Extracted text string
+
+## Upload Constraints
+
+The module enforces size limits for uploaded files:
+
+- **Default Max File Size**: 1 GB per file
+- **Default Max Total Size**: 4 GB across all files in batch upload
+
+These limits can be customized per operation.
 
 ## Performance Considerations
 
-- **GitIgnore Efficiency**: The `GitIgnoreManager` loads all `.gitignore` files once at initialization, reducing overhead from O(files) to O(directories)
-- **Directory Pruning**: In search operations, ignored directories are pruned in-place during tree walks, preventing traversal of irrelevant subtrees
-- **Caching**: Ignored directory results are cached to avoid redundant checks when processing children
-- **Early Termination**: Path searches stop climbing the directory tree once the root is reached
-
-## Security Features
-
-- **Path Traversal Prevention**: Validates that paths don't escape project boundaries using `..` sequences
-- **Drive Boundary Handling**: Prevents path operations across different drives on Windows
-- **Access Control**: Absolute paths are validated against all user-allowed projects
-- **Normalization**: All paths are normalized before comparison
+- GitIgnoreManager loads all `.gitignore` files once per search operation, avoiding repeated filesystem reads
+- Ignore status is cached for directories to speed up child lookups
+- Directory pruning in `os.walk` prevents traversing ignored subtrees
+- Pagination support prevents loading large result sets entirely into memory
 
 ## Dependencies
 **Imports from:** codx/junior/db.py, codx/junior/model/model.py, codx/junior/profiles/profile_manager.py, codx/junior/project/project_discover.py, codx/junior/utils/utils.py, codx/junior/engine/session.py

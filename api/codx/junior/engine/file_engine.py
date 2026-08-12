@@ -29,6 +29,10 @@ GITIGNORE_FILE = ".gitignore"
 # Name of the git directory to always skip
 GIT_DIR = ".git"
 
+# Upload constraints
+DEFAULT_MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1 GB
+DEFAULT_MAX_TOTAL_SIZE = 4 * DEFAULT_MAX_FILE_SIZE  # 4 GB
+
 
 class GitIgnoreManager:
     """
@@ -61,7 +65,7 @@ class GitIgnoreManager:
         K -- Yes --> L[Return True - is ignored]
         K -- No --> M[Continue up the tree]
         I -- No --> M
-        M --> N{Check if dir itself is ignored}
+        M --> N[Check if dir itself is ignored]
         N -- Yes --> L
         N -- No --> O{Reached root?}
         O -- Yes --> P[Return False - not ignored]
@@ -302,6 +306,8 @@ class FileEngine:
         FE[FileEngine]
         FE --> read_file
         FE --> write_project_file
+        FE --> upload_file
+        FE --> upload_files
         FE --> diff_file
         FE --> process_project_file_before_saving
         FE --> apply_file_profile
@@ -751,6 +757,171 @@ class FileEngine:
             }
         except OSError as ex:
             raise OSError("Error processing file %s:\n%s" % (abs_file_path, ex)) from ex
+
+    async def upload_file(
+        self,
+        file_path: str,
+        file_content: bytes,
+        process: bool = False,
+        max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+    ) -> dict:
+        """
+        Upload a single file to the project.
+
+        Validates file size and path security before writing.
+        Supports optional file profile application during upload.
+
+        Args:
+            file_path: Target file path (relative to project root).
+            file_content: Raw file bytes to write.
+            process: Whether to apply file profiles before writing.
+            max_file_size: Maximum allowed file size in bytes.
+
+        Returns:
+            Dict with upload metadata including file path, size, and modification time.
+
+        Raises:
+            ValueError: If file size exceeds limit or path is invalid.
+            OSError: If file write fails.
+        """
+        # Validate file size
+        file_size = len(file_content)
+        if file_size > max_file_size:
+            raise ValueError(
+                "File size %d exceeds maximum allowed size %d bytes"
+                % (file_size, max_file_size)
+            )
+
+        # Validate and resolve file path
+        abs_file_path, file_project = self.get_valid_project_file_path(file_path)
+
+        try:
+            # Create parent directories if needed
+            os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
+
+            # Decode content if it's bytes and we need to process
+            if isinstance(file_content, bytes):
+                try:
+                    content_str = file_content.decode("utf-8")
+                except UnicodeDecodeError:
+                    # For binary files, write as-is
+                    logger.info("Writing binary file: %s", abs_file_path)
+                    with open(abs_file_path, "wb") as f:
+                        f.write(file_content)
+                    info = self.get_file_info(abs_file_path)
+                    return {
+                        "file_project": file_project.project_name,
+                        "file_project_path": file_project.abs_project_path,
+                        "file_path": file_path,
+                        "abs_file_path": abs_file_path,
+                        "project_path": self.settings.abs_project_path,
+                        "is_binary": True,
+                        **info,
+                    }
+            else:
+                content_str = file_content
+
+            # Apply file profiles if requested (text files only)
+            if process:
+                content_str = await self.process_project_file_before_saving(
+                    file_path=abs_file_path, content=content_str
+                )
+
+            write_file(file_path=abs_file_path, content=content_str)
+            info = self.get_file_info(abs_file_path)
+            return {
+                "file_project": file_project.project_name,
+                "file_project_path": file_project.abs_project_path,
+                "file_path": file_path,
+                "abs_file_path": abs_file_path,
+                "project_path": self.settings.abs_project_path,
+                "is_binary": False,
+                **info,
+            }
+        except OSError as ex:
+            logger.error("Error uploading file %s: %s", abs_file_path, ex)
+            raise OSError("Error uploading file %s:\n%s" % (abs_file_path, ex)) from ex
+
+    async def upload_files(
+        self,
+        file_uploads: List[Tuple[str, bytes]],
+        process: bool = False,
+        max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+        max_total_size: int = DEFAULT_MAX_TOTAL_SIZE,
+    ) -> dict:
+        """
+        Upload multiple files to the project in batch.
+
+        Validates total size across all files and individual file sizes.
+        Supports optional file profile application during upload.
+        Continues processing remaining files even if some fail.
+
+        Args:
+            file_uploads: List of (file_path, file_content) tuples.
+            process: Whether to apply file profiles before writing.
+            max_file_size: Maximum allowed size for individual files.
+            max_total_size: Maximum allowed total size for all files combined.
+
+        Returns:
+            Dict with results containing:
+            - successful: List of successfully uploaded files
+            - failed: List of failed uploads with error details
+            - total_files: Total number of files attempted
+            - total_size_uploaded: Total size of successfully uploaded files
+        """
+        # Validate total size
+        total_size = sum(len(content) for _, content in file_uploads)
+        if total_size > max_total_size:
+            raise ValueError(
+                "Total upload size %d exceeds maximum allowed size %d bytes"
+                % (total_size, max_total_size)
+            )
+
+        successful = []
+        failed = []
+
+        logger.info(
+            "Starting batch upload of %d files (total size: %d bytes)",
+            len(file_uploads),
+            total_size,
+        )
+
+        for file_path, file_content in file_uploads:
+            try:
+                result = await self.upload_file(
+                    file_path=file_path,
+                    file_content=file_content,
+                    process=process,
+                    max_file_size=max_file_size,
+                )
+                successful.append(result)
+                logger.info("Successfully uploaded file: %s", file_path)
+            except (ValueError, OSError) as ex:
+                error_msg = str(ex)
+                failed.append({
+                    "file_path": file_path,
+                    "error": error_msg,
+                })
+                logger.warning(
+                    "Failed to upload file %s: %s", file_path, error_msg
+                )
+
+        total_uploaded = sum(f.get("size", 0) or 0 for f in successful)
+
+        result_dict = {
+            "total_files": len(file_uploads),
+            "successful": successful,
+            "failed": failed,
+            "total_size_uploaded": total_uploaded,
+        }
+
+        logger.info(
+            "Batch upload completed: %d successful, %d failed",
+            len(successful),
+            len(failed),
+        )
+
+        return result_dict
 
     def search_files(
         self,
