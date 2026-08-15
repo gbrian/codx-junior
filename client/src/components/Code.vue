@@ -58,12 +58,13 @@ export default {
       languages: null,
       htmlPreview: false,
       showMermaidSource: false,
-      file: null,
+      file: null
     }
   },
   created() {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[language, language.toUpperCase()]]
+    // Initialize codeText from text or code
     this.codeText = this.text || this.code?.innerText
     this.file = this.fileName || this.code?.attributes["data-file"]?.value
   },
@@ -99,6 +100,23 @@ export default {
       return {
         code: this.text || this.code?.innerText,
         language: this.language
+      }
+    }
+  },
+  watch: {
+    // Watch text prop for updates - prioritize text over code
+    text(newVal) {
+      if (newVal !== undefined && newVal !== this.codeText) {
+        this.codeText = newVal
+      }
+    },
+    // Watch code prop updates - cascades to CodeViewer via codeText
+    code(newCode) {
+      if (newCode?.innerText !== undefined) {
+        const innerText = newCode.innerText
+        if (innerText !== this.codeText) {
+          this.codeText = innerText
+        }
       }
     }
   },

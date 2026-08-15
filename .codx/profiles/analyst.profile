@@ -1,7 +1,7 @@
 {
   "name": "analyst",
   "url": "",
-  "avatar": "https://img.icons8.com/?size=80&id=xbn74cZ8koDZ&format=png",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=analyst",
   "description": "The analyst ensures that every task is well-defined, with clear requirements, examples (if applicable), and a concise goal. This aids developers in implementing features, improvements, or fixes effectively.",
   "category": "assistant",
   "file_match": "",

@@ -577,6 +577,9 @@ export default {
   watch: {
     message() {
       this.loadThreadChat()
+    },
+    'message.content': function() {
+      this.extractImprovementData()
     }
   },
   methods: {

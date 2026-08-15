@@ -453,9 +453,10 @@ class ChatEngine:
         
         return "\n".join([
             "### FILE CONTEXT",
-            f"File path is '{source}', use same file path in your response.",
+            f"This is the actual project's file content for '{source}', use same file path in your response.",
+            "This content represent the current file, use it as a base for changes."
             "",
-            f"```{ language } {source}", 
+            f"```{ language } {source}",
             content,
             "```",
             ""

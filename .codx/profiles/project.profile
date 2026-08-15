@@ -1,7 +1,7 @@
 {
   "name": "project",
   "url": "",
-  "avatar": "https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=project",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=project",
   "description": "Project overview and tech stack definition. Will help all processes to keep focus on the project",
   "category": "project",
   "file_match": "",

@@ -96,8 +96,7 @@ from codx.junior.settings import (
   CODXJuniorSettings
 )
 from codx.junior.global_settings import (
-  read_global_settings,
-  write_global_settings
+  read_global_settings
 )
 
 from codx.junior.engine import (
@@ -470,21 +469,6 @@ def api_apps_run(request: Request):
     codx_junior_session = request.state.codx_junior_session
     app_name = request.query_params.get("app")
     return codx_junior_session.run_app(app_name=app_name)
-
-
-@app.get("/api/global/settings")
-def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
-    if not user or user.role != 'admin':
-        return {
-          "error": "User is not admin"
-        }
-    return read_global_settings()
-
-@app.post("/api/global/settings")
-def api_write_global_settings(global_settings: GlobalSettings):
-    AIManager().reload_models(global_settings)
-    logger.info("/api/global/settings save global settings")
-    write_global_settings(global_settings=global_settings)
     
 @app.post("/api/run/script")
 def run_script(data: dict, request: Request):

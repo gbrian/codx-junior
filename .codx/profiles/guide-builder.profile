@@ -1,7 +1,7 @@
 {
   "name": "guide-builder",
   "url": "",
-  "avatar": "https://i.pinimg.com/474x/00/cb/19/00cb193bc5bee5e556041fac64cb7509.jpg?nii=t",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=guide-builder",
   "description": "Assists on creating guides and how-to documents",
   "category": "assistant",
   "file_match": "",

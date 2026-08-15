@@ -1,89 +1,51 @@
-# AI Service Module
+# Wiki Documentation: AI Core Module
 
-The `AI` class serves as the main entry point for managing all interactions with various Artificial Intelligence providers, providing robust routing, caching, error handling, and specialized functions like image generation and embeddings.
+## Overview
+The `AI` class functions as the central orchestration layer for managing artificial intelligence interactions, request routing, caching, and recovery mechanisms within the Codx Junior framework. It abstracts lower-level LangChain message structures and provides a unified interface for synchronous/asynchronous chat completions, embeddings generation, and image synthesis.
 
-## Initialization and Setup
+## Architecture & Provider Routing
+- **Dynamic Instantiation**: The class uses factory methods to route requests to underlying provider implementations (`OpenAI_AI`) based on configuration. This applies to both synchronous (`create_chat_model`) and asynchronous (`create_a_chat_model`) execution targets `[Ref: def create_chat_model()]`, `[Ref: def create_a_chat_model()]`.
+- **Provider Resolution**: The `_get_provider()` helper safely extracts the active provider identifier by checking for attribute access on `llm_settings` or dictionary key lookup, defaulting to an empty string if absent `[Ref: def _get_provider()]`.
 
-### `__init__(self, settings: CODXJuniorSettings, llm_model: Optional[str] = None, user: Optional[CodxUser] = None, system: Optional[str] = None)`
+## Class Initialization & State Management
+The constructor (`__init__`) establishes the operational context and initializes core state variables:
+- **Parameters**: Accepts `settings`, optional `llm_model`, `user`, and `system` parameters `[Ref: class AI.__init__]`.
+- **Configuration Parsing**: Retrieves dynamic LLM configurations via `settings.get_llm_settings(llm_model=llm_model)` stored in `self.llm_settings` `[Ref: self.llm_settings]`.
+- **Execution Callables**: Instantiates sync (`self.llm`) and async (`self.a_llm`) chat callables by invoking their respective factory methods `[Ref: self.llm / self.a_llm]`.
+- **Caching & Logging**: Initializes `self.cache` (boolean or dict) and `self.ai_logger` for conditional logging `[Ref: Cache State]`, `[Ref: Logger Configuration]`.
+- **Lazy Embeddings**: Defers embeddings model instantiation until first use via `self.embeddings_model` to prevent premature resource allocation `[Ref: Lazy Embeddings Init]`.
 
-Initializes the AI service by setting up connections to underlying LLMs, embeddings models, and logging utilities. It determines the appropriate client based on provider configuration (as described in `create_chat_model` and `create_embeddings_model`).
+## Chat Execution (Synchronous & Asynchronous)
+The `chat()` and `a_chat()` methods share an identical execution pipeline:
+1. **Input Normalization**: Ensures `messages`, `tools`, and `headers` are initialized as empty lists/dicts if not provided. Appends `prompt` as a `HumanMessage` when present `[Ref: Message Construction]`.
+2. **Cache Lookup**: Generates a cache key using `messages_md5(messages)`. If caching is active and the key exists, retrieves the stored AI response directly from JSON data `[Ref: Cache Hit Logic]`.
+3. **Request Dispatch**: Invokes `self.llm()` or `self.a_llm()` with a config dictionary containing callbacks, headers, tools, and optional `cancellation_token` `[Ref: Request Execution]`.
+4. **Cancellation Handling**: Explicitly catches and propagates `CancelledError` to respect client-side abort requests `[Ref: Cancellation Handling]`.
+5. **Error Recovery**: Intercepts standard exceptions and checks for model-not-found conditions. If detected, triggers automatic provider-specific recovery (Ollama model pulling) before executing a single retry attempt `[Ref: Automatic Model Recovery]`.
+6. **Cache Persistence**: On success, serializes the conversation history and response content into JSON format and stores it in `self.cache` using the MD5 key `[Ref: Cache Storage Logic]`.
 
-**Parameters:**
-*   `settings` (`CODXJuniorSettings`): Configuration settings for AI services.
-*   `llm_model` (`Optional[str]`): The specific Large Language Model name to use (e.g., "gpt-4").
-*   `user` (`Optional[CodxUser]`): The user initiating the call.
-*   `system` (`Optional[str]`): System-level parameters or persona instructions for the LLM.
+## Embeddings & Image Generation
+- **Embeddings (`embeddings()`)**: Generates dense vector representations for text inputs. Handles both single strings and lists of strings by routing to `embed_documents()` or `embed_query()`. Automatically falls back between methods based on available client attributes `[Ref: def embeddings()]`.
+- **Image Generation (`image()`)**: Delegates synchronous image synthesis directly to the underlying LLM provider's `generate_image()` interface `[Ref: def image()]`.
 
-**Internal Components Initialized:**
-*   **LLMs:** Creates both synchronous (`self.llm`) and asynchronous (`self.a_llm`) chat completion clients using `create_chat_model` and `create_a_chat_model`, respectively, which typically route to an internal provider like `OpenAI_AI`.
-*   **Embeddings:** Initializes the embeddings model client via `create_embeddings_model()`.
+## Automatic Error Detection & Recovery
+The module implements a dedicated recovery workflow for missing local models:
+- **Pattern Matching (`_is_model_not_found_error()`)**: Inspects exception strings for specific patterns including `"model_not_found"`, `"model not found"`, and API-native `"not_found_error"` types `[Ref: def _is_model_not_found_error()]`.
+- **Automated Pulling (`_pull_ollama_model()`)**: Extracts the target model name (stripping `ollama/` prefix if present), isolates the base URL by removing path components from `api_url`, and streams progress via HTTP POST to `/api/pull`. Raises a descriptive `RuntimeError` on failure `[Ref: def _pull_ollama_model()]`.
+- **Recovery Trigger (`_handle_model_not_found()`)**: Validates the active provider type. Executes the pull routine only for Ollama environments, wrapping any upstream failures in a runtime exception `[Ref: def _handle_model_not_found()]`.
 
-## Core Chat Functionality
+## Utility & Serialization Functions
+- **`log()`**: Conditionally writes informational messages to `ai_logger` only when `get_log_ai()` confirms logging is enabled `[Ref: def log()]`.
+- **`get_openai_chat_client()`**: Instantiates the underlying provider client and returns it for direct access `[Ref: def get_openai_chat_client()]`.
+- **`create_embeddings_model()`**: Returns a fresh embeddings instance from the provider layer `[Ref: def create_embeddings_model()]`.
+- **`messages_md5()`**: Concatenates string representations of message contents and produces an MD5 hexadecimal digest for deterministic cache key generation `[Ref: def messages_md5()]`.
+- **`serialize_messages()`**: Converts message objects into JSON-compatible dictionaries containing the original type name and content string `[Ref: def serialize_messages()]`.
 
-### `chat(self, messages: Optional[List[Message]] = None, prompt: Optional[str] = None, *, max_response_length: Optional[int] = None, callback: Optional[Callable] = None, tools: Optional[List[str]] = None, headers: Optional[Dict[str, Any]] = None, cancellation_token: Optional[CancellationToken] = None) -> List[Message]`
-
-Performs a synchronous chat completion request. This method handles conversation history, integrates function calling capabilities (tools), and includes crucial logic for caching responses and handling connection failures.
-
-**Parameters:**
-*   `messages`: History of messages (`List[AIMessage | HumanMessage | SystemMessage]`). If provided, the prompt is appended to this list before processing.
-*   `prompt`: An optional string that will be added as a `HumanMessage` to the conversation history.
-*   **Keyword Arguments:**
-    *   `max_response_length`: Maximum tokens allowed in the response.
-    *   `callback`: An optional callback function for streaming responses.
-    *   `tools`: A list of function names/descriptions available for tool calling (function calling).
-    *   `headers`: Custom HTTP headers to include with the LLM API request.
-    *   `cancellation_token`: Token used to cancel an ongoing completion request.
-
-**Behavior:**
-1.  **Caching Check:** Determines a unique MD5 hash (`messages_md5`) based on the message history and checks `self.cache`. If a matching result exists, it returns a cached response immediately.
-2.  **API Call:** Calls the synchronous chat completions client (`self.llm`).
-3.  **Error Handling (Model Not Found):** If an exception occurs that matches a model not found error (`model_not_found`, `model not found`), it triggers the recovery process:
-    *   It calls `_handle_model_not_found(exc)`. This function checks the provider type. If the provider is **Ollama**, it attempts to pull the missing model via `_pull_ollama_model()`.
-    *   If pulling succeeds, it automatically retries the LLM call using the updated client.
-4.  **Caching Update:** Upon a successful response, the content and message history are serialized (`serialize_messages`) and saved to `self.cache` under the calculated MD5 key.
-
-### `a_chat(self, messages: Optional[List[Message]] = None, prompt: Optional[str] = None, *, max_response_length: Optional[int] = None, callback: Optional[Callable] = None, tools: Optional[List[str]] = None, headers: Optional[Dict[str, Any]] = None, cancellation_token: Optional[CancellationToken] = None) -> List[Message]`
-
-Performs an asynchronous version of the chat completion request. It mimics all the functional behavior of `chat()`, including caching and automatic model recovery/retries for `model_not_found` errors, but utilizes `await self.a_llm(...)`.
-
-## Specialized AI Capabilities
-
-### `image(self, prompt: str) -> str`
-
-Generates an image URL or data based on a descriptive string prompt. This delegates the request to the configured LLM client via its specialized `generate_image()` method.
-
-**Parameters:**
-*   `prompt`: The textual description used for image generation.
-**Returns:** Generated image content (e.g., a URL or data).
-
-### `embeddings(self, content: Union[str, List[str]]) -> Any`
-
-Generates dense embedding vectors for the provided text content using the configured embeddings model client.
-
-**Parameters:**
-*   `content`: A single string (`str`) or a list of strings (`List[str]`).
-
-**Behavior:**
-*   If `content` is a **list**, it uses the batch method (e.g., `embed_documents`).
-*   If `content` is a **single string**, it uses the query method (e.g., `embed_query`).
-*   Returns either a single vector (`List[float]`) or a list of vectors (`List[List[float]]`).
-
-### `log(self, message: str, *args: Any) -> None`
-
-A utility function that logs operational messages using the internal AI Logger (`self.ai_logger`), but only if logging is enabled in the application settings (`settings.get_log_ai()`) (Source: `AI.log`).
-
-## Model Recovery and Provider Handling
-
-### `_handle_model_not_found(self, exc: Exception) -> None`
-
-This internal handler is invoked when a `model_not_found` error occurs during chat completion.
-1.  It checks if the AI provider (`provider_type`) is explicitly set to `"ollama"`.
-2.  If it is Ollama, it calls `_pull_ollama_model()` to attempt downloading the model.
-3.  If the provider is not Ollama (or if pulling fails), it raises a `RuntimeError`, signaling failure.
-
-### `_pull_ollama_model(self) -> None`
-
-A specialized method for Ollama connectivity. If a model is missing, this function connects to the configured Ollama API URL and streams the pull request using `requests.post` to download the required model locally. The progress status is logged during this process.
+## External Dependencies
+The module relies on the following libraries and framework components as defined in its imports `[Ref: Top-level Imports]`:
+- **LangChain**: `BaseChatModel` base class, `AIMessage`, `HumanMessage`, `SystemMessage` for structured conversation history.
+- **Codx Framework**: `CODXJuniorSettings` for configuration management, `CodxUser` for interaction context, `AILogger` and `CancellationToken`/`CancelledError` for operational utilities.
+- **Standard Library & Third-Party**: `logging`, `hashlib`, `json`, `requests` (for streaming API pulls), `urllib.parse.urlparse` (for URL normalization), and `profile_function` decorator from the internal profiling suite.
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/ai/openai_ai.py, codx/junior/ai/ai_logger.py, codx/junior/ai/cancellation.py, codx/junior/profiling/profiler.py, codx/junior/model/model.py

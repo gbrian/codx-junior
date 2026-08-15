@@ -873,4 +873,4 @@ class OpenAI_AI:
                 logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
                 raise ex
 
-        return embedding_func
+        return embedding_funcand

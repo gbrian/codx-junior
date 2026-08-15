@@ -20,7 +20,9 @@ function generateHash(str) {
 <template>
   <Collapsible v-model="showCode" class="h-full">
     <template #icon>
-      <span class="loading loading-spinner loading-xs" v-if="!finished"></span>
+      <div class="" v-if="!finished" >
+        <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
+      </div>
       <div class="hover:text-info" @click.stop="$emit('add-file', file)" v-else>
         <i class="fa-solid fa-file-arrow-up"></i>
       </div>
@@ -36,83 +38,85 @@ function generateHash(str) {
               @click.stop="handleFileNameClick($event)"
               :title="file"
             >
-              {{ fileName }} <span class="text-xs text-warning">{{ codeHash }}</span>
+              {{ fileName }}
             </div>
           </div>
           <span class="text-sm font-medium opacity-60" v-else>Code</span>
 
-          <div
-            class="hover:text-info cursor-pointer"
-            :class="editMode && 'text-warning'"
-            @click.stop="onEdit"
-            title="Edit code"
-          >
-            <i class="fa-solid fa-edit"></i>
-          </div>
-
-          <div
-            class="hover:text-info cursor-pointer"
-            :class="associatedChat && 'text-success'"
-            @click.stop="onTaskClick"
-            :title="associatedChat ? 'Open associated chat' : 'Create sub-task'"
-          >
-            <i :class="associatedChat ? 'fa-solid fa-comments' : 'fa-brands fa-trello'"></i>
-          </div>
-
-          <div class="hover:text-info cursor-pointer" @click.stop="loadDiffInfo" title="Refresh diff stats">
-            <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
-          </div>
-
-          <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
-            <span v-if="loadingStats">Loading...</span>
-            <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats">
-              <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
-              <i class="fa-solid fa-code-compare" v-else></i>
-              {{ stats }}
-            </span>
-
-            <span v-if="last_modification" class="text-xs opacity-75">
-              {{ moment(last_modification).fromNow() }}
-            </span>
-            <span v-if="size">
-              {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
-            </span>
-          </span>
-
-          <div class="font-mono text-xs truncate trl" v-if="!finished">
-            {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
-          </div>
-
-          <span
-            v-if="hasLocalChanges"
-            class="badge badge-warning badge-xs gap-1"
-            title="You have unsaved local edits"
-          >
-            <i class="fa-solid fa-pen-nib"></i> edited
-          </span>
-        </div>
-
-        <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
-          <div
-            class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
-            :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
-          >
+          <div class="flex gap-2" v-if="finished">
             <div
-              class="bg-error transition-all duration-500"
-              :style="{ width: deletionPercentage + '%' }"
-              :title="`Deletions: ${deletionCount} lines`"
-            ></div>
+              class="hover:text-info cursor-pointer"
+              :class="editMode && 'text-warning'"
+              @click.stop="onEdit"
+              title="Edit code"
+            >
+              <i class="fa-solid fa-edit"></i>
+            </div>
+
             <div
-              class="bg-success transition-all duration-500"
-              :style="{ width: additionPercentage + '%' }"
-              :title="`Additions: ${additionCount} lines`"
-            ></div>
+              class="hover:text-info cursor-pointer"
+              :class="associatedChat && 'text-success'"
+              @click.stop="onTaskClick"
+              :title="associatedChat ? 'Open associated chat' : 'Create sub-task'"
+            >
+              <i :class="associatedChat ? 'fa-solid fa-comments' : 'fa-brands fa-trello'"></i>
+            </div>
+
+            <div class="hover:text-info cursor-pointer" @click.stop="loadDiffInfo" title="Refresh diff stats">
+              <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
+            </div>
+
+            <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
+              <span v-if="loadingStats">Loading...</span>
+              <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats">
+                <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
+                <i class="fa-solid fa-code-compare" v-else></i>
+                {{ stats }}
+              </span>
+
+              <span v-if="last_modification" class="text-xs opacity-75">
+                {{ moment(last_modification).fromNow() }}
+              </span>
+              <span v-if="size">
+                {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
+              </span>
+            </span>
+
+            <div class="font-mono text-xs truncate trl" v-if="!finished">
+              {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
+            </div>
+
+            <span
+              v-if="hasLocalChanges"
+              class="badge badge-warning badge-xs gap-1"
+              title="You have unsaved local edits"
+            >
+              <i class="fa-solid fa-pen-nib"></i> edited
+            </span>
           </div>
-          <span class="text-xs font-medium text-base-content/60 w-20 text-right">
-            {{ deletionCount }} / {{ additionCount }}
-          </span>
-          <div v-if="isDangerousChange" class="tooltip tooltip-left" data-tip="Heavy modification detected! Review carefully.">
-            <i class="fa-solid fa-triangle-exclamation text-error animate-pulse"></i>
+
+          <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
+            <div
+              class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
+              :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
+            >
+              <div
+                class="bg-error transition-all duration-500"
+                :style="{ width: deletionPercentage + '%' }"
+                :title="`Deletions: ${deletionCount} lines`"
+              ></div>
+              <div
+                class="bg-success transition-all duration-500"
+                :style="{ width: additionPercentage + '%' }"
+                :title="`Additions: ${additionCount} lines`"
+              ></div>
+            </div>
+            <span class="text-xs font-medium text-base-content/60 w-20 text-right">
+              {{ deletionCount }} / {{ additionCount }}
+            </span>
+            <div v-if="isDangerousChange" class="tooltip tooltip-left" data-tip="Heavy modification detected! Review carefully.">
+              <i class="fa-solid fa-triangle-exclamation text-error animate-pulse"></i>
+            </div>
           </div>
         </div>
       </div>
@@ -266,6 +270,11 @@ export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
+    // CHANGED: default showCode to true so streaming content is visible immediately
+    // If showCodeOpened is explicitly set, honour it; otherwise default open
+    const showCode = this.$props.showCodeOpened !== undefined
+      ? this.$props.showCodeOpened
+      : true
     return {
       showDiff: this.diffOption,
       orgContent: null,
@@ -279,7 +288,7 @@ export default {
       stats: null,
       last_modification: null,
       size: null,
-      showCode: this.$props.showCodeOpened,
+      showCode,
       prevScrollTop: 0,
       isAtBottom: true,
       isSaving: false,
@@ -298,7 +307,8 @@ export default {
       patchPattern: null,
       highlighterKey: 0,
       codeUpdateCounter: 0,
-      codeHash: 0
+      codeHash: 0,
+      lastCodeValue: null
     }
   },
   computed: {
@@ -362,7 +372,6 @@ export default {
     },
 
     $api() {
-      // Priority: project.$api > chat.project_id.$api > activeProject.$api
       if (this.project?.$api) {
         return this.project.$api
       }
@@ -407,12 +416,28 @@ export default {
         this.saveToFile()
       }
     },
-    code() {
+    // CHANGED: Increment highlighterKey on every code change so VueCodeHighlighter
+    // re-renders the updated content during streaming (same component instance,
+    // stable key means watcher fires instead of remount)
+    code(newCode, oldCode) {
+      if (newCode === oldCode) return
+      
+      if (this.editMode) {
+        this.changesetErrors = []
+        this.detectPatchPattern()
+        return
+      }
+      
+      // Reset local overrides so streamed content shows through
+      this.localCode = null
+      
       this.changesetErrors = []
       this.detectPatchPattern()
       this.codeUpdateCounter++
-      this.codeHash = this.generateCodeHash(this.code)
+      this.codeHash = this.generateCodeHash(newCode)
+      // CHANGED: always bump highlighterKey so VueCodeHighlighter gets fresh render
       this.highlighterKey++
+      
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
         if (!viewCode) return
@@ -422,16 +447,6 @@ export default {
           viewCode.scrollTop = this.prevScrollTop
         }
       })
-    },
-    fromBranch() {
-      if (this.showCode) {
-        this.loadDiffInfo()
-      }
-    },
-    toBranch() {
-      if (this.showCode) {
-        this.loadDiffInfo()
-      }
     }
   },
   mounted() {
@@ -443,6 +458,7 @@ export default {
     }
     this.detectPatchPattern()
     this.codeHash = this.generateCodeHash(this.code)
+    this.lastCodeValue = this.code
     const viewCode = this.$el?.querySelector('.view-code')
     if (viewCode) viewCode.addEventListener('scroll', this.saveScrollPosition)
   },
@@ -678,7 +694,6 @@ export default {
     async loadDiffInfo() {
       try {
         this.loadingStats = true
-        // Ensure code section is opened when loading diff
         this.showCode = true
         
         if (this.file) {
@@ -717,7 +732,6 @@ export default {
           this.diffBaseContent = this.effectiveCode
           this.calculateDiffPercentages()
 
-          // Switch to diff view if file has changes
           if (!this.isNewFile && this.stats && !this.isNoChange) {
             this.showDiff = true
           }

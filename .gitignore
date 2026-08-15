@@ -35,3 +35,4 @@ codx-junior-installer/vllm/.cache
 .codx/tasks/kanban.json
 .codx/logs
 ciso/scripts/vuln-reports
+ciso/scripts/security-scripts/scanwatch_*

@@ -10,12 +10,21 @@
           <i class="fa-solid fa-robot text-lg"></i>
         </div>
       </div>
-      <div>
-        <div class="font-bold text-base">{{ provider.name || 'New Provider' }}</div>
-        <div class="text-xs text-base-content/50">{{ provider.provider || 'protocol not set' }}</div>
+      <div class="flex flex-col min-w-0 flex-grow mr-3">
+        <div class="font-bold text-base truncate">{{ provider.name || 'New Provider' }}</div>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          <!-- Type / Protocol -->
+          <span class="badge badge-ghost badge-sm font-mono uppercase py-2 px-3">{{ provider.provider || 'N/A' }}</span>
+          
+          <!-- URL with ellipsis for space efficiency -->
+          <span class="text-xs text-base-content/60 truncate max-w-[15rem]" :title="provider.api_url">
+            {{ shortUrl }}
+          </span>
+        </div>
       </div>
-      <div class="ml-auto">
-        <span :class="isValid ? 'badge badge-success' : 'badge badge-warning'" class="text-xs">
+      
+      <div class="shrink-0 ml-auto self-center">
+        <span :class="isValid ? 'badge badge-success' : 'badge badge-warning'" class="text-xs gap-1 px-3 py-2">
           <i :class="isValid ? 'fa-solid fa-circle-check' : 'fa-solid fa-triangle-exclamation'" class="mr-1"></i>
           {{ isValid ? 'Ready' : 'Incomplete' }}
         </span>
@@ -99,7 +108,7 @@
               v-model="provider.api_key"
               placeholder="sk-..."
             />
-            <button class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-base-content-ERROR-40 hover:text-base-content" @click="showKey = !showKey">
+            <button class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-base-content hover:text-base-content" @click="showKey = !showKey">
               <i :class="showKey ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
             </button>
           </div>
@@ -209,7 +218,7 @@
                 class="hover"
                 :class="hasNullPrices(entry) ? 'bg-warning/10' : ''"
               >
-                <td class="text-xs text-base-content-ERROR-40">{{ idx + 1 }}</td>
+                <td class="text-xs text-base-content">{{ idx + 1 }}</td>
                 <td class="font-mono text-xs">{{ entry.model_name }}</td>
                 <td class="text-xs" :class="entry.input_price_per_1k_tokens == null ? 'text-warning' : 'text-green-500'">
                   <span v-if="entry.input_price_per_1k_tokens != null">${{ entry.input_price_per_1k_tokens }}</span>
@@ -238,7 +247,7 @@
         </div>
       </div>
 
-      <div v-else class="text-center text-base-content-ERROR-40 text-xs py-6">
+      <div v-else class="text-center text-base-content text-xs py-6">
         <i class="fa-solid fa-table-list text-2xl mb-2 block"></i>
         No price entries yet. Paste JSON above and click Apply.
       </div>
@@ -277,6 +286,18 @@ export default {
     // Count entries with any null price field
     nullWarningCount() {
       return this.parsedPriceList.filter(e => this.hasNullPrices(e)).length
+    },
+    // Display URL in header with ellipsis if too long
+    shortUrl() {
+      const url = this.provider.api_url || ''
+      if (!url) return 'No URL set'
+      const maxLen = 40
+      if (url.length <= maxLen) return url
+      // Truncate by replacing middle part to show domain and end path
+      if (url.length > maxLen + 5) {
+        return url.substring(0, 20) + '...' + url.substring(url.length - 15)
+      }
+      return url.substring(0, maxLen) + '...'
     }
   },
   watch: {

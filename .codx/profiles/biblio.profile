@@ -1,7 +1,7 @@
 {
   "name": "biblio",
   "url": "",
-  "avatar": "https://cdn-icons-png.flaticon.com/512/3940/3940410.png",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=biblio",
   "description": "Assists generating documentation",
   "category": "assistant",
   "file_match": "",

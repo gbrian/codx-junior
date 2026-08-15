@@ -41,12 +41,16 @@ import Selector from './Selector.vue'
 export default {
   props: {
     selectedModel: String,
-    models: {
-      type: Array,
-      default: () => []
-    }
   },
   emits: ['model-changed'],
+  data() {
+    return {
+      models: []
+    }
+  },
+  async created() {
+    this.models = await this.$storex.api.projects.ai.models.list()
+  },
   computed: {
     formattedModels() {
       return (this.models || []).map(model => ({

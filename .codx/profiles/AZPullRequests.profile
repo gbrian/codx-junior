@@ -1,1 +1,51 @@
-{"name": "AZPullRequests", "url": "", "avatar": "https://cdn-icons-png.flaticon.com/512/12514/12514438.png", "description": "Manage AZ Pull requests", "category": "", "file_match": "", "content": null, "path": "", "content_path": "", "profiles": [], "llm_model": "", "use_knowledge": true, "user": {"username": "", "email": "", "avatar": "", "theme": "dim", "projects": [], "role": "user", "token": "", "disabled": false, "github": "", "apps": [], "api_key": ""}, "tools": [], "tags": [], "api_settings": {"active": false, "model_name": null, "description": null}, "chat_mode": null, "project_id": null, "chat_id": ""}
+{
+  "name": "AZPullRequests",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=AZPullRequests",
+  "description": "Manage AZ Pull requests",
+  "category": "",
+  "file_match": "",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/AZPullRequests.profile",
+  "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/AZPullRequests.profile.md",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "6458cb27-df8f-401b-a806-340d3d24b757",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-08-14T06:03:50.373847",
+      "updated_at": "2026-08-14T06:03:50.373858",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": ""
+}

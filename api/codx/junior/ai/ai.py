@@ -61,7 +61,7 @@ class AI:
         self.llm: Callable = self.create_chat_model(llm_model=llm_model)
         self.a_llm: Callable = self.create_a_chat_model(llm_model=llm_model)
         # Underlying embeddings client/model (created lazily-safe in constructor)
-        self.embeddings_model: Any = self.create_embeddings_model()
+        self.embeddings_model: Any = None
 
     @profile_function
     def image(self, prompt: str) -> str:
@@ -449,10 +449,7 @@ class AI:
         :return: A single vector, or a list of vectors, depending on input.
         """
         if self.embeddings_model is None:
-            raise RuntimeError(
-                "Embeddings model is not configured. Check embeddings_model "
-                "in project/global settings."
-            )
+            self.embeddings_model: Any = self.create_embeddings_model()
 
         # Batch input → embed_documents
         if isinstance(content, list):

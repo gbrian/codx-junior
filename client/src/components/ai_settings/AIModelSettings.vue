@@ -126,6 +126,38 @@ import Editor from '../monaco/Editor.vue'
             </label>
             <input class="input input-bordered input-sm font-mono text-xs" v-model="model.url" placeholder="https://..." />
           </div>
+
+          <!-- Tags (CSV) -->
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs"><i class="fa-solid fa-tags mr-1 text-accent"></i> Tags (comma-separated)</span>
+            </label>
+            <input
+              class="input input-bordered input-sm font-mono text-xs"
+              v-model="tagsInput"
+              placeholder="e.g. fast, accurate, production"
+              @blur="normalizeTags"
+            />
+            <label class="label py-0.5">
+              <span class="label-text-alt text-xs text-base-content/50">Separate tags with commas. Whitespace is trimmed automatically.</span>
+            </label>
+            <div v-if="parsedTags.length" class="flex flex-wrap gap-2 mt-2">
+              <span
+                v-for="(tag, idx) in parsedTags"
+                :key="idx"
+                class="badge badge-sm badge-outline badge-accent flex items-center gap-1"
+              >
+                {{ tag }}
+                <button
+                  type="button"
+                  @click="removeTag(idx)"
+                  class="text-xs hover:text-error cursor-pointer"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </span>
+            </div>
+          </div>
         </div>
 
         <!-- Billing -->
@@ -286,7 +318,7 @@ import Editor from '../monaco/Editor.vue'
         <i class="fa-solid fa-trash-can mr-1"></i> Delete
       </button>
       <div class="flex gap-2">
-        <button class="btn btn-primary btn-sm" @click="$emit('save', model)">
+        <button class="btn btn-primary btn-sm" @click="onSave">
           <i class="fa-solid fa-floppy-disk mr-1"></i> Save
         </button>
         <button class="btn btn-ghost btn-sm" @click="$emit('cancel')">
@@ -306,7 +338,8 @@ export default {
       testChat: null,
       testChatError: null,
       selectedIdentityEntry: null,
-      manualOverride: false
+      manualOverride: false,
+      tagsInput: ''
     }
   },
   computed: {
@@ -317,6 +350,12 @@ export default {
       if (!this.model?.ai_provider || !this.aiProviders?.length) return []
       const provider = this.aiProviders.find(p => p.name === this.model.ai_provider)
       return provider?.price_list || []
+    },
+    parsedTags() {
+      return this.tagsInput
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0)
     }
   },
   watch: {
@@ -340,8 +379,13 @@ export default {
   mounted() {
     this.syncSelectedIdentity()
     this.initializeModelFile()
+    this.initializeTags()
   },
   methods: {
+    onSave() {
+      this.normalizeTags()
+      this.$emit('save', { ...this.model })
+    },
     async newChat() {
       if (!this.currentModelIsLLM) return
       this.tabIx = 2
@@ -391,6 +435,21 @@ export default {
       if (!this.model.model_file) {
         this.model.model_file = this.getDefaultModelfile()
       }
+    },
+    initializeTags() {
+      if (this.model.tags && Array.isArray(this.model.tags)) {
+        this.tagsInput = this.model.tags.join(', ')
+      } else {
+        this.tagsInput = ''
+      }
+    },
+    normalizeTags() {
+      this.model.tags = this.parsedTags
+    },
+    removeTag(index) {
+      const tags = this.parsedTags
+      tags.splice(index, 1)
+      this.tagsInput = tags.join(', ')
     },
     getDefaultModelfile() {
       return `# Modelfile for ${this.model.name || 'AI Model'}

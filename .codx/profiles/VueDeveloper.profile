@@ -1,7 +1,7 @@
 {
   "name": "VueDeveloper",
   "url": "",
-  "avatar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGgyp0cGPFS4V3HEtHeE2hO0udk6QbTA5Kcg&s",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=vuedeveloper",
   "description": "Vuejs developer assistant",
   "category": "assistant",
   "file_match": "\\.vue$",
@@ -10,7 +10,7 @@
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/VueDeveloper.profile",
   "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/VueDeveloper.profile.md",
   "profiles": [
-    "py_senior"
+    "software_developer"
   ],
   "llm_model": "",
   "use_knowledge": true,

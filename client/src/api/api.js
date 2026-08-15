@@ -1,6 +1,7 @@
 import { CodxJuniorConnection } from './connection'
 import { SocketManager } from './socket'
 import { filesModule } from './modules/files'
+import { globalSettingsModule } from './modules/globalSettings'
 
 /**
  * In-flight request deduplication map.
@@ -381,30 +382,12 @@ const initializeAPI = ({ project, user } = {}) => {
         await API.put('/api/settings?', settings || { ...API.activeProject, $api: null, $state: null })
         return API.settings.read()
       },
-      global: {
-        async read() {
-          const data = await API.get('/api/global/settings')
-          API.globalSettings = data
-          return data
-        },
-        async write(settings) {
-          await API.post('/api/global/settings', settings)
-          return API.settings.global.read()
-        },
-        plugins: {
-          async list() {
-            return await API.get('/api/plugins')
-          },
-          async add(plugin) {
-            return await API.post('/api/plugins', plugin)
-          },
-          async remove(pluginName) {
-            return await API.delete(`/api/plugins/${pluginName}`)
-          },
-          async loadFromFile(fileName) {
-            return await API.get(`/api/plugins/load_from_file?file_path=${encodeURIComponent(fileName)}`)
-          }
+      get global() {
+        // Lazy initialization: globalSettingsModule is loaded only when accessed
+        if (!API._globalSettingsModule) {
+          API._globalSettingsModule = globalSettingsModule(API)
         }
+        return API._globalSettingsModule
       }
     },
     knowledge: {

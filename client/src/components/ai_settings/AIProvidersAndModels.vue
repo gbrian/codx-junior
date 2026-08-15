@@ -17,18 +17,45 @@ import AIModelSettings from './AIModelSettings.vue'
           class="input input-sm input-bordered w-full pl-8 bg-base-100"
         />
       </div>
+      <div class="flex gap-2 ml-auto">
+        <button
+          class="btn btn-sm btn-ghost gap-1"
+          :class="loading && 'loading'"
+          :disabled="loading || saving"
+          @click="reloadSettings"
+          title="Reload from server"
+        >
+          <i class="fa-solid fa-arrows-rotate"></i> Reload
+        </button>
+        <button
+          class="btn btn-sm btn-ghost gap-1"
+          :disabled="loading || saving"
+          @click="showHistoryDialog = true"
+          title="View version history"
+        >
+          <i class="fa-solid fa-history"></i> History
+        </button>
+        <button
+          class="btn btn-sm btn-primary gap-1"
+          :class="saving && 'loading'"
+          :disabled="loading || saving"
+          @click="saveSettings"
+        >
+          <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+      </div>
     </div>
 
     <!-- Providers and Models list -->
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-6">
       <div
         v-for="provider in filteredProviders"
         :key="provider.name"
-        class="border border-base-300 rounded-xl bg-base-100 overflow-hidden"
+        class="space-y-3"
       >
         <!-- Provider header -->
         <div
-          class="flex items-center justify-between p-4 bg-base-200 hover:bg-base-300 cursor-pointer transition-colors"
+          class="flex items-center justify-between px-4 py-3 bg-base-200 hover:bg-base-300 cursor-pointer transition-colors rounded-xl"
           @click="toggleProvider(provider)"
         >
           <div class="flex items-center gap-3">
@@ -42,7 +69,12 @@ import AIModelSettings from './AIModelSettings.vue'
               </div>
               <div>
                 <div class="font-semibold text-primary">{{ provider.name }}</div>
-                <div class="badge badge-ghost badge-xs font-mono mt-0.5">{{ provider.provider }}</div>
+                <div class="flex flex-col gap-1">
+                  <div class="badge badge-ghost badge-xs font-mono">{{ provider.provider }}</div>
+                  <div class="text-xs text-base-content/50 font-mono line-clamp-1">
+                    {{ provider.api_url }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -68,176 +100,192 @@ import AIModelSettings from './AIModelSettings.vue'
           </div>
         </div>
 
-        <!-- Provider models (expanded) -->
-        <div v-if="expandedProviders.includes(provider.name)" class="border-t border-base-300">
-          <!-- Models table for this provider -->
-          <div class="overflow-x-auto">
-            <table class="table table-sm w-full">
-              <thead class="bg-base-200">
-                <tr>
-                  <th
-                    v-for="col in columns"
-                    :key="col.key"
-                    class="cursor-pointer hover:bg-base-300 transition-colors select-none"
-                    :class="col.align === 'right' ? 'text-right' : ''"
-                    @click="toggleSort(col.key)"
-                  >
-                    <div class="flex items-center gap-1" :class="col.align === 'right' ? 'justify-end' : ''">
-                      <span>{{ col.label }}</span>
-                      <span class="w-3 text-primary">
-                        <i v-if="sortKey === col.key" :class="sortAsc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down'"></i>
-                        <i v-else class="fa-solid fa-sort text-base-content/20"></i>
-                      </span>
+        <!-- Provider models grid (expanded) -->
+        <div v-if="expandedProviders.includes(provider.name)">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Model Tile -->
+            <div
+              v-for="model in sortedFilteredModelsForProvider(provider)"
+              :key="model.name"
+              class="card bg-base-100 border border-base-300 hover:border-primary/50 transition-all hover:shadow-xl hover:bg-base-50 group"
+            >
+              <div class="card-body gap-4 p-5">
+                <!-- Header Row: Icon + Name + Type -->
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-start gap-3 min-w-0 flex-1">
+                    <div :class="model.model_type === 'llm' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'"
+                         class="rounded-lg w-12 h-12 flex items-center justify-center text-2xl shrink-0">
+                      <i :class="model.model_type === 'llm' ? 'fa-solid fa-brain' : 'fa-solid fa-file'"></i>
                     </div>
-                  </th>
-                  <th class="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="filteredModelsForProvider(provider).length === 0">
-                  <td :colspan="columns.length + 1" class="text-center py-4 text-base-content/40">
-                    No models found
-                  </td>
-                </tr>
-                <template v-for="model in filteredModelsForProvider(provider)" :key="model.name">
-                  <tr
-                    class="hover:bg-base-200 cursor-pointer transition-colors"
-                    @click="editModel(model)"
-                  >
-                    <!-- Name -->
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <div :class="model.model_type === 'llm' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'"
-                             class="rounded-full w-7 h-7 flex items-center justify-center text-xs shrink-0">
-                          <i :class="model.model_type === 'llm' ? 'fa-solid fa-brain' : 'fa-solid fa-file'"></i>
-                        </div>
-                        <div>
-                          <div class="font-semibold text-primary text-sm">{{ model.name }}</div>
-                          <div class="text-xs text-base-content/40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <!-- Type -->
-                    <td>
-                      <span :class="model.model_type === 'llm' ? 'badge-warning' : 'badge-info'" class="badge badge-xs">
-                        {{ model.model_type === 'llm' ? 'LLM' : 'Embeddings' }}
-                      </span>
-                    </td>
-                    <!-- Provider -->
-                    <td class="text-sm text-base-content/70">{{ model.ai_provider || '-' }}</td>
-                    <!-- Temperature / Vector -->
-                    <td class="text-sm text-center">
-                      <span v-if="model.model_type === 'llm'">{{ model.settings?.temperature ?? '-' }}</span>
-                      <span v-else class="text-xs text-base-content/60">{{ model.settings?.vector_size || '-' }}</span>
-                    </td>
-                    <!-- Context / Chunk -->
-                    <td class="text-sm text-center">
-                      <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
-                      <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
-                    </td>
-                    <!-- Model File -->
-                    <td class="text-center">
-                      <i v-if="model.model_file" class="fa-solid fa-file-code text-secondary text-sm" title="Custom model file"></i>
-                      <span v-else class="text-base-content/30 text-xs">-</span>
-                    </td>
-                    <!-- Cost -->
-                    <td class="text-right">
-                      <div class="flex flex-col items-end gap-0.5 text-xs">
-                        <template v-if="model.input_k_tokens_cxjcoins != null || model.output_k_tokens_cxjcoins != null">
-                          <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">
-                            ↓ {{ model.input_k_tokens_cxjcoins }}
-                          </span>
-                          <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">
-                            ↑ {{ model.output_k_tokens_cxjcoins }}
-                          </span>
-                        </template>
-                        <span v-else-if="model.k_tokens_cxjcoins != null" class="text-yellow-500">
-                          {{ model.k_tokens_cxjcoins }} /1K
-                        </span>
-                        <template v-else-if="getProviderPrice(model)">
-                          <span class="text-green-400 opacity-80">
-                            ↓ ${{ getProviderPrice(model).input_price_per_1k_tokens }}
-                          </span>
-                          <span class="text-blue-400 opacity-80">
-                            ↑ ${{ getProviderPrice(model).output_price_per_1k_tokens }}
-                          </span>
-                          <span class="text-base-content/30 text-[10px] flex items-center gap-0.5">
-                            <i class="fa-solid fa-list-ul"></i> provider
-                          </span>
-                        </template>
-                        <span v-else class="text-base-content/30">-</span>
-                      </div>
-                    </td>
-                    <!-- Actions -->
-                    <td @click.stop>
-                      <div class="flex justify-end gap-1">
-                        <button class="btn btn-xs btn-circle btn-ghost text-info" @click.stop="showModelInfo = model">
-                          <i class="fa-solid fa-circle-info"></i>
-                        </button>
-                        <button class="btn btn-xs btn-circle btn-ghost" @click.stop="editModel(model)">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        <!-- Test chat button — only for LLM models -->
-                        <button
-                          v-if="model.model_type === 'llm'"
-                          class="btn btn-xs btn-circle btn-ghost text-success"
-                          :class="quickTestModel?.name === model.name && 'text-warning'"
-                          @click.stop="toggleQuickTestChat(model)"
-                          title="Test chat"
-                        >
-                          <i class="fa-solid fa-comment-dots"></i>
-                        </button>
-                        <button
-                          class="btn btn-xs btn-circle btn-ghost text-secondary"
-                          :class="model.loading && 'animate-pulse text-warning'"
-                          @click.stop="reloadModel(model)"
-                        >
-                          <i class="fa-solid fa-arrows-rotate"></i>
-                        </button>
-                        <button class="btn btn-xs btn-circle btn-ghost text-error" @click.stop="confirmDeleteModel(model)">
-                          <i class="fa-solid fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <!-- Inline quick test chat row -->
-                  <tr v-if="quickTestModel?.name === model.name && quickTestChat" @click.stop>
-                    <td :colspan="columns.length + 1" class="p-0">
-                      <div class="bg-base-200 border-t border-base-300 flex flex-col" style="height: 420px">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-base-300 text-xs text-base-content/60">
-                          <i class="fa-solid fa-comment-dots text-success"></i>
-                          <span class="font-semibold">Testing: <span class="text-primary">{{ model.name }}</span></span>
-                          <button class="btn btn-xs btn-ghost ml-auto text-error" @click.stop="closeQuickTestChat">
-                            <i class="fa-solid fa-xmark"></i> Close
-                          </button>
-                        </div>
-                        <div class="grow min-h-0 p-2">
-                          <Chat :chat="quickTestChat"/>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </template>
+                    <div class="min-w-0 flex-1">
+                      <h3 class="font-bold text-lg leading-tight text-primary line-clamp-2">{{ model.name }}</h3>
+                      <p v-if="model.ai_model && model.name !== model.ai_model" class="text-sm text-base-content/60 mt-1 font-mono line-clamp-1">
+                        {{ model.ai_model }}
+                      </p>
+                    </div>
+                  </div>
+                  <span :class="model.model_type === 'llm' ? 'badge-warning' : 'badge-info'" class="badge badge-lg">
+                    {{ model.model_type === 'llm' ? 'LLM' : 'Embeddings' }}
+                  </span>
+                </div>
 
-                <!-- Add new model row -->
-                <tr class="hover:bg-base-200 cursor-pointer transition-colors" @click="addModelForProvider(provider)">
-                  <td colspan="7" class="py-3 text-center">
-                    <div class="flex items-center justify-center gap-2 text-primary/70 hover:text-primary">
-                      <i class="fa-solid fa-plus"></i>
-                      Add new model for {{ provider.name }}
+                <!-- Tags (if present) -->
+                <div v-if="model.tags && model.tags.length" class="flex flex-wrap gap-2">
+                  <span
+                    v-for="(tag, idx) in model.tags"
+                    :key="idx"
+                    class="badge badge-sm badge-ghost text-xs"
+                  >
+                    <i class="fa-solid fa-tag mr-1"></i>
+                    {{ tag }}
+                  </span>
+                </div>
+
+                <!-- Details Grid -->
+                <div class="grid grid-cols-2 gap-3 bg-base-200/50 rounded-xl p-3">
+                  <!-- Temperature / Vector Size -->
+                  <div>
+                    <div class="text-xs text-base-content/60 mb-1">{{ model.model_type === 'llm' ? 'Temperature' : 'Vector Size' }}</div>
+                    <div class="font-semibold text-lg text-base-content">{{ model.model_type === 'llm' ? model.settings?.temperature ?? '-' : model.settings?.vector_size || '-' }}</div>
+                  </div>
+
+                  <!-- Context / Chunk Size -->
+                  <div>
+                    <div class="text-xs text-base-content/60 mb-1">{{ model.model_type === 'llm' ? 'Context' : 'Chunk Size' }}</div>
+                    <div class="font-semibold text-lg text-base-content">
+                      {{ model.model_type === 'llm' ? (model.settings?.context_length ? model.settings.context_length + ' KB' : '-') : model.settings?.chunk_size || '-' }}
                     </div>
-                  </td>
-                  <td class="text-right"></td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                </div>
+
+                <!-- Cost Section -->
+                <div class="bg-base-200/50 rounded-xl p-3">
+                  <div class="text-xs text-base-content/60 font-semibold mb-2">Pricing</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <template v-if="model.input_k_tokens_cxjcoins != null || model.output_k_tokens_cxjcoins != null">
+                      <div v-if="model.input_k_tokens_cxjcoins != null" class="space-y-1">
+                        <div class="text-xs text-base-content/60">Input</div>
+                        <div class="font-bold text-green-500 text-sm">↓ {{ model.input_k_tokens_cxjcoins }} cxj</div>
+                      </div>
+                      <div v-if="model.output_k_tokens_cxjcoins != null" class="space-y-1">
+                        <div class="text-xs text-base-content/60">Output</div>
+                        <div class="font-bold text-blue-500 text-sm">↑ {{ model.output_k_tokens_cxjcoins }} cxj</div>
+                      </div>
+                    </template>
+                    <template v-else-if="model.k_tokens_cxjcoins != null">
+                      <div class="col-span-2 text-center space-y-1">
+                        <div class="text-xs text-base-content/60">Per 1K Tokens</div>
+                        <div class="font-bold text-yellow-500 text-sm">{{ model.k_tokens_cxjcoins }} cxj</div>
+                      </div>
+                    </template>
+                    <template v-else-if="getProviderPrice(model)">
+                      <div class="space-y-1">
+                        <div class="text-xs text-base-content/60">Input</div>
+                        <div class="font-bold text-green-400 text-sm">↓ ${{ getProviderPrice(model).input_price_per_1k_tokens }}</div>
+                      </div>
+                      <div class="space-y-1">
+                        <div class="text-xs text-base-content/60">Output</div>
+                        <div class="font-bold text-blue-400 text-sm">↑ ${{ getProviderPrice(model).output_price_per_1k_tokens }}</div>
+                      </div>
+                      <div class="col-span-2 flex items-center justify-center gap-1 text-base-content/40 text-xs mt-1">
+                        <i class="fa-solid fa-list-ul"></i> provider default
+                      </div>
+                    </template>
+                    <div v-else class="col-span-2 text-center text-base-content/30 text-xs py-1">
+                      No pricing information
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Model File Indicator -->
+                <div v-if="model.model_file" class="flex items-center gap-2 px-3 py-2 bg-secondary/10 text-secondary rounded-lg text-sm">
+                  <i class="fa-solid fa-file-code"></i>
+                  Custom model file configured
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 pt-2 border-t border-base-300 justify-end opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                  <button
+                    class="btn btn-sm btn-ghost gap-2"
+                    @click.stop="showModelInfo = model"
+                    title="View detailed info"
+                  >
+                    <i class="fa-solid fa-circle-info"></i>
+                    Info
+                  </button>
+                  <button
+                    class="btn btn-sm btn-ghost gap-2"
+                    @click.stop="editModel(model)"
+                    title="Edit model"
+                  >
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    Edit
+                  </button>
+                  <button
+                    v-if="model.model_type === 'llm'"
+                    class="btn btn-sm btn-ghost gap-2 text-success"
+                    :class="quickTestModel?.name === model.name && 'text-warning'"
+                    @click.stop="toggleQuickTestChat(model)"
+                    title="Test in chat"
+                  >
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Test
+                  </button>
+                  <button
+                    class="btn btn-sm btn-ghost gap-2"
+                    :class="model.loading && 'animate-pulse text-warning'"
+                    @click.stop="reloadModel(model)"
+                    title="Reload from provider"
+                  >
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    Reload
+                  </button>
+                  <button
+                    class="btn btn-sm btn-ghost gap-2 text-error"
+                    @click.stop="confirmDeleteModel(model)"
+                    title="Delete model"
+                  >
+                    <i class="fa-solid fa-trash"></i>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Add new model tile -->
+            <div
+              class="card bg-base-100 border-2 border-dashed border-base-300 hover:border-primary/50 transition-colors hover:bg-base-200 cursor-pointer flex items-center justify-center"
+              style="min-height: 280px"
+              @click="addModelForProvider(provider)"
+            >
+              <div class="flex flex-col items-center justify-center text-primary/70 hover:text-primary gap-2">
+                <i class="fa-solid fa-plus text-3xl"></i>
+                <span class="font-semibold">Add New Model</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick test chat -->
+          <div v-if="quickTestModel?.ai_provider === provider.name && quickTestChat" class="card bg-base-200 border border-base-300 mt-6">
+            <div class="card-body p-4">
+              <div class="flex items-center gap-2 mb-4">
+                <i class="fa-solid fa-comment-dots text-success"></i>
+                <span class="font-semibold">Testing: <span class="text-primary">{{ quickTestModel.name }}</span></span>
+                <button class="btn btn-xs btn-ghost ml-auto text-error" @click="closeQuickTestChat">
+                  <i class="fa-solid fa-xmark"></i> Close
+                </button>
+              </div>
+              <div style="height: 420px" class="overflow-hidden">
+                <Chat :chat="quickTestChat"/>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Add new provider row -->
+      <!-- Add new provider -->
       <div
-        class="flex items-center justify-center gap-2 p-4 border border-dashed border-base-300 rounded-xl text-primary/70 hover:text-primary cursor-pointer transition-colors"
+        class="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-base-300 rounded-xl text-primary/70 hover:text-primary cursor-pointer transition-colors"
         @click="editProvider({})"
       >
         <i class="fa-solid fa-plus"></i>
@@ -245,7 +293,7 @@ import AIModelSettings from './AIModelSettings.vue'
       </div>
     </div>
 
-    <!-- Edit modal -->
+    <!-- Modals -->
     <modal class="w-2/3 h-5/6 overflow-auto" v-if="showDialog">
       <AIProviderSettings
         :model-value="currentProvider"
@@ -255,7 +303,6 @@ import AIModelSettings from './AIModelSettings.vue'
       />
     </modal>
 
-    <!-- Edit model modal -->
     <modal class="w-2/3 h-5/6 overflow-auto" v-if="showModelDialog">
       <AIModelSettings
         :aiProviders="aiProviders"
@@ -266,7 +313,6 @@ import AIModelSettings from './AIModelSettings.vue'
       />
     </modal>
 
-    <!-- Info modal -->
     <modal class="w-1/3 h-2/3" close="true" @close="showModelInfo = null" v-if="showModelInfo">
       <div class="flex items-center gap-2 mb-3">
         <i class="fa-solid fa-circle-info text-info"></i>
@@ -275,7 +321,6 @@ import AIModelSettings from './AIModelSettings.vue'
       <pre class="overflow-auto text-xs bg-base-300 p-3 rounded-lg">{{ showModelInfo.metadata?.info }}</pre>
     </modal>
 
-    <!-- Delete confirm modal -->
     <modal v-if="showDeleteDialog">
       <div class="flex flex-col gap-4">
         <div class="flex items-center gap-2 text-error">
@@ -283,6 +328,10 @@ import AIModelSettings from './AIModelSettings.vue'
           <span class="font-bold text-lg">Confirm Delete</span>
         </div>
         <p class="text-sm">Are you sure you want to delete <strong>{{ providerToDelete?.name }}</strong>?</p>
+        <p v-if="modelsCount > 0" class="text-sm text-warning">
+          <i class="fa-solid fa-info-circle mr-1"></i>
+          This will also delete <strong>{{ modelsCount }}</strong> associated model(s).
+        </p>
         <div class="flex justify-end gap-2">
           <button class="btn btn-ghost btn-sm" @click="showDeleteDialog = false">Cancel</button>
           <button class="btn btn-error btn-sm" @click="deleteProvider">
@@ -292,7 +341,6 @@ import AIModelSettings from './AIModelSettings.vue'
       </div>
     </modal>
 
-    <!-- Delete model confirm modal -->
     <modal v-if="showDeleteModelDialog">
       <div class="flex flex-col gap-4">
         <div class="flex items-center gap-2 text-error">
@@ -309,7 +357,59 @@ import AIModelSettings from './AIModelSettings.vue'
       </div>
     </modal>
 
-    <!-- Iframe admin view -->
+    <modal class="w-2/3 h-4/5 overflow-auto" v-if="showHistoryDialog" close="true" @close="showHistoryDialog = false">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-history text-info"></i>
+          <h2 class="text-xl font-bold">Version History</h2>
+        </div>
+
+        <div class="divider my-2">Providers</div>
+        <div v-if="providersHistory.length === 0" class="text-base-content/50 text-sm">No history available</div>
+        <div v-else class="flex flex-col gap-2">
+          <div
+            v-for="version in providersHistory"
+            :key="version.timestamp"
+            class="flex items-center justify-between p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors"
+          >
+            <div>
+              <div class="font-semibold text-sm">{{ formatDate(version.timestamp) }}</div>
+              <div class="text-xs text-base-content/60">{{ version.timestamp }}</div>
+            </div>
+            <button
+              class="btn btn-xs btn-ghost"
+              @click="rollbackProviders(version.timestamp)"
+              :disabled="loadingHistory"
+            >
+              <i class="fa-solid fa-reply"></i> Rollback
+            </button>
+          </div>
+        </div>
+
+        <div class="divider my-2">Models</div>
+        <div v-if="modelsHistory.length === 0" class="text-base-content/50 text-sm">No history available</div>
+        <div v-else class="flex flex-col gap-2">
+          <div
+            v-for="version in modelsHistory"
+            :key="version.timestamp"
+            class="flex items-center justify-between p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors"
+          >
+            <div>
+              <div class="font-semibold text-sm">{{ formatDate(version.timestamp) }}</div>
+              <div class="text-xs text-base-content/60">{{ version.timestamp }}</div>
+            </div>
+            <button
+              class="btn btn-xs btn-ghost"
+              @click="rollbackModels(version.timestamp)"
+              :disabled="loadingHistory"
+            >
+              <i class="fa-solid fa-reply"></i> Rollback
+            </button>
+          </div>
+        </div>
+      </div>
+    </modal>
+
     <modal class="w-5/6 h-5/6" v-if="adminUrl" close="true" @close="adminUrl = null">
       <Iframe :url="adminUrl" />
     </modal>
@@ -325,6 +425,7 @@ export default {
       showModelDialog: false,
       showDeleteDialog: false,
       showDeleteModelDialog: false,
+      showHistoryDialog: false,
       currentProvider: {},
       providerToDelete: null,
       currentModel: null,
@@ -333,19 +434,13 @@ export default {
       adminUrl: null,
       globalFilterText: '',
       expandedProviders: [],
-      sortKey: 'name',
-      sortAsc: true,
       quickTestModel: null,
       quickTestChat: null,
-      columns: [
-        { key: 'name', label: 'Model' },
-        { key: 'model_type', label: 'Type' },
-        { key: 'ai_provider', label: 'Provider' },
-        { key: 'temperature', label: 'Temp / Vector', align: 'center' },
-        { key: 'context', label: 'Context / Chunk', align: 'center' },
-        { key: 'model_file', label: 'File', align: 'center' },
-        { key: 'cost', label: 'Cost (cxj)', align: 'right' }
-      ]
+      loading: false,
+      saving: false,
+      loadingHistory: false,
+      providersHistory: [],
+      modelsHistory: []
     }
   },
   computed: {
@@ -376,15 +471,100 @@ export default {
       return this.aiModels.filter(m => 
         m.name?.toLowerCase().includes(q) ||
         m.ai_model?.toLowerCase().includes(q) ||
-        m.ai_provider?.toLowerCase().includes(q)
+        m.ai_provider?.toLowerCase().includes(q) ||
+        (m.tags && m.tags.some(tag => tag.toLowerCase().includes(q)))
       )
+    },
+    modelsCount() {
+      if (!this.providerToDelete) return 0
+      return this.aiModels.filter(m => m.ai_provider === this.providerToDelete.name).length
     }
   },
-  mounted() {
-    // Expand all providers by default
-    this.expandedProviders = (this.aiProviders || []).map(p => p.name)
+  async mounted() {
+    await this.loadSettings()
   },
   methods: {
+    async loadSettings() {
+      this.loading = true
+      try {
+        const [providers, models] = await Promise.all([
+          this.$storex.api.settings.global.section('ai_providers'),
+          this.$storex.api.settings.global.section('ai_models')
+        ])
+        this.settings.ai_providers = providers || []
+        this.settings.ai_models = models || []
+        this.expandedProviders = (this.aiProviders || []).map(p => p.name)
+      } catch (err) {
+        console.error('Failed to load settings:', err)
+        this.$toast.error('Failed to load settings')
+      } finally {
+        this.loading = false
+      }
+    },
+    async saveSettings() {
+      this.saving = true
+      try {
+        await Promise.all([
+          this.$storex.api.settings.global.saveSection('ai_providers', this.aiProviders),
+          this.$storex.api.settings.global.saveSection('ai_models', this.aiModels)
+        ])
+        this.$toast.success('Settings saved successfully')
+      } catch (err) {
+        console.error('Failed to save settings:', err)
+        this.$toast.error('Failed to save settings')
+      } finally {
+        this.saving = false
+      }
+    },
+    async reloadSettings() {
+      await this.loadSettings()
+      this.$toast.success('Settings reloaded')
+    },
+    async loadHistory() {
+      this.loadingHistory = true
+      try {
+        const [providersHist, modelsHist] = await Promise.all([
+          this.$storex.api.settings.global.history('ai_providers'),
+          this.$storex.api.settings.global.history('ai_models')
+        ])
+        this.providersHistory = providersHist || []
+        this.modelsHistory = modelsHist || []
+      } catch (err) {
+        console.error('Failed to load history:', err)
+        this.$toast.error('Failed to load history')
+      } finally {
+        this.loadingHistory = false
+      }
+    },
+    async rollbackProviders(timestamp) {
+      try {
+        await this.$storex.api.settings.global.rollback('ai_providers', timestamp)
+        await this.loadSettings()
+        this.$toast.success('Providers rolled back successfully')
+        this.showHistoryDialog = false
+      } catch (err) {
+        console.error('Failed to rollback providers:', err)
+        this.$toast.error('Failed to rollback')
+      }
+    },
+    async rollbackModels(timestamp) {
+      try {
+        await this.$storex.api.settings.global.rollback('ai_models', timestamp)
+        await this.loadSettings()
+        this.$toast.success('Models rolled back successfully')
+        this.showHistoryDialog = false
+      } catch (err) {
+        console.error('Failed to rollback models:', err)
+        this.$toast.error('Failed to rollback')
+      }
+    },
+    formatDate(timestamp) {
+      try {
+        return new Date(timestamp).toLocaleString()
+      } catch {
+        return timestamp
+      }
+    },
     toggleProvider(provider) {
       const index = this.expandedProviders.indexOf(provider.name)
       if (index === -1) {
@@ -396,15 +576,10 @@ export default {
     filteredModelsForProvider(provider) {
       return this.filteredModels.filter(m => m.ai_provider === provider.name)
     },
-    // Mask API key: show first 6 and last 5 chars, hide middle with dots
-    maskApiKey(key) {
-      if (!key || key.length < 11) return key.slice(0, 6) + '•'.repeat(Math.max(0, key.length - 6))
-      const first = key.slice(0, 6)
-      const last = key.slice(-5)
-      const hiddenLength = key.length - 11
-      return `${first}${'•'.repeat(4)}${last}`
+    sortedFilteredModelsForProvider(provider) {
+      const models = this.filteredModelsForProvider(provider)
+      return models.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     },
-    // Count how many models are assigned to a given provider name
     getModelCount(provider) {
       const models = this.aiModels.filter(m => m.ai_provider === provider.name).length
       const modelList = (provider.price_list || []).length
@@ -415,14 +590,6 @@ export default {
       if (!provider?.price_list?.length) return null
       const lookupName = model.ai_model || model.name
       return provider.price_list.find(entry => entry.model_name === lookupName) || null
-    },
-    toggleSort(key) {
-      if (this.sortKey === key) {
-        this.sortAsc = !this.sortAsc
-      } else {
-        this.sortKey = key
-        this.sortAsc = true
-      }
     },
     editProvider(provider) {
       this.currentProvider = { ...provider }
@@ -442,35 +609,62 @@ export default {
       this.showDeleteDialog = true
     },
     deleteProvider() {
-      const idx = this.aiProviders.findIndex(p => p.name === this.providerToDelete.name)
+      const providerName = this.providerToDelete.name
+      const idx = this.aiProviders.findIndex(p => p.name === providerName)
       if (idx !== -1) {
         this.aiProviders.splice(idx, 1)
       }
+      const modelsToDelete = this.aiModels.filter(m => m.ai_provider === providerName)
+      modelsToDelete.forEach(model => {
+        const modelIdx = this.aiModels.indexOf(model)
+        if (modelIdx !== -1) {
+          this.aiModels.splice(modelIdx, 1)
+        }
+      })
       this.showDeleteDialog = false
-      // Remove the provider from expandedProviders if needed
-      const index = this.expandedProviders.indexOf(this.providerToDelete.name)
-      if (index !== -1) {
-        this.expandedProviders.splice(index, 1)
+      const expandIdx = this.expandedProviders.indexOf(providerName)
+      if (expandIdx !== -1) {
+        this.expandedProviders.splice(expandIdx, 1)
       }
     },
     addModelForProvider(provider) {
       const model = {
+        name: '',
         ai_provider: provider.name,
-        settings: {},
+        ai_model: '',
+        model_type: 'llm',
+        tags: [],
+        settings: {
+          temperature: 0.7,
+          context_length: 2048,
+          merge_messages: false,
+          vector_size: 1536,
+          chunk_size: 8190
+        },
+        system: '',
+        prompt_template: '',
+        model_file: null,
+        url: '',
         k_tokens_cxjcoins: null,
         input_k_tokens_cxjcoins: null,
-        output_k_tokens_cxjcoins: null,
-        model_file: null
+        output_k_tokens_cxjcoins: null
       }
       this.currentModel = model
       this.showModelDialog = true
     },
     editModel(model) {
-      this.currentModel = model
+      this.currentModel = { ...model }
       this.showModelDialog = true
     },
-    saveModel() {
-      // Save the model - will be handled by AIModelSettings component
+    saveModel(model) {
+      const existingIdx = this.aiModels.findIndex(m => m.name === model.name)
+      
+      if (existingIdx !== -1) {
+        this.aiModels.splice(existingIdx, 1, model)
+      } else {
+        this.aiModels.push(model)
+      }
+      
       this.showModelDialog = false
     },
     confirmDeleteModel(model) {
@@ -519,6 +713,13 @@ export default {
     closeQuickTestChat() {
       this.quickTestModel = null
       this.quickTestChat = null
+    }
+  },
+  watch: {
+    showHistoryDialog(newVal) {
+      if (newVal) {
+        this.loadHistory()
+      }
     }
   }
 }
