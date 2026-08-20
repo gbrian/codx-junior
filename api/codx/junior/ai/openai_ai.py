@@ -61,7 +61,7 @@ class OpenAI_AI:
                 self.user.username if self.user else "NONE",
                 self.base_url,
                 self.api_key[0:15])
-        except Exception as ex:
+        except OSError as ex:
             logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:15])
         self.ai_logger = AILogger(settings=settings)
 
@@ -118,7 +118,7 @@ class OpenAI_AI:
                 messages=openai_messages,
                 kwargs=kwargs,
             )
-        except Exception as ex:
+        except OSError as ex:
             logger.warning("_raw_log_request failed (non-fatal): %s", ex)
 
     def _raw_log_response(
@@ -144,7 +144,7 @@ class OpenAI_AI:
                 duration_seconds=duration_seconds,
                 status=status,
             )
-        except Exception as ex:
+        except OSError as ex:
             logger.warning("_raw_log_response failed (non-fatal): %s", ex)
 
     def _raw_log_error(
@@ -166,7 +166,7 @@ class OpenAI_AI:
                 duration_seconds=duration_seconds,
                 status=status,
             )
-        except Exception as ex:
+        except OSError as ex:
             logger.warning("_raw_log_error failed (non-fatal): %s", ex)
 
     # ── Existing helpers (unchanged) ───────────────────────────────────────────
@@ -196,7 +196,21 @@ class OpenAI_AI:
         session_id: str = None,
         request_id: str = None,
         usage_info=None,
+        chat_id: str = None,
     ) -> None:
+        """
+        Record token usage and costs to analytics.
+
+        Args:
+            input_text:      The prompt/input text sent to the model.
+            output_text:     The completion/response text from the model.
+            duration_seconds: Wall-clock seconds for request-response cycle.
+            tags:            Comma-separated analytics tags.
+            session_id:      Session identifier for grouping requests.
+            request_id:      Unique request identifier for traceability.
+            usage_info:      Token counts from provider (may include prompt_tokens, completion_tokens).
+            chat_id:         Chat identifier for linking to chat sessions.
+        """
         try:
             analytics = _get_analytics()
             
@@ -241,8 +255,9 @@ class OpenAI_AI:
                 output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
                 request_id=request_id,
                 tokens_from_provider=tokens_from_provider,
+                chat_id=chat_id,
             )
-        except Exception as ex:
+        except OSError as ex:
             logger.warning("_record_usage failed (non-fatal): %s", ex)
 
     def _record_tool_usage(
@@ -278,7 +293,7 @@ class OpenAI_AI:
                 chat_id=chat_id,
                 request_id=request_id,
             )
-        except Exception as ex:
+        except OSError as ex:
             logger.warning("_record_tool_usage failed (non-fatal): %s", ex)
 
     def log(self, msg):
@@ -289,7 +304,7 @@ class OpenAI_AI:
         if gpt_message.type == "image":
             try:
                 return {"content": json.loads(gpt_message.content), "role": "user"}
-            except Exception as ex:
+            except (json.JSONDecodeError, TypeError) as ex:
                 self.log(f"Error converting image message '{ex}': {gpt_message}")
                 raise ex
         return {
@@ -316,6 +331,9 @@ class OpenAI_AI:
         # from a tool-call response in a_chat_completions.
         request_id: str = _new_request_id()
         parent_request_id: str = config.get("parent_request_id", None)
+        
+        # ADDED: Extract chat_id from config for analytics traceability
+        chat_id: str = config.get("chat_id", None)
 
         kwargs = {
             "model": self.model,
@@ -323,7 +341,7 @@ class OpenAI_AI:
             "stream_options": {"include_usage": True},
         }
 
-        if self.llm_settings.temperature >= 0:
+        if self.llm_settings.temperature != 0:
             kwargs["temperature"] = float(self.llm_settings.temperature)
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
@@ -374,7 +392,7 @@ class OpenAI_AI:
                     messages=openai_messages,
                     extra_headers=request_headers
                 )
-            except Exception as ex:
+            except OSError as ex:
                 if "stream_options" in kwargs:
                     logger.warning("Failed to create chat completion with stream_options, retrying without: %s", ex)
                     kwargs.pop("stream_options", None)
@@ -407,7 +425,7 @@ class OpenAI_AI:
                     for cb in callbacks:
                         try:
                             cb(message)
-                        except Exception as ex:
+                        except OSError as ex:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
@@ -418,7 +436,7 @@ class OpenAI_AI:
                     logger.info("chat_completions: cancellation requested, closing stream")
                     try:
                         response_stream.close()
-                    except Exception:
+                    except OSError:
                         pass
                     send_callback("", flush=True)
                     raise CancelledError("Chat completion was cancelled by the caller.")
@@ -452,7 +470,7 @@ class OpenAI_AI:
             )
             raise
 
-        except Exception as ex:
+        except OSError as ex:
             duration_seconds = time.monotonic() - request_start
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             self._raw_log_error(
@@ -491,6 +509,7 @@ class OpenAI_AI:
             session_id=session_id,
             request_id=request_id,
             usage_info=usage_info,
+            chat_id=chat_id,
         )
 
         messages.append(AIMessage(content=response_content))
@@ -504,6 +523,9 @@ class OpenAI_AI:
         # A parent_request_id may be passed from an outer tool-call chain.
         request_id: str = _new_request_id()
         parent_request_id: str = config.get("parent_request_id", None)
+        
+        # ADDED: Extract chat_id from config for analytics traceability
+        chat_id: str = config.get("chat_id", None)
 
         kwargs = {
             "model": self.model,
@@ -515,7 +537,7 @@ class OpenAI_AI:
         if chat_tools:
             kwargs["tools"] = chat_tools
 
-        if self.llm_settings.temperature >= 0:
+        if self.llm_settings.temperature != 0:
             kwargs["temperature"] = float(self.llm_settings.temperature)
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
@@ -568,7 +590,7 @@ class OpenAI_AI:
                 response_stream = self.client.chat.completions.create(
                   **request_params
                 )
-            except Exception as ex:
+            except OSError as ex:
                 if "stream_options" in request_params:
                     logger.warning("Failed to create async chat completion with stream_options, retrying without: %s", ex)
                     request_params.pop("stream_options", None)
@@ -608,7 +630,7 @@ class OpenAI_AI:
                     for cb in callbacks:
                         try:
                             cb(message)
-                        except Exception as ex:
+                        except OSError as ex:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             if self.settings.get_log_ai():
@@ -622,7 +644,7 @@ class OpenAI_AI:
                     logger.info("a_chat_completions: cancellation requested, closing stream")
                     try:
                         response_stream.close()
-                    except Exception:
+                    except OSError:
                         pass
                     send_callback("", flush=True)
                     raise CancelledError("Async chat completion was cancelled by the caller.")
@@ -671,19 +693,19 @@ class OpenAI_AI:
                             tools_response = await self.process_tool_calls(
                                 tool_call_data=tool_call_data,
                                 request_id=request_id,
-                                chat_id=session_id
+                                chat_id=chat_id
                             )
                             tool_output = tools_response["output"] if "output" in tools_response else tools_response 
                             ai_tool_response = AIMessage(content=tool_output)
-                        except Exception as ex:
+                        except OSError as ex:
                             logger.exception("Error processing '%s': %s", func_name, tool_call_data)
                             error = f"Error processing {func_name}:\n{ex}"
                             ai_tool_response = AIMessage(content=error)
 
                         messages.append(ai_tool_response)
 
-                    # ── Propagate current request_id as parent for the child call ──
-                    child_config = {**config, "parent_request_id": request_id}
+                    # ── Propagate current request_id and chat_id as parent for the child call ──
+                    child_config = {**config, "parent_request_id": request_id, "chat_id": chat_id}
                     return self.chat_completions(messages=messages, config=child_config)
                 
                 chunk_content = choice.delta.content
@@ -711,7 +733,7 @@ class OpenAI_AI:
             )
             raise
 
-        except Exception as ex:
+        except OSError as ex:
             duration_seconds = time.monotonic() - request_start
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             self._raw_log_error(
@@ -733,7 +755,7 @@ class OpenAI_AI:
         tool_call = self._parse_tool_call(response_content, request_id)
         if tool_call:
             logger.info(f"Detected tool call: {tool_call}")
-            tool_output = await self.process_tool_calls(tool_call_data=tool_call, request_id=request_id, chat_id=session_id)
+            tool_output = await self.process_tool_calls(tool_call_data=tool_call, request_id=request_id, chat_id=chat_id)
             messages.append(AIMessage(content=json.dumps(tool_output)))
 
         # ── Raw-log the completed response ─────────────────────────────────────
@@ -759,6 +781,7 @@ class OpenAI_AI:
             session_id=session_id,
             request_id=request_id,
             usage_info=usage_info,
+            chat_id=chat_id,
         )
 
         messages.append(AIMessage(content=response_content))
@@ -813,7 +836,7 @@ class OpenAI_AI:
                 error_message = f"Tool '{func_name}' not found"
                 tool_response = error_message
                 
-        except Exception as ex:
+        except (json.JSONDecodeError, TypeError, ValueError, RuntimeError, OSError) as ex:
             success = False
             error_message = str(ex)
             tool_response = f"Error executing tool '{func_name}': {ex}"
@@ -869,8 +892,10 @@ class OpenAI_AI:
                 for data in response.data:
                     embeddings = embeddings + data.embedding
                 return embeddings
-            except Exception as ex:
-                logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+            except OSError as ex:
+                logger.error("Error creating embeddings %s %s: %s", self.settings.project_name, embeddings_ai_settings, ex)
                 raise ex
 
-        return embedding_funcand
+        return embedding_func
+
+# Made with ❤️ by codx-junior

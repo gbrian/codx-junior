@@ -171,8 +171,9 @@ class ProfileManager:
             return False
 
     def get_file_profiles_by_file_path(self, file_path: str):
-        return [profile for profile in self.list_all_profiles() \
+        file_profiles = [profile for profile in self.list_all_profiles() \
           if self.is_profile_match(profile=profile, file_path=file_path)]
+        return self.reduce_linked_profiles(profiles=file_profiles)
 
     def get_profiles_by_name(self, profiles: []):
         return [p for p in self.list_all_profiles() if p.name in profiles]

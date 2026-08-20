@@ -10,6 +10,7 @@ import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue'
 import SettingsMenu from './SettingsMenu.vue'
 import MenuDivider from './MenuDivider.vue'
+import ViewsMenu from './ViewsMenu.vue'
 </script>
 
 <template>
@@ -64,6 +65,7 @@ import MenuDivider from './MenuDivider.vue'
               <i class="fa-regular fa-folder-open"></i>
               File explorer
             </MenubarItem>
+            <ViewsMenu />
             <MenubarItem @click="$ui.setActiveTab('profiles')"
               v-if="$users.isProjectAdmin">
               <i class="fa-solid fa-id-badge"></i>

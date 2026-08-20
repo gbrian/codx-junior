@@ -47,5 +47,5 @@
   },
   "chat_mode": null,
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
-  "chat_id": ""
+  "chat_id": "4279b34c-0144-4c85-902a-2ba3a85f4354"
 }

@@ -2,6 +2,8 @@ import { CodxJuniorConnection } from './connection'
 import { SocketManager } from './socket'
 import { filesModule } from './modules/files'
 import { globalSettingsModule } from './modules/globalSettings'
+import { analyticsModule } from './modules/analytics'
+import { viewsModule } from './modules/views'
 
 /**
  * In-flight request deduplication map.
@@ -324,20 +326,7 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       }
     },
-    views: {
-      list() {
-        return API.get('/api/views')
-      },
-      save(view) {
-        return API.post('/api/views', view)
-      },
-      delete(name) {
-        return API.delete(`/api/views/${encodeURIComponent(name)}`)
-      },
-      rename(oldName, newName) {
-        return API.put(`/api/views/${encodeURIComponent(oldName)}`, { name: newName })
-      }
-    },
+    
     github: {
       issues: {
         helpWanted(query) {
@@ -699,71 +688,13 @@ const initializeAPI = ({ project, user } = {}) => {
         )
       }
     },
-    analytics: {
-      me() {
-        return API.get('/api/analytics/me')
-      },
-      dates() {
-        return API.get('/api/analytics/dates')
-      },
-      total({ startDate, endDate, projectName, model } = {}) {
-        const qs = _buildAnalyticsQS({ startDate, endDate, projectName, model })
-        return API.get(`/api/analytics/total${qs}`)
-      },
-      daily({ startDate, endDate, projectName, grouping = 'day' } = {}) {
-        const qs = _buildAnalyticsQS({ startDate, endDate, projectName, grouping })
-        return API.get(`/api/analytics/daily${qs}`)
-      },
-      byModel({ startDate, endDate, projectName } = {}) {
-        const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
-        return API.get(`/api/analytics/by-model${qs}`)
-      },
-      admin: {
-        dates() {
-          return API.get('/api/analytics/admin/dates')
-        },
-        total({ startDate, endDate, username, projectName, projectId, model } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, projectId, model })
-          return API.get(`/api/analytics/admin/total${qs}`)
-        },
-        daily({ startDate, endDate, username, projectName, grouping = 'day' } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, grouping })
-          return API.get(`/api/analytics/admin/daily${qs}`)
-        },
-        byUser({ startDate, endDate, projectName, projectId } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, projectName, projectId })
-          return API.get(`/api/analytics/admin/by-user${qs}`)
-        },
-        byProject({ startDate, endDate, username } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, username })
-          return API.get(`/api/analytics/admin/by-project${qs}`)
-        },
-        byModel({ startDate, endDate, username, projectName } = {}) {
-          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
-          return API.get(`/api/analytics/admin/by-model${qs}`)
-        },
-        pricing: {
-          list() {
-            return API.get('/api/analytics/admin/pricing')
-          },
-          updateProvider(providerName, prices) {
-            return API.put(`/api/analytics/admin/pricing/provider/${providerName}`, prices)
-          },
-          updateModel(providerName, modelName, prices) {
-            return API.put(`/api/analytics/admin/pricing/model/${providerName}/${modelName}`, prices)
-          },
-          recalculate({ provider, model, startDate, endDate, inputPrice, outputPrice }) {
-            return API.post('/api/analytics/admin/pricing/recalculate', {
-              provider,
-              model,
-              start_date: startDate,
-              end_date: endDate,
-              input_k_tokens_cxjcoins: inputPrice,
-              output_k_tokens_cxjcoins: outputPrice,
-            })
-          },
-        }
+    // CHANGED: Replace inline analytics object with lazy-loaded module getter
+    get analytics() {
+      // Lazy initialization: analyticsModule is loaded only when accessed
+      if (!API._analyticsModule) {
+        API._analyticsModule = analyticsModule(API)
       }
+      return API._analyticsModule
     },
     engine: {
       update() {
@@ -923,6 +854,16 @@ const initializeAPI = ({ project, user } = {}) => {
       return API._filesModule
     },
 
+    // ─── Views API ──────────────────────────────────────────────────────────
+    // CHANGED: Replace inline views object with lazy-loaded module getter
+    get views() {
+      // Lazy initialization: viewsModule is loaded only when accessed
+      if (!API._viewsModule) {
+        API._viewsModule = viewsModule(API)
+      }
+      return API._viewsModule
+    },
+
     screen: {
       display: null,
       async setScreenResolution(resolution) {
@@ -966,25 +907,6 @@ const initializeAPI = ({ project, user } = {}) => {
 
   API.initConnection()
   return API
-}
-
-/**
- * Build a query string from analytics filter params.
- * Omits undefined/null values and converts camelCase to snake_case.
- */
-function _buildAnalyticsQS(params) {
-  const keyMap = {
-    startDate: 'start_date',
-    endDate: 'end_date',
-    username: 'username',
-    projectName: 'project_name',
-    projectId: 'project_id',
-    model: 'model',
-  }
-  const parts = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${keyMap[k] || k}=${encodeURIComponent(v)}`)
-  return parts.length ? `?${parts.join('&')}` : ''
 }
 
 /**

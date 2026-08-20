@@ -349,7 +349,7 @@ export const actions = actionTree(
       } = state
 
       if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
-        await $storex.projects.setActiveProject({ project_id })
+        await $storex.projects.activeProjectChanged({ project_id })
       }
       if (chatId && $storex.projects.activeProject) {
         $storex.projects.setActiveChat({ id: chatId })

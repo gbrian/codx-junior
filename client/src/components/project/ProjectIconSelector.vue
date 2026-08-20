@@ -64,7 +64,7 @@ export default {
     },
     selectProject(project) {
       this.filter = ""
-      this.$projects.setActiveProject(project);
+      this.$projects.activeProjectChanged(project);
       this.$el.parentNode.focus();
     }
   }

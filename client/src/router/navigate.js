@@ -45,7 +45,7 @@ export default function Navigate({ $router, $storex }) {
       board: getArgs(async function(args) {
         const { project, board } = args;
         if (project !== $navigator.activeProject) {
-          await $storex.projects.setActiveProject(project);
+          await $storex.projects.activeProjectChanged(project);
         }
         $storex.projects.setActiveBoard(board);
         $storex.ui.showTab('tasks');

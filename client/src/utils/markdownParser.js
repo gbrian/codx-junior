@@ -196,6 +196,10 @@ function isInsideCodeFence(lines, lineIndex) {
  * - Open/streaming blocks use a structural hash (type + fileName) so
  *   the Vue :key does NOT change on every new streamed line, preventing
  *   component remounts that reset CodeViewer's collapsed state.
+ *
+ * SINGLE-LINE CONTENT FIX:
+ * - All non-empty content (with or without fences) generates at least one block
+ * - Plain markdown (no fences) defaults to type='markdown' for MarkdownViewer
  */
 function parseBlocks(content, getRendererFn = getRenderer) {
   const blocks = []
@@ -207,11 +211,19 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   let currentFence = null
   let nestedFences = []
   let isAnonymousFence = false
-  // ADDED: track sequential index for stable key on open blocks
   let blockIndex = 0
 
   function addBlock(isFinished = false) {
     const blockContent = currentContent.join('\n')
+    // CHANGED: trim to detect truly empty content
+    const trimmedContent = blockContent.trim()
+    
+    // ADDED: skip empty blocks
+    if (!trimmedContent) {
+      resetBlock()
+      return
+    }
+
     let finalFileName = currentFileName
     let finalType = currentType
 
@@ -219,7 +231,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
       finalFileName = generateFileName(finalType)
     }
 
-    // CHANGED: finished blocks hash by content (stable); open blocks hash by
+    // finished blocks hash by content (stable); open blocks hash by
     // structural identity (type+fileName+index) so the key doesn't change while
     // new lines are being streamed into the same logical block.
     const contentHash = generateHash(blockContent)
@@ -263,7 +275,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
           blocks[blocks.length - 1].finished = true
         }
         
-        // CHANGED: pass isFinished=true for completed prior block
+        // pass isFinished=true for completed prior block
         if (currentContent.length) addBlock(true)
 
         const parts = fence.info.split(/\s+/).filter(Boolean)
@@ -310,7 +322,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
         currentContent.push(line)
         continue
       }
-      // CHANGED: closing fence found — block is finished
+      // closing fence found — block is finished
       addBlock(true)
       inCodeBlock = false
       continue
@@ -319,8 +331,11 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     currentContent.push(line)
   }
 
-  // CHANGED: last open block (streaming) uses stable structural hash (isFinished=false)
-  if (currentContent.length) addBlock(false)
+  // CHANGED: always finalize remaining content (single-line or multi-line plain markdown)
+  // using isFinished=false so streaming blocks get structural hash stability
+  if (currentContent.length) {
+    addBlock(false)
+  }
 
   // All blocks except the last are finished
   for (let i = 0; i < blocks.length - 1; i++) {

@@ -12,7 +12,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
 
       <ProjectDetailt @click.stop=""
           :options="{ folders: true, showIcon: true }"
-          @select="$projects.setActiveProject($event)"
+          @select="$projects.activeProjectChanged($event)"
         />
       
       <div class="grow"></div>
@@ -80,7 +80,7 @@ export default {
       this.$ui.setActiveTab(tab)
     },
     setActiveProject(project) {
-      this.$projects.setActiveProject(project)
+      this.$projects.activeProjectChanged(project)
     },
     async newQuickChat() {
       await this.$chats.createNewChat({ temp: true })

@@ -8,7 +8,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
     <div class="flex items-start">
       <ProjectDetailt 
         :options="{ folders: true }"
-        @select="$projects.setActiveProject($event)"
+        @select="$projects.activeProjectChanged($event)"
     />
     </div>
     <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-60 p-2 shadow"
@@ -107,7 +107,7 @@ export default {
     },
     setActiveProject(project) {
       this.isOpen = false
-      this.$projects.setActiveProject(project)
+      this.$projects.activeProjectChanged(project)
     }
   }
 }

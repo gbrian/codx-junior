@@ -5,7 +5,7 @@ import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent
+from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent, ChatSessionEvent
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class AnalyticsStorage:
     Files are written under:
         <analytics_path>/<YYYY-MM-DD>_token_usage.jsonl
         <analytics_path>/tools/<YYYY-MM-DD>_tool_usage.jsonl
+        <analytics_path>/chat_sessions/<YYYY-MM-DD>_chat_sessions.jsonl
 
     The analytics path is a global directory shared across all projects,
     initialised from the ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment
@@ -34,8 +35,10 @@ class AnalyticsStorage:
             +str base_path
             +write(event: TokenUsageEvent)
             +write_tool_event(event: ToolUsageEvent)
+            +write_chat_session(event: ChatSessionEvent)
             +read_events(start_date, end_date, username, project_name) List
             +read_tool_events(start_date, end_date, chat_id, username, project_name, tool_name) List
+            +read_chat_sessions(start_date, end_date, chat_id, username, project_name) List
             +list_available_dates() List[str]
             +rewrite_events_for_date_range(provider, model, start_date, end_date, input_k_tokens_cxjcoins, output_k_tokens_cxjcoins)
         }
@@ -52,8 +55,10 @@ class AnalyticsStorage:
         """
         self.base_path = analytics_path
         self.tools_path = os.path.join(analytics_path, "tools")
+        self.chat_sessions_path = os.path.join(analytics_path, "chat_sessions")
         os.makedirs(self.base_path, exist_ok=True)
         os.makedirs(self.tools_path, exist_ok=True)
+        os.makedirs(self.chat_sessions_path, exist_ok=True)
         logger.info("AnalyticsStorage initialised at: %s", self.base_path)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -66,13 +71,24 @@ class AnalyticsStorage:
         """Return the tool usage JSONL file path for a given ISO date string."""
         return os.path.join(self.tools_path, f"{iso_date}_tool_usage.jsonl")
 
+    def _chat_session_file_path_for_date(self, iso_date: str) -> str:
+        """Return the chat session JSONL file path for a given ISO date string."""
+        return os.path.join(self.chat_sessions_path, f"{iso_date}_chat_sessions.jsonl")
+
     def _current_file_path(self) -> str:
+        """Get the current token usage file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._file_path_for_date(today)
 
     def _current_tool_file_path(self) -> str:
+        """Get the current tool usage file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._tool_file_path_for_date(today)
+
+    def _current_chat_session_file_path(self) -> str:
+        """Get the current chat session file path for today."""
+        today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
+        return self._chat_session_file_path_for_date(today)
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -92,13 +108,14 @@ class AnalyticsStorage:
                 with open(file_path, "a", encoding="utf-8") as fh:
                     fh.write(line + "\n")
                 logger.debug(
-                    "Analytics: wrote event user=%s model=%s in=%d out=%d",
+                    "Analytics: wrote event user=%s model=%s in=%d out=%d chat_id=%s",
                     event.username,
                     event.model,
                     event.input_tokens,
                     event.output_tokens,
+                    event.chat_id,
                 )
-            except Exception as ex:
+            except OSError as ex:
                 logger.error("AnalyticsStorage.write failed: %s", ex)
 
     def write_tool_event(self, event: ToolUsageEvent) -> None:
@@ -117,14 +134,42 @@ class AnalyticsStorage:
                 with open(file_path, "a", encoding="utf-8") as fh:
                     fh.write(line + "\n")
                 logger.debug(
-                    "Analytics: wrote tool event name=%s user=%s success=%s time_taken=%.3fs",
+                    "Analytics: wrote tool event name=%s user=%s success=%s time_taken=%.3fs chat_id=%s",
                     event.name,
                     event.username,
                     event.success,
                     event.time_taken,
+                    event.chat_id,
                 )
-            except Exception as ex:
+            except OSError as ex:
                 logger.error("AnalyticsStorage.write_tool_event failed: %s", ex)
+
+    def write_chat_session(self, event: ChatSessionEvent) -> None:
+        """
+        Append a single ``ChatSessionEvent`` to today's chat session JSONL file.
+
+        Thread-safe via a module-level lock. Allows incremental updates by
+        appending multiple records for the same chat_id at different lifecycle points.
+
+        Args:
+            event: The chat session event to persist.
+        """
+        file_path = self._current_chat_session_file_path()
+        line = json.dumps(event.to_dict(), ensure_ascii=False)
+        with self._lock:
+            try:
+                with open(file_path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                logger.debug(
+                    "Analytics: wrote chat session chat_id=%s user=%s mode=%s profiles=%s files=%d",
+                    event.chat_id,
+                    event.username,
+                    event.mode,
+                    event.profiles,
+                    len(event.files),
+                )
+            except OSError as ex:
+                logger.error("AnalyticsStorage.write_chat_session failed: %s", ex)
 
     # ── Read ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +181,7 @@ class AnalyticsStorage:
         project_name: Optional[str] = None,
         project_id: Optional[str] = None,
         model: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> List[TokenUsageEvent]:
         """
         Read and optionally filter stored events from JSONL files.
@@ -147,6 +193,7 @@ class AnalyticsStorage:
             project_name: Filter by exact project name.
             project_id:   Filter by exact project id.
             model:        Filter by exact model name.
+            chat_id:      Filter by exact chat id.
 
         Returns:
             List of matching ``TokenUsageEvent`` objects ordered by timestamp.
@@ -174,6 +221,8 @@ class AnalyticsStorage:
             events = [e for e in events if e.project_id == project_id]
         if model:
             events = [e for e in events if e.model == model]
+        if chat_id:
+            events = [e for e in events if e.chat_id == chat_id]
 
         events.sort(key=lambda e: e.timestamp)
         return events
@@ -236,6 +285,56 @@ class AnalyticsStorage:
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def read_chat_sessions(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        username: Optional[str] = None,
+        project_name: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> List[ChatSessionEvent]:
+        """
+        Read and optionally filter stored chat session events from JSONL files.
+
+        Args:
+            start_date:   Inclusive ISO date lower bound (``YYYY-MM-DD``).
+            end_date:     Inclusive ISO date upper bound (``YYYY-MM-DD``).
+            chat_id:      Filter by exact chat id.
+            username:     Filter by exact username.
+            project_name: Filter by exact project name.
+            project_id:   Filter by exact project id.
+
+        Returns:
+            List of matching ``ChatSessionEvent`` objects ordered by timestamp.
+        """
+        available = self.list_available_dates()
+        matching_files = []
+
+        for date_str in available:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            matching_files.append(self._chat_session_file_path_for_date(date_str))
+
+        events: List[ChatSessionEvent] = []
+        for file_path in matching_files:
+            events.extend(self._read_chat_session_file(file_path))
+
+        # Apply filters
+        if chat_id:
+            events = [e for e in events if e.chat_id == chat_id]
+        if username:
+            events = [e for e in events if e.username == username]
+        if project_name:
+            events = [e for e in events if e.project_name == project_name]
+        if project_id:
+            events = [e for e in events if e.project_id == project_id]
+
+        events.sort(key=lambda e: e.timestamp)
+        return events
+
     def _read_file(self, file_path: str) -> List[TokenUsageEvent]:
         """Parse a single JSONL file into a list of events, skipping bad lines."""
         events: List[TokenUsageEvent] = []
@@ -248,7 +347,7 @@ class AnalyticsStorage:
                     try:
                         data = json.loads(line)
                         events.append(TokenUsageEvent.from_dict(data))
-                    except Exception as ex:
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
                         logger.warning(
                             "Skipping malformed analytics line %d in %s: %s",
                             line_no,
@@ -257,7 +356,7 @@ class AnalyticsStorage:
                         )
         except FileNotFoundError:
             pass
-        except Exception as ex:
+        except OSError as ex:
             logger.error("Error reading analytics file %s: %s", file_path, ex)
         return events
 
@@ -273,7 +372,7 @@ class AnalyticsStorage:
                     try:
                         data = json.loads(line)
                         events.append(ToolUsageEvent.from_dict(data))
-                    except Exception as ex:
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
                         logger.warning(
                             "Skipping malformed tool analytics line %d in %s: %s",
                             line_no,
@@ -282,8 +381,33 @@ class AnalyticsStorage:
                         )
         except FileNotFoundError:
             pass
-        except Exception as ex:
+        except OSError as ex:
             logger.error("Error reading tool analytics file %s: %s", file_path, ex)
+        return events
+
+    def _read_chat_session_file(self, file_path: str) -> List[ChatSessionEvent]:
+        """Parse a single chat session JSONL file into a list of events, skipping bad lines."""
+        events: List[ChatSessionEvent] = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                for line_no, line in enumerate(fh, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        events.append(ChatSessionEvent.from_dict(data))
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
+                        logger.warning(
+                            "Skipping malformed chat session line %d in %s: %s",
+                            line_no,
+                            file_path,
+                            ex,
+                        )
+        except FileNotFoundError:
+            pass
+        except OSError as ex:
+            logger.error("Error reading chat session file %s: %s", file_path, ex)
         return events
 
     def list_available_dates(self) -> List[str]:
@@ -301,7 +425,7 @@ class AnalyticsStorage:
                     # Basic sanity check — must be 10 chars YYYY-MM-DD
                     if len(date_part) == 10:
                         dates.append(date_part)
-        except Exception as ex:
+        except OSError as ex:
             logger.error("Error listing analytics directory: %s", ex)
         return sorted(dates)
 
@@ -420,14 +544,14 @@ class AnalyticsStorage:
                                     json.dumps(raw, ensure_ascii=False)
                                 )
                                 events_skipped_in_file += 1
-                        except Exception as ex:
+                        except (json.JSONDecodeError, TypeError, ValueError) as ex:
                             logger.warning(
                                 "Skipping malformed line in %s during rewrite: %s",
                                 file_path,
                                 ex,
                             )
                             updated_lines.append(line)
-            except Exception as ex:
+            except OSError as ex:
                 logger.error(
                     "Failed to read %s during rewrite_events_for_date_range: %s",
                     file_path,
@@ -458,7 +582,7 @@ class AnalyticsStorage:
                     )
                     total_files_processed += 1
                     total_events_updated += events_updated_in_file
-                except Exception as ex:
+                except OSError as ex:
                     logger.error(
                         "Failed to write updated analytics file %s: %s",
                         file_path,
@@ -467,7 +591,7 @@ class AnalyticsStorage:
                     if os.path.exists(tmp_path):
                         try:
                             os.remove(tmp_path)
-                        except Exception:
+                        except OSError:
                             pass
             else:
                 logger.debug(
@@ -487,3 +611,5 @@ class AnalyticsStorage:
         )
 
         return total_events_updated
+
+# Made with ❤️ by codx-junior

@@ -13,6 +13,8 @@ import Markdown from '../components/Markdown.vue'
 import Collapsible from '../components/Collapsible.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue'
+import ChatNavigatorDrawer from '@/components/chat/ChatNavigatorDrawer.vue'
+import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
 </script>
 
 <template>
@@ -22,37 +24,69 @@ import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue
 
         <!-- ── HEADER ─────────────────────────────────────────────────────── -->
         <div class="flex flex-col gap-1 w-full shrink-0">
-          <div class="flex items-center gap-2 w-full min-w-0">
-            <div class="flex items-center gap-2 text-sm shrink-0 min-w-0 flex-1">
-              <i class="fa-brands fa-trello text-primary shrink-0"></i>
-              <div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                <template v-for="(board, index) in boardBreadcrumbs" :key="board.title">
-                  <span class="hover:underline cursor-pointer font-bold text-primary truncate min-w-0"
-                    :title="board.title"
-                    @click="navigateToBoard(board.title)">
-                    {{ board.title }}
-                  </span>
-                  <span v-if="index < boardBreadcrumbs.length - 1" class="text-base-content/40 shrink-0">/</span>
-                </template>
-                <template v-if="parentChat">
-                  <span class="text-base-content/40 shrink-0">/</span>
-                  <span class="hover:underline cursor-pointer font-bold text-secondary truncate min-w-0"
-                    :title="parentChat.name"
-                    @click="navigateToParent(parentChat)">
-                    {{ parentChat.name }}
-                  </span>
-                </template>
-              </div>
+          
+          <!-- CHANGED: Breadcrumb uses true root chat + reactive hierarchy -->
+          <div class="flex items-center justify-between gap-2 w-full min-w-0">
+            <div class="flex-1 min-w-0">
+              <ChatBreadcrumb
+                v-if="hierarchyChats.length"
+                :rootChat="rootChat"
+                :selectedChat="workingChat"
+                :allChats="hierarchyChats"
+                @select="selectBreadcrumbChat"
+              />
             </div>
-            <div class="grow"></div>
-            <!-- Parent Knowledge Disconnect Button -->
-            <ParentContentIndicator
-              v-if="parentChat"
-              :parentChat="parentChat"
-              :isDisconnected="isDisconnectedFromParent"
-              @toggle-disconnect="toggleParentDisconnect"
-            />
             <div class="flex items-center gap-1 shrink-0">
+              <ParentContentIndicator
+                v-if="parentChat"
+                :parentChat="parentChat"
+                :isDisconnected="isDisconnectedFromParent"
+                @toggle-disconnect="toggleParentDisconnect"
+              />
+            </div>
+          </div>
+
+          <!-- Chat Title & Actions -->
+          <div class="flex items-start gap-2 w-full min-w-0">
+            <div class="flex items-center gap-1 shrink-0">
+              <ProjectDetailt v-model="targetProject" :iconify="true"
+                :options="{ showFolders: false, showIcon: true, showSelector: true }"
+                @select="setChatProject" />
+              <UserSelector class="dropdown-bottom" :allUsers="true" @user-changed="onAddProfile($event)" />
+            </div>
+            
+            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+              <!-- CHANGED: Edit displayed working chat, not only theChat -->
+              <input v-if="editName" type="text" class="input input-sm input-bordered w-full"
+                @keydown.enter.stop="saveChatInfo(workingChat)" @keydown.esc="editName = false" v-model="workingChat.name" />
+              <template v-else>
+                <div class="flex items-center gap-2 min-w-0 w-full">
+                  <!-- CHANGED: Pinned state follows displayed chat -->
+                  <span class="click tooltip shrink-0" @click.stop="toggleChatPinned" data-tip="Bookmark">
+                    <i class="text-warning fa-solid fa-bookmark" v-if="workingChat.pinned"></i>
+                    <i class="fa-regular fa-bookmark" v-else></i>
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <!-- CHANGED: Display selected chat name if present -->
+                    <span class="font-bold text-base truncate block min-w-0 cursor-pointer"
+                      :title="displayChatName" @dblclick="editName = true" @click="showChildChat = null">
+                      {{ displayChatName }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0">
+              <!-- CHANGED: Pass true root + reactive hierarchy to drawer -->
+              <ChatNavigatorDrawer
+                :rootChat="rootChat"
+                :allLoadedChats="hierarchyChats"
+                :selectedChatId="workingChat?.id || null"
+                @select="onSelectNavigatorChat"
+                @add-subtask="newSubChat"
+              />
+
               <div class="flex input input-sm input-bordered items-center gap-1 w-36">
                 <input v-model="chatSearch" class="bg-transparent w-full min-w-0" placeholder="Search..." />
                 <span class="text-error cursor-pointer" @click="chatSearch = null" v-if="chatSearch">
@@ -96,175 +130,21 @@ import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue
               </div>
             </div>
           </div>
-          <div class="flex items-start gap-2 w-full min-w-0">
-            <div class="flex items-center gap-1 shrink-0">
-              <ProjectDetailt v-model="targetProject" :iconify="true"
-                :options="{ showFolders: false, showIcon: true, showSelector: true }"
-                @select="setChatProject" />
-              <UserSelector class="dropdown-bottom" :allUsers="true" @user-changed="onAddProfile($event)" />
-            </div>
-            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-              <input v-if="editName" type="text" class="input input-sm input-bordered w-full"
-                @keydown.enter.stop="saveChatInfo(theChat)" @keydown.esc="editName = false" v-model="theChat.name" />
-              <template v-else>
-                <div class="flex items-center gap-2 min-w-0 w-full">
-                  <span class="click tooltip shrink-0" @click.stop="toggleChatPinned" data-tip="Bookmark">
-                    <i class="text-warning fa-solid fa-bookmark" v-if="theChat.pinned"></i>
-                    <i class="fa-regular fa-bookmark" v-else></i>
-                  </span>
-                  <div class="flex-1 min-w-0">
-                    <span class="font-bold text-base truncate block min-w-0 cursor-pointer"
-                      :title="computedChatName" @dblclick="editName = true" @click="showChildChat = null">
-                      {{ computedChatName }}
-                    </span>
-                  </div>
-                </div>
-              </template>
-            </div>
+
+          <!-- CHANGED: Tags follow displayed chat -->
+          <div class="flex gap-2 flex-wrap" v-if="workingChat.tags?.length">
+            <div class="text-xs font-bold" v-for="tag in workingChat.tags" :key="tag">#{{ tag }}</div>
           </div>
-
-          <div class="flex gap-2 flex-wrap" v-if="theChat.tags?.length">
-            <div class="text-xs font-bold" v-for="tag in theChat.tags" :key="tag">#{{ tag }}</div>
-          </div>
-
-          <!-- ── SUBTASKS: Collapsible kanban-style progress card strip ──── -->
-          <Collapsible
-            :defaultOpen="subtasksOpen" @update:modelValue="subtasksOpen = $event">
-            <!-- Icon -->
-            <template #icon>
-              <i class="fa-solid fa-layer-group text-xs opacity-60"></i>
-            </template>
-
-            <!-- Title -->
-            <template #title>
-              <div class="flex flex-wrap gap-2 text-xs text-base-content/50 mt-0.5">
-                <span v-if="showTaskProjectName">
-                  <i class="fa-solid fa-house text-xs"></i> {{ ownerProject?.title }}
-                </span>
-                <span>[{{ formattedChatUpdatedDate }}]</span>
-                <span 
-                  v-if="theChat.history?.length"
-                  class="click text-xs flex items-center gap-1 transition-all"
-                  :class="showHistoryWall ? 'text-warning' : 'hover:text-warning'"
-                  @click="toggleHistoryWall"
-                  title="Toggle history wall view"
-                >
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                  <span class="">History</span>
-                </span>
-                <span>Subtasks</span>
-                <span class="text-xs font-normal text-base-content/50 ml-1">({{ childrenChats.length }})</span>
-              </div>
-            </template>
-
-            <!-- Summary: column pills shown when collapsed -->
-            <template #summary>
-            </template>
-
-            <!-- Actions: add button always visible -->
-            <template #actions>
-              <button
-                class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
-                @click.stop="newSubChat()"
-              >
-                <i class="fa-solid fa-plus text-xs"></i>
-              </button>
-            </template>
-
-            <!-- Body: scrollable card row with drag-drop support -->
-            <div 
-              class="flex gap-2 overflow-x-auto p-2 scrollbar-thin transition-colors"
-              @dragover.prevent="onDragOver"
-              @drop="onDrop"
-              :class="isDraggingOver ? 'bg-primary/5 rounded-lg' : ''"
-            >
-              <!-- Parent card -->
-              <div
-                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-pointer shrink-0 w-36 transition-all"
-                :class="!showChildChat
-                  ? 'border-primary bg-primary/10'
-                  : 'border-base-content/10 bg-base-200 hover:border-base-content/30'"
-                @click="selectChildChat(null)"
-                v-if="showChildChat"
-              >
-                <div class="flex items-center gap-1">
-                  <img class="w-4 h-4 rounded-full"
-                    :src="($projects.allProjectsById[theChat.project_id] || $project).project_icon" />
-                  <span class="text-xs font-bold truncate flex-1">Parent</span>
-                  <i class="fa-solid fa-house text-xs text-base-content/30"></i>
-                </div>
-                <div class="text-xs truncate text-base-content/70 leading-tight">{{ computedChatName }}</div>
-                <div class="text-xs text-base-content/40">
-                  {{ (theChat.messages || []).length }} msgs
-                </div>
-              </div>
-
-              <!-- Subtask cards with drag support -->
-              <div
-                v-for="(childChat, idx) in orderedChildrenChats"
-                :key="childChat.id"
-                :data-chat-id="childChat.id"
-                draggable="true"
-                class="flex flex-col gap-1 p-2 rounded-lg border-2 cursor-move shrink-0 w-36 transition-all duration-200"
-                :class="[
-                  showChildChat?.id === childChat.id
-                    ? 'border-warning bg-warning/10'
-                    : 'border-base-content/10 bg-base-200 hover:border-base-content/30',
-                  draggedItem?.id === childChat.id ? 'opacity-50 scale-95' : '',
-                  dragOverIndex === idx ? 'ring-2 ring-primary ring-offset-2 ring-offset-base-300' : ''
-                ]"
-                @click="selectChildChat(childChat)"
-                @dragstart="onDragStart(childChat, idx, $event)"
-                @dragend="onDragEnd"
-                @dragover.prevent="onDragOver"
-                @dragenter="onDragEnter(idx)"
-              >
-                <div class="flex items-center gap-1">
-                  <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
-                  <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
-                  <div 
-                    class="loading loading-bars text-info loading-sm opacity-60"
-                    title="Running..."
-                    v-if="$chats.isChatUpdating(childChat.id)"
-                  ></div>
-                  <img class="w-3 h-3 rounded-full ml-auto"
-                    :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
-                </div>
-                <div class="font-bold text-xs truncate text-base-content/80 font-medium leading-tight" :title="childChat.name">
-                  {{ childChat.name }}
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-base-content/40">
-                    {{ (childChat.messages || []).length }} msgs
-                  </span>
-                  <span class="badge badge-xs truncate"
-                    :class="childChat.column === 'Done' ? 'badge-success' : childChat.column === 'In Progress' ? 'badge-warning' : 'badge-ghost'">
-                    {{ childChat.column || '?' }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Add card -->
-              <div
-                class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content/40"
-                @click="newSubChat()"
-              >
-                <i class="fa-solid fa-plus text-lg"></i>
-                <span class="text-xs">Add</span>
-              </div>
-            </div>
-          </Collapsible>
 
         </div>
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
-
 
         <!-- Content Area: History Wall OR Chat View -->
         <div class="flex-1 min-h-0 mt-2">
           <!-- History Wall View (Full Screen) -->
           <ChatHistoryViewer
             v-if="showHistoryWall"
-            :history="theChat.history || []"
+            :history="workingChat.history || []"
             :currentDescription="computedChatDescription"
           />
 
@@ -275,7 +155,7 @@ import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue
             :showHidden="showHidden" 
             :childrenChats="childrenChats"
             :filter="chatSearch" 
-            @refresh-chat="reloadChat(workingChat)" 
+            @refresh-chat="reloadChat" 
             @remove-file="onRemoveFile"
             @delete="confirmDelete = true" 
             @subtask="onNewMessageSubtask" 
@@ -380,7 +260,7 @@ import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue
 
 <script>
 export default {
-  components: { Markdown, Collapsible, ChatHistoryViewer },
+  components: { Markdown, Collapsible, ChatHistoryViewer, ChatNavigatorDrawer, ChatBreadcrumb },
   props: ['chatMode', 'chat', 'kanban', 'params'],
   data() {
     return {
@@ -414,12 +294,7 @@ export default {
       chatSearch: null,
       ownerProject: null,
       targetProject: null,
-      subtasksOpen: false,
-      showHistoryWall: false,
-      draggedItem: null,
-      draggedItemIndex: null,
-      dragOverIndex: null,
-      isDraggingOver: false
+      showHistoryWall: false
     }
   },
   created() {
@@ -427,10 +302,31 @@ export default {
   },
   computed: {
     theChat() {
-      return this.$chats.chats[this.chat?.id || this.params?.params?.chat?.id]
+      const chatId = this.chat?.id || this.params?.params?.chat?.id
+      return this.$chats.chats[chatId] || null
+    },
+    // ADDED: Resolve true root from loaded parent chain
+    rootChat() {
+      let current = this.theChat
+      if (!current) return null
+      let depth = 0
+      while (current?.parent_id && this.$chats.chats[current.parent_id] && depth < 20) {
+        current = this.$chats.chats[current.parent_id]
+        depth++
+      }
+      return current
+    },
+    workingChat() {
+      const selectedId = this.showChildChat?.id
+      const selected = selectedId ? this.$chats.chats[selectedId] : null
+      return selected || this.theChat || null
+    },
+    // ADDED: Reactive hierarchy for breadcrumb / navigator
+    hierarchyChats() {
+      return this.collectHierarchy(this.rootChat)
     },
     isThread() {
-      return !!this.theChat.message_id
+      return !!(this.theChat?.message_id)
     },
     isPRView() {
       return this.workingChat?.mode === 'prview'
@@ -442,37 +338,27 @@ export default {
       return this.ownerProject && this.ownerProject.project_id !== this.$project.project_id
     },
     hiddenCount() {
-      return this.workingChat.messages?.filter(m => m.hide).length
+      return (this.workingChat?.messages || []).filter(m => m.hide).length
     },
     messageCount() {
-      return this.workingChat.messages?.length
+      return (this.workingChat?.messages || []).length
     },
     messages() {
-      return this.theChat.messages.filter(m => !m.hide || this.showHidden)
+      return (this.workingChat?.messages || []).filter(m => !m.hide || this.showHidden)
     },
     formattedChatUpdatedDate() {
-      const updatedAt = this.theChat.updated_at
+      const updatedAt = this.workingChat?.updated_at
+      if (!updatedAt) return ''
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD')
     },
+    // CHANGED: Children of displayed chat, not always base chat
     childrenChats() {
-      return this.$chats.allChats
-        .filter(c => c.parent_id === this.theChat.id)
-        .sort((a, b) => a.name > b.name ? 1 : -1)
+      return this.getDirectChildren(this.workingChat?.id)
     },
-    orderedChildrenChats() {
-      // Apply stored order from metadata if available
-      const order = this.theChat.meta_data?.childOrder || []
-      const ordered = [...this.childrenChats].sort((a, b) => {
-        const indexA = order.indexOf(a.id)
-        const indexB = order.indexOf(b.id)
-        if (indexA === -1 && indexB === -1) return 0
-        if (indexA === -1) return 1
-        if (indexB === -1) return -1
-        return indexA - indexB
-      })
-      return ordered
+    totalDescendants() {
+      return this.hierarchyChats.length - (this.rootChat ? 1 : 0)
     },
     subtasksByColumn() {
       return this.childrenChats.reduce((acc, c) => {
@@ -482,36 +368,35 @@ export default {
       }, {})
     },
     parentChat() {
-      return this.$chats.chats[this.workingChat?.parent_id]
+      const id = this.workingChat?.parent_id
+      if (!id) return null
+      return this.$chats.chats[id] || null
+    },
+    // ADDED: Support for parent disconnect indicator
+    isDisconnectedFromParent() {
+      return !!(this.workingChat?.ignore_parent_knowledge || this.workingChat?.ignore_parent_files)
     },
     images() {
-      return (this.workingChat.messages || [])
+      return (this.workingChat?.messages || [])
         .map(m => m.images || []).reduce((a, b) => a.concat(b), [])
         .map(i => { try { return i ? JSON.parse(i) : null } catch {} return null })
         .filter(i => !!i)
     },
-    workingChat() {
-      return this.$chats.chats[this.showChildChat?.id] || this.theChat
-    },
     computedChatName() {
-      return this.theChat.name || 'New Task'
+      return this.workingChat?.name || this.theChat?.name || 'New Task'
+    },
+    displayChatName() {
+      return this.workingChat?.name || this.theChat?.name || 'New Task'
     },
     computedChatDescription() {
-      if (this.theChat.message_id) {
-        const message = this.$storex.projects.allChats
-          .find(c => c.id === this.theChat.parent_id)
-          ?.messages.find(m => m.doc_id === this.theChat.message_id)
+      const chat = this.workingChat || this.theChat
+      if (!chat) return ''
+      if (chat.message_id) {
+        const parent = this.$chats.chats[chat.parent_id]
+        const message = (parent?.messages || []).find(m => m.doc_id === chat.message_id)
         return message?.content || ''
       }
-      return this.theChat.description
-    },
-    boardBreadcrumbs() {
-      const boardTitle = this.kanban?.title || this.theChat?.board
-      return this.$storex.projects.boardHierarchy(boardTitle)
-    },
-    isDisconnectedFromParent() {
-      const chat = this.workingChat
-      return chat.ignore_parent_knowledge || chat.ignore_parent_files
+      return chat.description
     }
   },
   watch: {
@@ -522,40 +407,96 @@ export default {
       this.showChildChat = null
       this.showHistoryWall = false
     },
+    // ADDED: Re-resolve hierarchy when base chat changes
+    theChat(newVal, oldVal) {
+      if (!newVal) {
+        this.showChildChat = null
+        return
+      }
+      if (!oldVal || oldVal.id !== newVal.id) {
+        this.showChildChat = null
+        this.showHistoryWall = false
+        this.loadHierarchy()
+      }
+    },
     workingChat(newVal) {
       if (newVal) {
         this.targetProject = this.$projects.allProjectsById[newVal.project_id] || this.$project
         this.subtaskProject = this.targetProject
+        if (newVal.parent_id && !this.$chats.chats[newVal.parent_id]) {
+          this.$chats.ensureChatRoot(newVal)
+        }
+      }
+    },
+    // ADDED: Clear stale selections when hierarchy changes
+    hierarchyChats(newVal) {
+      const ids = new Set((newVal || []).map(c => c.id))
+      if (this.showChildChat && !ids.has(this.showChildChat.id)) {
+        this.showChildChat = null
+      }
+      if (this.theChat && !ids.has(this.theChat.id)) {
+        this.showChildChat = null
       }
     }
   },
   methods: {
     async init() {
-      await this.$service.chat.findChat(this.workingChat)
+      const sourceChat = this.chat || this.params?.params?.chat || {}
+      if (!sourceChat?.id) throw new Error('No chat id to load')
+
+      await this.$service.chat.findChat(sourceChat)
+
+      if (!this.theChat) {
+        await this.$chats.loadChat(sourceChat)
+      }
+
       if (!this.theChat) throw new Error('Chat not loaded')
+
       this.setTaskProject()
       this.setProjectContext()
+
       if (!this.$storex.projects.kanban) {
         await this.$storex.projects.loadKanban()
       }
-      await Promise.all(this.childrenChats.map(chat => this.$chats.loadChat(chat)))
-      this.chatProfiles = await this.$storex.api.project(this.ownerProject)
-        .then(p => p.profiles.list())
-        .then(profiles => profiles.filter(p => this.theChat.profiles.includes(p.name)))
+
+      // CHANGED: Load hierarchy after ensuring base chat exists
+      await this.loadHierarchy()
+
+      this.chatProfiles = []
+      if (this.ownerProject) {
+        this.chatProfiles = await this.$storex.api.project(this.ownerProject)
+          .then(p => p.profiles.list())
+          .then(profiles => profiles.filter(p => (this.theChat?.profiles || []).includes(p.name)))
+      }
+
       if (this.isPRView) await this.$projects.loadBranches()
     },
+    // CHANGED: Seed hierarchy + resolve root for descendant chats
+    async loadHierarchy() {
+      if (!this.theChat) return
+      try {
+        await this.$chats.loadChats()
+        await this.$chats.ensureChatRoot(this.theChat)
+      } catch (error) {
+        console.error('Failed to load hierarchy:', error)
+      }
+    },
     setTaskProject() {
-      this.ownerProject = this.$projects.allProjectsById[this.theChat.owner_project_id]
-      this.targetProject = this.$projects.allProjectsById[this.theChat.project_id] || this.$project
+      const chat = this.theChat
+      if (!chat) return
+      this.ownerProject = this.$projects.allProjectsById[chat.owner_project_id]
+      this.targetProject = this.$projects.allProjectsById[chat.project_id] || this.$project
       this.subtaskProject = this.targetProject
     },
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
     async reloadChat() {
+      if (!this.workingChat) return
       this.$chats.reloadChat(this.workingChat)
     },
     async setChatProject(project) {
+      if (!this.workingChat) return
       this.targetProject = project
       this.workingChat.project_id = project.project_id
       await this.saveChat(this.workingChat)
@@ -566,13 +507,20 @@ export default {
     },
     saveChatInfo(chat) {
       this.editName = false
-      this.$chats.saveChatInfo(chat)
+      this.$chats.saveChatInfo(chat || this.workingChat)
     },
+    // CHANGED: Delete displayed chat, then navigate to parent if possible
     async confirmDeleteChat() {
+      const chat = this.workingChat
+      const parent = this.parentChat
       this.confirmDelete = false
-      await this.$chats.deleteChat(this.theChat)
-      if (this.parentChat) {
-        await this.$chats.setActiveChat(this.parentChat)
+      if (!chat) return
+
+      await this.$chats.deleteChat(chat)
+
+      if (parent) {
+        await this.$chats.setActiveChat(parent)
+        this.$emit('chat', parent)
       } else {
         this.navigateToChats()
       }
@@ -581,52 +529,64 @@ export default {
       this.confirmDelete = false
     },
     async removeFileFromContext() {
-      this.theChat.profiles = this.theChat.profiles?.filter(f => f !== this.showFile)
+      const chat = this.workingChat
+      if (!chat || !this.showFile) return
+      chat.profiles = (chat.profiles || []).filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
-      await this.reloadChat(this.theChat)
+      await this.reloadChat(chat)
       this.showFile = null
     },
     async addFileToContext() {
+      if (!this.addFile) return
       this.onAddFile(this.addFile)
-      await this.saveChat(this.theChat)
-      await this.reloadChat(this.theChat)
+      await this.saveChat(this.workingChat)
+      await this.reloadChat(this.workingChat)
       this.showFile = null
       this.addFile = null
     },
     async onAddFile(file) {
-      if (this.theChat.file_list?.includes(file)) return
-      this.theChat.file_list = [...(this.theChat.file_list || []), file]
+      const chat = this.workingChat
+      if (!chat || !file) return
+      if ((chat.file_list || []).includes(file)) return
+      chat.file_list = [...(chat.file_list || []), file]
       this.addNewFile = null
-      await this.saveChat(this.theChat)
+      await this.saveChat(chat)
     },
     async onRemoveFile(file) {
-      this.workingChat.file_list = (this.workingChat.file_list || []).filter(f => f !== file)
+      const chat = this.workingChat
+      if (!chat) return
+      chat.file_list = (chat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
-      await this.saveChat(this.theChat)
+      await this.saveChat(chat)
     },
     navigateToChats() {
       if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
-      this.$emit('chats', this.kanban?.title || this.theChat.board)
+      this.$emit('chats', this.kanban?.title || this.workingChat?.board || this.theChat?.board)
     },
     async navigateToBoard(boardTitle) {
       if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
       await this.$storex.projects.setActiveBoard(boardTitle)
       this.$emit('chats', boardTitle)
     },
-    newSubChat(message) {
-      this.subtaskParentId = this.theChat.id
-      this.subtaskMessageId = message?.doc_id
+    // CHANGED: Default subtask creation under displayed chat
+    newSubChat(parentChat) {
+      const chat = parentChat || this.workingChat
+      if (!chat) return
+      this.subtaskParentId = chat.id
+      this.subtaskMessageId = null
       this.subtaskName = null
       this.subtaskDescription = null
       this.subtaskFiles = []
       this.subtaskProfiles = []
-      this.subtaskMode = this.theChat.mode
-      this.subtaskColumn = this.theChat.column
+      this.subtaskMode = chat.mode
+      this.subtaskColumn = chat.column
       this.subtaskProject = this.targetProject
       this.showSubtaskModal = true
     },
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId } }) {
-      const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId)
+      if (!chat) return
+      const findChild = () => this.$chats.allChats.find(c => c.message_id === subtaskMessageId)
+
       if (!findChild()) {
         await this.createSubTask({
           parent: chat,
@@ -643,35 +603,42 @@ export default {
           child_index: this.childrenChats?.length
         })
       }
-      this.$chats.setActiveChat(findChild())
+
+      const child = findChild()
+      if (child) this.$chats.setActiveChat(child)
     },
     getSubTaskParentSummary() {
       let messages = this.messages
       if (!messages.length) return ''
-      if (this.theChat.mode === 'task') {
+      if (this.workingChat?.mode === 'task') {
         messages = messages.reverse()
         const lastAI = messages.find(m => m.role === 'assistant')
         if (lastAI) return lastAI.content
       }
-      return messages.reduce((acc, m) => acc + '\n' + m.content, '')
+      return messages.reduce((acc, m) => acc + '' + m.content, '')
     },
     async onCreateSubtask() {
-      if (!this.subtaskName.trim()) return
+      if (!this.subtaskName?.trim()) return
       if (this.subtaskDescription) {
         const parentContent = this.getSubTaskParentSummary()
-        this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
+        this.subtaskDescription = `${parentContent}
+
+${this.subtaskDescription}`
       }
+      const parent = this.workingChat || this.theChat
+      if (!parent) return
+
       await this.createSubTask({
-        parent: this.theChat,
+        parent,
         name: this.subtaskName,
         description: this.subtaskDescription,
         project_id: this.subtaskProject?.project_id || this.targetProject?.project_id,
-        parent_id: this.subtaskParentId,
+        parent_id: this.subtaskParentId || parent.id,
         message_id: this.subtaskMessageId,
         file_list: this.subtaskFiles,
         profiles: this.subtaskProfiles,
         mode: this.subtaskMode,
-        board: this.theChat.board,
+        board: parent.board,
         column: this.subtaskColumn,
         activateChat: true,
         child_index: this.childrenChats.length
@@ -691,11 +658,14 @@ export default {
       this.subtaskColumn = ''
     },
     addNewTag() {
-      this.theChat.tags = [...new Set([...this.theChat.tags || [], this.newTag])]
+      const chat = this.workingChat
+      if (!chat) return
+      chat.tags = [...new Set([...(chat.tags || []), this.newTag])]
       this.newTag = null
-      this.saveChat()
+      this.saveChat(chat)
     },
     setChatMode(mode) {
+      if (!this.workingChat) return
       this.workingChat.mode = mode
       this.saveChat()
     },
@@ -711,10 +681,12 @@ export default {
       this.showAddProfile = true
     },
     toggleChatPinned() {
-      this.theChat.pinned = !this.theChat.pinned
-      this.saveChat()
+      const chat = this.workingChat
+      if (!chat) return
+      chat.pinned = !chat.pinned
+      this.saveChat(chat)
     },
-    selectChildChat(childChat) {
+    onSelectChildChat(childChat) {
       this.showChildChat = childChat
       if (childChat && !childChat.messages?.length) {
         this.$chats.reloadChat(childChat)
@@ -725,6 +697,7 @@ export default {
     },
     toggleParentDisconnect() {
       const chat = this.workingChat
+      if (!chat) return
       if (chat.ignore_parent_knowledge || chat.ignore_parent_files) {
         chat.ignore_parent_knowledge = false
         chat.ignore_parent_files = false
@@ -734,58 +707,38 @@ export default {
       }
       this.saveChat(chat)
     },
-    onDragStart(childChat, index, event) {
-      this.draggedItem = childChat
-      this.draggedItemIndex = index
-      event.dataTransfer.effectAllowed = 'move'
-      event.dataTransfer.setData('text/html', event.currentTarget)
-    },
-    onDragOver(event) {
-      event.preventDefault()
-      event.dataTransfer.dropEffect = 'move'
-      this.isDraggingOver = true
-    },
-    onDragEnter(index) {
-      if (!this.draggedItem || index === this.draggedItemIndex) return
-      this.dragOverIndex = index
-    },
-    async onDrop(event) {
-      event.preventDefault()
-      this.isDraggingOver = false
-      
-      if (!this.draggedItem || this.draggedItemIndex === null || this.dragOverIndex === null) {
-        this.resetDragState()
-        return
+    onSelectNavigatorChat(chat) {
+      if (!chat) return
+      this.showChildChat = chat.id === this.theChat?.id ? null : chat
+      if (chat && !chat.messages?.length) {
+        this.$chats.reloadChat(chat)
       }
-      
-      if (this.dragOverIndex === this.draggedItemIndex) {
-        this.resetDragState()
-        return
+    },
+    selectBreadcrumbChat(chat) {
+      if (!chat) return
+      this.showChildChat = chat.id === this.theChat?.id ? null : chat
+      if (chat && !chat.messages?.length) {
+        this.$chats.reloadChat(chat)
       }
-      
-      await this.reorderChildChats(this.dragOverIndex)
-      this.resetDragState()
     },
-    onDragEnd() {
-      this.isDraggingOver = false
-      this.resetDragState()
+    // ADDED: Build reactive hierarchy tree from root
+    collectHierarchy(chat, visited = new Set()) {
+      if (!chat || visited.has(chat.id)) return []
+      visited.add(chat.id)
+      const children = this.getDirectChildren(chat.id)
+      return [chat, ...children.flatMap(child => this.collectHierarchy(child, visited))]
     },
-    resetDragState() {
-      this.draggedItem = null
-      this.draggedItemIndex = null
-      this.dragOverIndex = null
+    getDirectChildren(chatId) {
+      if (!chatId) return []
+      return (this.$chats.chatChildren(chatId) || [])
+        .filter(Boolean)
+        .sort(this.sortChats)
     },
-    async reorderChildChats(targetIndex) {
-      const newOrder = [...this.orderedChildrenChats]
-      const [removed] = newOrder.splice(this.draggedItemIndex, 1)
-      newOrder.splice(targetIndex, 0, removed)
-      
-      if (!this.theChat.meta_data) {
-        this.theChat.meta_data = {}
-      }
-      this.theChat.meta_data.childOrder = newOrder.map(c => c.id)
-      
-      await this.saveChat(this.theChat)
+    sortChats(a, b) {
+      const ai = a.child_index == null ? 999999 : a.child_index
+      const bi = b.child_index == null ? 999999 : b.child_index
+      if (ai !== bi) return ai - bi
+      return String(a.name || '').localeCompare(String(b.name || ''))
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.$chats.createNewChat({

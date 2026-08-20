@@ -43,10 +43,10 @@ import parser from '@/utils/markdownParser'
 
     <!-- Render blocks within chapter -->
     <div class="space-y-4">
+      <!-- CHANGED: Use block.hash as stable key to prevent unmounting during streaming -->
       <div v-for="block in blocks" :title="'type=' + block.type + ' file=' + block.fileName" 
         :key="block.hash">
         <!-- Code block: has fileName or has type with synthetic fileName -->
-        <!-- CHANGED: Pass loading state so Code component knows if streaming -->
         <Code
           v-if="isCodeBlock(block)"
           :text="block.content"
@@ -58,6 +58,7 @@ import parser from '@/utils/markdownParser'
           :loading="loading"
           :chat="chat"
           :message="message"
+          :block-hash="block.hash"
           @generate-code="$emit('generate-code', $event)"
           @reload-file="$emit('reload-file', $event)"
           @open-file="$emit('open-file', $event)"
@@ -139,27 +140,12 @@ export default {
   ],
   data() {
     return {
-      isHovered: false,
-      renderedBlocks: []
+      isHovered: false
     }
   },
   computed: {
     fullChapterContent() {
       return parser.collectAllChildContent(this.chapter)
-    }
-  },
-  watch: {
-    blocks: {
-      handler(newBlocks) {
-        this.renderedBlocks = [...(newBlocks || [])]
-      },
-      deep: true
-    },
-    chapter: {
-      handler() {
-        this.renderedBlocks = [...(this.blocks || [])]
-      },
-      deep: true
     }
   },
   methods: {
@@ -185,9 +171,6 @@ export default {
     handleChildCopy(chapterData) {
       this.$emit('copy-chapter', chapterData)
     }
-  },
-  mounted() {
-    this.renderedBlocks = [...(this.blocks || [])]
   }
 }
 </script>

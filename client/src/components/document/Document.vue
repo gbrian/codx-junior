@@ -5,9 +5,10 @@ import parser from '@/utils/markdownParser'
 
 <template>
   <div class="flex flex-col @container/document">
+    <!-- CHANGED: Use chapter.hash as stable key to preserve chapter instances during streaming -->
     <ChapterBlock
       v-for="(chapter, index) in chapters"
-      :key="'chapter-' + chapter.level + '-' + index"
+      :key="chapter.hash || ('chapter-' + chapter.level + '-' + index)"
       :chapter="chapter"
       :blocks="getChapterBlocks(chapter)"
       :files="files"
@@ -62,18 +63,18 @@ export default {
   data() {
     return {
       cachedChapters: [],
-      lastContentHash: ''
+      lastContentHash: null
     }
   },
   computed: {
     chapters() {
-      // CHANGED: During streaming, always use full content hash so in-block
-      // updates (new code lines) trigger recompute and propagate to Code.vue
+      // CHANGED: During streaming, always reparse to get new content updates,
+      // but chapters with stable hashes won't unmount/remount
       const contentHash = this.loading
-        ? this.content  // full content as hash key during streaming
+        ? this.content
         : this.getContentStructureHash()
 
-      if (contentHash === this.lastContentHash) {
+      if (this.lastContentHash != null && contentHash === this.lastContentHash) {
         return this.cachedChapters
       }
 
@@ -86,7 +87,6 @@ export default {
     }
   },
   methods: {
-    // CHANGED: Only used when NOT streaming — structural hash avoids unnecessary re-parses
     getContentStructureHash() {
       const lines = (this.content || '').split('\n')
       let hash = ''

@@ -12,6 +12,7 @@ import Selector from './Selector.vue'
     :allow-deselect="true"
     :empty-label="'default'"
     @update:selected-items="onModelSelected"
+    @open="loadModels"
   >
     <!-- Custom model card rendering -->
     <template #default="{ item, selected }">
@@ -49,7 +50,7 @@ export default {
     }
   },
   async created() {
-    this.models = await this.$storex.api.projects.ai.models.list()
+    this.loadModels()
   },
   computed: {
     formattedModels() {
@@ -69,6 +70,9 @@ export default {
     onModelSelected(selectedItems) {
       const modelName = selectedItems.length > 0 ? selectedItems[0].name : null
       this.$emit('model-changed', modelName)
+    },
+    async loadModels() {
+      this.models = await this.$storex.api.projects.ai.models.list()
     }
   }
 }

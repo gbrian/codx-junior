@@ -36,10 +36,8 @@ from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
 from codx.junior.utils.utils import document_to_code_block
 from codx.junior.model.model import CodxUser
 from codx.junior.chat.chat_knowledge import ChatKnowledge
+from codx.junior.analytics import Analytics
 
-from codx.junior.global_settings import (
-  read_global_settings
-)
 from codx.junior.globals import (
   LANGUAGE_PARSER_MAPPING,
 )
@@ -74,6 +72,9 @@ class ChatEngine:
     Handles message processing, knowledge search, context building,
     and AI response generation for various chat modes.
 
+    Integrates comprehensive analytics tracking for chat sessions, token usage,
+    and tool executions to enable full request-response traceability.
+
     flowchart TD
         A[User Message] --> B{Chat Mode?}
         B -->|vibe| C[AI Search Context]
@@ -83,10 +84,12 @@ class ChatEngine:
         B -->|agent| F[Agent Iteration]
         B -->|chat| G[Standard Chat]
         D --> G
-        E --> H[AI Response]
+        E --> H[Record Chat Session Start]
         F --> H
         G --> H
-        H --> I[Return Chat + Documents]
+        H --> I[AI Response]
+        I --> J[Record Chat Session End]
+        J --> K[Return Chat + Documents]
     """
 
     def __init__(
@@ -110,9 +113,8 @@ class ChatEngine:
             event_manager=event_manager
         )
         self.user = user
-
-    def _get_gloabal_system(self):
-        return read_global_settings().chat_global_instructions
+        # ADDED: Initialize analytics instance for chat session tracking
+        self.analytics = Analytics()
 
     def get_profile_manager(self) -> ProfileManager:
         """Return a ProfileManager instance for the current settings."""
@@ -141,7 +143,7 @@ class ChatEngine:
         logger.info("Start chat %s", chat.name)
         try:
             yield
-        except Exception as ex:
+        except OSError as ex:
             self.event_manager.chat_event(
                 chat=chat,
                 message=f"{event} error: {ex}",
@@ -279,45 +281,55 @@ class ChatEngine:
         Derive the active profiles, LLM model, tool list, and profile content string
         from the query mentions and chat state.
 
+        Profiles are sorted by name and their content is formatted to be passed
+        as part of the AI system prompt, including the current date/time.
+
         flowchart TD
             A[Query mentions profiles] --> B{Any profiles?}
-            B -->|Yes| C[Build profile content]
-            C --> D[Collect tools]
-            D --> E{Profile has model?}
-            E -->|Yes| F[Set chat_model from profile]
-            E -->|No| G[Keep existing model]
-            B -->|No| H{Any chat_files?}
-            H -->|Yes| I[Set default profile content]
-            H -->|No| J[Empty profile content]
+            B -->|Yes| C[Sort profiles by name]
+            C --> D[Build system prompt content]
+            D --> E[Collect tools]
+            E --> F{Profile has model?}
+            F -->|Yes| G[Set chat_model from profile]
+            F -->|No| H[Keep existing model]
+            B -->|No| I{Any chat_files?}
+            I -->|Yes| J[Set default profile content]
+            I -->|No| K[Empty profile content]
 
         :param chat: The current chat object.
         :param query_mentions: Resolved mentions from the user query.
         :param chat_files: List of files attached to the chat.
         :param is_refine: Whether we are in task/refine mode.
-        :return: Dict with keys: chat_profiles_content, chat_profile_names,
+        :return: Dict with keys: chat_profiles_system_content, chat_profile_names,
                  chat_model, chat_tools, is_refine.
         """
         all_profiles = query_mentions.profiles
-        chat_profiles_content = ""
+        chat_profiles_system_content = ""
         chat_profile_names: List[str] = []
         chat_model: Optional[str] = chat.llm_model
         chat_tools: List[str] = []
 
         if all_profiles:
-            chat_profiles_content = "\n".join([
-                f"###PROFILE: {profile.name}\n{profile.parsed_content}"
-                for profile in all_profiles
-            ])
-            chat_profile_names = [profile.name for profile in all_profiles]
+            # Sort profiles by name for consistent ordering
+            sorted_profiles = sorted(all_profiles, key=lambda p: p.name)
+            
+            profile_blocks = []
+            for profile in sorted_profiles:
+                block = f"### PROFILE: {profile.name}\n"
+                block += profile.parsed_content
+                profile_blocks.append(block)
+            
+            chat_profiles_system_content = "\n\n".join(profile_blocks)
+            chat_profile_names = [profile.name for profile in sorted_profiles]
 
-            for profile in all_profiles:
+            for profile in sorted_profiles:
                 chat_tools = chat_tools + profile.tools
                 logger.info("Profile '%s (%s)' tools: '%s'", profile.name, profile.project_id, profile.tools)
             chat_tools = list(set(chat_tools))
             
 
             if not chat_model:
-                profile_models = [p for p in all_profiles if p.llm_model]
+                profile_models = [p for p in sorted_profiles if p.llm_model]
                 if profile_models:
                     profile_model = profile_models[0]
                     chat_model = profile_model.llm_model
@@ -327,17 +339,17 @@ class ChatEngine:
                         profile_model.name
                     )
 
-            if next((p for p in all_profiles if p.chat_mode == CHAT_MODE_TASK), None):
+            if next((p for p in sorted_profiles if p.chat_mode == CHAT_MODE_TASK), None):
                 is_refine = True
 
         elif chat_files:
-            chat_profiles_content = (
+            chat_profiles_system_content = (
                 "Focus on the changes required by the task "
                 "and keep all other content as it is."
             )
 
         return {
-            "chat_profiles_content": chat_profiles_content,
+            "chat_profiles_system_content": chat_profiles_system_content,
             "chat_profile_names": chat_profile_names,
             "chat_model": chat_model,
             "chat_tools": chat_tools,
@@ -443,6 +455,12 @@ class ChatEngine:
         return chat_files_content
 
     def _document_to_context(self, doc: Document) -> str:
+        """
+        Convert a Document to a formatted context string with language-specific code fence.
+
+        :param doc: The Document to convert.
+        :return: Formatted context string with file metadata and code fence.
+        """
         content = doc.page_content
         source = doc.metadata['source']
         language = doc.metadata.get('language')
@@ -454,9 +472,9 @@ class ChatEngine:
         return "\n".join([
             "### FILE CONTEXT",
             f"This is the actual project's file content for '{source}', use same file path in your response.",
-            "This content represent the current file, use it as a base for changes."
+            "This content represent the current file, use it as a base for changes.",
             "",
-            f"```{ language } {source}",
+            f"```{language} {source}",
             content,
             "```",
             ""
@@ -599,7 +617,6 @@ class ChatEngine:
         last_ai_message: Optional[Message],
         context: str,
         chat_files_content: str,
-        chat_profiles_content: str,
         is_refine: bool,
         is_agent: bool,
         iterations_left: int
@@ -607,8 +624,9 @@ class ChatEngine:
         """
         Assemble the final list of LangChain messages to send to the AI.
 
-        This appends context, working-file content, profile instructions, and
-        the mode-specific prompt (refine / agent / standard) to the history.
+        This appends context, working-file content, and the mode-specific prompt
+        (refine / agent / standard) to the history. Profile instructions are now
+        handled via the system prompt.
 
         flowchart TD
             A[Start] --> B{Context?}
@@ -623,11 +641,8 @@ class ChatEngine:
             G --> I
             H --> I
             I -->|Yes| J[Prepend working files header]
-            I -->|No| K{chat_profiles_content?}
+            I -->|No| K[Return messages]
             J --> K
-            K -->|Yes| L[Append profile instructions]
-            K -->|No| M[Return messages]
-            L --> M
 
         :param chat: The current chat object.
         :param messages: LangChain message history (will be mutated by appending).
@@ -635,7 +650,6 @@ class ChatEngine:
         :param last_ai_message: The most recent AI message in history, or None.
         :param context: RAG / pre-search context string.
         :param chat_files_content: Content of explicitly attached files.
-        :param chat_profiles_content: Concatenated profile instruction strings.
         :param is_refine: Whether we are in task/refine mode.
         :param is_agent: Whether we are in agent mode.
         :param iterations_left: Remaining agent iterations.
@@ -676,9 +690,6 @@ class ChatEngine:
                 f"{messages[-1].content}"
             )
 
-        if chat_profiles_content:
-            messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
-
         return messages
 
     def _append_refine_message(
@@ -694,6 +705,8 @@ class ChatEngine:
         If a previous AI document exists, it asks the model to apply comments to it.
         Otherwise it simply uses the raw user message content.
 
+        Incorporates parent context if available and not ignored.
+
         :param chat: The current chat object.
         :param messages: Existing message list.
         :param user_message: The latest user message.
@@ -702,8 +715,11 @@ class ChatEngine:
         """
         existing_document = last_ai_message.content if last_ai_message else ""
         parent_task = ""
+        
+        # CHANGED: Resolve parent context internally based on ignore_parent_knowledge flag
         if not chat.ignore_parent_knowledge:
             parent_task = self.get_chat_analysis_parents(chat=chat)
+        
         task_content = ""
 
         answer_messages = [
@@ -747,6 +763,8 @@ class ChatEngine:
         """
         Append an agent-style prompt that instructs the model to complete a task.
 
+        Incorporates parent context if available and not ignored.
+
         :param chat: The current chat object.
         :param messages: Existing message list.
         :param user_message: The latest user message.
@@ -754,17 +772,29 @@ class ChatEngine:
         :return: Updated messages list.
         """
         parent_context = ""
+        
+        # CHANGED: Resolve parent context internally based on ignore_parent_knowledge flag
         if not chat.ignore_parent_knowledge:
             parent_context = self.get_chat_analysis_parents(chat=chat)
+        
         agent_content = (
-            f"\nYou are responsible to end this task.\n"
+            f"You are responsible to end this task.\n"
             f"Follow instructions and try to solve it with the minimum iterations needed.\n"
             f"<task>\n{chat.name}\n</task>\n\n"
-            f"<parent_context>\n{parent_context}\n</parent_context>\n\n"
+        )
+
+        if parent_context:
+            agent_content += (
+                f"You are writing a child document based on prior context:\n"
+                f"<parent_context>\n{parent_context}\n</parent_context>\n\n"
+            )
+
+        agent_content += (
             f"<user_request>\n{user_message.content}\n</user_request>\n\n"
             f"You still have {iterations_left} attempts more to finish the task.\n"
             f"Return {AGENT_DONE_WORD} when the task is done.\n"
         )
+        
         agent_message = self._new_chat_message(role="user", content=agent_content)
         messages.append(self.convert_message(agent_message))
         return messages
@@ -985,6 +1015,67 @@ class ChatEngine:
         response_message.meta_data = base_meta
 
     # -------------------------------------------------------------------------
+    # Helper: build clean message history for description (ADDED)
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _build_clean_message_history_for_description(chat: Chat) -> List:
+        """
+        Build a message history that excludes system prompts, profile content,
+        and file content details.
+
+        This creates a cleaner conversation history suitable for generating
+        concise summaries without the technical implementation details.
+
+        Only includes the natural user and assistant messages from the chat,
+        excluding hidden messages and improvement messages.
+
+        :param chat: The chat whose clean history to build.
+        :return: List of clean message content strings (user and assistant only).
+        """
+        clean_messages = []
+        
+        for message in chat.messages:
+            # Skip hidden and improvement messages
+            if message.hide or message.improvement:
+                continue
+            
+            # Only include actual user and assistant messages
+            if message.role not in ("user", "assistant"):
+                continue
+            
+            # Clean the content by removing file content markers and system prompts
+            content = message.content.strip()
+            
+            # Skip context/file markers added during processing
+            if content.startswith("<project_files>") or content.startswith("## Working Files:"):
+                # Extract just the user request part if it exists
+                if "## User request" in content:
+                    parts = content.split("## User request")
+                    if len(parts) > 1:
+                        content = parts[1].strip()
+                    else:
+                        continue
+                else:
+                    continue
+            
+            # Skip processing messages
+            if content.startswith("* Processing"):
+                continue
+            
+            # Skip search messages
+            if content.startswith("Searching in") or content.startswith("Knowledge search"):
+                continue
+            
+            if content:
+                clean_messages.append(content)
+        
+        logger.info(
+            "Built clean message history for description: %d messages",
+            len(clean_messages)
+        )
+        return clean_messages
+
+    # -------------------------------------------------------------------------
     # Helper: generate chat description and history entry
     # -------------------------------------------------------------------------
     async def _generate_chat_description(
@@ -997,6 +1088,11 @@ class ChatEngine:
         """
         Generate and store a short summary of the conversation.
 
+        The summary includes only the core conversation content, excluding:
+        - Profile content and instructions
+        - File contents (only file paths are considered)
+        - Processing/system messages
+
         Maintains a timestamped history of descriptions as the chat evolves,
         allowing review of context changes over time.
 
@@ -1006,9 +1102,35 @@ class ChatEngine:
         :param ai_chat_fn: Async callable matching the ai_chat signature.
         """
         try:
-            desc_messages = messages.copy()
-            if is_refine:
+            # Build clean messages without file contents and profile information
+            clean_messages = self._build_clean_message_history_for_description(chat)
+            
+            if not clean_messages:
+                logger.warning(
+                    "No clean messages available for description generation in chat '%s'",
+                    chat.doc_id
+                )
+                return
+            
+            # Convert clean message strings back to LangChain format
+            desc_messages = []
+            for i, content in enumerate(clean_messages):
+                # Alternate between user and assistant, starting with user
+                role = "user" if i % 2 == 0 else "assistant"
+                if role == "user":
+                    desc_messages.append(HumanMessage(content=content))
+                else:
+                    desc_messages.append(AIMessage(content=content))
+            
+            # If in refine mode, use only the last message for context
+            if is_refine and desc_messages:
                 desc_messages = [desc_messages[-1]]
+            
+            logger.info(
+                "Generating chat description from %d clean messages for chat '%s'",
+                len(desc_messages),
+                chat.doc_id
+            )
             
             description_response = await ai_chat_fn(
                 messages=desc_messages,
@@ -1039,7 +1161,7 @@ class ChatEngine:
                 len(chat.history),
                 chat.doc_id
             )
-        except (ValueError, RuntimeError) as ex:
+        except (ValueError, RuntimeError, OSError) as ex:
             logger.exception(
                 "Error generating chat description: %s %s", ex, chat.doc_id
             )
@@ -1128,7 +1250,7 @@ class ChatEngine:
                 chat.doc_id, chat.name, chat.board, chat.column
             )
 
-        except (ValueError, RuntimeError, json.JSONDecodeError) as ex:
+        except (ValueError, RuntimeError, JSONDecodeError, OSError) as ex:
             logger.exception(
                 "Error auto-initializing chat metadata for '%s': %s", chat.doc_id, ex
             )
@@ -1146,6 +1268,125 @@ class ChatEngine:
         for message in chat.messages[:-1]:
             if not message.is_answer:
                 message.hide = True
+
+    # -------------------------------------------------------------------------
+    # Helper: Record chat session START (ADDED)
+    # -------------------------------------------------------------------------
+    def _record_chat_session_start(
+        self,
+        chat: Chat,
+        mode: str,
+        profiles: List[str],
+        files: List[str],
+        iteration: int,
+        max_iterations: int,
+        llm_model: str,
+        parent_chat_id: Optional[str] = None
+    ) -> None:
+        """
+        Record the start of a chat session with initial context.
+
+        Called at the beginning of chat processing to capture chat metadata
+        and context information. Additional calls during the session can update
+        this record with new information as it becomes available.
+
+        :param chat: The chat object being processed.
+        :param mode: Chat mode ('task', 'agent', 'vibe', 'chat').
+        :param profiles: List of active profile names.
+        :param files: List of files associated with the chat.
+        :param iteration: Current iteration number (for agent mode).
+        :param max_iterations: Maximum iterations allowed.
+        :param llm_model: LLM model being used.
+        :param parent_chat_id: Parent chat ID if nested.
+        """
+        try:
+            self.analytics.record_chat_session(
+                chat_id=chat.id,
+                chat_name=chat.name or "Unnamed Chat",
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                mode=mode,
+                profiles=profiles,
+                files=files,
+                parent_chat_id=parent_chat_id,
+                iteration=iteration,
+                max_iterations=max_iterations,
+                llm_model=llm_model,
+                input_message_count=len(chat.messages),
+                output_message_count=0,
+            )
+            logger.info(
+                "Chat session start recorded: chat_id=%s mode=%s profiles=%s files=%d",
+                chat.id, mode, profiles, len(files)
+            )
+        except OSError as ex:
+            logger.warning("Failed to record chat session start: %s", ex)
+
+    # -------------------------------------------------------------------------
+    # Helper: Record chat session END (ADDED)
+    # -------------------------------------------------------------------------
+    def _record_chat_session_end(
+        self,
+        chat: Chat,
+        mode: str,
+        profiles: List[str],
+        files: List[str],
+        iteration: int,
+        max_iterations: int,
+        llm_model: str,
+        start_time: float,
+        parent_chat_id: Optional[str] = None,
+        cancelled: bool = False,
+        error: Optional[str] = None,
+    ) -> None:
+        """
+        Record the end of a chat session with final metrics.
+
+        Called after chat processing completes (or errors). Captures final duration,
+        message counts, and error state.
+
+        :param chat: The chat object being processed.
+        :param mode: Chat mode ('task', 'agent', 'vibe', 'chat').
+        :param profiles: List of active profile names.
+        :param files: List of files associated with the chat.
+        :param iteration: Final iteration number.
+        :param max_iterations: Maximum iterations allowed.
+        :param llm_model: LLM model being used.
+        :param start_time: Timestamp when chat processing started.
+        :param parent_chat_id: Parent chat ID if nested.
+        :param cancelled: Whether the chat was cancelled.
+        :param error: Error message if chat failed.
+        """
+        try:
+            duration_seconds = time.time() - start_time
+            output_message_count = len([m for m in chat.messages if m.role == "assistant"])
+
+            self.analytics.record_chat_session(
+                chat_id=chat.id,
+                chat_name=chat.name or "Unnamed Chat",
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                mode=mode,
+                profiles=profiles,
+                files=files,
+                parent_chat_id=parent_chat_id,
+                iteration=iteration,
+                max_iterations=max_iterations,
+                llm_model=llm_model,
+                duration_seconds=duration_seconds,
+                input_message_count=len([m for m in chat.messages if m.role == "user"]),
+                output_message_count=output_message_count,
+                cancelled=cancelled,
+                error=error,
+            )
+            logger.info(
+                "Chat session end recorded: chat_id=%s duration=%.2fs cancelled=%s error=%s",
+                chat.id, duration_seconds, cancelled, error
+            )
+        except OSError as ex:
+            logger.warning("Failed to record chat session end: %s", ex)
 
     # -------------------------------------------------------------------------
     # Main entry point
@@ -1198,18 +1439,19 @@ class ChatEngine:
             K -->|task| L[Refine document]
             K -->|agent| M[Agent prompt]
             K -->|chat| N[Standard user message]
-            L --> O[AI Chat]
+            L --> O[Record Chat Session START]
             M --> O
             N --> O
-            O --> P{Cancelled?}
-            P -->|Yes| Q[Set cancelled_at in meta_data]
-            Q --> S[Return chat + docs]
-            P -->|No| R[Parse response]
-            R --> T{Agent done?}
-            T -->|No, iterations left| U[Recurse]
-            T -->|Yes| S
-            S --> S1[Unregister CancellationToken]
-            S1 --> V[Return chat + docs]
+            O --> P[AI Chat]
+            P --> Q{Cancelled?}
+            Q -->|Yes| R[Set cancelled_at in meta_data]
+            R --> S[Record Chat Session END with error]
+            Q -->|No| T[Parse response]
+            T --> U{Agent done?}
+            U -->|No, iterations left| V[Recurse]
+            U -->|Yes| S[Record Chat Session END success]
+            S --> W[Unregister CancellationToken]
+            W --> X[Return chat + docs]
 
         :param chat: The Chat object containing messages and metadata.
         :param disable_knowledge: If True, skip knowledge base search.
@@ -1263,7 +1505,7 @@ class ChatEngine:
                 append_references=append_references,
                 chat_mode=chat_mode,
                 iteration=iteration,
-                system=system or self._get_gloabal_system(),
+                system=system,
                 cancellation_token=cancellation_token,
             )
         finally:
@@ -1308,6 +1550,7 @@ class ChatEngine:
                 "start_time": time.time(),
                 "first_response": None
             }
+            session_start_time = timing_info["start_time"]
 
             # ------------------------------------------------------------------
             # 2. Extract user message and basic query context
@@ -1428,7 +1671,7 @@ class ChatEngine:
                 chat_files=chat_files,
                 is_refine=is_refine
             )
-            chat_profiles_content: str = profile_result["chat_profiles_content"]
+            chat_profiles_system_content: str = profile_result["chat_profiles_system_content"]
             chat_profile_names: List[str] = profile_result["chat_profile_names"]
             chat_model: Optional[str] = profile_result["chat_model"]
             chat_tools: List[str] = profile_result["chat_tools"]
@@ -1441,6 +1684,21 @@ class ChatEngine:
                 )
 
             response_message.profiles = chat_profile_names
+            
+            # ------------------------------------------------------------------
+            # 9.5 ADDED: Record chat session START with initial context
+            # ------------------------------------------------------------------
+            if iteration == 0:
+                self._record_chat_session_start(
+                    chat=chat,
+                    mode=chat_mode,
+                    profiles=chat_profile_names,
+                    files=chat_files,
+                    iteration=iteration,
+                    max_iterations=max_iterations,
+                    llm_model=chat_model or (self.settings.get_llm_settings().model),
+                    parent_chat_id=chat.parent_id if parent_chat else None,
+                )
             
             # ------------------------------------------------------------------
             # 10. Resolve search projects
@@ -1484,13 +1742,24 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
-            # 14. Prepare AI instance
+            # 14. Prepare AI instance with merged system prompt
             # ------------------------------------------------------------------
             ai_settings = self.settings.get_llm_settings()
             logger.info("[chat_model] %s", chat_model)
             if chat_model:
                 ai_settings.model = chat_model
-            ai = self.get_ai(llm_model=ai_settings.model, system=system)
+            
+            # Merge profile system content with any provided system prompt
+            final_system_prompt = ""
+            if chat_profiles_system_content:
+                final_system_prompt = chat_profiles_system_content
+            if system:
+                if final_system_prompt:
+                    final_system_prompt += "\n\n" + system
+                else:
+                    final_system_prompt = system
+            
+            ai = self.get_ai(llm_model=ai_settings.model, system=final_system_prompt)
 
             self.event_manager.chat_event(
                 chat=chat, message=f"Chatting with {ai_settings.model}"
@@ -1611,7 +1880,6 @@ class ChatEngine:
                 last_ai_message=last_ai_message,
                 context=context,
                 chat_files_content=chat_files_content,
-                chat_profiles_content=chat_profiles_content,
                 is_refine=is_refine,
                 is_agent=is_agent,
                 iterations_left=iterations_left
@@ -1660,6 +1928,23 @@ class ChatEngine:
                     chat=chat, message=response_message
                 )
                 self.event_manager.chat_event(chat=chat, message="cancelled")
+                
+                # ADDED: Record chat session END with cancellation
+                if iteration == 0:
+                    self._record_chat_session_end(
+                        chat=chat,
+                        mode=chat_mode,
+                        profiles=chat_profile_names,
+                        files=chat_files,
+                        iteration=iteration,
+                        max_iterations=max_iterations,
+                        llm_model=chat_model or (self.settings.get_llm_settings().model),
+                        start_time=session_start_time,
+                        parent_chat_id=chat.parent_id if parent_chat else None,
+                        cancelled=True,
+                        error="User cancelled the request",
+                    )
+                
                 return chat, documents
 
             response_message.think = think_content
@@ -1728,6 +2013,22 @@ class ChatEngine:
                     iteration=iteration + 1,
                     system=system,
                     cancellation_token=cancellation_token,
+                )
+
+            # ADDED: Record chat session END on success
+            if iteration == 0:
+                self._record_chat_session_end(
+                    chat=chat,
+                    mode=chat_mode,
+                    profiles=chat_profile_names,
+                    files=chat_files,
+                    iteration=iteration,
+                    max_iterations=max_iterations,
+                    llm_model=chat_model or (self.settings.get_llm_settings().model),
+                    start_time=session_start_time,
+                    parent_chat_id=chat.parent_id if parent_chat else None,
+                    cancelled=False,
+                    error=None,
                 )
 
             self.event_manager.chat_event(chat=chat, message="done")
@@ -1856,8 +2157,8 @@ class ChatEngine:
         query = f"{content} {chat_profiles} @project"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug(
-            "Query mentions extracted for '%s...': %s", 
-            query[0:10], 
+            "Query mentions extracted for '%s...': %s",
+            query[0:10],
             {
                 "projects": [p.name for p in query_mentions.projects],
                 "profiles": [p.name for p in query_mentions.profiles]

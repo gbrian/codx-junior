@@ -181,7 +181,7 @@ export default {
       this.$ui.openChat(chat)
     },
     gotoProject(project) {
-      this.$projects.setActiveProject(project)
+      this.$projects.activeProjectChanged(project)
       this.$ui.setActiveTab('tasks')
     },
     openChat(chat) {

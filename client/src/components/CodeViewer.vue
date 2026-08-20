@@ -6,15 +6,6 @@ import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
 import { EXTENSION_LANGUAGE_MAP } from '../store'
-
-function generateHash(str) {
-  let hash = 0
-  for (const char of str) {
-    hash = (hash << 5) - hash + char.charCodeAt(0)
-    hash |= 0
-  }
-  return hash
-}
 </script>
 
 <template>
@@ -216,8 +207,9 @@ function generateHash(str) {
             v-if="editMode"
           />
 
+          <!-- CHANGED: Highlighter key now only updates on code content hash changes, not parent re-renders -->
           <VueCodeHighlighter
-            :key="highlighterKey"
+            :key="codeHash"
             class="h-full"
             :code="effectiveCode"
             :lang="validatedLanguage"
@@ -270,11 +262,6 @@ export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
-    // CHANGED: default showCode to true so streaming content is visible immediately
-    // If showCodeOpened is explicitly set, honour it; otherwise default open
-    const showCode = this.$props.showCodeOpened !== undefined
-      ? this.$props.showCodeOpened
-      : true
     return {
       showDiff: this.diffOption,
       orgContent: null,
@@ -288,9 +275,11 @@ export default {
       stats: null,
       last_modification: null,
       size: null,
-      showCode,
+      showCode: this.$props.showCodeOpened !== false,
       prevScrollTop: 0,
       isAtBottom: true,
+      isUserScrolledUp: false,
+      shouldForceScrollToBottom: true,
       isSaving: false,
       isApplyingPatch: false,
       deletionPercentage: 0,
@@ -305,7 +294,6 @@ export default {
       pendingViewSwitch: null,
       changesetErrors: [],
       patchPattern: null,
-      highlighterKey: 0,
       codeUpdateCounter: 0,
       codeHash: 0,
       lastCodeValue: null
@@ -406,19 +394,21 @@ export default {
   },
   watch: {
     async finished() {
-      if (this.finished && this.showCode) {
-        await this.loadDiffInfo()
-        if (!this.isNewFile && this.stats && !this.isNoChange) {
-          this.showDiff = true
+      if (this.finished) {
+        this.isUserScrolledUp = false
+        this.shouldForceScrollToBottom = false
+        
+        if (this.showCode) {
+          await this.loadDiffInfo()
+          if (!this.isNewFile && this.stats && !this.isNoChange) {
+            this.showDiff = true
+          }
         }
       }
       if (this.chat?.mode === 'vibe') {
         this.saveToFile()
       }
     },
-    // CHANGED: Increment highlighterKey on every code change so VueCodeHighlighter
-    // re-renders the updated content during streaming (same component instance,
-    // stable key means watcher fires instead of remount)
     code(newCode, oldCode) {
       if (newCode === oldCode) return
       
@@ -428,23 +418,24 @@ export default {
         return
       }
       
-      // Reset local overrides so streamed content shows through
       this.localCode = null
       
       this.changesetErrors = []
       this.detectPatchPattern()
       this.codeUpdateCounter++
+      // CHANGED: Update codeHash only when code content actually changes
       this.codeHash = this.generateCodeHash(newCode)
-      // CHANGED: always bump highlighterKey so VueCodeHighlighter gets fresh render
-      this.highlighterKey++
       
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
         if (!viewCode) return
-        if (this.isAtBottom) {
-          viewCode.scrollTop = viewCode.scrollHeight
+        
+        if (this.isStreaming) {
+          if (this.shouldForceScrollToBottom && !this.isUserScrolledUp) {
+            viewCode.scrollTop = viewCode.scrollHeight
+          }
         } else {
-          viewCode.scrollTop = this.prevScrollTop
+          this.prevScrollTop = viewCode.scrollTop
         }
       })
     }
@@ -855,9 +846,21 @@ export default {
     saveScrollPosition() {
       const viewCode = this.$el?.querySelector('.view-code')
       if (!viewCode) return
-      this.prevScrollTop = viewCode.scrollTop
+      
       const distanceFromBottom = viewCode.scrollHeight - viewCode.scrollTop - viewCode.clientHeight
-      this.isAtBottom = distanceFromBottom <= 40
+      
+      if (this.isStreaming) {
+        if (distanceFromBottom <= 40) {
+          this.isUserScrolledUp = false
+          this.shouldForceScrollToBottom = true
+        } else {
+          this.isUserScrolledUp = true
+          this.shouldForceScrollToBottom = false
+        }
+      } else {
+        this.prevScrollTop = viewCode.scrollTop
+        this.isAtBottom = distanceFromBottom <= 40
+      }
     }
   }
 }

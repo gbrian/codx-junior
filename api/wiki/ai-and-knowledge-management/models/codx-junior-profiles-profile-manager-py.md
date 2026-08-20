@@ -2,114 +2,172 @@
 
 ## Overview
 
-The Profile Manager is a comprehensive system for managing user profiles within the CODX Junior framework. It handles profile discovery, loading, saving, and linking across multiple project hierarchies.
+The Profile Manager is a component responsible for managing user profiles within the CODX Junior system. It handles loading, saving, listing, and organizing profiles across multiple project hierarchies while supporting profile inheritance and content templating.
 
 ## Core Components
 
 ### ProfileManager Class
 
-The main class responsible for all profile management operations.
+The main class that manages all profile-related operations.
 
 #### Initialization
 
 ```python
-def __init__(self, settings: CODXJuniorSettings)
+def __init__(self, settings: CODXJuniorSettings):
 ```
 
-Initializes the ProfileManager with project settings and establishes two key paths:
-- `profiles_path`: User-defined profiles directory within the CODX project
-- `base_profiles_path`: Built-in base profiles directory from source code
+Initializes the ProfileManager with:
+- `settings`: CODX Junior configuration settings
+- `profiles_path`: Directory path where project profiles are stored
+- `base_profiles_path`: Path to built-in base profiles from source code
 
-#### Profile Discovery Methods
+The constructor automatically creates the profiles directory if it doesn't exist.
 
-**base_profiles()**
-Returns a list of all built-in base profile paths from the source code directory.
+## Profile Discovery and Listing
 
-**project_profile_paths()**
-Returns a list of all profile paths in the current project's profiles directory.
+### list_all_profiles()
 
-**list_profiles()**
-Loads and returns all valid profiles for the current project, filtering out any profiles that fail to load.
+Retrieves all available profiles from multiple sources in the following priority order:
 
-**list_all_profiles()**
-Provides a comprehensive profile listing that includes:
-1. Profiles from parent projects
-2. Profiles from the codx-junior project
-3. Current project profiles (which can override parent profiles)
-4. Built-in base profiles (only if not already defined)
+1. **Parent Project Profiles**: Profiles from parent projects in the hierarchy
+2. **CODX-Junior Project Profiles**: Profiles from the codx-junior project itself
+3. **Current Project Profiles**: Can override parent profiles with the same name
+4. **Built-in Base Profiles**: Source code profiles used only if not already defined
 
-Returns profiles with full content parsed and ready for use.
+Returns a list of profiles with parsed content.
 
-### Profile Loading and Storage
+### list_profiles()
 
-**load_profile(profile_path: str) -> Profile**
-Loads a profile from a file path with comprehensive error handling:
-- Validates JSON content
+Returns profiles specific to the current project by loading all `.profile` files from the project's profiles path.
+
+### base_profiles()
+
+Discovers and returns all built-in base profile file paths from the source code directory using glob pattern matching for `**/*.profile` files.
+
+### project_profile_paths()
+
+Returns file paths of all profiles in the current project's profiles directory.
+
+## Profile Operations
+
+### read_profile(profile_name)
+
+Retrieves a single profile by name.
+
+- **Parameters**: `profile_name` - Name of the profile to retrieve
+- **Returns**: Profile object or None if not found
+
+### load_profile(profile_path)
+
+Loads a profile from disk with comprehensive error handling.
+
+**Features**:
+- Reads profile JSON content from file
+- Validates non-empty content
+- Handles JSON parsing errors gracefully
+- Manages legacy profile content format (`.profile.md` files)
 - Sets default avatar using Gravatar if not specified
-- Handles legacy profile content stored in separate `.md` files
-- Returns a minimal valid profile on error rather than raising exceptions
+- Associates profile with current project
 
-**save_profile(profile: Profile)**
-Persists a profile to disk as JSON format. Clears parsed content before saving to ensure consistency.
+**Error Handling**: Returns a minimal valid Profile object with defaults if loading fails.
 
-**read_profile(profile_name: str) -> Profile**
-Retrieves a single profile by name from the current project's profiles.
+### save_profile(profile)
 
-**delete_profile(profile_name: str)**
-Removes a profile file from the project.
+Persists a profile to disk.
 
-### Profile Matching and Filtering
+- **Parameters**: `profile` - Profile object to save
+- **Behavior**: 
+  - Validates profile has a name
+  - Writes profile as JSON with 2-space indentation
+  - Clears parsed content before saving
 
-**is_profile_match(profile: Profile, file_path: str) -> bool**
-Determines if a profile's file match pattern applies to a given file path using regex matching.
+### delete_profile(profile_name)
 
-**get_file_profiles_by_file_path(file_path: str)**
-Returns all profiles that match a specific file path pattern.
+Removes a profile file from the current project's profiles directory.
 
-**get_profiles_by_name(profiles: list)**
-Filters and returns profiles from all available profiles by name.
+- **Parameters**: `profile_name` - Name of the profile to delete
 
-### Content Processing
+## Profile Filtering and Matching
 
-**get_profile_With_content(profile: Profile)**
-Processes profile content by replacing template variables in the format `{{ variable_name }}` with actual values. Supports:
-- `{{ project_path }}`: Absolute project path
-- `{{ project_name }}`: Project name
-- Additional variables can be extended via `get_profile_content_context()`
+### is_profile_match(profile, file_path)
 
-**get_profile_content_context(profile: Profile)**
-Provides a dictionary of available context variables for content template processing.
+Checks if a file path matches a profile's file matching pattern.
 
-### Profile Linking
+- **Parameters**:
+  - `profile`: Profile object containing regex pattern
+  - `file_path`: File path to test
+- **Returns**: Boolean indicating if regex pattern matches
+- **Error Handling**: Returns False if regex fails
 
-**get_all_linked_profiles(profile: Profile, seen: set = None) -> List[Profile]**
-Recursively retrieves all profiles linked to a given profile, including:
-- The profile itself
-- Direct neighbor profiles referenced in the profile's `profiles` field
-- Nested linked profiles
+### get_file_profiles_by_file_path(file_path)
 
-Prevents infinite recursion by tracking previously seen profiles.
+Finds all profiles that match a given file path pattern.
 
-**reduce_linked_profiles(profiles: List[Profile]) -> List[Profile]**
-Deduplicates a list of profiles while preserving order and maintaining all linked relationships across multiple top-level profiles.
+- **Parameters**: `file_path` - Path to match against profile patterns
+- **Returns**: Deduplicated list of matching profiles with linked profiles
+
+### get_profiles_by_name(profiles)
+
+Retrieves profiles from all available profiles by name.
+
+- **Parameters**: `profiles` - List of profile names to retrieve
+- **Returns**: List of matching Profile objects
+
+## Content Processing
+
+### get_profile_content_context(profile)
+
+Provides template variables for profile content substitution.
+
+**Available Variables**:
+- `project_path`: Returns the absolute project path
+- `project_name`: Returns the project name
+
+### get_profile_With_content(profile)
+
+Processes profile content by replacing template variables with actual values.
+
+**Template Syntax**: `{{ variable_name }}`
+
+**Features**:
+- Uses regex pattern matching for template variables
+- Supports optional whitespace around variable names
+- Preserves original text if variable not found
+- Returns profile with `parsed_content` populated
+
+## Profile Linking
+
+### get_all_linked_profiles(profile, seen=None)
+
+Recursively retrieves all linked profiles including the profile itself and its dependencies.
+
+**Features**:
+- Maintains traversal order
+- Prevents infinite loops with `seen` tracking
+- Uses list-based deduplication for O(1) lookups
+- Supports nested profile relationships
+
+### reduce_linked_profiles(profiles)
+
+Deduplicates a list of profiles while respecting linked profile dependencies.
+
+- **Parameters**: `profiles` - List of profiles to deduplicate
+- **Returns**: Flattened, deduplicated list of all profiles and their linked dependencies
+- **Note**: Each top-level profile starts with fresh dependency resolution
 
 ## Utility Functions
 
-**generate_llm_tree(root_path, indent="", is_last=True, ignore_list=None)**
-Generates a tree representation of a directory structure suitable for LLM processing. Ignores common directories by default including:
-- `.git`, `__pycache__`, `.vscode`, `.DS_Store`, `node_modules`, `venv`
+### generate_llm_tree(root_path, indent="", is_last=True, ignore_list=None)
 
-Directories are listed before files and sorted alphabetically within their respective categories.
+Generates a tree representation of directory structure suitable for LLM consumption.
 
-## Profile Hierarchy
+**Features**:
+- Excludes common development directories (`.git`, `__pycache__`, `.vscode`, `node_modules`, `venv`, `.DS_Store`)
+- Sorts items with directories first, then files alphabetically
+- Uses tree-style ASCII connectors
+- Returns string representation or "Invalid Path" for non-existent paths
 
-The profile system follows a hierarchical priority:
-1. Current project profiles (highest priority)
-2. Parent project profiles
-3. CODX Junior project profiles
-4. Built-in base profiles (lowest priority)
-
-Higher priority profiles override lower priority profiles with the same name.
+**Note**: File listing is currently disabled (commented out).
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/model/model.py, codx/junior/utils/utils.py, codx/junior/project/project_discover.py

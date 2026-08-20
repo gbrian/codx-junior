@@ -7,7 +7,7 @@ import ProjectDetailt from './ProjectDetailt.vue'
       <div class="tools flex h-full gap-2 items-start p-4">
         <ProjectDetailt @click.stop=""
           :options="{ folders: true, showIcon: true }"
-          @select="$projects.setActiveProject($event)"
+          @select="$projects.activeProjectChanged($event)"
         />
         <a class="click flex items-center gap-4 py-2 hover:bg-base-100 w-full" 
           :class="$ui.activeTab === 'projects' ? 'text-primary': ''"

@@ -1,12 +1,13 @@
 <script setup>
 import ExportImportButton from './ExportImportButton.vue'
-import Markdown from './Markdown.vue'
+import Document from './document/Document.vue'
+import ProfileChatEditor from './ProfileChatEditor.vue'
 </script>
 
 <template>
-  <div class="edit-profile px-4 mx-auto flex flex-col gap-3">
-    <!-- Header bar -->
-    <div class="flex items-center gap-2 font-bold">
+  <div class="edit-profile flex flex-col h-full gap-2 px-2">
+    <!-- Header bar (full width) -->
+    <div class="flex items-center gap-2 font-bold shrink-0">
       <button class="btn btn-sm btn-ghost" @click="cancelEdit">
         <i class="fa-solid fa-arrow-left"></i>
       </button>
@@ -16,12 +17,15 @@ import Markdown from './Markdown.vue'
         </div>
       </div>
       <span class="text-lg">Profile</span>
-      <span class="badge badge-warning badge-sm" v-if="isOverriden">Overridden</span>
+      <span class="badge badge-warning badge-sm" v-if="isInherit">Inherited</span>
       <span class="badge badge-info badge-sm" v-if="isProjectProfile">Built-in</span>
       <div class="grow"></div>
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
-      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">
+      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isInherit || loading">
         <i class="fa-solid fa-trash"></i>
+      </button>
+      <button type="button" class="btn btn-sm btn-ghost" @click="reloadProfile" :disabled="loading">
+        <i class="fa-solid fa-rotate-left"></i>
       </button>
       <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit">
         <i class="fa-solid fa-floppy-disk mr-1"></i> Save
@@ -29,7 +33,7 @@ import Markdown from './Markdown.vue'
     </div>
 
     <!-- Category color strip -->
-    <div class="h-1 w-full rounded-full transition-all"
+    <div class="h-1 w-full rounded-full transition-all shrink-0"
       :class="{
         'bg-primary': editProfile.category === 'assistant',
         'bg-secondary': editProfile.category === 'chat',
@@ -39,51 +43,60 @@ import Markdown from './Markdown.vue'
       }">
     </div>
 
-    <!-- Identity row -->
-    <div class="flex gap-4 items-start">
-      <!-- Avatar preview -->
-      <div class="flex flex-col items-center gap-1 flex-shrink-0">
-        <div class="indicator">
-          <span class="indicator-item badge badge-xs"
-            :class="{
-              'badge-primary': editProfile.category === 'assistant',
-              'badge-secondary': editProfile.category === 'chat',
-              'badge-accent': editProfile.category === 'agent',
-              'badge-info': editProfile.category === 'file',
-              'badge-neutral': editProfile.category === 'project'
-            }">
-            {{ editProfile.category }}
-          </span>
-          <div class="avatar">
-            <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-              <img :src="userAvatar" />
+    <!-- Main content: Two-column layout -->
+    <div class="flex gap-3 flex-1 min-h-0">
+      
+      <!-- LEFT SIDEBAR: Profile metadata -->
+      <div class="w-80 flex flex-col gap-3 overflow-y-auto bg-base-200 rounded-md p-3 shrink-0">
+        
+        <!-- Avatar preview -->
+        <div class="flex flex-col items-center gap-2">
+          <div class="indicator">
+            <span class="indicator-item badge badge-xs"
+              :class="{
+                'badge-primary': editProfile.category === 'assistant',
+                'badge-secondary': editProfile.category === 'chat',
+                'badge-accent': editProfile.category === 'agent',
+                'badge-info': editProfile.category === 'file',
+                'badge-neutral': editProfile.category === 'project'
+              }">
+              {{ editProfile.category }}
+            </span>
+            <div class="avatar">
+              <div class="w-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                <img :src="userAvatar" />
+              </div>
             </div>
           </div>
+          <span class="text-xs text-base-content/50 max-w-[80px] truncate text-center">{{ editProfile.name }}</span>
         </div>
-        <span class="text-xs text-base-content/50 max-w-[80px] truncate text-center">{{ editProfile.name }}</span>
-      </div>
 
-      <!-- Fields -->
-      <div class="grow flex flex-col gap-2">
-        <!-- Name + Category row -->
-        <div class="flex gap-2 items-center flex-wrap">
+        <!-- Divider -->
+        <div class="divider my-1"></div>
+
+        <!-- Name + Category -->
+        <div class="flex flex-col gap-2">
           <template v-if="!isProjectProfile">
-            <label class="text-xs text-base-content/60 w-12">Name*</label>
-            <input
-              v-model="editProfile.name"
-              type="text"
-              placeholder="Profile name"
-              :class="nameTaken ? 'input-error' : ''"
-              class="bg-base-300 input input-sm input-bordered flex-1 min-w-0"
-            />
-            <label class="text-xs text-base-content/60">Category</label>
-            <select v-model="editProfile.category" class="select select-sm select-bordered">
-              <option value="project" v-if="profile.category === 'project'">Project</option>
-              <option value="assistant">Assistant</option>
-              <option value="chat">Chat</option>
-              <option value="file">File</option>
-              <option value="agent">Agent</option>
-            </select>
+            <div>
+              <label class="label label-text text-xs pb-1">Name*</label>
+              <input
+                v-model="editProfile.name"
+                type="text"
+                placeholder="Profile name"
+                :class="nameTaken ? 'input-error' : ''"
+                class="bg-base-300 input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-xs pb-1">Category</label>
+              <select v-model="editProfile.category" class="select select-sm select-bordered w-full">
+                <option value="project" v-if="profile.category === 'project'">Project</option>
+                <option value="assistant">Assistant</option>
+                <option value="chat">Chat</option>
+                <option value="file">File</option>
+                <option value="agent">Agent</option>
+              </select>
+            </div>
           </template>
           <template v-else>
             <span class="font-bold text-base">{{ editProfile.name }}</span>
@@ -91,33 +104,33 @@ import Markdown from './Markdown.vue'
         </div>
 
         <!-- Avatar URL -->
-        <div class="flex gap-2 items-center">
-          <label class="text-xs text-base-content/60 w-12">Avatar</label>
+        <div>
+          <label class="label label-text text-xs pb-1">Avatar URL</label>
           <input
             placeholder="Avatar URL"
             v-model="editProfile.avatar"
             type="text"
-            class="bg-base-300 input input-sm input-bordered flex-1 min-w-0"
+            class="bg-base-300 input input-sm input-bordered w-full"
           />
         </div>
 
         <!-- LLM Model -->
-        <div class="flex gap-2 items-center">
-          <label class="text-xs text-base-content/60 w-12">Model</label>
-          <select class="select select-bordered select-sm flex-1 bg-base-300" v-model="editProfile.llm_model">
+        <div>
+          <label class="label label-text text-xs pb-1">Model</label>
+          <select class="select select-bordered select-sm w-full bg-base-300" v-model="editProfile.llm_model">
             <option value="">-- default model --</option>
             <option v-for="model in aiModels" :key="model.name" :value="model.name">
               {{ model.ai_provider }} — {{ model.name }}
             </option>
           </select>
-          <span v-if="editProfile.llm_model" class="badge badge-xs badge-warning font-mono">
+          <span v-if="editProfile.llm_model" class="badge badge-xs badge-warning font-mono mt-1">
             <i class="fa-solid fa-brain mr-1"></i>{{ editProfile.llm_model }}
           </span>
         </div>
 
         <!-- Description -->
-        <div class="flex gap-2 items-start">
-          <label class="text-xs text-base-content/60 w-12 pt-1">Desc</label>
+        <div>
+          <label class="label label-text text-xs pb-1">Description</label>
           <textarea
             v-model="editProfile.description"
             placeholder="Describe this profile's purpose..."
@@ -125,144 +138,162 @@ import Markdown from './Markdown.vue'
             rows="2"
           ></textarea>
         </div>
-      </div>
-    </div>
 
-    <!-- File match + linked profiles -->
-    <div class="flex gap-3 flex-wrap">
-      <div class="form-control flex-1 min-w-[160px]">
-        <label class="label label-text text-xs pb-1">
-          <i class="fa-solid fa-file-code mr-1"></i> File Match (regex)
-        </label>
-        <div class="flex flex-wrap gap-1 items-center">
-          <input
-            v-model="editProfile.file_match"
-            type="text"
-            placeholder="e\.g\. \.vue$"
-            :class="!isValidFileMatch ? 'input-error' : ''"
-            class="bg-base-300 input input-xs input-bordered font-mono"
-          />
-        </div>
-      </div>
-      <div class="form-control flex-1 min-w-[220px]">
-        <label class="label label-text text-xs pb-1">
-          <i class="fa-solid fa-link mr-1"></i> Linked Profiles
-        </label>
-        <div class="flex flex-wrap gap-1 items-center">
-          <select v-model="newProfile" @change="addProfile" class="select select-xs select-bordered">
-            <option value="">+ Add profile</option>
-            <option v-for="p in $projects.profiles" :key="p.id" :value="p.name">{{ p.name }}</option>
-          </select>
-          <span
-            v-for="p in editProfile.profiles"
-            :key="p"
-            class="badge badge-sm badge-secondary gap-1"
-          >
-            {{ p }}
-            <button @click="removeProfile(p)" class="hover:text-error">
-              <i class="fa fa-times text-xs"></i>
-            </button>
-          </span>
-        </div>
-      </div>
-    </div>
+        <!-- Divider -->
+        <div class="divider my-1"></div>
 
-    <!-- Tabs -->
-    <div role="tablist" class="tabs tabs-bordered mt-2">
-      <div role="tab" class="tab gap-1" :class="tab === 'content' ? 'tab-active font-semibold' : ''" @click="tab = 'content'">
-        <i class="fa-solid fa-file-lines text-xs"></i> Content
-      </div>
-      <div role="tab" class="tab gap-1" :class="tab === 'settings' ? 'tab-active font-semibold' : ''" @click="tab = 'settings'">
-        <i class="fa-solid fa-sliders text-xs"></i> Settings
-      </div>
-    </div>
-
-    <!-- Tab panels -->
-    <div class="rounded-md bg-base-200 p-3 min-h-[200px]">
-
-      <!-- Settings tab -->
-      <div class="flex flex-col gap-4" v-if="tab === 'settings'">
-        <!-- Quick toggles -->
-        <div class="flex flex-wrap gap-4">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-book text-info"></i>
-            <span class="text-sm">Use Knowledge</span>
-            <input type="checkbox" v-model="editProfile.use_knowledge" class="toggle toggle-sm checked:border-info checked:bg-info" />
-          </div>
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-share-nodes text-warning"></i>
-            <span class="text-sm">Expose in API</span>
-            <input type="checkbox" v-model="editProfile.api_settings.active" class="toggle toggle-sm checked:border-warning checked:bg-warning" />
-          </div>
-        </div>
-
-        <!-- API settings -->
-        <div class="pl-4 flex flex-col gap-2 border-l-2 border-warning/40" v-if="editProfile.api_settings.active">
-          <div class="form-control">
-            <label class="label label-text text-xs">API Model Name</label>
+        <!-- File match + linked profiles -->
+        <div class="flex flex-col gap-2">
+          <div>
+            <label class="label label-text text-xs pb-1">
+              <i class="fa-solid fa-file-code mr-1"></i> File Match (regex)
+            </label>
             <input
-              :placeholder="`default: ${$project.project_name}/${editProfile.name}`"
-              v-model="editProfile.api_settings.modelName"
+              v-model="editProfile.file_match"
               type="text"
-              class="input input-sm input-bordered bg-base-300"
+              placeholder="e\.g\. \.vue$"
+              :class="!isValidFileMatch ? 'input-error' : ''"
+              class="bg-base-300 input input-xs input-bordered font-mono w-full"
             />
           </div>
-          <div class="form-control">
-            <label class="label label-text text-xs">API Model Description</label>
-            <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300 textarea-sm" rows="2"></textarea>
-          </div>
-        </div>
-
-        <!-- Tools -->
-        <div v-if="tools.length" class="flex flex-col gap-2">
-          <div class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-            <i class="fa-solid fa-wrench mr-1"></i> Tools & Plugins
-          </div>
-          <div class="grid grid-cols-1 gap-2">
-            <div
-              v-for="tool in tools"
-              :key="tool.name"
-              class="flex items-center gap-3 p-2 rounded-lg bg-base-100 border border-base-300"
-            >
-              <input
-                type="checkbox"
-                :checked="editProfile.tools?.includes(tool.name)"
-                @click="toggleTool(tool)"
-                class="toggle toggle-sm checked:border-info checked:bg-info"
-              />
-              <div class="flex flex-col flex-1 min-w-0">
-                <span class="text-sm font-medium">{{ tool.name }}</span>
-                <span class="text-xs text-base-content/50 truncate">{{ tool.description }}</span>
-              </div>
+          <div>
+            <label class="label label-text text-xs pb-1">
+              <i class="fa-solid fa-link mr-1"></i> Linked Profiles
+            </label>
+            <select v-model="newProfile" @change="addProfile" class="select select-xs select-bordered w-full">
+              <option value="">+ Add profile</option>
+              <option v-for="p in $projects.profiles" :key="p.id" :value="p.name">{{ p.name }}</option>
+            </select>
+            <div class="flex flex-wrap gap-1 mt-2">
+              <span
+                v-for="p in editProfile.profiles"
+                :key="p"
+                class="badge badge-sm badge-secondary gap-1"
+              >
+                {{ p }}
+                <button @click="removeProfile(p)" class="hover:text-error">
+                  <i class="fa fa-times text-xs"></i>
+                </button>
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Content tab -->
-      <div class="flex flex-col gap-2" v-if="tab === 'content'">
-        <div class="flex justify-between items-center">
-          <label class="label-text font-semibold flex gap-2 items-center">
-            <i class="fa-solid fa-file-lines"></i> System Prompt
-          </label>
-          <button class="btn btn-xs btn-ghost gap-1" @click="toggleContentPreview">
-            <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
-            {{ contentPreview ? 'Edit' : 'Preview' }}
-          </button>
+      <!-- RIGHT COLUMN: Content unified tab + Settings -->
+      <div class="flex-1 min-w-0 flex flex-col gap-2">
+        
+        <!-- Tabs -->
+        <div role="tablist" class="tabs tabs-bordered shrink-0">
+          <div role="tab" class="tab gap-1" :class="tab === 'content' ? 'tab-active font-semibold' : ''" @click="tab = 'content'">
+            <i class="fa-solid fa-file-lines text-xs"></i> Content
+          </div>
+          <div role="tab" class="tab gap-1" :class="tab === 'settings' ? 'tab-active font-semibold' : ''" @click="tab = 'settings'">
+            <i class="fa-solid fa-sliders text-xs"></i> Settings
+          </div>
         </div>
-        <Markdown
-          class="p-3 rounded-md bg-base-100 border border-base-300 min-h-[300px]"
-          :text="editProfile.parsed_content"
-          v-if="contentPreview"
-        />
-        <textarea
-          v-else
-          id="content"
-          v-model="editProfile.content"
-          class="textarea textarea-bordered w-full bg-base-300 font-mono text-sm"
-          style="min-height: 380px;"
-          placeholder="Write the system prompt for this profile..."
-        ></textarea>
+
+        <!-- Tab content -->
+        <div class="flex-1 min-h-0 flex flex-col rounded-md bg-base-200 p-3">
+          
+          <!-- Content tab: unified view/edit -->
+          <div class="flex flex-col gap-2 h-full" v-if="tab === 'content'">
+            <div class="flex justify-between items-center shrink-0">
+              <label class="label-text font-semibold flex gap-2 items-center">
+                <i class="fa-solid fa-file-lines"></i> System Prompt
+              </label>
+              <button class="btn btn-xs btn-ghost gap-1" @click="toggleContentMode">
+                <i :class="contentMode === 'view' ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
+                {{ contentMode === 'view' ? 'Edit' : 'View' }}
+              </button>
+            </div>
+
+            <!-- View mode: Document preview -->
+            <div class="flex-1 min-h-0 overflow-auto rounded-md bg-base-100 border border-base-300 p-3" v-if="contentMode === 'view'">
+              <Document
+                :content="editProfile.content"
+                :files="null"
+                :project="project"
+                :chat="null"
+                :loading="false"
+                :documentId="`profile-${editProfile.id}`"
+                :message="null"
+              />
+            </div>
+
+            <!-- Edit mode: Chat editor for content editing -->
+            <div class="flex-1 min-h-0 overflow-hidden" v-else>
+              <ProfileChatEditor
+                :profile="editProfile"
+                @update:chatId="onChatIdChange"
+                @content-changed="onContentChanged"
+                @save-chat-id="onSaveChatId"
+                class="h-full"
+              />
+            </div>
+          </div>
+
+          <!-- Settings tab -->
+          <div class="flex flex-col gap-3 overflow-y-auto h-full" v-if="tab === 'settings'">
+            
+            <!-- Quick Settings -->
+            <div class="flex flex-col gap-2">
+              <div class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Settings</div>
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-book text-info text-sm"></i>
+                <span class="text-xs">Use Knowledge</span>
+                <input type="checkbox" v-model="editProfile.use_knowledge" class="toggle toggle-xs checked:border-info checked:bg-info ml-auto" />
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-share-nodes text-warning text-sm"></i>
+                <span class="text-xs">Expose in API</span>
+                <input type="checkbox" v-model="editProfile.api_settings.active" class="toggle toggle-xs checked:border-warning checked:bg-warning ml-auto" />
+              </div>
+            </div>
+
+            <!-- API Settings (conditional) -->
+            <div v-if="editProfile.api_settings.active" class="flex flex-col gap-2 pl-3 border-l-2 border-warning/40">
+              <div>
+                <label class="label label-text text-xs pb-1">API Model Name</label>
+                <input
+                  :placeholder="`default: ${$project.project_name}/${editProfile.name}`"
+                  v-model="editProfile.api_settings.modelName"
+                  type="text"
+                  class="input input-sm input-bordered bg-base-300 w-full"
+                />
+              </div>
+              <div>
+                <label class="label label-text text-xs pb-1">API Model Description</label>
+                <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300 textarea-sm w-full" rows="2"></textarea>
+              </div>
+            </div>
+
+            <!-- Tools -->
+            <div v-if="tools.length" class="flex flex-col gap-2">
+              <div class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
+                <i class="fa-solid fa-wrench mr-1"></i> Tools
+              </div>
+              <div class="flex flex-col gap-1">
+                <div
+                  v-for="tool in tools"
+                  :key="tool.name"
+                  class="flex items-center gap-2 p-1.5 rounded-md bg-base-100 border border-base-300"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="editProfile.tools?.includes(tool.name)"
+                    @click="toggleTool(tool)"
+                    class="toggle toggle-xs checked:border-info checked:bg-info"
+                  />
+                  <div class="flex flex-col flex-1 min-w-0">
+                    <span class="text-xs font-medium truncate">{{ tool.name }}</span>
+                    <span class="text-xs text-base-content/50 line-clamp-1">{{ tool.description }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -282,6 +313,14 @@ import Markdown from './Markdown.vue'
       </div>
       <div class="modal-backdrop" @click="confirmDelete = false"></div>
     </div>
+
+    <!-- Chat ID save indicator -->
+    <div class="toast toast-bottom toast-end" v-if="savingChatId">
+      <div class="alert alert-info gap-2">
+        <span class="loading loading-spinner loading-xs"></span>
+        <span>Saving profile...</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -292,11 +331,12 @@ export default {
     return {
       editProfile: { ...this.profile },
       confirmDelete: false,
-      contentPreview: true,
       tab: 'content',
+      contentMode: 'view',
       newProfile: '',
       tools: [],
-      plugins: []
+      plugins: [],
+      savingChatId: false
     }
   },
   created() {
@@ -318,8 +358,8 @@ export default {
         ?.filter(m => m.model_type === 'llm')
         ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
-    isOverriden() {
-      return this.editProfile.path?.startsWith(this.$project.abs_project_path)
+    isInherit() {
+      return !this.editProfile.path?.startsWith(this.$project.abs_project_path)
     },
     nameTaken() {
       const { name } = this.editProfile
@@ -351,8 +391,12 @@ export default {
       this.confirmDelete = false
       this.$emit('delete')
     },
-    toggleContentPreview() {
-      this.contentPreview = !this.contentPreview
+    toggleContentMode() {
+      this.contentMode = this.contentMode === 'view' ? 'edit' : 'view'
+    },
+    reloadProfile() {
+      this.editProfile = { ...this.profile }
+      this.contentMode = 'view'
     },
     addProfile() {
       if (this.newProfile && !this.editProfile.profiles.includes(this.newProfile)) {
@@ -366,7 +410,7 @@ export default {
     switchProject() {
       if (this.$project.project_id !== this.project.project_id) {
         const project = this.$projects.allProjects.find(p => p.project_id === this.project.project_id)
-        project && this.$projects.setActiveProject(project)
+        project && this.$projects.activeProjectChanged(project)
       }
     },
     toggleTool(tool) {
@@ -379,6 +423,60 @@ export default {
       const tools = await this.project.$api.profiles.tools()
       const plugins = await this.$storex.api.settings.global.plugins.list()
       this.tools = [...tools, ...plugins.filter(p => p.extends?.includes('profile'))]
+    },
+    async onSaveChatId(chatId) {
+      // Auto-save profile when chat is selected
+      if (!chatId) return
+
+      this.savingChatId = true
+      try {
+        this.editProfile.chat_id = chatId
+        const fullProfile = await this.project.$api.profiles.load(this.profile.id)
+        fullProfile.chat_id = chatId
+        await this.project.$api.profiles.save(fullProfile)
+        this.profile.chat_id = chatId
+        this.$ui.addNotification({
+          text: 'Chat linked to profile successfully',
+          type: 'success'
+        })
+      } catch (error) {
+        console.error('Failed to save chat_id:', error)
+        this.$ui.addNotification({
+          text: 'Failed to link chat',
+          type: 'error'
+        })
+      } finally {
+        this.savingChatId = false
+      }
+    },
+    async onChatIdChange(newChatId) {
+      if (!newChatId || this.editProfile.chat_id === newChatId) return
+
+      this.savingChatId = true
+      try {
+        const fullProfile = await this.project.$api.profiles.load(this.profile.id)
+        fullProfile.chat_id = newChatId
+        await this.project.$api.profiles.save(fullProfile)
+        this.editProfile.chat_id = newChatId
+        this.profile.chat_id = newChatId
+        this.$ui.addNotification({
+          text: 'Profile chat updated successfully',
+          type: 'success'
+        })
+      } catch (error) {
+        console.error('Failed to update profile chat_id:', error)
+        this.$ui.addNotification({
+          text: 'Failed to save profile chat',
+          type: 'error'
+        })
+      } finally {
+        this.savingChatId = false
+      }
+    },
+    onContentChanged(newContent) {
+      if (newContent) {
+        this.editProfile.content = newContent
+      }
     }
   }
 }

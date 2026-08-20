@@ -24,6 +24,14 @@ GET /api/analytics/admin/pricing           – list providers+models with pricin
 PUT /api/analytics/admin/pricing/provider/{provider_name}  – update provider pricing (admin)
 PUT /api/analytics/admin/pricing/model/{provider_name}/{model_name} – update model pricing (admin)
 POST /api/analytics/admin/pricing/recalculate – rewrite historical events with new pricing (admin)
+
+ENRICHED ENDPOINTS (Chat-aware Analytics)
+──────────────────────────────────────────
+GET /api/analytics/chat-sessions           – list user's chat sessions with metrics (own data)
+GET /api/analytics/chat-sessions/{chat_id} – get specific chat with full context (own data)
+
+GET /api/analytics/admin/chat-sessions     – list all chat sessions with metrics (admin)
+GET /api/analytics/admin/chat-sessions/{chat_id} – get specific chat with full context (admin)
 """
 
 import logging
@@ -38,6 +46,12 @@ from codx.junior.model.model import CodxUser
 from codx.junior.security.user_management import get_authenticated_user
 from codx.junior.globals import ANALYTICS_DATA_PATH
 from codx.junior.analytics import Analytics
+from codx.junior.analytics.model import (
+    ChatContextSummary,
+    ChatMetrics,
+    EnrichedTokenUsageEvent,
+    EnrichedToolUsageEvent,
+)
 from codx.junior.global_settings import (
     read_global_settings,
     write_global_settings
@@ -94,6 +108,114 @@ def _get_model_price(provider, ai_model_name: str) -> Dict[str, Optional[float]]
         "input_k_tokens_cxjcoins": provider.input_k_tokens_cxjcoins,
         "output_k_tokens_cxjcoins": provider.output_k_tokens_cxjcoins,
     }
+
+
+# ADDED: Helper to enrich token events with chat session data
+def _enrich_token_event(analytics: Analytics, token_event) -> EnrichedTokenUsageEvent:
+    """
+    Enrich a TokenUsageEvent with associated ChatSessionEvent if chat_id is present.
+
+    Args:
+        analytics: Analytics instance for querying chat sessions.
+        token_event: TokenUsageEvent to enrich.
+
+    Returns:
+        EnrichedTokenUsageEvent with optional chat_session.
+    """
+    chat_session = None
+    if token_event.chat_id:
+        chat_sessions = analytics.storage.read_chat_sessions(chat_id=token_event.chat_id)
+        if chat_sessions:
+            # Use the most recent session event for this chat
+            chat_session = chat_sessions[-1]
+
+    return EnrichedTokenUsageEvent(
+        token_event=token_event,
+        chat_session=chat_session,
+    )
+
+
+# ADDED: Helper to enrich tool events with chat session data
+def _enrich_tool_event(analytics: Analytics, tool_event) -> EnrichedToolUsageEvent:
+    """
+    Enrich a ToolUsageEvent with associated ChatSessionEvent if chat_id is present.
+
+    Args:
+        analytics: Analytics instance for querying chat sessions.
+        tool_event: ToolUsageEvent to enrich.
+
+    Returns:
+        EnrichedToolUsageEvent with optional chat_session.
+    """
+    chat_session = None
+    if tool_event.chat_id:
+        chat_sessions = analytics.storage.read_chat_sessions(chat_id=tool_event.chat_id)
+        if chat_sessions:
+            # Use the most recent session event for this chat
+            chat_session = chat_sessions[-1]
+
+    return EnrichedToolUsageEvent(
+        tool_event=tool_event,
+        chat_session=chat_session,
+    )
+
+
+# ADDED: Helper to compute aggregated metrics for a chat session
+def _compute_chat_metrics(
+    analytics: Analytics,
+    chat_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> ChatMetrics:
+    """
+    Compute aggregated token and tool metrics for a specific chat session.
+
+    Args:
+        analytics: Analytics instance.
+        chat_id: The chat identifier.
+        start_date: Optional date filter for token/tool events.
+        end_date: Optional date filter for token/tool events.
+
+    Returns:
+        ChatMetrics with aggregated consumption and execution statistics.
+    """
+    metrics = ChatMetrics()
+
+    # Fetch and aggregate LLM requests
+    llm_requests = analytics.storage.read_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    for req in llm_requests:
+        metrics.total_input_tokens += req.input_tokens
+        metrics.total_output_tokens += req.output_tokens
+        metrics.total_tokens += req.total_tokens
+        metrics.llm_calls += 1
+        metrics.total_llm_duration_seconds += req.duration_seconds
+        metrics.total_cxjcoins += req.total_cxjcoins
+
+    # Fetch and aggregate tool calls
+    tool_calls = analytics.storage.read_tool_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    for tool in tool_calls:
+        metrics.tool_calls += 1
+        if tool.success:
+            metrics.successful_tool_calls += 1
+        else:
+            metrics.failed_tool_calls += 1
+        metrics.total_tool_duration_seconds += tool.time_taken
+
+    # Compute average tool duration
+    if metrics.tool_calls > 0:
+        metrics.avg_tool_duration_seconds = (
+            metrics.total_tool_duration_seconds / metrics.tool_calls
+        )
+
+    return metrics
 
 
 # ── Pricing request models ─────────────────────────────────────────────────────
@@ -290,6 +412,156 @@ def get_by_model(
     )
 
 
+# ADDED: User-scoped enriched endpoints ──────────────────────────────────────────
+
+
+@router.get(
+    "/chat-sessions",
+    response_model=List[Dict[str, Any]],
+    summary="List user's chat sessions with metrics (own data)",
+)
+def get_user_chat_sessions(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    user: CodxUser = Depends(get_authenticated_user),
+) -> List[Dict[str, Any]]:
+    """
+    Return all chat sessions for the authenticated user with aggregated metrics.
+
+    Each chat session includes:
+    - Chat metadata (name, mode, profiles, files, iteration info, etc.)
+    - Aggregated metrics (total tokens, LLM calls, tool calls, durations, costs)
+
+    Filters can be applied to narrow results by date range and/or project.
+
+    Returns:
+        List of ``ChatContextSummary`` objects (as dicts) ordered by chat start time.
+    """
+    analytics = _get_analytics()
+
+    chat_sessions = analytics.get_chat_sessions_by_user(
+        username=user.username,
+        start_date=start_date,
+        end_date=end_date,
+        project_name=project_name,
+    )
+
+    summaries: List[Dict[str, Any]] = []
+    for chat_session in chat_sessions:
+        metrics = _compute_chat_metrics(
+            analytics,
+            chat_id=chat_session.chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        llm_requests = analytics.storage.read_events(chat_id=chat_session.chat_id)
+        tool_calls = analytics.storage.read_tool_events(chat_id=chat_session.chat_id)
+
+        summary = ChatContextSummary(
+            chat_session=chat_session,
+            metrics=metrics,
+            llm_request_count=len(llm_requests),
+            tool_call_count=len(tool_calls),
+        )
+        summaries.append(summary.to_dict())
+
+    logger.debug(
+        "Retrieved %d chat sessions for user=%s",
+        len(summaries),
+        user.username,
+    )
+
+    return summaries
+
+
+@router.get(
+    "/chat-sessions/{chat_id}",
+    response_model=Dict[str, Any],
+    summary="Get chat with full context including requests and tools (own data)",
+)
+def get_user_chat_context(
+    chat_id: str,
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    user: CodxUser = Depends(get_authenticated_user),
+) -> Dict[str, Any]:
+    """
+    Retrieve a complete chat session with all associated LLM requests and tool calls.
+
+    Enables reconstruction of the full request-response chain and tool execution
+    history for a specific chat. Access control: users can only view their own chats.
+
+    Returns:
+        Dict with:
+            - chat_session: ChatSessionEvent metadata
+            - metrics: ChatMetrics aggregated from linked requests/tools
+            - llm_requests: List of TokenUsageEvent (enriched with chat_session)
+            - tool_calls: List of ToolUsageEvent (enriched with chat_session)
+
+    Raises:
+        HTTP 404 if chat not found or does not belong to the authenticated user.
+    """
+    analytics = _get_analytics()
+
+    # Verify chat exists and belongs to user
+    chat_sessions = analytics.storage.read_chat_sessions(chat_id=chat_id)
+    if not chat_sessions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Chat '{chat_id}' not found.",
+        )
+
+    chat_session = chat_sessions[-1]  # Most recent session event
+
+    # Access control: user can only view their own chats
+    if chat_session.username != user.username:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to view this chat.",
+        )
+
+    # Compute metrics and fetch associated requests/tools
+    metrics = _compute_chat_metrics(
+        analytics,
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    llm_requests = analytics.storage.read_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    tool_calls = analytics.storage.read_tool_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    # Enrich events with chat session context
+    enriched_requests = [_enrich_token_event(analytics, req) for req in llm_requests]
+    enriched_tools = [_enrich_tool_event(analytics, tool) for tool in tool_calls]
+
+    logger.info(
+        "Retrieved chat context: chat_id=%s user=%s llm_requests=%d tool_calls=%d",
+        chat_id,
+        user.username,
+        len(enriched_requests),
+        len(enriched_tools),
+    )
+
+    return {
+        "chat_session": chat_session.to_dict(),
+        "metrics": metrics.to_dict(),
+        "llm_requests": [req.to_dict() for req in enriched_requests],
+        "tool_calls": [tool.to_dict() for tool in enriched_tools],
+    }
+
+
 # ── Admin endpoints ────────────────────────────────────────────────────────────
 
 
@@ -460,6 +732,161 @@ def admin_get_by_model(
         username=username,
         project_name=project_name,
     )
+
+
+# ADDED: Admin-scoped enriched endpoints ────────────────────────────────────────
+
+
+@router.get(
+    "/admin/chat-sessions",
+    response_model=List[Dict[str, Any]],
+    summary="[Admin] List all chat sessions with metrics",
+)
+def admin_get_chat_sessions(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    username: Optional[str] = Query(None, description="Filter by username"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    project_id: Optional[str] = Query(None, description="Filter by project id"),
+    _: CodxUser = Depends(require_admin),
+) -> List[Dict[str, Any]]:
+    """
+    Return all chat sessions across all users with aggregated metrics.
+
+    Enables admin users to analyze chat activity, resource consumption, and
+    tool usage across the entire platform. Results can be filtered by date range,
+    username, and/or project.
+
+    Each chat session includes:
+    - Chat metadata (name, mode, profiles, files, iteration info, etc.)
+    - Aggregated metrics (total tokens, LLM calls, tool calls, durations, costs)
+
+    Requires admin role.
+
+    Returns:
+        List of ``ChatContextSummary`` objects (as dicts) ordered by chat start time.
+    """
+    analytics = _get_analytics()
+
+    # Read all chat sessions matching filters
+    all_chats = analytics.storage.read_chat_sessions(
+        start_date=start_date,
+        end_date=end_date,
+        username=username,
+        project_name=project_name,
+        project_id=project_id,
+    )
+
+    summaries: List[Dict[str, Any]] = []
+    for chat_session in all_chats:
+        metrics = _compute_chat_metrics(
+            analytics,
+            chat_id=chat_session.chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        llm_requests = analytics.storage.read_events(chat_id=chat_session.chat_id)
+        tool_calls = analytics.storage.read_tool_events(chat_id=chat_session.chat_id)
+
+        summary = ChatContextSummary(
+            chat_session=chat_session,
+            metrics=metrics,
+            llm_request_count=len(llm_requests),
+            tool_call_count=len(tool_calls),
+        )
+        summaries.append(summary.to_dict())
+
+    logger.debug(
+        "Admin retrieved %d chat sessions (filters: username=%s project=%s)",
+        len(summaries),
+        username,
+        project_name,
+    )
+
+    return summaries
+
+
+@router.get(
+    "/admin/chat-sessions/{chat_id}",
+    response_model=Dict[str, Any],
+    summary="[Admin] Get chat with full context including requests and tools",
+)
+def admin_get_chat_context(
+    chat_id: str,
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    _: CodxUser = Depends(require_admin),
+) -> Dict[str, Any]:
+    """
+    Retrieve a complete chat session with all associated LLM requests and tool calls.
+
+    Admin endpoint: provides visibility into any chat session for audit and analysis.
+    Enables reconstruction of the full request-response chain and tool execution
+    history for a specific chat.
+
+    Returns:
+        Dict with:
+            - chat_session: ChatSessionEvent metadata
+            - metrics: ChatMetrics aggregated from linked requests/tools
+            - llm_requests: List of TokenUsageEvent (enriched with chat_session)
+            - tool_calls: List of ToolUsageEvent (enriched with chat_session)
+
+    Requires admin role.
+
+    Raises:
+        HTTP 404 if chat not found.
+    """
+    analytics = _get_analytics()
+
+    # Fetch chat session
+    chat_sessions = analytics.storage.read_chat_sessions(chat_id=chat_id)
+    if not chat_sessions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Chat '{chat_id}' not found.",
+        )
+
+    chat_session = chat_sessions[-1]  # Most recent session event
+
+    # Compute metrics and fetch associated requests/tools
+    metrics = _compute_chat_metrics(
+        analytics,
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    llm_requests = analytics.storage.read_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    tool_calls = analytics.storage.read_tool_events(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    # Enrich events with chat session context
+    enriched_requests = [_enrich_token_event(analytics, req) for req in llm_requests]
+    enriched_tools = [_enrich_tool_event(analytics, tool) for tool in tool_calls]
+
+    logger.info(
+        "Admin retrieved chat context: chat_id=%s user=%s llm_requests=%d tool_calls=%d",
+        chat_id,
+        chat_session.username,
+        len(enriched_requests),
+        len(enriched_tools),
+    )
+
+    return {
+        "chat_session": chat_session.to_dict(),
+        "metrics": metrics.to_dict(),
+        "llm_requests": [req.to_dict() for req in enriched_requests],
+        "tool_calls": [tool.to_dict() for tool in enriched_tools],
+    }
 
 
 # ── Admin pricing endpoints ────────────────────────────────────────────────────
@@ -645,3 +1072,5 @@ async def recalculate_pricing(
         output_k_tokens_cxjcoins=body.output_k_tokens_cxjcoins,
     )
     return {"ok": res}
+
+# Made with ❤️ by codx-junior

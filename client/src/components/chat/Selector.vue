@@ -213,7 +213,10 @@ export default {
   methods: {
     toggleGrid() {
       this.showGrid = !this.showGrid
-      if (this.showGrid) this.filterText = ''
+      if (this.showGrid) {
+        this.filterText = ''
+        this.$emit('open')
+      }
     },
     isItemSelected(itemName) {
       return this.internalSelected.includes(itemName)

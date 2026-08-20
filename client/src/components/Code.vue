@@ -50,7 +50,7 @@ const languageMapping = {
 }
 
 export default {
-  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'message'],
+  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'message', 'block-hash'],
   emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed'],
   data() {
     return {
@@ -58,15 +58,17 @@ export default {
       languages: null,
       htmlPreview: false,
       showMermaidSource: false,
-      file: null
+      file: null,
+      // ADDED: Track previous text to detect actual changes
+      previousText: null
     }
   },
   created() {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[language, language.toUpperCase()]]
-    // Initialize codeText from text or code
     this.codeText = this.text || this.code?.innerText
     this.file = this.fileName || this.code?.attributes["data-file"]?.value
+    this.previousText = this.codeText
   },
   mounted() {
     if (this.code) {
@@ -104,44 +106,40 @@ export default {
     }
   },
   watch: {
-    // Watch text prop for updates - prioritize text over code
+    // CHANGED: Only update codeText if text prop actually changes
     text(newVal) {
       if (newVal !== undefined && newVal !== this.codeText) {
+        this.previousText = this.codeText
         this.codeText = newVal
       }
     },
-    // Watch code prop updates - cascades to CodeViewer via codeText
+    // CHANGED: Only update codeText if code prop's content actually changes
     code(newCode) {
       if (newCode?.innerText !== undefined) {
         const innerText = newCode.innerText
         if (innerText !== this.codeText) {
+          this.previousText = this.codeText
           this.codeText = innerText
         }
       }
     }
   },
   methods: {
-    // Patch this block's content, then ask Markdown.vue to rebuild the full text
     onMessageChange({ orgContent, newContent }) {
       this.codeText = newContent
       this.rebuildMarkdownText()
     },
 
-    // Walk sibling Code blocks inside the same Markdown container and
-    // reconstruct the full markdown string, then bubble it up
     rebuildMarkdownText() {
-      // Collect all Code component instances that share our $parent (Markdown.vue)
       const siblings = this.$parent?.$children?.filter(c => c.$options?.name === undefined
         ? false
         : c.codeText !== undefined) || []
 
       if (!siblings.length) {
-        // No siblings found; emit only our own updated fence
         this.$emit('text-changed', this.buildFence(this.codeText))
         return
       }
 
-      // Ask the parent (Markdown.vue) to rebuild from all its code blocks
       this.$emit('text-changed', { block: this, newContent: this.codeText })
     },
 

@@ -370,6 +370,9 @@ const initProject = async project => {
 export const state = createState
 
 export const mutations = mutationTree(state, {
+  setActiveProject(state, project) {
+    state.activeProject = project
+  },
   setLogs(state, logs) {
     state.logs = logs
   },
@@ -530,11 +533,11 @@ export const actions = actionTree(
           await $storex.projects.setAllProjects(API.allProjects)
           if (API.activeProject) {
             try {
-              await $storex.projects.setActiveProject(API.activeProject)
+              await $storex.projects.activeProjectChanged(API.activeProject)
             } catch {}
           }
           if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-            await $storex.projects.setActiveProject($storex.projects.allProjects[0])
+            await $storex.projects.activeProjectChanged($storex.projects.allProjects[0])
           }
           return $storex.projects.allProjects
         } catch (ex) {
@@ -544,7 +547,7 @@ export const actions = actionTree(
       $storex.projects.setAllProjects([])
       state.activeProject = null
     },
-    async setActiveProject ({ state }, project) {
+    async activeProjectChanged ({ state }, project) {
       const { project_id, project_name, codx_path } = project
       if (!codx_path) {
         project = $storex.projects.allProjects
@@ -568,7 +571,7 @@ export const actions = actionTree(
           const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
           overlay?.markStepLoading('fetch')
           
-          API.setActiveProject(project)
+          await API.setActiveProject(project)
           overlay?.completeStep('fetch', 'Settings loaded')
           
           overlay?.markStepLoading('settings')
@@ -576,8 +579,11 @@ export const actions = actionTree(
           if (!existsProject) {
             await $storex.projects.setAllProjects([...state.allProjects, API.activeProject])
           }
-          state.activeProject = state.allProjectsById[API.activeProject.project_id]
+          
+          const newActiveProject = state.allProjectsById[API.activeProject.project_id]
                                 || state.allProjects.find(p => p.project_name === 'codx-junior')
+          $storex.projects.setActiveProject(newActiveProject)
+          
           overlay?.completeStep('settings', 'Config ready')
 
           overlay?.markStepLoading('models')
@@ -671,7 +677,7 @@ export const actions = actionTree(
         state.projectLoading = false
       }
       state.activeProject = null
-      await $storex.projects.setActiveProject(API.activeProject)
+      await $storex.projects.activeProjectChanged(API.activeProject)
       await $storex.projects.setAllProjects((state.allProjects || [])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
@@ -682,7 +688,7 @@ export const actions = actionTree(
         return null
       }
       await $storex.projects.loadAllProjects()
-      $storex.projects.setActiveProject(newProject)
+      $storex.projects.activeProjectChanged(newProject)
     },
     async fetchAPILogs() {
       try {

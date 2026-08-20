@@ -47,7 +47,7 @@ export default {
   },
   methods: {
     setActiveProject(project) {
-      this.$projects.setActiveProject(project)
+      this.$projects.activeProjectChanged(project)
       this.$ui.setActiveTab("tasks")
     }
   }

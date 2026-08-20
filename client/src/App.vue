@@ -92,7 +92,7 @@ export default {
   methods: {
     retryProjectLoad() {
       if (this.pendingProjectSwitch) {
-        this.$storex.projects.setActiveProject(this.pendingProjectSwitch)
+        this.$storex.projects.activeProjectChanged(this.pendingProjectSwitch)
       }
     },
 

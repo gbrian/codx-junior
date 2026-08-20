@@ -13,8 +13,9 @@ import * as logs from './logs'
 import * as chats from './chats'
 import * as teams from './teams'
 import * as media from './media'
+import * as views from './views'
 
-const modules = { session, projects, ui, users, profiles, logs, chats, teams, media }
+const modules = { session, projects, ui, users, profiles, logs, chats, teams, media, views }
 const storePattern = {
   state () {
     return {
@@ -120,4 +121,3 @@ export const EXTENSION_LANGUAGE_MAP = {
 }
 
 window.$storex = $storex
-

@@ -11,7 +11,7 @@ import TopBarSearch from './TopBarSearch.vue'
     <ProjectDetailt 
       @click.stop=""
       :options="{ folders: true, showIcon: true }"
-      @select="$storex.projects.setActiveProject($event)"
+      @select="$storex.projects.activeProjectChanged($event)"
     />
 
     <!-- Search Bar -->

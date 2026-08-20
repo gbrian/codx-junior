@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent
+from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent, ChatSessionEvent
 from codx.junior.analytics.storage import AnalyticsStorage
 from codx.junior.globals import ANALYTICS_DATA_PATH
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class Analytics:
     """
-    High-level API for recording and querying LLM token usage and tool usage analytics.
+    High-level API for recording and querying LLM token usage, tool usage, and chat sessions.
 
     The global analytics path is read from
     ``codx.junior.globals.ANALYTICS_DATA_PATH`` which is sourced from the
@@ -21,18 +21,13 @@ class Analytics:
     classDiagram
         class Analytics {
             +AnalyticsStorage storage
-            +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, duration_seconds, session_id, tags, k_tokens_cxjcoins)
-            +record_tool_usage(name, username, project_name, project_id, time_taken, success, error_message, chat_id, request_id)
-            +get_usage_by_user(start_date, end_date) Dict
-            +get_usage_by_project(start_date, end_date) Dict
-            +get_usage_by_model(start_date, end_date) Dict
-            +get_daily_usage(start_date, end_date, username, project_name, grouping) List
-            +get_total_usage(start_date, end_date, username, project_name) Dict
-            +list_available_dates() List[str]
-            +get_tools_by_chat(chat_id) List
-            +get_tool_metrics(start_date, end_date, tool_name, username, project_name) Dict
-            +get_tool_usage_by_user(start_date, end_date, project_name) Dict
-            +get_tool_usage_by_project(start_date, end_date, username) Dict
+            +record_token_usage(...)
+            +record_tool_usage(...)
+            +record_chat_session(...)
+            +get_usage_by_user(...)
+            +get_chat_sessions_by_user(...)
+            +get_chat_with_requests(chat_id)
+            +get_tool_metrics(...)
         }
     """
 
@@ -62,24 +57,28 @@ class Analytics:
         input_k_tokens_cxjcoins: float = 0.0,
         output_k_tokens_cxjcoins: float = 0.0,
         request_id: str = None,
-        tokens_from_provider: bool = False
+        tokens_from_provider: bool = False,
+        chat_id: Optional[str] = None,
     ) -> TokenUsageEvent:
         """
         Record a single LLM call's token consumption.
 
         Args:
-            username:           User who triggered the call.
-            project_name:       Project context.
-            project_id:         Project identifier.
-            model:              LLM model name.
-            provider:           LLM provider identifier.
-            input_tokens:       Prompt token count.
-            output_tokens:      Completion token count.
-            duration_seconds:   Wall-clock seconds for the full request/response cycle.
-            session_id:         Optional conversation/session id.
-            tags:               Comma-separated tag string from request headers.
-            input_k_tokens_cxjcoins:  Price per 1K tokens in CXJ coins (from AISettings).
-            output_k_tokens_cxjcoins:  Price per 1K tokens in CXJ coins (from AISettings).
+            username:                   User who triggered the call.
+            project_name:               Project context.
+            project_id:                 Project identifier.
+            model:                      LLM model name.
+            provider:                   LLM provider identifier.
+            input_tokens:               Prompt token count.
+            output_tokens:              Completion token count.
+            duration_seconds:           Wall-clock seconds for the full request/response cycle.
+            session_id:                 Optional conversation/session id.
+            tags:                       Comma-separated tag string from request headers.
+            input_k_tokens_cxjcoins:    Price per 1K tokens in CXJ coins (from AISettings).
+            output_k_tokens_cxjcoins:   Price per 1K tokens in CXJ coins (from AISettings).
+            request_id:                 Unique request identifier.
+            tokens_from_provider:       Whether tokens came from provider or were calculated.
+            chat_id:                    Chat context identifier for traceability.
 
         Returns:
             The persisted ``TokenUsageEvent``.
@@ -99,12 +98,13 @@ class Analytics:
             input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
             output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
             request_id=request_id,
-            tokens_from_provider=tokens_from_provider
+            tokens_from_provider=tokens_from_provider,
+            chat_id=chat_id,
         )
         self.storage.write(event)
         logger.info(
             "Analytics recorded: user=%s project=%s model=%s in=%d out=%d total=%d "
-            "duration=%.2fs cxjcoins=%.4f",
+            "duration=%.2fs cxjcoins=%.4f chat_id=%s",
             username,
             project_name,
             model,
@@ -113,6 +113,7 @@ class Analytics:
             event.total_tokens,
             duration_seconds,
             event.total_cxjcoins,
+            chat_id,
         )
         return event
 
@@ -159,12 +160,105 @@ class Analytics:
         )
         self.storage.write_tool_event(event)
         logger.info(
-            "Tool usage recorded: tool=%s user=%s project=%s success=%s time_taken=%.3fs",
+            "Tool usage recorded: tool=%s user=%s project=%s success=%s time_taken=%.3fs chat_id=%s",
             name,
             username,
             project_name,
             success,
             time_taken,
+            chat_id,
+        )
+        return event
+
+    def record_chat_session(
+        self,
+        *,
+        chat_id: str,
+        chat_name: str,
+        username: str,
+        project_name: str,
+        project_id: str,
+        mode: str,
+        profiles: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
+        parent_chat_id: Optional[str] = None,
+        iteration: int = 0,
+        max_iterations: int = 0,
+        llm_model: str = "",
+        parent_request_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        cancelled: bool = False,
+        error: Optional[str] = None,
+        duration_seconds: float = 0.0,
+        input_message_count: int = 0,
+        output_message_count: int = 0,
+    ) -> ChatSessionEvent:
+        """
+        Record a chat session with full context for request traceability.
+
+        Captures the complete chat lifecycle including profiles, files, parent relationships,
+        and iteration data. Supports incremental recording — call this method at different
+        points in the chat lifecycle (start, during processing, end) to progressively add
+        information as it becomes available.
+
+        Args:
+            chat_id:             Unique chat identifier (from chat.id).
+            chat_name:           Human-readable chat name.
+            username:            User who created/executed the chat.
+            project_name:        Project context name.
+            project_id:          Project identifier.
+            mode:                Chat mode ('task', 'agent', 'vibe', 'chat').
+            profiles:            List of profile names applied to this chat.
+            files:               List of file paths accessed during chat.
+            parent_chat_id:      Parent chat ID if this is a nested chat.
+            iteration:           Current agent iteration number.
+            max_iterations:      Maximum iterations allowed for agent mode.
+            llm_model:           LLM model used.
+            parent_request_id:   Parent request ID if spawned from tool call.
+            session_id:          Session identifier for grouping chats.
+            cancelled:           Whether the chat was cancelled.
+            error:               Error message if chat failed.
+            duration_seconds:    Total chat duration in seconds.
+            input_message_count: Number of input messages.
+            output_message_count: Number of output messages.
+
+        Returns:
+            The persisted ``ChatSessionEvent``.
+        """
+        event = ChatSessionEvent(
+            chat_id=chat_id,
+            chat_name=chat_name,
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            mode=mode,
+            profiles=profiles or [],
+            files=files or [],
+            parent_chat_id=parent_chat_id,
+            iteration=iteration,
+            max_iterations=max_iterations,
+            llm_model=llm_model,
+            parent_request_id=parent_request_id,
+            session_id=session_id,
+            cancelled=cancelled,
+            error=error,
+            duration_seconds=duration_seconds,
+            input_message_count=input_message_count,
+            output_message_count=output_message_count,
+        )
+        self.storage.write_chat_session(event)
+        logger.info(
+            "Chat session recorded: chat_id=%s user=%s project=%s mode=%s profiles=%s "
+            "files=%d duration=%.2fs cancelled=%s error=%s",
+            chat_id,
+            username,
+            project_name,
+            mode,
+            profiles,
+            len(files or []),
+            duration_seconds,
+            cancelled,
+            error,
         )
         return event
 
@@ -206,7 +300,9 @@ class Analytics:
             bucket["calls"] += 1
             bucket["total_duration_seconds"] += event.duration_seconds
             bucket["total_cxjcoins"] += event.total_cxjcoins
-            bucket["tokens_from_provider"] = bucket["tokens_from_provider"] or getattr(event, "tokens_from_provider", False)
+            bucket["tokens_from_provider"] = bucket["tokens_from_provider"] or getattr(
+                event, "tokens_from_provider", False
+            )
         return result
 
     @staticmethod
@@ -246,7 +342,9 @@ class Analytics:
         # Calculate averages
         for key in result:
             if result[key]["calls"] > 0:
-                result[key]["avg_time_taken"] = result[key]["total_time_taken"] / result[key]["calls"]
+                result[key]["avg_time_taken"] = (
+                    result[key]["total_time_taken"] / result[key]["calls"]
+                )
 
         return result
 
@@ -435,7 +533,9 @@ class Analytics:
             totals["calls"] += 1
             totals["total_duration_seconds"] += event.duration_seconds
             totals["total_cxjcoins"] += event.total_cxjcoins
-            totals["tokens_from_provider"] = totals["tokens_from_provider"] or getattr(event, "tokens_from_provider", False)
+            totals["tokens_from_provider"] = totals["tokens_from_provider"] or getattr(
+                event, "tokens_from_provider", False
+            )
         return totals
 
     def list_available_dates(self) -> List[str]:
@@ -446,6 +546,86 @@ class Analytics:
             Sorted list of ``YYYY-MM-DD`` strings.
         """
         return self.storage.list_available_dates()
+
+    # ── Chat Session Query API ─────────────────────────────────────────────────
+
+    def get_chat_sessions_by_user(
+        self,
+        username: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> List[ChatSessionEvent]:
+        """
+        Get all chat sessions for a specific user in a date range.
+
+        Args:
+            username:     Username to filter by.
+            start_date:   Inclusive ISO date lower bound.
+            end_date:     Inclusive ISO date upper bound.
+            project_name: Optional project filter.
+
+        Returns:
+            List of ``ChatSessionEvent`` objects ordered by timestamp.
+        """
+        return self.storage.read_chat_sessions(
+            start_date=start_date,
+            end_date=end_date,
+            username=username,
+            project_name=project_name,
+        )
+
+    def get_chat_with_requests(
+        self,
+        chat_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get a complete chat session with all associated LLM requests and tool calls.
+
+        Enables reconstruction of the full request-response chain for a chat.
+
+        Args:
+            chat_id:    The chat identifier to retrieve.
+            start_date: Inclusive ISO date lower bound (filters token/tool events).
+            end_date:   Inclusive ISO date upper bound (filters token/tool events).
+
+        Returns:
+            Dict with keys:
+                - chat_session: ChatSessionEvent or None
+                - llm_requests: List of TokenUsageEvent
+                - tool_calls: List of ToolUsageEvent
+        """
+        chat_sessions = self.storage.read_chat_sessions(chat_id=chat_id)
+        if not chat_sessions:
+            logger.warning("No chat session found for chat_id=%s", chat_id)
+            return {
+                "chat_session": None,
+                "llm_requests": [],
+                "tool_calls": [],
+            }
+
+        # Take the latest session event for this chat (may have incremental updates)
+        chat_session = chat_sessions[-1]
+
+        llm_requests = self.storage.read_events(
+            start_date=start_date,
+            end_date=end_date,
+            chat_id=chat_id,
+        )
+
+        tool_calls = self.storage.read_tool_events(
+            start_date=start_date,
+            end_date=end_date,
+            chat_id=chat_id,
+        )
+
+        return {
+            "chat_session": chat_session,
+            "llm_requests": llm_requests,
+            "tool_calls": tool_calls,
+        }
 
     # ── Tool Usage Query API ───────────────────────────────────────────────────
 
@@ -541,3 +721,5 @@ class Analytics:
             username=username,
         )
         return self._aggregate_tool_events(events, lambda e: e.project_name)
+
+# Made with ❤️ by codx-junior

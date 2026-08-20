@@ -1,7 +1,7 @@
 <script setup>
 import { API } from '../../api/api'
 import CheckLists from './CheckLists.vue'
-import ChangesPanel from '@/components/vibe/panels/ChangesPanel.vue'
+import PRChangesPanel from '@/components/vibe/panels/PRChangesPanel.vue'
 import ChatFileList from './ChatFileList.vue'
 import ChatInputBox from './ChatInputBox.vue'
 import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
@@ -38,15 +38,10 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
 
     <!-- PR View Section -->
     <div class="grow overflow-auto" v-show="isPRView">
-      <ChangesPanel
+      <PRChangesPanel
         class="h-full flex flex-col overflow-auto"
         :chat="chat"
-        @refresh="onRefreshChanges"
-        @select-branch="onPRViewBranchChanged"
         @comment="onPRFileComment"
-        @change-column="$emit('change-column', $event)"
-        @new-chat="createChatSubTask"
-        @chat-message="onPRChatMessage"
       />
     </div>
 
@@ -358,12 +353,10 @@ export default {
       const profileNames = this.profiles.map(p => p.name)
       const detectedProfiles = mentionedNames.filter(name => profileNames.includes(name))
 
-      // Track which profiles were mentioned in previous text
       const previousMentionMatches = [...this.previousEditorText?.matchAll(/@([^\s]+)/mg) || []]
       const previousMentionedNames = previousMentionMatches.map(m => m[1])
       const previousDetectedProfiles = previousMentionedNames.filter(name => profileNames.includes(name))
 
-      // Only keep text profiles that still exist in the text or were from selector
       const profilesToRemove = previousDetectedProfiles.filter(
         name => !detectedProfiles.includes(name) && !this.selectorProfileNames.includes(name)
       )
@@ -375,7 +368,6 @@ export default {
         }
       })
 
-      // Add newly detected profiles
       detectedProfiles.forEach(name => {
         if (!this.textProfileNames.includes(name)) {
           this.textProfileNames.push(name)
@@ -490,10 +482,6 @@ export default {
         text: `Saved: ${file.split('/').reverse()[0]}`,
         type: 'success'
       })
-    },
-
-    onRefreshChanges() {
-      this.$refs.changesPanel?.loadAllProjects()
     },
 
     scheduleIntelliSense(word = null) {
@@ -1111,20 +1099,14 @@ export default {
       }
     },
 
-    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
-      this.chat.pr_view = { from_branch, to_branch }
-      this.saveChat()
-    },
-
-    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
-      if (chat) {
-        chat.messages.push({ user: this.$user.username, role: "user", content: description })
-        chat.profiles = profiles.map(p => p.name)
-        await this.$chats.saveChatInfo(chat)
-        await this.$storex.projects.chatWihProject(chat)
-      } else {
-        this.createSubTask({ title, description, files, profiles, mode, column })
-      }
+    // Handle PR comment from PRChangesPanel
+    onPRFileComment({ file, lineNumber, comment, diff }) {
+      const description = `Comment on ${file} (line ${lineNumber}):\n${diff ? diff + '\n' : ''}${comment}`
+      this.createChatSubTask({
+        title: `Review: ${file.split('/').reverse()[0]}`,
+        description,
+        files: [file]
+      })
     },
 
     onChatEntryCreateSubtask({ file, content, title }) {
@@ -1156,10 +1138,6 @@ export default {
         user: this.$user.username
       })
       await this.$chats.createNewChat(payload)
-    },
-
-    onPRChatMessage({ file }) {
-      file.chat.messages.push({})
     },
 
     createBlock() {

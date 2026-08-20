@@ -29,6 +29,17 @@ function getChatProject({ owner_project_id }) {
             $storex.projects.activeProject
 }
 
+function getRootChat(state, chatId) {
+  let current = state.chats?.[chatId]
+  if (!current) return null
+  let depth = 0
+  while (current?.parent_id && state.chats?.[current.parent_id] && depth < 20) {
+    current = state.chats[current.parent_id]
+    depth++
+  }
+  return current
+}
+
 export const getters = getterTree(state, {
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
@@ -40,6 +51,16 @@ export const getters = getterTree(state, {
   chatProject: state => ({ project_id, owner_project_id }) => {
     return $storex.projects.allProjectsById[project_id || owner_project_id]
   },
+  chatChildren: state => (chatId) => {
+    const children = Object.values(state.chats || {}).filter(c => c.parent_id === chatId)
+    return children
+  },
+  chatDescendants: (state, getters) => (chatId) => {
+    const direct = getters.chatChildren(chatId)
+    const indirect = direct.flatMap(child => getters.chatDescendants(child.id))
+    return [...direct, ...indirect]
+  },
+  rootChat: state => (chatId) => getRootChat(state, chatId),
 })
 
 export const mutations = mutationTree(state, {
@@ -102,6 +123,46 @@ export const actions = actionTree(
       const chats = await API.chats.list()
       chats.forEach(chat => registerChat(state, chat))
     },
+    async ensureChatRoot({ state }, chat) {
+      if (!chat?.id) return null
+      let current = state.chats[chat.id] || {
+        id: chat.id,
+        owner_project_id: chat.owner_project_id,
+        project_id: chat.project_id
+      }
+      let depth = 0
+      while (current?.parent_id && depth < 20) {
+        const parent = state.chats[current.parent_id]
+        if (!parent) {
+          const loadedParent = await $storex.chats.loadChat({
+            id: current.parent_id,
+            owner_project_id: current.owner_project_id || current.project_id
+          })
+          if (!loadedParent) break
+          current = loadedParent
+        } else {
+          current = parent
+        }
+        depth++
+      }
+      return getRootChat(state, current.id) || current
+    },
+    async loadChildrenHierarchy({ state, getters }, rootChat, maxDepth = 5) {
+      if (!rootChat?.id) return []
+
+      const loadRecursive = async (parentChat, depth = 0) => {
+        if (depth >= maxDepth) return []
+        const children = getters.chatChildren(parentChat.id) || []
+        const result = [...children]
+        for (const child of children) {
+          result.push(...(await loadRecursive(child, depth + 1)))
+        }
+        return result
+      }
+
+      const descendants = await loadRecursive(rootChat)
+      return [rootChat, ...descendants]
+    },
     async saveChat({ state }, chat) {
       await API.chats.save(chat)
       await $storex.chats.loadChat(chat)
@@ -138,14 +199,21 @@ export const actions = actionTree(
       }
       return state.chats[chat.id]
     },
-    async deleteChat({ state }, chat) {
+    async deleteChat({ state, getters }, chat) {
+      if (!chat?.id) return
+
+      const descendants = getters.chatDescendants(chat.id) || []
+
       if (!chat.temp) {
         await API.chats.delete(chat)
       }
-      if (state.chats[chat.id]) {
-        delete state.chats[chat.id]
-      }
-      if (state.activeChatId === chat.id) {
+
+      const ids = new Set([chat.id, ...(descendants || []).map(c => c.id)])
+      ids.forEach(id => {
+        delete state.chats[id]
+      })
+
+      if (ids.has(state.activeChatId)) {
         $storex.chats.clearActiveChat()
       }
     },
@@ -181,6 +249,13 @@ export const actions = actionTree(
         await $storex.chats.saveChat(chat)
       }
       return state.chats[chat.id]
+    },
+    async createNewChatWithProject({ state }, { project, chat = {} }) {
+      const chatData = {
+        ...chat,
+        owner_project_id: project?.project_id || $storex.projects.activeProject.project_id
+      }
+      return await $storex.chats.createNewChat(chatData)
     },
     async createNewChatFromUrl({ state }, chat) {
       chat = {

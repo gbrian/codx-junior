@@ -1,5 +1,6 @@
 <script setup>
 import MainMenu from '@/components/main-menu/MainMenu.vue'
+import ProjectSelector from '@/components/ProjectSelector.vue'
 </script>
 
 <template>
@@ -14,7 +15,7 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
           </div>
         </div>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="openQuickChat">
+        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="showProjectSelector = true">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-comments"></i>
           </div>
@@ -99,6 +100,14 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
       <div class="grow"></div>
       <MainMenu />
     </div>
+
+    <!-- Project Selector Modal -->
+    <ProjectSelector
+      v-if="showProjectSelector"
+      :modal="true"
+      @select="onProjectSelected"
+      @close="showProjectSelector = false"
+    />
   </div>
 </template>
 
@@ -128,9 +137,18 @@ export default {
     'toggle-collapse',
     'expand-team-bar'
   ],
+  data() {
+    return {
+      showProjectSelector: false
+    }
+  },
   methods: {
     openQuickChat() {
       this.$service.chat.newQuickChat()
+    },
+    onProjectSelected(project) {
+      this.showProjectSelector = false
+      this.$service.chat.newQuickChat(project)
     },
     openHome() {
       this.$storex.ui.openHome()
