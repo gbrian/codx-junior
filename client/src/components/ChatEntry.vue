@@ -4,12 +4,12 @@ import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
-import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
 import ChatEntryMobile from './ChatEntryMobile.vue'
 import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
+import Collapsible from './Collapsible.vue'
 </script>
 
 <template>
@@ -63,384 +63,323 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
     @image="$emit('image', $event)"
   />
 
-  <!-- Default desktop rendering -->
-  <div v-else class="group chat-entry flex gap-1 items-start relative p-2"
+  <!-- Desktop rendering with Rich Header -->
+  <Collapsible
+    v-else
+    :modelValue="!isCollapsed"
+    @update:modelValue="collapsed = !$event"
+    class="group chat-entry"
     :class="[
-      displayMessage.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
-      displayMessage.hide ? 'border-l-2 border-warning' : '',
-      !isDone && 'border border-dashed border-sky-800 p-1',
-      displayMessage.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
-      isTopic && 'border-l p-2 bg-info/5 border-info/50',
+      // !isDone && 'border-dashed border-sky-800/30',
+      displayMessage.is_answer && 'border-success/50 bg-success/5',
+      isTopic && 'border-info/50 bg-info/5',
+      displayMessage.hide && isCollapsed && 'opacity-50 hover:opacity-100',
+      displayMessage.hide && 'border-l border-l-warning pl-2'
     ]"
   >
-    <div class="w-full">
-      <div class="w-full flex flex-col gap-1 hover:rounded-md group relative">
-        <progress class="progress w-full" v-if="!isDone"></progress>
+    <!-- Icon: Avatar stack -->
+    <template #title>
+      <div class="flex items-center -space-x-2"
+        :class="[
+          displayMessage.hide && 'border-l border-warning pl-2'
+        ]"
+      >
+        <div 
+          class="tooltip tooltip-right" 
+          :data-tip="profile.name || profile.username" 
+          v-for="profile in messageProfiles" 
+          :key="profile.name"
+        >
+          <ProfileAvatar :profile="profile" width="6" />
+        </div>
+      </div>
+    </template>
 
-        <!-- Sticky selection action bar — shown when text is selected -->
-        <!-- In the ChatEntrySelectionMenu component -->
-        <ChatEntrySelectionMenu
-          v-if="showSelectionMenu"
-          :selectedText="selectedText"
-          :chatProject="chatProject"
-          @copy="onSelectionCopy"
-          @create-subtask="onSelectionCreateSubtask"
-          @search-files="onSelectionSearchFiles"
-          @close="onCloseSelectionMenu"
+    <!-- Title: User + Timestamp + Model -->
+    <template #icon>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-neutral-500">{{ formatDate(displayMessage.updated_at) }}</span>
+        <span v-if="timeTaken" class="text-xs text-neutral-400">{{ timeTaken }}</span>
+        <span class="font-semibold text-sm">{{ displayMessage.user }}</span>
+      </div>
+    </template>
+
+    <!-- Summary: Status badges -->
+    <template #summary>
+      <span v-if="cancellationTime" class="badge badge-xs badge-error">
+        <i class="fa-solid fa-ban"></i> Cancelled
+      </span>
+      <div class="badge badge-xs badge-success gap-1" v-if="displayMessage.is_answer">
+        <ChatIcon mode="answer" /> Knowledge
+      </div>
+      <div class="badge badge-xs badge-info badge-outline gap-1" v-if="isTopic">
+        <ChatIcon mode="topic" /> Topic
+      </div>
+      <div 
+        class="badge badge-xs badge-outline gap-1 cursor-pointer hover:badge-info" 
+        @click.stop="openThread"
+        v-if="threadChat"
+      >
+        <ChatIcon :mode="threadChat.mode" /> {{ threadChat.messages?.length || 0 }} replies
+      </div>
+      <span v-if="displayMessage.hide" class="text-xs text-warning/60 gap-1">
+        <i class="fa-solid fa-box-archive"></i> Archived
+      </span>
+    </template>
+
+    <!-- Action buttons group -->
+    <template #actions>
+      <div class="flex gap-2 items-center">
+        <button
+          class="btn btn-xs btn-error gap-1 tooltip tooltip-bottom"
+          data-tip="Stop generation"
+          @click.stop="cancelMessage"
+          v-if="!isDone && cancellationTokenId"
+        >
+          <span class="loading loading-xs"></span>
+          Stop
+        </button>
+        
+        <!-- Primary actions row -->
+        <div class="flex gap-1 border-l border-base-300 pl-2">
+          <button 
+            class="btn btn-xs text-warning hover:btn-outline tooltip tooltip-bottom" 
+            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'" 
+            @click.stop="$emit('hide', message)"
+            v-if="isDone"
+          >
+            <i class="fa-solid fa-box-archive"></i>
+          </button>
+
+          <button 
+            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+            data-tip="Create thread" 
+            @click.stop="$emit('thread', message)"
+          >
+            <i class="fa-solid fa-comment-dots"></i>
+          </button>
+          <button 
+            class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" 
+            data-tip="Mark as best answer" 
+            @click.stop="$emit('answer', message)"
+          >
+            <i class="fa-solid fa-check-double"></i>
+          </button>
+          <button 
+            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+            data-tip="Copy to clipboard" 
+            @click.stop="copyMessageToClipboard"
+          >
+            <i class="fa-solid fa-copy"></i>
+          </button>
+          <button 
+            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+            data-tip="Show diff" 
+            @click.stop="toggleShowDiff" 
+            v-if="displayMessage.diffMessage"
+          >
+            <i class="fa-regular fa-file-lines"></i>
+          </button>
+          <button 
+            :class="showPRView && 'btn-active'"
+            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
+            data-tip="Review code changes" 
+            @click.stop="togglePRView"
+            v-if="hasPRViewBlocks"
+          >
+            <i class="fa-solid fa-code-branch"></i>
+          </button>
+        </div>
+
+        <!-- More menu -->
+        <div class="dropdown dropdown-end" @click.stop>
+          <button tabindex="0" class="btn btn-xs btn-ghost">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-48 p-1 bg-base-200 z-50">
+            <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group"></i> Run agents</a></li>
+            <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code"></i> View source</a></li>
+            <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen"></i> Edit</a></li>
+            <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can"></i> Delete</a></li>
+          </ul>
+        </div>
+      </div>
+    </template>
+
+    <!-- Content: Full message body -->
+    <div class="p-3 flex flex-col gap-3 border-t border-base-300">
+      <!-- Loading indicator -->
+      <progress class="progress progress-sm w-full" v-if="!isDone"></progress>
+
+      <!-- Selection menu -->
+      <ChatEntrySelectionMenu
+        v-if="showSelectionMenu"
+        :selectedText="selectedText"
+        :chatProject="chatProject"
+        @copy="onSelectionCopy"
+        @create-subtask="onSelectionCreateSubtask"
+        @search-files="onSelectionSearchFiles"
+        @close="onCloseSelectionMenu"
+      />
+
+      <!-- Thinking section -->
+      <div 
+        v-if="thinkText" 
+        class="alert alert-info items-start cursor-pointer"
+        @click="displayMessage.full_think = !displayMessage.full_think"
+      >
+        <i class="fa-solid fa-brain"></i>
+        <span>{{ thinkText }}</span>
+      </div>
+
+      <!-- Skeleton loader -->
+      <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2">
+        <div class="skeleton h-12 w-full"></div>
+        <div class="skeleton h-12 w-full"></div>
+        <div class="skeleton h-8 w-2/3"></div>
+      </div>
+
+      <!-- TOC for long documents -->
+      <DocumentSummary
+        v-if="!srcView && isDone && messageContent && !showPRView"
+        :content="messageContent"
+        :minHeadings="3"
+        :documentId="documentId"
+        :scrollContainer="$refs.contentArea"
+      />
+
+      <!-- Message content container -->
+      <div 
+        ref="contentArea"
+        @copy.stop="onMessageCopy"
+        @mouseup="onContentMouseUp"
+        class="max-w-full bg-base-50 rounded-md p-2"
+      >
+        <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-2 rounded">{{ displayMessage.content }}</pre>
+
+        <Document 
+          v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord"
+          :content="messageContent"
+          :files="chatFiles"
+          :project="chatProject"
+          :chat="chat"
+          :loading="!message.done"
+          :documentId="documentId"
+          :message="message"
+          @generate-code="onGenerateCode"
+          @reload-file="$emit('reload-file', { file: $event, message })"
+          @open-file="$emit('open-file', $event)"
+          @save-file="$emit('save-file', $event)"
+          @add-file="$emit('add-file', $event)"
+          @sub-task="$emit('sub-task', $event)"
+          @copy-chapter="onCopyChapter"
+          @create-task="onCreateTask"
+          :mentionList="mentionList"
+        >
+          <template #chapter-actions="{ chapter, fullContent }">
+            <button class="btn btn-sm btn-ghost gap-2" @click="copyChapterMarkdown(chapter, fullContent)">
+              <i class="fa-solid fa-copy"></i> Copy
+            </button>
+            <button class="btn btn-sm btn-ghost gap-2" @click="createTaskFromChapter(chapter, fullContent)">
+              <i class="fa-solid fa-plus"></i> Task
+            </button>
+          </template>
+        </Document>
+
+        <div class="alert alert-error text-xs" v-if="displayMessage.error">
+          {{ displayMessage.error }}
+        </div>
+
+        <CodeDiff
+          v-if="showDiff && !showPRView"
+          :new-string="displayMessage.diffMessage.content"
+          :old-string="messageContent"
+          theme="dark"
         />
 
-        <!-- Floating selected text display — positioned above and centered on selection -->
-        <div 
-          v-if="false && showSelectionMenu && selectedText"
-          ref="floatingDisplay"
-          class="floating-display fixed bg-base-200 border border-base-300 rounded-lg shadow-lg p-3 z-50 pointer-events-none relative"
-          :style="{ 
-            top: selectionPosition.top + 'px', 
-            left: selectionPosition.left + 'px',
-          }"
-        >
-          <ChatEntrySelectionMenu
-            :selectedText="selectedText"
-            :chatProject="chatProject"
-            @copy="onSelectionCopy"
-            @create-subtask="onSelectionCreateSubtask"
-            @search-files="onSelectionSearchFiles"
-            @close="onCloseSelectionMenu"
-          />
-        </div>
-
-        <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
-          <div class="flex gap-1 items-center" 
-            :class="[displayMessage.hide && 'text-slate-50']">
-            <span class="text-warning" v-if="displayMessage.hide">
-              <i class="fa-solid fa-box-archive"></i>
-            </span>
-            <div 
-              class="tooltip tooltip-right" 
-              :data-tip="profile.name || profile.username" 
-              v-for="profile in messageProfiles" 
-              :key="profile.name"
-            >
-              <ProfileAvatar :profile="profile" width="6" />
-            </div>
-            <UserSelector 
-              class="dropdown-bottom"
-              :selectedUser="usersList.find(u => u.name === displayMessage.user)"
-              :profiles="usersList"
-              @user-changed="displayMessage.profiles = [$event.name]"
-              v-if="false"
-            />
-            <i class="fa-solid fa-magnifying-glass" v-if="message.task_item === 'search'"></i>
-            <div class="flex gap-2 grow">
-              <span class="badge badg-xs badge-error" v-if="cancellationTime">Cancelled</span>
-              [{{ formatDate(displayMessage.updated_at) }}] 
-              <span v-if="timeTaken">({{ timeTaken }})</span>
-              <div class="badge badge-sm badge-success flex gap-1" v-if="displayMessage.is_answer">
-                <ChatIcon mode="answer" /> Knowledge 
-              </div>
-              <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
-                <ChatIcon mode="topic" /> Topic 
-              </div>
-              <div 
-                class="badge badge-sm border-dashed badge-outline flex gap-1 click" 
-                @click="openThread"
-                v-if="threadChat"
-              >
-                <ChatIcon :mode="threadChat.mode" /> Thread 
-              </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div 
-              class="@lg:opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
-              v-if="menuLess !== true"
-            >
-              <div class="px-2 flex flex-col">
-                <div class="gap-2 flex justify-end items-center">
-                  <button
-                    class="btn btn-xs btn-error tooltip tooltip-bottom"
-                    data-tip="Stop generation"
-                    @click="cancelMessage"
-                    v-if="!isDone && cancellationTokenId"
-                  >
-                    <span class="loading loading-xs"></span>
-                    Cancel...
-                  </button>
-                  <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-                    data-tip="Thread" 
-                    @click="$emit('thread', message)"
-                  >
-                    <i class="fa-solid fa-comment-dots"></i>
-                  </button>      
-                  <button 
-                    class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" 
-                    data-tip="Right answer!" 
-                    @click="$emit('answer', message)"
-                  >
-                    <i class="fa-solid fa-check-double"></i>
-                  </button>      
-                  <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-                    data-tip="Copy message" 
-                    @click="copyMessageToClipboard"
-                  >
-                    <i class="fa-solid fa-copy"></i>
-                  </button>      
-                  <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-                    data-tip="View diff" 
-                    @click="toggleShowDiff" 
-                    v-if="displayMessage.diffMessage"
-                  >
-                    <i class="fa-regular fa-file-lines"></i>
-                    <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
-                  </button>
-                  <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
-                    :class="showPRView && 'btn-warning'"
-                    data-tip="View PR changes" 
-                    @click="togglePRView"
-                    v-if="hasPRViewBlocks"
-                  >
-                    <i class="fa-solid fa-code-branch"></i>
-                  </button>
-                  <button 
-                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom hover:btn-warning" 
-                    data-tip="Run agents" 
-                    @click="runAgents"
-                  >
-                    <i class="fa-solid fa-people-group"></i>
-                  </button>
-                  <div class="dropdown dropdown-hover dropdown-end">
-                    <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-                      <i class="fa-solid fa-bars"></i>
-                    </button>
-                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
-                      <li class="text-error">
-                        <a class="hover:underline" @click="confirmRemove">
-                          <i class="fa-solid fa-trash-can"></i> Delete
-                        </a>
-                      </li>
-                      <li class="text-warning" v-if="isDone">
-                        <a 
-                          @click.stop="$emit('hide', message)" 
-                          class="text-left tooltip tooltip-bottom click"
-                          :data-tip="displayMessage.hide 
-                            ? 'Click to add message to conversation' 
-                            : 'Click to archive message from the conversation'"
-                        >
-                          <i class="fa-solid fa-box-archive"></i> {{ displayMessage.hide ? 'Show' : 'Archive' }}
-                        </a>                  
-                      </li>
-                      <li @click="toggleSrcView" v-if="isDone">
-                        <a><i class="fa-solid fa-code"></i> Source</a>
-                      </li>
-                      <li @click="$emit('edit-message', message)" v-if="isDone">
-                        <a><i class="fa-solid fa-pen"></i> Edit</a>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Document summary TOC — documentId scopes anchors to this document instance -->
-          <DocumentSummary
-            v-if="isDone && messageContent && !showPRView"
-            :content="messageContent"
-            :minHeadings="3"
-            :documentId="documentId"
-            :scrollContainer="$refs.contentArea"
-            class="mt-1"
-          />
-        </div>
-
-        <!-- Skeleton loader when no content yet -->
-        <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" 
-          v-if="!displayMessage.content && !displayMessage.think"
-        >
-          <div class="flex items-center gap-4">
-            <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-            <div class="flex flex-col gap-4">
-              <div class="skeleton h-4 w-20"></div>
-            </div>
-          </div>
-          <div class="skeleton h-32 w-full"></div>
-        </div>
-        
-        <!-- Thinking block -->
-        <div v-if="thinkText">
+        <!-- Code patches section -->
+        <div v-if="code_patches && !showPRView" class="space-y-3">
           <div 
-            class="alert click items-start"
-            @click="displayMessage.full_think = !displayMessage.full_think"
+            v-for="patch in code_patches" 
+            :key="patch.file_path"
+            class="border border-base-300 rounded-md p-2"
           >
-            <i class="fa-solid fa-brain"></i>
-            {{ thinkText }}
-          </div>    
+            <div class="text-xs font-bold text-primary mb-2" :title="patch.file_path">
+              {{ patch.file_path.replace($project.abs_project_path, '') }}
+            </div>
+            <div class="text-xs text-neutral-600 mb-2">{{ patch.description }}</div>
+            <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
+            <div class="flex justify-end mt-2">
+              <button 
+                class="btn btn-sm btn-warning gap-1" 
+                :disabled="patch.working" 
+                @click="applyPatch(patch)"
+              >
+                <span class="loading loading-spinner" v-if="patch.working"></span>
+                Apply changes
+              </button>
+            </div>
+            <div v-if="patch.res" class="text-xs mt-2">
+              <div class="text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+              <div class="text-success" v-else>✓ Patch applied successfully</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Message content area — ref used by DocumentSummary to scroll within -->
-        <div 
-          ref="contentArea"
-          @copy.stop="onMessageCopy"
-          @mouseup="onContentMouseUp"
-          :class="[
-            'max-w-full border-slate-300/20 relative', 
-            (isCollapsed === undefined ? displayMessage.hide : isCollapsed) 
-              ? 'h-6 overflow-hidden' 
-              : 'h-fit'
-          ]"
-        >
-          <pre v-if="srcView">{{ displayMessage.content }}</pre>
+        <!-- PR View -->
+        <MessagePRView
+          v-if="showPRView && !srcView && !showDiff"
+          :codeBlocks="prViewCodeBlocks"
+          :chat="chat"
+          :message="message"
+          :activeBranch="activeBranch"
+          @save-file="$emit('save-file', $event)"
+          @add-file="$emit('add-file', $event)"
+          @open-file="$emit('open-file', $event)"
+          @sub-task="$emit('sub-task', $event)"
+        />
 
-          <!-- Pass documentId so heading anchors are scoped to this message -->
-          <Document 
-            :content="messageContent"
-            :files="chatFiles"
-            :project="chatProject"
-            :chat="chat"
-            :loading="!message.done"
-            :documentId="documentId"
-            :message="message"
-            @generate-code="onGenerateCode" 
-            @reload-file="$emit('reload-file', { file: $event, message })"
-            @open-file="$emit('open-file', $event)"
-            @save-file="$emit('save-file', $event)"
-            @add-file="$emit('add-file', $event)"
-            @sub-task="$emit('sub-task', $event)"
-            @copy-chapter="onCopyChapter"
-            @create-task="onCreateTask"
-            :mentionList="mentionList"
-            v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord" 
-          >
-            <!-- Custom chapter actions -->
-            <template #chapter-actions="{ chapter, fullContent }">
-              <button
-                class="btn btn-sm btn-ghost gap-2"
-                @click="copyChapterMarkdown(chapter, fullContent)"
-                :title="`Copy chapter: ${chapter.title}`"
-              >
-                <i class="fa-solid fa-copy"></i>
-                Copy
-              </button>
-              <button
-                class="btn btn-sm btn-ghost gap-2"
-                @click="createTaskFromChapter(chapter, fullContent)"
-                :title="`Create task from: ${chapter.title}`"
-              >
-                <i class="fa-solid fa-plus"></i>
-                Task
-              </button>
-            </template>
-          </Document>
-
-          <div class="alert alert-error text-xs" v-if="displayMessage.error">
-            {{ displayMessage.error }}
-          </div>
-
-          <CodeDiff
-            :new-string="displayMessage.diffMessage.content"
-            :old-string="messageContent"
-            theme="dark"
-            v-if="showDiff && !showPRView"
-          />
-
-          <!-- Code patches list -->
-          <div v-if="code_patches && !showPRView">
+        <!-- Images carousel -->
+        <div v-if="images && !showPRView && images?.length" class="mt-3">
+          <p class="text-xs font-semibold mb-2">Images</p>
+          <div class="carousel gap-2">
             <div 
-              class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" 
-              v-for="patch in code_patches" 
-              :key="patch.file_path"
+              class="carousel-item cursor-pointer"
+              v-for="image in images" 
+              :key="image.src" 
+              @click="$emit('image', image)"
             >
-              <div class="text-xs font-bold text-primary" :title="patch.file_path">
-                {{ patch.file_path.replace($project.abs_project_path, '') }}
-              </div>
-              <div class="">{{ patch.description }}</div>
-              <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
-              <div class="flex justify-end">
-                <button 
-                  class="btn btn-sm btn-warning" 
-                  :disabled="patch.working" 
-                  @click="applyPatch(patch)"
-                >
-                  <span class="loading loading-spinner" v-if="patch.working"></span>
-                  Apply changes
-                </button>
-              </div>
-              <div v-if="patch.res">
-                <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
-                <div class="text-xs text-success" v-else>Patch applied</div>
+              <div class="flex flex-col gap-1">
+                <div 
+                  class="bg-cover bg-center border-2 border-base-300 rounded-md w-20 h-20"
+                  :style="`background-image: url(${image.src})`"
+                ></div>
+                <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- PR View component -->
-          <MessagePRView
-            v-if="showPRView && !srcView && !showDiff"
-            :codeBlocks="prViewCodeBlocks"
-            :chat="chat"
-            :message="message"
-            :activeBranch="activeBranch"
-            @save-file="$emit('save-file', $event)"
-            @add-file="$emit('add-file', $event)"
-            @open-file="$emit('open-file', $event)"
-            @sub-task="$emit('sub-task', $event)"
-          />
-
-          <!-- Image carousel -->
-          <div v-if="images && !showPRView">
-            <div class="carousel gap-2" v-if="images?.length">
-              <div 
-                class="carousel-item click mt-2" 
-                v-for="image in images" 
-                :key="image.src" 
-                @click="$emit('image', image)" 
-                :alt="image.alt" 
-                :title="image.alt"
-              >
-                <div class="flex flex-col">
-                  <div 
-                    class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" 
-                    :style="`background-image: url(${image.src})`"
-                  ></div>
-                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Linked files list -->
-          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length && !showPRView">
-            Linked files:
+        <!-- Linked files -->
+        <div v-if="displayMessage.files?.length && !showPRView" class="mt-3 p-2 bg-base-200 rounded-md">
+          <p class="text-xs font-semibold mb-2">Linked files</p>
+          <div class="space-y-1">
             <div 
               v-for="file in displayMessage.files" 
-              :key="file" 
-              :title="file" 
-              class="flex gap-2 items-center click"
+              :key="file"
+              class="flex gap-2 items-center text-xs"
             >
-              <div class="flex gap-2 click hover:underline" @click="openFile(file)">
-                <div 
-                  class="click tooltip tooltip-right" 
-                  data-tip="Attach file" 
-                  @click.stop="$emit('add-file-to-chat', file)"
-                >
-                  <i class="fa-solid fa-file-arrow-up"></i>
-                </div>
-                <div class="overflow-hidden">
-                  {{ file.split('/').reverse()[0] }}
-                </div>
-              </div>
-              <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </div>
+              <i class="fa-solid fa-file text-primary"></i>
+              <a class="hover:underline cursor-pointer flex-1 truncate" @click="openFile(file)" :title="file">
+                {{ file.split('/').reverse()[0] }}
+              </a>
+              <i class="fa-regular fa-circle-xmark cursor-pointer hover:text-error" @click.stop="$emit('remove-file', file)"></i>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </Collapsible>
 </template>
 
 <script>
@@ -464,15 +403,14 @@ export default {
       branchLoading: false,
       showSelectionMenu: false,
       selectedText: '',
-      selectionPosition: {
-        top: 0,
-        left: 0
-      }
+      selectionPosition: { top: 0, left: 0 },
+      collapsed: false
     }
   },
   created() {
     this.loadThreadChat()
     this.loadActiveBranch()
+    this.collapsed = this.displayMessage.hide
   },
   computed: {
     isDone() {
@@ -488,9 +426,9 @@ export default {
       return this.chat?.mode === 'topic'
     },
     isCollapsed() {
-      return this.displayMessage.collapsed !== undefined
-        ? this.displayMessage.collapsed
-        : this.displayMessage.is_answer ? true : false
+      return this.collapsed !== undefined
+        ? this.collapsed
+        : this.displayMessage.hide ? true : false
     },
     isMyMessage() {
       return this.displayMessage.user === this.$user.username
@@ -504,13 +442,13 @@ export default {
         this.message.role === 'assistant'
     },
     thinkText() {
-      const { full_think, is_thinking } = this.message 
-      return null        
+      return null
     },
     displayMessage() {
-      return this.threadChat?.messages
-        .filter(m => !m.hide)
-        .reverse()[0] || this.message
+      const message = this.threadChat?.messages
+          .filter(m => !m.hide)
+          .reverse()[0] || this.message
+      return message
     },
     messageProfiles() {
       let profiles = this.$projects.profiles
@@ -547,7 +485,7 @@ export default {
       } else if (this.displayMessage.meta_data?.start_time) {
         timeTaken = moment(this.displayMessage.meta_data?.start_time).fromNow()
       }
-      return `${this.displayMessage.meta_data.model} ${timeTaken}`
+      return timeTaken ? `${this.displayMessage.meta_data.model} ${timeTaken}` : null
     },
     chatProject() {
       if (this.chat.project_id) {
@@ -611,33 +549,16 @@ export default {
     getSelectionPosition() {
       const selection = window.getSelection()
       if (selection.rangeCount === 0) return { top: 0, left: 0 }
-      
       const range = selection.getRangeAt(0)
       const rect = range.getBoundingClientRect()
-      
-      const floatingEl = this.$refs.floatingDisplay
-      let floatingHeight = 0
-      
-      if (floatingEl) {
-        floatingEl.style.visibility = 'hidden'
-        floatingEl.style.display = 'block'
-        floatingHeight = floatingEl.offsetHeight
-        floatingEl.style.visibility = 'visible'
-      }
-      
-      const { x, y } = this.$el.parentNode.getBoundingClientRect()
-      const left = rect.left - x
-      const top = rect.top + window.scrollY - floatingHeight + rect.height
-      
       return {
-        top: Math.max(10, top),
-        left: left
+        top: Math.max(10, rect.top + window.scrollY - 60),
+        left: rect.left
       }
     },
     onContentMouseUp() {
       function getSelectedHTML() {
         const selection = window.getSelection()
-        
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0)
           const clonedContent = range.cloneContents()
@@ -652,9 +573,6 @@ export default {
       if (selectedText.length > 0) {
         this.selectedText = selectedText
         this.showSelectionMenu = true
-        this.$nextTick(() => {
-          this.selectionPosition = this.getSelectionPosition()
-        })
       } else {
         this.showSelectionMenu = false
       }
@@ -663,38 +581,26 @@ export default {
       this.copyTextToClipboard(text)
     },
     onSelectionCreateSubtask(content) {
-      this.$emit('sub-task', {
-        content,
-      })
+      this.$emit('sub-task', { content })
     },
-    onSelectionSearchFiles({ query, fromSelection }) {
-      this.$emit('search-files', {
-        query,
-        fromSelection: true
-      })
+    onSelectionSearchFiles({ query }) {
+      this.$emit('search-files', { query, fromSelection: true })
     },
     onCloseSelectionMenu() {
       this.showSelectionMenu = false
     },
-    toggleCollapse() {
-      if (this.displayMessage.collapsed !== undefined) {
-        this.displayMessage.collapsed = !this.displayMessage.collapsed 
-      } else {
-        this.displayMessage.collapsed = !this.isCollapsed
-      }
-    },
     toggleSrcView() {
-      if (this.srcView = !this.srcView) {
+      this.srcView = !this.srcView
+      if (this.srcView) {
         this.showDiff = false
         this.showPRView = false
-        this.collapsed = false
       }
     },
     toggleShowDiff() {
-      if (this.showDiff = !this.showDiff) {
+      this.showDiff = !this.showDiff
+      if (this.showDiff) {
         this.srcView = false
         this.showPRView = false
-        this.collapsed = false
       }
     },
     togglePRView() {
@@ -720,16 +626,16 @@ export default {
       this.copyTextToClipboard(this.displayMessage.content)
     },
     async applyPatch(patch) {
-      patch.working = true 
+      patch.working = true
       try {
         const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
         await this.$projects.codeImprovePatch({
           chat: this.chat,
           code_generator: { code_changes, code_patches: [patch] }
         })
-        patch.res = { info: 'Patch sent, please check events for updates' }
+        patch.res = { info: 'Patch sent' }
       } catch {
-        patch.res = { info: '', error: 'Error applying patch' }
+        patch.res = { error: 'Error applying patch' }
       }
       delete patch.working
     },
@@ -776,19 +682,13 @@ export default {
       this.copyTextToClipboard(fullContent)
     },
     createTaskFromChapter(chapter, fullContent) {
-      this.$emit('sub-task', {
-        content: fullContent,
-        title: chapter.title
-      })
+      this.$emit('sub-task', { content: fullContent, title: chapter.title })
     },
     onCopyChapter(chapterData) {
       this.copyTextToClipboard(chapterData.content)
     },
     onCreateTask(taskData) {
-      this.$emit('sub-task', {
-        content: taskData.content,
-        title: taskData.title
-      })
+      this.$emit('sub-task', { content: taskData.content, title: taskData.title })
     }
   },
   mounted() {

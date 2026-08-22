@@ -74,17 +74,14 @@ export default {
       return count === 1
         ? `Failed to load panel: ${this.failedPanels[0]}`
         : `Failed to load ${count} panels`
+    },
+    openAppTabIds() {
+      return this.apps.map(app => app.tabId)
     }
   },
   watch: {
     apps(newVal) {
-      const { panelTabIds } = this
-      newVal
-        .filter(({ tabId }) => !panelTabIds.includes(tabId))
-        .forEach(app => this.addAppPanel(app))
-      if (!newVal.length) {
-        this.init()
-      }
+      this.syncPanelsWithApps()
     },
     uiReady() {
       this.restoreLayout()
@@ -97,6 +94,24 @@ export default {
     init() {
       if (!this.panelTabIds.length) {
         this.$ui.showTab('home')
+      }
+    },
+    syncPanelsWithApps() {
+      const { panelTabIds, openAppTabIds } = this
+      
+      // Add new panels for apps not yet in dockview
+      this.apps
+        .filter(({ tabId }) => !panelTabIds.includes(tabId))
+        .forEach(app => this.addAppPanel(app))
+      
+      // Remove panels for apps that are no longer open
+      panelTabIds
+        .filter(tabId => !openAppTabIds.includes(tabId))
+        .forEach(tabId => this.removePanel(tabId))
+      
+      // Initialize if no panels exist
+      if (!this.apps.length) {
+        this.init()
       }
     },
     addAppPanel(app) {

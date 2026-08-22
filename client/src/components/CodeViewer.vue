@@ -9,7 +9,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 </script>
 
 <template>
-  <Collapsible v-model="showCode" class="h-full">
+  <Collapsible v-model="showCode" class="h-full border border-slate-500">
     <template #icon>
       <div class="" v-if="!finished" >
         <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
@@ -431,9 +431,7 @@ export default {
         if (!viewCode) return
         
         if (this.isStreaming) {
-          if (this.shouldForceScrollToBottom && !this.isUserScrolledUp) {
-            viewCode.scrollTop = viewCode.scrollHeight
-          }
+          viewCode.scrollTop = viewCode.scrollHeight
         } else {
           this.prevScrollTop = viewCode.scrollTop
         }
@@ -847,20 +845,16 @@ export default {
       const viewCode = this.$el?.querySelector('.view-code')
       if (!viewCode) return
       
-      const distanceFromBottom = viewCode.scrollHeight - viewCode.scrollTop - viewCode.clientHeight
-      
+      // CHANGED: Always keep scroll at bottom during streaming, ignore user scroll input
       if (this.isStreaming) {
-        if (distanceFromBottom <= 40) {
-          this.isUserScrolledUp = false
-          this.shouldForceScrollToBottom = true
-        } else {
-          this.isUserScrolledUp = true
-          this.shouldForceScrollToBottom = false
-        }
-      } else {
-        this.prevScrollTop = viewCode.scrollTop
-        this.isAtBottom = distanceFromBottom <= 40
+        viewCode.scrollTop = viewCode.scrollHeight
+        return
       }
+      
+      // After streaming finished, track scroll position normally
+      this.prevScrollTop = viewCode.scrollTop
+      const distanceFromBottom = viewCode.scrollHeight - viewCode.scrollTop - viewCode.clientHeight
+      this.isAtBottom = distanceFromBottom <= 40
     }
   }
 }

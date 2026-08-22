@@ -16,7 +16,7 @@ dependencies = [
   'python-slugify>=8.0.1',
   'llama-index>=0.9.42',
   'uvicorn>=0.38.0',
-  'fastapi_socketio>=0.0.10',
+  'python-socketio>=5.9.0',
   'fastapi>=0.122.0',
   'python-multipart>=0.0.20',
   'pytesseract',
@@ -48,7 +48,9 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
-    "pytest >= 7.3.1",
+    "pytest>=7.3.1",
+    "pytest-mock>=3.11.1",
+    "pytest-asyncio>=0.21.1",
 ]
 doc = [
 ]

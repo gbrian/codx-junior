@@ -24,7 +24,6 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
 
         <!-- ── HEADER ─────────────────────────────────────────────────────── -->
         <div class="flex flex-col gap-1 w-full shrink-0">
-          
           <!-- CHANGED: Breadcrumb uses true root chat + reactive hierarchy -->
           <div class="flex items-center justify-between gap-2 w-full min-w-0">
             <div class="flex-1 min-w-0">
@@ -45,11 +44,12 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
               />
             </div>
           </div>
-
           <!-- Chat Title & Actions -->
           <div class="flex items-start gap-2 w-full min-w-0">
             <div class="flex items-center gap-1 shrink-0">
-              <ProjectDetailt v-model="targetProject" :iconify="true"
+              <ProjectDetailt
+                v-model="targetProject" 
+                :iconify="true"
                 :options="{ showFolders: false, showIcon: true, showSelector: true }"
                 @select="setChatProject" />
               <UserSelector class="dropdown-bottom" :allUsers="true" @user-changed="onAddProfile($event)" />
@@ -269,7 +269,7 @@ export default {
       showChatsTree: false,
       editName: false,
       addNewFile: null,
-      showHidden: false,
+      showHidden: true,
       confirmDelete: false,
       newTag: null,
       showSubtaskModal: false,
@@ -292,7 +292,6 @@ export default {
       showChildChat: null,
       showExportChat: false,
       chatSearch: null,
-      ownerProject: null,
       targetProject: null,
       showHistoryWall: false
     }
@@ -301,6 +300,9 @@ export default {
     this.init()
   },
   computed: {
+    ownerProject() {
+      return this.$projects.allProjectsById[this.theChat.owner_project_id]
+    },
     theChat() {
       const chatId = this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
@@ -333,9 +335,6 @@ export default {
     },
     aiModels() {
       return this.$projects.ai.models
-    },
-    showTaskProjectName() {
-      return this.ownerProject && this.ownerProject.project_id !== this.$project.project_id
     },
     hiddenCount() {
       return (this.workingChat?.messages || []).filter(m => m.hide).length
@@ -419,9 +418,12 @@ export default {
         this.loadHierarchy()
       }
     },
+    chatProject() {
+      return this.$projects.allProjectsById[chat.owner_project_id]
+    },
     workingChat(newVal) {
       if (newVal) {
-        this.targetProject = this.$projects.allProjectsById[newVal.project_id] || this.$project
+        this.targetProject = this.$projects.allProjectsById[newVal.project_id] || this.chatProject
         this.subtaskProject = this.targetProject
         if (newVal.parent_id && !this.$chats.chats[newVal.parent_id]) {
           this.$chats.ensureChatRoot(newVal)

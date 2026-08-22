@@ -15,7 +15,7 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
           </div>
         </div>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="showProjectSelector = true">
+        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="onQuickChatEvent">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-comments"></i>
           </div>
@@ -143,6 +143,13 @@ export default {
     }
   },
   methods: {
+    onQuickChatEvent(ev) {
+      if (ev.ctrlKey) {
+        this.showProjectSelector = true
+      } else {
+        this.openQuickChat()    
+      }
+    },
     openQuickChat() {
       this.$service.chat.newQuickChat()
     },

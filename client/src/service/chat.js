@@ -291,13 +291,13 @@ export class ChatService extends Service {
     return file.chat
   }
 
-  async newQuickChat() {
+  async newQuickChat(project) {
     const chat = {
       name: "Quick chat",
       mode: 'chat',
       auto_initialize: true
     }
-    const quickChat = await this.$chats.createNewChat({ chat })
+    const quickChat = await this.$chats.createNewChatWithProject({ project, chat })
     this.$storex.ui.showApp({
         key: 'chat',
         name: 'Chat',

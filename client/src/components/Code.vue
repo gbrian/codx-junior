@@ -29,6 +29,7 @@ import CodeViewer from './CodeViewer.vue'
       :finished="finished"
       :chat="chat"
       :message="message"
+      :key="blockHash"
       v-if="showCode"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"

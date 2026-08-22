@@ -20,16 +20,18 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
   >
     <!-- File list section -->
     <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
-      <div class="w-full" v-if="chatFiles.length">
+      <div class="w-full" v-if="chatFiles.length || messageFiles.length">
         <ChatFileList
           :files="chatFiles"
+          :message-files="messageFiles"
           :chat-project="chatProject"
           @remove="removeFileFromChat"
+          @add-to-chat="onAddFileToChat"
           @add-as-message="addFileContentAsMessage"
           @sync-notebook="syncNotebook"
           @export-notebook="exportNotebook"
           @preview-file="openFilePreview"
-          v-if="chatFiles?.length && !isPRView"
+          v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
         />
       </div>
       <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" 
@@ -139,6 +141,7 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
               />
               <ChatFileList
                 :files="files"
+                :message-files="[]"
                 :chat-project="chatProject"
                 @remove="removeFileFromFiles"
                 @add-as-message="addFileContentAsMessage"
@@ -256,6 +259,23 @@ export default {
     chatFiles() {
       return this.chat.file_list || []
     },
+    messageFiles() {
+      // Collect all files from message.files property and code blocks
+      const allMsgFiles = new Set()
+      
+      this.messages?.forEach(msg => {
+        // Add files from message.files property
+        msg.files?.forEach(f => allMsgFiles.add(f))
+        
+        // Extract files from code blocks in message content
+        if (msg.content) {
+          const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
+          extractedFiles.forEach(f => allMsgFiles.add(f))
+        }
+      })
+      
+      return Array.from(allMsgFiles)
+    },
     isPRView() {
       return this.chat.mode === 'prview'
     },
@@ -346,6 +366,29 @@ export default {
     }
   },
   methods: {
+    extractFilesFromCodeBlocks(content) {
+      if (!content) return []
+      
+      // Match code blocks: ```language path/to/file
+      const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
+      const files = []
+      let match
+      
+      while ((match = codeBlockRegex.exec(content)) !== null) {
+        const filePath = match[2].trim()
+        
+        // Filter valid paths (must contain / or .)
+        if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
+          // Ensure it's a valid file path (not just noise)
+          if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
+            files.push(filePath.split(' ')[0])
+          }
+        }
+      }
+      
+      return files
+    },
+
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
       const mentionedNames = mentionMatches.map(m => m[1])
@@ -1079,6 +1122,10 @@ export default {
       }
     },
 
+    async onAddFileToChat(file) {
+      await this.onAddFile(file)
+    },
+
     onMessageEdited({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.editMessage = null
@@ -1099,7 +1146,6 @@ export default {
       }
     },
 
-    // Handle PR comment from PRChangesPanel
     onPRFileComment({ file, lineNumber, comment, diff }) {
       const description = `Comment on ${file} (line ${lineNumber}):\n${diff ? diff + '\n' : ''}${comment}`
       this.createChatSubTask({

@@ -1,6 +1,7 @@
 {
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
+  "python.defaultInterpreterPath": "",
   "sqltools.useNodeRuntime": true,
   "sqltools.connections": [
     {
@@ -17,5 +18,10 @@
     "-p",
     "*test*.py"
   ],
-  "pylint.cwd": "${workspaceFolder}/api"
+  "pylint.cwd": "${workspaceFolder}/api",
+  "files.watcherExclude": {
+    "**/.pixi": true,
+    "**/node_modules": true
+  },
+  "python.envFile": ""
 }

@@ -19,16 +19,16 @@ export default {
   data() {
     return {
       project: null,
-      chat: null
     }
   },
   async created() {
-    console.log("Tab params", this.params)
     this.project = this.$projects.allProjectsById[this.projectId]
-    if (this.params.params.chat)
-      this.chat = await this.$service.chat.findChat(this.params.params.chat)
   },
   computed: {
+    chat() {
+      const chatId = this.params?.params?.chat?.id
+      return this.$storex.chats.chats[chatId]
+    },
     app() {
       return this.params.params.app
     },
@@ -51,11 +51,6 @@ export default {
     },
     isUpdating() {
         return this.chat?.id && this.$storex.chats.isChatUpdating(this.chat.id)
-    }
-  },
-  watch: {
-    chat(newVal, oldVal) {
-      console.log("Chat has changed", this.chat)
     }
   },
   methods: {

@@ -127,8 +127,8 @@ GLOBAL_REQUEST_TIMEOUT=280
 
 
 app = FastAPI(
-    title="CODXJuniorAPI",
-    description="API for CODXJunior",
+    title="codx-junior API",
+    description="API for codx-junior",
     version="1.0",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",

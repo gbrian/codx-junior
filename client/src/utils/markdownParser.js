@@ -235,15 +235,11 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     // structural identity (type+fileName+index) so the key doesn't change while
     // new lines are being streamed into the same logical block.
     const contentHash = generateHash(blockContent)
-    const structuralKey = `${finalType}:${finalFileName}:${blockIndex}`
-    const stableHash = isFinished
-      ? contentHash
-      : generateHash(structuralKey)
-
+    
     blocks.push({
       type: finalType,
       content: blockContent,
-      hash: stableHash,
+      hash: contentHash,
       fileName: finalFileName,
       renderer: getRendererFn(finalType, finalFileName),
       finished: isFinished

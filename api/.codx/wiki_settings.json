@@ -159,6 +159,21 @@
               "path": "/codx/junior/api/github.py",
               "slug": "codx-junior-api-github-py.md",
               "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-api-github-py.md"
+            },
+            {
+              "path": "/codx/junior/ai/smol/smol_agent.py",
+              "slug": "codx-junior-ai-smol-smol-agent-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-ai-smol-smol-agent-py.md"
+            },
+            {
+              "path": "/engine/agent_runtime.py",
+              "slug": "engine-agent-runtime-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/engine-agent-runtime-py.md"
+            },
+            {
+              "path": "/codx/junior/ai/smol/__init__.py",
+              "slug": "codx-junior-ai-smol-init-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-ai-smol-init-py.md"
             }
           ],
           "id": "agents",
@@ -319,6 +334,16 @@
           "path": "/codx/junior/model/model.py",
           "slug": "codx-junior-model-model-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-model-model-py.md"
+        },
+        {
+          "path": "/codx/junior/ai/smol/loop_guard.py",
+          "slug": "codx-junior-ai-smol-loop-guard-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-loop-guard-py.md"
+        },
+        {
+          "path": "/codx/junior/ai/smol/constants.py",
+          "slug": "codx-junior-ai-smol-constants-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-constants-py.md"
         }
       ],
       "id": "ai-and-knowledge-management",
@@ -467,6 +492,11 @@
           "path": "/codx/junior/utils/content_formatter.py",
           "slug": "codx-junior-utils-content-formatter-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-utils-content-formatter-py.md"
+        },
+        {
+          "path": "/codx/junior/ai/smol/messages.py",
+          "slug": "codx-junior-ai-smol-messages-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-ai-smol-messages-py.md"
         }
       ],
       "id": "utility-functions",

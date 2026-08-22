@@ -8,7 +8,6 @@ import {
 } from 'reka-ui'
 import MenubarItem from '../main-menu/MenubarItem.vue'
 import MenuDivider from '../main-menu/MenuDivider.vue'
-import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -28,18 +27,17 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </MenubarTrigger>
       <MenubarPortal>
         <MenubarContent
-          class="outline-none bg-base-100 rounded-lg p-[5px] border border-white/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
+          class="text-xs outline-none bg-base-100 rounded-lg p-[5px] border border-white/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
         >
-          <MenubarItem>
-            <!-- Stop click propagation so menu doesn't close on project change -->
-            <ProjectDetailt @click.stop="" v-model="currentProject" @change="" />
-          </MenubarItem>
-          <MenuDivider />
           <MenubarItem @click.stop="$ui.cloneApp(app)">
             Duplicate
           </MenubarItem>
           <MenubarItem @click.stop="$ui.openNewWindowAppPanel(app)" v-if="app.path">
             New window <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </MenubarItem>
+          <MenuDivider />
+          <MenubarItem @click.stop="closeApp" class="text-error">
+            <i class="fa-solid fa-xmark"></i> Close
           </MenubarItem>
         </MenubarContent>
       </MenubarPortal>
@@ -64,19 +62,6 @@ export default {
     currentProjectId() {
       return this.liveApp?.params?.project_id
     },
-    currentProject: {
-      get() {
-        return this.$projects.allProjectsById[this.currentProjectId] || this.$project
-      },
-      set(project) {
-        if (!project || project.project_id === this.currentProjectId) return
-        this.$ui.updateAppParams({
-          tabId: this.app.tabId,
-          params: { project_id: project.project_id }
-        })
-      }
-    },
-    // Check if app is file viewer by app name or id
     isFileViewer() {
       return !!this.app?.params?.filePath
     },
@@ -94,6 +79,11 @@ export default {
         return `${path}${sep}favicon.ico`
       }
       return null
+    }
+  },
+  methods: {
+    closeApp() {
+      this.$ui.closeApp(this.app)
     }
   }
 }

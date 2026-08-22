@@ -224,10 +224,13 @@ export default {
         return true
       }
 
+      if (chat.file_list?.some(f => f.toLowerCase().includes(filterLower)))
+
       if (chat.messages && Array.isArray(chat.messages)) {
         return chat.messages.some(msg => 
           (msg.content && msg.content.toLowerCase().includes(filterLower)) ||
-          (msg.think && msg.think.toLowerCase().includes(filterLower))
+          (msg.think && msg.think.toLowerCase().includes(filterLower))||
+          (msg.files && msg.files.some(f => f.toLowerCase().includes(filterLower)))
         )
       }
 

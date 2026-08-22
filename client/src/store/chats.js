@@ -1,6 +1,5 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
-import { API } from '../api/api'
 import { v4 as uuidv4 } from 'uuid'
 
 export const namespaced = true
@@ -16,7 +15,17 @@ function registerChat(state, chat) {
     console.error('[chats store] Attempted to store a null/invalid chat:', chat)
     return
   }
-  state.chats[chat.id] = chat
+  
+  if (state.chats[chat.id]) {
+    // Merge while preserving messages
+    state.chats[chat.id] = {
+      ...state.chats[chat.id],
+      ...chat,
+      messages: state.chats[chat.id].messages
+    }
+  } else {
+    state.chats[chat.id] = chat
+  }
 }
 
 function getChatWorkingProject({ owner_project_id, project_id }) {
@@ -120,7 +129,7 @@ export const actions = actionTree(
     async init ({ state }) {
     },
     async loadChats({ state }) {
-      const chats = await API.chats.list()
+      const chats = await $storex.api.chats.list()
       chats.forEach(chat => registerChat(state, chat))
     },
     async ensureChatRoot({ state }, chat) {
@@ -164,11 +173,13 @@ export const actions = actionTree(
       return [rootChat, ...descendants]
     },
     async saveChat({ state }, chat) {
-      await API.chats.save(chat)
+      const project = getChatProject(chat)
+      await project.$api.chats.save(chat)
       await $storex.chats.loadChat(chat)
     },
     async saveChatInfo(_, chat) {
-      await API.chats.saveChatInfo({ ...chat, messages: [] })
+      const project = getChatProject(chat)
+      await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
       await $storex.chats.loadChat(chat)
     },
     async findProjectChat({ state }, { id, owner_project_id }) {
@@ -205,7 +216,8 @@ export const actions = actionTree(
       const descendants = getters.chatDescendants(chat.id) || []
 
       if (!chat.temp) {
-        await API.chats.delete(chat)
+        const project = getChatProject(chat)
+        await project.$api.chats.delete(chat)
       }
 
       const ids = new Set([chat.id, ...(descendants || []).map(c => c.id)])
@@ -265,7 +277,8 @@ export const actions = actionTree(
         chat_index: 0,
         ...chat
       }
-      const savedChat = await API.chats.fromUrl(chat)
+      const project = getChatProject(chat)
+      const savedChat = await project.$api.chats.fromUrl(chat)
       registerChat(state, savedChat)
       if (!chat.temp) {
         await $storex.chats.setActiveChat(savedChat)

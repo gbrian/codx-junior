@@ -6,8 +6,8 @@ import ProjectSelectorContent from './ProjectSelectorContent.vue'
   <!-- Trigger Button (only when not in modal mode) -->
   <div v-if="!modal">
     <button
-      class="flex gap-1 items-center group btn btn-ghost btn-sm tooltip"
-      :data-tip="currentProject?.project_path"
+      class="flex gap-1 items-center group btn btn-ghost btn-sm tooltip tooltip-bottom"
+      :data-tip="currentProject?.project_name"
       @click="isModalOpen = true"
       :disabled="disabled"
     >
@@ -73,6 +73,7 @@ export default {
       default: () => null
     }
   },
+  emits: ['select', 'close', 'update:modelValue'],
   data() {
     return {
       isModalOpen: false,

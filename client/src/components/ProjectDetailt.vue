@@ -29,6 +29,7 @@ export default {
       default: () => null
     }
   },
+  emits: ['update:modelValue', 'select'],
   computed: {
     project() {
       return this.modelValue || this.$project

@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div class="bg-base-200 rounded-lg border border-slate-400 bg-base-200 drop-shadow flex flex-col">
+  <div class="bg-base-200 rounded-lg bg-base-200 drop-shadow flex flex-col">
     <!-- Header toggle -->
     <div
       class="flex items-center gap-2 p-2 cursor-pointer select-none"

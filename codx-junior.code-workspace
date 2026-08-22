@@ -1,27 +1,51 @@
 {
 	"folders": [
         {
-            "path": "client"
+            "path": "client",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
         },
         {
-            "path": "api"
+            "path": "api",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": true
+            }
         },
         {
-            "path": "notebooks"
+            "path": "notebooks",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
         },
         {
-            "path": "."
+            "path": ".",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
         }
     ],
     "settings": {
-        "sqltools.useNodeRuntime": true,
-        "sqltools.connections": [
-            {
-                "previewLimit": 50,
-                "driver": "SQLite",
-                "name": "app-ng-mro",
-                "database": "/shared/app-ng-mro/.vscode/.codx/db/shared-app-ng-mro/chroma.sqlite3"
-            }
-        ]
+        "python.testing.pytestArgs": [
+            "."
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": false
     }
 }
