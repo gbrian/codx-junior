@@ -8,6 +8,11 @@ Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
     * delegates logging, event emission and cancellation to
       :class:`engine.agent_runtime.AgentRunContext`,
     * keeps streaming, callbacks, cancellation and analytics.
+
+Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR``) carry the
+``tool_call_id``, the parsed JSON request args and a truncated result preview
+so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
+messages in real time.
 """
 import json
 import logging
@@ -27,7 +32,10 @@ from engine.agent_runtime import (
 
 from codx.junior.ai.cancellation import CancellationToken, CancelledError
 from codx.junior.ai.wallet_check import check_user_wallet
-from codx.junior.ai.smol.constants import CALLBACK_FLUSH_SECONDS
+from codx.junior.ai.smol.constants import (
+    CALLBACK_FLUSH_SECONDS,
+    TOOL_RESULT_PREVIEW_MAX_CHARS,
+)
 from codx.junior.ai.smol.loop_guard import LoopGuard
 from codx.junior.ai.smol.messages import (
     ToolCallAccumulator,
@@ -387,10 +395,12 @@ class SmolAgent:
         Execute a single tool call and return its serialised output.
 
         Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` events on the
-        run context. Errors never propagate to the caller: they are returned
-        as strings so the model can react to failed tool invocations (hence
-        events are emitted manually instead of using ``run_context.tool``,
-        which re-raises).
+        run context. Event payloads carry the ``tool_call_id``, the parsed
+        JSON request args (``args``) and a truncated ``result`` preview so
+        listeners can render tool executions as chat messages. Errors never
+        propagate to the caller: they are returned as strings so the model
+        can react to failed tool invocations (hence events are emitted
+        manually instead of using ``run_context.tool``, which re-raises).
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -408,6 +418,7 @@ class SmolAgent:
         run_context.checkpoint()
 
         func_name: str = tool_call["function"]
+        tool_call_id: Optional[str] = tool_call.get("id")
         params = self._parse_tool_arguments(tool_call.get("arguments", "{}"), func_name)
         tool = next(
             (t for t in self.tools if t["tool_json"]["function"]["name"] == func_name),
@@ -416,9 +427,15 @@ class SmolAgent:
 
         success = True
         error_message: Optional[str] = None
+        result_preview: str = ""
         tool_start = time.monotonic()
+        # Emit a COPY of the parsed args: `params` is mutated later (settings
+        # injection) and listeners may keep a reference to the payload.
         run_context.emit(
-            AgentEventType.TOOL_START, tool=func_name, args=list(params.keys())
+            AgentEventType.TOOL_START,
+            tool=func_name,
+            tool_call_id=tool_call_id,
+            args=dict(params),
         )
 
         try:
@@ -442,7 +459,9 @@ class SmolAgent:
             result = tool["tool_call"](**params)
             if tool_settings.get("async"):
                 result = await result
-            return result if isinstance(result, str) else json.dumps(result)
+            result_str = result if isinstance(result, str) else json.dumps(result)
+            result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+            return result_str
 
         except (OSError, ValueError, TypeError, RuntimeError) as ex:
             success = False
@@ -454,12 +473,17 @@ class SmolAgent:
             duration_ms = (time.monotonic() - tool_start) * 1000
             if success:
                 run_context.emit(
-                    AgentEventType.TOOL_END, tool=func_name, duration_ms=duration_ms
+                    AgentEventType.TOOL_END,
+                    tool=func_name,
+                    tool_call_id=tool_call_id,
+                    duration_ms=duration_ms,
+                    result=result_preview,
                 )
             else:
                 run_context.emit(
                     AgentEventType.TOOL_ERROR,
                     tool=func_name,
+                    tool_call_id=tool_call_id,
                     duration_ms=duration_ms,
                     error=error_message,
                 )

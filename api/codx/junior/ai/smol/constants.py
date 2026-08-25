@@ -22,4 +22,8 @@ TOOL_LOOP_ERROR_MSG: str = (
 # Seconds to buffer streamed chunks before flushing them to callbacks.
 CALLBACK_FLUSH_SECONDS: float = 1.0
 
+# Maximum characters of a tool result included in TOOL_END event payloads.
+# Keeps chat message meta_data and streamed events reasonably small.
+TOOL_RESULT_PREVIEW_MAX_CHARS: int = 4000
+
 # Made with ❤️ by codx-junior

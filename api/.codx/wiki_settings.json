@@ -344,6 +344,11 @@
           "path": "/codx/junior/ai/smol/constants.py",
           "slug": "codx-junior-ai-smol-constants-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-constants-py.md"
+        },
+        {
+          "path": "/codx/junior/chat/chat_event_bridge.py",
+          "slug": "codx-junior-chat-chat-event-bridge-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-chat-chat-event-bridge-py.md"
         }
       ],
       "id": "ai-and-knowledge-management",

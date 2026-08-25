@@ -1,51 +1,190 @@
-# Wiki Documentation: AI Core Module
+# AI Module Documentation
 
 ## Overview
-The `AI` class functions as the central orchestration layer for managing artificial intelligence interactions, request routing, caching, and recovery mechanisms within the Codx Junior framework. It abstracts lower-level LangChain message structures and provides a unified interface for synchronous/asynchronous chat completions, embeddings generation, and image synthesis.
 
-## Architecture & Provider Routing
-- **Dynamic Instantiation**: The class uses factory methods to route requests to underlying provider implementations (`OpenAI_AI`) based on configuration. This applies to both synchronous (`create_chat_model`) and asynchronous (`create_a_chat_model`) execution targets `[Ref: def create_chat_model()]`, `[Ref: def create_a_chat_model()]`.
-- **Provider Resolution**: The `_get_provider()` helper safely extracts the active provider identifier by checking for attribute access on `llm_settings` or dictionary key lookup, defaulting to an empty string if absent `[Ref: def _get_provider()]`.
+The AI module serves as the main orchestrator for managing AI interactions with provider routing capabilities. It intelligently routes chat requests to either SmolAgent (async-native) or OpenAI_AI (legacy) based on global settings flags, while supporting advanced features like cancellation tokens, event listeners, and analytics traceability.
 
-## Class Initialization & State Management
-The constructor (`__init__`) establishes the operational context and initializes core state variables:
-- **Parameters**: Accepts `settings`, optional `llm_model`, `user`, and `system` parameters `[Ref: class AI.__init__]`.
-- **Configuration Parsing**: Retrieves dynamic LLM configurations via `settings.get_llm_settings(llm_model=llm_model)` stored in `self.llm_settings` `[Ref: self.llm_settings]`.
-- **Execution Callables**: Instantiates sync (`self.llm`) and async (`self.a_llm`) chat callables by invoking their respective factory methods `[Ref: self.llm / self.a_llm]`.
-- **Caching & Logging**: Initializes `self.cache` (boolean or dict) and `self.ai_logger` for conditional logging `[Ref: Cache State]`, `[Ref: Logger Configuration]`.
-- **Lazy Embeddings**: Defers embeddings model instantiation until first use via `self.embeddings_model` to prevent premature resource allocation `[Ref: Lazy Embeddings Init]`.
+## Class: AI
 
-## Chat Execution (Synchronous & Asynchronous)
-The `chat()` and `a_chat()` methods share an identical execution pipeline:
-1. **Input Normalization**: Ensures `messages`, `tools`, and `headers` are initialized as empty lists/dicts if not provided. Appends `prompt` as a `HumanMessage` when present `[Ref: Message Construction]`.
-2. **Cache Lookup**: Generates a cache key using `messages_md5(messages)`. If caching is active and the key exists, retrieves the stored AI response directly from JSON data `[Ref: Cache Hit Logic]`.
-3. **Request Dispatch**: Invokes `self.llm()` or `self.a_llm()` with a config dictionary containing callbacks, headers, tools, and optional `cancellation_token` `[Ref: Request Execution]`.
-4. **Cancellation Handling**: Explicitly catches and propagates `CancelledError` to respect client-side abort requests `[Ref: Cancellation Handling]`.
-5. **Error Recovery**: Intercepts standard exceptions and checks for model-not-found conditions. If detected, triggers automatic provider-specific recovery (Ollama model pulling) before executing a single retry attempt `[Ref: Automatic Model Recovery]`.
-6. **Cache Persistence**: On success, serializes the conversation history and response content into JSON format and stores it in `self.cache` using the MD5 key `[Ref: Cache Storage Logic]`.
+### Purpose
 
-## Embeddings & Image Generation
-- **Embeddings (`embeddings()`)**: Generates dense vector representations for text inputs. Handles both single strings and lists of strings by routing to `embed_documents()` or `embed_query()`. Automatically falls back between methods based on available client attributes `[Ref: def embeddings()]`.
-- **Image Generation (`image()`)**: Delegates synchronous image synthesis directly to the underlying LLM provider's `generate_image()` interface `[Ref: def image()]`.
+The `AI` class is the primary interface for managing AI-powered conversations with configurable provider routing and comprehensive feature support.
 
-## Automatic Error Detection & Recovery
-The module implements a dedicated recovery workflow for missing local models:
-- **Pattern Matching (`_is_model_not_found_error()`)**: Inspects exception strings for specific patterns including `"model_not_found"`, `"model not found"`, and API-native `"not_found_error"` types `[Ref: def _is_model_not_found_error()]`.
-- **Automated Pulling (`_pull_ollama_model()`)**: Extracts the target model name (stripping `ollama/` prefix if present), isolates the base URL by removing path components from `api_url`, and streams progress via HTTP POST to `/api/pull`. Raises a descriptive `RuntimeError` on failure `[Ref: def _pull_ollama_model()]`.
-- **Recovery Trigger (`_handle_model_not_found()`)**: Validates the active provider type. Executes the pull routine only for Ollama environments, wrapping any upstream failures in a runtime exception `[Ref: def _handle_model_not_found()]`.
+### Initialization
 
-## Utility & Serialization Functions
-- **`log()`**: Conditionally writes informational messages to `ai_logger` only when `get_log_ai()` confirms logging is enabled `[Ref: def log()]`.
-- **`get_openai_chat_client()`**: Instantiates the underlying provider client and returns it for direct access `[Ref: def get_openai_chat_client()]`.
-- **`create_embeddings_model()`**: Returns a fresh embeddings instance from the provider layer `[Ref: def create_embeddings_model()]`.
-- **`messages_md5()`**: Concatenates string representations of message contents and produces an MD5 hexadecimal digest for deterministic cache key generation `[Ref: def messages_md5()]`.
-- **`serialize_messages()`**: Converts message objects into JSON-compatible dictionaries containing the original type name and content string `[Ref: def serialize_messages()]`.
+```python
+def __init__(
+    self,
+    settings: CODXJuniorSettings,
+    llm_model: Optional[str] = None,
+    user: Optional[CodxUser] = None,
+    system: Optional[str] = None,
+) -> None
+```
 
-## External Dependencies
-The module relies on the following libraries and framework components as defined in its imports `[Ref: Top-level Imports]`:
-- **LangChain**: `BaseChatModel` base class, `AIMessage`, `HumanMessage`, `SystemMessage` for structured conversation history.
-- **Codx Framework**: `CODXJuniorSettings` for configuration management, `CodxUser` for interaction context, `AILogger` and `CancellationToken`/`CancelledError` for operational utilities.
-- **Standard Library & Third-Party**: `logging`, `hashlib`, `json`, `requests` (for streaming API pulls), `urllib.parse.urlparse` (for URL normalization), and `profile_function` decorator from the internal profiling suite.
+**Parameters:**
+- `settings`: Configuration settings that include the provider routing flag
+- `llm_model`: Specifies which language model to use (optional)
+- `user`: The user object interacting with the AI
+- `system`: System-level parameters
+
+The initialization creates appropriate chat models and sets up the AI logger based on configuration.
+
+### Core Methods
+
+#### Synchronous Chat
+
+```python
+def chat(
+    self,
+    messages: Optional[List[Message]] = None,
+    prompt: Optional[str] = None,
+    *,
+    max_response_length: Optional[int] = None,
+    callback: Optional[Callable] = None,
+    tools: Optional[List[str]] = None,
+    headers: Optional[Dict[str, Any]] = None,
+    cancellation_token: Optional[CancellationToken] = None,
+    chat_id: Optional[str] = None,
+    run_context: Optional[AgentRunContext] = None,
+) -> List[Message]
+```
+
+A synchronous wrapper that provides consistent behavior across both providers (SmolAgent and OpenAI_AI). This method internally delegates to `a_chat()` using asyncio to bridge async code.
+
+**Parameters:**
+- `messages`: History of conversation messages
+- `prompt`: User prompt to append as a human message
+- `max_response_length`: Maximum token limit for the response
+- `callback`: Optional callback function for processing
+- `tools`: List of tools available for function calling
+- `headers`: Custom headers for the LLM request
+- `cancellation_token`: Token to cancel ongoing completion
+- `chat_id`: Identifier for analytics traceability
+- `run_context`: Shared context carrying event listeners and cancellation information
+
+**Returns:** List of processed messages including the AI reply
+
+**Raises:**
+- `CancelledError`: If the request is cancelled
+- `RuntimeError`: If AI processing fails
+
+#### Asynchronous Chat
+
+```python
+async def a_chat(
+    self,
+    messages: Optional[List[Message]] = None,
+    prompt: Optional[str] = None,
+    *,
+    max_response_length: Optional[int] = None,
+    callback: Optional[Callable] = None,
+    tools: Optional[List[str]] = None,
+    headers: Optional[Dict[str, Any]] = None,
+    cancellation_token: Optional[CancellationToken] = None,
+    chat_id: Optional[str] = None,
+    run_context: Optional[AgentRunContext] = None,
+) -> List[Message]
+```
+
+The primary asynchronous method for processing user inputs and returning AI responses. This method delegates to the configured provider and ensures event and cancellation information flows through the system.
+
+**Parameters:** Same as synchronous `chat()` method
+
+**Returns:** List of processed messages including the AI reply
+
+**Raises:** Same as synchronous `chat()` method
+
+#### Logging
+
+```python
+def log(self, message: str, *args: Any) -> None
+```
+
+Logs messages using the AI Logger when logging is enabled in settings. Supports lazy string formatting with optional arguments.
+
+### Provider Management
+
+#### Create Chat Model
+
+```python
+def create_chat_model(self, llm_model: Optional[str]) -> Callable
+```
+
+Initializes the appropriate chat completions model based on the `use_smol_agent` settings flag. Returns a callable that bridges the provider's interface to the sync interface.
+
+#### Create Asynchronous Chat Model
+
+```python
+def create_a_chat_model(self, llm_model: Optional[str]) -> Callable
+```
+
+Initializes the appropriate asynchronous chat completions model based on the `use_smol_agent` settings flag.
+
+#### Get OpenAI Chat Client
+
+```python
+def get_openai_chat_client(self, llm_model: Optional[str] = None) -> Any
+```
+
+Retrieves the underlying OpenAI client instance. When using SmolAgent provider, returns the generic OpenAI client from SmolAgent.
+
+### Internal Utilities
+
+#### Synchronous Wrapper
+
+```python
+@staticmethod
+def _make_sync_wrapper(async_func: Callable) -> Callable
+```
+
+Creates a synchronous wrapper around async functions to support legacy synchronous callers. This bridges SmolAgent's async-only interface with sync code paths.
+
+## Utility Functions
+
+### Message MD5 Hash
+
+```python
+def messages_md5(messages: List[Message]) -> str
+```
+
+Creates an MD5 hash from conversation messages for caching or deduplication purposes. Concatenates all message contents and returns the hexadecimal digest.
+
+### Serialize Messages
+
+```python
+def serialize_messages(messages: List[Message]) -> List[Dict[str, str]]
+```
+
+Converts message objects to a JSON-compatible format. Each message is transformed into a dictionary containing its type and content.
+
+## Message Types
+
+The module uses LangChain message types:
+- `AIMessage`: Messages generated by the AI
+- `HumanMessage`: Messages from users
+- `SystemMessage`: System-level messages
+
+The type alias `Message` represents any of these types.
+
+## Architecture
+
+The module follows a provider routing pattern where:
+- **SmolAgent**: Used when `use_smol_agent` is True (async-native provider)
+- **OpenAI_AI**: Used when `use_smol_agent` is False (legacy provider)
+
+Both providers are abstracted behind a consistent interface, allowing seamless switching between them without affecting caller code.
+
+## Features
+
+- **Provider Routing**: Automatic delegation to SmolAgent or OpenAI_AI based on settings
+- **Async Support**: Full async/await support with sync wrapper for backwards compatibility
+- **Cancellation**: Built-in cancellation token support for long-running requests
+- **Event Listeners**: Integration with `AgentRunContext` for real-time event tracking
+- **Analytics Traceability**: Chat ID forwarding for tracking conversation analytics
+- **Tool Support**: Function calling capabilities with configurable tool lists
+- **Custom Headers**: Support for custom request headers per call
+- **Logging**: Integrated AI logger for operation tracking
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/ai/openai_ai.py, codx/junior/ai/ai_logger.py, codx/junior/ai/cancellation.py, codx/junior/profiling/profiler.py, codx/junior/model/model.py

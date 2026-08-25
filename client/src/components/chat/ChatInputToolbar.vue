@@ -75,9 +75,6 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
             <li class="btn btn-sm tooltip" data-tip="Attach files" @click="$emit('attach-files')">
               <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
             </li>
-            <li class="btn btn-sm" @click="$emit('test-project')" v-if="hasTestScript">
-              <a><i class="fa-solid fa-flask"></i> Test</a>
-            </li>
             <li
               class="btn btn-sm tooltip"
               :class="isVoiceSession && 'btn-success'"
@@ -113,7 +110,6 @@ export default {
     isVoiceSession: Boolean,
     searching: Boolean,
     readOnly: Boolean,
-    hasTestScript: Boolean,
     selectedModel: String,
     aiModels: { type: Array, default: () => [] },
     images: { type: Array, default: () => [] },

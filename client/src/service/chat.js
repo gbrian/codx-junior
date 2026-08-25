@@ -42,10 +42,10 @@ export class ChatService extends Service {
   }
 
   getMessageFiles({ messageMentions, files }) {
-    return [
+    return [... new Set([
       ...messageMentions.filter((m) => m.file).map((m) => m.file),
       ...(files || []),
-    ]
+    ])]
   }
 
   addMessage({ chat, message }) {

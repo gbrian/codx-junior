@@ -23,7 +23,6 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
       :is-voice-session="isVoiceSession"
       :searching="searching"
       :read-only="readOnly"
-      :has-test-script="hasTestScript"
       :selected-model="selectedModel"
       :ai-models="aiModels"
       :images="images"
@@ -55,7 +54,6 @@ export default {
     isVoiceSession: Boolean,
     searching: Boolean,
     readOnly: Boolean,
-    hasTestScript: Boolean,
     selectedModel: String,
     aiModels: { type: Array, default: () => [] },
     images: { type: Array, default: () => [] },

@@ -2,218 +2,189 @@
 
 ## Overview
 
-SmolAgent is a small, async-only OpenAI chat agent designed as a lightweight alternative to the standard OpenAI_AI implementation. It provides a single async `chat()` method with iterative tool loop support, leveraging an asynchronous-only architecture for improved performance and responsiveness.
+SmolAgent is a small, async-only OpenAI chat agent designed for streaming chat completions with multi-step tool support. It represents a streamlined alternative to traditional recursive agent implementations, using an iterative tool loop instead.
 
 ## Key Characteristics
 
-SmolAgent differentiates itself from `codx.junior.ai.openai_ai.OpenAI_AI` through:
+SmolAgent differs from other implementations by:
 
-- **Async-only interface**: Exposes a single async `chat()` method without synchronous variants
+- **Async-only interface**: Exposes a single async `chat()` method with no synchronous variant
 - **Iterative tool loop**: Uses iteration instead of recursion for tool execution
-- **Delegated responsibilities**: Relies on `LoopGuard` for loop protection and `AgentRunContext` for logging, event emission, and cancellation
-- **Stream compatibility**: Maintains support for streaming, callbacks, cancellation, and analytics
+- **Delegated responsibilities**: Delegates loop protection to `LoopGuard`, while logging, event emission, and cancellation management are handled by `AgentRunContext`
+- **Full feature support**: Maintains streaming, callbacks, cancellation, and analytics capabilities
 
-## Conversation Flow
+## Core Components
 
-The agent executes the following sequence:
+### Initialization
 
-1. **Initialization**: Resolves the `AgentRunContext` and emits `RUN_START` event
-2. **Message Building**: Constructs OpenAI-format messages from conversation history
-3. **Streaming**: Streams completions via `guard_stream` with cancellation checks
-4. **Tool Handling**: If tool calls are present, executes loop guard checks before execution
-5. **Tool Execution**: Runs tools sequentially with event emission (`TOOL_START`, `TOOL_END`, `TOOL_ERROR`)
-6. **Loop Continuation**: Appends assistant and tool messages, repeating until no more tool calls
-7. **Completion**: Records usage analytics and emits `RUN_END` or `RUN_CANCELLED`
-
-## Initialization
-
-### Constructor
+The SmolAgent is initialized with project settings and optional configuration:
 
 ```python
-def __init__(
-    self,
+SmolAgent(
     settings: CODXJuniorSettings,
     llm_model: Optional[str] = None,
     user: Optional[CodxUser] = None,
-    system: Optional[str] = None,
-) -> None:
+    system: Optional[str] = None
+)
 ```
 
 **Parameters:**
-
 - `settings`: Project settings providing LLM configuration
-- `llm_model`: Optional model override (defaults to settings value)
-- `user`: Optional user object (provides API key and analytics context)
+- `llm_model`: Optional model override
+- `user`: Optional user information (used for API key and analytics)
 - `system`: Optional extra system prompt content
-
-The constructor initializes the OpenAI client with credentials from either the user object or settings, and loads available tools from the tools module.
 
 ## Public API
 
 ### chat() Method
 
+The primary public method for running a streaming chat completion:
+
 ```python
 async def chat(
-    self,
     messages: List[Union[AIMessage, HumanMessage]],
-    config: Optional[Dict[str, Any]] = None,
-) -> List[Union[AIMessage, HumanMessage]]:
+    config: Optional[Dict[str, Any]] = None
+) -> List[Union[AIMessage, HumanMessage]]
 ```
 
-Executes a streaming chat completion with iterative multi-step tool support.
-
-**Parameters:**
-
+**Arguments:**
 - `messages`: Conversation history as LangChain message objects
-- `config`: Optional configuration dictionary supporting keys:
-  - `tools`: List of tool names to enable
-  - `chat_id`: Chat identifier for analytics
-  - `cancellation_token`: Legacy cancellation token
-  - `headers`: Additional request headers
-  - `callbacks`: List of chunk callback functions
-  - `run_context`: Custom `AgentRunContext` for event sharing
-  - `event_listeners`: List of event listener callables
+- `config`: Optional configuration dictionary supporting:
+  - `tools`: List of enabled tools
+  - `chat_id`: Chat identifier
+  - `cancellation_token`: Optional legacy cancellation token
+  - `headers`: Request headers
+  - `callbacks`: List of callback functions
+  - `run_context`: An `AgentRunContext` instance
+  - `event_listeners`: List of event callables
 
 **Returns:**
-
 Updated messages list with the assistant reply appended
 
 **Raises:**
+- `ToolLoopError`: When max tool rounds or stuck loop is detected
+- `CancelledError`: When the request is cancelled by the caller
 
-- `ToolLoopError`: If max tool rounds or a stuck loop is detected
-- `CancelledError`: If the request is cancelled by the caller
+## Conversation Flow
 
-## Chat Loop Execution
+The agent follows a structured flow:
 
-### _run_chat_loop() Method
-
-Implements the core iterative streaming and tool execution loop. The method:
-
-1. Extracts configuration parameters and builds OpenAI messages
-2. Initializes a `LoopGuard` instance for loop protection
-3. Continuously streams completions until no more tool calls are returned
-4. Executes tools sequentially upon detection of tool calls (after guard check)
-5. Records usage analytics upon completion
-
-The loop terminates when the model returns a `finish_reason` of `stop` or `length` rather than `tool_calls`.
-
-## Streaming
-
-### _stream_completion() Method
-
-Handles the streaming of a single completion with the following features:
-
-- **Cancellation checking**: Bridges legacy `CancellationToken` onto the runtime context token
-- **Event emission**: Emits `LLM_REQUEST` and `LLM_USAGE` events
-- **Chunk accumulation**: Collects content and tool call information from streamed chunks
-- **Callback sending**: Forwards cleaned text chunks to registered callbacks
-- **Error handling**: Properly closes the stream on cancellation
-
-**Returns:**
-
-Tuple of `(content, tool_calls, usage_info)` representing the completion response
+1. Resolve `AgentRunContext`
+2. Emit `RUN_START` event
+3. Build OpenAI-formatted messages
+4. Stream completion via guard_stream
+5. Check finish_reason:
+   - **tool_calls**: Execute guard check via `LoopGuard`
+   - **stop/length**: Record usage and emit `RUN_END`
+6. Execute tools with `TOOL_START`/`TOOL_END`/`TOOL_ERROR` events
+7. Append assistant and tool messages
+8. Loop until completion
+9. Handle cancellation with `RUN_CANCELLED` event
 
 ## Tool Execution
 
-### _execute_tool() Method
+### Tool Call Events
 
-Executes a single tool call with comprehensive error handling and event emission.
+Tool events carry critical information for real-time UI updates:
+- `tool_call_id`: Unique identifier for the tool invocation
+- `args`: Parsed JSON request arguments
+- `result`: Truncated result preview (limited by `TOOL_RESULT_PREVIEW_MAX_CHARS`)
 
-**Features:**
+### Error Handling
 
-- Validates tool existence before execution
-- Injects project settings when configured as a tool parameter
-- Supports both synchronous and asynchronous tool implementations
-- Emits `TOOL_START`, `TOOL_END`, or `TOOL_ERROR` events
-- Records tool usage analytics regardless of success/failure
-- Returns tool errors as strings, allowing the model to respond to failures
-
-**Raises:**
-
-- `AgentCancelled`: If cancellation is requested before execution
-
-### _parse_tool_arguments() Method
-
-Parses tool arguments that may arrive as either JSON strings or dictionaries. Returns an empty dict on parse failure.
-
-## Request Building
-
-### _build_request_kwargs() Method
-
-Constructs the base OpenAI API request parameters including:
-
-- Model identifier
-- Stream configuration with usage info enabled
-- Filtered tool definitions based on selected tools
-- Temperature setting if non-zero
-
-### _build_tags() Method
-
-Generates a comma-separated analytics tag string from:
-
-- Existing tags from request headers
-- Temperature setting
-- Project name
-- Username (if user available)
-
-## Callback Management
-
-### _make_callback_sender() Method
-
-Creates a closure that batches and flushes streamed chunks to registered callbacks. Chunks are buffered and flushed either when:
-
-- An explicit flush is requested
-- The buffer age exceeds `CALLBACK_FLUSH_SECONDS`
-
-This mechanism reduces callback overhead for high-frequency chunk updates.
-
-## Analytics
-
-SmolAgent provides comprehensive analytics tracking through two mechanisms:
-
-### _record_usage() Method
-
-Records token usage statistics including:
-
-- Input and output token counts (from provider or via local counting)
-- Duration and session information
-- Cost metrics based on configured token pricing
-- Request and chat traceability identifiers
-
-Errors in analytics recording are logged but do not propagate.
-
-### _record_tool_usage() Method
-
-Records individual tool execution events with:
-
-- Execution duration
-- Success/failure status
-- Error messages on failure
-- Chat and request traceability
-
-### Wallet Check
-
-The `_preflight_limit_check()` method validates user budget sufficiency before executing AI requests, preventing operations when funds are exhausted.
+Tool errors are returned as strings to allow the model to react to failed invocations, rather than propagating exceptions to the caller. Events are emitted manually for both successful and failed executions.
 
 ## Runtime Context
 
-### _resolve_run_context() Method
+The `AgentRunContext` provides unified management of:
+- Lifecycle events (`RUN_START`, `RUN_END`, `RUN_ERROR`, `RUN_CANCELLED`)
+- Streaming event guards with cancellation checkpoints
+- Analytics aggregation
+- Token counting and usage tracking
 
-Resolves the `AgentRunContext` for a chat by either:
+A run context can be provided via `config["run_context"]` to share cancellation tokens and event listeners, or a fresh context is created with optional event listeners.
 
-- Reusing a provided context from the config (enabling shared cancellation tokens and event listeners)
-- Creating a fresh context with optional event listeners
+## Streaming
 
-This allows callers to manage context lifecycle and share event subscriptions across multiple chat calls.
+The `_stream_completion()` method handles:
 
-## Event Emission
+- OpenAI API streaming with chunk collection
+- Content and tool call accumulation
+- Usage information tracking (`LLM_USAGE` events)
+- Callback batching and periodic flushing
+- Cancellation checkpoints on every chunk
+- Error handling with graceful stream closure
 
-SmolAgent emits the following event types through the run context:
+Streaming is wrapped by `AgentRunContext.guard_stream()` which emits throttled `LLM_CHUNK` events for live UI progress.
 
-- `LLM_REQUEST`: Before streaming begins
-- `LLM_CHUNK`: During streaming (throttled via guard_stream)
-- `LLM_USAGE`: When usage information is available
-- `TOOL_START`: Before tool execution
-- `TOOL_END`: After successful tool execution
-- `TOOL_ERROR`: After failed tool execution
-- `RUN_START`, `RUN_END`, `RUN_CANCELLED`, `RUN_ERROR`: Lifecycle events from AgentRunContext
+## Analytics
+
+### Pre-flight Checks
+
+Wallet checks are performed before execution via `_preflight_limit_check()` to ensure sufficient user budget.
+
+### Usage Recording
+
+Two types of analytics are recorded:
+
+**Token Usage** (`_record_usage`):
+- Input and output token counts
+- Provider-reported usage when available
+- Duration tracking
+- Session and request identifiers
+- Cost calculation based on configured rates
+
+**Tool Usage** (`_record_tool_usage`):
+- Tool name and execution status
+- Execution duration
+- Error details on failure
+- Parent chat and request identifiers
+
+Analytics are recorded non-fatally; errors do not interrupt the chat flow.
+
+## Cancellation
+
+Cancellation is handled through multiple paths:
+
+- **Run context token**: Primary cancellation mechanism
+- **Legacy cancellation token**: Bridged onto the run context token
+- **Checkpoints**: Placed before tool execution via `run_context.checkpoint()`
+- **Stream guarding**: Checked on every chunk during streaming
+
+When cancelled, a `CancelledError` is raised with the message "Chat was cancelled by the caller."
+
+## Request Building
+
+### Configuration
+
+The `_build_request_kwargs()` method constructs OpenAI API request parameters:
+- Model selection
+- Stream mode with usage inclusion
+- Tool filtering based on selected_tools parameter
+- Temperature configuration
+
+### Tags and Headers
+
+Analytics tags are built from:
+- Request headers
+- Temperature setting
+- Project name
+- Username (if available)
+
+These tags are included in request headers as `x-litellm-tags` for provider-level analytics tracking.
+
+## Tool Argument Parsing
+
+The `_parse_tool_arguments()` static method handles flexible argument formats:
+- Direct dict arguments
+- JSON string arguments
+- Empty dict fallback on parse failure
+
+Parse failures are logged without interrupting execution.
+
+## Callback Management
+
+Callbacks are batched and flushed periodically via `_make_callback_sender()`:
+- Accumulates chunk content in a buffer
+- Flushes either on explicit request or after `CALLBACK_FLUSH_SECONDS`
+- Silently handles callback errors to prevent interruption

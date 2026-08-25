@@ -10,6 +10,8 @@ import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import Collapsible from './Collapsible.vue'
+import ChatEntryTools from './ChatEntryTools.vue'
+import ChatEntryEvent from './ChatEntryEvent.vue'
 </script>
 
 <template>
@@ -70,7 +72,6 @@ import Collapsible from './Collapsible.vue'
     @update:modelValue="collapsed = !$event"
     class="group chat-entry"
     :class="[
-      // !isDone && 'border-dashed border-sky-800/30',
       displayMessage.is_answer && 'border-success/50 bg-success/5',
       isTopic && 'border-info/50 bg-info/5',
       displayMessage.hide && isCollapsed && 'opacity-50 hover:opacity-100',
@@ -222,6 +223,20 @@ import Collapsible from './Collapsible.vue'
         @close="onCloseSelectionMenu"
       />
 
+      <!-- Tool event section -->
+      <ChatEntryTools
+        v-if="hasToolEvent && !showDiff && !showPRView && !srcView"
+        :toolEvent="message.tool_event"
+      />
+
+      <!-- Lifecycle event section -->
+      <ChatEntryEvent
+        v-if="hasLifecycleEvent && !showDiff && !showPRView && !srcView"
+        :lifecycleEvent="message.lifecycle_event"
+        :eventLines="lifecycleEventLines"
+        :metadata="message.meta_data"
+      />
+
       <!-- Thinking section -->
       <div 
         v-if="thinkText" 
@@ -241,7 +256,7 @@ import Collapsible from './Collapsible.vue'
 
       <!-- TOC for long documents -->
       <DocumentSummary
-        v-if="!srcView && isDone && messageContent && !showPRView"
+        v-if="!srcView && isDone && messageContent && !showPRView && !hasToolEvent && !hasLifecycleEvent"
         :content="messageContent"
         :minHeadings="3"
         :documentId="documentId"
@@ -254,6 +269,7 @@ import Collapsible from './Collapsible.vue'
         @copy.stop="onMessageCopy"
         @mouseup="onContentMouseUp"
         class="max-w-full bg-base-50 rounded-md p-2"
+        v-if="!hasToolEvent && !hasLifecycleEvent"
       >
         <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-2 rounded">{{ displayMessage.content }}</pre>
 
@@ -362,13 +378,22 @@ import Collapsible from './Collapsible.vue'
 
         <!-- Linked files -->
         <div v-if="displayMessage.files?.length && !showPRView" class="mt-3 p-2 bg-base-200 rounded-md">
-          <p class="text-xs font-semibold mb-2">Linked files</p>
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold">Linked files</p>
+          </div>
           <div class="space-y-1">
             <div 
               v-for="file in displayMessage.files" 
               :key="file"
               class="flex gap-2 items-center text-xs"
             >
+              <button
+                class="btn btn-xs btn-ghost gap-1 tooltip tooltip-left"
+                data-tip="Add file to chat"
+                @click.stop="$emit('add-file', file)"
+              >
+                <i class="fa-solid fa-plus"></i>
+              </button>
               <i class="fa-solid fa-file text-primary"></i>
               <a class="hover:underline cursor-pointer flex-1 truncate" @click="openFile(file)" :title="file">
                 {{ file.split('/').reverse()[0] }}
@@ -510,6 +535,16 @@ export default {
     },
     prViewCodeBlocks() {
       return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
+    },
+    hasToolEvent() {
+      return this.message?.tool_event != null
+    },
+    hasLifecycleEvent() {
+      return this.message?.lifecycle_event != null
+    },
+    lifecycleEventLines() {
+      if (!this.message?.content) return []
+      return this.message.content.split('\n\n').filter(line => line.trim())
     }
   },
   watch: {

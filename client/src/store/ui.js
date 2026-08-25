@@ -56,7 +56,8 @@ export const state = () => ({
     projectName: '',
     currentStep: null,
     error: null
-  }
+  },
+  fullscreenPanelId: null
 })
 
 export const getters = getterTree(state, {
@@ -67,6 +68,7 @@ export const getters = getterTree(state, {
   activeApps: () => Object.values($storex.ui.openApps),
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
+  isPanelFullscreen: state => panelId => state.fullscreenPanelId === panelId,
 })
 
 export const mutations = mutationTree(state, {
@@ -303,6 +305,12 @@ export const mutations = mutationTree(state, {
       ...state.projectLoadingState,
       ...loadingState
     }
+  },
+  setFullscreenPanel(state, panelId) {
+    state.fullscreenPanelId = panelId
+  },
+  clearFullscreenPanel(state) {
+    state.fullscreenPanelId = null
   }
 })
 
@@ -327,6 +335,7 @@ export const actions = actionTree(
         openApps: {},
         _desktopApi: null,
         viewEditor: null,
+        fullscreenPanelId: null,
         projectLoadingState: {
           isLoading: false,
           projectName: '',
@@ -540,6 +549,20 @@ export const actions = actionTree(
 
     setProjectLoadingError(_, error) {
       $storex.ui.setProjectLoadingState({ error })
+    },
+
+    // --- Fullscreen panel actions ---
+
+    togglePanelFullscreen(_, panelId) {
+      if (!this.state._desktopApi) return
+      try {
+        const panel = this.state._desktopApi.getPanel(panelId)
+        if (panel) {
+          this.state._desktopApi.maximizePanel(panel)
+        }
+      } catch(e) {
+        console.error(`Error toggling fullscreen for panel ${panelId}:`, e)
+      }
     }
   },
 )

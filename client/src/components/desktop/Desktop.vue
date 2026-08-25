@@ -2,6 +2,7 @@
 import { DockviewVue } from 'dockview-vue'
 import { ALL_COMPONENTS } from '../../config/appComponentsMap.js'
 import ViewProperties from '../main-menu/ViewProperties.vue'
+import GroupHeaderActions from './GroupHeaderActions.vue'
 </script>
 
 <template>
@@ -10,6 +11,7 @@ import ViewProperties from '../main-menu/ViewProperties.vue'
       class="dockview-theme-abyss w-full h-full"
       @ready="onReady"
       @panel-error="onPanelError"
+      rightHeaderActionsComponent="groupHeaderActions"
     />
 
     <!-- ViewProperties modal triggered by store viewEditor flag -->
@@ -39,7 +41,10 @@ const STORAGE_KEY = 'dockview-layout'
 
 export default {
   name: 'Desktop',
-  components: ALL_COMPONENTS,
+  components: {
+    ...ALL_COMPONENTS,
+    groupHeaderActions: GroupHeaderActions
+  },
   props: {
     storageKey: {
       type: String,
@@ -137,20 +142,21 @@ export default {
     onReady(event) {
       this.dockviewApi = event.api
       this.$ui.setDesktopApi(this.dockviewApi)
-      this.setupPanelErrorHandlers()
+      this.setupPanelEventHandlers()
       this.restoreLayout()
       this.dockviewApi.onDidAddPanel(this.onAddPanel.bind(this))
       this.dockviewApi.onDidRemovePanel(this.onRemovePanel.bind(this))
       this.dockviewApi.onDidLayoutChange(this.onLayoutChange.bind(this))
     },
-    setupPanelErrorHandlers() {
+    setupPanelEventHandlers() {
       if (!this.dockviewApi) return
       try {
+        // Handle panel errors
         this.dockviewApi.onDidPanelError?.((event) => {
           this.onPanelError(event)
         })
       } catch(e) {
-        console.warn('Panel error handler not available:', e)
+        console.warn('Panel event handler not available:', e)
       }
     },
     onPanelError(event) {

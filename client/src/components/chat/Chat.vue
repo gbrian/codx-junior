@@ -1,5 +1,4 @@
 <script setup>
-import { API } from '../../api/api'
 import CheckLists from './CheckLists.vue'
 import PRChangesPanel from '@/components/vibe/panels/PRChangesPanel.vue'
 import ChatFileList from './ChatFileList.vue'
@@ -25,8 +24,8 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
           :files="chatFiles"
           :message-files="messageFiles"
           :chat-project="chatProject"
-          @remove="removeFileFromChat"
-          @add-to-chat="onAddFileToChat"
+          @remove-file="removeFileFromChat"
+          @add-file="onAddFileToChat"
           @add-as-message="addFileContentAsMessage"
           @sync-notebook="syncNotebook"
           @export-notebook="exportNotebook"
@@ -117,7 +116,6 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 :is-voice-session="isVoiceSession"
                 :searching="searchingInKnowledge"
                 :read-only="readOnly"
-                :has-test-script="!!API.activeProject.script_test"
                 :selected-model="chat.llm_model"
                 :ai-models="aiModels"
                 :images="images"
@@ -143,8 +141,8 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
                 :files="files"
                 :message-files="[]"
                 :chat-project="chatProject"
-                @remove="removeFileFromFiles"
-                @add-as-message="addFileContentAsMessage"
+                @remove-file="removeFileFromFiles"
+                @add-file="addFileContentAsMessage"
                 @preview-file="handleFilePreview"
                 v-if="files?.length"
               />

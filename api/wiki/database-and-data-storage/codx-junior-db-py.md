@@ -1,230 +1,154 @@
-# Database and Data Storage Module
+# Database and Data Storage
 
 ## Overview
 
-This module provides the database layer for the CODX Junior application, handling persistent storage of chats, kanban boards, and related entities. It uses a JSON-based database approach with in-memory caching to manage project-specific data.
+This module provides database management functionality for CODXJunior using TinyDB. It handles persistence of kanban boards, columns, and chats with table-level caching capabilities.
 
----
+## Core Components
 
-## Data Models
+### Message Role Constants
 
-### KanbanColumn
+The module defines standard message role constants to maintain consistency across the application:
 
-Represents a single column within a Kanban board.
+- `ROLE_USER = "user"` - Messages from users
+- `ROLE_ASSISTANT = "assistant"` - Messages from the AI assistant
+- `ROLE_TOOL = "tool"` - Tool execution and lifecycle event notifications
 
-| Field    | Type            | Default | Description                          |
-|----------|-----------------|---------|--------------------------------------|
-| `doc_id` | `Optional[str]` | `None`  | Unique identifier                    |
-| `title`  | `str`           | `None`  | Column title                         |
-| `color`  | `Optional[str]` | —       | Display color                        |
-| `index`  | `int`           | `0`     | Sort order index                     |
-| `chats`  | `List[str]`     | `[]`    | List of chat IDs within this column  |
+These constants should be used instead of literal strings throughout the codebase.
 
----
+### Data Models
 
-### Kanban
+#### KanbanColumn
 
-Represents a Kanban board containing multiple columns.
+Represents a single column in a Kanban board with the following properties:
 
-| Field         | Type                        | Default        | Description               |
-|---------------|-----------------------------|----------------|---------------------------|
-| `doc_id`      | `Optional[str]`             | `None`         | Unique identifier         |
-| `title`       | `str`                       | `None`         | Board title               |
-| `description` | `Optional[str]`             | —              | Board description         |
-| `index`       | `int`                       | `0`            | Sort order index          |
-| `columns`     | `Optional[List[KanbanColumn]]` | `[]`        | Columns in the board      |
-| `created_at`  | `str`                       | Current time   | Creation timestamp        |
-| `updated_at`  | `str`                       | Current time   | Last update timestamp     |
+- `doc_id` - Optional document identifier
+- `title` - Column title
+- `color` - Optional color designation
+- `index` - Column position
+- `chats` - List of associated chat IDs
 
----
+#### Kanban
 
-### Message
+Represents a complete Kanban board with:
 
-Represents a single message within a chat conversation.
+- `doc_id` - Document identifier
+- `title` - Board title
+- `description` - Optional board description
+- `index` - Board position
+- `columns` - List of KanbanColumn objects
+- `created_at` and `updated_at` - Timestamps
 
-| Field                | Type              | Default        | Description                                              |
-|----------------------|-------------------|----------------|----------------------------------------------------------|
-| `doc_id`             | `Optional[str]`   | `None`         | Unique identifier                                        |
-| `role`               | `str`             | `''`           | Message role (e.g., user, assistant)                     |
-| `task_item`          | `str`             | `''`           | Associated task item                                     |
-| `content`            | `str`             | `''`           | Message text content                                     |
-| `think`              | `Optional[str]`   | `''`           | Internal reasoning content                               |
-| `hide`               | `bool`            | `False`        | Whether the message is hidden                            |
-| `is_answer`          | `bool`            | `False`        | Marks message as an answer                               |
-| `improvement`        | `bool`            | `False`        | Marks message as an improvement                          |
-| `created_at`         | `str`             | Current time   | Creation timestamp                                       |
-| `updated_at`         | `str`             | Current time   | Last update timestamp                                    |
-| `images`             | `List[str]`       | `[]`           | Attached image references                                |
-| `files`              | `List[str]`       | `[]`           | Attached file references                                 |
-| `meta_data`          | `Optional[dict]`  | `{}`           | Arbitrary metadata                                       |
-| `profiles`           | `List[str]`       | `[]`           | Associated profiles                                      |
-| `user`               | `Optional[str]`   | `None`         | User identifier                                          |
-| `knowledge_topics`   | `List[str]`       | `[]`           | Topics for knowledge indexing                            |
-| `done`               | `Optional[bool]`  | `True`         | Indicates if the user has finished writing               |
-| `is_thinking`        | `Optional[bool]`  | `False`        | Indicates an active thinking state                       |
-| `disable_knowledge`  | `Optional[bool]`  | `False`        | Disables knowledge indexing for this message             |
-| `read_by`            | `List[str]`       | `[]`           | Users who have read this message                         |
-| `error`              | `Optional[str]`   | `None`         | Error details if applicable                              |
-| `linked_chat_ids`    | `Optional[List[str]]` | `[]`      | IDs of linked chats                                      |
+#### Message
 
----
+A single chat message with extensive properties for supporting various communication types:
 
-### MessageTaskItem
+- `doc_id` - Document identifier
+- `role` - Message role (user, assistant, or tool)
+- `content` - Message text content
+- `think` - Optional thinking/reasoning content
+- `images` and `files` - Associated media
+- `tool_event` - Optional tool execution event details
+- `lifecycle_event` - Optional lifecycle event details
+- `knowledge_topics` - Topics for knowledge indexing
+- `done` - Indicates if user has finished writing
+- `is_thinking` - Indicates active thinking state
+- `disable_knowledge` - Flag to exclude from knowledge indexing
+- `read_by` - List of users who have read the message
+- `linked_chat_ids` - References to related chats
 
-An enumeration defining task item types for messages.
+#### ToolEvent
 
-| Value     | Description                  |
-|-----------|------------------------------|
-| `SUMMARY` | Represents a summary task    |
+Tracks tool execution events with:
 
----
+- `tool` - Name of the executed tool
+- `tool_call_id` - Unique identifier from the provider
+- `status` - Execution status (running, done, or error)
+- `request` - Parsed JSON arguments
+- `response` - Truncated result preview
+- `duration_ms` - Execution time in milliseconds
+- `error` - Error details when applicable
 
-### ChatHistoryEntry
+#### LifeCycleEvent
 
-Represents a historical snapshot entry within a chat.
+Represents agent run lifecycle changes with:
 
-| Field         | Type        | Default        | Description                                          |
-|---------------|-------------|----------------|------------------------------------------------------|
-| `timestamp`   | `str`       | Current time   | When this history entry was generated                |
-| `summary`     | `str`       | `''`           | Summary of the history entry                         |
-| `message_ids` | `List[str]` | `[]`           | Message IDs associated with this history entry       |
+- `status` - Lifecycle status (running, done, or error)
+- `run_id` - Unique run identifier
+- `duration_ms` - Execution time in milliseconds
+- `error` - Error details when applicable
 
----
+#### Chat
 
-### ChatId
+Represents a complete chat session with:
 
-A lightweight reference model identifying a chat and its project.
+- `doc_id` - Document identifier
+- `project_id` - Project context
+- `owner_project_id` - Project owner reference
+- `parent_id` - Parent chat reference for threads
+- `linked_chat_ids` - Related chat references
+- `name` - Chat name
+- `description` - Chat description
+- `messages` - List of Message objects
+- `file_list` - Associated files
+- `profiles` and `users` - Access control
+- `kanban_id` and `column_id` - Kanban board association
+- `knowledge_topics` - Topics for knowledge indexing
+- `pr_view` - Pull request information
+- `history` - ChatHistoryEntry records
+- `auto_initialize` - Flag for new chat initialization
+- `ignore_parent_knowledge` - Flag to disconnect from parent context
+- `ignore_parent_files` - Flag to exclude parent files
 
-| Field        | Type  | Description                                 |
-|--------------|-------|---------------------------------------------|
-| `chat_id`    | `str` | Chat identifier                             |
-| `project_id` | `str` | Project to which this chat belongs          |
+### Database Manager
 
----
+#### CODXJuniorDB
 
-### Chat
+The main database manager class provides:
 
-The primary model representing a chat session, including its messages, metadata, and board placement.
-
-| Field                    | Type                        | Default        | Description                                                                 |
-|--------------------------|-----------------------------|----------------|-----------------------------------------------------------------------------|
-| `id`                     | `Optional[str]`             | `None`         | Identifier                                                                  |
-| `doc_id`                 | `Optional[str]`             | `None`         | Database document identifier                                                |
-| `project_id`             | `Optional[str]`             | `None`         | Project this chat works in                                                  |
-| `owner_project_id`       | `Optional[str]`             | `None`         | Project where the chat was created                                          |
-| `parent_id`              | `Optional[str]`             | `None`         | Parent chat identifier                                                      |
-| `linked_chat_ids`        | `Optional[List[str]]`       | `[]`           | Linked chat IDs                                                             |
-| `parent_owner_project_id`| `Optional[str]`             | `None`         | Parent chat's owner project                                                 |
-| `parent_project_id`      | `Optional[str]`             | `None`         | Parent chat's project ID                                                    |
-| `child_index`            | `Optional[int]`             | `0`            | Sort index among sibling chats                                              |
-| `message_id`             | `Optional[str]`             | `None`         | Parent message for threaded chats                                           |
-| `status`                 | `str`                       | `''`           | Chat status                                                                 |
-| `file_list`              | `List[str]`                 | `[]`           | Associated files                                                            |
-| `check_lists`            | `Optional[List[dict]]`      | `[]`           | Check lists                                                                 |
-| `profiles`               | `List[str]`                 | `[]`           | Associated profiles                                                         |
-| `users`                  | `List[str]`                 | `[]`           | Participating users                                                         |
-| `name`                   | `str`                       | `''`           | Chat name                                                                   |
-| `pinned`                 | `Optional[bool]`            | `False`        | Whether the chat is pinned                                                  |
-| `description`            | `str`                       | `''`           | Chat description                                                            |
-| `messages`               | `List[Message]`             | `[]`           | List of messages in the chat                                                |
-| `created_at`             | `str`                       | Current time   | Creation timestamp                                                          |
-| `updated_at`             | `str`                       | Current time   | Last update timestamp                                                       |
-| `mode`                   | `str`                       | `'chat'`       | Chat mode                                                                   |
-| `kanban_id`              | `str`                       | `''`           | Associated Kanban board ID                                                  |
-| `column_id`              | `str`                       | `''`           | Associated Kanban column ID                                                 |
-| `board`                  | `str`                       | `''`           | Board name                                                                  |
-| `column`                 | `str`                       | `''`           | Column name                                                                 |
-| `columns`                | `List[KanbanColumn]`        | `[]`           | Embedded columns                                                            |
-| `chat_index`             | `Optional[int]`             | `0`            | Chat sort index                                                             |
-| `url`                    | `str`                       | `''`           | Associated URL                                                              |
-| `branch`                 | `str`                       | `''`           | Associated Git branch                                                       |
-| `file_path`              | `str`                       | `''`           | Associated file path                                                        |
-| `llm_model`              | `Optional[str]`             | `''`           | LLM model used in this chat                                                 |
-| `visibility`             | `Optional[str]`             | `''`           | Chat visibility setting                                                     |
-| `remote_url`             | `Optional[str]`             | `''`           | Remote URL reference                                                        |
-| `knowledge_topics`       | `List[str]`                 | `[]`           | Topics for knowledge indexing                                               |
-| `chat_links`             | `List[ChatId]`              | `[]`           | Linked chat references                                                      |
-| `pr_view`                | `Optional[dict]`            | `{}`           | Pull request view data                                                      |
-| `history`                | `List[ChatHistoryEntry]`    | `[]`           | Historical entries of the chat                                              |
-| `auto_initialize`        | `Optional[bool]`            | `False`        | When `True`, AI auto-fills board, column, and name on first response        |
-| `ignore_parent_knowledge`| `Optional[bool]`            | `False`        | When `True`, disconnects from parent chat knowledge and uses own messages only |
-| `ignore_parent_files`    | `Optional[bool]`            | `False`        | When `True`, excludes parent chat file list from the working context        |
-
----
-
-## Database Layer
-
-### Project Database Cache
-
-A module-level dictionary `PROJECT_DATABASES` is maintained to cache active database connections per project path, preventing redundant re-initialization.
+**Initialization**
 
 ```python
-PROJECT_DATABASES = {}
+def __init__(self, settings: CODXJuniorSettings) -> None
 ```
 
----
+Initializes the database manager with configuration from CODXJuniorSettings. Creates connections to three tables: kanban, column, and chat with disabled caching.
 
-### CODXJuniorDB
-
-The main database class that manages all read and write operations for a given project.
-
-#### Initialization
+**Client Initialization**
 
 ```python
-CODXJuniorDB(settings: CODXJuniorSettings)
+def init_client(self) -> None
 ```
 
-Upon initialization, the class:
-- Derives a sanitized `index_name` from the project's `codx_path` using slugification and regex cleanup.
-- Constructs the `db_path` as `{codx_path}/{index_name}.db.json`.
-- Checks `PROJECT_DATABASES` for an existing connection and calls `init_client()` if none is found.
-- Sets up three tables: `kanban_table`, `column_table`, and `chat_table`, each with `cache_size=0`.
+Initializes the TinyDB client on first use. Reuses existing connections from PROJECT_DATABASES cache to avoid multiple connections to the same database file.
 
-#### Methods
+**Database Reset**
 
-##### `init_client()`
-Initializes the TinyDB client if not already connected, stores it in `PROJECT_DATABASES`, and logs the connection event.
-
-##### `reset()`
-Resets the database by:
-1. Removing the database file from disk if it exists.
-2. Clearing the cached client entry in `PROJECT_DATABASES`.
-3. Calling `init_client()` to reinitialize a fresh database.
-
-##### `save_kanban(kanban: Kanban) -> Kanban`
-Persists a `Kanban` instance to the database.
-- If `doc_id` is not set, generates a new UUID, sets timestamps, and inserts the record.
-- If `doc_id` exists, updates the timestamp and replaces the existing record.
-- Returns the saved `Kanban` by calling `get_kanban()`.
-
-##### `get_kanban(kanban_id: str) -> Kanban`
-Retrieves a single `Kanban` record matching the given `kanban_id`.
-
-##### `get_all_kankan() -> List[Kanban]`
-Returns all `Kanban` records stored in the database.
-
-##### `get_kanban_chats(kanban_id: str, column_id: str) -> List[Chat]`
-Returns all `Chat` records belonging to a specific Kanban board and column, filtered by `kanban_id` and `column_id`.
-
-##### `get_chat(chat_id: str) -> Chat`
-Retrieves a single `Chat` record matching the given `chat_id`.
-
-##### `save_chat(chat: Chat)`
-Persists a `Chat` instance to the database.
-- If `doc_id` is not set, generates a new UUID, sets timestamps, and inserts the record.
-- If `doc_id` exists, updates the timestamp and replaces the existing record.
-
----
-
-## Storage Format
-
-The database is stored as a formatted JSON file at:
-
-```
-{codx_path}/{index_name}.db.json
+```python
+def reset(self) -> None
 ```
 
-The file is written with `sort_keys=True`, an indent of `4`, and custom separators `(',', ': ')` for human-readable output.
+Removes the database file and reinitializes, useful for clearing all data and starting fresh.
+
+**Kanban Operations**
+
+- `save_kanban(kanban: Kanban) -> Kanban` - Persists a kanban board, generating new UUID and timestamps for new records
+- `get_kanban(kanban_id: str) -> Kanban` - Retrieves a kanban by its ID
+- `get_all_kankan() -> List[Kanban]` - Retrieves all kanbans from the database
+- `get_kanban_chats(kanban_id: str, column_id: str) -> List[Chat]` - Loads all chats from a specific column
+
+**Chat Operations**
+
+- `save_chat(chat: Chat) -> None` - Persists a chat, generating new UUID and timestamps for new records
+- `get_chat(chat_id: str) -> Chat` - Retrieves a chat by its ID
+
+## Key Features
+
+- **Caching Strategy** - Tables are initialized with cache_size=0 to ensure data consistency
+- **Automatic Timestamps** - Creation and update timestamps are automatically managed
+- **UUID Generation** - New records receive unique identifiers automatically
+- **Project Isolation** - Database connections are cached per project path to prevent conflicts
+- **Hierarchical Relationships** - Support for parent-child chat relationships and kanban associations
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/model/model.py

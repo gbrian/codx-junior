@@ -269,7 +269,7 @@ export default {
       showChatsTree: false,
       editName: false,
       addNewFile: null,
-      showHidden: true,
+      showHidden: false,
       confirmDelete: false,
       newTag: null,
       showSubtaskModal: false,

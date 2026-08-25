@@ -202,10 +202,16 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
               <label class="label-text font-semibold flex gap-2 items-center">
                 <i class="fa-solid fa-file-lines"></i> System Prompt
               </label>
-              <button class="btn btn-xs btn-ghost gap-1" @click="toggleContentMode">
-                <i :class="contentMode === 'view' ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
-                {{ contentMode === 'view' ? 'Edit' : 'View' }}
-              </button>
+              <div class="flex gap-1">
+                <button class="btn btn-xs btn-ghost gap-1" @click="copyContent" title="Copy content to clipboard">
+                  <i class="fa-solid fa-copy"></i>
+                  Copy
+                </button>
+                <button class="btn btn-xs btn-ghost gap-1" @click="toggleContentMode">
+                  <i :class="contentMode === 'view' ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
+                  {{ contentMode === 'view' ? 'Edit' : 'View' }}
+                </button>
+              </div>
             </div>
 
             <!-- View mode: Document preview -->
@@ -225,6 +231,7 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
             <div class="flex-1 min-h-0 overflow-hidden" v-else>
               <ProfileChatEditor
                 :profile="editProfile"
+                :initialContent="editProfile.content"
                 @update:chatId="onChatIdChange"
                 @content-changed="onContentChanged"
                 @save-chat-id="onSaveChatId"
@@ -390,6 +397,9 @@ export default {
       }
       this.confirmDelete = false
       this.$emit('delete')
+    },
+    copyContent() {
+      this.$storex.ui.copyTextToClipboard(this.editProfile.content)
     },
     toggleContentMode() {
       this.contentMode = this.contentMode === 'view' ? 'edit' : 'view'

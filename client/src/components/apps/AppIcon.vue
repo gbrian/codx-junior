@@ -55,7 +55,6 @@ export default {
     }
   },
   computed: {
-    // Read project_id from the live store app, not from the prop
     liveApp() {
       return this.$ui.openApps[this.app?.tabId] || this.app
     },

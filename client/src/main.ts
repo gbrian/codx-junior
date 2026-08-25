@@ -103,14 +103,6 @@ const globalMixin = {
     },
   },
   watch: {
-    params: {
-      handler(newValue, oldValue) {
-        if (newValue) {
-          console.log("Component params changed", {newValue, oldValue})
-        }
-      },
-      immediate: true
-    }
   },
   methods: {
     $bubble(event: string, data: EventInit) {

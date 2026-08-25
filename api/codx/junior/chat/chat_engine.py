@@ -16,11 +16,14 @@ from langchain.messages import (
 
 from langchain_core.documents import Document
 
+from engine.agent_runtime import AgentRunContext
+
 from codx.junior.ai import AI
 from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCELLATION_REGISTRY
 from codx.junior.chat_manager import ChatManager
+from codx.junior.chat.chat_event_bridge import ChatEventBridge
 from codx.junior.context import AICodeGenerator
-from codx.junior.db import Chat, Message, ChatHistoryEntry
+from codx.junior.db import Chat, Message, ChatHistoryEntry, ROLE_TOOL
 from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -75,6 +78,11 @@ class ChatEngine:
     Integrates comprehensive analytics tracking for chat sessions, token usage,
     and tool executions to enable full request-response traceability.
 
+    Tool and run-lifecycle events emitted by the agent runtime are surfaced to
+    the user in real time as ``role="tool"`` chat messages via
+    :class:`ChatEventBridge` (persisted immediately + streamed). Those messages
+    are visible in the UI but excluded from the LLM prompt context.
+
     flowchart TD
         A[User Message] --> B{Chat Mode?}
         B -->|vibe| C[AI Search Context]
@@ -87,7 +95,9 @@ class ChatEngine:
         E --> H[Record Chat Session Start]
         F --> H
         G --> H
-        H --> I[AI Response]
+        H --> H2[Create ChatEventBridge + AgentRunContext]
+        H2 --> I[AI Response]
+        I -->|tool events| H3[Tool messages persisted + streamed]
         I --> J[Record Chat Session End]
         J --> K[Return Chat + Documents]
     """
@@ -222,15 +232,18 @@ class ChatEngine:
     # -------------------------------------------------------------------------
     def _build_message_history(self, chat: Chat) -> List:
         """
-        Convert all non-hidden, non-improvement chat messages (excluding the last)
-        into LangChain message objects.
+        Convert all non-hidden, non-improvement, non-tool chat messages
+        (excluding the last) into LangChain message objects.
+
+        Tool/lifecycle event messages (``role == ROLE_TOOL``) are visible to
+        the user but must never be part of the LLM prompt context.
 
         :param chat: The chat whose history to convert.
         :return: List of LangChain message objects.
         """
         messages = []
         for message in chat.messages[0:-1]:
-            if message.hide or message.improvement:
+            if message.hide or message.improvement or message.role == ROLE_TOOL:
                 continue
             messages.append(self.convert_message(message))
         return messages
@@ -878,6 +891,7 @@ class ChatEngine:
         callback,
         send_message_event,
         cancellation_token: Optional[CancellationToken] = None,
+        run_context: Optional[AgentRunContext] = None,
     ) -> Tuple[Optional[str], Optional[str], List[str], Any]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
@@ -886,9 +900,10 @@ class ChatEngine:
 
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
-            A -->|No| C[AI Chat]
+            A -->|No| C[AI Chat with run_context]
             B --> D[Build search message]
             C --> E[Extract last message content]
+            C -->|tool events| F2[ChatEventBridge messages]
             D --> F[Return think, content, files]
             E --> F
 
@@ -903,13 +918,15 @@ class ChatEngine:
         :param callback: Streaming callback for partial content.
         :param send_message_event: Callable to emit partial response events.
         :param cancellation_token: Optional token to cancel the ongoing request.
+        :param run_context: Optional AgentRunContext with tool/lifecycle event
+                            listeners (used only for the main chat request).
         :return: Tuple of (think_content, main_content, extra_file_list, ai_chat_fn).
         """
         think_content: Optional[str] = None
         main_content = ""
         extra_files: List[str] = []
 
-        async def ai_chat(messages=None, prompt="", tags="", callback=None):
+        async def ai_chat(messages=None, prompt="", tags="", callback=None, run_context=None):
             """Invoke the AI with the assembled messages and optional prompt."""
             if messages is None:
                 messages = []
@@ -923,6 +940,8 @@ class ChatEngine:
                 headers=headers,
                 tools=chat_tools,
                 cancellation_token=cancellation_token,
+                chat_id=chat.id,
+                run_context=run_context,
             )
 
         try:
@@ -942,7 +961,15 @@ class ChatEngine:
                 message_parts = [search_message.content]
                 extra_files = search_message.files or []
             else:
-                response_messages = await ai_chat(messages=messages, callback=callback)
+                # The run_context (with the ChatEventBridge listener) is only
+                # forwarded for the MAIN chat request so tool / lifecycle
+                # events reach the user. Auxiliary calls (summary, auto-init)
+                # reuse ai_chat without a run_context.
+                response_messages = await ai_chat(
+                    messages=messages,
+                    callback=callback,
+                    run_context=run_context,
+                )
                 new_message_count = len(response_messages) - input_messages_count
 
                 if new_message_count > 1:
@@ -1027,7 +1054,7 @@ class ChatEngine:
         concise summaries without the technical implementation details.
 
         Only includes the natural user and assistant messages from the chat,
-        excluding hidden messages and improvement messages.
+        excluding hidden messages, improvement messages and tool event messages.
 
         :param chat: The chat whose clean history to build.
         :return: List of clean message content strings (user and assistant only).
@@ -1040,6 +1067,7 @@ class ChatEngine:
                 continue
             
             # Only include actual user and assistant messages
+            # (tool/lifecycle event messages have role == ROLE_TOOL)
             if message.role not in ("user", "assistant"):
                 continue
             
@@ -1414,6 +1442,10 @@ class ChatEngine:
         response message's ``meta_data`` immediately so clients receive it via
         streaming events.
 
+        Tool executions and run lifecycle events are surfaced in real time as
+        ``role="tool"`` chat messages via :class:`ChatEventBridge`: they are
+        persisted on every change (crash-safe) and streamed to clients.
+
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
           - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
@@ -1442,7 +1474,9 @@ class ChatEngine:
             L --> O[Record Chat Session START]
             M --> O
             N --> O
-            O --> P[AI Chat]
+            O --> O2[Create ChatEventBridge + AgentRunContext]
+            O2 --> P[AI Chat]
+            P -->|tool events| P2[Tool messages persisted + streamed]
             P --> Q{Cancelled?}
             Q -->|Yes| R[Set cancelled_at in meta_data]
             R --> S[Record Chat Session END with error]
@@ -1554,10 +1588,14 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 2. Extract user message and basic query context
+            #    Tool/lifecycle event messages (role == ROLE_TOOL) are visible
+            #    to the user but excluded from prompt building.
             # ------------------------------------------------------------------
             valid_messages = [
                 message for message in chat.messages
-                if not message.hide and not message.improvement
+                if not message.hide
+                and not message.improvement
+                and message.role != ROLE_TOOL
             ]
             all_messages_content_lines = "".join(
                 [m.content for m in valid_messages]
@@ -1886,6 +1924,28 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
+            # 20.5 Create the tool/lifecycle event bridge and run context.
+            #      The bridge converts agent runtime events (tool start/end,
+            #      LLM requests, run lifecycle) into role="tool" chat messages
+            #      that are persisted on every change and streamed to clients.
+            # ------------------------------------------------------------------
+            event_bridge = ChatEventBridge(
+                chat=chat,
+                chat_manager=self.get_chat_manager(project_id=chat.owner_project_id),
+                event_manager=self.event_manager,
+            )
+            run_context = AgentRunContext(
+                project_id=self.settings.project_id or "",
+                listeners=[event_bridge.on_event],
+            )
+            logger.info(
+                "AgentRunContext '%s' created for chat '%s' (iteration %d)",
+                run_context.run_id,
+                chat.doc_id,
+                iteration,
+            )
+
+            # ------------------------------------------------------------------
             # 21. Execute AI / search response
             # ------------------------------------------------------------------
             try:
@@ -1902,6 +1962,7 @@ class ChatEngine:
                         callback=callback,
                         send_message_event=send_message_event,
                         cancellation_token=cancellation_token,
+                        run_context=run_context,
                     )
                 )
             except CancelledError as cancel_exc:
@@ -2248,14 +2309,17 @@ class ChatEngine:
         """
         Index the chat as a Document in the knowledge system.
 
-        Converts valid chat messages into a single Document with appropriate metadata.
+        Converts valid chat messages into a single Document with appropriate
+        metadata. Tool/lifecycle event messages are excluded.
 
         :param chat: The chat to index.
         """
         valid_messages = [
             message.content
             for message in chat.messages
-            if not message.hide and not message.improvement
+            if not message.hide
+            and not message.improvement
+            and message.role != ROLE_TOOL
         ]
 
         page_content = "\n".join(valid_messages)
