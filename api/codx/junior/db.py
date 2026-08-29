@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 ROLE_USER = "user"
 ROLE_ASSISTANT = "assistant"
-ROLE_TOOL = "tool"
 
 
 class KanbanColumn(BaseModel):
@@ -55,6 +54,7 @@ class ToolEvent(BaseModel):
     Represents a tool execution event.
     
     Used to track tool calls, their execution status, and results.
+    Attached to the assistant response message that triggered the tool call.
     """
     tool: str = Field(description="Name of the tool that was executed")
     tool_call_id: str = Field(description="Unique identifier for this tool call from the provider")
@@ -70,6 +70,7 @@ class LifeCycleEvent(BaseModel):
     Represents a lifecycle event in the agent run.
     
     Used to track agent run status changes and execution metrics.
+    Attached to the assistant response message produced by the run.
     """
     status: str = Field(description="Lifecycle status: 'running', 'done', or 'error'")
     run_id: str = Field(description="Unique identifier for the agent run")
@@ -81,17 +82,18 @@ class Message(BaseModel):
     """
     A single chat message.
 
-    Besides plain user/assistant content, messages are also used to notify
-    events (tool executions, run lifecycle) to the user in real time.
+    Tool and run-lifecycle events emitted while generating an assistant
+    response are ASSOCIATED with that response message (they are NOT separate
+    chat messages):
 
-    Tool and lifecycle event messages use ``role == ROLE_TOOL`` and can carry their
-    technical details in either:
-    - Typed properties: ``tool_event`` or ``lifecycle_event`` (preferred)
-    - Legacy format: ``meta_data`` dict (for backward compatibility)
+    - ``tool_events``:      one :class:`ToolEvent` per tool call executed
+                            during this response, updated in place
+                            (running → done/error).
+    - ``lifecycle_events``: one :class:`LifeCycleEvent` per agent run
+                            performed to produce this response.
 
-    The ``content`` field of tool/lifecycle messages holds a user-friendly description
-    of the event and its result. These messages are visible in the UI but are excluded
-    from the LLM prompt context by the ChatEngine.
+    Both lists are streamed in real time together with the message and are
+    persisted with the chat.
     """
     doc_id: Optional[str] = Field(default=None)
     role: str = Field(default='')
@@ -105,9 +107,9 @@ class Message(BaseModel):
     updated_at: str = Field(default_factory=lambda: str(datetime.now()))
     images: List[str] = Field(default=[])
     files: List[str] = Field(default=[])
-    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Legacy free-form dict for backward compatibility")
-    tool_event: Optional[ToolEvent] = Field(default=None, description="Tool execution event details")
-    lifecycle_event: Optional[LifeCycleEvent] = Field(default=None, description="Lifecycle event details")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (timings, model, analytics...)")
+    tool_events: List[ToolEvent] = Field(default=[], description="Tool execution events associated with this response message")
+    lifecycle_events: List[LifeCycleEvent] = Field(default=[], description="Agent run lifecycle events associated with this response message")
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])

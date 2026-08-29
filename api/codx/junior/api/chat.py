@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Response
 import logging
 
 from codx.junior.ai.cancellation import CANCELLATION_REGISTRY
+from codx.junior.chat_searcher import SearchFilters
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,76 @@ async def chat_cancel(data: dict):
     return {"cancelled": False, "error": "no in-flight token found"}
 
 
+@router.post("/chats/message")
+async def api_add_message(request: Request):
+    """
+    Add a single message to a chat (merge-safe, idempotent).
+
+    Used during AI turns to persist events (tool usage, streaming, etc.)
+    without overwriting concurrent updates.
+
+    Expected JSON payload:
+        {
+            "chat_id": "<chat UUID>",
+            "message": {
+                "content": "...",
+                "role": "user|assistant|system",
+                "doc_id": "<optional UUID>",
+                ...other Message fields
+            }
+        }
+
+    Returns:
+        The updated Chat object with merged messages.
+    """
+    from codx.junior.db import Chat, Message
+    
+    data = await request.json()
+    codx_junior_session = request.state.codx_junior_session
+    chat_manager = codx_junior_session.get_chat_manager()
+    
+    chat_id = data.get("chat_id")
+    message_data = data.get("message")
+    
+    if not chat_id or not message_data:
+        logger.error("api_add_message: missing chat_id or message")
+        return {"error": "missing chat_id or message"}
+    
+    try:
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_add_message: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found"}
+        
+        message = Message(**message_data)
+        updated_chat = chat_manager.add_message(chat=chat, message=message)
+        
+        logger.info(
+            "api_add_message: added message '%s' to chat '%s'",
+            message.doc_id, chat_id
+        )
+        return updated_chat
+    except Exception as ex:
+        logger.error("api_add_message: unexpected error: %s", ex)
+        return {"error": f"Failed to add message: {str(ex)}"}
+
+
 @router.get("/chats")
 def api_list_chats(request: Request):
+    """
+    List chats with optional filtering and export.
+
+    Query parameters:
+        - file_path: Load a specific chat by file path.
+        - id: Load a specific chat by ID.
+        - export_format: Export format (markdown, docx, pdf, excel, etc.).
+        - from_date: ISO-format date for filtering (list_chats only).
+
+    Returns:
+        Single Chat object if id or file_path is provided.
+        Export response if export_format is provided.
+        List of Chat objects otherwise.
+    """
     codx_junior_session = request.state.codx_junior_session
     file_path = request.query_params.get("file_path")
     chat_id = request.query_params.get("id")
@@ -116,6 +185,161 @@ def api_list_chats(request: Request):
         return chat
 
     return codx_junior_session.list_chats(from_date=from_date)
+
+
+@router.post("/chats/search")
+async def api_search_chats(request: Request):
+    """
+    Search chats with full-text search, field-level filtering, and pagination.
+
+    Expected JSON payload:
+        {
+            "query": "<search query string>",
+            "from_date": "<ISO-format date, optional>",
+            "to_date": "<ISO-format date, optional>",
+            "page": 1,
+            "page_size": 20,
+            "filters": {
+                "search_name": true,
+                "search_description": true,
+                "search_messages": true,
+                "search_message_metadata": true,
+                "search_history": true,
+                "search_files": true,
+                "search_model": true,
+                "search_status": true,
+                "search_mode": true
+            }
+        }
+
+    The search looks across (subject to filter flags):
+        - Chat name, description, status, mode
+        - Message content and thinking field
+        - Message user, profiles, knowledge topics
+        - File list, LLM model
+        - Chat history summaries
+
+    Filter flags:
+        - All flags default to ``true`` (search everywhere) when omitted.
+        - Set to ``false`` to exclude that field category from search scope.
+        - Allows fine-grained control similar to email filter dialogs.
+
+    Returns:
+        {
+            "results": [
+                {
+                    "chat": { ... },
+                    "relevance_score": 15.5,
+                    "matched_fields": ["name", "message_content"]
+                },
+                ...
+            ],
+            "total": 42,
+            "page": 1,
+            "page_size": 20,
+            "total_pages": 3,
+            "has_next": true,
+            "has_prev": false
+        }
+    """
+    from codx.junior.chat_searcher import ChatSearcher
+
+    data = await request.json()
+    codx_junior_session = request.state.codx_junior_session
+    chat_manager = codx_junior_session.get_chat_manager()
+
+    query = data.get("query", "")
+    from_date = data.get("from_date")
+    to_date = data.get("to_date")
+    page = data.get("page", 1)
+    page_size = data.get("page_size", ChatSearcher.DEFAULT_PAGE_SIZE)
+    filters_data = data.get("filters")
+
+    # Validate inputs
+    try:
+        page = max(1, int(page))
+        page_size = max(1, min(100, int(page_size)))  # Cap at 100 items per page
+    except (TypeError, ValueError) as ex:
+        logger.error("api_search_chats: invalid pagination params: %s", ex)
+        return {
+            "error": "Invalid page or page_size parameters",
+            "results": [],
+            "total": 0,
+            "page": 1,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
+
+    if not query:
+        logger.warning("api_search_chats: empty query")
+        return {
+            "error": "Query parameter cannot be empty",
+            "results": [],
+            "total": 0,
+            "page": 1,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
+
+    try:
+        # Load all chats for the project
+        all_chats = chat_manager.list_chats()
+        logger.info(
+            "api_search_chats: loaded %d chats for searching", len(all_chats)
+        )
+
+        # Parse filter flags from request (defaults to all enabled if not provided)
+        filters = SearchFilters.from_dict(filters_data)
+
+        # Perform search with filters
+        searcher = ChatSearcher()
+        results = searcher.search(
+            chats=all_chats,
+            query=query,
+            from_date=from_date,
+            to_date=to_date,
+            page=page,
+            page_size=page_size,
+            filters=filters,
+        )
+
+        logger.info(
+            "api_search_chats: query='%s' returned %d results, page %d of %d",
+            query,
+            results["total"],
+            results["page"],
+            results["total_pages"],
+        )
+        return results
+
+    except ValueError as ex:
+        logger.error("api_search_chats: invalid date format: %s", ex)
+        return {
+            "error": "Invalid date format (use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)",
+            "results": [],
+            "total": 0,
+            "page": 1,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
+    except Exception as ex:
+        logger.error("api_search_chats: unexpected error: %s", ex)
+        return {
+            "error": f"Search failed: {str(ex)}",
+            "results": [],
+            "total": 0,
+            "page": 1,
+            "page_size": page_size,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
 
 
 @router.post("/chats")
@@ -187,3 +411,5 @@ def api_delete_kanban(request: Request):
     codx_junior_session = request.state.codx_junior_session
     kanban_title = request.query_params.get("kanban_title")
     return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
+
+# Made with ❤️ by codx-junior

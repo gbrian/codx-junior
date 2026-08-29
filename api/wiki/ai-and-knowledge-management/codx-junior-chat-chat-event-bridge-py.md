@@ -2,106 +2,97 @@
 
 ## Overview
 
-ChatEventBridge is a component that translates agent runtime events into chat messages. During an AI turn, the SmolAgent emits various notifications through the `AgentEvent` system, which the bridge converts into `role="tool"` chat messages that are stored, persisted, and streamed to clients in real time.
+ChatEventBridge is a component that attaches AgentRunContext events to chat response messages and persists them with crash-safe guarantees. It bridges agent runtime events onto the chat response message, ensuring that every change is immediately persisted to disk.
 
-## Purpose and Architecture
+## Core Concept
 
-The bridge serves three primary functions:
+During an AI turn, the SmolAgent emits notifications about tool execution and run lifecycle. Rather than creating separate chat messages, ChatEventBridge associates these events directly with the assistant response message that was created before the AI call began:
 
-1. **Converting events to messages** — Transforms `AgentEvent` notifications into `Message` objects with typed properties
-2. **Persisting changes** — Stores messages immediately via `ChatManager` using merge-safe methods for crash safety
-3. **Real-time streaming** — Delivers messages to clients via the `EventManager`
+- **tool_events**: A list of ToolEvent entries (one per tool call, updated in place as tools run, complete, or error)
+- **lifecycle_events**: A list of LifeCycleEvent entries (one per agent run, updated in place)
 
-Event details are stored in typed message properties:
-- `message.tool_event` → `ToolEvent` for tool execution details
-- `message.lifecycle_event` → `LifeCycleEvent` for run lifecycle information
+## Crash-Safety Guarantee
 
-Supplementary information not covered by typed models (such as `run_id` and aggregated `analytics`) is stored in `meta_data`.
+The bridge provides crash-safe persistence through the following mechanism:
 
-## Message Update Strategy
+1. **Immediate Persistence**: On every event change, the response message is persisted immediately via ChatManager's granular merge-safe methods (`add_message` on first change, `update_message` afterwards)
+2. **Real-time Streaming**: Events are streamed to clients via EventManager so the UI can render tool progress live
+3. **Information Preservation**: If the process dies mid-run, every event received so far—including tool errors, run errors, and aggregated analytics—is already on disk
 
-Tool messages are updated **in place** with one message per tool call, transitioning from `running` to `done` or `error` status. All run-lifecycle events share a single message per run, also updated in place, to avoid flooding the chat timeline.
+### Stream Content Persistence
 
-## Event Handling
+Streaming callbacks can call `maybe_persist_stream()` on every flush. The bridge persists the response message at most once per `STREAM_PERSIST_MIN_INTERVAL_SECONDS` (default: 5.0 seconds), using a monotonic clock. A hard kill therefore loses at most that many seconds of streamed partial text while keeping disk I/O bounded.
+
+### Auxiliary Message Persistence
+
+Any auxiliary message produced mid-run (such as hidden reasoning messages) can be persisted immediately and idempotently via the `persist_message()` method. Persisted `doc_id`s are tracked bridge-side so the first call inserts and later calls update.
+
+### Defensive Fallback
+
+The idempotency guarantee assumes `ChatManager.update_message` matches by `doc_id`. If the granular methods are missing or fail, the bridge falls back to a coarse `save_chat` full write (after ensuring the message is on the in-memory chat) so information is never silently lost.
+
+## Key Properties and Methods
+
+### Initialization
+
+```python
+ChatEventBridge(chat, response_message, chat_manager, event_manager)
+```
+
+- **chat**: The in-memory chat being processed (shared reference)
+- **response_message**: The assistant response message created before the AI call; events are attached to it
+- **chat_manager**: Provides merge-safe persistence methods
+- **event_manager**: Used to stream message events to clients
+
+### Event Handling
+
+**`on_event(event)`**: Entry point for handling AgentEvents. The bridge automatically routes events to appropriate handlers and never raises—any persistence or streaming failure is logged and swallowed to prevent killing the AI run.
 
 ### Tool Events
 
-Tool events follow a lifecycle pattern:
+Tool events are tracked through:
+- **TOOL_START**: Creates a new running ToolEvent
+- **TOOL_END**: Updates the ToolEvent to done status with duration and result
+- **TOOL_ERROR**: Updates the ToolEvent to error status with duration and error message
 
-**TOOL_START** — Creates a new message with status `running`:
-- Generates a new unique message ID
-- Sets content to indicate tool is executing
-- Sets `done=False`
-
-**TOOL_END/TOOL_ERROR** — Updates the same message with final state:
-- Updates `tool_event.status` to either `done` or `error`
-- Adds duration information via `duration_ms`
-- For errors: stores error text and updates content with failure message
-- For success: stores truncated response (max 4000 characters) and updates content with result
-- Sets `done=True`
-
-Defensive handling is implemented for edge cases where TOOL_END arrives without a matching TOOL_START.
+Tool responses are truncated to `TOOL_RESPONSE_MAX_CHARS` (default: 4000 characters) with an ellipsis marker if cut.
 
 ### Lifecycle Events
 
-Lifecycle events tracked include:
+Lifecycle events include:
+- **RUN_START**: Marks the beginning of an agent run
+- **RUN_END**: Marks completion with duration and aggregated analytics
+- **RUN_ERROR**: Captures errors that occurred during the run
+- **RUN_CANCELLED**: Captures cancellation information
 
-- `RUN_START` — Run initialization
-- `RUN_END` — Successful completion
-- `RUN_ERROR` — Run encountered an error
-- `RUN_CANCELLED` — Run was cancelled
-- `LLM_REQUEST` — Language model invocation
-- `LLM_USAGE` — Token consumption statistics
-- `WALLET_CHECK` — Balance verification
+One LifeCycleEvent is kept per `run_id`. Recursive agent iterations that reuse the same bridge get one entry per run.
 
-Each lifecycle event generates a user-friendly summary line that is appended to the single lifecycle message's content.
+### Persistence Methods
 
-## Key Components
+**`publish()`**: Persists the response message (crash-safe) and streams it to clients. Idempotent by `doc_id`—the first call inserts via `add_message`, subsequent calls update via `update_message`.
 
-### Constructor Parameters
+**`persist_message(message)`**: Crash-safe persistence of an auxiliary message, used for messages like hidden reasoning that are produced mid-run.
 
-```
-chat: Chat
-    The in-memory chat being processed (mutated in place)
+**`maybe_persist_stream(min_interval_seconds)`**: Throttled persist of the response message for streamed content, called from streaming callbacks. Returns True if persist was performed, False if throttled.
 
-chat_manager: ChatManager
-    Provides add_message/update_message for persistence
+## Status Values
 
-event_manager: EventManager
-    Used to stream message events to clients
-```
+- **STATUS_RUNNING**: Event is currently executing
+- **STATUS_DONE**: Event completed successfully
+- **STATUS_ERROR**: Event encountered an error
 
-### Status Constants
+## Idempotency Enforcement
 
-- `STATUS_RUNNING = "running"` — Event/message in progress
-- `STATUS_DONE = "done"` — Successfully completed
-- `STATUS_ERROR = "error"` — Encountered an error
+Persistence idempotency is enforced bridge-side by tracking which `doc_id`s have already been inserted in `_persisted_doc_ids`. This ensures:
+- The response message is inserted only once via `add_message`
+- Subsequent updates use `update_message`
+- If granular methods are unavailable, the bridge falls back to full `save_chat` write
+- No information is silently lost during persistence failures
 
-### Configuration
+## Error Handling
 
-`TOOL_RESPONSE_MAX_CHARS = 4000` — Maximum characters of tool response stored in messages. Responses exceeding this limit are truncated with an ellipsis marker.
-
-## Event Processing Flow
-
-The main entry point is the `on_event()` method, which routes events to specialized handlers:
-
-1. **TOOL_START** → `_on_tool_start()` — Creates new message
-2. **TOOL_END** → `_on_tool_finished()` — Updates message with success
-3. **TOOL_ERROR** → `_on_tool_finished()` — Updates message with error
-4. **Lifecycle events** → `_on_lifecycle()` — Appends to lifecycle message
-
-All exceptions during event handling are caught and logged without interrupting the AI run, ensuring robustness.
-
-## Persistence and Streaming
-
-The `_publish()` method handles both persistence and streaming:
-
-- **For new messages** — Calls `chat_manager.add_message()`
-- **For existing messages** — Calls `chat_manager.update_message()`
-- **For all messages** — Calls `event_manager.message_event()`
-
-Both operations are wrapped in independent exception handling to prevent failures in one channel from affecting the other.
-
-## Text Truncation
-
-The `_truncate()` utility function limits text to a specified character count (default 4000 characters). When truncation occurs, it appends `"\n… (truncated)"` to indicate the text was shortened. Empty text returns an empty string.
+The bridge implements defensive error handling:
+- All exception types are caught and logged without propagation
+- Persistence failures trigger a fallback to full chat save
+- Streaming failures are logged but do not affect persistence
+- The bridge never raises exceptions to prevent killing the AI run

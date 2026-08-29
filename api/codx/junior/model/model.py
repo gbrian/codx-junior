@@ -236,27 +236,7 @@ class GlobalSettings(BaseModel):
 
     plugins: List[Plugin] = Field(default=[])
 
-    chat_global_instructions: str = Field(default="""
-CRITICAL INFORMATION: 
-When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
-Example:
-
-```js folder/file_name.js
- import dummy from 'module'
-```
-
-Use valid file path (absolute or relative) based on the project and conversation context.
-New file changes must follow original file formating and identation.
-Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
-Keep changes simple and easy to review by the user.
-Focus on the task and avoid changing other parts not related.
-
-MISSING FILE CONTENT HANDLING:
-If a file is referenced in the conversation but its content is missing from the context:
-1. Do not invent or guess the full content of the file.
-2. If you only need to modify a known part, generate a code block with the language "patch" containing explicit instructions to apply the changes to the existing file.
-3. If you require the full content to proceed, generate an empty code block with the language "file-request" followed by the target file path.
-""")
+    chat_global_instructions: str = Field(default="")
     
     
 class Screen(BaseModel):

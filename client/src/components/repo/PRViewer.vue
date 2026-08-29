@@ -1,23 +1,36 @@
 <script setup>
 import "@git-diff-view/vue/styles/diff-view.css"
 import { DiffParser } from "@git-diff-view/vue"
-import CodxMenu from "../CodxMenu.vue"
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
-import ChatEntryVue from '../ChatEntry.vue'
+import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
 </script>
 
 <template>
   <div class="azure-pr-view flex flex-col h-full overflow-hidden bg-base-100">
     <!-- Top toolbar -->
-    <header class="flex items-center justify-between px-3 py-1.5 bg-base-200 border-b border-base-content/10 shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-code-branch text-warning"></i>
-          <span class="font-mono text-sm font-semibold">{{ fromBranch }}</span>
+    <header class="flex items-center justify-between px-3 py-1.5 bg-base-200 border-b border-base-content/10 shrink-0 gap-2 flex-wrap">
+      <!-- Branch selector -->
+      <div class="flex items-center gap-2 grow min-w-0">
+        <i class="fa-solid fa-code-branch text-warning shrink-0"></i>
+        <BranchSelector
+          v-if="project"
+          :project="project"
+          :current-branch="fromBranch"
+          :compare-branch="toBranch"
+          :available-branches="availableBranches"
+          :loading="loading"
+          @branch-changed="onFromBranchChanged"
+          @compare-branch-changed="onToBranchChanged"
+        />
+        <span v-else class="flex items-center gap-2 font-mono text-sm">
+          <span class="font-semibold">{{ fromBranch }}</span>
           <i class="fa-solid fa-arrow-right text-xs text-base-content/40"></i>
-          <span class="font-mono text-sm font-semibold">{{ toBranch }}</span>
-        </div>
-        <div class="divider divider-horizontal mx-1"></div>
+          <span class="font-semibold">{{ toBranch }}</span>
+        </span>
+      </div>
+
+      <!-- Stats + Actions -->
+      <div class="flex items-center gap-2 shrink-0">
         <div class="flex items-center gap-2 text-xs text-base-content/60">
           <span class="badge badge-sm badge-ghost">
             <i class="fa-solid fa-file-pen text-warning"></i> {{ changeCount }}
@@ -29,11 +42,11 @@ import ChatEntryVue from '../ChatEntry.vue'
             <i class="fa-solid fa-minus"></i> {{ deletions }}
           </span>
         </div>
-      </div>
 
-      <div class="flex items-center gap-2">
+        <div class="divider divider-horizontal mx-1"></div>
+
         <!-- Diff view toggle -->
-        <div class="dropdown dropdown-bottom">
+        <div class="dropdown dropdown-bottom dropdown-end">
           <button class="btn btn-xs btn-ghost gap-1">
             <i class="fa-solid fa-code-compare"></i>
             <span class="hidden sm:inline">{{ diffViewMode === 'unified' ? 'Unified' : 'Split' }}</span>
@@ -44,6 +57,17 @@ import ChatEntryVue from '../ChatEntry.vue'
             <li><a @click="setDiffViewMode('split')" :class="{ 'active': diffViewMode === 'split' }">Split</a></li>
           </ul>
         </div>
+
+        <!-- Show full file toggle -->
+        <button
+          class="btn btn-xs gap-1"
+          :class="showFullFile ? 'btn-info' : 'btn-ghost'"
+          @click="toggleFullFile"
+          :title="showFullFile ? 'Show changes only' : 'Show full file'"
+        >
+          <i :class="showFullFile ? 'fa-solid fa-file' : 'fa-solid fa-file-lines'"></i>
+          <span class="hidden sm:inline text-[10px]">{{ showFullFile ? 'Full' : 'Diff' }}</span>
+        </button>
 
         <!-- Navigation -->
         <button class="btn btn-xs btn-ghost" @click="navigateFile(-1)" :disabled="!hasPreviousFile" title="Previous file">
@@ -197,6 +221,18 @@ import ChatEntryVue from '../ChatEntry.vue'
                     </span>
                   </div>
                   <div class="flex items-center gap-1">
+                    <!-- Full file loading indicator -->
+                    <span v-if="fullFileLoading" class="loading loading-spinner loading-xs text-info"></span>
+                    <!-- Full file toggle (per-file) -->
+                    <button
+                      class="btn btn-xs gap-1"
+                      :class="showFullFile ? 'btn-info btn-outline' : 'btn-ghost'"
+                      @click="toggleFullFile"
+                      :title="showFullFile ? 'Switch to diff view' : 'Show full file'"
+                    >
+                      <i :class="showFullFile ? 'fa-solid fa-file' : 'fa-solid fa-file-lines'" class="text-[10px]"></i>
+                      <span class="text-[9px]">{{ showFullFile ? 'Full file' : 'Diff only' }}</span>
+                    </button>
                     <button class="btn btn-xs btn-ghost" @click="copyDiff" title="Copy diff">
                       <i class="fa-regular fa-copy text-[10px]"></i>
                     </button>
@@ -208,178 +244,202 @@ import ChatEntryVue from '../ChatEntry.vue'
 
                 <!-- UNIFIED VIEW -->
                 <div v-if="diffViewMode === 'unified'" class="diff-lines">
-                  <template v-for="(line, index) in selectedFile.diffLines" :key="index">
-                    <!-- Diff line -->
-                    <div
-                      class="diff-line flex"
-                      :class="getLineClass(line, index)"
-                      @click="onLineClick(line, index)"
-                    >
-                      <!-- Left line number (deleted) -->
-                      <div class="line-number w-12 shrink-0 text-right pr-2 select-none text-[11px] font-mono text-base-content/40"
-                        v-if="line.oldLineNumber !== null">
-                        {{ line.oldLineNumber }}
-                      </div>
-                      <div class="line-number w-12 shrink-0" v-else></div>
-
-                      <!-- Diff indicator -->
-                      <div class="diff-indicator w-6 shrink-0 text-center select-none text-[11px] font-mono"
-                        :class="getDiffIndicatorClass(line)">
-                        {{ getDiffIndicator(line) }}
-                      </div>
-
-                      <!-- Line content -->
+                  <!-- Full file view: show file content with diff highlights -->
+                  <template v-if="showFullFile && fullFileLines.length">
+                    <template v-for="(line, index) in fullFileLines" :key="'full-' + index">
                       <div
-                        class="line-content grow font-mono text-[11px] px-2 whitespace-pre"
-                        :class="{
-                          'cursor-pointer': !line.isContext,
-                          'hover:bg-base-200/50': !line.isContext
-                        }"
+                        class="diff-line flex"
+                        :class="getFullFileLineClass(line)"
                       >
-                        {{ line.content }}
-                      </div>
-
-                      <!-- Right line number (added) -->
-                      <div class="line-number w-12 shrink-0 text-right pr-2 select-none text-[11px] font-mono text-base-content/40"
-                        v-if="line.newLineNumber !== null">
-                        {{ line.newLineNumber }}
-                      </div>
-                      <div class="line-number w-12 shrink-0" v-else></div>
-
-                      <!-- Inline comment indicator / add comment button -->
-                      <div class="comment-actions w-10 shrink-0 flex justify-center items-center gap-1">
-                        <template v-if="getLineComments(line).length">
-                          <button
-                            class="btn btn-xs btn-ghost h-5 w-5 p-0 text-info"
-                            @click.stop="toggleLineComments(line, index)"
-                            title="View comments"
-                          >
-                            <i class="fa-solid fa-comment text-[10px]"></i>
-                            <span class="badge badge-xs badge-info">{{ getLineComments(line).length }}</span>
-                          </button>
-                        </template>
-                        <template v-else-if="!line.isContext">
-                          <button
-                            class="btn btn-xs btn-ghost h-5 w-5 p-0 text-base-content/30 hover:text-info"
-                            @click.stop="startLineComment(line, index)"
-                            title="Add comment"
-                          >
-                            <i class="fa-solid fa-plus text-[10px]"></i>
-                          </button>
-                        </template>
-                      </div>
-                    </div>
-
-                    <!-- Inline comments section for this line -->
-                    <div
-                      v-if="isLineCommentsVisible(index) && getLineComments(line).length"
-                      class="diff-line-comments flex"
-                    >
-                      <div class="w-12 shrink-0"></div>
-                      <div class="w-6 shrink-0"></div>
-                      <div class="grow bg-info/10 border-y border-info/20 px-2 py-1">
-                        <div class="flex items-center gap-1 mb-1">
-                          <span class="text-[9px] text-info font-semibold">
-                            <i class="fa-solid fa-comment-dots"></i>
-                            {{ getLineComments(line).length }} comment{{ getLineComments(line).length > 1 ? 's' : '' }}
-                          </span>
-                          <button
-                            class="btn btn-xs btn-ghost h-4 w-4 p-0 ml-auto"
-                            @click.stop="hideLineComments(index)"
-                          >
-                            <i class="fa-solid fa-xmark text-[8px]"></i>
-                          </button>
+                        <div class="line-number w-12 shrink-0 text-right pr-2 select-none text-[11px] font-mono text-base-content/40">
+                          {{ line.lineNumber }}
                         </div>
-                        <div class="space-y-1">
-                          <div
-                            v-for="comment in getLineComments(line)"
-                            :key="comment.id"
-                            class="flex gap-1.5"
-                            :class="{ 'opacity-60': comment.resolved }"
-                          >
-                            <div class="avatar shrink-0 mt-0.5">
-                              <div class="w-4 h-4 rounded-full bg-base-300 flex items-center justify-center">
-                                <span class="text-[8px] font-semibold">{{ comment.author?.[0] || '?' }}</span>
-                              </div>
-                            </div>
-                            <div class="grow min-w-0">
-                              <div class="flex items-center justify-between gap-1">
-                                <div class="flex items-center gap-1">
-                                  <span class="text-[9px] font-semibold">{{ comment.author || 'Anonymous' }}</span>
-                                  <span class="text-[7px] text-base-content/40">{{ formatTime(comment.timestamp) }}</span>
-                                </div>
-                                <div class="flex items-center gap-0.5">
-                                  <button
-                                    class="btn btn-xs btn-ghost h-auto py-0 px-0.5 text-[7px]"
-                                    @click.stop="toggleResolve(comment)"
-                                  >
-                                    <i :class="comment.resolved ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check'"></i>
-                                  </button>
-                                  <button
-                                    class="btn btn-xs btn-ghost h-auto py-0 px-0.5 text-[7px] text-error"
-                                    @click.stop="deleteComment(comment)"
-                                  >
-                                    <i class="fa-solid fa-trash"></i>
-                                  </button>
-                                </div>
-                              </div>
-                              <div class="text-[9px] mt-0.5 break-words" :class="{ 'line-through': comment.resolved }">
-                                {{ comment.content }}
-                              </div>
-                            </div>
-                          </div>
+                        <div class="diff-indicator w-6 shrink-0 text-center select-none text-[11px] font-mono"
+                          :class="getDiffIndicatorClass(line)">
+                          {{ getDiffIndicator(line) }}
+                        </div>
+                        <div class="line-content grow font-mono text-[11px] px-2 whitespace-pre">
+                          {{ line.content }}
                         </div>
                       </div>
-                      <div class="w-12 shrink-0"></div>
-                      <div class="w-10 shrink-0"></div>
-                    </div>
+                    </template>
+                  </template>
 
-                    <!-- Comment input row -->
-                    <div
-                      v-if="commentingLineIndex === index"
-                      class="diff-line-comment-input flex"
-                    >
-                      <div class="w-12 shrink-0"></div>
-                      <div class="w-6 shrink-0"></div>
-                      <div class="grow bg-base-200/50 border-y border-base-content/10 px-2 py-1.5">
-                        <div class="flex items-start gap-2">
-                          <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                              <span class="text-[10px] text-base-content/40 font-mono">
-                                Line {{ commentingLine?.newLineNumber || commentingLine?.oldLineNumber }}
-                              </span>
-                              <span class="text-[9px] text-base-content/30 truncate max-w-[200px]">
-                                {{ commentingLine?.content?.slice(0, 50) }}
-                              </span>
-                            </div>
-                            <textarea
-                              v-model="newComment"
-                              placeholder="Add a comment..."
-                              class="textarea textarea-xs textarea-bordered w-full min-h-[36px] resize-none"
-                              @keydown.enter.exact.prevent="submitComment"
-                              ref="commentInput"
-                            ></textarea>
-                          </div>
-                          <div class="flex flex-col gap-1 shrink-0">
+                  <!-- Diff-only view -->
+                  <template v-else>
+                    <template v-for="(line, index) in selectedFile.diffLines" :key="index">
+                      <!-- Diff line -->
+                      <div
+                        class="diff-line flex"
+                        :class="getLineClass(line, index)"
+                        @click="onLineClick(line, index)"
+                      >
+                        <!-- Left line number (deleted) -->
+                        <div class="line-number w-12 shrink-0 text-right pr-2 select-none text-[11px] font-mono text-base-content/40"
+                          v-if="line.oldLineNumber !== null">
+                          {{ line.oldLineNumber }}
+                        </div>
+                        <div class="line-number w-12 shrink-0" v-else></div>
+
+                        <!-- Diff indicator -->
+                        <div class="diff-indicator w-6 shrink-0 text-center select-none text-[11px] font-mono"
+                          :class="getDiffIndicatorClass(line)">
+                          {{ getDiffIndicator(line) }}
+                        </div>
+
+                        <!-- Line content -->
+                        <div
+                          class="line-content grow font-mono text-[11px] px-2 whitespace-pre"
+                          :class="{
+                            'cursor-pointer': !line.isContext,
+                            'hover:bg-base-200/50': !line.isContext
+                          }"
+                        >
+                          {{ line.content }}
+                        </div>
+
+                        <!-- Right line number (added) -->
+                        <div class="line-number w-12 shrink-0 text-right pr-2 select-none text-[11px] font-mono text-base-content/40"
+                          v-if="line.newLineNumber !== null">
+                          {{ line.newLineNumber }}
+                        </div>
+                        <div class="line-number w-12 shrink-0" v-else></div>
+
+                        <!-- Inline comment indicator / add comment button -->
+                        <div class="comment-actions w-10 shrink-0 flex justify-center items-center gap-1">
+                          <template v-if="getLineComments(line).length">
                             <button
-                              class="btn btn-xs btn-primary"
-                              @click="submitComment"
-                              :disabled="!newComment.trim()"
+                              class="btn btn-xs btn-ghost h-5 w-5 p-0 text-info"
+                              @click.stop="toggleLineComments(line, index)"
+                              title="View comments"
                             >
-                              <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                              <i class="fa-solid fa-comment text-[10px]"></i>
+                              <span class="badge badge-xs badge-info">{{ getLineComments(line).length }}</span>
                             </button>
+                          </template>
+                          <template v-else-if="!line.isContext">
                             <button
-                              class="btn btn-xs btn-ghost"
-                              @click="cancelComment"
+                              class="btn btn-xs btn-ghost h-5 w-5 p-0 text-base-content/30 hover:text-info"
+                              @click.stop="startLineComment(line, index)"
+                              title="Add comment"
                             >
-                              <i class="fa-solid fa-xmark text-[10px]"></i>
+                              <i class="fa-solid fa-plus text-[10px]"></i>
+                            </button>
+                          </template>
+                        </div>
+                      </div>
+
+                      <!-- Inline comments section for this line -->
+                      <div
+                        v-if="isLineCommentsVisible(index) && getLineComments(line).length"
+                        class="diff-line-comments flex"
+                      >
+                        <div class="w-12 shrink-0"></div>
+                        <div class="w-6 shrink-0"></div>
+                        <div class="grow bg-info/10 border-y border-info/20 px-2 py-1">
+                          <div class="flex items-center gap-1 mb-1">
+                            <span class="text-[9px] text-info font-semibold">
+                              <i class="fa-solid fa-comment-dots"></i>
+                              {{ getLineComments(line).length }} comment{{ getLineComments(line).length > 1 ? 's' : '' }}
+                            </span>
+                            <button
+                              class="btn btn-xs btn-ghost h-4 w-4 p-0 ml-auto"
+                              @click.stop="hideLineComments(index)"
+                            >
+                              <i class="fa-solid fa-xmark text-[8px]"></i>
                             </button>
                           </div>
+                          <div class="space-y-1">
+                            <div
+                              v-for="comment in getLineComments(line)"
+                              :key="comment.id"
+                              class="flex gap-1.5"
+                              :class="{ 'opacity-60': comment.resolved }"
+                            >
+                              <div class="avatar shrink-0 mt-0.5">
+                                <div class="w-4 h-4 rounded-full bg-base-300 flex items-center justify-center">
+                                  <span class="text-[8px] font-semibold">{{ comment.author?.[0] || '?' }}</span>
+                                </div>
+                              </div>
+                              <div class="grow min-w-0">
+                                <div class="flex items-center justify-between gap-1">
+                                  <div class="flex items-center gap-1">
+                                    <span class="text-[9px] font-semibold">{{ comment.author || 'Anonymous' }}</span>
+                                    <span class="text-[7px] text-base-content/40">{{ formatTime(comment.timestamp) }}</span>
+                                  </div>
+                                  <div class="flex items-center gap-0.5">
+                                    <button
+                                      class="btn btn-xs btn-ghost h-auto py-0 px-0.5 text-[7px]"
+                                      @click.stop="toggleResolve(comment)"
+                                    >
+                                      <i :class="comment.resolved ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check'"></i>
+                                    </button>
+                                    <button
+                                      class="btn btn-xs btn-ghost h-auto py-0 px-0.5 text-[7px] text-error"
+                                      @click.stop="deleteComment(comment)"
+                                    >
+                                      <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                                <div class="text-[9px] mt-0.5 break-words" :class="{ 'line-through': comment.resolved }">
+                                  {{ comment.content }}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                        <div class="w-12 shrink-0"></div>
+                        <div class="w-10 shrink-0"></div>
                       </div>
-                      <div class="w-12 shrink-0"></div>
-                      <div class="w-10 shrink-0"></div>
-                    </div>
+
+                      <!-- Comment input row -->
+                      <div
+                        v-if="commentingLineIndex === index"
+                        class="diff-line-comment-input flex"
+                      >
+                        <div class="w-12 shrink-0"></div>
+                        <div class="w-6 shrink-0"></div>
+                        <div class="grow bg-base-200/50 border-y border-base-content/10 px-2 py-1.5">
+                          <div class="flex items-start gap-2">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] text-base-content/40 font-mono">
+                                  Line {{ commentingLine?.newLineNumber || commentingLine?.oldLineNumber }}
+                                </span>
+                                <span class="text-[9px] text-base-content/30 truncate max-w-[200px]">
+                                  {{ commentingLine?.content?.slice(0, 50) }}
+                                </span>
+                              </div>
+                              <textarea
+                                v-model="newComment"
+                                placeholder="Add a comment..."
+                                class="textarea textarea-xs textarea-bordered w-full min-h-[36px] resize-none"
+                                @keydown.enter.exact.prevent="submitComment"
+                                ref="commentInput"
+                              ></textarea>
+                            </div>
+                            <div class="flex flex-col gap-1 shrink-0">
+                              <button
+                                class="btn btn-xs btn-primary"
+                                @click="submitComment"
+                                :disabled="!newComment.trim()"
+                              >
+                                <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                              </button>
+                              <button
+                                class="btn btn-xs btn-ghost"
+                                @click="cancelComment"
+                              >
+                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="w-12 shrink-0"></div>
+                        <div class="w-10 shrink-0"></div>
+                      </div>
+                    </template>
                   </template>
                 </div>
 
@@ -818,12 +878,13 @@ export default {
   props: {
     fromBranch: { type: String, default: 'main' },
     toBranch: { type: String, default: 'develop' },
+    availableBranches: { type: Array, default: () => [] },
     repoChanges: { type: Object, default: null },
     project: { type: Object, default: null },
     chat: { type: Object, default: null },
     loading: { type: Boolean, default: false }
   },
-  emits: ['refresh', 'comment', 'select-branch', 'chat-message'],
+  emits: ['refresh', 'comment', 'select-branch', 'chat-message', 'branch-changed', 'compare-branch-changed', 'visible-files-changed'],
   data() {
     return {
       files: null,
@@ -838,15 +899,16 @@ export default {
       folderExpanded: {},
       commentFilter: 'all',
       commentsModalOpen: false,
-      // Track which line indices have their comments panel expanded (unified view)
       visibleLineComments: new Set(),
-      // Split view state
       splitCommentingLine: null,
       splitCommentingIndex: null,
       splitCommentingSide: null,
-      // Track which line indices have their comments panel expanded (split view)
       splitVisibleLineCommentsOld: new Set(),
-      splitVisibleLineCommentsNew: new Set()
+      splitVisibleLineCommentsNew: new Set(),
+      // Full file view state
+      showFullFile: false,
+      fullFileLines: [],
+      fullFileLoading: false
     }
   },
   created() {
@@ -867,52 +929,34 @@ export default {
 
     visibleFilesByFolder() {
       if (!this.visibleFiles.length) return {}
-
       const grouped = {}
-
       this.visibleFiles.forEach(file => {
         const lastSlashIndex = file.fileFullName.lastIndexOf('/')
         const folderPath = lastSlashIndex > 0
           ? file.fileFullName.substring(0, lastSlashIndex)
           : '/'
-
-        if (!grouped[folderPath]) {
-          grouped[folderPath] = []
-        }
+        if (!grouped[folderPath]) grouped[folderPath] = []
         grouped[folderPath].push(file)
       })
-
       Object.keys(grouped).forEach(folder => {
         grouped[folder].sort((a, b) => a.title.localeCompare(b.title))
       })
-
       const sorted = {}
-      Object.keys(grouped).sort().forEach(key => {
-        sorted[key] = grouped[key]
-      })
-
+      Object.keys(grouped).sort().forEach(key => { sorted[key] = grouped[key] })
       return sorted
     },
 
-    changeCount() {
-      return this.files?.length || 0
-    },
-    insertions() {
-      return this.files?.reduce((sum, f) => sum + (f.insertions || 0), 0) || 0
-    },
-    deletions() {
-      return this.files?.reduce((sum, f) => sum + (f.deletions || 0), 0) || 0
-    },
+    changeCount() { return this.files?.length || 0 },
+    insertions() { return this.files?.reduce((sum, f) => sum + (f.insertions || 0), 0) || 0 },
+    deletions() { return this.files?.reduce((sum, f) => sum + (f.deletions || 0), 0) || 0 },
+
     selectedFileIndex() {
       if (!this.selectedFile || !this.visibleFiles.length) return -1
       return this.visibleFiles.findIndex(f => f.fileFullName === this.selectedFile.fileFullName)
     },
-    hasPreviousFile() {
-      return this.selectedFileIndex > 0
-    },
-    hasNextFile() {
-      return this.selectedFileIndex < this.visibleFiles.length - 1
-    },
+    hasPreviousFile() { return this.selectedFileIndex > 0 },
+    hasNextFile() { return this.selectedFileIndex < this.visibleFiles.length - 1 },
+
     fileComments() {
       if (!this.selectedFile) return []
       return this.commentsByFile[this.selectedFile.fileFullName] || []
@@ -924,12 +968,7 @@ export default {
     allComments() {
       const comments = []
       Object.entries(this.commentsByFile).forEach(([fileName, fileComments]) => {
-        fileComments.forEach(comment => {
-          comments.push({
-            ...comment,
-            fileName
-          })
-        })
+        fileComments.forEach(comment => comments.push({ ...comment, fileName }))
       })
       return comments.sort((a, b) => b.timestamp - a.timestamp)
     },
@@ -954,34 +993,86 @@ export default {
       if (!this.visibleFiles.find(f => f.fileFullName === this.selectedFile?.fileFullName)) {
         this.selectedFile = null
       }
+      this.$emit('visible-files-changed', this.visibleFiles)
     },
     selectedFile() {
-      // Reset visible comments when switching files
       this.visibleLineComments.clear()
       this.splitVisibleLineCommentsOld.clear()
       this.splitVisibleLineCommentsNew.clear()
-      // Auto-expand lines that have comments (visible by default)
-      this.$nextTick(() => {
-        this.autoExpandCommentedLines()
-      })
+      // Reset full file view on file change and load if mode is active
+      this.fullFileLines = []
+      if (this.showFullFile) this.loadFullFile()
+      this.$nextTick(() => this.autoExpandCommentedLines())
     },
     diffViewMode() {
-      // Reset commenting state when switching modes
       this.commentingLine = null
       this.commentingLineIndex = null
       this.splitCommentingLine = null
       this.splitCommentingIndex = null
       this.splitCommentingSide = null
       this.newComment = ''
-      this.$nextTick(() => {
-        this.autoExpandCommentedLines()
-      })
+      this.$nextTick(() => this.autoExpandCommentedLines())
+    },
+    showFullFile(val) {
+      if (val && this.selectedFile) this.loadFullFile()
+      else this.fullFileLines = []
     }
   },
   methods: {
-    // Set diff view mode explicitly
     setDiffViewMode(mode) {
       this.diffViewMode = mode
+    },
+
+    /** Toggle between full file and diff-only view, loading file content if needed */
+    async toggleFullFile() {
+      this.showFullFile = !this.showFullFile
+    },
+
+    /**
+     * Load the full file content from API and merge with diff line types
+     * so changed lines are visually highlighted in full-file mode.
+     */
+    async loadFullFile() {
+      if (!this.selectedFile || !this.project?.$api) return
+      this.fullFileLoading = true
+      try {
+        const content = await this.project.$api.files.read(this.selectedFile.fileFullName)
+        const rawLines = (content?.page_content || content || '').split('\n')
+        this.fullFileLines = rawLines.map((text, idx) => {
+          const lineNumber = idx + 1
+          // Find matching diff line to get type (add/del/context)
+          const diffLine = this.selectedFile.diffLines?.find(
+            l => l.newLineNumber === lineNumber || l.oldLineNumber === lineNumber
+          )
+          return {
+            lineNumber,
+            content: text,
+            type: diffLine?.type || 'context',
+            isContext: !diffLine || diffLine.isContext
+          }
+        })
+      } catch (err) {
+        console.error('Error loading full file:', err)
+        this.fullFileLines = []
+        this.showFullFile = false
+      } finally {
+        this.fullFileLoading = false
+      }
+    },
+
+    /** Get background class for full-file view lines */
+    getFullFileLineClass(line) {
+      if (line.type === 'add') return 'bg-success/10'
+      if (line.type === 'del') return 'bg-error/10'
+      return ''
+    },
+
+    onFromBranchChanged(branch) {
+      this.$emit('branch-changed', branch)
+    },
+
+    onToBranchChanged(branch) {
+      this.$emit('compare-branch-changed', branch)
     },
 
     buildFiles() {
@@ -1010,6 +1101,8 @@ export default {
       if (this.files.length && !this.selectedFile) {
         this.selectFile(this.files[0])
       }
+
+      this.$emit('visible-files-changed', this.visibleFiles)
     },
 
     buildDiffFile(diff, repoPath) {
@@ -1040,21 +1133,12 @@ export default {
         })
 
         return {
-          title,
-          fileName,
-          fileFullName,
-          diff,
-          diffLines,
-          splitLines,
+          title, fileName, fileFullName, diff, diffLines, splitLines,
           oldFile: { fileName: oldName },
           newFile: { fileName: newName },
-          isDeleted,
-          isNewFile,
-          isChanged,
-          insertions,
-          deletions,
-          selected: false,
-          commentCount: 0
+          isDeleted, isNewFile, isChanged,
+          insertions, deletions,
+          selected: false, commentCount: 0
         }
       } catch (ex) {
         console.error('Error parsing diff:', ex)
@@ -1070,10 +1154,7 @@ export default {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
-
-        if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
-          continue
-        }
+        if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) continue
 
         if (line.startsWith('@@')) {
           const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
@@ -1081,47 +1162,21 @@ export default {
             oldLineNum = parseInt(match[1])
             newLineNum = parseInt(match[2])
           }
-          result.push({
-            type: 'hunk',
-            content: line,
-            oldLineNumber: null,
-            newLineNumber: null,
-            isContext: false
-          })
+          result.push({ type: 'hunk', content: line, oldLineNumber: null, newLineNumber: null, isContext: false })
           continue
         }
 
         if (line.startsWith('+') && !line.startsWith('+++')) {
-          result.push({
-            type: 'add',
-            content: line,
-            oldLineNumber: null,
-            newLineNumber: newLineNum++,
-            isContext: false
-          })
+          result.push({ type: 'add', content: line, oldLineNumber: null, newLineNumber: newLineNum++, isContext: false })
         } else if (line.startsWith('-') && !line.startsWith('---')) {
-          result.push({
-            type: 'del',
-            content: line,
-            oldLineNumber: oldLineNum++,
-            newLineNumber: null,
-            isContext: false
-          })
+          result.push({ type: 'del', content: line, oldLineNumber: oldLineNum++, newLineNumber: null, isContext: false })
         } else {
-          result.push({
-            type: 'context',
-            content: line,
-            oldLineNumber: oldLineNum++,
-            newLineNumber: newLineNum++,
-            isContext: true
-          })
+          result.push({ type: 'context', content: line, oldLineNumber: oldLineNum++, newLineNumber: newLineNum++, isContext: true })
         }
       }
-
       return result
     },
 
-    // Parse diff into separate old/new line arrays for split view
     parseSplitLines(diff) {
       const lines = diff.split('\n')
       const oldLines = []
@@ -1131,10 +1186,7 @@ export default {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
-
-        if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
-          continue
-        }
+        if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) continue
 
         if (line.startsWith('@@')) {
           const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
@@ -1156,7 +1208,6 @@ export default {
           newLines.push({ type: 'context', content: line, newLineNumber: newLineNum++ })
         }
       }
-
       return { old: oldLines, new: newLines }
     },
 
@@ -1196,34 +1247,24 @@ export default {
       this.folderExpanded[folderPath] = !this.folderExpanded[folderPath]
     },
 
-    selectAllFiles() {
-      this.visibleFiles.forEach(f => { f.selected = true })
-    },
+    selectAllFiles() { this.visibleFiles.forEach(f => { f.selected = true }) },
+    clearSelection() { this.visibleFiles.forEach(f => { f.selected = false }) },
 
-    clearSelection() {
-      this.visibleFiles.forEach(f => { f.selected = false })
-    },
-
-    // Auto-expand comment panels for lines that have comments
     autoExpandCommentedLines() {
       if (!this.selectedFile) return
       const fileComments = this.commentsByFile[this.selectedFile.fileFullName] || []
       if (!fileComments.length) return
 
       if (this.diffViewMode === 'unified') {
-        // For unified view, expand by line index
         fileComments.forEach(comment => {
           const lineIndex = this.selectedFile.diffLines.findIndex(l => {
             const matchOld = comment.lineType === 'old' && l.oldLineNumber === comment.lineNumber
             const matchNew = comment.lineType === 'new' && l.newLineNumber === comment.lineNumber
             return matchOld || matchNew
           })
-          if (lineIndex !== -1) {
-            this.visibleLineComments.add(lineIndex)
-          }
+          if (lineIndex !== -1) this.visibleLineComments.add(lineIndex)
         })
       } else {
-        // For split view, expand by side and index
         fileComments.forEach(comment => {
           const side = comment.lineType || 'new'
           const lines = this.selectedFile.splitLines[side]
@@ -1232,11 +1273,8 @@ export default {
             return l.newLineNumber === comment.lineNumber
           })
           if (lineIndex !== -1) {
-            if (side === 'old') {
-              this.splitVisibleLineCommentsOld.add(lineIndex)
-            } else {
-              this.splitVisibleLineCommentsNew.add(lineIndex)
-            }
+            if (side === 'old') this.splitVisibleLineCommentsOld.add(lineIndex)
+            else this.splitVisibleLineCommentsNew.add(lineIndex)
           }
         })
       }
@@ -1259,20 +1297,12 @@ export default {
     },
 
     toggleLineComments(line, index) {
-      if (this.visibleLineComments.has(index)) {
-        this.visibleLineComments.delete(index)
-      } else {
-        this.visibleLineComments.add(index)
-      }
+      if (this.visibleLineComments.has(index)) this.visibleLineComments.delete(index)
+      else this.visibleLineComments.add(index)
     },
 
-    isLineCommentsVisible(index) {
-      return this.visibleLineComments.has(index)
-    },
-
-    hideLineComments(index) {
-      this.visibleLineComments.delete(index)
-    },
+    isLineCommentsVisible(index) { return this.visibleLineComments.has(index) },
+    hideLineComments(index) { this.visibleLineComments.delete(index) },
 
     cancelComment() {
       this.commentingLine = null
@@ -1286,7 +1316,6 @@ export default {
     submitComment() {
       if (!this.newComment.trim() || !this.selectedFile) return
 
-      // Determine line info based on current view mode
       let line, lineNumber, lineType, lineContent
 
       if (this.diffViewMode === 'unified') {
@@ -1309,9 +1338,7 @@ export default {
         author: 'User',
         timestamp: Date.now(),
         resolved: false,
-        lineNumber,
-        lineType,
-        lineContent,
+        lineNumber, lineType, lineContent,
         replies: []
       }
 
@@ -1323,21 +1350,15 @@ export default {
       this.selectedFile.commentCount = (this.selectedFile.commentCount || 0) + 1
 
       this.$emit('comment', {
-        file: this.selectedFile,
-        line,
-        comment: comment.content,
-        lineNumber: comment.lineNumber,
-        lineType: comment.lineType
+        file: this.selectedFile, line, comment: comment.content,
+        lineNumber: comment.lineNumber, lineType: comment.lineType
       })
 
-      // Auto-expand the comment panel
       this.autoExpandCommentedLines()
       this.cancelComment()
     },
 
-    toggleResolve(comment) {
-      comment.resolved = !comment.resolved
-    },
+    toggleResolve(comment) { comment.resolved = !comment.resolved },
 
     deleteComment(comment) {
       if (!this.selectedFile) return
@@ -1349,11 +1370,9 @@ export default {
       }
     },
 
-    // Get comments for a specific line (unified view) - respects lineType
     getLineComments(line) {
       if (!this.selectedFile) return []
       return this.fileComments.filter(c => {
-        // Comment must match the specific line type
         if (c.lineType === 'old' && line.oldLineNumber === c.lineNumber) return true
         if (c.lineType === 'new' && line.newLineNumber === c.lineNumber) return true
         return false
@@ -1364,12 +1383,8 @@ export default {
       const classes = []
       if (line.type === 'add') classes.push('bg-success/10')
       if (line.type === 'del') classes.push('bg-error/10')
-      if (this.commentingLineIndex === index) {
-        classes.push('bg-info/20')
-      }
-      if (this.getLineComments(line).length) {
-        classes.push('border-l-2 border-info')
-      }
+      if (this.commentingLineIndex === index) classes.push('bg-info/20')
+      if (this.getLineComments(line).length) classes.push('border-l-2 border-info')
       return classes.join(' ')
     },
 
@@ -1386,18 +1401,12 @@ export default {
       return ' '
     },
 
-    // Split view methods
     getSplitLineClass(line, index, side) {
       const classes = []
       if (line.type === 'add') classes.push('bg-success/10')
       if (line.type === 'del') classes.push('bg-error/10')
-      if (this.splitCommentingSide === side && this.splitCommentingIndex === index) {
-        classes.push('bg-info/20')
-      }
-      const comments = this.getSplitLineComments(line, side)
-      if (comments.length) {
-        classes.push('border-l-2 border-info')
-      }
+      if (this.splitCommentingSide === side && this.splitCommentingIndex === index) classes.push('bg-info/20')
+      if (this.getSplitLineComments(line, side).length) classes.push('border-l-2 border-info')
       return classes.join(' ')
     },
 
@@ -1409,7 +1418,6 @@ export default {
     },
 
     onSplitLineClick(line, index, side) {
-      // Only allow commenting on changed lines
       if (line.type === 'context') return
       this.splitCommentingLine = null
       this.splitCommentingIndex = null
@@ -1429,11 +1437,8 @@ export default {
 
     toggleSplitLineComments(line, index, side) {
       const set = side === 'old' ? this.splitVisibleLineCommentsOld : this.splitVisibleLineCommentsNew
-      if (set.has(index)) {
-        set.delete(index)
-      } else {
-        set.add(index)
-      }
+      if (set.has(index)) set.delete(index)
+      else set.add(index)
     },
 
     isSplitLineCommentsVisible(index, side) {
@@ -1446,11 +1451,9 @@ export default {
       set.delete(index)
     },
 
-    // Get comments for a specific line in split view - respects lineType
     getSplitLineComments(line, side) {
       if (!this.selectedFile) return []
       return this.fileComments.filter(c => {
-        // Only show comments that match this side
         if (c.lineType !== side) return false
         if (side === 'old') return line.oldLineNumber === c.lineNumber
         return line.newLineNumber === c.lineNumber
@@ -1494,28 +1497,20 @@ export default {
       return new Date(timestamp).toLocaleDateString()
     },
 
-    openCommentsModal() {
-      this.$refs.commentsModal.showModal()
-    },
-
-    closeCommentsModal() {
-      this.$refs.commentsModal.close()
-    },
+    openCommentsModal() { this.$refs.commentsModal.showModal() },
+    closeCommentsModal() { this.$refs.commentsModal.close() },
 
     jumpToComment(comment) {
       const file = this.files.find(f => f.fileFullName === comment.fileName)
       if (file) {
         this.selectFile(file)
-        // Switch to appropriate view mode and expand comment
         if (this.diffViewMode === 'unified') {
           const lineIndex = file.diffLines.findIndex(l => {
             const matchOld = comment.lineType === 'old' && l.oldLineNumber === comment.lineNumber
             const matchNew = comment.lineType === 'new' && l.newLineNumber === comment.lineNumber
             return matchOld || matchNew
           })
-          if (lineIndex !== -1) {
-            this.visibleLineComments.add(lineIndex)
-          }
+          if (lineIndex !== -1) this.visibleLineComments.add(lineIndex)
         } else {
           const side = comment.lineType || 'new'
           const lines = file.splitLines[side]
@@ -1524,17 +1519,14 @@ export default {
             return l.newLineNumber === comment.lineNumber
           })
           if (lineIndex !== -1) {
-            if (side === 'old') {
-              this.splitVisibleLineCommentsOld.add(lineIndex)
-            } else {
-              this.splitVisibleLineCommentsNew.add(lineIndex)
-            }
+            if (side === 'old') this.splitVisibleLineCommentsOld.add(lineIndex)
+            else this.splitVisibleLineCommentsNew.add(lineIndex)
           }
         }
       }
       this.closeCommentsModal()
     }
   },
-  expose: ['buildFiles']
+  expose: ['buildFiles', 'files', 'visibleFiles', 'selectFile', 'visibleLineComments']
 }
 </script>

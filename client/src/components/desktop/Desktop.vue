@@ -19,7 +19,7 @@ import GroupHeaderActions from './GroupHeaderActions.vue'
       <ViewProperties
         :view="viewEditor.view"
         @close="closeViewEditor"
-        @confirm="closeViewEditor"
+        @confirm="onViewConfirm"
       />
     </modal>
 
@@ -37,25 +37,16 @@ import GroupHeaderActions from './GroupHeaderActions.vue'
 </template>
 
 <script>
-const STORAGE_KEY = 'dockview-layout'
-
 export default {
   name: 'Desktop',
   components: {
     ...ALL_COMPONENTS,
     groupHeaderActions: GroupHeaderActions
   },
-  props: {
-    storageKey: {
-      type: String,
-      default: STORAGE_KEY
-    }
-  },
   data() {
     return {
       dockviewApi: null,
       registeredComponents: {},
-      layoutRestored: false,
       failedPanels: [],
       panelErrorTimeout: null
     }
@@ -96,25 +87,28 @@ export default {
     closeViewEditor() {
       this.$storex.ui.closeViewEditor()
     },
-    init() {
-      if (!this.panelTabIds.length) {
-        this.$ui.showTab('home')
+    async onViewConfirm(viewName) {
+      if (!viewName) return
+      try {
+        await this.$storex.views.saveView(viewName)
+      } catch (e) {
+        console.error('Failed to save view:', e)
       }
+      this.closeViewEditor()
+    },
+    init() {
     },
     syncPanelsWithApps() {
       const { panelTabIds, openAppTabIds } = this
       
-      // Add new panels for apps not yet in dockview
       this.apps
         .filter(({ tabId }) => !panelTabIds.includes(tabId))
         .forEach(app => this.addAppPanel(app))
       
-      // Remove panels for apps that are no longer open
       panelTabIds
         .filter(tabId => !openAppTabIds.includes(tabId))
         .forEach(tabId => this.removePanel(tabId))
       
-      // Initialize if no panels exist
       if (!this.apps.length) {
         this.init()
       }
@@ -141,7 +135,7 @@ export default {
     },
     onReady(event) {
       this.dockviewApi = event.api
-      this.$ui.setDesktopApi(this.dockviewApi)
+      this.$views.setDesktopApi(this.dockviewApi)
       this.setupPanelEventHandlers()
       this.restoreLayout()
       this.dockviewApi.onDidAddPanel(this.onAddPanel.bind(this))
@@ -151,7 +145,6 @@ export default {
     setupPanelEventHandlers() {
       if (!this.dockviewApi) return
       try {
-        // Handle panel errors
         this.dockviewApi.onDidPanelError?.((event) => {
           this.onPanelError(event)
         })
@@ -167,7 +160,7 @@ export default {
       this.safelyRemovePanel(panelId)
     },
     onAddPanel() {
-      this.saveLayoutImmediately()
+      this.$storex.views.onLayoutChanged()
     },
     onRemovePanel(panel) {
       try {
@@ -175,19 +168,10 @@ export default {
       } catch(e) {
         console.warn('Error closing app on panel remove:', e)
       }
-      this.saveLayoutImmediately()
+      this.$storex.views.onLayoutChanged()
     },
     onLayoutChange() {
-      this.saveLayoutImmediately()
-    },
-    saveLayoutImmediately() {
-      if (!this.dockviewApi) return
-      try {
-        const layout = this.dockviewApi.toJSON()
-        localStorage.setItem(this.storageKey, JSON.stringify(layout))
-      } catch(e) {
-        console.error('Error saving layout:', e)
-      }
+      this.$storex.views.onLayoutChanged()
     },
     addPanel({ id, title, component = 'window', position, params, renderer }) {
       if (!this.dockviewApi) return
@@ -262,36 +246,17 @@ export default {
         [name]: component
       }
     },
-    restoreLayout(layout = null) {
-      if (this.layoutRestored) return true
+    async restoreLayout() {
       if (!this.dockviewApi || !this.uiReady) return false
+      
       try {
-        const data = layout || JSON.parse(localStorage.getItem(this.storageKey))
-        if (!data) return false
-        this.dockviewApi.fromJSON(data)
-        this.dockviewApi.panels.forEach(panel => {
-          try {
-            if (panel.params?.chat) {
-              this.$chats.reloadChat(panel.params.chat)
-            }
-            if (panel.params?.app) {
-              this.$ui.showApp(panel.params.app)
-            }
-          } catch(e) {
-            console.warn(`Error restoring panel ${panel.id}:`, e)
-            this.handlePanelError(panel.id, panel.title)
-          }
-        })
+        await this.$storex.views.restoreProjectLayout(this.dockviewApi)
         this.init()
-        this.layoutRestored = true
+        return true
       } catch (e) {
-        console.warn('Failed to restore dockview layout:', e)
+        console.warn('Failed to restore layout:', e)
         return false
       }
-    },
-    clearSavedLayout() {
-      localStorage.removeItem(this.storageKey)
-      this.$emit('layout-cleared')
     },
     getLayout() {
       return this.dockviewApi ? this.dockviewApi.toJSON() : null
@@ -302,7 +267,6 @@ export default {
     'removePanel',
     'registerComponent',
     'restoreLayout',
-    'clearSavedLayout',
     'getLayout'
   ]
 }

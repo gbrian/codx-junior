@@ -5,9 +5,9 @@ import ProjectSelectorContent from './ProjectSelectorContent.vue'
 <template>
   <!-- Trigger Button (only when not in modal mode) -->
   <div v-if="!modal">
-    <button
-      class="flex gap-1 items-center group btn btn-ghost btn-sm tooltip tooltip-bottom"
-      :data-tip="currentProject?.project_name"
+    <div
+      class="flex gap-1 items-center group text-sm click tooltip tooltip-right"
+      :data-tip="iconify ? currentProject?.project_name : ''"
       @click="isModalOpen = true"
       :disabled="disabled"
     >
@@ -17,7 +17,7 @@ import ProjectSelectorContent from './ProjectSelectorContent.vue'
         </div>
       </div>
       <span v-if="!iconify" class="truncate">{{ currentProject?.project_name }}</span>
-    </button>
+    </div>
   </div>
 
   <!-- Modal (separate root to not take space when modal=true) -->
@@ -73,7 +73,7 @@ export default {
       default: () => null
     }
   },
-  emits: ['select', 'close', 'update:modelValue'],
+  emits: ['select', 'close', 'update:modelValue', 'click'],
   data() {
     return {
       isModalOpen: false,

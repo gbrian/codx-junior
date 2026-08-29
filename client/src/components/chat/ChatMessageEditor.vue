@@ -1,5 +1,7 @@
 <script setup>
 import Editor from '@/components/monaco/Editor.vue'
+import ChatProfileSelector from './ChatProfileSelector.vue'
+import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
 </script>
 
 <template>
@@ -17,13 +19,33 @@ import Editor from '@/components/monaco/Editor.vue'
       </div>
     </div>
 
+    <!-- Profiles and Model Selector -->
+    <div class="flex gap-2 items-center flex-wrap">
+      <div class="flex-1 min-w-48">
+        <ChatProfileSelector
+          :project="chatProject"
+          :selected-profiles="selectedProfiles"
+          :use-modal="false"
+          @profiles-changed="onProfilesChanged"
+        />
+      </div>
+      <div class="w-48">
+        <ChatLLMModelSelector
+          :selected-model="selectedModel"
+          @model-changed="onModelChanged"
+        />
+      </div>
+    </div>
+
     <!-- Markdown editor -->
     <div class="flex-1 min-h-0 rounded-md border border-base-300 overflow-hidden">
       <Editor
+        ref="editor"
         v-model="editorContent"
         language="markdown"
         :fileName="message.doc_id + '.md'"
         class="h-full"
+        @save="onSave"
       />
     </div>
 
@@ -42,7 +64,7 @@ import Editor from '@/components/monaco/Editor.vue'
         <button 
           class="btn btn-sm btn-primary" 
           @click="onSave"
-          :disabled="!hasChanges"
+          :disabled="!hasChanges && !hasProfileChanges && !hasModelChanges"
         >
           <i class="fa-solid fa-floppy-disk"></i>
           Save
@@ -61,12 +83,26 @@ export default {
   data() {
     return {
       editorContent: this.message?.content || '',
-      originalContent: this.message?.content || ''
+      originalContent: this.message?.content || '',
+      selectedProfiles: this.message?.profiles || [],
+      originalProfiles: [...(this.message?.profiles || [])],
+      selectedModel: this.message?.llm_model || null,
+      originalModel: this.message?.llm_model || null
     }
   },
   computed: {
+    chatProject() {
+      return this.$projects.allProjectsById[this.message.project_id]
+        || this.$project
+    },
     hasChanges() {
       return this.editorContent !== this.originalContent
+    },
+    hasProfileChanges() {
+      return this.selectedProfiles.join(',') !== this.originalProfiles.join(',')
+    },
+    hasModelChanges() {
+      return this.selectedModel !== this.originalModel
     },
     characterCount() {
       return this.editorContent.length
@@ -76,11 +112,19 @@ export default {
     formatDate(date) {
       return moment(date).format('DD/MMM HH:mm:ss')
     },
+    onProfilesChanged(profiles) {
+      this.selectedProfiles = profiles.map(p => p.name || p)
+    },
+    onModelChanged(modelName) {
+      this.selectedModel = modelName
+    },
     onSave() {
-      if (!this.hasChanges) return
+      if (!this.hasChanges && !this.hasProfileChanges && !this.hasModelChanges) return
       this.$emit('save', {
         doc_id: this.message.doc_id,
-        content: this.editorContent
+        content: this.editorContent,
+        profiles: this.selectedProfiles,
+        llm_model: this.selectedModel
       })
     },
     onDiscard() {
@@ -92,6 +136,10 @@ export default {
       if (newMessage) {
         this.editorContent = newMessage.content || ''
         this.originalContent = newMessage.content || ''
+        this.selectedProfiles = newMessage.profiles || []
+        this.originalProfiles = [...(newMessage.profiles || [])]
+        this.selectedModel = newMessage.llm_model || null
+        this.originalModel = newMessage.llm_model || null
       }
     }
   }

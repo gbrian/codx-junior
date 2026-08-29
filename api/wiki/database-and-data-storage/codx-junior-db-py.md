@@ -2,17 +2,16 @@
 
 ## Overview
 
-This module provides database management functionality for CODXJunior using TinyDB. It handles persistence of kanban boards, columns, and chats with table-level caching capabilities.
+This module provides database management for CODXJunior using TinyDB, handling persistence of kanban boards, columns, and chats with table-level caching.
 
 ## Core Components
 
 ### Message Role Constants
 
-The module defines standard message role constants to maintain consistency across the application:
+Two constants are defined to maintain consistency across the application:
 
-- `ROLE_USER = "user"` - Messages from users
-- `ROLE_ASSISTANT = "assistant"` - Messages from the AI assistant
-- `ROLE_TOOL = "tool"` - Tool execution and lifecycle event notifications
+- `ROLE_USER = "user"` - Represents user messages
+- `ROLE_ASSISTANT = "assistant"` - Represents assistant messages
 
 These constants should be used instead of literal strings throughout the codebase.
 
@@ -20,135 +19,205 @@ These constants should be used instead of literal strings throughout the codebas
 
 #### KanbanColumn
 
-Represents a single column in a Kanban board with the following properties:
+Represents a column in a Kanban board with the following properties:
 
-- `doc_id` - Optional document identifier
-- `title` - Column title
-- `color` - Optional color designation
-- `index` - Column position
-- `chats` - List of associated chat IDs
+- `doc_id` (optional): Document identifier
+- `title`: Column title
+- `color` (optional): Column color designation
+- `index`: Position index within the kanban
+- `chats`: List of associated chat IDs
 
 #### Kanban
 
-Represents a complete Kanban board with:
+Represents a complete Kanban board with the following structure:
 
-- `doc_id` - Document identifier
-- `title` - Board title
-- `description` - Optional board description
-- `index` - Board position
-- `columns` - List of KanbanColumn objects
-- `created_at` and `updated_at` - Timestamps
+- `doc_id` (optional): Document identifier
+- `title`: Board title
+- `description` (optional): Board description
+- `index`: Position index
+- `columns` (optional): List of KanbanColumn objects
+- `created_at`: Timestamp of creation
+- `updated_at`: Timestamp of last update
 
 #### Message
 
-A single chat message with extensive properties for supporting various communication types:
+Represents a single chat message with comprehensive features:
 
-- `doc_id` - Document identifier
-- `role` - Message role (user, assistant, or tool)
-- `content` - Message text content
-- `think` - Optional thinking/reasoning content
-- `images` and `files` - Associated media
-- `tool_event` - Optional tool execution event details
-- `lifecycle_event` - Optional lifecycle event details
-- `knowledge_topics` - Topics for knowledge indexing
-- `done` - Indicates if user has finished writing
-- `is_thinking` - Indicates active thinking state
-- `disable_knowledge` - Flag to exclude from knowledge indexing
-- `read_by` - List of users who have read the message
-- `linked_chat_ids` - References to related chats
+**Basic Properties:**
+- `doc_id` (optional): Document identifier
+- `role`: Message sender role (user or assistant)
+- `content`: Message text content
+- `created_at`, `updated_at`: Timestamps
+
+**Message Metadata:**
+- `task_item`: Associated task item
+- `think` (optional): Internal reasoning content
+- `hide`: Whether to hide the message
+- `is_answer`: Marks if this is an answer
+- `improvement`: Indicates if this is an improvement
+- `profiles`: Associated user profiles
+- `user` (optional): User identifier
+- `done` (optional): Whether user finished writing
+
+**Content Properties:**
+- `images`: List of associated image URLs
+- `files`: List of associated file references
+- `knowledge_topics`: Topics for knowledge indexing
+- `disable_knowledge` (optional): Disables knowledge indexing
+
+**Events and Metadata:**
+- `tool_events`: List of ToolEvent objects tracking tool executions
+- `lifecycle_events`: List of LifeCycleEvent objects tracking agent runs
+- `meta_data` (optional): Free-form supplementary metadata
+- `error` (optional): Error details if applicable
+- `read_by`: List of users who read the message
+- `linked_chat_ids` (optional): References to linked chats
 
 #### ToolEvent
 
-Tracks tool execution events with:
+Tracks tool execution events attached to assistant responses:
 
-- `tool` - Name of the executed tool
-- `tool_call_id` - Unique identifier from the provider
-- `status` - Execution status (running, done, or error)
-- `request` - Parsed JSON arguments
-- `response` - Truncated result preview
-- `duration_ms` - Execution time in milliseconds
-- `error` - Error details when applicable
+- `tool`: Name of the executed tool
+- `tool_call_id`: Unique identifier for the tool call
+- `status`: Execution status (running, done, or error)
+- `request` (optional): Parsed JSON arguments sent to the tool
+- `response` (optional): Truncated tool result preview
+- `duration_ms` (optional): Execution time in milliseconds
+- `error` (optional): Error details when status is 'error'
 
 #### LifeCycleEvent
 
-Represents agent run lifecycle changes with:
+Represents agent run status changes and execution metrics:
 
-- `status` - Lifecycle status (running, done, or error)
-- `run_id` - Unique run identifier
-- `duration_ms` - Execution time in milliseconds
-- `error` - Error details when applicable
+- `status`: Lifecycle status (running, done, or error)
+- `run_id`: Unique identifier for the agent run
+- `duration_ms` (optional): Execution time in milliseconds
+- `error` (optional): Error details when status is 'error'
 
 #### Chat
 
-Represents a complete chat session with:
+Represents a complete chat session with messages and metadata:
 
-- `doc_id` - Document identifier
-- `project_id` - Project context
-- `owner_project_id` - Project owner reference
-- `parent_id` - Parent chat reference for threads
-- `linked_chat_ids` - Related chat references
-- `name` - Chat name
-- `description` - Chat description
-- `messages` - List of Message objects
-- `file_list` - Associated files
-- `profiles` and `users` - Access control
-- `kanban_id` and `column_id` - Kanban board association
-- `knowledge_topics` - Topics for knowledge indexing
-- `pr_view` - Pull request information
-- `history` - ChatHistoryEntry records
-- `auto_initialize` - Flag for new chat initialization
-- `ignore_parent_knowledge` - Flag to disconnect from parent context
-- `ignore_parent_files` - Flag to exclude parent files
+**Identification:**
+- `id`, `doc_id` (optional): Document identifiers
+- `project_id` (optional): Project where chat works
+- `owner_project_id` (optional): Project where chat was created
 
-### Database Manager
+**Hierarchy and Relations:**
+- `parent_id` (optional): Parent chat reference
+- `parent_owner_project_id`, `parent_project_id` (optional): Parent chat project references
+- `child_index` (optional): Sorting index among siblings
+- `message_id` (optional): Parent message for threads
+- `linked_chat_ids` (optional): List of linked chat IDs
 
-#### CODXJuniorDB
+**Content and Structure:**
+- `name`: Chat name
+- `description`: Chat description
+- `messages`: List of Message objects
+- `status`: Chat status
+- `mode`: Chat mode (default: 'chat')
 
-The main database manager class provides:
+**Kanban Integration:**
+- `kanban_id`: Associated kanban ID
+- `column_id`: Associated column ID
+- `board`: Board identifier
+- `column`: Column identifier
+- `columns`: List of KanbanColumn objects
+- `chat_index` (optional): Index within chat listing
 
-**Initialization**
+**File and Knowledge Management:**
+- `file_list`: List of associated file references
+- `file_path`: File path reference
+- `knowledge_topics`: Topics for knowledge indexing
+- `ignore_parent_knowledge` (optional): Disconnects from parent knowledge when True
+- `ignore_parent_files` (optional): Excludes parent files when True
+
+**Additional Properties:**
+- `created_at`, `updated_at`: Timestamps
+- `pinned` (optional): Whether chat is pinned
+- `profiles`, `users`: Associated profiles and users
+- `url`, `branch`, `remote_url` (optional): Repository references
+- `llm_model` (optional): Language model identifier
+- `visibility` (optional): Chat visibility setting
+- `check_lists` (optional): Associated checklists
+- `chat_links`: References to chats in other projects
+- `pr_view` (optional): Pull request view data
+- `history`: Historical entries of the chat
+- `auto_initialize` (optional): Auto-initialization flag for new chats
+
+#### ChatHistoryEntry
+
+Represents historical entries in a chat:
+
+- `timestamp`: When the entry was generated
+- `summary`: Summary of the history entry
+- `message_ids`: Associated message IDs
+
+#### ChatId
+
+Represents a reference to a chat in another project:
+
+- `chat_id`: The chat identifier
+- `project_id`: The project this chat belongs to
+
+### CODXJuniorDB Class
+
+Main database manager class providing CRUD operations for kanban boards and chats.
+
+#### Initialization
 
 ```python
 def __init__(self, settings: CODXJuniorSettings) -> None
 ```
 
-Initializes the database manager with configuration from CODXJuniorSettings. Creates connections to three tables: kanban, column, and chat with disabled caching.
+Initializes the database manager with:
+- Settings configuration
+- Database path derived from CODX path
+- TinyDB client initialization
+- Table setup for kanban, column, and chat data
 
-**Client Initialization**
+The class uses a global `PROJECT_DATABASES` cache to reuse existing database connections and avoid multiple connections to the same database file.
 
-```python
-def init_client(self) -> None
-```
+#### Core Methods
 
-Initializes the TinyDB client on first use. Reuses existing connections from PROJECT_DATABASES cache to avoid multiple connections to the same database file.
+**reset()**
 
-**Database Reset**
+Resets the database by removing the database file and reinitializing, useful for clearing all data and starting fresh.
 
-```python
-def reset(self) -> None
-```
+**save_kanban(kanban: Kanban) -> Kanban**
 
-Removes the database file and reinitializes, useful for clearing all data and starting fresh.
+Saves a kanban to the database:
+- Creates new kanban with UUID and timestamps if no doc_id exists
+- Updates existing kanban record if doc_id is present
+- Returns the saved Kanban instance with doc_id
 
-**Kanban Operations**
+**get_kanban(kanban_id: str) -> Kanban**
 
-- `save_kanban(kanban: Kanban) -> Kanban` - Persists a kanban board, generating new UUID and timestamps for new records
-- `get_kanban(kanban_id: str) -> Kanban` - Retrieves a kanban by its ID
-- `get_all_kankan() -> List[Kanban]` - Retrieves all kanbans from the database
-- `get_kanban_chats(kanban_id: str, column_id: str) -> List[Chat]` - Loads all chats from a specific column
+Retrieves a kanban by its ID. Returns None if not found.
 
-**Chat Operations**
+**get_all_kankan() -> List[Kanban]**
 
-- `save_chat(chat: Chat) -> None` - Persists a chat, generating new UUID and timestamps for new records
-- `get_chat(chat_id: str) -> Chat` - Retrieves a chat by its ID
+Retrieves all kanbans from the database.
 
-## Key Features
+**get_kanban_chats(kanban_id: str, column_id: str) -> List[Chat]**
 
-- **Caching Strategy** - Tables are initialized with cache_size=0 to ensure data consistency
-- **Automatic Timestamps** - Creation and update timestamps are automatically managed
-- **UUID Generation** - New records receive unique identifiers automatically
-- **Project Isolation** - Database connections are cached per project path to prevent conflicts
-- **Hierarchical Relationships** - Support for parent-child chat relationships and kanban associations
+Loads all chats from a specific column of a kanban, filtered by both kanban ID and column ID.
+
+**get_chat(chat_id: str) -> Chat**
+
+Retrieves a chat by its ID. Returns None if not found.
+
+**save_chat(chat: Chat) -> None**
+
+Saves a chat to the database:
+- Creates new chat with UUID and timestamps if no doc_id exists
+- Updates existing chat record if doc_id is present
+
+## Usage Notes
+
+- Message tool and lifecycle events are associated with assistant response messages and are streamed in real time, then persisted with the chat
+- Both tool_events and lifecycle_events lists are updated in place as execution progresses (running → done/error)
+- The database uses table-level caching with cache_size=0 for kanban, column, and chat tables
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/model/model.py

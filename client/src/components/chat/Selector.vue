@@ -50,8 +50,9 @@
       </div>
     </button>
 
-    <!-- Dropdown panel above trigger -->
+    <!-- Dropdown panel (when modal is disabled) -->
     <div
+      v-if="!useModal"
       v-show="showGrid"
       class="absolute left-0 bottom-full mb-2 bg-base-200 rounded-lg border border-base-300 shadow-lg z-50 w-full"
       @click.stop
@@ -92,7 +93,7 @@
                     v-if="item.avatar"
                     :src="item.avatar"
                     :alt="item.name"
-                    class="w-8 h-8 rounded-full object-cover"
+                    class="w-3 h-3 rounded-full object-cover"
                   />
                   <div
                     v-else
@@ -126,6 +127,108 @@
         </div>
       </div>
     </div>
+
+    <!-- DaisyUI Modal (when useModal is true) -->
+    <dialog
+      v-if="useModal"
+      ref="selectorModal"
+      class="modal"
+      @click.stop="handleModalBackdropClick"
+    >
+      <div class="modal-box w-11/12 max-w-2xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">{{ label }}</h3>
+          <button
+            type="button"
+            class="btn btn-sm btn-circle btn-ghost"
+            @click.stop="closeModal"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Filter input -->
+        <input
+          v-model="filterText"
+          type="text"
+          placeholder="Type to filter..."
+          class="input input-sm input-bordered w-full mb-4"
+          @click.stop
+        />
+
+        <!-- Scrollable grid with custom slot rendering -->
+        <div class="grid grid-cols-4 gap-2 overflow-y-auto max-h-96 mb-4">
+          <div
+            v-for="(item, ix) in filteredAndSorted"
+            :key="item.name"
+            :class="isItemSelected(item.name) ? 'ring-2 ring-primary' : ''"
+            @click="selectItem(item)"
+          >
+            <!-- Slot for custom rendering -->
+            <slot
+              :item="item"
+              :ix="ix"
+              :selected="isItemSelected(item.name)"
+            >
+              <!-- Default rendering fallback -->
+              <div class="flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-300"
+                :class="isItemSelected(item.name) ? 'bg-primary text-primary-content' : 'bg-base-100'"
+                :title="item.description"
+              >
+                <div class="relative">
+                  <img
+                    v-if="item.avatar"
+                    :src="item.avatar"
+                    :alt="item.name"
+                    class="w-3 h-3 rounded-full object-cover"
+                  />
+                  <div
+                    v-else
+                    class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center"
+                  >
+                    <i class="fa-solid fa-user text-xs"></i>
+                  </div>
+                  <div
+                    v-if="isItemSelected(item.name)"
+                    class="absolute -top-1 -right-1 bg-success text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"
+                  >
+                    ✓
+                  </div>
+                </div>
+                <span class="text-xs font-medium text-center truncate w-full">{{ item.name }}</span>
+              </div>
+            </slot>
+          </div>
+        </div>
+
+        <!-- Footer: count or deselect hint -->
+        <div class="flex justify-between items-center border-t border-base-300 pt-4">
+          <span class="text-xs text-base-content/60">{{ selectedCountText }}</span>
+          <div class="flex gap-2">
+            <button
+              v-if="allowDeselect && selectedItem"
+              type="button"
+              class="btn btn-sm btn-ghost"
+              @click.stop="deselectAll"
+            >
+              clear
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-primary"
+              @click.stop="confirmModal"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal backdrop with form method for native close -->
+      <form method="dialog" class="modal-backdrop">
+        <button type="button">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -159,13 +262,18 @@ export default {
     emptyLabel: {
       type: String,
       default: ''
+    },
+    useModal: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
     return {
       internalSelected: [],
       showGrid: false,
-      filterText: ''
+      filterText: '',
+      tempSelected: []
     }
   },
   computed: {
@@ -199,6 +307,7 @@ export default {
     selectedItems: {
       handler(newVal) {
         this.internalSelected = newVal.map(item => typeof item === 'string' ? item : item.name)
+        this.tempSelected = [...this.internalSelected]
       },
       deep: true,
       immediate: true
@@ -212,11 +321,43 @@ export default {
   },
   methods: {
     toggleGrid() {
-      this.showGrid = !this.showGrid
-      if (this.showGrid) {
-        this.filterText = ''
-        this.$emit('open')
+      if (this.useModal) {
+        this.showGrid ? this.closeModal() : this.openModal()
+      } else {
+        this.showGrid = !this.showGrid
+        if (this.showGrid) {
+          this.filterText = ''
+          this.$emit('open')
+        }
       }
+    },
+    openModal() {
+      this.showGrid = true
+      this.filterText = ''
+      this.tempSelected = [...this.internalSelected]
+      this.$emit('open')
+      this.$nextTick(() => {
+        this.$refs.selectorModal?.showModal()
+      })
+    },
+    closeModal() {
+      this.showGrid = false
+      this.internalSelected = [...this.tempSelected]
+      this.$refs.selectorModal?.close()
+    },
+    confirmModal() {
+      this.showGrid = false
+      this.emitSelectionChange()
+      this.$refs.selectorModal?.close()
+    },
+    handleModalBackdropClick(event) {
+      if (event.target === this.$refs.selectorModal) {
+        this.closeModal()
+      }
+    },
+    emitSelectionChange() {
+      const updated = (this.items || []).filter(i => this.internalSelected.includes(i.name))
+      this.$emit('update:selected-items', updated)
     },
     isItemSelected(itemName) {
       return this.internalSelected.includes(itemName)
@@ -225,12 +366,13 @@ export default {
       if (this.isSingleSelect) {
         if (this.allowDeselect && this.internalSelected[0] === item.name) {
           this.internalSelected = []
-          this.$emit('update:selected-items', [])
         } else {
           this.internalSelected = [item.name]
-          this.$emit('update:selected-items', [item])
         }
-        this.showGrid = false
+        if (!this.useModal) {
+          this.emitSelectionChange()
+          this.closeModal()
+        }
       } else {
         const idx = this.internalSelected.indexOf(item.name)
         if (idx > -1) {
@@ -238,16 +380,19 @@ export default {
         } else {
           this.internalSelected.push(item.name)
         }
-        const updated = (this.items || []).filter(i => this.internalSelected.includes(i.name))
-        this.$emit('update:selected-items', updated)
+        if (!this.useModal) {
+          this.emitSelectionChange()
+        }
       }
     },
     deselectAll() {
       this.internalSelected = []
-      this.$emit('update:selected-items', [])
-      this.showGrid = false
+      if (!this.useModal) {
+        this.emitSelectionChange()
+      }
     },
     handleDocumentClick(event) {
+      if (this.useModal) return
       if (!this.$el.contains(event.target)) this.showGrid = false
     }
   }

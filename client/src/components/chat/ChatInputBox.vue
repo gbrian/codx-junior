@@ -3,7 +3,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 px-2 py-2 bg-base-100 rounded-md border border-base-300">
+  <div class="flex flex-col gap-2 md:px-2 md:py-2 bg-base-100 rounded-md border border-base-300">
     <!-- Editor area -->
     <div class="relative">
       <textarea

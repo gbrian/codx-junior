@@ -3,14 +3,10 @@ import moment from 'moment'
 import { v4 as uuidv4 } from 'uuid'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import UserSelector from '@/components/chat/UserSelector.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
-import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
-import Markdown from '../components/Markdown.vue'
-import Collapsible from '../components/Collapsible.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 import ParentContentIndicator from '@/components/chat/ParentContentIndicator.vue'
 import ChatNavigatorDrawer from '@/components/chat/ChatNavigatorDrawer.vue'
@@ -18,124 +14,123 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
 </script>
 
 <template>
-  <div class="p-2 flex flex-col h-full bg-base-300/80 p-1" v-if="workingChat">
+  <div class="md:p-2 flex flex-col h-full bg-base-300/80" v-if="workingChat">
     <div class="grow flex gap-2 h-full justify-between">
-      <div class="grow flex flex-col w-full min-w-0">
-
+      <div class="grow flex flex-col w-full min-w-0 gap-2">
         <!-- ── HEADER ─────────────────────────────────────────────────────── -->
-        <div class="flex flex-col gap-1 w-full shrink-0">
-          <!-- CHANGED: Breadcrumb uses true root chat + reactive hierarchy -->
-          <div class="flex items-center justify-between gap-2 w-full min-w-0">
-            <div class="flex-1 min-w-0">
-              <ChatBreadcrumb
-                v-if="hierarchyChats.length"
-                :rootChat="rootChat"
-                :selectedChat="workingChat"
-                :allChats="hierarchyChats"
-                @select="selectBreadcrumbChat"
-              />
-            </div>
+        
+        <!-- FIRST ROW -->
+        <div class="flex flex-col gap-2 w-full shrink-0">
             <div class="flex items-center gap-1 shrink-0">
-              <ParentContentIndicator
-                v-if="parentChat"
-                :parentChat="parentChat"
-                :isDisconnected="isDisconnectedFromParent"
-                @toggle-disconnect="toggleParentDisconnect"
-              />
-            </div>
-          </div>
-          <!-- Chat Title & Actions -->
-          <div class="flex items-start gap-2 w-full min-w-0">
-            <div class="flex items-center gap-1 shrink-0">
-              <ProjectDetailt
-                v-model="targetProject" 
-                :iconify="true"
-                :options="{ showFolders: false, showIcon: true, showSelector: true }"
-                @select="setChatProject" />
-              <UserSelector class="dropdown-bottom" :allUsers="true" @user-changed="onAddProfile($event)" />
-            </div>
-            
-            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-              <!-- CHANGED: Edit displayed working chat, not only theChat -->
-              <input v-if="editName" type="text" class="input input-sm input-bordered w-full"
-                @keydown.enter.stop="saveChatInfo(workingChat)" @keydown.esc="editName = false" v-model="workingChat.name" />
-              <template v-else>
-                <div class="flex items-center gap-2 min-w-0 w-full">
-                  <!-- CHANGED: Pinned state follows displayed chat -->
-                  <span class="click tooltip shrink-0" @click.stop="toggleChatPinned" data-tip="Bookmark">
-                    <i class="text-warning fa-solid fa-bookmark" v-if="workingChat.pinned"></i>
-                    <i class="fa-regular fa-bookmark" v-else></i>
-                  </span>
-                  <div class="flex-1 min-w-0">
-                    <!-- CHANGED: Display selected chat name if present -->
-                    <span class="font-bold text-base truncate block min-w-0 cursor-pointer"
-                      :title="displayChatName" @dblclick="editName = true" @click="showChildChat = null">
-                      {{ displayChatName }}
-                    </span>
-                  </div>
-                </div>
-              </template>
-            </div>
-
-            <div class="flex items-center gap-1 shrink-0">
-              <!-- CHANGED: Pass true root + reactive hierarchy to drawer -->
               <ChatNavigatorDrawer
                 :rootChat="rootChat"
                 :allLoadedChats="hierarchyChats"
                 :selectedChatId="workingChat?.id || null"
+                :workingChatMode="workingChat?.mode"
                 @select="onSelectNavigatorChat"
-                @add-subtask="newSubChat"
+                @add-subtask="onNavigatorAddSubtask"
+                @action="handleDrawerAction"
               />
+              <ChatBreadcrumb
+                  v-if="hierarchyChats.length"
+                  :rootChat="rootChat"
+                  :selectedChat="workingChat"
+                  :allChats="hierarchyChats"
+                  @select="selectBreadcrumbChat"
+                />
 
-              <div class="flex input input-sm input-bordered items-center gap-1 w-36">
-                <input v-model="chatSearch" class="bg-transparent w-full min-w-0" placeholder="Search..." />
-                <span class="text-error cursor-pointer" @click="chatSearch = null" v-if="chatSearch">
-                  <i class="fa-regular fa-circle-xmark"></i>
-                </span>
-                <span v-else><i class="fa-solid fa-magnifying-glass"></i></span>
-              </div>
-              <button class="btn btn-sm" @click="showHidden = !showHidden">
-                <div class="flex items-center gap-1 tooltip" data-tip="Archived messages"
-                  :class="showHidden ? 'text-warning' : ''">
-                  <i class="fa-regular fa-message"></i>
-                  {{ messageCount - hiddenCount }}
-                  <span v-if="hiddenCount"><i class="fa-regular fa-eye-slash"></i> {{ hiddenCount }}</span>
+                <div class="grow"></div>
+
+                <!-- Search Bar -->
+                <div class="flex input input-sm input-bordered items-center gap-1 flex-1 w-8 hover:w-40">
+                  <input v-model="chatSearch" class="bg-transparent w-full min-w-0" placeholder="Search..." />
+                  <span class="text-error cursor-pointer" @click="chatSearch = null" v-if="chatSearch">
+                    <i class="fa-regular fa-circle-xmark"></i>
+                  </span>
+                  <span v-else><i class="fa-solid fa-magnifying-glass"></i></span>
                 </div>
-              </button>
+
+
+                <ParentContentIndicator
+                  :parentChat="parentChat"
+                  :isDisconnected="isDisconnectedFromParent"
+                  @toggle-disconnect="toggleParentDisconnect"
+                  v-if="parentChat"
+                />
+
+                <!-- Mode Selector Dropdown -->
               <div class="dropdown dropdown-end">
-                <div tabindex="0" role="button" class="btn btn-sm"><ChatIcon :mode="workingChat.mode" /></div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                  <li @click="setChatMode('chat')"><a><ChatIcon mode="chat" /> Conversation</a></li>
-                  <li @click="setChatMode('task')"><a><ChatIcon mode="task" /> Document</a></li>
-                  <li @click="setChatMode('topic')"><a><ChatIcon mode="topic" /> Group chat</a></li>
-                  <li @click="setChatMode('vibe')"><a><ChatIcon mode="vibe" /> Vibe</a></li>
-                  <li @click="setChatMode('prview')"><a><ChatIcon mode="prview" /> Changes review</a></li>
-                  <li @click="setChatMode('browser')"><a><ChatIcon mode="browser" /> Browser</a></li>
+                <div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-2">
+                  <i class="fa-solid fa-sliders"></i>
+                  <span class="hidden sm:inline text-xs">{{ modeLabel }}</span>
+                </div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-2 shadow">
+                  <li @click="setChatMode('chat')"><a>Conversation</a></li>
+                  <li @click="setChatMode('task')"><a>Document</a></li>
+                  <li @click="setChatMode('topic')"><a>Group Chat</a></li>
+                  <li @click="setChatMode('vibe')"><a>Vibe</a></li>
+                  <li @click="setChatMode('prview')"><a>Changes Review</a></li>
+                  <li @click="setChatMode('browser')"><a>Browser</a></li>
                 </ul>
               </div>
-              <div class="dropdown dropdown-end dropdown-bottom">
-                <div tabindex="0" class="btn btn-sm"><i class="fa-solid fa-bars"></i></div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-300 border rounded-box z-[1] p-2 w-64 shadow">
-                  <li @click="newSubChat()"><a><i class="fa-solid fa-plus"></i> New sub task</a></li>
-                  <li @click="createSubTasks()"><a><i class="fa-solid fa-wand-magic-sparkles"></i> Create sub tasks</a></li>
-                  <li @click="showExportChat = true"><a><i class="fa-solid fa-file-arrow-down"></i> Export</a></li>
-                  <li @click="showChatSelector = true"><a><i class="fa-solid fa-link"></i> Link chats</a></li>
-                  <li @click="newTag = true"><a><i class="fa-solid fa-plus"></i> New #tag</a></li>
-                  <hr>
-                  <li @click="reloadChat(workingChat)"><a><i class="fa-solid fa-recycle"></i> Load</a></li>
-                  <li @click="saveChat"><a><i class="fa-solid fa-floppy-disk"></i> Save</a></li>
-                  <hr>
-                  <li @click="showTaskSettings = true"><a><i class="fa-solid fa-gear"></i> Settings</a></li>
-                </ul>
-              </div>
+          </div>
+        </div>
+
+          <!-- 
+                  <div class="flex items-center gap-2 w-full">
+            
+            
+
+          </div>
+
+        </div -->
+        <!-- SECOND ROW -->
+        <div class="flex gap-2 w-full shrink-0">
+          <!-- Title -->
+          <div class="flex items-center gap-2 min-w-0 w-full">
+          <!-- Project -->
+          <ProjectDetailt
+            v-model="targetProject" 
+            :iconify="true"
+            :options="{ showFolders: false, showIcon: true, showSelector: true }"
+            @select="setChatProject" />
+
+            <span class="click tooltip shrink-0" @click.stop="toggleChatPinned" data-tip="Bookmark">
+              <i class="text-warning fa-solid fa-bookmark" v-if="workingChat.pinned"></i>
+              <i class="fa-regular fa-bookmark" v-else></i>
+            </span>
+            <div class="flex-1 min-w-0">
+              <input v-if="editName" type="text" class="input input-sm input-bordered w-full"
+                @keydown.enter.stop="saveChatInfo(workingChat)" @keydown.esc="editName = false" v-model="workingChat.name" />
+              <span v-else class="font-bold text-base truncate block min-w-0 cursor-pointer"
+                :title="displayChatName" @dblclick="editName = true" @click="showChildChat = null">
+                {{ displayChatName }} [{{ workingChat.status }}]
+              </span>
             </div>
-          </div>
+            
 
-          <!-- CHANGED: Tags follow displayed chat -->
-          <div class="flex gap-2 flex-wrap" v-if="workingChat.tags?.length">
-            <div class="text-xs font-bold" v-for="tag in workingChat.tags" :key="tag">#{{ tag }}</div>
-          </div>
+          <div class="grow"></div>
 
+          <div v-if="workingChat.tags?.length" class="flex gap-2 flex-wrap ml-auto">
+              <div class="text-xs font-bold" v-for="tag in workingChat.tags" :key="tag">#{{ tag }}</div>
+            </div>
+            <div class="badge badge-info badge-outline click" @click="newTag = ''">
+              <i class="fa-solid fa-hashtag"></i>
+            </div>
+
+          <!-- Message Count -->
+            <button class="btn btn-sm" @click="showHidden = !showHidden">
+              <div class="flex items-center gap-1 tooltip" data-tip="Archived messages"
+                :class="showHidden ? 'text-warning' : ''">
+                <i class="fa-regular fa-message"></i>
+                <span class="hidden sm:inline">{{ messageCount - hiddenCount }}</span>
+                <span v-if="hiddenCount"><i class="fa-regular fa-eye-slash"></i> {{ hiddenCount }}</span>
+              </div>
+            </button>
+
+
+          </div>
+          
         </div>
         <!-- ── END HEADER ─────────────────────────────────────────────────── -->
 
@@ -210,6 +205,9 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
         <modal v-if="showSubtaskModal">
           <div class="flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg">Create New Subtask</h3>
+            <div class="text-sm text-base-content/70">
+              Parent: <span class="font-semibold">{{ subtaskParentContext?.name || 'Unknown' }}</span>
+            </div>
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
             <div class="form-control">
               <label class="label"><span class="label-text">Select Subtask Mode</span></label>
@@ -260,7 +258,6 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
 
 <script>
 export default {
-  components: { Markdown, Collapsible, ChatHistoryViewer, ChatNavigatorDrawer, ChatBreadcrumb },
   props: ['chatMode', 'chat', 'kanban', 'params'],
   data() {
     return {
@@ -282,11 +279,11 @@ export default {
       subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
+      subtaskParentContext: null,
       subtaskMessageId: null,
       subtaskColumn: '',
       showAddProfile: false,
       createTasksInstructions: '',
-      chatProfiles: [],
       projectContext: null,
       showChatSelector: false,
       showChildChat: null,
@@ -300,6 +297,17 @@ export default {
     this.init()
   },
   computed: {
+    modeLabel() {
+      const modes = {
+        chat: 'Conversation',
+        task: 'Document',
+        topic: 'Group Chat',
+        vibe: 'Vibe',
+        prview: 'Changes Review',
+        browser: 'Browser'
+      }
+      return modes[this.workingChat?.mode] || 'Chat'
+    },
     ownerProject() {
       return this.$projects.allProjectsById[this.theChat.owner_project_id]
     },
@@ -307,7 +315,6 @@ export default {
       const chatId = this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
     },
-    // ADDED: Resolve true root from loaded parent chain
     rootChat() {
       let current = this.theChat
       if (!current) return null
@@ -323,7 +330,6 @@ export default {
       const selected = selectedId ? this.$chats.chats[selectedId] : null
       return selected || this.theChat || null
     },
-    // ADDED: Reactive hierarchy for breadcrumb / navigator
     hierarchyChats() {
       return this.collectHierarchy(this.rootChat)
     },
@@ -352,7 +358,6 @@ export default {
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD')
     },
-    // CHANGED: Children of displayed chat, not always base chat
     childrenChats() {
       return this.getDirectChildren(this.workingChat?.id)
     },
@@ -371,7 +376,6 @@ export default {
       if (!id) return null
       return this.$chats.chats[id] || null
     },
-    // ADDED: Support for parent disconnect indicator
     isDisconnectedFromParent() {
       return !!(this.workingChat?.ignore_parent_knowledge || this.workingChat?.ignore_parent_files)
     },
@@ -406,7 +410,6 @@ export default {
       this.showChildChat = null
       this.showHistoryWall = false
     },
-    // ADDED: Re-resolve hierarchy when base chat changes
     theChat(newVal, oldVal) {
       if (!newVal) {
         this.showChildChat = null
@@ -419,7 +422,7 @@ export default {
       }
     },
     chatProject() {
-      return this.$projects.allProjectsById[chat.owner_project_id]
+      return this.$projects.allProjectsById[this.chat.owner_project_id]
     },
     workingChat(newVal) {
       if (newVal) {
@@ -430,7 +433,6 @@ export default {
         }
       }
     },
-    // ADDED: Clear stale selections when hierarchy changes
     hierarchyChats(newVal) {
       const ids = new Set((newVal || []).map(c => c.id))
       if (this.showChildChat && !ids.has(this.showChildChat.id)) {
@@ -461,19 +463,10 @@ export default {
         await this.$storex.projects.loadKanban()
       }
 
-      // CHANGED: Load hierarchy after ensuring base chat exists
       await this.loadHierarchy()
-
-      this.chatProfiles = []
-      if (this.ownerProject) {
-        this.chatProfiles = await this.$storex.api.project(this.ownerProject)
-          .then(p => p.profiles.list())
-          .then(profiles => profiles.filter(p => (this.theChat?.profiles || []).includes(p.name)))
-      }
 
       if (this.isPRView) await this.$projects.loadBranches()
     },
-    // CHANGED: Seed hierarchy + resolve root for descendant chats
     async loadHierarchy() {
       if (!this.theChat) return
       try {
@@ -511,7 +504,6 @@ export default {
       this.editName = false
       this.$chats.saveChatInfo(chat || this.workingChat)
     },
-    // CHANGED: Delete displayed chat, then navigate to parent if possible
     async confirmDeleteChat() {
       const chat = this.workingChat
       const parent = this.parentChat
@@ -570,11 +562,11 @@ export default {
       await this.$storex.projects.setActiveBoard(boardTitle)
       this.$emit('chats', boardTitle)
     },
-    // CHANGED: Default subtask creation under displayed chat
     newSubChat(parentChat) {
       const chat = parentChat || this.workingChat
       if (!chat) return
       this.subtaskParentId = chat.id
+      this.subtaskParentContext = chat
       this.subtaskMessageId = null
       this.subtaskName = null
       this.subtaskDescription = null
@@ -584,6 +576,10 @@ export default {
       this.subtaskColumn = chat.column
       this.subtaskProject = this.targetProject
       this.showSubtaskModal = true
+    },
+    onNavigatorAddSubtask(parentChat) {
+      if (!parentChat) return
+      this.newSubChat(parentChat)
     },
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId } }) {
       if (!chat) return
@@ -627,7 +623,7 @@ export default {
 
 ${this.subtaskDescription}`
       }
-      const parent = this.workingChat || this.theChat
+      const parent = this.subtaskParentContext || this.workingChat || this.theChat
       if (!parent) return
 
       await this.createSubTask({
@@ -658,6 +654,8 @@ ${this.subtaskDescription}`
       this.subtaskFiles = []
       this.subtaskProfiles = []
       this.subtaskColumn = ''
+      this.subtaskParentId = null
+      this.subtaskParentContext = null
     },
     addNewTag() {
       const chat = this.workingChat
@@ -723,7 +721,22 @@ ${this.subtaskDescription}`
         this.$chats.reloadChat(chat)
       }
     },
-    // ADDED: Build reactive hierarchy tree from root
+    handleDrawerAction(action) {
+      const handlers = {
+        'timeline': () => this.toggleHistoryWall(),
+        'new-subtask': () => this.newSubChat(),
+        'create-subtasks': () => this.showSubtasksModal = true,
+        'link-chats': () => this.showChatSelector = true,
+        'set-mode': (action) => this.setChatMode(action.mode),
+        'new-tag': () => this.newTag = '',
+        'export': () => this.showExportChat = true,
+        'reload': () => this.reloadChat(),
+        'save': () => this.saveChat(),
+        'settings': () => this.showTaskSettings = true
+      }
+      const handler = handlers[action.type]
+      if (handler) handler(action)
+    },
     collectHierarchy(chat, visited = new Set()) {
       if (!chat || visited.has(chat.id)) return []
       visited.add(chat.id)

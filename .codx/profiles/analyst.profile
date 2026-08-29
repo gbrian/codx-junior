@@ -41,11 +41,12 @@
   "tools": [
     "project_search",
     "fetch_webpage",
-    "project_read_file"
+    "project_read_file",
+    "generate_tasks_tool"
   ],
   "tags": [],
   "api_settings": {
-    "active": true,
+    "active": false,
     "model_name": null,
     "description": null
   },

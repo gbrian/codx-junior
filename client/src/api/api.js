@@ -4,6 +4,7 @@ import { filesModule } from './modules/files'
 import { globalSettingsModule } from './modules/globalSettings'
 import { analyticsModule } from './modules/analytics'
 import { viewsModule } from './modules/views'
+import { chatsModule } from './modules/chats'
 
 /**
  * In-flight request deduplication map.
@@ -372,7 +373,6 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.settings.read()
       },
       get global() {
-        // Lazy initialization: globalSettingsModule is loaded only when accessed
         if (!API._globalSettingsModule) {
           API._globalSettingsModule = globalSettingsModule(API)
         }
@@ -446,7 +446,7 @@ const initializeAPI = ({ project, user } = {}) => {
         return new Promise((resolve, reject) => {
           const timeoutId = setTimeout(() => {
             reject(new Error('Agent search operation timed out'))
-          }, 300000) // 5 minute timeout for long-running searches
+          }, 300000)
           
           _staticSocketManager.emit('codx-junior-agent-search', {
             request: request,
@@ -504,75 +504,15 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.delete(`/api/knowledge/summary`)
       }
     },
-    chats: {
-      stream() {
-        return API.get('/api/stream')
-      },
-      async list(filters) {
-        let qs = ""
-        if (filters) {
-          const params = Object.entries(filters)
-            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-            .join("&")
-          qs = `?${params}`
-        }
-        const data = await API.get(`/api/chats${qs}`)
-        return data
-      },
-      async loadChat({ id, file_path }) {
-        const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`)
-        return data
-      },
-      async exportChat({ id, exportFormat, clipboard }) {
-        const path = `/api/chats?export_format=${exportFormat}&id=${id}`
-        if (clipboard) {
-          const data = await API.get(path)
-          return data
-        } else {
-          const url = API.connection.prepareUrl(path)
-          window.open(url)
-        }
-      },
-      async newChat() {
-        return {
-          id: new Date().getTime(),
-          name: "New chat"
-        }
-      },
-      async message(chat) {
-        return API.post('/api/chats?', chat)
-      },
-      async fromUrl(chat) {
-        return API.post('/api/chats/from-url?', chat)
-      },
-      async subTasks(chat) {
-        return API.post('/api/chats/sub-tasks?', chat)
-      },
-      save(chat) {
-        return API.put(`/api/chats?chatonly=0`, chat)
-      },
-      saveChatInfo(chat) {
-        return API.put(`/api/chats?chatonly=1`, chat)
-      },
-      delete(chat) {
-        return API.del(`/api/chats?chat_id=${chat.id}`)
-      },
-      cancelMessage(cancellationTokenId) {
-        return API.post(`/api/chat/cancel`, { token_id: cancellationTokenId })
-      },
-      kanban: {
-        async load() {
-          const kanban = await API.get('/api/kanban')
-          return kanban
-        },
-        async save(kanban) {
-          API.post('/api/kanban', kanban)
-        },
-        delete(kanban_title) {
-          API.delete('/api/kanban?kanban_title=' + kanban_title)
-        }
+
+    // CHANGED: Replace inline chats object with lazy-loaded module getter
+    get chats() {
+      if (!API._chatsModule) {
+        API._chatsModule = chatsModule(API)
       }
+      return API._chatsModule
     },
+
     run: {
       improve(chat) {
         return API.post('/api/run/improve?', chat)
@@ -688,9 +628,7 @@ const initializeAPI = ({ project, user } = {}) => {
         )
       }
     },
-    // CHANGED: Replace inline analytics object with lazy-loaded module getter
     get analytics() {
-      // Lazy initialization: analyticsModule is loaded only when accessed
       if (!API._analyticsModule) {
         API._analyticsModule = analyticsModule(API)
       }
@@ -730,9 +668,7 @@ const initializeAPI = ({ project, user } = {}) => {
       return API
     },
 
-    // ─── Logs (system + AI request/response) ────────────────────────────────
     logs: {
-      // System/server logs (legacy)
       async read(logName, size) {
         return API.get(`/api/logs/${logName}?log_size=${size}`)
       },
@@ -741,7 +677,6 @@ const initializeAPI = ({ project, user } = {}) => {
       },
 
       system: {
-        // System logs
         async read(logName, size) {
           return API.get(`/api/system/logs/${logName}?log_size=${size}`)
         },
@@ -749,88 +684,33 @@ const initializeAPI = ({ project, user } = {}) => {
           return API.get('/api/system/logs')
         },
       },
-      // AI request/response logs
       ai: {
-        /**
-         * Recent logs for the current authenticated user.
-         * @param {number} limit - Max number of entries (1–100, default 10)
-         */
         me(limit = 10) {
           return API.get(`/api/logs/me?limit=${limit}`)
         },
 
-        /**
-         * Paginated log list for the current user.
-         * @param {object} opts
-         * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
-         * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
-         * @param {string}  [opts.project]    - Filter by project name
-         * @param {string}  [opts.model]      - Filter by model name
-         * @param {string}  [opts.provider]   - Filter by provider name
-         * @param {string}  [opts.direction]  - Filter by direction: request | response
-         * @param {string}  [opts.sessionId]  - Filter by session id
-         * @param {number}  [opts.page]       - Page number (default 1)
-         * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
-         */
         list({ startDate, endDate, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
           const qs = _buildLogsQS({ startDate, endDate, project, model, provider, direction, sessionId, page, pageSize })
           return API.get(`/api/logs/list${qs}`)
         },
 
-        /**
-         * Full log entry detail for the current user.
-         * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
-         */
         get(logId) {
           return API.get(`/api/logs/${encodeURIComponent(logId)}`)
         },
         admin: {
-          /**
-           * Paginated log list across all users (admin only).
-           * @param {object} opts
-           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
-           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
-           * @param {string}  [opts.username]   - Filter by username
-           * @param {string}  [opts.project]    - Filter by project name
-           * @param {string}  [opts.model]      - Filter by model name
-           * @param {string}  [opts.provider]   - Filter by provider name
-           * @param {string}  [opts.direction]  - Filter by direction: request | response
-           * @param {string}  [opts.sessionId]  - Filter by session id
-           * @param {number}  [opts.page]       - Page number (default 1)
-           * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
-           */
           list({ startDate, endDate, username, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
             const qs = _buildLogsQS({ startDate, endDate, username, project, model, provider, direction, sessionId, page, pageSize })
             return API.get(`/api/logs/admin/list${qs}`)
           },
 
-          /**
-           * Full log entry detail for any user (admin only).
-           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
-           */
           get(logId) {
             return API.get(`/api/logs/admin/${encodeURIComponent(logId)}`)
           },
 
-          /**
-           * Delete a single log entry (admin only).
-           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
-           */
           delete(logId) {
             return API.delete(`/api/logs/admin/${encodeURIComponent(logId)}`)
           },
 
-          /**
-           * Bulk delete logs matching filters (admin only).
-           * At least one filter must be provided.
-           * @param {object} opts
-           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
-           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
-           * @param {string}  [opts.username]   - Filter by username
-           * @param {string}  [opts.project]    - Filter by project name
-           * @param {string}  [opts.model]      - Filter by model name
-           * @param {string}  [opts.provider]   - Filter by provider name
-           */
           purge({ startDate, endDate, username, project, model, provider } = {}) {
             return API.post('/api/logs/admin/purge', {
               start_date: startDate  || null,
@@ -845,19 +725,14 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
 
-    // ─── Files API ──────────────────────────────────────────────────────────
     get files() {
-      // Lazy initialization: filesModule is loaded only when accessed
       if (!API._filesModule) {
         API._filesModule = filesModule(API)
       }
       return API._filesModule
     },
 
-    // ─── Views API ──────────────────────────────────────────────────────────
-    // CHANGED: Replace inline views object with lazy-loaded module getter
     get views() {
-      // Lazy initialization: viewsModule is loaded only when accessed
       if (!API._viewsModule) {
         API._viewsModule = viewsModule(API)
       }
@@ -909,23 +784,6 @@ const initializeAPI = ({ project, user } = {}) => {
   return API
 }
 
-/**
- * Build a query string for AI log filter params.
- * Handles pagination and all available filter fields.
- * Maps camelCase JS params to the snake_case query params expected by the backend.
- *
- * Supported params:
- *   startDate  → start_date
- *   endDate    → end_date
- *   username   → username
- *   project    → project
- *   model      → model
- *   provider   → provider
- *   direction  → direction
- *   sessionId  → session_id
- *   page       → page
- *   pageSize   → page_size
- */
 function _buildLogsQS(params) {
   const keyMap = {
     startDate: 'start_date',

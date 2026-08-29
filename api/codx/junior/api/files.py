@@ -56,6 +56,7 @@ async def search_files(request: Request):
     """
     Search for files whose paths contain the search pattern.
     Performs a filesystem search within the project scope with pagination support.
+    Supports both substring and regex pattern matching.
 
     Query params:
     - search: Pattern to search for in file paths (case-insensitive)
@@ -63,6 +64,7 @@ async def search_files(request: Request):
     - page: Page number (0-indexed, default 0)
     - page_size: Number of results per page (default 50)
     - raw_search: If true, search all files. If false, exclude .git (default false)
+    - use_regex: If true, treat search pattern as regex. If false, use substring match (default false)
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -72,6 +74,7 @@ async def search_files(request: Request):
     page = int(request.query_params.get("page", 0))
     page_size = int(request.query_params.get("page_size", 50))
     raw_search = request.query_params.get("raw_search", "").lower() == "true"
+    use_regex = request.query_params.get("use_regex", "").lower() == "true"
 
     if not search:
         return {"page": 0, "total_files": 0, "page_size": page_size, "files": []}
@@ -81,7 +84,8 @@ async def search_files(request: Request):
         search_path=search_path,
         page=page,
         page_size=page_size,
-        raw_search=raw_search
+        raw_search=raw_search,
+        use_regex=use_regex,
     )
 
 
@@ -90,6 +94,7 @@ async def search_files_content(request: Request):
     """
     Search for files whose content contains the search query.
     Performs a filesystem content search within the project scope with pagination support.
+    Supports both substring and regex pattern matching.
 
     Query params:
     - q: Pattern to search for in file contents
@@ -98,6 +103,7 @@ async def search_files_content(request: Request):
     - page_size: Number of results per page (default 50)
     - case_sensitive: Whether search should be case-sensitive (default false)
     - raw_search: If true, search all files. If false, exclude .git (default false)
+    - use_regex: If true, treat query as regex pattern. If false, use substring match (default false)
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -108,6 +114,7 @@ async def search_files_content(request: Request):
     page_size = int(request.query_params.get("page_size", 50))
     case_sensitive = request.query_params.get("case_sensitive", "").lower() == "true"
     raw_search = request.query_params.get("raw_search", "").lower() == "true"
+    use_regex = request.query_params.get("use_regex", "").lower() == "true"
 
     if not query:
         return {
@@ -115,7 +122,8 @@ async def search_files_content(request: Request):
             "total_files": 0,
             "total_matches": 0,
             "page_size": page_size,
-            "results": []
+            "results": [],
+            "error": "Missing (q)uery parameter"
         }
 
     return file_engine.search_files_content(
@@ -124,7 +132,8 @@ async def search_files_content(request: Request):
         page=page,
         page_size=page_size,
         case_sensitive=case_sensitive,
-        raw_search=raw_search
+        raw_search=raw_search,
+        use_regex=use_regex,
     )
 
 

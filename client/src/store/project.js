@@ -1,5 +1,5 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
-import store, { $storex } from '.'
+import { $storex } from '.'
 import { API } from '../api/api'
 import { v4 as uuidv4 } from 'uuid'
 import Fuse from 'fuse.js'
@@ -372,6 +372,8 @@ export const state = createState
 export const mutations = mutationTree(state, {
   setActiveProject(state, project) {
     state.activeProject = project
+    $storex.projects.saveLastActiveProject()
+    $storex.views.onActiveProjectChanged()
   },
   setLogs(state, logs) {
     state.logs = logs
@@ -524,6 +526,7 @@ export const actions = actionTree(
       state.activeProject = null
 
       await $storex.projects.loadAllProjects()
+      await $storex.projects.restoreLastActiveProject()
       $storex.ui.setUIready()      
     },
     async loadAllProjects({ state }, withMetrics) {
@@ -546,6 +549,25 @@ export const actions = actionTree(
       } 
       $storex.projects.setAllProjects([])
       state.activeProject = null
+    },
+    async restoreLastActiveProject({ state }) {
+      try {
+        const lastProjectId = localStorage.getItem('lastActiveProject')
+        if (lastProjectId) {
+          const project = state.allProjects?.find(p => p.project_id === lastProjectId)
+          if (project) {
+            await $storex.projects.activeProjectChanged(project)
+            return
+          }
+        }
+        
+        const defaultProject = state.allProjects?.find(p => p.project_name === 'codx-junior')
+        if (defaultProject) {
+          await $storex.projects.activeProjectChanged(defaultProject)
+        }
+      } catch (error) {
+        console.error('Failed to restore last active project:', error)
+      }
     },
     async activeProjectChanged ({ state }, project) {
       const { project_id, project_name, codx_path } = project
@@ -604,6 +626,8 @@ export const actions = actionTree(
           
           overlay?.completeStep('finalize', 'Ready')
           overlay?.finishLoading()
+
+          await $storex.views.onActiveProjectChanged()
 
         } catch(ex) {
           console.error("Error setting active project", ex)
@@ -1029,6 +1053,17 @@ export const actions = actionTree(
       socket.off('codx-junior-index-progress-batch-complete')
       socket.off('codx-junior-index-progress-completed')
       socket.off('codx-junior-index-error')
+    },
+
+    async saveLastActiveProject() {
+      try {
+        const projectId = $storex.projects?.activeProject?.project_id
+        if (projectId) {
+          localStorage.setItem('lastActiveProject', projectId)
+        }
+      } catch (error) {
+        console.error('Failed to save last active project:', error)
+      }
     },
 
     createSearchController() {

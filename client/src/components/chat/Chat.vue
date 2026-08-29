@@ -9,6 +9,7 @@ import ChatMessageList from './ChatMessageList.vue'
 import ChatIntelliSense from './ChatIntelliSense.vue'
 import ChatFilePreview from './ChatFilePreview.vue'
 import ChatMessageEditor from './ChatMessageEditor.vue'
+import ChatProfileSelector from './ChatProfileSelector.vue'
 </script>
 
 <template>
@@ -33,8 +34,15 @@ import ChatMessageEditor from './ChatMessageEditor.vue'
           v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
         />
       </div>
-      <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" 
-        v-if="!isVibe && !isPRView" />
+      <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+        <ChatProfileSelector
+          :project="chatProject"
+          :selected-profiles="chat.profiles"
+          :use-modal="true"
+          @profiles-changed="onProfilesChanged"
+        />
+        <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" />
+      </div>
     </div>
 
     <!-- PR View Section -->
@@ -1124,8 +1132,8 @@ export default {
       await this.onAddFile(file)
     },
 
-    onMessageEdited({ doc_id, content }) {
-      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
+    onMessageEdited({ doc_id, content, profiles, llm_model }) {
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content, profiles, llm_model } })
       this.editMessage = null
       this.saveChat()
     },
@@ -1204,6 +1212,11 @@ export default {
 
     onProfilesSelected(selectedProfiles) {
       this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
+    },
+
+    onProfilesChanged(selectedProfiles) {
+      this.chat.profiles = selectedProfiles.map(p => p.name || p)
+      return this.chatSvc.saveChatInfo(this.chat)
     },
 
     replaceEmoji({ emoji }) {

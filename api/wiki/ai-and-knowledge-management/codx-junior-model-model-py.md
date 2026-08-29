@@ -1,349 +1,286 @@
-Here's a high-quality, readable, and well-documented code snippet based on the provided XML data:
-
-
-```python
-import os
-import regex
-
-from pydantic import BaseModel, Field, constr, validator
-from enum import Enum
-from datetime import datetime
-
-from typing import List, Dict, Union, Optional
-
-# Cunningham AI models, these are imported from codx.junior.model.ai_model
-from codx.junior.model.ai_model import (
-    AIProvider,
-    AILLMModelSettings,
-    AIEmbeddingModelSettings,
-    AIModelType,
-    AIModel,
-    AISettings,
-    OLLAMA_PROVIDER,
-    OLLAMA_EMBEDDINGS_MODEL,
-    OLLAMA_KNOWLEDGE_MODEL,
-    KNOWLEDGE_MODEL,
-    EMBEDDINGS_MODEL,
-)
-
-# Cunningham Profile models, these are imported from codx.junior.model.profile
-from codx.junior.model.profile import (
-    Profile,
-    ProfileApiSettings,
-)
-
-
-class ImageUrl(BaseModel):
-    url: str = Field(default="")
-
-@(constr(regex=r'^https?://(www\.)?.{1,100}(?:\.(jpg|png|.gif)$){{2}}(/.*)?$'))
-def validate_image_link(link: str):
-    raise ValueError("image-link is required")
-
-class Content(BaseModel):
-    type: str = Field(default='text')
-    text: str = Field(default=None)
-    image_url: ImageUrl = Field(default=None)
-
-# Cunningham chat message models, these are imported from codx.junior.model.workspace
-from codx.junior.model.workspace import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class ChatMessage(BaseModel):
-    role: str = Field(default='')
-    content: List[Content] = Field(default=[])
-
-# Cunningham column and board models, these are imported from codx.junior.model.model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class Board(BaseModel):
-    name: str = Field(default='')
-    description: str = Field(default='')
-    remote_url: str = Field(default='')
-    bookmark: Optional[bool] = Field(default=False)
-    columns: List[Column] = Field(default=[])
-    project_id: str = Field(default='')
-
-class Column(BaseModel):
-    name: str = Field(default='')
-    chat_ids: List[str] = Field(default=[])
-    project_id: str = Field(default='')
-
-# Cunningham logger models, these are imported from codx.junior.model.model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class Logprobs(BaseModel):
-    tokens: List[str]
-    token_logprobs: List[float]
-    top_logprobs: List[Dict[str, float]]
-    text_offset: List[int]
-
-# Cunningham KnowledgeReloadPath model
-class KnowledgeReloadPath(BaseModel):
-    path: str
-
-# Cunningham KnowledgeDeleteSources model
-class KnowledgeDeleteSources(BaseModel):
-    sources: List[str]
-
-# Cunningham KnowledgeSearch model
-from pydantic import BaseModel
-from typing import Union
-
-class KnowledgeSearch(BaseModel):
-    search_term: str
-    search_type: str = Field(default=None)
-    document_search_type: str = Field(default=None)
-    document_count: int = Field(default=None)
-    document_cutoff_score: float = Field(default=None)
-    document_cutoff_rag: float = Field(default=None)
+# Model Documentation
 
-# Cunningham tool models, these are imported from codx.junior.model.model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
+## Overview
 
+This module defines the core data models used throughout the Codx Junior application. It provides Pydantic-based models for managing users, AI configurations, projects, workspaces, and various application settings.
 
-class Tool(BaseModel):
-    name: str = Field(default="")
-    description: str = Field(default="")
+## Core Imports
 
-class CodxJuniorBaseTools(BaseModel):
-    knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
+The module imports specialized models from dedicated sub-modules:
 
-# Cunningham CommandTool model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
+- **User Models**: Authentication and profile management (`CodxUserLogin`, `CodxUserProjectProfile`, `CodxUser`)
+- **AI Models**: Provider and model configurations (`AIProvider`, `AIModel`, `AISettings`)
+- **Profile Models**: User profile and API settings (`Profile`, `ProfileApiSettings`)
+- **Workspace Models**: Workspace and application management (`Workspace`, `WorkspaceApp`)
 
-class CommandTool(Tool):
-    command: Optional[str] = Field(description="Command", default=None)
+## Chat and Communication Models
 
-# Cunningham PRView model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
+### ChatMessage
+Represents a message in a chat conversation with role and content structure.
 
-
-class PRView(BaseModel):
-    from_branch: Optional[str] = Field(default="")
-    to_branch: Optional[str] = Field(default="")
-
-# Cunningham Document model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class Document(BaseModel):
-    id: int = Field(default=None)
-    page_content: str
-    metadata: dict
-
-# Cunningham LiveEdit model
-from codx.junior.model=model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-
-class LiveEdit(BaseModel):
-    chat_name: str
-    html: str
-    url: str
-    message: str
-
-# Cunningham OpenAISettings model 
-class OpenAISettings(BaseModel):
-    openai_api_url: Optional[str] = Field(default="")
-    openai_api_key: Optional[str] = Field(default="")
-    openai_model: Optional[str] = Field(default="gpt-4o")
+**Fields:**
+- `role`: Message sender role (e.g., 'user', 'assistant')
+- `content`: List of `Content` objects containing the message payload
 
+### Content
+Defines the structure of message content, supporting text and image data.
 
+**Fields:**
+- `type`: Content type (default: 'text')
+- `text`: Text content
+- `image_url`: Image URL object for image content
 
+### ImageUrl
+Simple wrapper for image URLs in messages.
 
+**Fields:**
+- `url`: Image URL string
 
-class AnthropicAISettings(BaseModel):
-    anthropic_api_url: Optional[str] = Field(default="")
-    anthropic_api_key: Optional[str] = Field(default="")
-    anthropic_model: Optional[str] = Field(default="claude-3-5-sonnet-20240620")
+## Board and Organization Models
 
-
-
-# Cunningham MistralAISettings model
-class MistralAISettings(BaseModel):
-    mistral_api_url: Optional[str] = Field(default="")
-    mistral_api_key: Optional[str] = Field(default="")
-    mistral_model: Optional[str] = Field(default="codestral-latest")
-
-
-# Cunningham GitSettings model, these are imported from codx.junior.model.workspace
-from codx.junior.model.workspace import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class GitSettings(BaseModel):
-    username: Optional[str] = Field(default="")
-    email: Optional[str] = Field(default="")
-
-
-# Cunningham ProjectScript model, these are imported from codx.junior.model.model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-class ProjectScript(BaseModel):
-    name: str = Field(description="Script name")
-    description: str = Field(description="Script name", default="")
-    script: str = Field(description="Bash script", default="")
-    status: str = Field(description="Script status: running, stopped, error", default="stopped")
-    background: bool = Field(description="Script runs in background", default=False)
-    restart: bool = Field(description="Script must be restarted if stopped", default=False)
-    pid_file_path: str = Field(default="")
-    engine: str = Field(default="bash")
-
-
-# Cunningham Bookmark model
-from codx.junior.model.profile import (
-    Profile,
-    ProfileApiSettings,
-)
-
-
-class Bookmark(BaseModel):
-    name: str
-    icon: Optional[str] = Field(default="")
-    title: Optional[str] = Field(default="")
-    url: Optional[str] = Field(default="")
-    port: Optional[int] = Field(default=None)
-
-# Cunningham Agent settings model, these are imported from codx.junior.model Ai_model
-from codx.junior.model.ai_model import (
-    AIProvider,
-    AILLMModelSettings,
-    AIEmbeddingModelSettings,
-    AIModelType,
-    AIModel,
-    AISettings,
-    OLLAMA_PROVIDER,
-    OLLAMA_EMBEDDINGS_MODEL,
-    OLLAMA_KNOWLEDGE_MODEL,
-)
-
-class AgentSettings(BaseModel):
-    max_agent_iteractions: int = 4
-
-
-# Cunningham OAuth provider model, these are imported from codx.junior.model.workspace
-from codx.junior.model.workspace import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-
-class OAuthProvider(BaseModel):
-    name: str = Field(default="")
-    client_id: str = Field(default="")
-    secret: str = Field(default="")
-    token_url: str = Field(default="")
-
-
-# Cunningham PluginArgument model
-from pydantic import BaseModel
-
-class PluginArgument(BaseModel):
-    name: str
-    description: str
-    default_value: str
-
-
-# Cunningham PluginBase model
-# Cunningham models from the modules will be imported below, so that they can be referenced by a simple string literal.
-from codx.junior.model.plugin import (
-    PluginArgumentArgMeta,
-    BasePluginModel  # pylint: disable=no-absolute-import
-)
-
-class Plugin(BaseModel):
-    plugin_id: str
-    name: str = Field(default="", alias="name_id")
-    description: str = Field("", alias="description_ids")
-    module_path: str 
-    plugin_path: str
-    method: str 
-    arguments: List[PluginArgument] = []
-    roles: List[str]
-    extends: List[str]
-    image: Optional[str] = Field(default=None, aligns=True)
-    async_: bool = Field(True)
-
-# Cunningham Global model
-from pydantic import BaseModel
-
-class GlobalSettings(BaseModel):
-    log_ai: bool = False 
-    embeddings_model = KNOWLEDGE_MODEL 
-    llm_model = KNOWLEDGE_MODEl 
-   
-    default: dict[str, str] | None)  ## not in codx
-
-    git: GitSettings
-    agent_settings: AgentSettings
-    projects_root_path: Optional[str]
-    log_ignore: List[str] 
-=>
-
-    codx_junior_avatar: Optional[str]
-    enable_file_manager: bool
-    project_scripts: List[ProjectScript]
-    bookmarks: List[Bookmark]
-    ai_providers:
-        OLLAMA_PROVIDER
-    agents_provisions: AgentSettings = AgentSettings()
-    
-    users: List[CodxUser] 
-    user_logins:: CodxUserLogin = None   
-    secret_key: Optional[str]  # Use alias for encryption key
- 
-    workspaces: List[Workspace] ## already included in default  
-    workspace_start_port: int
-    workspace_end_port: int 
-    workspace_docker_settings: Any 
-    oauth_providers: List[OAuthProvider]
-
-# Cunningham Screen model, these are imported from codx.junior.model.model
-from codx.junior.model.model import (
-    WorkspaceApp,
-    DEFAULT_WORKSPACE,
-)
-
-
-class Screen(BaseModel):
-    resolution: str = Field(default='')
-    resolutions: List[str] = Field("1920x1080", default=[
-        "1024x768",
-        "800x600",
-        "640x480",
-        
-        "1366x768",
-        ])
-
-
-
-```
+### Board
+Represents a project board with columns for organizing chats.
+
+**Fields:**
+- `name`: Board name
+- `description`: Board description
+- `remote_url`: Remote repository URL
+- `bookmark`: Optional bookmark flag
+- `columns`: List of `Column` objects
+- `project_id`: Associated project identifier
+
+### Column
+Organizes chats within a board.
+
+**Fields:**
+- `name`: Column name
+- `chat_ids`: List of chat identifiers
+- `project_id`: Associated project identifier
+
+## Knowledge Management Models
+
+### KnowledgeSearch
+Configures search parameters for project knowledge retrieval.
+
+**Fields:**
+- `search_term`: Search query string
+- `search_type`: Type of search to perform
+- `document_search_type`: Specific document search type
+- `document_count`: Maximum documents to return
+- `document_cutoff_score`: Score threshold for results
+- `document_cutoff_rag`: RAG-specific cutoff threshold
+
+### KnowledgeReloadPath
+Specifies a path for reloading knowledge sources.
+
+**Fields:**
+- `path`: File or directory path
+
+### KnowledgeDeleteSources
+Identifies sources to remove from knowledge base.
+
+**Fields:**
+- `sources`: List of source identifiers to delete
+
+### Document
+Represents a document in the knowledge base.
+
+**Fields:**
+- `id`: Unique document identifier
+- `page_content`: Document content text
+- `metadata`: Additional document metadata as dictionary
+
+## Tool Models
+
+### Tool
+Base definition for tools available to agents.
+
+**Fields:**
+- `name`: Tool name
+- `description`: Tool functionality description
+
+### CodxJuniorBaseTools
+Default tools provided by Codx Junior.
+
+**Fields:**
+- `knowledge`: Knowledge search tool
+
+### CommandTool
+Extended tool definition with command execution capability.
+
+**Fields:**
+- `command`: Optional command string to execute
+
+## Project Configuration Models
+
+### ProjectScript
+Defines executable scripts within a project.
+
+**Fields:**
+- `name`: Script name
+- `description`: Script description
+- `script`: Bash script content
+- `status`: Execution status (running, stopped, error)
+- `background`: Run in background mode
+- `restart`: Auto-restart on failure
+- `pid_file_path`: Process ID file location
+- `engine`: Script execution engine (default: 'bash')
+
+### Bookmark
+Quick access bookmark for project resources.
+
+**Fields:**
+- `name`: Bookmark name
+- `icon`: Optional icon identifier
+- `title`: Optional display title
+- `url`: Optional resource URL
+- `port`: Optional port number
+
+## AI Provider Settings Models
+
+### OpenAISettings
+Configuration for OpenAI API integration.
+
+**Fields:**
+- `openai_api_url`: API endpoint URL
+- `openai_api_key`: API authentication key
+- `openai_model`: Model identifier (default: 'gpt-4o')
+
+### AnthropicAISettings
+Configuration for Anthropic Claude API integration.
+
+**Fields:**
+- `anthropic_api_url`: API endpoint URL
+- `anthropic_api_key`: API authentication key
+- `anthropic_model`: Model identifier (default: 'claude-3-5-sonnet-20240620')
+
+### MistralAISettings
+Configuration for Mistral AI API integration.
+
+**Fields:**
+- `mistral_api_url`: API endpoint URL
+- `mistral_api_key`: API authentication key
+- `mistral_model`: Model identifier (default: 'codestral-latest')
+
+## Agent and Workflow Models
+
+### AgentSettings
+Configures agent behavior parameters.
+
+**Fields:**
+- `max_agent_iteractions`: Maximum iterations per agent execution (default: 4)
+
+### Plugin
+Defines a loadable plugin extending Codx Junior functionality.
+
+**Fields:**
+- `plugin_id`: Unique plugin identifier
+- `name`: Plugin name
+- `description`: Plugin purpose description
+- `module_path`: Python module path
+- `plugin_path`: Plugin file path
+- `method`: Entry point method name
+- `arguments`: List of `PluginArgument` configuration
+- `roles`: User roles with access permissions
+- `extends`: List of extended components
+- `image`: Optional plugin image/icon URL
+- `async_`: Asynchronous execution flag
+
+### PluginArgument
+Configuration parameter for plugin methods.
+
+**Fields:**
+- `name`: Argument name
+- `description`: Argument purpose
+- `default_value`: Default value if not provided
+
+## Integration Models
+
+### GitSettings
+Git configuration for project integration.
+
+**Fields:**
+- `username`: Git username
+- `email`: Git user email
+
+### OAuthProvider
+OAuth provider configuration.
+
+**Fields:**
+- `name`: Provider name
+- `client_id`: OAuth client identifier
+- `secret`: Client secret key
+- `token_url`: Token endpoint URL
+
+### LiveEdit
+Real-time collaborative editing configuration.
+
+**Fields:**
+- `chat_name`: Associated chat session
+- `html`: HTML content being edited
+- `url`: Content URL
+- `message`: Associated message text
+
+## Global Settings
+
+### GlobalSettings
+Master configuration model for Codx Junior instance.
+
+**Key Sections:**
+
+**AI Configuration:**
+- `log_ai`: Enable AI activity logging
+- `embeddings_model`: Model for embeddings (default: OLLAMA_EMBEDDINGS_MODEL)
+- `llm_model`: Primary language model
+- `rag_model`: RAG-specific model
+- `wiki_model`: Wiki documentation model
+
+**System Configuration:**
+- `projects_root_path`: Root directory for projects
+- `enable_file_manager`: Enable file management features
+- `log_ignore`: Log entries to ignore
+- `codx_junior_avatar`: System avatar URL
+
+**User Management:**
+- `users`: List of authorized users (default: admin user)
+- `user_logins`: User login history
+- `secret`: Encryption secret
+
+**Workspace Management:**
+- `workspaces`: Available workspaces
+- `workspace_start_port`: Port range start (default: 16000)
+- `workspace_end_port`: Port range end (default: 17000)
+- `workspace_docker_settings`: Docker configuration for workspaces
+
+**Extension Points:**
+- `ai_providers`: Configured AI providers
+- `ai_models`: Available AI models
+- `oauth_providers`: OAuth integrations
+- `plugins`: Loaded plugins
+- `project_scripts`: Executable project scripts
+- `bookmarks`: Quick-access bookmarks
+
+**Chat Configuration:**
+- `chat_global_instructions`: Default instructions for chat sessions
+
+**Environment:**
+- `env`: Environment variables dictionary
+
+## UI Models
+
+### PRView
+Pull request view configuration.
+
+**Fields:**
+- `from_branch`: Source branch name
+- `to_branch`: Target branch name
+
+### Screen
+Display resolution settings.
+
+**Fields:**
+- `resolution`: Current resolution
+- `resolutions`: List of supported resolutions (13 common options provided)
 
 ## Dependencies
 **Imports from:** codx/junior/model/user.py, codx/junior/model/ai_model.py, codx/junior/model/profile.py

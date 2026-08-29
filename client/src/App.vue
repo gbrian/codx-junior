@@ -1,8 +1,6 @@
 <script setup>
-import SplitViewVue from '@/views/SplitView.vue'
 import Login from './components/user/Login.vue'
 import NewProject from './components/project/NewProject.vue'
-import ProjectLoadingOverlay from './components/project/ProjectLoadingOverlay.vue'
 import HomeMobile from './views/HomeMobile.vue'
 import TeamView from './views/TeamView.vue'
 </script>

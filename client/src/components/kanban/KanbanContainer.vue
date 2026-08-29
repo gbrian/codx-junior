@@ -6,7 +6,7 @@ import ChatView from '@/views/ChatView.vue'
 </script>
 
 <template>
-  <div class="@container p-2 w-full h-full flex flex-col gap-1 overflow-auto">
+  <div class="@container w-full h-full flex flex-col gap-1 overflow-auto">
     <!-- ChatView -->
     <ChatView :chat="activeChat" 
       @chats="$chats.setActiveChat(null)"

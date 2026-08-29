@@ -58,6 +58,9 @@ const globalMixin = {
     $ui () {
       return $storex.ui
     },
+    $views () {
+      return $storex.views
+    },
     $projects () {
       return $storex.projects
     },

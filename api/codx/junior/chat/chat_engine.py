@@ -23,7 +23,7 @@ from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCE
 from codx.junior.chat_manager import ChatManager
 from codx.junior.chat.chat_event_bridge import ChatEventBridge
 from codx.junior.context import AICodeGenerator
-from codx.junior.db import Chat, Message, ChatHistoryEntry, ROLE_TOOL
+from codx.junior.db import Chat, Message, ChatHistoryEntry
 from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -78,10 +78,27 @@ class ChatEngine:
     Integrates comprehensive analytics tracking for chat sessions, token usage,
     and tool executions to enable full request-response traceability.
 
-    Tool and run-lifecycle events emitted by the agent runtime are surfaced to
-    the user in real time as ``role="tool"`` chat messages via
-    :class:`ChatEventBridge` (persisted immediately + streamed). Those messages
-    are visible in the UI but excluded from the LLM prompt context.
+    CHANGED: Tool and run-lifecycle events emitted by the agent runtime are
+    ASSOCIATED with the assistant response message (``tool_events`` /
+    ``lifecycle_events`` typed lists) via :class:`ChatEventBridge`. The
+    response message is created BEFORE the AI call and passed to the bridge.
+
+    CRASH-SAFETY: the bridge persists the response message on EVERY event
+    change (merge-safe ``add_message``/``update_message``), and the engine
+    persists it immediately on error and cancellation paths, so as much
+    information as possible survives a crash or kill mid-run. Because the
+    bridge may have already inserted the response message, the engine uses
+    :meth:`_append_message_if_missing` to avoid duplicating it in memory.
+
+    ADDED — streamed-chunk crash-safety: the streaming callback
+    (``send_message_event``) calls :meth:`ChatEventBridge.maybe_persist_stream`
+    on every flush, persisting partial streamed content at most once per
+    throttle interval. A hard kill loses at most a few seconds of text.
+
+    ADDED — hidden reasoning crash-safety: intermediate reasoning messages
+    produced during the AI call are persisted IMMEDIATELY via
+    :meth:`ChatEventBridge.persist_message` instead of waiting for the
+    end-of-turn chat save.
 
     flowchart TD
         A[User Message] --> B{Chat Mode?}
@@ -95,9 +112,13 @@ class ChatEngine:
         E --> H[Record Chat Session Start]
         F --> H
         G --> H
-        H --> H2[Create ChatEventBridge + AgentRunContext]
+        H --> H1[Create response_message]
+        H1 --> H2[ChatEventBridge - persists on every event]
         H2 --> I[AI Response]
-        I -->|tool events| H3[Tool messages persisted + streamed]
+        I -->|stream flush| H5[Throttled persist of partial content]
+        I -->|hidden reasoning| H6[persist_message - immediate]
+        I -->|tool events| H3[Events on response_message persisted + streamed]
+        I -->|error/cancel| H4[bridge.publish - error persisted immediately]
         I --> J[Record Chat Session End]
         J --> K[Return Chat + Documents]
     """
@@ -188,6 +209,30 @@ class ChatEngine:
         )
 
     # -------------------------------------------------------------------------
+    # Helper: append message avoiding duplicates (ADDED for crash-safety)
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _append_message_if_missing(chat: Chat, message: Message) -> None:
+        """
+        Append *message* to ``chat.messages`` only if not already present.
+
+        Needed because the :class:`ChatEventBridge` persists (and may append)
+        the response message BEFORE the turn finishes; a blind append would
+        duplicate it. Lookup is by ``doc_id``.
+
+        :param chat: The chat to append to.
+        :param message: The message to append.
+        """
+        if any(m.doc_id == message.doc_id for m in chat.messages):
+            logger.debug(
+                "Message '%s' already present in chat '%s', skipping append",
+                message.doc_id,
+                chat.doc_id,
+            )
+            return
+        chat.messages.append(message)
+
+    # -------------------------------------------------------------------------
     # Helper: resolve chat mode flags
     # -------------------------------------------------------------------------
     def _resolve_chat_mode_flags(
@@ -232,18 +277,19 @@ class ChatEngine:
     # -------------------------------------------------------------------------
     def _build_message_history(self, chat: Chat) -> List:
         """
-        Convert all non-hidden, non-improvement, non-tool chat messages
-        (excluding the last) into LangChain message objects.
+        Convert all non-hidden, non-improvement chat messages (excluding the
+        last) into LangChain message objects.
 
-        Tool/lifecycle event messages (``role == ROLE_TOOL``) are visible to
-        the user but must never be part of the LLM prompt context.
+        Tool and lifecycle events live on the response messages themselves
+        (``tool_events`` / ``lifecycle_events``) and are never converted to
+        prompt content, so no role-based filtering is needed.
 
         :param chat: The chat whose history to convert.
         :return: List of LangChain message objects.
         """
         messages = []
         for message in chat.messages[0:-1]:
-            if message.hide or message.improvement or message.role == ROLE_TOOL:
+            if message.hide or message.improvement:
                 continue
             messages.append(self.convert_message(message))
         return messages
@@ -892,18 +938,30 @@ class ChatEngine:
         send_message_event,
         cancellation_token: Optional[CancellationToken] = None,
         run_context: Optional[AgentRunContext] = None,
+        event_bridge: Optional[ChatEventBridge] = None,
     ) -> Tuple[Optional[str], Optional[str], List[str], Any]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
 
         Returns a tuple of (think_content, response_content, extra_files, ai_chat_fn).
 
+        CRASH-SAFETY: when an error occurs, ``response_message.error`` is set
+        and the response message is persisted IMMEDIATELY via the event bridge
+        so the error survives even if a later step crashes.
+
+        ADDED CRASH-SAFETY: hidden reasoning messages produced by multi-step
+        runs are persisted the moment they are appended (via
+        ``event_bridge.persist_message``) instead of waiting for the
+        end-of-turn chat save.
+
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
             A -->|No| C[AI Chat with run_context]
             B --> D[Build search message]
             C --> E[Extract last message content]
-            C -->|tool events| F2[ChatEventBridge messages]
+            C -->|hidden reasoning| F4[persist_message - immediate]
+            C -->|tool events| F2[Events persisted on response_message]
+            C -->|error| F3[response_message.error persisted immediately]
             D --> F[Return think, content, files]
             E --> F
 
@@ -913,13 +971,19 @@ class ChatEngine:
         :param ai: Configured AI instance.
         :param ai_headers: HTTP-style headers forwarded to the AI provider.
         :param chat_tools: Tool names available to the AI.
-        :param response_message: The response message being assembled.
+        :param response_message: The response message being assembled; the
+                                 run_context listeners attach tool/lifecycle
+                                 events to it during the AI call.
         :param task_item: The task item type of the current user message.
         :param callback: Streaming callback for partial content.
         :param send_message_event: Callable to emit partial response events.
         :param cancellation_token: Optional token to cancel the ongoing request.
-        :param run_context: Optional AgentRunContext with tool/lifecycle event
-                            listeners (used only for the main chat request).
+        :param run_context: Optional AgentRunContext with the ChatEventBridge
+                            listener bound to *response_message* (used only
+                            for the main chat request).
+        :param event_bridge: Optional bridge used to persist the response
+                             message immediately on error and to persist
+                             hidden reasoning messages as they are produced.
         :return: Tuple of (think_content, main_content, extra_file_list, ai_chat_fn).
         """
         think_content: Optional[str] = None
@@ -942,6 +1006,7 @@ class ChatEngine:
                 cancellation_token=cancellation_token,
                 chat_id=chat.id,
                 run_context=run_context,
+                current_chat=chat,
             )
 
         try:
@@ -961,10 +1026,11 @@ class ChatEngine:
                 message_parts = [search_message.content]
                 extra_files = search_message.files or []
             else:
-                # The run_context (with the ChatEventBridge listener) is only
-                # forwarded for the MAIN chat request so tool / lifecycle
-                # events reach the user. Auxiliary calls (summary, auto-init)
-                # reuse ai_chat without a run_context.
+                # The run_context (with the ChatEventBridge listener bound to
+                # response_message) is only forwarded for the MAIN chat request
+                # so tool / lifecycle events are attached to the response.
+                # Auxiliary calls (summary, auto-init) reuse ai_chat without a
+                # run_context.
                 response_messages = await ai_chat(
                     messages=messages,
                     callback=callback,
@@ -980,6 +1046,11 @@ class ChatEngine:
                         )
                         hidden_msg.hide = True
                         chat.messages.append(hidden_msg)
+                        # ADDED CRASH-SAFETY: persist each hidden reasoning
+                        # message IMMEDIATELY so it survives a crash before
+                        # the end-of-turn chat save.
+                        if event_bridge:
+                            event_bridge.persist_message(hidden_msg)
 
                 message_parts = [response_messages[-1].content]
 
@@ -993,6 +1064,11 @@ class ChatEngine:
             )
             main_content = f"Ops, sorry! There was an error with latest request: {ex}"
             response_message.error = str(ex)
+            response_message.content = main_content
+            # CRASH-SAFETY: persist the error state IMMEDIATELY so it is not
+            # lost if any later step (summary, metadata, save) fails.
+            if event_bridge:
+                event_bridge.publish()
 
         return think_content, main_content, extra_files, ai_chat
 
@@ -1013,8 +1089,8 @@ class ChatEngine:
 
         Merges ``user_message.meta_data`` into the existing
         ``response_message.meta_data`` so that fields already present on the
-        response message (e.g. ``cancellation_token_id`` stamped in step 6)
-        are **not** overwritten.
+        response message (e.g. ``cancellation_token_id`` stamped in step 6 or
+        ``analytics`` set by the ChatEventBridge) are **not** overwritten.
 
         :param response_message: The message to annotate.
         :param user_message: The originating user message (provides base meta_data).
@@ -1025,8 +1101,8 @@ class ChatEngine:
         """
         # Start from the user message's meta_data (may contain client-side fields),
         # then overlay with whatever was already on the response message so that
-        # fields like ``cancellation_token_id`` that were stamped before the AI
-        # call are preserved.
+        # fields like ``cancellation_token_id`` and ``analytics`` that were
+        # stamped before/during the AI call are preserved.
         base_meta: Dict[str, Any] = dict(user_message.meta_data or {})
         base_meta.update(response_message.meta_data or {})
 
@@ -1054,7 +1130,7 @@ class ChatEngine:
         concise summaries without the technical implementation details.
 
         Only includes the natural user and assistant messages from the chat,
-        excluding hidden messages, improvement messages and tool event messages.
+        excluding hidden and improvement messages.
 
         :param chat: The chat whose clean history to build.
         :return: List of clean message content strings (user and assistant only).
@@ -1067,7 +1143,6 @@ class ChatEngine:
                 continue
             
             # Only include actual user and assistant messages
-            # (tool/lifecycle event messages have role == ROLE_TOOL)
             if message.role not in ("user", "assistant"):
                 continue
             
@@ -1442,9 +1517,21 @@ class ChatEngine:
         response message's ``meta_data`` immediately so clients receive it via
         streaming events.
 
-        Tool executions and run lifecycle events are surfaced in real time as
-        ``role="tool"`` chat messages via :class:`ChatEventBridge`: they are
-        persisted on every change (crash-safe) and streamed to clients.
+        CHANGED: The assistant response message is created BEFORE the AI call
+        and passed to :class:`ChatEventBridge`; tool executions and run
+        lifecycle events emitted during the run are attached to it as typed
+        ``tool_events`` / ``lifecycle_events`` lists.
+
+        CRASH-SAFETY: the bridge persists the response message on EVERY event
+        change (merge-safe ChatManager methods) and the engine persists it
+        immediately on error / cancellation, so tool results, run errors,
+        analytics and partial content survive a crash mid-run.
+
+        ADDED CRASH-SAFETY:
+          * Streamed partial content is persisted (throttled) from the
+            streaming callback via ``event_bridge.maybe_persist_stream``.
+          * Hidden reasoning messages are persisted the moment they are
+            appended via ``event_bridge.persist_message``.
 
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
@@ -1455,8 +1542,9 @@ class ChatEngine:
 
         flowchart TD
             A[Start] --> A1[Register CancellationToken]
-            A1 --> A2[Stamp token_id in response meta_data]
-            A2 --> B{Project match?}
+            A1 --> A2[Create response_message + stamp token_id]
+            A2 --> A3[ChatEventBridge created EARLY - persists on every event]
+            A3 --> B{Project match?}
             B -->|No| C[Switch project context]
             B -->|Yes| D[Resolve chat mode & profiles]
             D --> E{vibe or search?}
@@ -1474,13 +1562,14 @@ class ChatEngine:
             L --> O[Record Chat Session START]
             M --> O
             N --> O
-            O --> O2[Create ChatEventBridge + AgentRunContext]
-            O2 --> P[AI Chat]
-            P -->|tool events| P2[Tool messages persisted + streamed]
-            P --> Q{Cancelled?}
-            Q -->|Yes| R[Set cancelled_at in meta_data]
-            R --> S[Record Chat Session END with error]
-            Q -->|No| T[Parse response]
+            O --> P[AI Chat]
+            P -->|stream flush| P4[Throttled persist of partial content]
+            P -->|hidden reasoning| P5[persist_message - immediate]
+            P -->|tool events| P2[Events persisted + streamed]
+            P --> Q{Cancelled or Error?}
+            Q -->|Yes| R[bridge.publish - state persisted immediately]
+            R --> S[Record Chat Session END]
+            Q -->|No| T[Parse response + bridge.publish final state]
             T --> U{Agent done?}
             U -->|No, iterations left| V[Recurse]
             U -->|Yes| S[Record Chat Session END success]
@@ -1588,14 +1677,10 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 2. Extract user message and basic query context
-            #    Tool/lifecycle event messages (role == ROLE_TOOL) are visible
-            #    to the user but excluded from prompt building.
             # ------------------------------------------------------------------
             valid_messages = [
                 message for message in chat.messages
-                if not message.hide
-                and not message.improvement
-                and message.role != ROLE_TOOL
+                if not message.hide and not message.improvement
             ]
             all_messages_content_lines = "".join(
                 [m.content for m in valid_messages]
@@ -1643,9 +1728,11 @@ class ChatEngine:
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
             # ------------------------------------------------------------------
-            # 6. Initialise response message and stamp cancellation token_id
-            #    immediately so clients receive it in the very first streaming
-            #    event and can use it to cancel the request.
+            # 6. Initialise response message BEFORE the AI call and stamp the
+            #    cancellation token_id immediately so clients receive it in the
+            #    very first streaming event. All tool / lifecycle events of the
+            #    upcoming run will be attached to this message and persisted on
+            #    every change.
             # ------------------------------------------------------------------
             response_message = self._new_chat_message("assistant")
             response_message.meta_data = {"start_time": timing_info["start_time"]}
@@ -1657,6 +1744,37 @@ class ChatEngine:
                     cancellation_token.token_id,
                     chat.doc_id,
                 )
+
+            # ------------------------------------------------------------------
+            # 6.5 CHANGED: Bind the ChatEventBridge to the response message
+            #      EARLY (before the streaming callback is defined) so it can:
+            #      * attach tool / lifecycle events during the AI call,
+            #      * persist streamed partial content (throttled) from
+            #        send_message_event — a hard kill loses at most a few
+            #        seconds of text,
+            #      * persist hidden reasoning messages immediately.
+            #      CRASH-SAFETY: the bridge PERSISTS the response message on
+            #      every event change (merge-safe ChatManager methods, with a
+            #      defensive save_chat fallback) and streams it.
+            # ------------------------------------------------------------------
+            event_bridge = ChatEventBridge(
+                chat=chat,
+                response_message=response_message,
+                chat_manager=self.get_chat_manager(project_id=chat.owner_project_id),
+                event_manager=self.event_manager,
+            )
+            run_context = AgentRunContext(
+                project_id=self.settings.project_id or "",
+                listeners=[event_bridge.on_event],
+            )
+            logger.info(
+                "AgentRunContext '%s' created for chat '%s' bound to response "
+                "message '%s' (iteration %d)",
+                run_context.run_id,
+                chat.doc_id,
+                response_message.doc_id,
+                iteration,
+            )
 
             # ------------------------------------------------------------------
             # 7. Resolve query mentions (profiles, files, projects)
@@ -1826,6 +1944,10 @@ class ChatEngine:
                 Handles think/content separation for models that emit reasoning blocks.
                 The ``cancellation_token_id`` present in ``response_message.meta_data``
                 is forwarded to the client in every event so they can cancel at any time.
+
+                ADDED CRASH-SAFETY: after streaming, a THROTTLED persist of the
+                response message is triggered via the event bridge so streamed
+                partial content survives a hard kill (bounded disk I/O).
                 """
                 if not response_message.is_thinking:
                     if content and content.startswith("") \
@@ -1856,6 +1978,10 @@ class ChatEngine:
                 response_message.task_item = task_item
                 response_message.done = done
                 self.event_manager.message_event(chat=chat, message=response_message)
+                # ADDED CRASH-SAFETY: throttled persist of streamed partial
+                # content — a hard kill loses at most the throttle interval
+                # of streamed text (never raises, bounded disk I/O).
+                event_bridge.maybe_persist_stream()
 
             send_message_event("* Processing request, please wait...\n", False)
 
@@ -1924,28 +2050,6 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
-            # 20.5 Create the tool/lifecycle event bridge and run context.
-            #      The bridge converts agent runtime events (tool start/end,
-            #      LLM requests, run lifecycle) into role="tool" chat messages
-            #      that are persisted on every change and streamed to clients.
-            # ------------------------------------------------------------------
-            event_bridge = ChatEventBridge(
-                chat=chat,
-                chat_manager=self.get_chat_manager(project_id=chat.owner_project_id),
-                event_manager=self.event_manager,
-            )
-            run_context = AgentRunContext(
-                project_id=self.settings.project_id or "",
-                listeners=[event_bridge.on_event],
-            )
-            logger.info(
-                "AgentRunContext '%s' created for chat '%s' (iteration %d)",
-                run_context.run_id,
-                chat.doc_id,
-                iteration,
-            )
-
-            # ------------------------------------------------------------------
             # 21. Execute AI / search response
             # ------------------------------------------------------------------
             try:
@@ -1963,6 +2067,7 @@ class ChatEngine:
                         send_message_event=send_message_event,
                         cancellation_token=cancellation_token,
                         run_context=run_context,
+                        event_bridge=event_bridge,
                     )
                 )
             except CancelledError as cancel_exc:
@@ -1984,10 +2089,11 @@ class ChatEngine:
                     or "*(Request was cancelled)*"
                 )
                 response_message.done = True
-                chat.messages.append(response_message)
-                self.event_manager.message_event(
-                    chat=chat, message=response_message
-                )
+                # CRASH-SAFETY: persist the cancelled state (and any events
+                # collected so far) immediately; append only if the bridge
+                # did not already register the message on the chat.
+                self._append_message_if_missing(chat=chat, message=response_message)
+                event_bridge.publish()
                 self.event_manager.chat_event(chat=chat, message="cancelled")
                 
                 # ADDED: Record chat session END with cancellation
@@ -2033,7 +2139,12 @@ class ChatEngine:
                 extracted_files=extracted_files
             )
 
-            chat.messages.append(response_message)
+            # CRASH-SAFETY: persist the FINAL response state (content, error,
+            # events, metadata) immediately — before summary/auto-init steps
+            # that could still fail. The bridge may have already inserted the
+            # message during the run, so guard the in-memory append by doc_id.
+            self._append_message_if_missing(chat=chat, message=response_message)
+            event_bridge.publish()
             logger.info("Chat done, adding message to chat. %s", chat.messages[-1])
 
             # ------------------------------------------------------------------
@@ -2169,7 +2280,8 @@ class ChatEngine:
             settings=self.settings,
             llm_model=llm_model,
             user=self.user,
-            system=system
+            system=system,
+            session=self,
         )
         logger.debug("AI instance created with model %s", llm_model)
         return ai_instance
@@ -2310,16 +2422,14 @@ class ChatEngine:
         Index the chat as a Document in the knowledge system.
 
         Converts valid chat messages into a single Document with appropriate
-        metadata. Tool/lifecycle event messages are excluded.
+        metadata.
 
         :param chat: The chat to index.
         """
         valid_messages = [
             message.content
             for message in chat.messages
-            if not message.hide
-            and not message.improvement
-            and message.role != ROLE_TOOL
+            if not message.hide and not message.improvement
         ]
 
         page_content = "\n".join(valid_messages)

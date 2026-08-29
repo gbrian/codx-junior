@@ -1,23 +1,26 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
-import { API } from '../api/api'
 
 export const namespaced = true
 
+const STORAGE_KEY_PREFIX = 'views'
+
 export const state = () => ({
   views: [],
-  currentView: {},
-  lastView: null
+  currentView: null,
+  lastView: null,
+  // Desktop API and layout state owned here
+  _desktopApi: null,
+  _layoutChangeDisposable: null,
+  _activePanelDisposable: null,
+  fullscreenPanelId: null
 })
 
 export const getters = getterTree(state, {
   viewNames: state => state.views.map(v => v.name),
   hasViews: state => state.views.length > 0,
   currentViewName: state => state.currentView?.name || null,
-  projectViews: state => {
-    const projectId = $storex.projects?.activeProject?.project_id
-    return projectId ? state.views.filter(v => v.project_id === projectId) : []
-  }
+  isPanelFullscreen: state => panelId => state.fullscreenPanelId === panelId,
 })
 
 export const mutations = mutationTree(state, {
@@ -25,164 +28,196 @@ export const mutations = mutationTree(state, {
     state.views = views || []
   },
   setCurrentView(state, view) {
-    state.currentView = view || {}
+    state.currentView = view || null
   },
   setLastView(state, view) {
     state.lastView = view || null
   },
-  addView(state, view) {
-    if (!state.views.find(v => v.name === view.name && v.project_id === view.project_id)) {
+  upsertView(state, view) {
+    const index = state.views.findIndex(v => v.name === view.name)
+    if (index >= 0) {
+      state.views.splice(index, 1, view)
+    } else {
       state.views.push(view)
     }
   },
-  updateView(state, view) {
-    const index = state.views.findIndex(v => v.name === view.name && v.project_id === view.project_id)
-    if (index >= 0) {
-      state.views[index] = view
+  removeView(state, viewName) {
+    state.views = state.views.filter(v => v.name !== viewName)
+  },
+  // Desktop API registration - owned by views store
+  setDesktopApi(state, api) {
+    // Dispose previous layout change listener
+    if (state._layoutChangeDisposable?.dispose) {
+      state._layoutChangeDisposable.dispose()
+      state._layoutChangeDisposable = null
+    }
+
+    // Dispose previous active panel listener
+    if (state._activePanelDisposable?.dispose) {
+      state._activePanelDisposable.dispose()
+      state._activePanelDisposable = null
+    }
+
+    state._desktopApi = api
+
+    if (api?.onDidLayoutChange) {
+      state._layoutChangeDisposable = api.onDidLayoutChange(() => {
+        $storex.views.saveCurrentView()
+      })
+    }
+
+    // Listen for active panel changes to lazy-load chat if needed
+    if (api?.onDidActivePanelChange) {
+      state._activePanelDisposable = api.onDidActivePanelChange((event) => {
+        $storex.views.onPanelActive(event)
+      })
     }
   },
-  removeView(state, { viewName, projectId }) {
-    state.views = state.views.filter(v => !(v.name === viewName && v.project_id === projectId))
+  setFullscreenPanel(state, panelId) {
+    state.fullscreenPanelId = panelId
+  },
+  clearFullscreenPanel(state) {
+    state.fullscreenPanelId = null
   }
 })
+
+// Helper - returns localStorage key scoped to active project
+function getProjectStorageKey() {
+  const projectName = $storex.projects?.activeProject?.project_name
+  if (!projectName) return null
+  return `${STORAGE_KEY_PREFIX}_${projectName}`
+}
+
+// Extract registered apps from a saved layout's panels structure
+function extractAppsFromLayout(layout) {
+  const apps = []
+  if (!layout.panels) return apps
+
+  for (const panel of Object.values(layout.panels)) {
+    if (panel.params) {
+      apps.push({
+        tabId: panel.id || panel.tabId,
+        name: panel.name || panel.componentName || 'Unknown',
+        component: panel.componentName || 'unknown',
+        key: panel.key,
+        params: panel.params,
+        openedAt: panel.openedAt || Date.now()
+      })
+    }
+  }
+
+  return apps
+}
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init() {
-      await $storex.views.loadViews()
-      
-      // ADDED: Watch for active project changes
-      $storex.store.subscribe((mutation, state) => {
-        if (mutation.type === 'projects/setActiveProject') {
-          $storex.views.onActiveProjectChanged()
+      await $storex.views.restoreLastProject()
+    },
+
+    async restoreLastProject() {
+      try {
+        const lastProjectId = localStorage.getItem('lastActiveProject')
+        if (lastProjectId) {
+          const project = $storex.projects.allProjects?.find(p => p.project_id === lastProjectId)
+          if (project) {
+            await $storex.projects.activeProjectChanged(project)
+            return
+          }
         }
-      })
+        
+        const defaultProject = $storex.projects.allProjects?.find(p => p.project_name === 'codx-junior')
+        if (defaultProject) {
+          await $storex.projects.activeProjectChanged(defaultProject)
+        }
+      } catch (error) {
+        console.error('Failed to restore last project:', error)
+      }
     },
 
     async loadViews() {
+      if (!$storex.projects?.activeProject) return
       try {
-        const api = $storex.projects?.activeProject?.$api || API
-        const views = await api.views.list()
-        $storex.views.setViews(views || [])
+        const key = getProjectStorageKey()
+        if (!key) return
+
+        const stored = localStorage.getItem(key)
+        const gridData = stored ? JSON.parse(stored) : { views: [], currentView: null, lastView: null }
+        
+        $storex.views.setViews(gridData.views || [])
+        
+        const lastViewName = gridData.lastView
+        if (lastViewName) {
+          const lastView = gridData.views.find(v => v.name === lastViewName)
+          if (lastView) {
+            $storex.views.setLastView(lastView)
+          }
+        }
       } catch (error) {
-        console.error('Failed to load views:', error)
+        console.error('Failed to load views from localStorage:', error)
         $storex.views.setViews([])
       }
     },
 
-    // ADDED: Respond to active project changes
     async onActiveProjectChanged() {
-      try {
-        const projectId = $storex.projects?.activeProject?.project_id
-        if (!projectId) {
-          $storex.views.setCurrentView({})
-          $storex.views.setLastView(null)
-          return
-        }
+      $storex.views.setCurrentView(null)
+      $storex.views.setLastView(null)
+      await $storex.projects.saveLastActiveProject()
+      await $storex.views.loadViews()
+      await $storex.views.autoLoadLastView()
+    },
 
-        // Load all views from active project
-        await $storex.views.loadViews()
-        
-        // Get project's views
-        const projectViews = state.views.filter(v => v.project_id === projectId)
-        
-        if (projectViews.length === 0) {
-          // Create default view if none exist
-          await $storex.views.createDefaultView()
-        } else {
-          // Load most recent view
-          const lastView = await $storex.views.getProjectLastView()
-          if (lastView) {
-            await $storex.views.loadView(lastView)
-          }
-        }
+    async autoLoadLastView({ state }) {
+      const lastView = state.lastView
+      if (!lastView?.layout) return
+
+      try {
+        if (!state._desktopApi) return
+        await $storex.views.loadView(lastView)
       } catch (error) {
-        console.error('Failed to handle active project change:', error)
+        console.error('Failed to auto-load last view:', error)
       }
     },
 
-    // ADDED: Get or create last view for active project
-    async getProjectLastView() {
+    async saveView({ state }, viewName) {
       try {
-        const projectId = $storex.projects?.activeProject?.project_id
-        if (!projectId) return null
-        
-        const projectViews = state.views.filter(v => v.project_id === projectId)
-        if (projectViews.length === 0) {
-          return null
-        }
-        
-        // Return the most recently updated view
-        return projectViews.reduce((latest, current) => 
-          (current.last_update || 0) > (latest.last_update || 0) ? current : latest
-        )
-      } catch (error) {
-        console.error('Failed to get project last view:', error)
-        return null
-      }
-    },
+        const desktopApi = state._desktopApi
+        if (!desktopApi) throw new Error('Desktop API not available')
 
-    async saveView(_, viewName) {
-      try {
-        const layout = $storex.ui._desktopApi?.toJSON()
-        if (!layout) {
-          throw new Error('No layout to save')
-        }
-        const projectId = $storex.projects?.activeProject?.project_id
-        const api = $storex.projects?.activeProject?.$api || API
-        
+        const layout = desktopApi.toJSON()
+        const key = getProjectStorageKey()
+        if (!key) throw new Error('No active project')
+
         const view = {
           name: viewName,
-          layout: layout,
-          project_id: projectId,
+          layout,
           last_update: Date.now()
         }
-        
-        // CHANGED: Use activeProject.$api
-        await api.views.save(view)
-        $storex.views.addView(view)
+
+        $storex.views.upsertView(view)
+        await $storex.views.persistViews()
         $storex.views.setLastView(view)
+        
+        return view
       } catch (error) {
         console.error('Failed to save view:', error)
         throw error
       }
     },
 
-    // ADDED: Auto-save current view with updated layout
-    async autoSaveCurrentView() {
+    async loadView({ state }, view) {
       try {
-        const view = state.lastView || state.currentView
-        if (!view?.name) return
-        
-        const layout = $storex.ui._desktopApi?.toJSON()
-        if (!layout) return
-        
-        const projectId = $storex.projects?.activeProject?.project_id
-        const api = $storex.projects?.activeProject?.$api || API
-        
-        const updatedView = {
-          ...view,
-          layout: layout,
-          project_id: projectId,
-          last_update: Date.now()
-        }
-        
-        // CHANGED: Use activeProject.$api
-        await api.views.save(updatedView)
-        $storex.views.updateView(updatedView)
-        $storex.views.setLastView(updatedView)
-      } catch (error) {
-        console.error('Failed to auto-save view:', error)
-      }
-    },
+        if (!view?.layout) throw new Error('Invalid view or layout')
 
-    async loadView(_, view) {
-      try {
         $storex.views.setCurrentView(view)
         $storex.views.setLastView(view)
-        if (view.layout && $storex.ui._desktopApi) {
-          $storex.ui._desktopApi.fromJSON(view.layout)
+
+        const desktopApi = state._desktopApi
+        if (desktopApi) {
+          desktopApi.fromJSON(view.layout)
+          // Sync registered apps from restored layout into UI store
+          await $storex.views.syncAppsFromLayout(view.layout)
         }
       } catch (error) {
         console.error('Failed to load view:', error)
@@ -190,15 +225,16 @@ export const actions = actionTree(
       }
     },
 
-    async deleteView(_, { viewName, projectId }) {
+    async deleteView({ state }, viewName) {
       try {
-        const api = $storex.projects?.activeProject?.$api || API
-        
-        // CHANGED: Use activeProject.$api
-        await api.views.delete(viewName)
-        $storex.views.removeView({ viewName, projectId })
+        $storex.views.removeView(viewName)
+        await $storex.views.persistViews()
+
         if (state.currentView?.name === viewName) {
-          $storex.views.setCurrentView({})
+          $storex.views.setCurrentView(null)
+        }
+        if (state.lastView?.name === viewName) {
+          $storex.views.setLastView(null)
         }
       } catch (error) {
         console.error('Failed to delete view:', error)
@@ -206,22 +242,22 @@ export const actions = actionTree(
       }
     },
 
-    async renameView(_, { oldName, newName }) {
+    async renameView({ state }, { oldName, newName }) {
       try {
-        const api = $storex.projects?.activeProject?.$api || API
-        
-        // CHANGED: Use activeProject.$api
-        await api.views.rename(oldName, newName)
-        const view = state.views.find(v => v.name === oldName)
-        if (view) {
-          view.name = newName
-          $storex.views.updateView(view)
+        const existing = state.views.find(v => v.name === oldName)
+        if (existing) {
+          const renamedView = { ...existing, name: newName }
+          $storex.views.removeView(oldName)
+          $storex.views.upsertView(renamedView)
+
           if (state.currentView?.name === oldName) {
-            $storex.views.setCurrentView(view)
+            $storex.views.setCurrentView(renamedView)
           }
           if (state.lastView?.name === oldName) {
-            $storex.views.setLastView(view)
+            $storex.views.setLastView(renamedView)
           }
+
+          await $storex.views.persistViews()
         }
       } catch (error) {
         console.error('Failed to rename view:', error)
@@ -229,39 +265,147 @@ export const actions = actionTree(
       }
     },
 
-    // ADDED: Create default empty view for active project
-    async createDefaultView() {
+    async persistViews({ state }) {
       try {
-        const projectId = $storex.projects?.activeProject?.project_id
-        const api = $storex.projects?.activeProject?.$api || API
-        
-        if (!projectId) return
+        const key = getProjectStorageKey()
+        if (!key) return
 
-        // Create a basic empty layout
-        const defaultLayout = {
-          panels: [],
-          layout: {
-            type: 'branch',
-            size: 1,
-            data: [],
-            children: []
+        const gridData = {
+          views: state.views,
+          currentView: state.currentView?.name || null,
+          lastView: state.lastView?.name || null,
+          lastUpdated: Date.now()
+        }
+
+        localStorage.setItem(key, JSON.stringify(gridData))
+      } catch (error) {
+        console.error('Failed to persist views to localStorage:', error)
+        throw error
+      }
+    },
+
+    async saveCurrentView({ state }) {
+      try {
+        const view = state.lastView || state.currentView
+        if (!view?.name) return
+        await $storex.views.saveView(view.name)
+      } catch (error) {
+        console.error('Error saving current view:', error)
+      }
+    },
+
+    // Notify UI store of apps present in a layout so they appear as open
+    async syncAppsFromLayout(_, layout) {
+      try {
+        const apps = extractAppsFromLayout(layout)
+        for (const app of apps) {
+          $storex.ui.showApp(app)
+        }
+      } catch (error) {
+        console.error('Failed to sync apps from layout:', error)
+      }
+    },
+
+    async restoreProjectLayout({ state }, desktopApi) {
+      if (!desktopApi || !$storex.projects?.activeProject) {
+        throw new Error('Desktop API or active project not available')
+      }
+
+      try {
+        const key = getProjectStorageKey()
+        if (!key) throw new Error('No active project storage key')
+
+        const stored = localStorage.getItem(key)
+        if (!stored) return false
+
+        let gridData
+        try {
+          gridData = JSON.parse(stored)
+        } catch (parseError) {
+          console.error('Failed to parse stored layout:', parseError)
+          return false
+        }
+
+        if (!gridData.views?.length) return false
+
+        const lastViewName = gridData.lastView
+        let layoutToRestore = null
+
+        if (lastViewName) {
+          const view = gridData.views.find(v => v.name === lastViewName)
+          if (view?.layout) {
+            layoutToRestore = view.layout
+            $storex.views.setLastView(view)
           }
         }
 
-        const view = {
-          name: `Default View - ${new Date().toLocaleDateString()}`,
-          layout: defaultLayout,
-          project_id: projectId,
-          last_update: Date.now()
+        if (layoutToRestore) {
+          desktopApi.fromJSON(layoutToRestore)
+          await $storex.views.syncAppsFromLayout(layoutToRestore)
+          return true
         }
 
-        // CHANGED: Use activeProject.$api
-        await api.views.save(view)
-        $storex.views.addView(view)
-        $storex.views.setLastView(view)
-        await $storex.views.loadView(view)
+        return false
       } catch (error) {
-        console.error('Failed to create default view:', error)
+        console.error('Failed to restore project layout:', error)
+        return false
+      }
+    },
+
+    // Toggle fullscreen for a panel via the desktop API
+    togglePanelFullscreen({ state }, panelId) {
+      if (!state._desktopApi) return
+      try {
+        const panel = state._desktopApi.getPanel(panelId)
+        if (panel) {
+          state._desktopApi.maximizePanel(panel)
+        }
+      } catch(e) {
+        console.error(`Error toggling fullscreen for panel ${panelId}:`, e)
+      }
+    },
+
+    async onLayoutChanged({ state }) {
+      try {
+        const desktopApi = state._desktopApi
+        if (!desktopApi) return
+
+        const layout = desktopApi.toJSON()
+        const key = getProjectStorageKey()
+        if (!key) return
+
+        if ($storex.views.lastView) {
+          $storex.views.lastView.layout = layout
+          $storex.views.lastView.last_update = Date.now()
+          $storex.views.upsertView($storex.views.lastView)
+        } else {
+          const defaultView = {
+            name: 'Default',
+            layout,
+            last_update: Date.now()
+          }
+          $storex.views.upsertView(defaultView)
+          $storex.views.setLastView(defaultView)
+        }
+
+        await $storex.views.persistViews()
+      } catch (error) {
+        console.error('Error saving layout:', error)
+      }
+    },
+
+    // Handles active panel change events from the desktop API - lazy-loads chats based on status
+    async onPanelActive(_, panel) {
+      try {
+        // Extract chat params from the panel - panels with chat component store chat in params
+        const params = panel.params?.params || panel.params
+        const chat = params?.chat
+        if (!chat?.id) return
+
+        // Use loadUninitialized to check status and load if needed
+        await $storex.chats.loadUninitialized(chat)
+      } catch (error) {
+        console.error('Error handling active panel change:', error)
       }
     }
   }

@@ -231,6 +231,11 @@ export class ChatService extends Service {
       return await this.$chats.saveChat(chat)
     }
   }
+  async saveChatInfo(chat) {
+    if (!chat.temp) {
+      return await this.$chats.saveChatInfo(chat)
+    }
+  }
 
   async sendChatMessage({ chat, storex }) {
     return await storex.projects.chatWihProject(chat)
@@ -373,7 +378,7 @@ export class ChatService extends Service {
     const searchNode = (node, visited = new Set()) => {
       if (!node || visited.has(node.id)) return null
       visited.add(node.id)
-      if (node.file_list?.includes(file)) return node
+      if (node.file_list?.includes(file) && node.id !== chat?.id) return node
       if (node.children && Array.isArray(node.children)) {
         for (const child of node.children) {
           const found = searchNode(child, visited)

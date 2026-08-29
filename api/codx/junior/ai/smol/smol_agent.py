@@ -1,5 +1,5 @@
 """
-SmolAgent — a small, async-only OpenAI chat agent.
+SmolAgent: a small, async-only OpenAI chat agent.
 
 Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
     * exposes a single async ``chat()`` method (no sync variant),
@@ -13,13 +13,43 @@ Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
 messages in real time.
+
+CHANGED: accumulated streaming callbacks:
+    Streaming callbacks now receive the FULL response accumulated so far on
+    every flush (not just the delta since the last flush). Downstream
+    consumers assign the callback payload directly to the response message
+    content and may persist it mid-stream (crash-safety), so sending only
+    deltas caused partial persists to contain just the last fragment of the
+    response. Accumulation guarantees no information is lost mid-run.
+
+CHANGED: tool scope support:
+    Tools can now be classified by scope (global, chat, profile). Global scope
+    tools are always included in conversations, while chat scope tools are
+    selectively included based on the request configuration.
+
+CHANGED: dual-response tools:
+    Tools can now return a ToolResponse object with both user-facing content
+    (displayed to the user) and lightweight LLM feedback (for model context).
+    This allows tools like code_block_generator to generate formatted output
+    while keeping the LLM loop lightweight.
+
+CHANGED: global chat instructions:
+    chat_global_instructions are loaded from GlobalSettings on every chat
+    (not cached) and prepended to the system message. Extra system instructions
+    passed to SmolAgent are appended after the global instructions.
+
+CHANGED: session context injection:
+    SmolAgent now injects session context into settings for tools that need
+    access to the current chat or session state (e.g., generate_tasks_tool).
+    This allows tools to interact with the broader execution context beyond
+    just their direct parameters.
 """
 import json
 import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
 
 from openai import OpenAI
 from langchain.messages import AIMessage, HumanMessage
@@ -47,6 +77,7 @@ from codx.junior.analytics import Analytics
 from codx.junior.analytics.token_counter import count_tokens
 from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
+from codx.junior.tools import ToolResponse
 from codx.junior.utils.utils import clean_string
 
 logger = logging.getLogger(__name__)
@@ -57,6 +88,25 @@ _analytics_instance: Optional[Analytics] = None
 # Message used whenever the run is cancelled by the caller.
 CANCELLED_MESSAGE: str = "Chat was cancelled by the caller."
 
+# Tool scope constants
+TOOL_SCOPE_GLOBAL: str = "global"
+TOOL_SCOPE_CHAT: str = "chat"
+
+
+HARDCODED_SYSTEM_RULES="\n".join([
+    "## Working with files",
+    "When working with files always use a 'code blocks' and add the file name after the code block language.",
+    "See an example:",
+    "```js folder/file_name.js",
+    "  import dummy from 'module'",
+    "```"
+    "### Observe this rules when working with files",
+    "* Use valid file path (absolute or relative) based on the project and conversation context.",
+    "* New file changes must follow original file formating and identation.",
+    "* Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.",
+    "* Keep changes simple and easy to review by the user."
+])
+
 
 def _get_analytics() -> Analytics:
     """Return (creating if necessary) the module-level Analytics singleton."""
@@ -64,6 +114,31 @@ def _get_analytics() -> Analytics:
     if _analytics_instance is None:
         _analytics_instance = Analytics()
     return _analytics_instance
+
+
+def _load_chat_global_instructions() -> str:
+    """
+    Load chat_global_instructions from GlobalSettings.
+
+    This is called on every chat (not cached) to ensure instructions
+    are always up-to-date.
+
+    Returns:
+        The chat_global_instructions string from GlobalSettings, or empty
+        string if not available.
+    """
+    try:
+        from codx.junior.global_settings import read_global_settings
+        global_settings = read_global_settings()
+        return "\n".join([
+            (global_settings.chat_global_instructions or "").strip(),
+            HARDCODED_SYSTEM_RULES
+        ])
+    except Exception as ex:
+        logger.warning(
+            "SmolAgent: failed to load chat_global_instructions: %s", ex
+        )
+        return ""
 
 
 class SmolAgent:
@@ -76,23 +151,58 @@ class SmolAgent:
     ``config["run_context"]`` (e.g. to share a Socket.IO listener or a
     cancellation token) or plain listeners via ``config["event_listeners"]``.
 
-    Conversation flow
-    -----------------
-    .. code-block:: mermaid
+    CHANGED: streaming callback contract:
+        Callbacks registered via ``config["callbacks"]`` receive the FULL
+        response accumulated so far on every flush, never just the newest
+        delta. This makes mid-stream persistence of partial content
+        crash-safe (no fragment-only saves).
 
+    CHANGED: tool scope support:
+        Global scope tools are always included in conversations regardless of
+        the selected_tools list. Chat scope tools are selectively included
+        based on the request configuration.
+
+    CHANGED: dual-response tools:
+        Tools can return a ToolResponse object with both user-facing content
+        and LLM feedback. User content is accumulated for the final message,
+        while LLM feedback is sent to the model for continued processing.
+
+    CHANGED: global chat instructions:
+        chat_global_instructions are loaded from GlobalSettings on every chat
+        (not cached) and prepended to the system message. Extra system
+        instructions passed to SmolAgent are appended after global instructions.
+
+    CHANGED: session context injection:
+        Tools can access the current chat and session via injected context in
+        settings. This allows complex tools like generate_tasks_tool to interact
+        with the broader conversation state.
+
+    Conversation flow
+    ```mermaid
         flowchart TD
             A[chat] --> B[Resolve AgentRunContext]
             B --> C[run_context.run - RUN_START]
             C --> D[Build OpenAI messages]
             D --> E[Stream completion via guard_stream]
+            E -->|chunk| E1[Accumulate chunk]
+            E1 -->|flush| E2[Callback with FULL accumulated content]
             E --> F{finish_reason?}
             F -->|tool_calls| G[LoopGuard.check]
             G -->|ok| H[Execute tools - TOOL_START/END/ERROR]
-            H --> I[Append assistant + tool messages]
-            I --> E
-            G -->|stuck| J[Raise ToolLoopError - RUN_ERROR]
-            F -->|stop / length| K[Record usage - RUN_END]
-            E -->|cancelled| L[RUN_CANCELLED - raise CancelledError]
+            H --> I{Dual-response tool?}
+            I -->|yes| I1[Extract user_content + llm_feedback]
+            I -->|no| I2[Single string response]
+            I1 --> I3[Accumulate user_content]
+            I1 --> J[Send llm_feedback to model]
+            I2 --> J
+            I3 --> J
+            J --> K[Append to openai_messages]
+            K --> E
+            G -->|stuck| L[Raise ToolLoopError - RUN_ERROR]
+            F -->|stop / length| M[Merge LLM content + accumulated user content]
+            M --> N[Record usage - RUN_END]
+            E -->|cancelled| O[RUN_CANCELLED - raise CancelledError]
+    ```
     """
 
     def __init__(
@@ -101,13 +211,17 @@ class SmolAgent:
         llm_model: Optional[str] = None,
         user: Optional[CodxUser] = None,
         system: Optional[str] = None,
+        session: Optional[Any] = None,
     ) -> None:
         """
         Args:
             settings:  Project settings providing LLM configuration.
             llm_model: Optional model override.
             user:      Optional user (used for API key and analytics).
-            system:    Optional extra system prompt content.
+            system:    Optional extra system prompt content (appended after
+                      chat_global_instructions).
+            session:   Optional session context (injected for tools that need
+                      access to current chat or session state).
         """
         from codx.junior.tools import TOOLS
         self.tools: List[Dict[str, Any]] = TOOLS
@@ -120,9 +234,11 @@ class SmolAgent:
             user.api_key if user and user.api_key else self.llm_settings.api_key
         )
         self.base_url: str = self.llm_settings.api_url
-        self.system: str = "\n".join(
-            [self.llm_settings.system or "", system or ""]
-        ).strip()
+        # Store extra system instructions; global instructions will be loaded
+        # dynamically on each chat to ensure freshness
+        self.extra_system: str = (system or "").strip()
+        # Store session context for tools that need access to it
+        self.session: Optional[Any] = session
 
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         logger.info(
@@ -131,6 +247,33 @@ class SmolAgent:
             self.model,
             self.base_url,
         )
+
+    def _build_system_message(self) -> str:
+        """
+        Build the complete system message by combining:
+        1. LLM settings system prompt (if any)
+        2. chat_global_instructions (loaded fresh from GlobalSettings)
+        3. Extra system instructions passed to __init__
+
+        Returns:
+            The complete system message string.
+        """
+        parts: List[str] = []
+
+        # 1. LLM settings system prompt
+        if self.llm_settings.system:
+            parts.append(self.llm_settings.system.strip())
+
+        # 2. chat_global_instructions (loaded fresh, not cached)
+        global_instructions = _load_chat_global_instructions()
+        if global_instructions:
+            parts.append(global_instructions)
+
+        # 3. Extra system instructions
+        if self.extra_system:
+            parts.append(self.extra_system)
+
+        return "\n".join(parts).strip()
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -150,11 +293,14 @@ class SmolAgent:
             messages: Conversation history as LangChain message objects.
             config:   Optional dict with keys: ``tools``, ``chat_id``,
                       ``cancellation_token``, ``headers``, ``callbacks``,
-                      ``run_context`` (an :class:`AgentRunContext`) and
-                      ``event_listeners`` (list of event callables).
+                      ``run_context`` (an :class:`AgentRunContext`),
+                      ``event_listeners`` (list of event callables) and
+                      ``current_chat`` (the Chat object for context).
 
         Returns:
             Updated *messages* list with the assistant reply appended.
+            User-facing content from dual-response tools is included in
+            the assistant message content.
 
         Raises:
             ToolLoopError:  If max tool rounds or a stuck loop is detected.
@@ -187,6 +333,20 @@ class SmolAgent:
         """
         Execute the iterative streaming/tool loop for one conversation.
 
+        Flow:
+        1. Stream completion from LLM
+        2. Accumulate streamed content and check for tool calls
+        3. If tool_calls exist:
+           a. Guard against infinite loops
+           b. Append assistant message with tool_calls to conversation
+           c. For each tool:
+              - Execute the tool
+              - If result is ToolResponse: extract user_content and llm_feedback
+              - Append tool message to conversation
+           d. Loop back to step 1
+        4. If no tool_calls, merge LLM content with accumulated user_content
+        5. Record analytics and return updated messages
+
         Args:
             messages:    Conversation history as LangChain message objects.
             config:      Chat configuration dict (see :meth:`chat`).
@@ -194,24 +354,37 @@ class SmolAgent:
 
         Returns:
             Updated *messages* list with the assistant reply appended.
+            User-facing content from dual-response tools is merged into
+            the final assistant message content.
 
         Raises:
             ToolLoopError:  If max tool rounds or a stuck loop is detected.
             AgentCancelled: If cancellation is requested mid-run.
         """
         chat_id: Optional[str] = config.get("chat_id")
-        cancellation_token: Optional[CancellationToken] = config.get("cancellation_token")
+        cancellation_token: Optional[CancellationToken] = config.get(
+            "cancellation_token"
+        )
         headers: Dict[str, str] = config.get("headers", {})
         session_id: Optional[str] = headers.get("session_id")
         tags: str = self._build_tags(headers)
         headers["x-litellm-tags"] = tags
 
+        # Inject session context into settings for tools that need it
+        current_chat = config.get("current_chat")
+        if self.session and current_chat:
+            self.settings._active_session = self.session
+            self.session._current_chat = current_chat
+
         send_callback = self._make_callback_sender(config.get("callbacks"))
         kwargs = self._build_request_kwargs(config.get("tools", []))
-        openai_messages = to_openai_messages(messages, system=self.system)
+        # Build system message dynamically on each chat (fresh global instructions)
+        system_message = self._build_system_message()
+        openai_messages = to_openai_messages(messages, system=system_message)
 
         loop_guard = LoopGuard()
         request_start = time.monotonic()
+        user_facing_content: List[str] = []
 
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
@@ -233,7 +406,7 @@ class SmolAgent:
             loop_guard.check(tool_calls)
 
             logger.info(
-                "SmolAgent: round %d — executing %d tool(s)",
+                "SmolAgent: round %d: executing %d tool(s)",
                 loop_guard.rounds,
                 len(tool_calls),
             )
@@ -241,15 +414,40 @@ class SmolAgent:
                 make_assistant_tool_calls_message(tool_calls, content=content)
             )
             for tool_call in tool_calls.values():
-                result = await self._execute_tool(
+                tool_result = await self._execute_tool(
                     tool_call,
                     request_id=request_id,
                     chat_id=chat_id,
                     run_context=run_context,
                 )
-                openai_messages.append(
-                    make_tool_message(tool_call_id=tool_call["id"], content=result)
-                )
+                # Extract user content and LLM feedback from dual-response tools.
+                # Dual-response tools return a ToolResponse object with both
+                # user-facing content (for the chat interface) and LLM feedback
+                # (for continued model processing).
+                if isinstance(tool_result, ToolResponse):
+                    user_facing_content.append(tool_result.user_content)
+                    logger.debug(
+                        "SmolAgent: dual-response tool '%s' produced %d bytes "
+                        "of user content",
+                        tool_call["function"],
+                        len(tool_result.user_content),
+                    )
+                    # Send LLM feedback to the model for context
+                    llm_feedback = str(tool_result.llm_feedback)
+                    openai_messages.append(
+                        make_tool_message(
+                            tool_call_id=tool_call["id"],
+                            content=llm_feedback
+                        )
+                    )
+                else:
+                    # Traditional single-response tool
+                    openai_messages.append(
+                        make_tool_message(
+                            tool_call_id=tool_call["id"],
+                            content=tool_result
+                        )
+                    )
 
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
@@ -263,7 +461,24 @@ class SmolAgent:
             chat_id=chat_id,
         )
 
-        messages.append(AIMessage(content=content))
+        # Merge LLM-streamed content with user-facing content from
+        # dual-response tools. User content like formatted code blocks should
+        # be included in the final message alongside the assistant's text.
+        final_content = content
+        if user_facing_content:
+            user_content_text = "\n\n".join(user_facing_content)
+            final_content = (
+                f"{content}\n\n{user_content_text}"
+                if content
+                else user_content_text
+            )
+            logger.info(
+                "SmolAgent: merged %d user-facing content segment(s) "
+                "into final message",
+                len(user_facing_content),
+            )
+
+        messages.append(AIMessage(content=final_content))
         return messages
 
     # ── Runtime context ────────────────────────────────────────────────────────
@@ -315,7 +530,8 @@ class SmolAgent:
             headers:            Extra request headers.
             cancellation_token: Optional legacy cancellation token (bridged
                                 onto the run context token).
-            send_callback:      Chunk callback sender.
+            send_callback:      Chunk callback sender (accumulating: flushes
+                                the full response so far to callbacks).
             run_context:        Unified runtime context for this run.
 
         Returns:
@@ -390,17 +606,20 @@ class SmolAgent:
         run_context: AgentRunContext,
         request_id: Optional[str] = None,
         chat_id: Optional[str] = None,
-    ) -> str:
+    ) -> Union[str, ToolResponse]:
         """
-        Execute a single tool call and return its serialised output.
+        Execute a single tool call and return its output.
 
         Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` events on the
         run context. Event payloads carry the ``tool_call_id``, the parsed
         JSON request args (``args``) and a truncated ``result`` preview so
         listeners can render tool executions as chat messages. Errors never
         propagate to the caller: they are returned as strings so the model
-        can react to failed tool invocations (hence events are emitted
-        manually instead of using ``run_context.tool``, which re-raises).
+        can react to failed tool invocations.
+
+        Tools can return either:
+            - str: Traditional single-response (used for LLM context)
+            - ToolResponse: Dual-response with user_content and llm_feedback
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -409,7 +628,7 @@ class SmolAgent:
             chat_id:     Chat identifier for analytics.
 
         Returns:
-            The tool result as a string.
+            The tool result as a string or ToolResponse object.
 
         Raises:
             AgentCancelled: If cancellation was requested before execution.
@@ -459,9 +678,14 @@ class SmolAgent:
             result = tool["tool_call"](**params)
             if tool_settings.get("async"):
                 result = await result
-            result_str = result if isinstance(result, str) else json.dumps(result)
-            result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
-            return result_str
+
+            # Handle both string and ToolResponse return types
+            if isinstance(result, ToolResponse):
+                result_preview = result.llm_feedback[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+            else:
+                result_str = result if isinstance(result, str) else json.dumps(result)
+                result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+            return result
 
         except (OSError, ValueError, TypeError, RuntimeError) as ex:
             success = False
@@ -525,8 +749,14 @@ class SmolAgent:
         """
         Build the base kwargs for the OpenAI completion request.
 
+        Tools are filtered by scope: global scope tools are always included
+        regardless of selected_tools, while chat scope tools are selectively
+        included based on the request configuration.
+
         Args:
-            selected_tools: Names of tools enabled for this conversation.
+            selected_tools: Names of chat-scoped tools enabled for this
+                           conversation. Global scope tools are added
+                           automatically.
 
         Returns:
             Dict of request kwargs (model, stream, tools, temperature).
@@ -536,15 +766,30 @@ class SmolAgent:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
-        chat_tools = [
-            t["tool_json"]
-            for t in self.tools
-            if t["tool_json"]["function"]["name"] in selected_tools
-        ]
-        if chat_tools:
-            kwargs["tools"] = chat_tools
+
+        # Collect all enabled tools: global scope tools (always) + selected
+        # chat scope tools.
+        selected_tool_set: Set[str] = set(selected_tools) if selected_tools else set()
+        enabled_tools: List[Dict[str, Any]] = []
+
+        for tool in self.tools:
+            tool_name: str = tool["tool_json"]["function"]["name"]
+            tool_scope: str = tool.get("settings", {}).get("scope", TOOL_SCOPE_CHAT)
+
+            # Include tool if it's global or explicitly selected.
+            if tool_scope == TOOL_SCOPE_GLOBAL or tool_name in selected_tool_set:
+                enabled_tools.append(tool["tool_json"])
+                if tool_scope == TOOL_SCOPE_GLOBAL:
+                    logger.debug(
+                        "SmolAgent: including global scope tool '%s'", tool_name
+                    )
+
+        if enabled_tools:
+            kwargs["tools"] = enabled_tools
+
         if self.llm_settings.temperature != 0:
             kwargs["temperature"] = float(self.llm_settings.temperature)
+
         return kwargs
 
     def _build_tags(self, headers: Dict[str, str]) -> str:
@@ -570,26 +815,56 @@ class SmolAgent:
         callbacks: Optional[List[Callable[[str], None]]],
     ) -> Callable[[str, bool], None]:
         """
-        Return a closure that batches and flushes streamed chunks to callbacks.
+        Return a closure that batches streamed chunks and flushes the FULL
+        ACCUMULATED response to callbacks.
+
+        CHANGED: accumulation fix:
+        Previously each flush sent only the delta buffered since the last
+        flush and then cleared the buffer. Downstream consumers (e.g.
+        ``ChatEngine.send_message_event``) ASSIGN the callback payload to
+        ``response_message.content`` and may PERSIST it mid-stream via the
+        ChatEventBridge throttled persist: so partial saves contained only
+        the last fragment of the response. Now the sender keeps the complete
+        response accumulated across the whole run and sends it on every
+        flush, guaranteeing that no streamed information is ever lost in
+        mid-run persists.
+
+        flowchart TD
+            A[chunk arrives] --> B[Append to buffer]
+            B --> C{flush or interval elapsed?}
+            C -->|No| D[Return - keep buffering]
+            C -->|Yes| E[Move buffer into accumulated]
+            E --> F[Join FULL accumulated content]
+            F --> G[Invoke callbacks with full content]
 
         Args:
-            callbacks: Callables accepting a str chunk (may be ``None``).
+            callbacks: Callables accepting a str containing the FULL response
+                       accumulated so far (may be ``None``).
 
         Returns:
             A ``send_callback(chunk, flush)`` function.
         """
-        state: Dict[str, Any] = {"buffer": [], "ts": datetime.now()}
+        state: Dict[str, Any] = {
+            "buffer": [],        # chunks pending since the last flush
+            "accumulated": [],   # ALL chunks flushed so far (full response)
+            "ts": datetime.now(),
+        }
 
         def send_callback(chunk_content: str, flush: bool = False) -> None:
-            """Buffer *chunk_content*; flush to callbacks periodically."""
+            """Buffer *chunk_content*; flush the FULL accumulated response periodically."""
             if not callbacks:
                 return
             state["buffer"].append(chunk_content or "")
             elapsed = (datetime.now() - state["ts"]).total_seconds()
             if flush or elapsed > CALLBACK_FLUSH_SECONDS:
                 state["ts"] = datetime.now()
-                message = "".join(state["buffer"])
+                # Move the pending delta into the accumulated response and
+                # send the COMPLETE content so far: never just the delta.
+                # This keeps mid-stream persistence crash-safe: any partial
+                # save always contains everything streamed up to that point.
+                state["accumulated"].extend(state["buffer"])
                 state["buffer"] = []
+                message = "".join(state["accumulated"])
                 for callback in callbacks:
                     try:
                         callback(message)

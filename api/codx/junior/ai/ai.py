@@ -54,6 +54,7 @@ class AI:
         llm_model: Optional[str] = None,
         user: Optional[CodxUser] = None,
         system: Optional[str] = None,
+        session: Optional[Any] = None,
     ) -> None:
         """
         Initialize the AI class with provider routing.
@@ -62,6 +63,7 @@ class AI:
         :param llm_model: The specific model to be used.
         :param user: The user interacting with the AI.
         :param system: System level parameters.
+        :param session: Optional session context for tools that need access to current chat state.
         """
         self.system: Optional[str] = system
         self.user: Optional[CodxUser] = user
@@ -70,6 +72,7 @@ class AI:
         self.llm_settings: Any = settings.get_llm_settings(llm_model=llm_model)
         self.cache: Union[bool, Dict[str, str]] = False
         self.ai_logger: AILogger = AILogger(settings=settings)
+        self.session: Optional[Any] = session
 
         # Determine which provider to use
         self._use_smol_agent: bool = True
@@ -79,10 +82,11 @@ class AI:
         self.a_llm: Callable = self.create_a_chat_model(llm_model=llm_model)
 
         logger.info(
-            "AI initialized with provider: %s (user=%s, model=%s)",
+            "AI initialized with provider: %s (user=%s, model=%s, session=%s)",
             "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
             user.username if user else "NONE",
             llm_model,
+            "present" if session else "absent",
         )
 
     def log(self, message: str, *args: Any) -> None:
@@ -108,6 +112,7 @@ class AI:
         cancellation_token: Optional[CancellationToken] = None,
         chat_id: Optional[str] = None,
         run_context: Optional[AgentRunContext] = None,
+        current_chat: Optional[Any] = None,
     ) -> List[Message]:
         """
         Synchronous wrapper around asynchronous chat functionality.
@@ -129,6 +134,7 @@ class AI:
         :param chat_id: Optional chat identifier for analytics traceability.
         :param run_context: Optional shared AgentRunContext carrying event
                             listeners (e.g. ChatEventBridge) and cancellation.
+        :param current_chat: Optional current chat object for tool context.
         :return: A list of processed messages including the AI reply.
         :raises CancelledError: If the request is cancelled.
         :raises RuntimeError: If AI processing fails.
@@ -154,6 +160,7 @@ class AI:
                         cancellation_token=cancellation_token,
                         chat_id=chat_id,
                         run_context=run_context,
+                        current_chat=current_chat,
                     )
                 )
             finally:
@@ -171,6 +178,7 @@ class AI:
                     cancellation_token=cancellation_token,
                     chat_id=chat_id,
                     run_context=run_context,
+                    current_chat=current_chat,
                 )
             )
 
@@ -187,6 +195,7 @@ class AI:
         cancellation_token: Optional[CancellationToken] = None,
         chat_id: Optional[str] = None,
         run_context: Optional[AgentRunContext] = None,
+        current_chat: Optional[Any] = None,
     ) -> List[Message]:
         """
         Asynchronous chat functionality that processes user inputs and returns AI responses.
@@ -207,6 +216,7 @@ class AI:
         :param chat_id: Optional chat identifier for analytics traceability.
         :param run_context: Optional shared AgentRunContext carrying event
                             listeners (e.g. ChatEventBridge) and cancellation.
+        :param current_chat: Optional current chat object for tool context.
         :return: A list of processed messages including the AI reply.
         :raises CancelledError: If the request is cancelled.
         :raises RuntimeError: If AI processing fails.
@@ -238,6 +248,7 @@ class AI:
                 "cancellation_token": cancellation_token,
                 "chat_id": chat_id,
                 "run_context": run_context,
+                "current_chat": current_chat,
             },
         )
 
@@ -260,6 +271,7 @@ class AI:
                 llm_model=llm_model,
                 user=self.user,
                 system=self.system,
+                session=self.session,
             )
             logger.debug("SmolAgent chat model initialized")
             # Return a wrapper that bridges SmolAgent.chat (async) to sync interface
@@ -289,6 +301,7 @@ class AI:
                 llm_model=llm_model,
                 user=self.user,
                 system=self.system,
+                session=self.session,
             )
             logger.debug("SmolAgent a_chat model initialized")
             return agent.chat
@@ -355,6 +368,7 @@ class AI:
                 llm_model=llm_model,
                 user=self.user,
                 system=self.system,
+                session=self.session,
             )
             return agent.client
         else:

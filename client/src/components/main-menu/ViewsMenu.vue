@@ -80,8 +80,12 @@ import MenuDivider from './MenuDivider.vue'
 <script>
 export default {
   computed: {
+    // CHANGED: read from $storex.views, not $storex.ui
     views() {
-      return this.$storex.ui.views || []
+      return this.$storex.views?.views || []
+    },
+    lastView() {
+      return this.$storex.views?.lastView
     },
     isProjectAdmin() {
       return this.$storex.projects.activeProject?.permissions?.includes('admin') ||
@@ -89,28 +93,29 @@ export default {
     }
   },
   methods: {
-    // Signal Desktop to open ViewProperties in create mode
     openCreate() {
+      // Open ViewProperties modal in create mode (handled by Desktop.vue)
       this.$storex.ui.openViewEditor(null)
     },
-    // Signal Desktop to open ViewProperties in edit mode for the given view
     openEdit(view) {
+      // Open ViewProperties modal in edit mode
       this.$storex.ui.openViewEditor(view)
     },
-    // Save current layout — uses last view name if available, else open create editor
+    // Quick-save: if a named view exists use it, else open create dialog
     async saveCurrentView() {
-      const lastView = this.$storex.ui.lastView
-      if (lastView?.name) {
-        await this.$storex.ui.saveView(lastView.name)
+      if (this.lastView?.name) {
+        await this.$storex.views.saveCurrentView()
       } else {
         this.openCreate()
       }
     },
     async loadView(view) {
-      await this.$storex.ui.loadView(view)
+      // CHANGED: $storex.views.loadView
+      await this.$storex.views.loadView(view)
     },
     async deleteView(name) {
-      await this.$storex.ui.deleteView(name)
+      // CHANGED: $storex.views.deleteView with plain name string
+      await this.$storex.views.deleteView(name)
     }
   }
 }

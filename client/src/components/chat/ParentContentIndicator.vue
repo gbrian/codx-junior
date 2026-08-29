@@ -5,16 +5,21 @@ import moment from 'moment'
 <template>
   <div 
     v-if="parentChat"
-    class="transition-all duration-200 rounded-md"
+    class="transition-all duration-200 rounded-md tooltip"
+    :data-tip="isDisconnected ? 'Knowledge & files disconnected' : 'Context connected'"
     :class="[
       isDisconnected 
-        ? 'bg-warning/5 border-l-4 border-warning' 
-        : 'bg-info/5 border-l-4 border-info'
+        ? 'bg-warning/5 border-4 border-warning' 
+        : 'bg-info/5 border-4 border-info'
     ]"
   >
-    <div class="flex items-center justify-between px-3 py-1 gap-2">
-      <!-- Left: Parent info -->
-      <div class="flex items-center gap-2 min-w-0 flex-1">
+    <button
+      class="btn btn-xs btn-ghost shrink-0 transition-colors"
+      :class="isDisconnected ? 'hover:text-warning' : 'hover:text-info'"
+      @click="toggleParentDisconnect"
+      :title="isDisconnected ? 'Reconnect parent context' : 'Disconnect parent context'"
+    >
+    <div class="flex items-center gap-2 min-w-0 flex-1">
         <i 
           :class="[
             'fa-solid text-xs shrink-0',
@@ -22,19 +27,7 @@ import moment from 'moment'
           ]"
         ></i>
       </div>
-
-      <!-- Right: Toggle button -->
-      <button
-        class="btn btn-xs btn-ghost shrink-0 transition-colors"
-        :class="isDisconnected ? 'hover:text-warning' : 'hover:text-info'"
-        @click="toggleParentDisconnect"
-        :title="isDisconnected ? 'Reconnect parent context' : 'Disconnect parent context'"
-      >
-        <span class="text-xs font-medium">
-            {{ isDisconnected ? 'Knowledge & files disconnected' : 'Context connected' }}
-        </span>
-      </button>
-    </div>
+    </button>
   </div>
 </template>
 

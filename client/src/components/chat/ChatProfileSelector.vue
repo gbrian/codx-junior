@@ -10,6 +10,7 @@ import ProfileCard from '../ProfileCard.vue'
     label="Profiles"
     icon="fa-solid fa-plus"
     :is-single-select="false"
+    :use-modal="useModal"
     @update:selected-items="onProfilesSelected"
   >
     <!-- Custom profile card rendering in mini style -->
@@ -24,24 +25,57 @@ import ProfileCard from '../ProfileCard.vue'
 <script>
 export default {
   props: {
-    profiles: {
-      type: Array,
-      default: () => []
+    project: {
+      type: Object,
+      default: null
+    },
+    openFromBottom: {
+      type: Boolean,
+      default: false
     },
     selectedProfiles: {
       type: Array,
       default: () => []
+    },
+    useModal: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update:selected-profiles'],
+  emits: ['update:selected-profiles', 'profiles-changed'],
   data() {
-    return {}
+    return {
+      profiles: []
+    }
   },
-  computed: {},
-  watch: {},
+  mounted() {
+    this.loadProfiles(this.project || this.$project)
+  },
+  watch: {
+    project: {
+      handler(newProject) {
+        if (newProject) {
+          this.loadProfiles(newProject)
+        }
+      },
+      immediate: true
+    }
+  },
   methods: {
+    async loadProfiles(project) {
+      try {
+        if (project?.$api) {
+          const profilesList = await project?.$api.profiles.list()
+          this.profiles = profilesList || []
+        }
+      } catch (error) {
+        console.error('[ChatProfileSelector] Error loading profiles:', error)
+        this.profiles = []
+      }
+    },
     onProfilesSelected(selectedItems) {
       this.$emit('update:selected-profiles', selectedItems)
+      this.$emit('profiles-changed', selectedItems)
     }
   }
 }

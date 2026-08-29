@@ -68,13 +68,11 @@ export default {
   },
   computed: {
     chapters() {
-      // CHANGED: During streaming, always reparse to get new content updates,
-      // but chapters with stable hashes won't unmount/remount
-      const contentHash = this.loading
-        ? this.content
-        : this.getContentStructureHash()
+      // CHANGED: Always reparse on content change, simpler and more reliable
+      // The hash caching was causing stale chapters to be returned on first load
+      const contentHash = this.getContentHash()
 
-      if (this.lastContentHash != null && contentHash === this.lastContentHash) {
+      if (this.lastContentHash !== null && contentHash === this.lastContentHash && !this.loading) {
         return this.cachedChapters
       }
 
@@ -87,16 +85,16 @@ export default {
     }
   },
   methods: {
-    getContentStructureHash() {
-      const lines = (this.content || '').split('\n')
-      let hash = ''
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (/^#{1,6}\s+/.test(line) || /^( {0,3})(`{3,}|~{3,})/.test(line)) {
-          hash += i + ':' + line + '|'
-        }
+    getContentHash() {
+      // CHANGED: Simple hash of actual content for proper cache invalidation
+      const content = this.content || ''
+      let hash = 0
+      for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash
       }
-      return hash
+      return hash.toString()
     },
     getChapterBlocks(chapter) {
       const contentWithoutHeader = parser.stripHeaderFromContent(chapter.content || '')

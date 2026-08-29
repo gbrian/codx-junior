@@ -1,145 +1,281 @@
 <script setup>
 import moment from 'moment'
+import ChatSearch from '../chat/ChatSearch.vue'
 </script>
 
 <template>
   <!-- Icon mode - shows chat count badges -->
   <div v-if="collapsed" class="flex flex-col gap-3 w-full items-center">
-    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-1 text-center">
-      Chats
+    <div v-if="recentChats.length > 0 || isSearching" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-1 text-center">
+      {{ isSearching ? 'Search' : 'Chats' }}
     </div>
     
     <!-- Chat icons with counters in collapsed mode -->
     <div class="flex flex-col gap-2 w-full items-center">
+      <!-- Search toggle button -->
       <div
-        v-for="chat in recentChats.slice(0, 5)"
-        :key="chat.id"
-        @click="selectChat(chat)"
+        @click="toggleSearchMode"
         class="relative cursor-pointer transition-all duration-200 group"
-        :title="chat.name"
+        :title="isSearching ? 'Back to recent chats' : 'Search chats'"
       >
         <div
           class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
-          :class="isActive(chat)
+          :class="isSearching
             ? 'bg-primary text-primary-content border-primary/60 shadow-md ring-2 ring-primary/20'
             : 'bg-base-300 text-base-content border-base-content/10 hover:bg-base-300/80 hover:border-base-content/20'"
         >
-          {{ getInitials(chat.name) }}
-        </div>
-
-        <!-- Unread badge (if available) -->
-        <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-base-100">
-          {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+          <i :class="isSearching ? 'fa-solid fa-xmark' : 'fa-solid fa-magnifying-glass'"></i>
         </div>
 
         <!-- Tooltip on hover -->
         <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-base-300 text-base-content text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/10">
-          {{ chat.name }}
+          {{ isSearching ? 'Back to chats' : 'Search chats' }}
         </div>
       </div>
 
-      <!-- Show more indicator if chats exceed limit -->
-      <div v-if="recentChats.length > 5" class="text-[9px] text-base-content-ERROR-40 mt-2">
-        +{{ recentChats.length - 5 }}
-      </div>
+      <!-- Chat icons with counters -->
+      <template v-if="!isSearching">
+        <div
+          v-for="chat in recentChats.slice(0, 5)"
+          :key="chat.id"
+          @click="selectChat(chat)"
+          class="relative cursor-pointer transition-all duration-200 group"
+          :title="chat.name"
+        >
+          <div
+            class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
+            :class="isActive(chat)
+              ? 'bg-primary text-primary-content border-primary/60 shadow-md ring-2 ring-primary/20'
+              : 'bg-base-300 text-base-content border-base-content/10 hover:bg-base-300/80 hover:border-base-content/20'"
+          >
+            {{ getInitials(chat.name) }}
+          </div>
+
+          <!-- Unread badge (if available) -->
+          <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-base-100">
+            {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+          </div>
+
+          <!-- Tooltip on hover -->
+          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-base-300 text-base-content text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/10">
+            {{ chat.name }}
+          </div>
+        </div>
+
+        <!-- Show more indicator if chats exceed limit -->
+        <div v-if="recentChats.length > 5" class="text-[9px] text-base-content-ERROR-40 mt-2">
+          +{{ recentChats.length - 5 }}
+        </div>
+      </template>
     </div>
   </div>
 
   <!-- Full mode - shows detailed chat cards -->
   <div v-else class="flex flex-col gap-1 w-full shrink-0">
-    <div v-if="recentChats.length > 0" class="divider my-1 w-8 mx-auto opacity-40"></div>
-    
-    <!-- Header helper -->
-    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-2 px-2">
-      Recent Chats & Tasks
-    </div>
+    <!-- Search mode -->
+    <template v-if="isSearching">
+      <ChatSearch
+        @search="onSearchResults"
+        @clear="closeSearch"
+        @error="onSearchError"
+        @no-results="onNoResults"
+      />
 
-    <!-- Scrollable container for recent chats -->
-    <div
-      class="flex flex-col gap-2 scrollbar-none"
-      @scroll="handleScroll"
-    >
-      <div
-        v-for="chat in recentChats"
-        :key="chat.id"
-        :class="[
-          'p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-2 relative overflow-hidden',
-          isActive(chat)
-            ? 'bg-primary/10 border-primary/40 text-base-content shadow-sm ring-1 ring-primary/20'
-            : 'bg-base-300/30 border-base-content/5 hover:bg-base-300/60 hover:border-base-content/10'
-        ]"
-        @click="selectChat(chat)"
-      >
-        <!-- Top Row: Project context & Board & badge mode -->
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <!-- Project indicator -->
-            <div
-              v-if="getChatProject(chat)"
-              class="avatar shrink-0"
-              :title="getChatProject(chat).project_name"
-            >
-              <div class="w-5 h-5 rounded-full overflow-hidden bg-base-300 border border-base-content/10">
-                <img :src="getChatProject(chat).project_icon" />
+      <!-- Search results -->
+      <div class="flex flex-col gap-2 scrollbar-none mt-2 max-h-96 overflow-y-auto">
+        <div v-if="searchResultsData?.results?.length > 0">
+          <div
+            v-for="result in searchResultsData.results"
+            :key="result.chat?.id || result.id"
+            :class="[
+              'p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-2 relative overflow-hidden',
+              isActive(result.chat)
+                ? 'bg-primary/10 border-primary/40 text-base-content shadow-sm ring-1 ring-primary/20'
+                : 'bg-base-300/30 border-base-content/5 hover:bg-base-300/60 hover:border-base-content/10'
+            ]"
+            @click="selectChat(result.chat)"
+          >
+            <!-- Top Row: Project context & Board & badge mode -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <!-- Project indicator -->
+                <div
+                  v-if="getChatProject(result.chat)"
+                  class="avatar shrink-0"
+                  :title="getChatProject(result.chat).project_name"
+                >
+                  <div class="w-5 h-5 rounded-full overflow-hidden bg-base-300 border border-base-content/10">
+                    <img :src="getChatProject(result.chat).project_icon" />
+                  </div>
+                </div>
+                
+                <span class="text-[11px] font-semibold text-base-content/50 truncate max-w-[150px]">
+                  {{ getChatProject(result.chat)?.project_name || 'Project' }}
+                  <span v-if="result.chat.board" class="text-base-content/30 mx-1">/</span>
+                  <span v-if="result.chat.board" class="text-base-content/70 font-bold">{{ result.chat.board }}</span>
+                </span>
+              </div>
+
+              <!-- Mode/Badge -->
+              <div class="flex items-center gap-1 shrink-0">
+                <span
+                  v-if="result.chat.mode"
+                  :class="`badge badge-xs badge-outline text-[9px] px-1.5 py-1 font-semibold border-base-content/25 badge-${badgeColor[result.chat.mode] || 'ghost'}`"
+                >
+                  {{ result.chat.mode }}
+                </span>
               </div>
             </div>
-            
-            <span class="text-[11px] font-semibold text-base-content/50 truncate max-w-[150px]">
-              {{ getChatProject(chat)?.project_name || 'Project' }}
-              <span v-if="chat.board" class="text-base-content/30 mx-1">/</span>
-              <span v-if="chat.board" class="text-base-content/70 font-bold">{{ chat.board }}</span>
-            </span>
-          </div>
 
-          <!-- Mode/Badge -->
-          <div class="flex items-center gap-1 shrink-0">
-            <span
-              v-if="chat.mode"
-              :class="`badge badge-xs badge-outline text-[9px] px-1.5 py-1 font-semibold border-base-content/25 badge-${badgeColor[chat.mode] || 'ghost'}`"
-            >
-              {{ chat.mode }}
-            </span>
+            <!-- Middle Row: Chat initials, name and status dot -->
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 transition-all duration-200 overflow-hidden relative border border-base-content/10"
+                :class="isActive(result.chat)
+                  ? 'bg-primary text-primary-content font-extrabold'
+                  : 'bg-base-300 text-base-content'"
+              >
+                {{ getInitials(result.chat.name) }}
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold truncate text-base-content" :title="result.chat.name">
+                  {{ result.chat.name || 'Unnamed Chat' }}
+                </div>
+                <div class="text-[10px] text-base-content-ERROR-40 font-medium">
+                  {{ getFormattedDate(result.chat) }}
+                </div>
+              </div>
+
+              <!-- Green indicator dot for the active chat -->
+              <div
+                v-if="isActive(result.chat)"
+                class="w-2 h-2 bg-success rounded-full border border-base-100 shrink-0"
+              ></div>
+            </div>
+
+            <!-- Bottom Row: Last Message Snippet or Match preview -->
+            <div class="text-[11px] text-base-content/60 leading-relaxed bg-base-300/20 rounded-lg p-2 border border-base-content/5 truncate">
+              {{ result.snippet || getLastMessageSnippet(result.chat) }}
+            </div>
           </div>
         </div>
 
-        <!-- Middle Row: Chat initials, name and status dot -->
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 transition-all duration-200 overflow-hidden relative border border-base-content/10"
-            :class="isActive(chat)
-              ? 'bg-primary text-primary-content font-extrabold'
-              : 'bg-base-300 text-base-content'"
-          >
-            {{ getInitials(chat.name) }}
-          </div>
-
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold truncate text-base-content" :title="chat.name">
-              {{ chat.name || 'Unnamed Chat' }}
-            </div>
-            <div class="text-[10px] text-base-content-ERROR-40 font-medium">
-              {{ getFormattedDate(chat) }}
-            </div>
-          </div>
-
-          <!-- Green indicator dot for the active chat -->
-          <div
-            v-if="isActive(chat)"
-            class="w-2 h-2 bg-success rounded-full border border-base-100 shrink-0"
-          ></div>
-        </div>
-
-        <!-- Bottom Row: Last Message Snippet -->
-        <div class="text-[11px] text-base-content/60 leading-relaxed bg-base-300/20 rounded-lg p-2 border border-base-content/5 truncate">
-          {{ getLastMessageSnippet(chat) }}
+        <!-- Pagination info -->
+        <div v-if="searchResultsData" class="text-xs text-base-content/50 text-center py-2">
+          {{ searchResultsData.results?.length || 0 }} / {{ searchResultsData.total || 0 }} results
         </div>
       </div>
-    </div>
+    </template>
+
+    <!-- Recent chats mode -->
+    <template v-else>
+      <div v-if="recentChats.length > 0" class="divider my-1 w-8 mx-auto opacity-40"></div>
+      
+      <!-- Header with search icon -->
+      <div v-if="recentChats.length > 0" class="flex items-center justify-between px-2 mb-2">
+        <div class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase">
+          Recent Chats & Tasks
+        </div>
+        <button
+          @click="toggleSearchMode"
+          class="btn btn-xs btn-ghost"
+          title="Search chats"
+        >
+          <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable container for recent chats -->
+      <div
+        class="flex flex-col gap-2 scrollbar-none"
+        @scroll="handleScroll"
+      >
+        <div
+          v-for="chat in recentChats"
+          :key="chat.id"
+          :class="[
+            'p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-2 relative overflow-hidden',
+            isActive(chat)
+              ? 'bg-primary/10 border-primary/40 text-base-content shadow-sm ring-1 ring-primary/20'
+              : 'bg-base-300/30 border-base-content/5 hover:bg-base-300/60 hover:border-base-content/10'
+          ]"
+          @click="selectChat(chat)"
+        >
+          <!-- Top Row: Project context & Board & badge mode -->
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <!-- Project indicator -->
+              <div
+                v-if="getChatProject(chat)"
+                class="avatar shrink-0"
+                :title="getChatProject(chat).project_name"
+              >
+                <div class="w-5 h-5 rounded-full overflow-hidden bg-base-300 border border-base-content/10">
+                  <img :src="getChatProject(chat).project_icon" />
+                </div>
+              </div>
+              
+              <span class="text-[11px] font-semibold text-base-content/50 truncate max-w-[150px]">
+                {{ getChatProject(chat)?.project_name || 'Project' }}
+                <span v-if="chat.board" class="text-base-content/30 mx-1">/</span>
+                <span v-if="chat.board" class="text-base-content/70 font-bold">{{ chat.board }}</span>
+              </span>
+            </div>
+
+            <!-- Mode/Badge -->
+            <div class="flex items-center gap-1 shrink-0">
+              <span
+                v-if="chat.mode"
+                :class="`badge badge-xs badge-outline text-[9px] px-1.5 py-1 font-semibold border-base-content/25 badge-${badgeColor[chat.mode] || 'ghost'}`"
+              >
+                {{ chat.mode }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Middle Row: Chat initials, name and status dot -->
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 transition-all duration-200 overflow-hidden relative border border-base-content/10"
+              :class="isActive(chat)
+                ? 'bg-primary text-primary-content font-extrabold'
+                : 'bg-base-300 text-base-content'"
+            >
+              {{ getInitials(chat.name) }}
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold truncate text-base-content" :title="chat.name">
+                {{ chat.name || 'Unnamed Chat' }}
+              </div>
+              <div class="text-[10px] text-base-content-ERROR-40 font-medium">
+                {{ getFormattedDate(chat) }}
+              </div>
+            </div>
+
+            <!-- Green indicator dot for the active chat -->
+            <div
+              v-if="isActive(chat)"
+              class="w-2 h-2 bg-success rounded-full border border-base-100 shrink-0"
+            ></div>
+          </div>
+
+          <!-- Bottom Row: Last Message Snippet -->
+          <div class="text-[11px] text-base-content/60 leading-relaxed bg-base-300/20 rounded-lg p-2 border border-base-content/5 truncate">
+            {{ getLastMessageSnippet(chat) }}
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
 export default {
+  components: {
+    ChatSearch
+  },
   props: {
     collapsed: {
       type: Boolean,
@@ -152,11 +288,12 @@ export default {
       badgeColor: {
         task: 'primary',
         chat: 'accent'
-      }
+      },
+      isSearching: false,
+      searchResultsData: null
     }
   },
   computed: {
-    // Filter chats by active project, then sort by update timestamp descending
     sortedChats() {
       const activeProjectId = this.$storex?.projects?.activeProject?.project_id
       const chats = this.$storex?.chats?.allChats || []
@@ -176,13 +313,11 @@ export default {
           return getChatTime(b) - getChatTime(a)
         })
     },
-    // Slice current chunk for infinite scroll
     recentChats() {
       return this.sortedChats.slice(0, this.limit)
     }
   },
   methods: {
-    // Infinite scroll handler
     handleScroll(e) {
       const { scrollTop, clientHeight, scrollHeight } = e.target
       if (scrollHeight - scrollTop - clientHeight < 40) {
@@ -191,7 +326,6 @@ export default {
         }
       }
     },
-    // Generate simple initials from the chat name
     getInitials(name) {
       if (!name) return 'CH'
       const cleanName = name.replace(/[^\w\s-]/g, '').trim()
@@ -207,19 +341,16 @@ export default {
     async selectChat(chat) {
       await this.$storex.chats.setActiveChat(chat)
     },
-    // Resolve parent project for the chat
     getChatProject(chat) {
       const projects = this.$storex?.projects?.allProjects || this.$projects?.allProjects || []
       return projects.find(p => p.project_id === chat.project_id || p.project_id === chat.owner_project_id) || this.$project
     },
-    // Resolve date formatting matching TaskCardLite pattern
     getFormattedDate(chat) {
       const updatedAt = chat.updated_at || chat.created_at
       if (!updatedAt) return ''
       const isToday = moment(0, "HH").diff(updatedAt, "days") === 0
       return isToday ? moment(updatedAt).format('HH:mm:ss') : moment(updatedAt).format('YYYY-MM-DD HH:mm')
     },
-    // Safely extract message snippet
     getLastMessageSnippet(chat) {
       if (!chat.messages || chat.messages.length === 0) {
         return 'No messages'
@@ -233,6 +364,25 @@ export default {
       const lastMsg = messagesWithContent[0]
       const snippet = lastMsg.content || lastMsg.think || ''
       return snippet.length > 70 ? snippet.substring(0, 70).trim() + '...' : snippet
+    },
+    toggleSearchMode() {
+      this.isSearching = !this.isSearching
+      if (!this.isSearching) {
+        this.searchResultsData = null
+      }
+    },
+    closeSearch() {
+      this.isSearching = false
+      this.searchResultsData = null
+    },
+    onSearchResults(searchData) {
+      this.searchResultsData = searchData.results
+    },
+    onSearchError(error) {
+      console.error('Search error:', error)
+    },
+    onNoResults() {
+      this.searchResultsData = { results: [], total: 0 }
     }
   }
 }

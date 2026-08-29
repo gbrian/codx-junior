@@ -374,20 +374,21 @@ function parseChapters(content, loading) {
       const chapter = parseChapter(lines, i)
       chapters.push(chapter)
       i = chapter.endIndex
-    } else if (!chapters.length && line.trim()) {
-      const introContent = []
+    } else if (!chapters.length) {
+      // CHANGED: Collect all leading content (with or without headings)
+      const noHeadingContent = []
       while (i < lines.length && (!isHeading(lines[i]) || isInsideCodeFence(lines, i))) {
-        introContent.push(lines[i])
+        noHeadingContent.push(lines[i])
         i++
       }
-      const fullIntro = introContent.join('\n').trim()
-      if (fullIntro) {
+      const fullContent = noHeadingContent.join('\n').trim()
+      if (fullContent) {
         chapters.push({
           level: 0,
-          title: 'Introduction',
-          content: fullIntro,
+          title: null,
+          content: fullContent,
           children: [],
-          hash: generateHash(fullIntro),
+          hash: generateHash(fullContent),
           finished: false
         })
       }

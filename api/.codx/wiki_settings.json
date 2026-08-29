@@ -20,6 +20,16 @@
           "path": "/pyproject.toml",
           "slug": "pyproject-toml.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/pyproject-toml.md"
+        },
+        {
+          "path": "/codx/junior/api/chat.py",
+          "slug": "codx-junior-api-chat-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-api-chat-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/code_block_generator.py",
+          "slug": "codx-junior-tools-code-block-generator-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-tools-code-block-generator-py.md"
         }
       ],
       "id": "project-overview",
@@ -110,6 +120,11 @@
           "path": "/codx/junior/engine/chat_engine_actions.py",
           "slug": "codx-junior-engine-chat-engine-actions-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-chat-engine-actions-py.md"
+        },
+        {
+          "path": "/content.mermaid",
+          "slug": "content-mermaid.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/content-mermaid.md"
         }
       ],
       "id": "engine-module",
@@ -349,6 +364,16 @@
           "path": "/codx/junior/chat/chat_event_bridge.py",
           "slug": "codx-junior-chat-chat-event-bridge-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-chat-chat-event-bridge-py.md"
+        },
+        {
+          "path": "/codx/junior/wiki/wiki_manager.py",
+          "slug": "codx-junior-wiki-wiki-manager-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-wiki-wiki-manager-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/generate_tasks_tool.py",
+          "slug": "codx-junior-tools-generate-tasks-tool-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-tools-generate-tasks-tool-py.md"
         }
       ],
       "id": "ai-and-knowledge-management",
@@ -502,6 +527,26 @@
           "path": "/codx/junior/ai/smol/messages.py",
           "slug": "codx-junior-ai-smol-messages-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-ai-smol-messages-py.md"
+        },
+        {
+          "path": "/codx/junior/chat_manager.py",
+          "slug": "codx-junior-chat-manager-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-chat-manager-py.md"
+        },
+        {
+          "path": "/codx/junior/chat_searcher.py",
+          "slug": "codx-junior-chat-searcher-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-chat-searcher-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/__init__.py",
+          "slug": "codx-junior-tools-init-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-init-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/model.py",
+          "slug": "codx-junior-tools-model-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-model-py.md"
         }
       ],
       "id": "utility-functions",

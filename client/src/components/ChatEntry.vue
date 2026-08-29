@@ -10,8 +10,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import Collapsible from './Collapsible.vue'
-import ChatEntryTools from './ChatEntryTools.vue'
-import ChatEntryEvent from './ChatEntryEvent.vue'
+import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
@@ -126,6 +125,26 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
       <span v-if="displayMessage.hide" class="text-xs text-warning/60 gap-1">
         <i class="fa-solid fa-box-archive"></i> Archived
       </span>
+      
+      <!-- Events badge - now clickable to open drawer -->
+      <div v-if="hasEvents" class="flex gap-1 ml-1 pl-1 border-l border-base-300">
+        <button 
+          @click.stop="drawerOpen = !drawerOpen"
+          class="badge badge-xs gap-1 cursor-pointer hover:badge-warning transition-all"
+          :class="drawerOpen ? 'badge-warning' : 'badge-warning/60'"
+        >
+          <i class="fa-solid fa-wrench"></i>
+          <span>{{ toolEventCount }}</span>
+        </button>
+        <button 
+          @click.stop="drawerOpen = !drawerOpen"
+          class="badge badge-xs gap-1 cursor-pointer hover:badge-info transition-all"
+          :class="drawerOpen ? 'badge-info' : 'badge-info/60'"
+        >
+          <i class="fa-solid fa-list"></i>
+          <span>{{ lifecycleEventCount }}</span>
+        </button>
+      </div>
     </template>
 
     <!-- Action buttons group -->
@@ -223,20 +242,6 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
         @close="onCloseSelectionMenu"
       />
 
-      <!-- Tool event section -->
-      <ChatEntryTools
-        v-if="hasToolEvent && !showDiff && !showPRView && !srcView"
-        :toolEvent="message.tool_event"
-      />
-
-      <!-- Lifecycle event section -->
-      <ChatEntryEvent
-        v-if="hasLifecycleEvent && !showDiff && !showPRView && !srcView"
-        :lifecycleEvent="message.lifecycle_event"
-        :eventLines="lifecycleEventLines"
-        :metadata="message.meta_data"
-      />
-
       <!-- Thinking section -->
       <div 
         v-if="thinkText" 
@@ -254,22 +259,21 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
         <div class="skeleton h-8 w-2/3"></div>
       </div>
 
-      <!-- TOC for long documents -->
+      <!-- TOC for long documents (only show when no events OR when viewing in timeline mode) -->
       <DocumentSummary
-        v-if="!srcView && isDone && messageContent && !showPRView && !hasToolEvent && !hasLifecycleEvent"
+        v-if="!srcView && isDone && messageContent && !showPRView && !hasEvents"
         :content="messageContent"
         :minHeadings="3"
         :documentId="documentId"
         :scrollContainer="$refs.contentArea"
       />
 
-      <!-- Message content container -->
+      <!-- Message content container - always show content -->
       <div 
         ref="contentArea"
         @copy.stop="onMessageCopy"
         @mouseup="onContentMouseUp"
-        class="max-w-full bg-base-50 rounded-md p-2"
-        v-if="!hasToolEvent && !hasLifecycleEvent"
+        class="max-w-full bg-base-100 rounded-md p-2"
       >
         <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-2 rounded">{{ displayMessage.content }}</pre>
 
@@ -337,7 +341,9 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
             </div>
             <div v-if="patch.res" class="text-xs mt-2">
               <div class="text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
-              <div class="text-success" v-else>✓ Patch applied successfully</div>
+              <div class="text-success" v-else>
+                <i class="fa-solid fa-check"></i> Patch applied successfully
+              </div>
             </div>
           </div>
         </div>
@@ -357,7 +363,9 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
 
         <!-- Images carousel -->
         <div v-if="images && !showPRView && images?.length" class="mt-3">
-          <p class="text-xs font-semibold mb-2">Images</p>
+          <p class="text-xs font-semibold mb-2">
+            <i class="fa-solid fa-images"></i> Images
+          </p>
           <div class="carousel gap-2">
             <div 
               class="carousel-item cursor-pointer"
@@ -379,7 +387,9 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
         <!-- Linked files -->
         <div v-if="displayMessage.files?.length && !showPRView" class="mt-3 p-2 bg-base-200 rounded-md">
           <div class="flex items-center justify-between mb-2">
-            <p class="text-xs font-semibold">Linked files</p>
+            <p class="text-xs font-semibold">
+              <i class="fa-solid fa-link"></i> Linked files
+            </p>
           </div>
           <div class="space-y-1">
             <div 
@@ -405,16 +415,44 @@ import ChatEntryEvent from './ChatEntryEvent.vue'
       </div>
     </div>
   </Collapsible>
+
+  <!-- Events Drawer -->
+  <ChatEntryDrawer
+    :isOpen="drawerOpen"
+    :lifecycleEvents="message.lifecycle_events"
+    :toolEvents="message.tool_events"
+    :metadata="message.meta_data"
+    @close="drawerOpen = false"
+  />
 </template>
 
 <script>
 export default {
   props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList'],
   emits: [
-    'generate-code', 'reload-file', 'open-file', 'save-file',
-    'add-file', 'sub-task', 'thread', 'hide',
-    'remove', 'answer', 'enhance', 'copy', 'add-file-to-chat',
-    'remove-file', 'image', 'run-agents', 'edit-message', 'search-files'
+    'generate-code',
+    'reload-file',
+    'open-file',
+    'save-file',
+    'add-file',
+    'sub-task',
+    'thread',
+    'hide',
+    'remove',
+    'answer',
+    'enhance',
+    'copy',
+    'add-file-to-chat',
+    'remove-file',
+    'image',
+    'run-agents',
+    'edit-message',
+    'search-files',
+    'edited',
+    'run-edit',
+    'code-file-shown',
+    'message-changed',
+    'preview-file'
   ],
   data() {
     return {
@@ -429,7 +467,8 @@ export default {
       showSelectionMenu: false,
       selectedText: '',
       selectionPosition: { top: 0, left: 0 },
-      collapsed: false
+      collapsed: false,
+      drawerOpen: false
     }
   },
   created() {
@@ -536,15 +575,22 @@ export default {
     prViewCodeBlocks() {
       return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
     },
-    hasToolEvent() {
-      return this.message?.tool_event != null
+    toolEventCount() {
+      const toolEvents = this.message?.tool_events
+      if (Array.isArray(toolEvents)) {
+        return toolEvents.length
+      }
+      return this.message?.tool_event ? 1 : 0
     },
-    hasLifecycleEvent() {
-      return this.message?.lifecycle_event != null
+    lifecycleEventCount() {
+      const lifecycleEvents = this.message?.lifecycle_events
+      if (Array.isArray(lifecycleEvents)) {
+        return lifecycleEvents.length
+      }
+      return this.message?.lifecycle_event ? 1 : 0
     },
-    lifecycleEventLines() {
-      if (!this.message?.content) return []
-      return this.message.content.split('\n\n').filter(line => line.trim())
+    hasEvents() {
+      return this.toolEventCount > 0 || this.lifecycleEventCount > 0
     }
   },
   watch: {

@@ -5,7 +5,12 @@ This module is responsible for chat persistence and management.
 Besides the classic full-chat ``save_chat``, this module now exposes granular,
 merge-safe message operations (``add_message``, ``update_message``,
 ``remove_message``) used to persist chat changes *during* an AI turn (e.g.
-tool-usage notification messages) without overwriting concurrent updates.
+tool-usage notification messages, streamed partial responses) without
+overwriting concurrent updates.
+
+It also provides full-text search capabilities via the ``search_chats`` method,
+delegating to the ``ChatSearcher`` class for filtering by time frame, keyword
+matching, and pagination.
 
 Merge strategy (per message, keyed by ``doc_id``):
 
@@ -14,13 +19,32 @@ Merge strategy (per message, keyed by ``doc_id``):
         A[Incoming chat messages] --> C{doc_id exists in stored chat?}
         B[Stored chat messages] --> C
         C -->|No| D[Keep message]
-        C -->|Yes| E{incoming.updated_at >= stored.updated_at?}
+        C -->|Yes| E{parse incoming.updated_at >= parse stored.updated_at?}
         E -->|Yes| F[Keep incoming]
         E -->|No| G[Keep stored]
         D --> H[Merged message list]
         F --> H
         G --> H
     ```
+
+CHANGED — timestamp normalisation:
+    ``updated_at`` values historically exist in TWO formats:
+    ``str(datetime.now())`` (space separator, Message default) and
+    ``datetime.isoformat()`` (T separator, stamped by add/update_message).
+    Comparing them as raw strings is WRONG ("...T..." always beats "... ..."
+    lexicographically for the same day). :func:`_parse_timestamp` parses both
+    formats so the last-writer-wins decision uses real datetimes.
+
+CHANGED — persist hot-path:
+    The granular operations are now called frequently mid-run (tool events,
+    throttled stream persists). :meth:`ChatManager._load_stored_chat` reads
+    the chat directly from ``chat.file_path`` when possible instead of
+    scanning the whole tasks tree via ``find_by_id``.
+
+NEW — chat search:
+    The :meth:`ChatManager.search_chats` method provides full-text search
+    across all chat data with optional time-frame filtering and pagination,
+    delegating to :class:`codx.junior.chat_searcher.ChatSearcher`.
 """
 import logging
 import pathlib
@@ -28,18 +52,15 @@ import os
 import json
 import uuid
 import shutil
-import yaml
 
 from slugify import slugify
-from collections import deque, defaultdict
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional, Any
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.db import Chat, Message
-from codx.junior.utils.utils import write_file
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -55,6 +76,27 @@ DEFAULT_BOARD = "kanban"
 DEFAULT_COLUMN = "tasks"
 
 
+def _parse_timestamp(value: Optional[str]) -> datetime:
+    """
+    Parse a message timestamp that may be in either historical format.
+
+    Handles both ``datetime.isoformat()`` ("2023-10-01T12:00:00") and
+    ``str(datetime.now())`` ("2023-10-01 12:00:00") — ``fromisoformat``
+    accepts both separators. Unparseable/missing values sort OLDEST so a
+    real timestamp always wins over a missing one.
+
+    :param value: Raw timestamp string (may be None/empty/invalid).
+    :return: Parsed datetime, or ``datetime.min`` when unparseable.
+    """
+    if not value:
+        return datetime.min
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        logger.debug("Unparseable message timestamp: '%s'", value)
+        return datetime.min
+
+
 class ChatManager:
     """
     Manages chat persistence and retrieval for a given project.
@@ -62,6 +104,14 @@ class ChatManager:
     Provides full-chat save/load operations as well as granular, merge-safe
     message operations (``add_message``, ``update_message``, ``remove_message``)
     that are safe to call while an AI turn is in progress.
+
+    Also provides full-text search via ``search_chats`` with time-frame filtering
+    and pagination support.
+
+    Contract relied upon by :class:`codx.junior.chat.chat_event_bridge.ChatEventBridge`:
+        * ``add_message`` inserts (idempotent: skips in-memory duplicate by ``doc_id``).
+        * ``update_message`` matches by ``doc_id`` (appends if missing).
+        * Both merge against the stored chat so concurrent updates are never lost.
     """
 
     def __init__(self, settings: CODXJuniorSettings, event_manager: Optional[EventManager] = None):
@@ -152,12 +202,53 @@ class ChatManager:
         def _load_chat_info(file_path: str) -> Optional[Chat]:
             try:
                 return self.load_chat_from_path(chat_file=file_path, chat_only=True)
-            except Exception as ex:  # noqa: BLE001
+            except (OSError, ValueError, KeyError) as ex:
+                # ValueError covers json.JSONDecodeError and pydantic validation
                 logger.error("Error loading chat '%s': %s", file_path, ex)
             return None
 
         chats = [c for c in (_load_chat_info(p) for p in file_paths) if c]
         return sorted(chats, key=lambda x: str(x.chat_index or x.updated_at), reverse=True)
+
+    # -------------------------------------------------------------------------
+    # Chat search
+    # -------------------------------------------------------------------------
+
+    def search_chats(
+        self,
+        query: str,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        Search chats with full-text search and pagination.
+
+        Delegates to :class:`codx.junior.chat_searcher.ChatSearcher` to search
+        across chat name, description, messages, files, model, history, and more.
+
+        :param query: Search query string (case-insensitive substring matching).
+        :param from_date: ISO-format date string; only include chats updated
+            after this date (inclusive).
+        :param to_date: ISO-format date string; only include chats updated
+            before this date (inclusive).
+        :param page: Page number (1-indexed).
+        :param page_size: Number of results per page.
+        :return: Dict with paginated results and metadata (see :meth:`ChatSearcher.search`).
+        """
+        from codx.junior.chat_searcher import ChatSearcher
+
+        all_chats = self.list_chats()
+        searcher = ChatSearcher()
+        return searcher.search(
+            chats=all_chats,
+            query=query,
+            from_date=from_date,
+            to_date=to_date,
+            page=page,
+            page_size=page_size,
+        )
 
     # -------------------------------------------------------------------------
     # Owner project resolution
@@ -201,6 +292,13 @@ class ChatManager:
         Stored message ordering is preserved; new incoming messages are
         appended in their original relative order.
 
+        FIXED: timestamps are parsed with :func:`_parse_timestamp` before
+        comparison. Raw string comparison was incorrect because message
+        timestamps exist in two formats (isoformat with 'T' vs
+        ``str(datetime)`` with a space): the 'T' variant always won
+        lexicographically, letting an OLDER incoming message overwrite a
+        NEWER stored one.
+
         :param stored_messages: Messages loaded from disk.
         :param incoming_messages: Messages from the in-memory chat.
         :return: Merged, ordered message list.
@@ -216,11 +314,42 @@ class ChatManager:
             if existing is None:
                 merged[message.doc_id] = message
                 order.append(message.doc_id)
-            elif str(message.updated_at or "") >= str(existing.updated_at or ""):
+            elif _parse_timestamp(message.updated_at) >= _parse_timestamp(existing.updated_at):
                 # Incoming (or later duplicate) is newer or equal: overwrite
                 merged[message.doc_id] = message
 
         return [merged[doc_id] for doc_id in order]
+
+    def _load_stored_chat(self, chat: Chat) -> Optional[Chat]:
+        """
+        ADDED: Load the persisted version of *chat* with a fast-path.
+
+        The granular message operations are hot-path code during an AI turn
+        (invoked on every tool event and throttled stream persist). Scanning
+        the whole tasks tree via :meth:`find_by_id` on every call is wasteful,
+        so when ``chat.file_path`` is known, valid and inside this manager's
+        tree it is read directly; otherwise fall back to :meth:`find_by_id`
+        (covers moved/renamed chats).
+
+        :param chat: The in-memory chat whose stored version to load.
+        :return: The stored Chat, or ``None`` when not persisted yet.
+        """
+        if (
+            chat.file_path
+            and chat.file_path.startswith(self.chat_path)
+            and os.path.isfile(chat.file_path)
+        ):
+            try:
+                return self.load_chat_from_path(chat_file=chat.file_path)
+            except (OSError, ValueError, KeyError) as ex:
+                logger.warning(
+                    "Fast-path load failed for chat '%s' at '%s': %s — "
+                    "falling back to find_by_id",
+                    chat.id,
+                    chat.file_path,
+                    ex,
+                )
+        return self.find_by_id(chat_id=chat.id) if chat.id else None
 
     def _persist_chat_messages(self, chat: Chat) -> Chat:
         """
@@ -234,7 +363,7 @@ class ChatManager:
         :return: The persisted chat (same instance, messages may be merged).
         """
         manager = self._resolve_owner_manager(chat)
-        stored_chat = manager.find_by_id(chat_id=chat.id) if chat.id else None
+        stored_chat = manager._load_stored_chat(chat)
         if stored_chat:
             chat.messages = self._merge_message_lists(
                 stored_messages=stored_chat.messages,
@@ -247,7 +376,8 @@ class ChatManager:
         Append *message* to *chat* and persist immediately (merge-safe).
 
         Used to notify events (tool usage, run lifecycle) in real time while
-        an AI turn is still running.
+        an AI turn is still running. Idempotent in memory: the message is not
+        appended twice if its ``doc_id`` is already on the chat.
 
         :param chat: The chat to add the message to (mutated in place).
         :param message: The message to add.
@@ -287,7 +417,9 @@ class ChatManager:
                 break
         if not found:
             chat.messages.append(message)
-        logger.info(
+        # CHANGED: debug level — this is hot-path (tool events + throttled
+        # stream persists) and info-level logging would flood the logs.
+        logger.debug(
             "update_message: chat='%s' message='%s' found=%s",
             chat.id,
             message.doc_id,
@@ -306,7 +438,7 @@ class ChatManager:
         :return: The persisted chat.
         """
         manager = self._resolve_owner_manager(chat)
-        stored_chat = manager.find_by_id(chat_id=chat.id) if chat.id else None
+        stored_chat = manager._load_stored_chat(chat)
         if stored_chat:
             chat.messages = self._merge_message_lists(
                 stored_messages=stored_chat.messages,
@@ -355,16 +487,6 @@ class ChatManager:
         if chat_only and current_chat:
             chat.messages = current_chat.messages
 
-        users: List[str] = []
-        profiles: List[str] = []
-        for msg in chat.messages:
-            if not msg.doc_id:
-                msg.doc_id = str(uuid.uuid4())
-            if msg.user:
-                users.append(msg.user)
-            profiles = profiles + msg.profiles
-        chat.users = list(set(users))
-        chat.profiles = list(set(profiles))
         chat.file_path = self.get_chat_file(chat)
 
         self.store_chat(chat=chat)
@@ -409,6 +531,10 @@ class ChatManager:
 
         if chat_id:
             chat = self.find_by_id(chat_id)
+            # FIXED: guard against a missing chat to avoid AttributeError
+            if not chat:
+                logger.error("delete_chat: chat_id '%s' not found, nothing to delete", chat_id)
+                return
             file_path = chat.file_path
 
         if file_path and os.path.isfile(file_path) and file_path.startswith(self.chat_path):
@@ -500,12 +626,18 @@ class ChatManager:
         :return: Loaded Chat or ``None`` if not found.
         """
         if chat_id:
+            all_paths = self.chat_paths()
             file_path = next(
-                (path for path in self.chat_paths() if chat_id in path), None
+                (path for path in all_paths if chat_id in path), None
             )
             if file_path:
                 return self.load_chat_from_path(chat_file=file_path)
-            logger.error("[chat_id] not found: %s\n%s", chat_id, self.chat_paths())
+            # CHANGED: log the count instead of dumping every path (log noise)
+            logger.error(
+                "[chat_id] not found: %s (searched %d chat files)",
+                chat_id,
+                len(all_paths),
+            )
         return None
 
     def load_kanban_from_file(self, kanban_file: str) -> dict:

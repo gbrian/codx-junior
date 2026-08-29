@@ -7,10 +7,11 @@ Made with ❤️ by codx-junior
 
 import logging
 import os
+import re
 import subprocess
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Pattern, Tuple
 
 import pathspec
 
@@ -344,6 +345,32 @@ class FileEngine:
         """
         logger.debug("Building GitIgnoreManager for root: %s", search_root)
         return GitIgnoreManager(root_path=search_root)
+
+    def _compile_regex_pattern(self, pattern: str, case_sensitive: bool = False) -> Optional[Pattern]:
+        """
+        Compile a regex pattern with error handling.
+
+        Globally enables MULTILINE mode so that ^ and $ match line boundaries
+        in addition to string boundaries. This allows patterns to work across
+        multi-line content naturally.
+
+        Args:
+            pattern: Regex pattern string.
+            case_sensitive: Whether to compile with IGNORECASE flag.
+
+        Returns:
+            Compiled regex pattern or None if compilation fails.
+
+        Raises:
+            ValueError: If regex pattern is invalid.
+        """
+        try:
+            flags = re.MULTILINE
+            if not case_sensitive:
+                flags |= re.IGNORECASE
+            return re.compile(pattern, flags)
+        except re.error as ex:
+            raise ValueError(f"Invalid regex pattern: {ex}")
 
     def get_file_info(self, file_path: str) -> dict:
         """
@@ -930,12 +957,14 @@ class FileEngine:
         page: int = 0,
         page_size: int = 50,
         raw_search: bool = False,
+        use_regex: bool = False,
     ) -> dict:
         """
         Search for files whose paths contain the search pattern.
 
         Performs a filesystem search (not knowledge-based) within the project.
         Optionally limits search to a specific subdirectory.
+        Supports both substring and regex pattern matching.
 
         When raw_search is False, files and directories matched by any
         .gitignore rule are excluded from results. All .gitignore files are
@@ -946,72 +975,107 @@ class FileEngine:
         with is_ignored=True so callers can still distinguish them.
 
         Args:
-            search: Substring pattern to search for in file paths.
+            search: Substring or regex pattern to search for in file paths.
             search_path: Optional subdirectory path (relative to project root).
             page: Page number (0-indexed, default 0).
             page_size: Number of results per page (default 50).
             raw_search: If True, include all files. If False, exclude git-ignored files.
+            use_regex: If True, treat search as regex pattern. If False, use substring match.
 
         Returns:
             Dict with page info, total_files count, and paginated files list.
+            Includes 'error' field if an error occurs during search.
         """
-        search_root = self._resolve_search_root(search_path)
-        if search_root is None:
-            return {"page": page, "total_files": 0, "page_size": page_size, "files": []}
+        try:
+            search_root = self._resolve_search_root(search_path)
+            if search_root is None:
+                return {"page": page, "total_files": 0, "page_size": page_size, "files": []}
 
-        # Build the ignore manager once - O(dirs) cost instead of O(files)
-        gitignore_manager = self._build_gitignore_manager(search_root)
-
-        matching_files = []
-
-        for root, dirs, files in os.walk(search_root):
-            # Always skip the .git bookkeeping directory
-            if GIT_DIR in dirs:
-                dirs.remove(GIT_DIR)
-
-            if not raw_search:
-                # Prune ignored directories in-place so os.walk skips their subtrees
-                dirs[:] = [
-                    d for d in dirs
-                    if not gitignore_manager.is_ignored(os.path.join(root, d))
-                ]
-
-            for file in files:
-                file_path = os.path.join(root, file)
-                is_ignored = gitignore_manager.is_ignored(file_path)
-
-                # Discard ignored files when not in raw mode
-                if not raw_search and is_ignored:
-                    logger.debug("Skipping git-ignored file: %s", file_path)
-                    continue
-
+            # Compile regex if needed
+            compiled_pattern = None
+            if use_regex:
                 try:
-                    rel_path = os.path.relpath(
-                        file_path, self.settings.abs_project_path
-                    )
-                except ValueError:
-                    continue
+                    compiled_pattern = self._compile_regex_pattern(search, case_sensitive=False)
+                except ValueError as ex:
+                    logger.warning("Invalid regex pattern: %s", ex)
+                    return {
+                        "page": page,
+                        "total_files": 0,
+                        "page_size": page_size,
+                        "files": [],
+                        "error": str(ex),
+                    }
 
-                if search.lower() in rel_path.lower():
-                    entry = self.parse_file_line(
-                        rel_path,
-                        self.settings.abs_project_path,
-                        gitignore_manager,
-                    )
-                    matching_files.append(entry)
+            # Build the ignore manager once - O(dirs) cost instead of O(files)
+            gitignore_manager = self._build_gitignore_manager(search_root)
 
-        matching_files.sort(key=lambda x: x["file_path"])
+            matching_files = []
 
-        total_files = len(matching_files)
-        page_start = page * page_size
-        page_end = page_start + page_size
+            for root, dirs, files in os.walk(search_root):
+                # Always skip the .git bookkeeping directory
+                if GIT_DIR in dirs:
+                    dirs.remove(GIT_DIR)
 
-        return {
-            "page": page,
-            "total_files": total_files,
-            "page_size": page_size,
-            "files": matching_files[page_start:page_end],
-        }
+                if not raw_search:
+                    # Prune ignored directories in-place so os.walk skips their subtrees
+                    dirs[:] = [
+                        d for d in dirs
+                        if not gitignore_manager.is_ignored(os.path.join(root, d))
+                    ]
+
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    is_ignored = gitignore_manager.is_ignored(file_path)
+
+                    # Discard ignored files when not in raw mode
+                    if not raw_search and is_ignored:
+                        logger.debug("Skipping git-ignored file: %s", file_path)
+                        continue
+
+                    try:
+                        rel_path = os.path.relpath(
+                            file_path, self.settings.abs_project_path
+                        )
+                    except ValueError:
+                        continue
+
+                    # Match using regex or substring
+                    matches = False
+                    if use_regex:
+                        matches = compiled_pattern.search(rel_path) is not None
+                    else:
+                        matches = search.lower() in rel_path.lower()
+
+                    if matches:
+                        entry = self.parse_file_line(
+                            rel_path,
+                            self.settings.abs_project_path,
+                            gitignore_manager,
+                        )
+                        matching_files.append(entry)
+
+            matching_files.sort(key=lambda x: x["file_path"])
+
+            total_files = len(matching_files)
+            page_start = page * page_size
+            page_end = page_start + page_size
+
+            return {
+                "page": page,
+                "total_files": total_files,
+                "page_size": page_size,
+                "files": matching_files[page_start:page_end],
+            }
+        except Exception as ex:
+            error_msg = str(ex)
+            logger.error("Error during file search: %s", error_msg)
+            return {
+                "page": page,
+                "total_files": 0,
+                "page_size": page_size,
+                "files": [],
+                "error": error_msg,
+            }
 
     def search_files_content(
         self,
@@ -1021,96 +1085,184 @@ class FileEngine:
         page_size: int = 50,
         case_sensitive: bool = False,
         raw_search: bool = False,
+        use_regex: bool = False,
     ) -> dict:
         """
         Search for file content matching a query pattern.
 
         Searches file contents within the project scope with pagination support.
+        search_path can be a directory or a file:
+        - If a directory: searches all files within that directory tree
+        - If a file: searches only that single file
         When raw_search is False, git-ignored files are excluded. All .gitignore
         files are loaded once before the walk for maximum performance.
+        Supports both substring and regex pattern matching.
 
         Args:
-            query: Pattern to search for in file contents.
-            search_path: Optional subdirectory to limit search scope.
+            query: Substring or regex pattern to search for in file contents.
+            search_path: Optional directory or file path (relative to project root).
             page: Page number (0-indexed, default 0).
             page_size: Number of results per page (default 50).
             case_sensitive: Whether search should be case-sensitive (default False).
             raw_search: If True, include all files. If False, exclude git-ignored files.
+            use_regex: If True, treat query as regex pattern. If False, use substring match.
 
         Returns:
             Dict with page info, total_files, total_matches, and paginated results.
             Each result includes an 'is_ignored' flag.
+            Includes 'error' field if an error occurs during search.
         """
-        search_root = self._resolve_search_root(search_path)
-        if search_root is None:
+        try:
+            search_info = self._resolve_search_root(search_path)
+            if search_info is None:
+                return {
+                    "page": page,
+                    "total_files": 0,
+                    "total_matches": 0,
+                    "page_size": page_size,
+                    "results": [],
+                }
+
+            # Check if search_info is a file (single file search mode)
+            is_single_file_search = os.path.isfile(search_info)
+
+            # Compile regex if needed
+            compiled_pattern = None
+            if use_regex:
+                try:
+                    compiled_pattern = self._compile_regex_pattern(query, case_sensitive=case_sensitive)
+                except ValueError as ex:
+                    logger.warning("Invalid regex pattern: %s", ex)
+                    return {
+                        "page": page,
+                        "total_files": 0,
+                        "total_matches": 0,
+                        "page_size": page_size,
+                        "results": [],
+                        "error": str(ex),
+                    }
+
+            search_pattern = query if case_sensitive else query.lower()
+            matching_results = []
+
+            if is_single_file_search:
+                # Single file search mode
+                logger.debug("Single file search mode for: %s", search_info)
+                try:
+                    rel_path = os.path.relpath(
+                        search_info, self.settings.abs_project_path
+                    )
+                except ValueError:
+                    return {
+                        "page": page,
+                        "total_files": 0,
+                        "total_matches": 0,
+                        "page_size": page_size,
+                        "results": [],
+                        "error": "File path is outside project root",
+                    }
+
+                # Build ignore manager for the project root
+                gitignore_manager = self._build_gitignore_manager(self.settings.abs_project_path)
+                is_ignored = gitignore_manager.is_ignored(search_info)
+
+                # Discard ignored files when not in raw mode
+                if not raw_search and is_ignored:
+                    logger.debug(
+                        "File is git-ignored, skipping: %s", search_info
+                    )
+                    return {
+                        "page": page,
+                        "total_files": 0,
+                        "total_matches": 0,
+                        "page_size": page_size,
+                        "results": [],
+                    }
+
+                result = self._search_in_file(
+                    file_path=search_info,
+                    rel_path=rel_path,
+                    search_pattern=search_pattern,
+                    compiled_pattern=compiled_pattern,
+                    case_sensitive=case_sensitive,
+                    use_regex=use_regex,
+                    is_ignored=is_ignored,
+                )
+                if result is not None:
+                    matching_results.append(result)
+            else:
+                # Directory search mode
+                logger.debug("Directory search mode for: %s", search_info)
+                # Build the ignore manager once - O(dirs) cost instead of O(files)
+                gitignore_manager = self._build_gitignore_manager(search_info)
+
+                for root, dirs, files in os.walk(search_info):
+                    # Always skip the .git bookkeeping directory
+                    if GIT_DIR in dirs:
+                        dirs.remove(GIT_DIR)
+
+                    if not raw_search:
+                        # Prune ignored directories in-place so os.walk skips their subtrees
+                        dirs[:] = [
+                            d for d in dirs
+                            if not gitignore_manager.is_ignored(os.path.join(root, d))
+                        ]
+
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        is_ignored = gitignore_manager.is_ignored(file_path)
+
+                        # Discard ignored files when not in raw mode
+                        if not raw_search and is_ignored:
+                            logger.debug(
+                                "Skipping git-ignored file in content search: %s", file_path
+                            )
+                            continue
+
+                        try:
+                            rel_path = os.path.relpath(
+                                file_path, self.settings.abs_project_path
+                            )
+                        except ValueError:
+                            continue
+
+                        result = self._search_in_file(
+                            file_path=file_path,
+                            rel_path=rel_path,
+                            search_pattern=search_pattern,
+                            compiled_pattern=compiled_pattern,
+                            case_sensitive=case_sensitive,
+                            use_regex=use_regex,
+                            is_ignored=is_ignored,
+                        )
+                        if result is not None:
+                            matching_results.append(result)
+
+            matching_results.sort(key=lambda x: (-x["match_count"], x["rel_path"]))
+
+            total_files = len(matching_results)
+            total_matches = sum(r["match_count"] for r in matching_results)
+            page_start = page * page_size
+            page_end = page_start + page_size
+
+            return {
+                "page": page,
+                "total_files": total_files,
+                "total_matches": total_matches,
+                "page_size": page_size,
+                "results": matching_results[page_start:page_end],
+            }
+        except Exception as ex:
+            error_msg = str(ex)
+            logger.error("Error during content search: %s", error_msg)
             return {
                 "page": page,
                 "total_files": 0,
                 "total_matches": 0,
                 "page_size": page_size,
                 "results": [],
+                "error": error_msg,
             }
-
-        # Build the ignore manager once - O(dirs) cost instead of O(files)
-        gitignore_manager = self._build_gitignore_manager(search_root)
-
-        search_pattern = query if case_sensitive else query.lower()
-        matching_results = []
-
-        for root, dirs, files in os.walk(search_root):
-            # Always skip the .git bookkeeping directory
-            if GIT_DIR in dirs:
-                dirs.remove(GIT_DIR)
-
-            if not raw_search:
-                # Prune ignored directories in-place so os.walk skips their subtrees
-                dirs[:] = [
-                    d for d in dirs
-                    if not gitignore_manager.is_ignored(os.path.join(root, d))
-                ]
-
-            for file in files:
-                file_path = os.path.join(root, file)
-                is_ignored = gitignore_manager.is_ignored(file_path)
-
-                # Discard ignored files when not in raw mode
-                if not raw_search and is_ignored:
-                    logger.debug(
-                        "Skipping git-ignored file in content search: %s", file_path
-                    )
-                    continue
-
-                try:
-                    rel_path = os.path.relpath(
-                        file_path, self.settings.abs_project_path
-                    )
-                except ValueError:
-                    continue
-
-                result = self._search_in_file(
-                    file_path=file_path,
-                    rel_path=rel_path,
-                    search_pattern=search_pattern,
-                    case_sensitive=case_sensitive,
-                    is_ignored=is_ignored,
-                )
-                if result is not None:
-                    matching_results.append(result)
-
-        matching_results.sort(key=lambda x: (-x["match_count"], x["rel_path"]))
-
-        total_files = len(matching_results)
-        total_matches = sum(r["match_count"] for r in matching_results)
-        page_start = page * page_size
-        page_end = page_start + page_size
-
-        return {
-            "page": page,
-            "total_files": total_files,
-            "total_matches": total_matches,
-            "page_size": page_size,
-            "results": matching_results[page_start:page_end],
-        }
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -1118,19 +1270,21 @@ class FileEngine:
 
     def _resolve_search_root(self, search_path: Optional[str]) -> Optional[str]:
         """
-        Resolve the root directory for a search operation.
+        Resolve the root directory or file for a search operation.
 
         Args:
-            search_path: Optional relative sub-path; None means project root.
+            search_path: Optional relative path (file or directory); None means project root.
 
         Returns:
-            Absolute directory path, or None if search_path is not a directory.
+            Absolute path (directory or file), or None if path doesn't exist.
         """
         if search_path:
             search_root = self.get_project_file_path(search_path)
-            if not os.path.isdir(search_root):
-                logger.warning("search_path is not a directory: %s", search_root)
+            # Accept both files and directories
+            if not os.path.exists(search_root):
+                logger.warning("search_path does not exist: %s", search_root)
                 return None
+            # If it's a file, return the file path; if it's a directory, return the directory path
             return search_root
         return self.settings.abs_project_path
 
@@ -1139,8 +1293,10 @@ class FileEngine:
         file_path: str,
         rel_path: str,
         search_pattern: str,
-        case_sensitive: bool,
-        is_ignored: bool,
+        compiled_pattern: Optional[Pattern] = None,
+        case_sensitive: bool = False,
+        use_regex: bool = False,
+        is_ignored: bool = False,
     ) -> Optional[dict]:
         """
         Search for a pattern inside a single file and return match metadata.
@@ -1148,8 +1304,10 @@ class FileEngine:
         Args:
             file_path: Absolute path to the file.
             rel_path: Path relative to the project root (used in results).
-            search_pattern: Pre-lowercased (or not) pattern to look for.
+            search_pattern: Pre-lowercased (or not) substring pattern to look for.
+            compiled_pattern: Pre-compiled regex pattern or None.
             case_sensitive: Whether the search is case-sensitive.
+            use_regex: Whether to use regex matching.
             is_ignored: Whether the file is git-ignored (carried into result).
 
         Returns:
@@ -1162,19 +1320,32 @@ class FileEngine:
             logger.debug("Could not read file %s: %s", file_path, ex)
             return None
 
-        search_content = content if case_sensitive else content.lower()
-        if search_pattern not in search_content:
-            return None
-
         matches = []
-        for line_num, line in enumerate(content.split("\n"), 1):
-            line_search = line if case_sensitive else line.lower()
-            if search_pattern in line_search:
-                matches.append({
-                    "line_number": line_num,
-                    "line_content": line.strip(),
-                    "match_count": line_search.count(search_pattern),
-                })
+
+        if use_regex:
+            # Regex search
+            for line_num, line in enumerate(content.split("\n"), 1):
+                match_objs = list(compiled_pattern.finditer(line))
+                if match_objs:
+                    matches.append({
+                        "line_number": line_num,
+                        "line_content": line.strip(),
+                        "match_count": len(match_objs),
+                    })
+        else:
+            # Substring search
+            search_content = content if case_sensitive else content.lower()
+            if search_pattern not in search_content:
+                return None
+
+            for line_num, line in enumerate(content.split("\n"), 1):
+                line_search = line if case_sensitive else line.lower()
+                if search_pattern in line_search:
+                    matches.append({
+                        "line_number": line_num,
+                        "line_content": line.strip(),
+                        "match_count": line_search.count(search_pattern),
+                    })
 
         if not matches:
             return None

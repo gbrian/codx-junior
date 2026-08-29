@@ -12,7 +12,7 @@ export const filesModule = (API) => ({
     return API.get(`/api/files/read?path=${encodeURIComponent(path)}`)
   },
 
-  search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false }) {
+  search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false, useRegex = false }) {
     const params = new URLSearchParams()
     params.append('search', search)
     if (searchPath) {
@@ -21,10 +21,11 @@ export const filesModule = (API) => ({
     params.append('page', page)
     params.append('page_size', pageSize)
     params.append('raw_search', rawSearch)
+    params.append('use_regex', useRegex)
     return API.get(`/api/files/search?${params.toString()}`)
   },
 
-  searchContent({ query, searchPath, page = 0, pageSize = 50, caseSensitive = false, rawSearch = false }) {
+  searchContent({ query, searchPath, page = 0, pageSize = 50, caseSensitive = false, rawSearch = false, useRegex = false }) {
     const params = new URLSearchParams()
     params.append('q', query)
     if (searchPath) {
@@ -34,6 +35,7 @@ export const filesModule = (API) => ({
     params.append('page_size', pageSize)
     params.append('case_sensitive', caseSensitive)
     params.append('raw_search', rawSearch)
+    params.append('use_regex', useRegex)
     return API.get(`/api/files/search-content?${params.toString()}`)
   },
 

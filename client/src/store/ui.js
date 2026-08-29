@@ -42,7 +42,6 @@ export const state = () => ({
   newProject: false,
   activeApp: null,
   appShowMode: null,
-  _desktopApi: null,
   viewEditor: null,
   activeTeam: null,
   teamBarCollapsed: false,
@@ -56,8 +55,7 @@ export const state = () => ({
     projectName: '',
     currentStep: null,
     error: null
-  },
-  fullscreenPanelId: null
+  }
 })
 
 export const getters = getterTree(state, {
@@ -68,7 +66,6 @@ export const getters = getterTree(state, {
   activeApps: () => Object.values($storex.ui.openApps),
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
-  isPanelFullscreen: state => panelId => state.fullscreenPanelId === panelId,
 })
 
 export const mutations = mutationTree(state, {
@@ -193,19 +190,8 @@ export const mutations = mutationTree(state, {
   cloneApp(state, app) {
     $storex.ui.showApp({ ...app, tabId: null })
   },
+  // Registers an app as open and sets it active - desktop presentation handled by views store
   showApp(state, app) {
-    // Check if panel already exists and activate it
-    if (state._desktopApi && app.params?.chat?.id) {
-      const existingPanel = state._desktopApi.panels
-          .find(({ _params }) => _params?.chat?.id === app.params?.chat?.id
-      )
-      if (existingPanel) {
-        existingPanel.api.setActive()
-        state.activeApp = app
-        return
-      }
-    }
-
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
@@ -276,9 +262,6 @@ export const mutations = mutationTree(state, {
       params: { filePath }
     })
   },
-  setDesktopApi(state, api) {
-    state._desktopApi = api
-  },
   openViewEditor(state, view = null) {
     state.viewEditor = { view: view || null }
   },
@@ -306,18 +289,12 @@ export const mutations = mutationTree(state, {
       ...loadingState
     }
   },
-  setFullscreenPanel(state, panelId) {
-    state.fullscreenPanelId = panelId
-  },
-  clearFullscreenPanel(state) {
-    state.fullscreenPanelId = null
-  }
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init ({ state }, $storex) {
+    async init ({ state }) {
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
       if (API.user?.theme) {
@@ -329,29 +306,36 @@ export const actions = actionTree(
       if (!state.uiReady) {
         return
       }
-      const data = { 
-        ...state, 
-        uiReady: false,
-        openApps: {},
-        _desktopApi: null,
-        viewEditor: null,
-        fullscreenPanelId: null,
-        projectLoadingState: {
-          isLoading: false,
-          projectName: '',
-          currentStep: null,
-          error: null
+      try {
+        const data = { 
+          ...state, 
+          uiReady: false,
+          openApps: {},
+          viewEditor: null,
+          projectLoadingState: {
+            isLoading: false,
+            projectName: '',
+            currentStep: null,
+            error: null
+          }
         }
+        localStorage.setItem('uiState', JSON.stringify(data))
+      } catch (error) {
+        console.error('Failed to save UI state:', error)
       }
-      localStorage.setItem('uiState', JSON.stringify(data))
     },
     async loadState({ state }) {
-      const savedState = localStorage.getItem('uiState')
-      if (savedState) {
-        const parsedState = JSON.parse(savedState)
-        Object.keys(parsedState)
-          .forEach(k => state[k] = parsedState[k])
+      try {
+        const savedState = localStorage.getItem('uiState')
+        if (savedState) {
+          const parsedState = JSON.parse(savedState)
+          Object.keys(parsedState)
+            .forEach(k => state[k] = parsedState[k])
+        }
+      } catch (error) {
+        console.error('Failed to parse saved UI state:', error)
       }
+
       const {
         activeProject: project_id,
         activeChat: chatId
@@ -437,8 +421,6 @@ export const actions = actionTree(
       window.open(url, app.name)
     },
 
-    // ── Team panel openers ────────────────────────────────────────────────────
-
     openTeamChannel(_, { team, channel }) {
       $storex.ui.showApp({
         key: `team-channel-${channel.id}`,
@@ -466,8 +448,6 @@ export const actions = actionTree(
         params: { team }
       })
     },
-
-    // ── QuickBar app openers ──────────────────────────────────────────────────
 
     openVibeCoding() {
       $storex.ui.showApp({
@@ -535,8 +515,6 @@ export const actions = actionTree(
       })
     },
 
-    // --- Project loading state actions ---
-
     setProjectLoading(_, isLoading) {
       $storex.ui.setProjectLoadingState({ isLoading })
     },
@@ -550,19 +528,5 @@ export const actions = actionTree(
     setProjectLoadingError(_, error) {
       $storex.ui.setProjectLoadingState({ error })
     },
-
-    // --- Fullscreen panel actions ---
-
-    togglePanelFullscreen(_, panelId) {
-      if (!this.state._desktopApi) return
-      try {
-        const panel = this.state._desktopApi.getPanel(panelId)
-        if (panel) {
-          this.state._desktopApi.maximizePanel(panel)
-        }
-      } catch(e) {
-        console.error(`Error toggling fullscreen for panel ${panelId}:`, e)
-      }
-    }
   },
 )
