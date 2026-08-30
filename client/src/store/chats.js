@@ -1,7 +1,7 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
-import { v4 as uuidv4 } from 'uuid'
 import { ChatSearchRequest } from '@/api/model/ChatSearchRequest'
+import { CHAT_STATUS } from './chatStatuses'
 
 export const namespaced = true
 
@@ -18,12 +18,10 @@ function registerChat(state, chat) {
     return
   }
   const existingChat = state.chats[chat.id] || {}
-    // Merge while preserving messages
-    state.chats[chat.id] = {
+  state.chats[chat.id] = {
     ...existingChat,
-      ...chat,
-    messages: chat.messages || existingChat?.messages,
-    status: chat.status || existingChat?.status || 'uninitialized'
+    ...chat,
+    status: chat.status || CHAT_STATUS.UNINITIALIZED
   }
 }
 
@@ -124,11 +122,6 @@ export const mutations = mutationTree(state, {
     }
   },
 
-  addMessageToChat(state, { chatId, message }) {
-    const chat = state.chats[chatId]
-    if (!chat) return
-      chat.messages = [...(chat.messages || []), message]
-  },
   setChatStatus(state, { chatId, status }) {
     const chat = state.chats[chatId]
     if (!chat) return
@@ -148,18 +141,16 @@ export const actions = actionTree(
       const chats = await $storex.api.chats.list()
       chats.forEach(chat => {
         if (chat.id && !state.chats[chat.id]) {
-          registerChat(state, chat)
+          registerChat(state, { ...chat, status: CHAT_STATUS.UNINITIALIZED })
         }
       })
     },
     async searchChats({ state }, options = {}) {
       let searchRequest
       
-      // Accept ChatSearchRequest instance or plain object
       if (options instanceof ChatSearchRequest) {
         searchRequest = options
       } else {
-        // Validate query before creating request
         if (!options.query || options.query.trim() === '') {
           $storex.chats.clearSearchResults()
           return null
@@ -167,7 +158,6 @@ export const actions = actionTree(
         searchRequest = new ChatSearchRequest(options)
       }
 
-      // Validate request
       const validationErrors = searchRequest.getValidationErrors()
       if (validationErrors.length > 0) {
         console.error('[chats store] Search validation failed:', validationErrors)
@@ -238,44 +228,46 @@ export const actions = actionTree(
       const storedChat = state.chats[chat.id]
       if (!storedChat) return null
 
-      // Skip if already loaded or currently loading
-      if (storedChat.status === 'loaded') {
+      if (storedChat.status === CHAT_STATUS.LOADED) {
         return storedChat
       }
 
-      if (storedChat.status === 'loading') {
-        // Chat is already loading, return it as-is
+      if (storedChat.status === CHAT_STATUS.LOADING) {
         return storedChat
       }
 
-      // Load if uninitialized
-      if (storedChat.status === 'uninitialized') {
+      if (storedChat.status === CHAT_STATUS.UNINITIALIZED) {
         return await $storex.chats.loadChat(chat)
       }
 
       return storedChat
     },
     async saveChat({ state }, chat) {
-      $storex.chats.setChatStatus({ chatId: chat.id, status: 'saving' })
+      /*
+      $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.SAVING })
       try {
         const project = getChatProject(chat)
         await project.$api.chats.save(chat)
         await $storex.chats.loadChat(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
       }
+      */
+      console.error("DEPRECATED: We can't change the whole chat anymore. Use fine-grained functions")
     },
-    async saveChatInfo(_, chat) {
-      $storex.chats.setChatStatus({ chatId: chat.id, status: 'saving' })
+    async saveChatInfo({ state }, chat) {
+      $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.SAVING })
       try {
         const project = getChatProject(chat)
-        await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
-        await $storex.chats.loadChat(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+        const updatedChat = await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
+        registerChat(state, updatedChat)
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+        return updatedChat
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
       }
+      return null
     },
     async findProjectChat({ state }, { id, owner_project_id }) {
       const project = $storex.projects.allProjectsById[owner_project_id]
@@ -288,25 +280,28 @@ export const actions = actionTree(
       return state.chats[id] || null
     },
     async loadChat({ state }, chat) {
+      if (!chat.id) {
+        throw Error(`Can't load a chat without id: ${chat}`)
+      }
       if (!state.chats[chat.id]) {
         const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loading' })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADING })
         try {
           const loadedChat = await project.$api.chats.loadChat(chat)
           registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
         } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: 'uninitialized' })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.UNINITIALIZED })
         }
-      } else if (state.chats[chat.id].status === 'uninitialized') {
+      } else if (state.chats[chat.id].status === CHAT_STATUS.UNINITIALIZED) {
         const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: 'loading' })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADING })
         try {
           const loadedChat = await project.$api.chats.loadChat(chat)
           registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: 'loaded' })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
         } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: 'uninitialized' })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.UNINITIALIZED })
         }
       }
       return state.chats[chat.id]
@@ -315,30 +310,22 @@ export const actions = actionTree(
       const project = getChatProject(chat)
       const freshChat = await project.$api.chats.loadChat(chat)
       if (freshChat && state.chats[chat.id]) {
-        Object.assign(state.chats[chat.id], { ...freshChat, status: 'loaded' })
+        Object.assign(state.chats[chat.id], { ...freshChat, status: CHAT_STATUS.LOADED })
       } else {
-        registerChat(state, { ...freshChat, status: 'loaded' })
+        registerChat(state, { ...freshChat, status: CHAT_STATUS.LOADED })
       }
       return state.chats[chat.id]
     },
     async addMessage({ state }, { chat, message }) {
       if (!chat?.id) return
-
+      if (!message.content) {
+        throw new Error("No empty messages allowed")
+      } 
       const project = getChatProject(chat)
       
-      // Generate doc_id immediately if missing
-      if (!message.doc_id) {
-        message.doc_id = uuidv4()
-      }
-
-      // Add to local state immediately (optimistic)
-      $storex.chats.addMessageToChat({ chatId: chat.id, message })
-
       try {
-        // Persist via API (merge-safe on backend)
         const updatedChat = await project.$api.chats.addMessage(chat.id, message)
         
-        // Update local store with persisted version
         if (updatedChat && updatedChat.messages) {
           state.chats[chat.id].messages = updatedChat.messages
         }
@@ -346,6 +333,91 @@ export const actions = actionTree(
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to add message:', error)
+        throw error
+      }
+    },
+    async removeMessage({ state }, { chat, messageDocId }) {
+      if (!chat?.id || !messageDocId) return
+
+      const project = getChatProject(chat)
+
+      try {
+        const updatedChat = await project.$api.chats.removeMessage(chat.id, messageDocId)
+        
+        if (updatedChat && updatedChat.messages) {
+          state.chats[chat.id].messages = updatedChat.messages
+        }
+        
+        return updatedChat
+      } catch (error) {
+        console.error('[chats store] Failed to remove message:', error)
+        throw error
+      }
+    },
+    async updateMessage({ state }, { chat, messageDocId, fieldUpdates }) {
+      if (!chat?.id || !messageDocId) return
+
+      const project = getChatProject(chat)
+
+      try {
+        const updatedChat = await project.$api.chats.updateMessageField(chat.id, messageDocId, fieldUpdates)
+        
+        if (updatedChat && updatedChat.messages) {
+          state.chats[chat.id].messages = updatedChat.messages
+        } else if (updatedChat) {
+          // If server doesn't return full chat, update local message directly
+          const msg = state.chats[chat.id]?.messages?.find(m => m.doc_id === messageDocId)
+          if (msg) Object.assign(msg, fieldUpdates)
+        }
+        
+        return updatedChat
+      } catch (error) {
+        console.error('[chats store] Failed to update message:', error)
+        throw error
+      }
+    },
+    async updateMessages({ state }, { chat, messages }) {
+      if (!chat?.id || !messages?.length) return
+
+      const project = getChatProject(chat)
+
+      try {
+        // Batch update multiple message fields
+        const promises = messages.map(({ doc_id, ...updates }) => 
+          project.$api.chats.updateMessageField(chat.id, doc_id, updates)
+        )
+        
+        const results = await Promise.all(promises)
+        
+        // Use first result or reload chat if needed
+        if (results[0] && results[0].messages) {
+          state.chats[chat.id].messages = results[0].messages
+        } else {
+          await $storex.chats.reloadChat(chat)
+        }
+        
+        return results
+      } catch (error) {
+        console.error('[chats store] Failed to update messages:', error)
+        throw error
+      }
+    },
+    async updateChatInfo({ state }, { chat, updates }) {
+      if (!chat?.id) return
+
+      const project = getChatProject(chat)
+
+      try {
+        // Update only metadata/info, not messages
+        const updatedChat = await project.$api.chats.updateMetadata(chat.id, updates)
+        
+        if (updatedChat && state.chats[chat.id]) {
+          Object.assign(state.chats[chat.id], updates)
+        }
+        
+        return updatedChat
+      } catch (error) {
+        console.error('[chats store] Failed to update chat info:', error)
         throw error
       }
     },
@@ -386,21 +458,16 @@ export const actions = actionTree(
     },
     async createNewChat({ state }, chat) {
       chat = {
-        id: uuidv4(),
         mode: 'chat',
         profiles: [],
         chat_index: 0,
         messages: [],
         auto_initialize: !chat.name,
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
-        status: 'uninitialized',
+        status: CHAT_STATUS.UNINITIALIZED,
         ...chat
       }
-      registerChat(state, chat)
-      if (!chat.temp) {
-        await $storex.chats.saveChat(chat)
-      }
-      return state.chats[chat.id]
+      return await $storex.chats.saveChatInfo(chat)
     },
     async createNewChatWithProject({ state }, { project, chat = {} }) {
       const chatData = {
@@ -411,16 +478,15 @@ export const actions = actionTree(
     },
     async createNewChatFromUrl({ state }, chat) {
       chat = {
-        id: uuidv4(),
         mode: 'chat',
         profiles: [],
         chat_index: 0,
-        status: 'uninitialized',
+        status: CHAT_STATUS.UNINITIALIZED,
         ...chat
       }
       const project = getChatProject(chat)
       const savedChat = await project.$api.chats.fromUrl(chat)
-      registerChat(state, { ...savedChat, status: 'loaded' })
+      registerChat(state, { ...savedChat, status: CHAT_STATUS.LOADED })
       if (!chat.temp) {
         await $storex.chats.setActiveChat(savedChat)
       }
@@ -509,20 +575,15 @@ export const actions = actionTree(
         if (type === 'changed' || !state.chats[chatId]) {
           await $storex.chats.reloadChat({ id: chatId, owner_project_id })
         }
-        /* // We have a conflict with the relaodChat disabled until fixing, the reload will update the chat messages 
         const chat = state.chats[chatId]
         if (chat && message) {
-          const isDone = event_type === 'done'
-          const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
-
           const allMessagesDone = chat.messages.every(m => m.done)
           if (allMessagesDone) {
             $storex.chats.setChatUpdating({ chatId, updating: false })
           } else {
-            $storex.chats.setChatUpdating({ chatId, updating: !isDone })
+            $storex.chats.setChatUpdating({ chatId, updating: true })
           }
         }
-        */
       }
     },
     async readFile({ state }, { chat, file }) {

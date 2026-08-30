@@ -41,7 +41,7 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
           :use-modal="true"
           @profiles-changed="onProfilesChanged"
         />
-        <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" />
+        <CheckLists :chat="chat" :readOnly="readOnly" />
       </div>
     </div>
 
@@ -74,7 +74,7 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
               ref="messageList"
               class="w-full grow overflow-y-auto overflow-x-hidden"
               :chat="chat"
-              :messages="stableMessages"
+              :messages="messages"
               :mention-list="mentionList"
               :read-only="readOnly"
               :users-list="usersList"
@@ -201,7 +201,15 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
 
 <script>
 export default {
-  props: ['chat', 'filter', 'showHidden', 'childrenChats', 'readOnly', 'message', 'input-only'],
+  props: [
+    'chat',
+    'filter',
+    'showHidden',
+    'childrenChats',
+    'readOnly',
+    'message',
+    'input-only'
+  ],
   data() {
     return {
       waiting: false,
@@ -228,7 +236,6 @@ export default {
       cursorWord: {},
       notebookStatus: null,
       editorText: "",
-      stableMessages: [],
       previewFile: null,
       intelliSenseSuggestions: [],
       intelliSenseIndex: 0,
@@ -245,7 +252,6 @@ export default {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
-    this.stableMessages = this.messages
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
@@ -367,9 +373,6 @@ export default {
       this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
     },
-    messages(newMessages) {
-      this.syncStableMessages(newMessages)
-    }
   },
   methods: {
     extractFilesFromCodeBlocks(content) {
@@ -685,23 +688,9 @@ export default {
 
       this.onEditMessageKeyDown(event)
     },
-
-    syncStableMessages(newMessages) {
-      const newIds = newMessages.map(m => m.doc_id).join(',')
-      const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
-      if (newIds !== oldIds) {
-        this.stableMessages = newMessages
-      } else {
-        newMessages.forEach((msg, i) => {
-          const stable = this.stableMessages[i]
-          if (stable && msg !== stable) Object.assign(stable, msg)
-        })
-      }
-    },
-
     onLLMModelChanged(modelName) {
       this.chat.llm_model = modelName
-      this.saveChat()
+      this.saveChatInfo()
     },
 
     updateCursorWord() {
@@ -718,12 +707,10 @@ export default {
 
     toggleHide({ doc_id }) {
       this.chatSvc.toggleHide({ chat: this.chat, doc_id })
-      this.saveChat()
     },
 
     toggleAnswer({ doc_id }) {
       this.chatSvc.toggleAnswer({ chat: this.chat, doc_id })
-      this.saveChat()
     },
 
     onCopy(message) {
@@ -757,9 +744,9 @@ export default {
       })
     },
 
-    postMyMessage({ message, task_item }) {
+    async postMyMessage({ message, task_item }) {
       const userMessage = this.getUserMessage({ message, task_item })
-      this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
+      await this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
       this.cleanUserInputAndWaitAnswer()
       return userMessage
     },
@@ -778,12 +765,11 @@ export default {
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
         this.updateMessage()
-        this.saveChat()
         return false
       }
       const message = this.editorText
-      if (message?.length && this.canPost && this.postMyMessage({ message, task_item })) {
-        await this.saveChat()
+      if (message) {
+        await this.postMyMessage({ message, task_item })
       }
       return true
     },
@@ -831,7 +817,6 @@ export default {
 
     removeMessage(message) {
       this.chatSvc.removeMessage({ chat: this.chat, message })
-      this.saveChat()
     },
 
     onMessageChange() {
@@ -839,10 +824,6 @@ export default {
       if (text !== this.editorText) {
         this.editorText = text
       }
-    },
-
-    async saveChat() {
-      return this.chatSvc.saveChat(this.chat)
     },
 
     async onDrop(e, chatDrop) {
@@ -1010,12 +991,10 @@ export default {
 
     removeFileFromMessage(message, file) {
       this.chatSvc.removeFileFromMessage({ message, file })
-      this.saveChat()
     },
 
     removeFileFromChat(file) {
       this.chatSvc.removeFileFromChat({ chat: this.chat, file })
-      this.saveChat()
     },
 
     removeFileFromFiles(file) {
@@ -1031,7 +1010,6 @@ export default {
       try {
         this.showNotebookStatus(`Syncing ${file.split('/').reverse()[0]}...`)
         await this.chatSvc.syncNotebook({ project: this.chatProject, chat: this.chat, file })
-        await this.saveChat()
         this.showNotebookStatus(`Notebook synced: ${file.split('/').reverse()[0]}`)
       } catch (err) {
         console.error('syncNotebook error', err)
@@ -1084,7 +1062,6 @@ export default {
 
     hideAll() {
       this.chatSvc.hideAll({ chat: this.chat })
-      this.saveChat()
     },
 
     toggleDocumentSearch() {
@@ -1104,7 +1081,6 @@ export default {
 
     async onReloadMessageFile({ file, message }) {
       message.content = await this.chatSvc.fileToMessage({ file })
-      this.saveChat()
     },
 
     async onSaveFile({ file, content }) {
@@ -1124,7 +1100,6 @@ export default {
 
     async onAddFile(file) {
       if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {
-        await this.saveChat()
       }
     },
 
@@ -1135,12 +1110,10 @@ export default {
     onMessageEdited({ doc_id, content, profiles, llm_model }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content, profiles, llm_model } })
       this.editMessage = null
-      this.saveChat()
     },
 
     onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
-      this.saveChat()
     },
 
     removeMessageMention(mention) {

@@ -6,6 +6,7 @@ import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
 import { EXTENSION_LANGUAGE_MAP } from '../store'
+
 </script>
 
 <template>
@@ -114,43 +115,96 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #actions>
-      <button class="btn btn-sm btn-success btn-outline"
-        @click.stop="saveToFile"
-        v-if="!isNoChange && file && finished && (showCode || showDiff)"
-        :class="{ 'blink-save': isSaving }"
-        title="Save to file">
-        <i class="fa-solid fa-floppy-disk"></i> Save
-      </button>
+      <div class="flex gap-1" click.stop="">
+        <!-- Save Button -->
+        <button class="btn btn-sm btn-success btn-outline"
+          @click.stop="saveToFile"
+          v-if="!isNoChange && file && finished && (showCode || showDiff)"
+          :class="{ 'blink-save': actionFeedback.save }"
+          title="Save to file">
+          <i class="fa-solid fa-check animate-bounce" v-if="actionFeedback.save"></i>
+          <i class="fa-solid fa-floppy-disk" v-else></i>
+          <span class="hidden sm:inline">Save</span>
+        </button>
 
-      <span class="text-success font-console text-xs" v-if="isNoChange">No changes</span>
+        <!-- No Changes Text -->
+        <span class="text-success font-console text-xs" v-if="isNoChange">No changes</span>
 
-      <button class="btn btn-sm btn-info btn-outline"
-        @click.stop="applyPatchFromPattern"
-        v-if="hasPatchPattern && !editMode && !showDiff"
-        title="Apply find-and-replace patch">
-        <i class="fa-solid fa-band-aid"></i> Patch
-      </button>
+        <!-- Patch Button (AI Pattern) -->
+        <button class="btn btn-sm btn-info btn-outline"
+          @click.stop="applyPatchFromPattern"
+          v-if="hasPatchPattern && !editMode && !showDiff"
+          :class="{ 'blink-save': actionFeedback.patch }"
+          title="Apply find-and-replace patch">
+          <i class="fa-solid fa-check animate-bounce" v-if="actionFeedback.patch"></i>
+          <i class="fa-solid fa-band-aid" v-else></i>
+          <span class="hidden sm:inline">Patch</span>
+        </button>
 
-      <button class="btn btn-sm btn-error btn-outline"
-        @click.stop="discardDiffChanges"
-        v-if="showDiff && hasDiffEdits"
-        title="Discard changes">
-        <i class="fa-solid fa-xmark"></i> Discard
-      </button>
+        <!-- Discard Diff Button -->
+        <button class="btn btn-sm btn-error btn-outline"
+          @click.stop="discardDiffChanges"
+          v-if="showDiff && hasDiffEdits"
+          title="Discard changes">
+          <i class="fa-solid fa-xmark"></i>
+          <span class="hidden sm:inline">Discard</span>
+        </button>
 
-      <button class="btn btn-sm btn-ghost btn-outline"
-        @click.stop="resetLocalChanges"
-        v-if="hasLocalChanges"
-        title="Reset to original AI-generated code">
-        <i class="fa-solid fa-rotate-left"></i> Reset
-      </button>
+        <!-- Reset Button -->
+        <button class="btn btn-sm btn-ghost btn-outline"
+          @click.stop="resetLocalChanges"
+          v-if="hasLocalChanges"
+          title="Reset to original AI-generated code">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span class="hidden sm:inline">Reset</span>
+        </button>
 
-      <button class="btn btn-sm btn-error btn-outline"
-        @click.stop="$emit('close')"
-        v-if="close"
-        title="Close">
-        <i class="fa-solid fa-rectangle-xmark"></i>
-      </button>
+        <!-- Copy Button -->
+        <button class="btn btn-sm btn-outline"
+          @click.stop="onCopy"
+          v-if="!editMode && finished"
+          :class="{ 'blink-save': actionFeedback.copy }"
+          title="Copy code">
+          <i class="fa-solid fa-check animate-bounce" v-if="actionFeedback.copy"></i>
+          <i class="fa-solid fa-copy" v-else></i>
+          <span class="hidden sm:inline">Copy</span>
+        </button>
+
+        <!-- Apply Patch Button (for diff language) -->
+        <button class="btn btn-sm btn-success btn-outline"
+          @click.stop="applyPatch"
+          v-if="isPatch && !editMode && finished"
+          title="Apply patch">
+          <i class="fa-solid fa-check"></i>
+          <span class="hidden sm:inline">Apply</span>
+        </button>
+
+        <!-- Cancel Edit Button -->
+        <button class="btn btn-sm btn-outline"
+          @click="cancelEdit"
+          v-if="editMode"
+          title="Cancel edit">
+          <i class="fa-solid fa-xmark"></i>
+          <span class="hidden sm:inline">Cancel</span>
+        </button>
+
+        <!-- Apply Edit Button -->
+        <button class="btn btn-sm btn-warning"
+          @click="applyMessageChange"
+          v-if="editMode"
+          title="Apply changes">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span class="hidden sm:inline">Apply</span>
+        </button>
+
+        <!-- Close Button -->
+        <button class="btn btn-sm btn-error btn-outline"
+          @click.stop="$emit('close')"
+          v-if="close"
+          title="Close">
+          <i class="fa-solid fa-rectangle-xmark"></i>
+        </button>
+      </div>
     </template>
 
     <div class="p-2 flex flex-col gap-2">
@@ -166,11 +220,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <span class="text-sm">
           <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
         </span>
-      </div>
-
-      <div v-if="isApplyingPatch" class="alert alert-info">
-        <span class="loading loading-spinner loading-sm"></span>
-        <span class="text-sm">Applying AI patch, please wait…</span>
       </div>
 
       <div v-if="changesetErrors.length" class="alert alert-error">
@@ -218,27 +267,6 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           />
         </div>
       </div>
-
-      <div class="flex justify-end gap-2" v-if="editMode">
-        <button class="btn btn-sm btn-outline" @click="cancelEdit">
-          <i class="fa-solid fa-xmark"></i> Cancel
-        </button>
-        <button class="btn btn-sm btn-warning" @click="applyMessageChange">
-          <i class="fa-solid fa-pen-to-square"></i> Apply
-        </button>
-      </div>
-
-      <div class="flex justify-end gap-2" v-else>
-        <button class="btn btn-sm btn-outline" @click.stop="onCopy" title="Copy">
-          <i class="fa-solid fa-copy"></i> Copy
-        </button>
-        <button class="btn btn-sm btn-success btn-outline"
-          @click.stop="applyPatch"
-          v-if="isPatch"
-          title="Apply patch">
-          Apply patch
-        </button>
-      </div>
     </div>
 
     <modal v-if="showConfirmModal">
@@ -280,8 +308,6 @@ export default {
       isAtBottom: true,
       isUserScrolledUp: false,
       shouldForceScrollToBottom: true,
-      isSaving: false,
-      isApplyingPatch: false,
       deletionPercentage: 0,
       additionPercentage: 0,
       deletionCount: 0,
@@ -296,7 +322,12 @@ export default {
       patchPattern: null,
       codeUpdateCounter: 0,
       codeHash: 0,
-      lastCodeValue: null
+      lastCodeValue: null,
+      actionFeedback: {
+        copy: false,
+        save: false,
+        patch: false
+      }
     }
   },
   computed: {
@@ -485,35 +516,6 @@ export default {
       }
     },
 
-    async applyPatchFromPattern() {
-      if (!this.patchPattern || !this.file) return
-
-      try {
-        this.isApplyingPatch = true
-        
-        const patchedContent = this.patchPattern.newContent
-        
-        await this.$api.files.patch({
-          file_path: this.file,
-          content: patchedContent
-        })
-
-        this.applyUserChange(patchedContent)
-        this.$ui?.showNotification?.({
-          type: 'success',
-          message: 'Patch applied successfully'
-        })
-      } catch (error) {
-        console.error('Error applying patch pattern:', error)
-        this.$ui?.showNotification?.({
-          type: 'error',
-          message: 'Failed to apply patch: ' + (error?.message || 'Unknown error')
-        })
-      } finally {
-        this.isApplyingPatch = false
-      }
-    },
-
     handleFileNameClick(event) {
       if (event.ctrlKey || event.metaKey) {
         this.$storex.ui.openFileInViewer(this.file)
@@ -647,30 +649,6 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
 
-    async applyPatchFromAI() {
-      if (!this.file || this.isApplyingPatch) return
-      try {
-        this.isApplyingPatch = true
-        const response = await this.$api.run.patch({
-          file_path: this.file,
-          partial_content: this.effectiveCode
-        })
-        if (response?.content) {
-          this.applyUserChange(response.content)
-        } else {
-          console.warn('Patch API returned no content', response)
-        }
-      } catch (error) {
-        console.error('Error applying patch from AI:', error)
-        this.$ui?.showNotification?.({
-          type: 'error',
-          message: 'Failed to apply patch: ' + (error?.message || 'Unknown error')
-        })
-      } finally {
-        this.isApplyingPatch = false
-      }
-    },
-
     toggleView() {
       if (this.hasDiffEdits) {
         this.pendingViewSwitch = 'toggle'
@@ -792,7 +770,7 @@ export default {
     },
 
     async saveToFile() {
-      this.triggerSaveAnimation()
+      this.triggerActionFeedback('save')
       let content
       if (this.editMode && this.editContent) {
         content = this.editContent
@@ -811,9 +789,10 @@ export default {
       await this.loadDiffInfo()
     },
 
-    triggerSaveAnimation() {
-      this.isSaving = true
-      setTimeout(() => { this.isSaving = false }, 800)
+    triggerActionFeedback(action) {
+      const FEEDBACK_DURATION = 800
+      this.actionFeedback[action] = true
+      setTimeout(() => { this.actionFeedback[action] = false }, FEEDBACK_DURATION)
     },
 
     runCommand() {
@@ -822,6 +801,7 @@ export default {
 
     onCopy() {
       this.$ui.copyTextToClipboard(this.effectiveCode)
+      this.triggerActionFeedback('copy')
     },
 
     createSubTask() {

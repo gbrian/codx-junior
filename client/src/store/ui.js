@@ -190,16 +190,33 @@ export const mutations = mutationTree(state, {
   cloneApp(state, app) {
     $storex.ui.showApp({ ...app, tabId: null })
   },
-  // Registers an app as open and sets it active - desktop presentation handled by views store
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
-    if (state.viewMode !== 'vibe') {
-      state.openApps = {
-        ...state.openApps,
-        [app.tabId]: app
+    
+    // Check if app is already open (non-mobile only)
+    if (state.viewMode !== 'vibe' && !state.isMobile) {
+      const existingApp = Object.values(state.openApps).find(openApp => {
+        // Match by key if available, otherwise by component and params
+        if (app.key && openApp.key) {
+          return openApp.key === app.key
+        }
+        return openApp.component === app.component && 
+              JSON.stringify(openApp.params) === JSON.stringify(app.params)
+      })
+      
+      if (existingApp) {
+        // Activate existing app instead
+        state.activeApp = existingApp
+        $storex.views.activatePanel(existingApp.tabId)
+        return
       }
+    }
+    
+    state.openApps = {
+      ...state.openApps,
+      [app.tabId]: app
     }
     state.activeApp = app
   },

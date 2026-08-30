@@ -1,0 +1,163 @@
+{
+  "id": "659716cc-1827-48c7-a368-5d686267cc87",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "loaded",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Project Manager Profile & Task Management",
+  "pinned": false,
+  "description": "## Summary\n\nThe task defines a **Project Manager AI profile** for codx-junior that manages Kanban tasks, coordinates team members, and handles project roadmaps. Three new tool modules are required: **`kanban_tools.py`** (read/move/update tasks on boards), **`team_tools.py`** (list profiles, assign tasks to agents), and **`roadmap_tools.py`** (CRUD for a new Roadmap/Milestone data model). A new **`project_manager.profile`** file will define the system prompt and tool list, integrating with the existing `ChatManager` infrastructure without duplication. Implementation is prioritized: kanban tools + profile first, then team tools, then roadmap features, with a future FastAPI router for UI exposure.",
+  "messages": [
+    {
+      "doc_id": "25ab7714-7f87-4cbe-8e10-ff0770bcad4f",
+      "role": "user",
+      "task_item": "",
+      "content": "We must create a Project Manager profile that will be responsible of managing tasks.\ncodx-junior uses Kanban model for managing tasks per project. The ProjectManager will be responsible to review task status, mofify status, move to kanban/board/column \nName team members in order to get iformation or cause a task to be processed.\nWill assist users informing about the project status.\nWill manage the project roadmad (new functionality we must define) that will allow users to visually know the status of tasks, define projects, etc.\n\nDefine the profile and requiered tools and modules we must create.\n",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 06:15:19.396530",
+      "updated_at": "2026-08-30 06:15:19.396545",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/.codx/profiles/analyst.profile",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/__init__.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/generate_tasks_tool.py"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "96aa20ad-fe79-4c27-af65-c51ea266e9d4",
+      "role": "user",
+      "task_item": "",
+      "content": "We must create a Project Manager profile that will be responsible of managing tasks.\ncodx-junior uses Kanban model for managing tasks per project. The ProjectManager will be responsible to review task status, mofify status, move to kanban/board/column \nName team members in order to get iformation or cause a task to be processed.\nWill assist users informing about the project status.\nWill manage the project roadmad (new functionality we must define) that will allow users to visually know the status of tasks, define projects, etc.\n\nDefine the profile and requiered tools and modules we must create.\n",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 06:15:19.396530",
+      "updated_at": "2026-08-30 06:15:19.396545",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/.codx/profiles/analyst.profile",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/__init__.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/generate_tasks_tool.py"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "cbac14cb-b817-4f49-95d5-9921cfdbb3b5",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Project Manager Profile - Analysis Document\n\n## Task: Project Manager Profile & Task Management System\n\n**[Objective]:** Design a Project Manager AI profile for codx-junior that manages Kanban tasks, team coordination, project roadmaps, and provides project status visibility.\n\n---\n\n### Requirements\n\n- Create a `project_manager` profile with appropriate tools for task and Kanban management\n- Tools to read, update, and move tasks across Kanban boards/columns\n- Tools to list and notify team members (other profiles)\n- Roadmap data model and management (new feature)\n- Project status reporting capabilities\n- Profile must integrate with existing `ChatManager` and Kanban infrastructure\n\n---\n\n### Acceptance Criteria\n\n- [ ] `project_manager.profile` file created with correct metadata and tool list\n- [ ] `kanban_tools.py` module created with Kanban read/write operations\n- [ ] `roadmap_tools.py` module created with roadmap CRUD operations\n- [ ] `team_tools.py` module created for listing profiles and triggering agent actions\n- [ ] Roadmap data model defined (schema/Pydantic model)\n- [ ] All new tools registered in `api/codx/junior/tools/__init__.py`\n- [ ] Existing `ChatManager.save_kanban` / `load_kanban` reused (no duplication)\n- [ ] Profile content (system prompt) covers all PM responsibilities\n\n---\n\n### Documentation\n\n#### Architecture Overview\n\n```mermaid\ngraph TD\n    USER[\"User\"] --> PM[\"ProjectManager Profile\"]\n    PM --> KT[\"kanban_tools\"]\n    PM --> RT[\"roadmap_tools\"]\n    PM --> TT[\"team_tools\"]\n\n    KT --> CM[\"ChatManager\\n(load_kanban / save_kanban\\nlist_chats / save_chat)\"]\n    RT --> RM[\"roadmap.json\\n(.codx/roadmap/)\"]\n    TT --> PL[\"Profile Loader\\n(.codx/profiles/*.profile)\"]\n    TT --> GT[\"generate_tasks_tool\"]\n\n    CM --> FS[\"File System\\n(.codx/tasks/<board>/<column>/*.json)\"]\n    RM --> FS2[\"File System\\n(.codx/roadmap/*.json)\"]\n```\n\n#### Kanban Data Model (existing)\n\n```mermaid\nerDiagram\n    KANBAN {\n        float version\n        dict boards\n        dict tags\n    }\n    BOARD {\n        string name\n        list columns\n    }\n    CHAT {\n        string id\n        string name\n        string board\n        string column\n        string status\n        int chat_index\n        string updated_at\n    }\n    KANBAN ||--o{ BOARD : contains\n    BOARD ||--o{ CHAT : contains\n```\n\n#### Roadmap Data Model (new)\n\n```mermaid\nerDiagram\n    ROADMAP {\n        string id\n        string name\n        string description\n        string created_at\n        string updated_at\n    }\n    MILESTONE {\n        string id\n        string roadmap_id\n        string name\n        string description\n        string status\n        string due_date\n        int order\n    }\n    ROADMAP_ITEM {\n        string id\n        string milestone_id\n        string chat_id\n        string title\n        string status\n        string priority\n        list tags\n    }\n    ROADMAP ||--o{ MILESTONE : contains\n    MILESTONE ||--o{ ROADMAP_ITEM : contains\n    ROADMAP_ITEM }o--|| CHAT : references\n```\n\n#### File Structure\n\n```\n.codx/\n\u251c\u2500\u2500 profiles/\n\u2502   \u2514\u2500\u2500 project_manager.profile        \u2190 NEW\n\u251c\u2500\u2500 tasks/\n\u2502   \u2514\u2500\u2500 kanban/\n\u2502       \u2514\u2500\u2500 <column>/\n\u2502           \u2514\u2500\u2500 <slug>.<id>.json       \u2190 existing chats/tasks\n\u2514\u2500\u2500 roadmap/\n    \u251c\u2500\u2500 roadmap.json                   \u2190 NEW: list of roadmaps\n    \u2514\u2500\u2500 <roadmap_id>.json              \u2190 NEW: individual roadmap detail\n```\n\n#### New Tools\n\n| Tool | Description | Module |\n|------|-------------|--------|\n| `kanban_list_tasks` | List tasks filtered by board/column/status | `kanban_tools.py` |\n| `kanban_move_task` | Move a chat/task to a different board/column | `kanban_tools.py` |\n| `kanban_update_task` | Update task metadata (name, status, index) | `kanban_tools.py` |\n| `kanban_get_board` | Get full kanban board structure | `kanban_tools.py` |\n| `roadmap_list` | List all roadmaps | `roadmap_tools.py` |\n| `roadmap_get` | Get a specific roadmap with milestones | `roadmap_tools.py` |\n| `roadmap_create` | Create a new roadmap | `roadmap_tools.py` |\n| `roadmap_update` | Update roadmap or milestone | `roadmap_tools.py` |\n| `roadmap_add_milestone` | Add milestone to a roadmap | `roadmap_tools.py` |\n| `roadmap_link_task` | Link a chat/task to a milestone | `roadmap_tools.py` |\n| `team_list_profiles` | List available agent profiles | `team_tools.py` |\n| `team_assign_task` | Assign a task to a profile/agent | `team_tools.py` |\n\n#### Profile System Prompt Design\n\nThe profile content must instruct the PM to:\n1. Always fetch current board state before making changes\n2. Use `kanban_list_tasks` before `kanban_move_task`\n3. Provide clear status summaries using markdown tables\n4. Route technical questions to the appropriate profile via `team_assign_task`\n5. Keep roadmap milestones linked to actual tasks\n\n#### Tool Registration Pattern (existing convention)\n\n```python\n# api/codx/junior/tools/__init__.py\nfrom .kanban_tools import kanban_list_tasks, kanban_move_task, kanban_update_task, kanban_get_board\nfrom .roadmap_tools import roadmap_list, roadmap_get, roadmap_create, roadmap_update, roadmap_add_milestone, roadmap_link_task\nfrom .team_tools import team_list_profiles, team_assign_task\n```\n\n---\n\n### Additional Notes\n\n- **Roadmap persistence**: Store under `.codx/roadmap/` (alongside `.codx/tasks/`, `.codx/profiles/`) using JSON, consistent with existing patterns in `ChatManager`\n- **`kanban_move_task`**: Must update `chat.board`, `chat.column`, delete the old file path \u2014 reuse `ChatManager.save_chat` which already handles this via `find_by_id` + old-file cleanup\n- **`team_assign_task`**: Initially a metadata operation (sets a `assigned_profile` field on the chat); full agent-to-agent delegation via `generate_tasks_tool` is a phase-2 enhancement\n- **No breaking changes**: All new tools use `settings` injection (same pattern as `generate_tasks_tool`) and the existing `ChatManager` API\n- **Roadmap API endpoint**: A new FastAPI router `api/codx/junior/api/roadmap.py` will be needed to expose roadmap operations to the UI \u2014 out of scope for this task but should be planned\n- **Priority order for implementation**:\n  1. `kanban_tools.py` + profile file (immediate value)\n  2. `team_tools.py` (coordination)\n  3. `roadmap_tools.py` + data model (new feature, more work)",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 06:15:19.985700",
+      "updated_at": "2026-08-30T06:15:51.882431",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1788070519.9856262,
+        "cancellation_token_id": "c0caccaa-e45c-480a-bbcf-a644b530a327",
+        "model": "coding-claude",
+        "analytics": {
+          "prompt_tokens": 11989,
+          "completion_tokens": 1828,
+          "total_tokens": 13817,
+          "tools": {}
+        },
+        "time_taken": 31.896766901016235,
+        "first_chunk_time_taken": 0.16964316368103027
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "05dc0666c44c",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-08-30 06:10:19.934702",
+  "updated_at": "2026-08-30T06:29:36.900074",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/project-manager-profile-task-management.659716cc-1827-48c7-a368-5d686267cc87.json",
+  "llm_model": "coding-claude",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-08-30T06:15:58.913427+00:00",
+      "summary": "## Summary\n\nThe task defines a **Project Manager AI profile** for codx-junior that manages Kanban tasks, coordinates team members, and handles project roadmaps. Three new tool modules are required: **`kanban_tools.py`** (read/move/update tasks on boards), **`team_tools.py`** (list profiles, assign tasks to agents), and **`roadmap_tools.py`** (CRUD for a new Roadmap/Milestone data model). A new **`project_manager.profile`** file will define the system prompt and tool list, integrating with the existing `ChatManager` infrastructure without duplication. Implementation is prioritized: kanban tools + profile first, then team tools, then roadmap features, with a future FastAPI router for UI exposure.",
+      "message_ids": [
+        "25ab7714-7f87-4cbe-8e10-ff0770bcad4f",
+        "96aa20ad-fe79-4c27-af65-c51ea266e9d4",
+        "cbac14cb-b817-4f49-95d5-9921cfdbb3b5"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

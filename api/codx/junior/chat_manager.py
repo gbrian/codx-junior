@@ -427,6 +427,29 @@ class ChatManager:
         )
         return self._persist_chat_messages(chat)
 
+    def update_chat_metadata(self, chat: Chat, metadata: dict) -> Chat:
+        """
+        Update chat metadata only (name, description, board, column, etc.)
+        without touching messages.
+
+        :param chat: The chat to update (mutated in place).
+        :param metadata: Dict of metadata fields to update (excluding messages).
+        :return: The persisted chat.
+        """
+        # Update only metadata fields, preserve messages
+        for key, value in metadata.items():
+            if key != "messages" and hasattr(chat, key):
+                setattr(chat, key, value)
+        
+        # Save with chat_only=True to preserve messages
+        updated_chat = self.save_chat(chat=chat, chat_only=True)
+        
+        logger.info(
+            "update_chat_metadata: updated metadata for chat '%s'",
+            chat.id
+        )
+        return updated_chat
+
     def remove_message(self, chat: Chat, message_doc_id: str) -> Chat:
         """
         Remove the message identified by *message_doc_id* from *chat* and

@@ -48,55 +48,112 @@ export class ChatService extends Service {
     ])]
   }
 
-  addMessage({ chat, message }) {
+  async addMessage({ chat, message }) {
     if (chat?.id) {
-      this.$storex.chats.addMessageToChat({ chatId: chat.id, message })
+      return await this.$storex.chats.addMessage({ chat, message })
     } else {
       chat.messages = [...(chat.messages || []), message]
     }
   }
 
-  removeMessage({ chat, message }) {
+  async removeMessage({ chat, message }) {
+    if (!chat?.id || !message?.doc_id) {
+      return
+    }
+
     const ix = chat.messages.findIndex((m) => m.doc_id === message.doc_id)
+    
     if (chat.mode === "task" && message.role === "assistant" && ix > 1) {
       chat.messages[ix - 1].hide = false
       if (chat.messages[ix - 2]) chat.messages[ix - 2].hide = false
     }
-    chat.messages = chat.messages.filter((_, i) => i !== ix)
+
+    return await this.$storex.chats.removeMessage({ chat, messageDocId: message.doc_id })
   }
 
-  toggleHide({ chat, doc_id }) {
+  async toggleHide({ chat, doc_id }) {
+    if (!chat?.id || !doc_id) {
+      return
+    }
+
     const msg = chat.messages.find((m) => m.doc_id === doc_id)
-    if (msg) msg.hide = !msg.hide
-  }
+    if (!msg) return
 
-  toggleAnswer({ chat, doc_id }) {
-    const msg = chat.messages.find((m) => m.doc_id === doc_id)
-    if (msg) msg.is_answer = !msg.is_answer
-  }
-
-  hideAll({ chat }) {
-    chat.messages.forEach((m) => {
-      m.hide = true
+    const newHideValue = !msg.hide
+    return await this.$storex.chats.updateMessage({ 
+      chat, 
+      messageDocId: doc_id,
+      fieldUpdates: { hide: newHideValue }
     })
   }
 
-  updateExistingMessage({ chat, doc_id, update }) {
-    const existing = chat.messages.find((m) => m.doc_id === doc_id)
-    if (existing) Object.assign(existing, update)
+  async toggleAnswer({ chat, doc_id }) {
+    if (!chat?.id || !doc_id) {
+      return
+    }
+
+    const msg = chat.messages.find((m) => m.doc_id === doc_id)
+    if (!msg) return
+
+    const newAnswerValue = !msg.is_answer
+    return await this.$storex.chats.updateMessage({ 
+      chat, 
+      messageDocId: doc_id,
+      fieldUpdates: { is_answer: newAnswerValue }
+    })
   }
 
-  removeFileFromMessage({ message, file }) {
+  async hideAll({ chat }) {
+    if (!chat?.id || !chat.messages?.length) {
+      return
+    }
+
+    const hideUpdates = chat.messages.map(m => ({
+      doc_id: m.doc_id,
+      hide: true
+    }))
+
+    return await this.$storex.chats.updateMessages({ 
+      chat, 
+      messages: hideUpdates 
+    })
+  }
+
+  async updateExistingMessage({ chat, doc_id, update }) {
+    if (!chat?.id || !doc_id) {
+      return
+    }
+
+    return await this.$storex.chats.updateMessage({ 
+      chat, 
+      messageDocId: doc_id,
+      fieldUpdates: update
+    })
+  }
+
+  async removeFileFromMessage({ message, file }) {
+    if (!message || !file) return
     message.files = message.files.filter((f) => f !== file)
   }
 
-  removeFileFromChat({ chat, file }) {
-    chat.file_list = chat.file_list?.filter((f) => f !== file)
+  async removeFileFromChat({ chat, file }) {
+    if (!chat?.id || !file) return
+    const updatedFileList = chat.file_list?.filter((f) => f !== file) || []
+    return await this.$storex.chats.updateChatInfo({ 
+      chat, 
+      updates: { file_list: updatedFileList }
+    })
   }
 
-  addFileToChat({ chat, file }) {
+  async addFileToChat({ chat, file }) {
+    if (!chat?.id || !file) return false
     if (chat.file_list?.includes(file)) return false
-    chat.file_list = [...(chat.file_list || []), file]
+    
+    const updatedFileList = [...(chat.file_list || []), file]
+    await this.$storex.chats.updateChatInfo({ 
+      chat, 
+      updates: { file_list: updatedFileList }
+    })
     return true
   }
 
@@ -245,7 +302,7 @@ export class ChatService extends Service {
     const fileChat = file.chat || await this.createFileChat({ file, parentChat })
 
     if (fileChat.messages.some(m => !m.hide)) {
-      fileChat.messages.forEach(m => { m.hide = true })
+      await this.hideAll({ chat: fileChat })
       await this.saveChat(fileChat)
     }
 
@@ -430,5 +487,4 @@ export class ChatService extends Service {
   hasCodeBlocksWithFilePaths(message) {
     return hasCodeBlocksWithPaths(message?.content || '')
   }
-
 }

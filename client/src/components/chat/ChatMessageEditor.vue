@@ -31,6 +31,7 @@ import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
       </div>
       <div class="w-48">
         <ChatLLMModelSelector
+          :use-modal="true"
           :selected-model="selectedModel"
           @model-changed="onModelChanged"
         />

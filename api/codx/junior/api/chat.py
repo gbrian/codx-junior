@@ -16,32 +16,13 @@ async def chat_cancel(data: dict):
 
     Expected payload (at least one key must be provided):
         {
-            "chat_id":  "<chat doc_id to cancel>",       # cancel by chat document ID
-            "token_id": "<cancellation token UUID>"      # cancel by token UUID received
-                                                         # in response message meta_data
+            "chat_id":  "<chat doc_id to cancel>",
+            "token_id": "<cancellation token UUID>"
         }
-
-    When both keys are present ``chat_id`` is tried first; if no token is found
-    for it the handler falls back to ``token_id``.
 
     Returns:
         { "cancelled": true,  "method": "chat_id"|"token_id" }
-            — a token was found and cancelled
         { "cancelled": false, "error": "..." }
-            — no in-flight token was found for either key
-
-    flowchart TD
-        A[Client POST /api/chat/cancel] --> B{chat_id present?}
-        B -->|Yes| C[CANCELLATION_REGISTRY.cancel by chat_id]
-        C -->|Token found| D[Return cancelled=true method=chat_id]
-        C -->|No token| E{token_id present?}
-        B -->|No| E
-        E -->|Yes| F[CANCELLATION_REGISTRY.cancel_by_token_id]
-        F -->|Token found| G[Return cancelled=true method=token_id]
-        F -->|No token| H[Log warning]
-        H --> I[Return cancelled=false]
-        E -->|No| J[Log warning missing keys]
-        J --> I
     """
     if not data:
         logger.warning("chat_cancel: empty payload")
@@ -51,40 +32,24 @@ async def chat_cancel(data: dict):
     token_id = data.get("token_id")
 
     if not chat_id and not token_id:
-        logger.warning(
-            "chat_cancel: missing 'chat_id' and 'token_id' in payload"
-        )
+        logger.warning("chat_cancel: missing 'chat_id' and 'token_id' in payload")
         return {"cancelled": False, "error": "missing chat_id or token_id"}
 
-    # --- Try chat_id first ---
     if chat_id:
-        logger.info(
-            "chat_cancel: attempting cancel by chat_id='%s'", chat_id
-        )
+        logger.info("chat_cancel: attempting cancel by chat_id='%s'", chat_id)
         cancelled = CANCELLATION_REGISTRY.cancel(chat_id)
         if cancelled:
-            logger.info(
-                "chat_cancel: cancelled by chat_id='%s'", chat_id
-            )
+            logger.info("chat_cancel: cancelled by chat_id='%s'", chat_id)
             return {"cancelled": True, "method": "chat_id"}
 
-    # --- Fall back to token_id ---
     if token_id:
-        logger.info(
-            "chat_cancel: attempting cancel by token_id='%s'", token_id
-        )
+        logger.info("chat_cancel: attempting cancel by token_id='%s'", token_id)
         cancelled = CANCELLATION_REGISTRY.cancel_by_token_id(token_id)
         if cancelled:
-            logger.info(
-                "chat_cancel: cancelled by token_id='%s'", token_id
-            )
+            logger.info("chat_cancel: cancelled by token_id='%s'", token_id)
             return {"cancelled": True, "method": "token_id"}
 
-    logger.warning(
-        "chat_cancel: no in-flight token found for "
-        "chat_id='%s' token_id='%s'",
-        chat_id, token_id,
-    )
+    logger.warning("chat_cancel: no in-flight token found for chat_id='%s' token_id='%s'", chat_id, token_id)
     return {"cancelled": False, "error": "no in-flight token found"}
 
 
@@ -92,9 +57,6 @@ async def chat_cancel(data: dict):
 async def api_add_message(request: Request):
     """
     Add a single message to a chat (merge-safe, idempotent).
-
-    Used during AI turns to persist events (tool usage, streaming, etc.)
-    without overwriting concurrent updates.
 
     Expected JSON payload:
         {
@@ -110,20 +72,20 @@ async def api_add_message(request: Request):
     Returns:
         The updated Chat object with merged messages.
     """
-    from codx.junior.db import Chat, Message
-    
-    data = await request.json()
-    codx_junior_session = request.state.codx_junior_session
-    chat_manager = codx_junior_session.get_chat_manager()
-    
-    chat_id = data.get("chat_id")
-    message_data = data.get("message")
-    
-    if not chat_id or not message_data:
-        logger.error("api_add_message: missing chat_id or message")
-        return {"error": "missing chat_id or message"}
+    from codx.junior.db import Message
     
     try:
+        data = await request.json()
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        chat_id = data.get("chat_id")
+        message_data = data.get("message")
+        
+        if not chat_id or not message_data:
+            logger.error("api_add_message: missing chat_id or message")
+            return {"error": "missing chat_id or message"}
+        
         chat = chat_manager.find_by_id(chat_id=chat_id)
         if not chat:
             logger.error("api_add_message: chat not found: %s", chat_id)
@@ -132,14 +94,142 @@ async def api_add_message(request: Request):
         message = Message(**message_data)
         updated_chat = chat_manager.add_message(chat=chat, message=message)
         
-        logger.info(
-            "api_add_message: added message '%s' to chat '%s'",
-            message.doc_id, chat_id
-        )
         return updated_chat
     except Exception as ex:
         logger.error("api_add_message: unexpected error: %s", ex)
         return {"error": f"Failed to add message: {str(ex)}"}
+
+
+@router.put("/chats/message")
+async def api_update_message(request: Request):
+    """
+    Update an existing message in a chat (merge-safe).
+
+    Matched by doc_id. If not found, the message is appended.
+
+    Expected JSON payload:
+        {
+            "chat_id": "<chat UUID>",
+            "message": {
+                "doc_id": "<message UUID>",
+                "content": "...",
+                "role": "user|assistant|system",
+                ...other Message fields
+            }
+        }
+
+    Returns:
+        The updated Chat object with merged messages.
+    """
+    from codx.junior.db import Message
+    
+    try:
+        data = await request.json()
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        chat_id = data.get("chat_id")
+        message_data = data.get("message")
+        
+        if not chat_id or not message_data:
+            logger.error("api_update_message: missing chat_id or message")
+            return {"error": "missing chat_id or message"}
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_update_message: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found"}
+        
+        message = Message(**message_data)
+        updated_chat = chat_manager.update_message(chat=chat, message=message)
+        
+        return updated_chat
+    except Exception as ex:
+        logger.error("api_update_message: unexpected error: %s", ex)
+        return {"error": f"Failed to update message: {str(ex)}"}
+
+
+@router.delete("/chats/message")
+async def api_remove_message(request: Request):
+    """
+    Remove a message from a chat (merge-safe).
+
+    Expected query parameters:
+        - chat_id: <chat UUID>
+        - message_doc_id: <message doc_id to remove>
+
+    Returns:
+        The updated Chat object with the message removed.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        chat_id = request.query_params.get("chat_id")
+        message_doc_id = request.query_params.get("message_doc_id")
+        
+        if not chat_id or not message_doc_id:
+            logger.error("api_remove_message: missing chat_id or message_doc_id")
+            return {"error": "missing chat_id or message_doc_id"}
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_remove_message: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found"}
+        
+        updated_chat = chat_manager.remove_message(chat=chat, message_doc_id=message_doc_id)
+        
+        return updated_chat
+    except Exception as ex:
+        logger.error("api_remove_message: unexpected error: %s", ex)
+        return {"error": f"Failed to remove message: {str(ex)}"}
+
+
+@router.post("/chats/metadata")
+async def api_update_chat_metadata(request: Request):
+    """
+    Update chat metadata only (name, description, board, column, etc.)
+    without touching messages.
+
+    Expected JSON payload:
+        {
+            "chat_id": "<chat UUID>",
+            "metadata": {
+                "name": "...",
+                "description": "...",
+                "board": "...",
+                "column": "...",
+                ...other fields (excluding messages)
+            }
+        }
+
+    Returns:
+        The updated Chat object.
+    """
+    try:
+        data = await request.json()
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        chat_id = data.get("chat_id")
+        metadata = data.get("metadata", {})
+        
+        if not chat_id:
+            logger.error("api_update_chat_metadata: missing chat_id")
+            return {"error": "missing chat_id"}
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_update_chat_metadata: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found"}
+        
+        # Delegate metadata update to chat_manager
+        updated_chat = chat_manager.update_chat_metadata(chat=chat, metadata=metadata)
+        
+        return updated_chat
+    except Exception as ex:
+        logger.error("api_update_chat_metadata: unexpected error: %s", ex)
+        return {"error": f"Failed to update chat metadata: {str(ex)}"}
 
 
 @router.get("/chats")
@@ -158,33 +248,38 @@ def api_list_chats(request: Request):
         Export response if export_format is provided.
         List of Chat objects otherwise.
     """
-    codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    chat_id = request.query_params.get("id")
-    export_format = request.query_params.get("export_format")
-    from_date = request.query_params.get("from_date")
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        file_path = request.query_params.get("file_path")
+        chat_id = request.query_params.get("id")
+        export_format = request.query_params.get("export_format")
+        from_date = request.query_params.get("from_date")
 
-    if export_format:
-        export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
-        return Response(
-                  content=export.content,
-                  media_type=export.content_type,
-                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
-              )
+        if export_format:
+            export = chat_manager.export_chat(chat_id=chat_id, export_format=export_format)
+            return Response(
+                content=export.content,
+                media_type=export.content_type,
+                headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
+            )
 
-    if chat_id:
-        chat = codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
-        if not chat:
-            logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
-        return chat
+        if chat_id:
+            chat = chat_manager.find_by_id(chat_id=chat_id)
+            if not chat:
+                logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
+            return chat
 
-    if file_path:
-        chat = codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
-        if not chat:
-            logger.error('Chat not found. file_path: %s, project: %s', file_path, codx_junior_session.settings.project_name)
-        return chat
+        if file_path:
+            chat = chat_manager.load_chat_from_path(chat_file=file_path)
+            if not chat:
+                logger.error('Chat not found. file_path: %s, project: %s', file_path, codx_junior_session.settings.project_name)
+            return chat
 
-    return codx_junior_session.list_chats(from_date=from_date)
+        return chat_manager.list_chats(from_date=from_date)
+    except Exception as ex:
+        logger.error("api_list_chats: unexpected error: %s", ex)
+        return {"error": f"Failed to list chats: {str(ex)}"}
 
 
 @router.post("/chats/search")
@@ -199,112 +294,61 @@ async def api_search_chats(request: Request):
             "to_date": "<ISO-format date, optional>",
             "page": 1,
             "page_size": 20,
-            "filters": {
-                "search_name": true,
-                "search_description": true,
-                "search_messages": true,
-                "search_message_metadata": true,
-                "search_history": true,
-                "search_files": true,
-                "search_model": true,
-                "search_status": true,
-                "search_mode": true
-            }
+            "filters": { ... }
         }
-
-    The search looks across (subject to filter flags):
-        - Chat name, description, status, mode
-        - Message content and thinking field
-        - Message user, profiles, knowledge topics
-        - File list, LLM model
-        - Chat history summaries
-
-    Filter flags:
-        - All flags default to ``true`` (search everywhere) when omitted.
-        - Set to ``false`` to exclude that field category from search scope.
-        - Allows fine-grained control similar to email filter dialogs.
 
     Returns:
-        {
-            "results": [
-                {
-                    "chat": { ... },
-                    "relevance_score": 15.5,
-                    "matched_fields": ["name", "message_content"]
-                },
-                ...
-            ],
-            "total": 42,
-            "page": 1,
-            "page_size": 20,
-            "total_pages": 3,
-            "has_next": true,
-            "has_prev": false
-        }
+        Paginated search results with relevance scores.
     """
-    from codx.junior.chat_searcher import ChatSearcher
-
-    data = await request.json()
-    codx_junior_session = request.state.codx_junior_session
-    chat_manager = codx_junior_session.get_chat_manager()
-
-    query = data.get("query", "")
-    from_date = data.get("from_date")
-    to_date = data.get("to_date")
-    page = data.get("page", 1)
-    page_size = data.get("page_size", ChatSearcher.DEFAULT_PAGE_SIZE)
-    filters_data = data.get("filters")
-
-    # Validate inputs
     try:
-        page = max(1, int(page))
-        page_size = max(1, min(100, int(page_size)))  # Cap at 100 items per page
-    except (TypeError, ValueError) as ex:
-        logger.error("api_search_chats: invalid pagination params: %s", ex)
-        return {
-            "error": "Invalid page or page_size parameters",
-            "results": [],
-            "total": 0,
-            "page": 1,
-            "page_size": page_size,
-            "total_pages": 0,
-            "has_next": False,
-            "has_prev": False,
-        }
+        data = await request.json()
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
 
-    if not query:
-        logger.warning("api_search_chats: empty query")
-        return {
-            "error": "Query parameter cannot be empty",
-            "results": [],
-            "total": 0,
-            "page": 1,
-            "page_size": page_size,
-            "total_pages": 0,
-            "has_next": False,
-            "has_prev": False,
-        }
+        query = data.get("query", "")
+        from_date = data.get("from_date")
+        to_date = data.get("to_date")
+        page = data.get("page", 1)
+        page_size = data.get("page_size", 20)
+        filters_data = data.get("filters")
 
-    try:
-        # Load all chats for the project
-        all_chats = chat_manager.list_chats()
-        logger.info(
-            "api_search_chats: loaded %d chats for searching", len(all_chats)
-        )
+        # Validate inputs
+        try:
+            page = max(1, int(page))
+            page_size = max(1, min(100, int(page_size)))
+        except (TypeError, ValueError) as ex:
+            logger.error("api_search_chats: invalid pagination params: %s", ex)
+            return {
+                "error": "Invalid page or page_size parameters",
+                "results": [],
+                "total": 0,
+                "page": 1,
+                "page_size": page_size,
+                "total_pages": 0,
+                "has_next": False,
+                "has_prev": False,
+            }
 
-        # Parse filter flags from request (defaults to all enabled if not provided)
-        filters = SearchFilters.from_dict(filters_data)
+        if not query:
+            logger.warning("api_search_chats: empty query")
+            return {
+                "error": "Query parameter cannot be empty",
+                "results": [],
+                "total": 0,
+                "page": 1,
+                "page_size": page_size,
+                "total_pages": 0,
+                "has_next": False,
+                "has_prev": False,
+            }
 
-        # Perform search with filters
-        searcher = ChatSearcher()
-        results = searcher.search(
-            chats=all_chats,
+        # Delegate search to chat_manager
+        results = chat_manager.search_chats(
             query=query,
             from_date=from_date,
             to_date=to_date,
             page=page,
             page_size=page_size,
-            filters=filters,
         )
 
         logger.info(
@@ -323,7 +367,7 @@ async def api_search_chats(request: Request):
             "results": [],
             "total": 0,
             "page": 1,
-            "page_size": page_size,
+            "page_size": 20,
             "total_pages": 0,
             "has_next": False,
             "has_prev": False,
@@ -335,7 +379,7 @@ async def api_search_chats(request: Request):
             "results": [],
             "total": 0,
             "page": 1,
-            "page_size": page_size,
+            "page_size": 20,
             "total_pages": 0,
             "has_next": False,
             "has_prev": False,
@@ -344,72 +388,154 @@ async def api_search_chats(request: Request):
 
 @router.post("/chats")
 async def api_chat(request: Request):
+    """
+    Chat with the project. Delegates to session for AI turn execution.
+    """
     from codx.junior.db import Chat
-    from codx.junior.profiling.profiler import profile_function
-    data = await request.json()
-    chat = Chat(**data)
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
-    await codx_junior_session.chat_with_project(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
+    
+    try:
+        data = await request.json()
+        chat = Chat(**data)
+        codx_junior_session = request.state.codx_junior_session
+        
+        codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+        await codx_junior_session.chat_with_project(chat=chat)
+        await codx_junior_session.save_chat(chat)
+        
+        return chat
+    except Exception as ex:
+        logger.error("api_chat: unexpected error: %s", ex)
+        return {"error": f"Failed to chat: {str(ex)}"}
 
 
 @router.post("/chats/from-url")
-async def api_chat_form_url(request: Request):
+async def api_chat_from_url(request: Request):
+    """
+    Initialize chat from URL. Delegates to session.
+    """
     from codx.junior.db import Chat
-    data = await request.json()
-    chat = Chat(**data)
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
-    codx_junior_session.init_chat_from_url(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
+    
+    try:
+        data = await request.json()
+        chat = Chat(**data)
+        codx_junior_session = request.state.codx_junior_session
+        
+        codx_junior_session.chat_event(chat=chat, message="Loading chat...")
+        codx_junior_session.init_chat_from_url(chat=chat)
+        await codx_junior_session.save_chat(chat)
+        
+        return chat
+    except Exception as ex:
+        logger.error("api_chat_from_url: unexpected error: %s", ex)
+        return {"error": f"Failed to load chat from URL: {str(ex)}"}
 
 
 @router.post("/chats/sub-tasks")
 async def api_chat_subtasks(request: Request):
+    """
+    Generate subtasks from chat. Delegates to session.
+    """
     from codx.junior.db import Chat
-    data = await request.json()
-    chat = Chat(**data)
-    codx_junior_session = request.state.codx_junior_session
-    return await codx_junior_session.generate_tasks(chat=chat)
+    
+    try:
+        data = await request.json()
+        chat = Chat(**data)
+        codx_junior_session = request.state.codx_junior_session
+        
+        return await codx_junior_session.generate_tasks(chat=chat)
+    except Exception as ex:
+        logger.error("api_chat_subtasks: unexpected error: %s", ex)
+        return {"error": f"Failed to generate tasks: {str(ex)}"}
 
 
 @router.put("/chats")
 async def api_save_chat(request: Request):
+    """
+    Save chat. Delegates to chat_manager.
+    """
     from codx.junior.db import Chat
-    data = await request.json()
-    chat = Chat(**data)
-    codx_junior_session = request.state.codx_junior_session
-    chat_only = request.query_params.get("chatonly") == "1"
-    await codx_junior_session.save_chat(chat, chat_only=chat_only)
+    
+    try:
+        data = await request.json()
+        chat = Chat(**data)
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        chat_only = request.query_params.get("chat_only") == "1"
+        saved_chat = chat_manager.save_chat(chat=chat, chat_only=chat_only)
+        
+        return saved_chat
+    except Exception as ex:
+        logger.error("api_save_chat: unexpected error: %s", ex)
+        return {"error": f"Failed to save chat: {str(ex)}"}
 
 
 @router.delete("/chats")
 def api_delete_chat(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    chat_id = request.query_params.get("chat_id")
-    codx_junior_session.delete_chat(chat_id)
+    """
+    Delete a chat. Delegates to chat_manager.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        chat_id = request.query_params.get("chat_id")
+        
+        chat_manager.delete_chat(chat_id=chat_id)
+        
+        return {"deleted": True}
+    except Exception as ex:
+        logger.error("api_delete_chat: unexpected error: %s", ex)
+        return {"error": f"Failed to delete chat: {str(ex)}"}
 
 
 @router.get("/kanban")
 def api_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_chat_manager().load_kanban()
+    """
+    Load kanban. Delegates to chat_manager.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        return chat_manager.load_kanban()
+    except Exception as ex:
+        logger.error("api_kanban: unexpected error: %s", ex)
+        return {"error": f"Failed to load kanban: {str(ex)}"}
 
 
 @router.post("/kanban")
 async def api_set_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban = await request.json()
-    codx_junior_session.get_chat_manager().save_kanban(kanban)
+    """
+    Save kanban. Delegates to chat_manager.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        kanban = await request.json()
+        
+        chat_manager.save_kanban(kanban)
+        
+        return {"saved": True}
+    except Exception as ex:
+        logger.error("api_set_kanban: unexpected error: %s", ex)
+        return {"error": f"Failed to save kanban: {str(ex)}"}
 
 
 @router.delete("/kanban")
 def api_delete_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban_title = request.query_params.get("kanban_title")
-    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
+    """
+    Delete kanban board. Delegates to chat_manager.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        kanban_title = request.query_params.get("kanban_title")
+        
+        chat_manager.delete_kanban(kanban_title=kanban_title)
+        
+        return {"deleted": True}
+    except Exception as ex:
+        logger.error("api_delete_kanban: unexpected error: %s", ex)
+        return {"error": f"Failed to delete kanban: {str(ex)}"}
 
 # Made with ❤️ by codx-junior

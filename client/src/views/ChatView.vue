@@ -104,7 +104,8 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
                 @keydown.enter.stop="saveChatInfo(workingChat)" @keydown.esc="editName = false" v-model="workingChat.name" />
               <span v-else class="font-bold text-base truncate block min-w-0 cursor-pointer"
                 :title="displayChatName" @dblclick="editName = true" @click="showChildChat = null">
-                {{ displayChatName }} [{{ workingChat.status }}]
+                {{ displayChatName }} 
+                <span class="text-xs">[{{ formattedChatUpdatedDate }}]</span>
               </span>
             </div>
             
@@ -123,8 +124,10 @@ import ChatBreadcrumb from '@/components/chat/ChatBreadcrumb.vue'
               <div class="flex items-center gap-1 tooltip" data-tip="Archived messages"
                 :class="showHidden ? 'text-warning' : ''">
                 <i class="fa-regular fa-message"></i>
-                <span class="hidden sm:inline">{{ messageCount - hiddenCount }}</span>
-                <span v-if="hiddenCount"><i class="fa-regular fa-eye-slash"></i> {{ hiddenCount }}</span>
+                <span>{{ messageCount - hiddenCount }}</span>
+                <span v-if="hiddenCount">
+                  <i class="fa-regular fa-eye-slash"></i> {{ hiddenCount }}
+                </span>
               </div>
             </button>
 

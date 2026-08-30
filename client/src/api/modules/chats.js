@@ -47,31 +47,51 @@ export const chatsModule = (API) => ({
   },
 
   async message(chat) {
-    return API.post('/api/chats?', chat)
+    return API.post('/api/chats', chat)
   },
 
   async addMessage(chatId, message) {
     return API.post('/api/chats/message', { chat_id: chatId, message })
   },
 
+  async updateMessage(chatId, message) {
+    return API.put('/api/chats/message', { chat_id: chatId, message })
+  },
+
+  async removeMessage(chatId, messageDocId) {
+    return API.delete(`/api/chats/message?chat_id=${chatId}&message_doc_id=${messageDocId}`)
+  },
+
+  async updateMessageField(chatId, messageDocId, fieldUpdates) {
+    return API.put('/api/chats/message/field', { 
+      chat_id: chatId, 
+      message_doc_id: messageDocId,
+      ...fieldUpdates 
+    })
+  },
+
+  async updateMetadata(chatId, metadata) {
+    return API.post('/api/chats/metadata', { chat_id: chatId, metadata })
+  },
+
   async fromUrl(chat) {
-    return API.post('/api/chats/from-url?', chat)
+    return API.post('/api/chats/from-url', chat)
   },
 
   async subTasks(chat) {
-    return API.post('/api/chats/sub-tasks?', chat)
+    return API.post('/api/chats/sub-tasks', chat)
   },
 
   save(chat) {
-    return API.put(`/api/chats?chatonly=0`, chat)
+    return API.put(`/api/chats?chat_only=0`, chat)
   },
 
   saveChatInfo(chat) {
-    return API.put(`/api/chats?chatonly=1`, chat)
+    return API.put(`/api/chats?chat_only=1`, chat)
   },
 
   delete(chat) {
-    return API.del(`/api/chats?chat_id=${chat.id}`)
+    return API.delete(`/api/chats?chat_id=${chat.id}`)
   },
 
   cancelMessage(cancellationTokenId) {

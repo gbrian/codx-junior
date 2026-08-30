@@ -1,6 +1,6 @@
 # Codx Junior API - Complete Reference Guide
 
-Welcome to the Codx Junior API documentation. This wiki serves as your comprehensive reference for understanding the architecture, components, and functionality of the CODX Junior framework.
+Welcome to the Codx Junior API documentation. This wiki serves as your comprehensive reference for understanding the architecture, components, and functionality of the CODX API system.
 
 ## Project Overview
 
@@ -78,72 +78,81 @@ The system features multiple specialized agents, each optimized for specific ope
 - **UI & Accessibility**: Display settings, interface customization, and accessibility options
 - **Integration**: Third-party service integration, API keys, and external configuration
 
-## Chat API and Management
+## Chat Management and API
 
 The Chat API provides a comprehensive set of endpoints for managing conversations, with sophisticated operations designed for robust and reliable message handling. All endpoints are designed with crash-safety mechanisms and comprehensive state management to ensure reliable operation even during system interruptions.
 
-### Key Features
+### Chat Manager Features
 
-The Chat API supports essential capabilities for conversation management:
+The ChatManager module provides specialized functionality for managing chat files, message persistence, and chat state across projects with merge-safe operations prioritized as a key feature:
 
-- **Merge-Safe Operations**: Last-writer-wins conflict resolution ensuring concurrent updates are never lost, particularly valuable during AI turns with specific examples including tool usage and streaming scenarios
-- **Flexible Search**: Comprehensive search across chat content, messages, files, and metadata with fine-grained filtering capabilities including name, description, message content, associated files, and model information
-- **Export Support**: Multiple format options (markdown, DOCX, PDF, Excel) for structured documentation with appropriate content type and headers
-- **Cancellation Tokens**: Dual-access cancellation methods for flexible abort timing before or during streaming, with primary cancellation through `chat_id` and automatic fallback to `token_id` if unavailable
-- **Date Filtering**: Temporal filtering capabilities for precise conversation discovery with ISO date format specification
-- **Pagination**: Configurable result limits for manageable data retrieval with page minimums and size caps
-- **Error Handling**: Comprehensive error management with graceful degradation patterns
-- **Session Management**: Complete `codx_junior_session` lifecycle management with secure token-based session coordination
+- **Message Merging Strategy**: Implements last-writer-wins conflict resolution per-message by `doc_id` and `updated_at` timestamp, ensuring concurrent updates are never lost. Explicit handling of incoming versus stored messages through timestamp comparison logic guarantees deterministic merging even during simultaneous modifications from multiple sources. Timestamp normalization using real datetime objects and `datetime.min` prevents string-based comparison failures and ensures correct chronological ordering throughout message operations.
 
-### Chat Operations
+- **Timestamp Normalization**: Robust parsing that handles both historical timestamp formats seamlessly. Unparseable timestamps are handled gracefully with fallback behavior to prevent merge failures, ensuring correct chronological ordering even with legacy data.
 
-The Chat API is organized into logical sections supporting the complete conversation lifecycle:
+- **Fast-Path Optimization**: Efficient hot-path loading through specialized operations for frequently-called granular access during AI turns, enabling quick access to conversation state without full-chat reconstruction. This optimization is critical for performance-sensitive operations like streamed responses and real-time events where rapid access to conversation context is essential.
 
-#### POST /chat/cancel — Chat Cancellation
-Abort in-progress chat operations with graceful fallback mechanisms, evaluating cancellation requests with provided identifiers where `chat_id` refers to chat doc_id. Primary cancellation access through `chat_id` is attempted with automatic fallback to `token_id` if unavailable, gracefully closing streams when cancellation cannot be processed while ensuring clean resource cleanup.
+- **Chat Discovery**: Specialized methods including `find_chats()` for discovering chats by search criteria and `last_chats()` for retrieving recent conversations, supporting case-insensitive substring matching with pagination controls.
 
-#### POST /chat/message — Message Management
-Append messages to conversations in a merge-safe, idempotent manner with automatic handling for tool usage, streaming, and complex interactions through `doc_id` management. Requires valid `chat_id` reference, supports message content with optional metadata, automatic merge-safe conflict resolution, and tool-specific message data extensibility.
+- **Directory Structure**: Explicit chat file organization hierarchy supporting systematic chat persistence and retrieval with well-defined paths for efficient file access and organization.
 
-#### GET /chats — Chat Listing
-Retrieve conversations with optional filtering by file path and export format. Pagination controls and date filtering are available, with `from_date` parameter applying only to list operations.
+- **Owner Project Resolution**: Cross-project chat ownership handling enabling seamless support for chats owned by projects other than the requesting project with automatic delegation to appropriate manager via `chat.owner_project_id` field.
 
-#### POST /chat/search — Chat Search
-Discover conversations using flexible search with filter flags, relevance scoring, and matched field tracking across name, description, messages, files, and model information:
-- Search scope includes chat name and description, message content and history, associated files and file paths, and model information
-- Filter flags provide fine-grained control with all flags defaulting to `true` (search everywhere) when omitted
-- Page minimum of 1, page size capped at 100 items per page
-- Non-empty query validation required with ISO date format specification for temporal filtering
+- **Multi-Project Support**: Explicit support for chats owned by projects other than those requesting them, with automatic routing based on project ownership ensuring correct isolation and access control.
 
-#### POST /chat/from-url — Chat Loading from URLs
-Generate new chats by loading content from URLs with automatic message emission during loading process:
-- Accept URL and optional initialization parameters
-- Fetch and process content from provided URL
-- Create new chat instance with loaded content
-- Emit messages during loading for real-time feedback
-- Return chat with populated context
+- **Full-Text Search**: Comprehensive search functionality across chat content, messages, files, and metadata with fine-grained filtering capabilities including name, description, message content, associated files, and model information. Search parameters support query strings, filtering, and pagination options for precise conversation discovery.
 
-#### POST /chat — Chat Initialization
-Initiate conversation with a project through structured initialization flow:
-1. Notification of chat initiation
-2. Processing of project context and input
-3. Saving of chat state and messages
-4. Response return with conversation details
+- **Granular Message Operations**: Full CRUD operations for message management including add, update, and remove capabilities with merge-safe conflict resolution throughout. Idempotent message operations with automatic field generation ensure reliable message handling with debug-level logging for updates and error tracking for retrieval failures.
 
-#### PUT /chat/{chat_id} — Chat Updates
-Persist chat state and message updates with merge-safe operations ensuring concurrent updates are never lost.
+- **Chat Export**: Multiple format options (markdown, DOCX, PDF, Excel) for structured documentation with appropriate content type and headers for flexible output.
 
-#### DELETE /chat/{chat_id} — Chat Deletion
-Remove conversations and associated data with project-level delegation.
+- **Kanban Integration**: Chat-to-board assignment enabling task organization within project structures with support for legacy format migration and `load_kanban_from_file()` functionality.
 
-#### GET /chat/kanban — Kanban Board Retrieval
-Retrieve kanban board assignments for chat-based task organization and board state management within project structures.
+- **Metadata Management**: Dedicated metadata operations enable efficient updates to chat metadata without affecting message content, supporting metadata-only updates through dedicated endpoints.
 
-#### POST /chat/kanban — Kanban Board Updates
-Persist kanban board state with merge-safe operations for concurrent updates.
+### Chat API Endpoints
 
-#### DELETE /chat/kanban — Kanban Board Deletion
-Remove kanban board assignments with project-level delegation.
+The Chat API is organized into endpoint-centric groups supporting the complete conversation lifecycle:
+
+#### Cancellation Management
+
+- **POST /chat/cancel** — Abort in-progress chat operations with graceful fallback mechanisms. Primary cancellation access through `chat_id` with automatic fallback to `token_id` if unavailable.
+
+#### Message Management
+
+- **POST /chat/message** — Append messages to conversations in a merge-safe, idempotent manner with automatic handling for tool usage, streaming, and complex interactions.
+
+- **PUT /chats/message** — Update existing messages with merge-safe operations ensuring concurrent modifications are never lost through timestamp-based conflict resolution.
+
+- **DELETE /chats/message** — Remove messages from chats with safe deletion ensuring referential integrity.
+
+#### Metadata Management
+
+- **POST /chats/metadata** — Update chat metadata separately from message operations, enabling metadata-only updates without affecting message content.
+
+#### Retrieval and Search
+
+- **GET /chats** — Retrieve conversations with optional filtering by file path and export format. Pagination controls and date filtering are available. Returns metadata only without messages.
+
+- **POST /chat/search** — Discover conversations using flexible search with filter flags, relevance scoring, and matched field tracking across name, description, messages, files, and model information.
+
+#### Chat Operations
+
+- **POST /chat/from-url** — Generate new chats by loading content from URLs with automatic message emission during loading process.
+
+- **POST /chat** — Initiate conversation with a project through structured initialization flow.
+
+- **PUT /chat/{chat_id}** — Persist chat state and message updates with merge-safe operations.
+
+- **DELETE /chat/{chat_id}** — Remove conversations and associated data.
+
+#### Kanban Board Management
+
+- **GET /chat/kanban** — Retrieve kanban board assignments for chat-based task organization.
+
+- **POST /chat/kanban** — Persist kanban board state with merge-safe operations.
+
+- **DELETE /chat/kanban** — Remove kanban board assignments.
 
 ### Chat Engine Architecture
 
@@ -176,21 +185,6 @@ The ChatEngine serves as the central orchestration hub for all chat interactions
 
 - **Pre-Stream Cancellation**: Safe abort points before streaming begins, allowing clean resource release before model invocation
 - **Mid-Stream Cancellation**: Abort on chunk boundaries during streaming, enabling responsive user cancellation during active response generation
-
-**Chat Management**: The ChatManager module provides specialized functionality for managing chat files, message persistence, and chat state across projects with:
-
-- **Merge-Safe Operations**: Last-writer-wins conflict resolution ensuring concurrent updates are never lost
-- **Timestamp Normalization**: Explicit handling of timestamp format variations for correct chronological ordering
-- **Chat Discovery**: Flexible filtering, keyword matching, and pagination for precise chat location
-- **Chat Export**: Multiple format support (markdown, DOCX, PDF, Excel) for structured documentation
-- **Kanban Integration**: Chat-to-board assignment enabling task organization within project structures
-- **Cross-Project Support**: Automatic delegation to appropriate manager based on project ownership
-
-**Analytics Integration**: Comprehensive analytics tracking throughout the chat lifecycle with dual-point measurement:
-
-- **Session Start Analytics**: Capture initialization context and baseline metrics
-- **Session End Analytics**: Record completion metrics including iteration counts, token usage, and tool execution patterns
-- **Graceful Degradation**: Analytics failures are logged appropriately without disrupting core service delivery
 
 ## Tools and Utilities
 
@@ -235,7 +229,7 @@ The `ToolResponse` model provides a structured approach for tools to implement s
 
 **Webpage Fetching**: Extract and process web content, converting it to markdown format for knowledge base integration and reference material processing.
 
-**Project Search**: Efficiently locate project resources, files, and documentation for quick access with validation parameters ensuring search accuracy. Requires optional brief text to validate content found by the search. **Note:** Requires project settings.
+**Project Search**: Efficiently locate project resources, files, and documentation for quick access with validation parameters ensuring search accuracy. **Note:** Requires project settings.
 
 **Project Read File**: Reads and accesses project files for analysis, processing, and integration into agent workflows. **Note:** Requires project settings.
 
@@ -268,6 +262,18 @@ The system implements comprehensive error handling across multiple dimensions:
 **Cancellation Handling**: Graceful degradation with specific cancellation points ensure clean resource cleanup across all operational states, with the system maintaining operational continuity even when non-critical failures occur.
 
 **Loop Protection**: Dedicated LoopGuard mechanism prevents infinite iteration loops during tool execution, monitoring execution patterns and applying intelligent throttling and termination logic.
+
+## System Reliability and Observability
+
+### Analytics Integration
+
+The platform implements comprehensive analytics tracking throughout critical system operations. The analytics system records session start events capturing initialization context and baseline metrics, as well as session end events documenting completion metrics including token usage and tool execution patterns. This dual-point analytics approach ensures complete observability of system operations.
+
+The analytics integration operates with built-in resilience: when analytics operations encounter issues, they are caught and logged appropriately rather than disrupting core service delivery. This graceful degradation pattern ensures that analytics failures never cascade into broader system failures, maintaining service availability while preserving observability capabilities.
+
+### Crash-Safety Mechanisms
+
+The system implements multi-layered crash-safety mechanisms designed to handle unexpected interruptions with minimal data loss. Through structured event attachment, regular state persistence, and intelligent recovery mechanisms, the platform ensures reliable operation with loss tolerance measured in seconds even during hard system failures. This architecture provides users with confidence that their operations will complete reliably even under adverse conditions.
 
 ## Model Classes and Data Structures
 
@@ -313,26 +319,13 @@ Key model categories include:
 
 This centralized approach enables consistent behavior across all system components while supporting flexible customization through profile-specific overrides. Each setting includes explicit default values and clear documentation of its purpose within the system.
 
-## System Reliability and Observability
-
-### Analytics Integration
-
-The platform implements comprehensive analytics tracking throughout critical system operations. The analytics system records session start events capturing initialization context and baseline metrics, as well as session end events documenting completion metrics including token usage and tool execution patterns. This dual-point analytics approach ensures complete observability of system operations.
-
-The analytics integration operates with built-in resilience: when analytics operations encounter issues, they are caught and logged appropriately rather than disrupting core service delivery. This graceful degradation pattern ensures that analytics failures never cascade into broader system failures, maintaining service availability while preserving observability capabilities.
-
-### Crash-Safety Mechanisms
-
-The system implements multi-layered crash-safety mechanisms designed to handle unexpected interruptions with minimal data loss. Through structured event attachment, regular state persistence, and intelligent recovery mechanisms, the platform ensures reliable operation with loss tolerance measured in seconds even during hard system failures. This architecture provides users with confidence that their operations will complete reliably even under adverse conditions.
-
 ## Documentation Organization and Approach
 
 This wiki employs a refined documentation structure that prioritizes clarity and practical utility:
 
 ### Content Organization Principles
 
-- **Architecture-First Structure**: Core design principles and system components are presented before operational details and implementation specifics
-- **Endpoint-Centric API Documentation**: Chat API and other endpoints are organized with clear HTTP methods, paths, and operations for practical reference
+- **Endpoint-Centric API Documentation**: Chat API endpoints are organized with clear HTTP methods, paths, and operations for practical reference
 - **Feature-Focused Sections**: Tool documentation emphasizes capabilities, use cases, and practical benefits over internal mechanisms
 - **Professional Formatting**: Standardized tables, structured headings with metadata, and consistent section organization for improved scannability
 - **Practical Integration Guidance**: Integration notes and configuration requirements are clearly separated from API specifications
@@ -375,6 +368,9 @@ Each section in this wiki is designed for practical reference:
 - **Design Patterns**: Explanations of architectural patterns and their operational benefits
 - **Module Configuration**: Details on logging setup, type hints, initialization patterns, and tool specifications
 - **Tool Metadata**: Clear indicators for async status, project settings dependencies, dual-response capabilities, tool response model integration, and result preview sizes
+- **Core Methods Documentation**: Detailed method signatures organized by operational category
+- **Internal Helpers Documentation**: Private methods documented with their specific roles in core operations
+- **Path Helpers Documentation**: Specialized path manipulation methods with clear operational context
 
 Navigate to specific sections for detailed implementation guidance, or use the search functionality to locate information on particular components. The wiki emphasizes practical, implementation-focused content with comprehensive coverage of the complete request-response pipeline from message formatting through analytics, with particular attention to error prevention and transparent failure handling.
 
@@ -389,4 +385,4 @@ Supporting modules throughout the system include:
 
 ---
 
-**Last Updated**: This documentation reflects the current state of the CODX Junior framework with comprehensive refinements across all sections including enhanced Chat API endpoint documentation with refined endpoint organization presenting endpoints organized by operational function with clear HTTP method and path specification; enhanced chat cancellation with explicit fallback behavior from chat_id to token_id; improved search validation with clear constraints on pagination, query requirements, and date formatting; streamlined process descriptions and improved scannability through consistent formatting; comprehensive crash-safety mechanisms documentation and advanced tool architecture with three-level scoping; detailed multi-mode chat support and analytics integration with graceful degradation patterns. Documentation continues to evolve to meet user needs while maintaining high-level overview focus suitable for the home page.
+**Last Updated**: This documentation reflects the current state of the CODX API with comprehensive refinements across all system components including Chat Manager reorganization emphasizing operational efficiency through merge-safe operations, timestamp handling, and fast-path optimization with explicit focus on merge strategies as a core feature; comprehensive Chat API endpoint documentation organized in endpoint-centric groups with clear HTTP methods and paths for cancellation management, message operations, metadata management, retrieval and search capabilities, and Kanban board integration; detailed crash-safety mechanisms and multi-phase pipeline architecture for ChatEngine; expanded tool ecosystem documentation with three-level scoping and dual-audience response patterns through ToolResponse model; enhanced AI and agent capabilities documentation including SmolAgent architecture with async-first design and sophisticated streaming; refined system reliability documentation emphasizing crash-safety, analytics integration with graceful degradation, and comprehensive error handling patterns; and comprehensive system component documentation covering message formatting, streaming, response handling, and resilience mechanisms. Documentation continues to evolve to meet user needs while maintaining high-level overview focus suitable for the home page.

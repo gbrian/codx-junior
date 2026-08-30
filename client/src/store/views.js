@@ -407,6 +407,19 @@ export const actions = actionTree(
       } catch (error) {
         console.error('Error handling active panel change:', error)
       }
-    }
+    },
+    async activatePanel(_, panelId) {
+      try {
+        const desktopApi = $storex.views._desktopApi
+        if (!desktopApi) return
+        
+        const panel = desktopApi.getPanel(panelId)
+        if (panel) {
+          desktopApi.setActivePanel(panel)
+        }
+      } catch (error) {
+        console.error(`Error activating panel ${panelId}:`, error)
+      }
+    },
   }
 )
