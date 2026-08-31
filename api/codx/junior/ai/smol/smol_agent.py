@@ -56,6 +56,14 @@ CHANGED: tool call and iteration limits:
     max_tool_calls and max_iterations are now resolved from AISettings with
     priority: Model > Provider > Fallback. These limits are passed to LoopGuard
     to enforce per-round breadth and overall depth limits on tool execution.
+
+CHANGED: robust tool result handling:
+    Tool results are now normalised before being sent back to the model.
+    None results are converted to a meaningful sentinel string, non-string/
+    non-dict results are JSON-serialised, and ALL exceptions (not just the
+    original four types: OSError/ValueError/TypeError/RuntimeError) are caught
+    and returned as error strings. This prevents the model from re-issuing
+    identical tool calls due to empty/missing/None tool messages.
 """
 import json
 import logging
@@ -104,6 +112,10 @@ CANCELLED_MESSAGE: str = "Chat was cancelled by the caller."
 # Tool scope constants
 TOOL_SCOPE_GLOBAL: str = "global"
 TOOL_SCOPE_CHAT: str = "chat"
+
+# Sentinel returned to the model when a tool produces no output.
+# An empty or None tool message causes the model to re-issue the same call.
+_TOOL_NO_OUTPUT: str = "(tool returned no output)"
 
 
 HARDCODED_SYSTEM_RULES = "\n".join([
@@ -154,6 +166,51 @@ def _load_chat_global_instructions() -> str:
         return ""
 
 
+def _normalise_tool_result(result: Any, func_name: str) -> str:
+    """
+    Convert any tool return value into a non-empty string suitable for an
+    OpenAI tool-result message.
+
+    The model MUST always receive a non-empty tool message. An empty, None,
+    or missing content causes it to re-issue the exact same tool call,
+    producing an infinite loop that only terminates via LoopGuard.
+
+    Conversion rules (in priority order):
+        1. ``None``        → sentinel ``_TOOL_NO_OUTPUT``
+        2. ``str``         → returned as-is (empty str → sentinel)
+        3. ``dict``/``list`` → JSON-serialised for readability
+        4. Anything else   → ``str()`` fallback
+
+    Args:
+        result:    Raw value returned by the tool callable.
+        func_name: Tool name used only for debug logging.
+
+    Returns:
+        A non-empty string representation of the result.
+    """
+    if result is None:
+        logger.debug(
+            "SmolAgent: tool '%s' returned None – using sentinel '%s'",
+            func_name,
+            _TOOL_NO_OUTPUT,
+        )
+        return _TOOL_NO_OUTPUT
+
+    if isinstance(result, str):
+        if not result.strip():
+            logger.debug(
+                "SmolAgent: tool '%s' returned empty string – using sentinel",
+                func_name,
+            )
+            return _TOOL_NO_OUTPUT
+        return result
+
+    try:
+        return json.dumps(result, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(result)
+
+
 class SmolAgent:
     """
     Async-only streaming chat agent with multi-step tool support.
@@ -201,6 +258,14 @@ class SmolAgent:
         (priority: Model > Provider > Fallback) and enforced by LoopGuard
         on every tool round to prevent breadth and depth violations.
 
+    CHANGED: robust tool result handling:
+        Tool results are normalised via ``_normalise_tool_result`` before being
+        sent back to the model. None/empty results are replaced with a
+        meaningful sentinel. All exceptions (not just OSError/ValueError/
+        TypeError/RuntimeError) are caught and returned as error strings so the
+        model always receives a non-empty tool message, preventing re-issuance
+        of identical calls.
+
     Conversation flow
     ```mermaid
         flowchart TD
@@ -215,8 +280,8 @@ class SmolAgent:
             G -->|ok| H["Save streamed content to llm_responses_accumulated"]
             H --> I[Execute tools - TOOL_START/END/ERROR]
             I --> J{Dual-response tool?}
-            J -->|yes| J1[Extract user_content + llm_feedback]
-            J -->|no| J2[Single string response]
+            J -->|yes| J1[Extract user_content + normalise llm_feedback]
+            J -->|no| J2[Normalise result - never None/empty]
             J1 --> J3[Accumulate user_content]
             J1 --> K[Send llm_feedback to model]
             J2 --> K
@@ -376,7 +441,8 @@ class SmolAgent:
            c. Append assistant message with tool_calls to conversation
            d. For each tool:
               - Execute the tool
-              - If result is ToolResponse: extract user_content and llm_feedback
+              - Normalise the result via _normalise_tool_result (never None/empty)
+              - If result is ToolResponse: normalise both user_content and llm_feedback
               - Append tool message to conversation
            e. Loop back to step 1
         4. If no tool_calls, merge LLM content with accumulated user_content
@@ -390,9 +456,6 @@ class SmolAgent:
 
         Returns:
             Updated *messages* list with the assistant reply appended.
-            User-facing content from dual-response tools and all LLM-streamed
-            text from all iterations (including tool-calling rounds) are merged
-            into the final assistant message content.
 
         Raises:
             ToolLoopError:  If max iterations, max tool calls, or stuck loop
@@ -481,34 +544,50 @@ class SmolAgent:
                     chat_id=chat_id,
                     run_context=run_context,
                 )
-                # Extract user content and LLM feedback from dual-response tools.
-                # Dual-response tools return a ToolResponse object with both
-                # user-facing content (for the chat interface) and LLM feedback
-                # (for continued model processing).
+
                 if isinstance(tool_result, ToolResponse):
-                    user_facing_content.append(tool_result.user_content)
-                    logger.debug(
-                        "SmolAgent: dual-response tool '%s' produced %d bytes "
-                        "of user content",
-                        tool_call["function"],
-                        len(tool_result.user_content),
+                    # Dual-response tool: accumulate user-facing content and
+                    # send normalised LLM feedback back to the model.
+                    # Guard against None/empty user_content before appending.
+                    if tool_result.user_content:
+                        user_facing_content.append(tool_result.user_content)
+                        logger.debug(
+                            "SmolAgent: dual-response tool '%s' produced %d bytes "
+                            "of user content",
+                            tool_call["function"],
+                            len(tool_result.user_content),
+                        )
+                    # Normalise LLM feedback – the model must never receive
+                    # an empty tool message or it will repeat the same call.
+                    llm_feedback = _normalise_tool_result(
+                        tool_result.llm_feedback, tool_call["function"]
                     )
-                    # Send LLM feedback to the model for context
-                    llm_feedback = str(tool_result.llm_feedback)
                     openai_messages.append(
                         make_tool_message(
                             tool_call_id=tool_call["id"],
-                            content=llm_feedback
+                            content=llm_feedback,
                         )
                     )
                 else:
-                    # Traditional single-response tool
+                    # Traditional single-response tool: normalise before sending.
+                    # This handles None, empty string, and non-string return values
+                    # that would otherwise cause the model to repeat the call.
+                    normalised = _normalise_tool_result(
+                        tool_result, tool_call["function"]
+                    )
                     openai_messages.append(
                         make_tool_message(
                             tool_call_id=tool_call["id"],
-                            content=tool_result
+                            content=normalised,
                         )
                     )
+
+                logger.debug(
+                    "SmolAgent: tool '%s' appended to conversation "
+                    "(openai_messages now has %d entries)",
+                    tool_call["function"],
+                    len(openai_messages),
+                )
 
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
@@ -680,8 +759,10 @@ class SmolAgent:
         run context. Event payloads carry the ``tool_call_id``, the parsed
         JSON request args (``args``) and a truncated ``result`` preview so
         listeners can render tool executions as chat messages. Errors never
-        propagate to the caller: they are returned as strings so the model
-        can react to failed tool invocations.
+        propagate to the caller: ALL exceptions are caught and returned as
+        error strings so the model can react to failed tool invocations and
+        never receives an empty tool message that would cause it to repeat
+        the same call.
 
         Tools can return either:
             - str: Traditional single-response (used for LLM context)
@@ -695,6 +776,7 @@ class SmolAgent:
 
         Returns:
             The tool result as a string or ToolResponse object.
+            Never returns None.
 
         Raises:
             AgentCancelled: If cancellation was requested before execution.
@@ -745,15 +827,18 @@ class SmolAgent:
             if tool_settings.get("async"):
                 result = await result
 
-            # Handle both string and ToolResponse return types
+            # Build result_preview for the TOOL_END event payload.
             if isinstance(result, ToolResponse):
-                result_preview = result.llm_feedback[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+                result_preview = (result.llm_feedback or "")[:TOOL_RESULT_PREVIEW_MAX_CHARS]
             else:
                 result_str = result if isinstance(result, str) else json.dumps(result)
                 result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
             return result
 
-        except (OSError, ValueError, TypeError, RuntimeError) as ex:
+        except Exception as ex:
+            # Catch ALL exceptions (not just OSError/ValueError/TypeError/RuntimeError)
+            # so the model always receives a non-empty error string and never
+            # re-issues the same tool call due to a missing tool message.
             success = False
             error_message = str(ex)
             logger.exception("SmolAgent: error executing tool '%s'", func_name)

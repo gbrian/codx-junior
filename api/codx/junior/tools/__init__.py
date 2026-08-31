@@ -100,28 +100,24 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_search",
-                "description": "Search for documents within a project using provided search strings. Supports multiple searches in a single call to reduce API calls. Each search query returns the most relevant documents from the project.",
+                "description": "Search for documents within a project using the provided search string.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "search": {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "description": "A search query string to find relevant documents."
-                            },
-                            "description": "Array of search query strings. Use multiple queries to search for different topics in a single call. Example: ['authentication logic', 'user database schema', 'API endpoints']"
+                            "type": "string",
+                            "description": "The search query string used to find relevant documents."
                         },
                         "validation": {
                             "type": "string",
-                            "description": "An optional brief text used to validate the content found by the searches. This helps reduce large documents and extract only important content relevant to your needs."
+                            "description": "An optional brief text used to validate the content found by the search. This text will help reducing large documents and extracting only important content. "
                         }
                     },
                     "required": ["search"]
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": {"async": False, "project_settings": True, "scope": "chat"},
         "tool_call": project_search
     },
     {
@@ -129,24 +125,20 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_read_file",
-                "description": "Read project file contents from relative or absolute file paths. Supports reading multiple files in a single call to reduce API calls and improve efficiency.",
+                "description": "Allows to read project's file content from a relative or absolute file path",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "file_paths": {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "description": "The path to a file to read."
-                            },
-                            "description": "Array of paths to files to read. Always read multiple related files in a single call instead of making separate calls. Example: ['src/config.py', 'src/main.py', 'tests/test_config.py']"
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to read."
                         }
                     },
-                    "required": ["file_paths"]
+                    "required": ["file_path"]
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": {"async": False, "project_settings": True, "scope": "chat"},
         "tool_call": project_read_file
     },
     {

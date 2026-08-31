@@ -1,142 +1,126 @@
-# AI Model Documentation
+# AI Model Configuration
 
-## Overview
-
-This module defines the data models and configuration for AI providers and models used in the codx-api project. It provides Pydantic-based models for managing LLM providers, embeddings models, image models, and their associated settings and pricing information.
+This module defines the data models and configuration for AI providers and models used in the Codx Junior system. It handles LLM (Large Language Models), embeddings, and image models with support for multiple providers.
 
 ## Core Models
 
 ### AIProvider
 
-Represents an AI service provider configuration.
+Represents an AI service provider with connection details and pricing information.
 
-**Fields:**
-- `name` - Provider name (default: "")
-- `provider` - Provider type using OpenAI-compatible LLM protocols such as OpenAI or Ollama (default: "llmfactory")
-- `api_url` - Optional remote provider URL (default: "http://0.0.0.0:11434/v1")
-- `api_key` - Optional API key for authentication (default: "sk-llmfactory")
-- `admin_url` - Optional admin panel URL
-- `pricing_url` - Optional URL to provider's pricing page
-- `input_k_tokens_cxjcoins` - Cost in cxjcoins per 1K input tokens at provider level
-- `output_k_tokens_cxjcoins` - Cost in cxjcoins per 1K output tokens at provider level
-- `price_list` - List of AIModelPrice objects fetched from provider's pricing page
-- `max_tool_calls` - Maximum number of tool calls allowed per request (provider level)
-- `max_iterations` - Maximum number of iterative tool loops allowed per request (provider level)
-
-### AIModelPrice
-
-Represents pricing information for a specific model from a provider.
-
-**Fields:**
-- `model_name` - Model name as listed by the provider
-- `input_price_per_1k_tokens` - Cost per 1K input tokens in USD
-- `output_price_per_1k_tokens` - Cost per 1K output tokens in USD
+**Key Fields:**
+- `name` - Provider name identifier
+- `provider` - Protocol type (e.g., "llmfactory", "OpenAI", "Ollama")
+- `api_url` - Endpoint URL for the provider (default: `http://0.0.0.0:11434/v1`)
+- `api_key` - Authentication key for API access
+- `admin_url` - Optional admin dashboard URL
+- `pricing_url` - Optional link to provider's pricing page
+- `input_k_tokens_cxjcoins` - Cost per 1K input tokens in cxjcoins
+- `output_k_tokens_cxjcoins` - Cost per 1K output tokens in cxjcoins
+- `price_list` - List of model pricing information from the provider
+- `max_tool_calls` - Maximum tool calls allowed per request at provider level
+- `max_iterations` - Maximum iterative tool loops allowed per request at provider level
 
 ### AIModel
 
-Represents an AI model configuration linked to a provider.
+Represents a specific AI model with its configuration and settings.
 
-**Fields:**
-- `name` - Model name
-- `model_type` - Type of model (llm, embeddings, or image)
-- `ai_provider` - Associated provider name
-- `ai_model` - Provider's model name
-- `settings` - Model settings (AILLMModelSettings or AIEmbeddingModelSettings)
+**Key Fields:**
+- `name` - Model identifier
+- `model_type` - Type of model: `llm`, `embeddings`, or `image`
+- `ai_provider` - Name of the provider
+- `ai_model` - Provider's internal model name
+- `settings` - Model-specific settings (LLM or Embedding)
 - `metadata` - Additional metadata dictionary
 - `url` - Model information URL
-- `system` - System instructions for the model (default: "")
-- `prompt_template` - Prompt template format (default: "{ MESSAGE }")
+- `system` - System instructions for the model
+- `prompt_template` - Template for message formatting (default: `{ MESSAGE }`)
 - `model_file` - Optional custom Modelfile
-- `max_tool_calls` - Maximum tool calls (model level, overrides provider)
-- `max_iterations` - Maximum iterative loops (model level, overrides provider)
+- `max_tool_calls` - Model-level override for maximum tool calls
+- `max_iterations` - Model-level override for maximum iterations
 
-## Settings Models
+### AISettings
+
+Aggregated settings resolved from provider and model configurations with precedence rules.
+
+**Key Fields:**
+- `provider`, `provider_type`, `api_url`, `api_key` - Connection details
+- `model` - Model name
+- `system`, `prompt_template`, `context_length`, `temperature` - Model configuration
+- `vector_size`, `chunk_size` - Embedding-specific settings
+- `merge_messages` - Whether to flatten conversation into single message
+- `model_type` - Type of model
+- `input_k_tokens_cxjcoins`, `output_k_tokens_cxjcoins` - Resolved pricing
+- `max_tool_calls`, `max_iterations` - Resolved tool call limits
+
+## Supporting Models
 
 ### AILLMModelSettings
 
-Configuration for language model behavior.
+Configuration for Large Language Models.
 
 **Fields:**
-- `temperature` - Model temperature controlling randomness (default: 1)
-- `context_length` - Maximum context length (default: 0)
-- `merge_messages` - Whether to flatten conversation into single message before sending (default: false)
+- `temperature` - Model temperature for output randomness (default: 1)
+- `context_length` - Maximum context length in tokens (default: 0)
+- `merge_messages` - Whether to flatten conversation before sending to model (default: False)
 
 ### AIEmbeddingModelSettings
 
 Configuration for embedding models.
 
 **Fields:**
-- `vector_size` - Dimensionality of output vectors (default: 1536)
+- `vector_size` - Dimension of embedding vectors (default: 1536)
 - `chunk_size` - Size of text chunks for embedding (default: 8190)
 
-### AISettings
+### AIModelPrice
 
-Resolved settings combining provider and model configurations.
+Pricing information for individual models.
 
 **Fields:**
-- `provider` - Provider name
-- `provider_type` - Provider type
-- `api_url` - Provider API URL
-- `api_key` - Provider API key
-- `model` - Model name
-- `system` - System instructions
-- `prompt_template` - Prompt template
-- `context_length` - Context length
-- `temperature` - Temperature setting
-- `vector_size` - Vector size for embeddings
-- `chunk_size` - Chunk size
-- `merge_messages` - Message merging flag
-- `model_type` - Type of model
-- `url` - Model URL
-- `input_k_tokens_cxjcoins` - Resolved input token cost (model-level takes precedence)
-- `output_k_tokens_cxjcoins` - Resolved output token cost (model-level takes precedence)
-- `max_tool_calls` - Resolved maximum tool calls (model-level takes precedence)
-- `max_iterations` - Resolved maximum iterations (model-level takes precedence)
-
-## Model Types
+- `model_name` - Model name as listed by provider
+- `input_price_per_1k_tokens` - Cost per 1K input tokens in USD
+- `output_price_per_1k_tokens` - Cost per 1K output tokens in USD
 
 ### AIModelType
 
-Enum defining supported model types:
-- `llm` - Large Language Model
-- `embeddings` - Embedding/vector model
-- `image` - Image generation model
+Enumeration of supported model types:
+- `llm` - Language models
+- `embeddings` - Embedding models
+- `image` - Image generation models
 
-## Priority System
+## Priority and Defaults
 
-The module implements a priority system for configuration resolution:
-1. **Model level** - Highest priority
-2. **Provider level** - Secondary priority
-3. **Fallback** - Default values
+The module implements a priority system for certain settings:
 
-This applies to: `max_tool_calls`, `max_iterations`, `input_k_tokens_cxjcoins`, and `output_k_tokens_cxjcoins`.
+**Priority Order: Model Level > Provider Level > Fallback**
 
-## Pre-configured Models
+This applies to:
+- `max_tool_calls` - Maximum tool calls per request
+- `max_iterations` - Maximum iterative tool loops
+- Pricing (`input_k_tokens_cxjcoins`, `output_k_tokens_cxjcoins`)
+
+## Default Provider and Models
+
+The module provides preconfigured instances:
 
 ### OLLAMA_PROVIDER
 
-Default LLM Factory provider configured with environment variables:
+Default LLMFactory provider configured with environment variables:
 - `CODX_JUNIOR_LLMFACTORY_URL` - Provider API URL
 - `CODX_JUNIOR_LLMFACTORY_KEY` - Provider API key
 
 ### OLLAMA_EMBEDDINGS_MODEL
 
-Pre-configured embedding model with:
+Default embeddings model configured with:
 - Vector size: 768
 - Chunk size: 2048
-- Environment variable: `CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL`
+- Loaded from `CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL` environment variable
 
 ### OLLAMA_KNOWLEDGE_MODEL
 
-Pre-configured LLM for knowledge operations:
-- Environment variable: `CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL`
-
-## Environment Variables
-
-- `CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL` - Knowledge model identifier
-- `CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL` - Embeddings model identifier
-- `CODX_JUNIOR_LLMFACTORY_URL` - LLM Factory API URL
-- `CODX_JUNIOR_LLMFACTORY_KEY` - LLM Factory API key
+Default knowledge/chat model configured with:
+- Standard LLM settings
+- Loaded from `CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL` environment variable
 
 ## Dependencies
 **Imported by:** codx/junior/ai/__init__.py, codx/junior/api/analytics.py, codx/junior/model/model.py

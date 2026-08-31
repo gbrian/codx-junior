@@ -1,173 +1,126 @@
-# Project Tools Documentation
+# Project Tools Utility Functions
 
 ## Overview
 
-The `project_tools.py` module provides utility functions for managing project files, searching project knowledge, and processing code within the CODX Junior framework. These tools enable AI-assisted operations on project resources with built-in validation and error handling.
+The `project_tools.py` module provides a collection of utility functions for managing project files, searching project knowledge bases, and processing code within the CODX Junior framework. These tools facilitate integration with the project's settings, AI capabilities, and file management system.
 
 ## Core Functions
 
-### get_ai()
+### get_ai
 
-Initializes and returns an AI instance configured for a specific tool.
+Creates and returns an AI instance configured with the provided settings.
 
 **Parameters:**
-- `settings` (CODXJuniorSettings): The project settings
-- `tool_name` (str): The name of the tool requesting the AI instance
+- `settings`: Project settings object
+- `tool_name`: Identifier for the AI tool instance
 
-**Returns:**
-- AI: An initialized AI instance
-
-**Usage:**
-```python
-ai = get_ai(settings=settings, tool_name="my_tool")
-```
+**Returns:** An AI instance ready for use
 
 ---
 
-### code_block()
+### code_block
 
-Processes code to ensure it follows project standards and returns it in formatted code block syntax.
+Processes code to ensure it follows project standards and returns it in a formatted code block.
 
 **Parameters:**
 - `file_path` (str): Absolute file path
 - `code` (str): The code to process
-- `code_language` (str): The programming language of the code
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
+- `code_language` (str): Programming language of the code
+- `**kwargs`: Additional arguments including `settings`
 
-**Returns:**
-- str: The processed code in code block format
+**Returns:** str - Code formatted as a markdown code block with language and file path
 
-**Raises:**
-- Exception: If settings are invalid or missing
+**Raises:** Exception if project settings are not provided
 
----
-
-### path_to_absolute_project_path()
-
-Converts relative or absolute file paths to absolute project paths with validation.
-
-**Parameters:**
-- `settings` (CODXJuniorSettings): Project settings containing the absolute project path
-- `file_path` (str): The file path to convert (relative or absolute)
-
-**Returns:**
-- Union[str, None]: The absolute path if the file exists within the project, None otherwise
-
-**Behavior:**
-- Handles both absolute and relative paths
-- Validates that paths exist within the project root
-- Uses glob patterns to locate files recursively
+**Notes:** This is an async function that leverages `CODXJuniorSession` to process files before saving.
 
 ---
 
-### project_read_file()
+### path_to_absolute_project_path
 
-Reads content from multiple files in the project with bulk operation support.
+Converts relative file paths to absolute project paths.
 
 **Parameters:**
-- `file_paths` (List[str]): Array of paths to files to read. Supports multiple files in a single call to reduce API calls
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
+- `settings` (CODXJuniorSettings): Project configuration
+- `file_path` (str): File path to convert
 
-**Returns:**
-- ToolResponse: Contains:
-  - `user_content`: Full file contents in code blocks
-  - `llm_content`: Concise summary with file paths and line counts
-- str: Error message if settings are invalid
+**Returns:** Absolute file path if found, otherwise None
 
-**Raises:**
-- ValueError: If file_paths is empty or not provided
-- Exception: If settings are invalid or missing
+**Behavior:** 
+- Accepts both absolute and relative paths
+- Uses glob patterns with root directory lookup for flexible path resolution
+- Returns the path as-is if already absolute and within project bounds
+
+---
+
+### project_search
+
+Searches the project knowledge base for documents matching a query string.
+
+**Parameters:**
+- `search` (str): Search query string (required)
+- `validation` (str): Optional validation query for AI-based content extraction
+- `**kwargs`: Additional arguments including `settings`
+
+**Returns:** str - Concatenated formatted documents matching the search, or a message indicating no results
+
+**Raises:** ValueError if search string is empty
 
 **Features:**
-- Bulk operations: Read multiple related files in one call
-- Error handling: Returns error blocks for invalid files and continues processing
-- Code block formatting: Automatically detects file extensions for syntax highlighting
-- Logging: Tracks successful and failed file reads
-
-**Example:**
-```python
-result = project_read_file(['src/auth.py', 'src/models.py', 'tests/test_auth.py'])
-```
+- Limits results to 10 documents
+- Deduplicates documents by source path
+- Optionally uses AI to extract relevant lines based on validation criteria
+- Returns formatted results with project name and search query
 
 ---
 
-### project_search()
+### project_read_file
 
-Searches for documents within the project knowledge base with support for multiple queries.
+Reads and returns the content of a project file.
 
 **Parameters:**
-- `search` (Union[str, List[str]]): Single search query or list of search queries
-- `validation` (str, optional): Brief text to validate and filter search results
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings
+- `file_path` (str): Path to file to read
+- `**kwargs`: Additional arguments including `settings`
 
-**Returns:**
-- ToolResponse: Contains:
-  - `user_content`: Full search results with document sources
-  - `llm_content`: Summary of matched documents
-- ToolResponse: Error message if no results found
+**Returns:** str - File content formatted in a markdown code block with language extension and full path
 
-**Raises:**
-- ValueError: If search argument is empty or not provided
-
-**Features:**
-- Bulk operations: Execute multiple searches in one call
-- AI filtering: Uses AI to extract relevant content based on validation text
-- Duplicate prevention: Aggregates documents by source
-- Consistent ordering: Sorts results by document index
-
-**Example:**
-```python
-result = project_search(['database queries', 'authentication', 'error handling'], 
-                        validation='security and performance')
-```
+**Raises:** 
+- Exception if settings are invalid or missing
+- Exception if file path is outside project boundaries
+- FileNotFoundError if file does not exist
 
 ---
 
-### project_write_file()
+### project_write_file
 
-Writes content to a file in the project with validation and confirmation.
+Writes content to a project file.
 
 **Parameters:**
-- `file_path` (str): The path to the file to write (relative or absolute within project)
-- `content` (str): The content to write to the file
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
+- `file_path` (str): Path to file to write
+- `content` (str): Content to write to file
+- `**kwargs`: Additional arguments including `settings`
 
-**Returns:**
-- ToolResponse: Contains:
-  - `user_content`: Success confirmation with file path
-  - `llm_content`: Summary with line and character counts
+**Returns:** str
 
 **Raises:**
-- Exception: If settings are invalid or file path is outside project root
+- Exception if settings are invalid or missing
+- Exception if file path is outside project boundaries
 
-**Features:**
-- Path validation: Ensures file paths remain within project root
-- Content processing: Pre-processes content to match project standards
-- Detailed logging: Tracks all write operations
+**Notes:** Overwrites existing file content.
 
 ---
 
-## Error Handling
+## Configuration
 
-All functions implement comprehensive error handling:
+The module includes basic logging configuration at the DEBUG level. Logger name is derived from the module name.
 
-- **Validation checks**: Verify settings are provided and valid
-- **Path security**: Ensure all file operations remain within project root
-- **Detailed logging**: DEBUG and ERROR level logs track all operations
-- **Error blocks**: Failed operations return formatted error messages
-- **Exception transparency**: Original error messages included in responses
+## Dependencies
 
-## Response Format
-
-Functions use the `ToolResponse` class to provide dual-purpose output:
-- **user_content**: Detailed, formatted information for display to users
-- **llm_content**: Concise summaries optimized for LLM context
-
-This design reduces token usage while maintaining clarity for both human and AI consumers.
+- `codx.junior.settings.CODXJuniorSettings` - Project configuration
+- `codx.junior.engine.CODXJuniorSession` - Session management
+- `codx.junior.knowledge.knowledge_milvus.Knowledge` - Knowledge base access
+- `codx.junior.ai.AI` - AI capabilities
+- `codx.junior.model.model.CodxUser` - User model
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/engine.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/utils/utils.py, codx/junior/ai/__init__.py, codx/junior/model/model.py

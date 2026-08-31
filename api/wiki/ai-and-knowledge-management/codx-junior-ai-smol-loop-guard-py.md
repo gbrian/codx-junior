@@ -1,101 +1,93 @@
-# Loop Guard Documentation
+# Loop Protection for SmolAgent Tool Calling
 
 ## Overview
 
-The `LoopGuard` class provides protection against infinite tool loops in SmolAgent tool calling. It enforces three complementary protection mechanisms to ensure safe and bounded execution of iterative tool-calling workflows.
+The `LoopGuard` class provides stateful protection against infinite tool loops in SmolAgent implementations. It enforces three complementary protection mechanisms to ensure safe and controlled tool execution:
 
-## Key Features
+1. **Depth Guard** — Limits the maximum number of sequential tool rounds
+2. **Breadth Guard** — Restricts the number of tool calls per single round
+3. **Stuck Loop Detection** — Identifies when the model repeats identical tool-call rounds without progress
 
-### Three-Layer Protection
+## Key Concepts
 
-1. **Depth Guard**: Enforces a maximum number of sequential tool rounds
-2. **Breadth Guard**: Limits the number of tool calls allowed in a single round
-3. **Stuck Loop Detection**: Uses fingerprint-based analysis to detect when the model repeats identical tool-call sequences
+### Limit Resolution Priority
 
-### Intelligent Limit Resolution
+The guard resolves configuration limits with the following priority:
+1. Explicitly passed parameters (from model/provider configuration)
+2. Fallback defaults (safe defaults for unconfined execution)
 
-The guard resolves limits using the following priority:
-- Explicitly passed parameters (model/provider configured)
-- Fallback defaults (safe defaults for unconfined execution)
+This design ensures that configured settings override defaults while maintaining safe bounds even when no explicit configuration is provided.
 
-This ensures that model or provider settings can override defaults while maintaining safe bounds even when no configuration is present.
+### Fingerprint-Based Detection
 
-## Core Components
+The `fingerprint_tool_calls()` function generates a stable, order-independent hash of tool calls. This fingerprinting enables detection of identical consecutive rounds by:
 
-### LoopGuard Class
+- Normalizing tool call arguments to JSON format
+- Sorting entries for consistency
+- Generating a SHA256 hash of the normalized set
 
-The main stateful helper that should be instantiated once per conversation.
+## LoopGuard Class
 
-**Constructor Parameters:**
-- `max_iterations` (Optional[int]): Maximum sequential tool rounds allowed. Defaults to `DEFAULT_MAX_ITERATIONS` if not specified.
-- `max_tool_calls` (Optional[int]): Maximum tool calls allowed per single round. Defaults to `DEFAULT_MAX_TOOL_CALLS` if not specified.
-- `max_identical_rounds` (int): Number of identical consecutive rounds that trigger loop detection (typically 3).
-
-**State Management:**
-- `rounds` (int): Tracks the current round counter
-- `fingerprints` (List[str]): Maintains a history of tool-call fingerprints for stuck loop detection
-
-### ToolLoopError Exception
-
-A `RuntimeError` subclass raised when the model is stuck requesting tools without progress. This can occur when:
-- Maximum iterations are exceeded
-- Tool call limit is violated in a single round
-- A stuck loop is detected through fingerprint analysis
-
-### fingerprint_tool_calls Function
-
-Produces a stable, order-independent hash of a set of tool calls.
-
-**Parameters:**
-- `tool_calls` (Dict[str, Dict[str, Any]]): Mapping of tool_call_id → {id, function, arguments}
-
-**Returns:**
-- A hex digest (SHA256) uniquely representing the tool-call set
-
-**Key Behavior:**
-- Arguments are normalized to JSON with sorted keys for consistency
-- The fingerprint is order-independent, meaning identical calls in different order produce the same hash
-- Gracefully handles non-JSON arguments by converting them to strings
-
-## Usage Pattern
+### Initialization
 
 ```python
-# Initialize guard with model settings
 guard = LoopGuard(
     max_iterations=model_settings.max_iterations,
     max_tool_calls=model_settings.max_tool_calls
 )
-
-# Check each tool round
-while ...:
-    guard.check(tool_calls)  # raises ToolLoopError when violations occur
 ```
 
-## Check Method Behavior
+**Parameters:**
 
-The `check()` method validates tool calls through three sequential checks:
+- `max_iterations` (Optional[int]) — Maximum sequential tool rounds allowed. Defaults to `DEFAULT_MAX_ITERATIONS` if None.
+- `max_tool_calls` (Optional[int]) — Maximum tool calls allowed per single round. Defaults to `DEFAULT_MAX_TOOL_CALLS` if None.
+- `max_identical_rounds` (int) — Number of identical consecutive rounds that trigger loop detection (typically 3).
 
-1. **Depth Guard Check**: Increments the round counter and verifies it hasn't exceeded `max_iterations`
-2. **Breadth Guard Check**: Verifies the number of tool calls doesn't exceed `max_tool_calls`
-3. **Stuck Loop Guard Check**: Analyzes the last `max_identical_rounds` fingerprints to detect if the model is repeating identical tool-call sequences
+### The check() Method
+
+```python
+guard.check(tool_calls)
+```
+
+Registers a new tool round and verifies all three guard mechanisms.
 
 **Parameters:**
-- `tool_calls` (Dict[str, Dict[str, Any]]): The current round's accumulated tool calls dictionary
 
-**Raises:**
-- `ToolLoopError`: When any protection mechanism is violated
+- `tool_calls` — Dictionary mapping `tool_call_id` to tool call information (containing `id`, `function`, and `arguments`).
 
-## Error Messages
+**Behavior:**
 
-The guard provides specific error messages for each violation type:
-- `TOOL_ROUNDS_ERROR_MSG`: Raised when maximum iterations are exceeded
-- `TOOL_CALLS_EXCEEDED_ERROR_MSG`: Raised when breadth limit is violated
-- `TOOL_LOOP_ERROR_MSG`: Raised when a stuck loop is detected
+The method performs checks in the following order:
 
-## Logging
+1. Increments the round counter and compares against `max_iterations`
+2. Validates that the number of tool calls doesn't exceed `max_tool_calls`
+3. Checks for identical consecutive rounds using fingerprint comparison
 
-The guard integrates logging at multiple levels:
-- **DEBUG**: Logs initialization parameters and successful round validation with fingerprints
-- **ERROR**: Logs detailed information when any protection mechanism is triggered
+**Exceptions:**
 
-Fingerprints are logged in truncated form (first 12 characters) for readability.
+Raises `ToolLoopError` when:
+- Maximum iterations are exceeded
+- Tool call limit per round is violated
+- A stuck loop is detected (same tool calls repeated for `max_identical_rounds` consecutive rounds)
+
+## ToolLoopError Exception
+
+```python
+class ToolLoopError(RuntimeError):
+    """Raised when the model is stuck requesting tools without progress."""
+```
+
+This exception is raised by the `LoopGuard` when any of its three protection mechanisms detect a violation.
+
+## Usage Pattern
+
+```python
+guard = LoopGuard(
+    max_iterations=model_settings.max_iterations,
+    max_tool_calls=model_settings.max_tool_calls
+)
+while ...:
+    guard.check(tool_calls)  # raises ToolLoopError when stuck
+```
+
+The guard should be instantiated once per conversation and its `check()` method called after each tool round to maintain protection throughout the agent's execution cycle.

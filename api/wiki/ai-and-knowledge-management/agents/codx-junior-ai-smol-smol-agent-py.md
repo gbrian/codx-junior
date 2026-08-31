@@ -1,75 +1,59 @@
-# SmolAgent: Async-Only OpenAI Chat Agent
+# SmolAgent Documentation
 
 ## Overview
 
-SmolAgent is a small, async-only OpenAI chat agent designed as an improved alternative to `OpenAI_AI`. It implements a **streaming chat completion** system with **iterative multi-step tool support**, featuring enhanced loop protection, event emission, and cancellation handling.
+SmolAgent is a small, async-only OpenAI chat agent designed for streaming completions with iterative multi-step tool support. It provides a streamlined implementation compared to traditional chat agents by using an iterative tool loop instead of recursion and delegating core responsibilities to runtime infrastructure.
 
-### Key Distinctions from OpenAI_AI
+### Key Characteristics
 
-- **Async-only**: Exposes a single `chat()` method with no synchronous variant
-- **Iterative tool loop**: Uses iteration instead of recursion for tool execution
-- **Delegated concerns**: Delegates loop protection, logging, event emission, and cancellation to `LoopGuard` and `AgentRunContext`
-- **Preserved streaming**: Maintains streaming callbacks, cancellation support, and real-time analytics
+- **Async-only**: Exposes a single async `chat()` method with no synchronous variant
+- **Iterative execution**: Uses a loop-based approach instead of recursion for tool execution
+- **Streaming support**: Maintains streaming, callbacks, cancellation, and analytics capabilities
+- **Robust tool handling**: Ensures the model always receives meaningful tool feedback
 
-## Core Concepts
+## Architecture
 
-### Streaming Callback Accumulation
+### Core Components
 
-Streaming callbacks now receive the **full accumulated response** on every flush, not just the delta since the last flush. This ensures:
+**LoopGuard**
+Delegates loop protection to prevent infinite tool-calling cycles by enforcing:
+- Iteration depth limits (`max_iterations`)
+- Tool calls per round limits (`max_tool_calls`)
+- Stuck loop detection (identical consecutive rounds)
 
-- Mid-stream persistence of partial content is crash-safe
-- No information is lost during mid-run saves
-- Downstream consumers can safely assign callback payloads directly to response message content
+**AgentRunContext**
+Unified runtime context that handles:
+- Logging and event emission
+- Cancellation management
+- Per-run analytics
 
-### Tool Scope Support
+**Tool Call Accumulator**
+Processes streaming tool calls from the LLM response and accumulates them for execution.
 
-Tools are classified by scope with different inclusion rules:
+## Chat Flow
 
-- **Global scope tools**: Always included in conversations regardless of configuration
-- **Chat scope tools**: Selectively included based on request configuration
+The agent follows this execution path:
 
-### Dual-Response Tools
+1. **Stream completion** from the LLM with accumulated content tracking
+2. **Check for tool calls** in the response
+3. **If tool calls exist**:
+   - Validate against loop guard (depth, breadth, stuck detection)
+   - Save streamed content to accumulated buffer
+   - Append assistant message with tool calls to conversation
+   - Execute each tool sequentially
+   - Normalize tool results (never None/empty)
+   - Handle dual-response tools (user content + LLM feedback)
+   - Append tool message to conversation
+   - Loop back to step 1
+4. **If no tool calls** (final response):
+   - Merge all LLM responses across iterations
+   - Add user-facing content from dual-response tools
+   - Record analytics
+   - Return updated message list
 
-Tools can return a `ToolResponse` object containing:
+## Configuration and Initialization
 
-- **user_content**: Displayed to the user in the chat interface
-- **llm_feedback**: Lightweight content sent to the model for continued processing
-
-This allows tools (e.g., code_block_generator) to generate formatted output while keeping the LLM loop lightweight.
-
-### Global Chat Instructions
-
-Chat instructions are dynamically loaded from `GlobalSettings` on every chat invocation (not cached) to ensure freshness. The complete system message combines:
-
-1. LLM settings system prompt (if available)
-2. Chat global instructions (loaded fresh)
-3. Extra system instructions passed to initialization
-
-### Session Context Injection
-
-SmolAgent injects session context into settings for tools requiring access to current chat or session state. This enables complex tools like `generate_tasks_tool` to interact with broader execution context beyond direct parameters.
-
-### Full Response Accumulation Across Tool Loops
-
-Assistant responses generated during tool-calling iterations are accumulated across all iterations, preserving:
-
-- Intermediate assistant text generated before tool calls
-- Explanatory content during tool execution
-- All streamed content from every iteration (not just the final response)
-
-This ensures no information is lost when the model generates explanatory text across multiple tool-calling rounds.
-
-### Loop Guard with Resolved Limits
-
-Tool execution limits are resolved from `AISettings` with priority: **Model > Provider > Fallback**. These limits are enforced by `LoopGuard` on every tool round to prevent:
-
-- Runaway execution (depth violations via `max_iterations`)
-- Breadth violations (tool calls per round via `max_tool_calls`)
-- Stuck loops (detecting identical consecutive rounds)
-
-## Class: SmolAgent
-
-### Initialization
+### Constructor Parameters
 
 ```python
 SmolAgent(
@@ -81,290 +65,207 @@ SmolAgent(
 )
 ```
 
-**Parameters:**
+- **settings**: Project settings providing LLM configuration
+- **llm_model**: Optional model override
+- **user**: User object for API key and analytics
+- **system**: Extra system prompt content (appended after global instructions)
+- **session**: Optional session context for tools requiring access to chat state
 
-- `settings`: Project settings providing LLM configuration
-- `llm_model`: Optional model override (defaults to settings)
-- `user`: Optional user object (used for API key and analytics)
-- `system`: Optional extra system prompt (appended after global instructions)
-- `session`: Optional session context injected for tools needing access to current chat/session state
+### System Message Construction
 
-### Primary Method: chat()
-
-```python
-async def chat(
-    messages: List[Union[AIMessage, HumanMessage]],
-    config: Optional[Dict[str, Any]] = None,
-) -> List[Union[AIMessage, HumanMessage]]
-```
-
-Executes a streaming chat completion with iterative multi-step tool support.
-
-**Parameters:**
-
-- `messages`: Conversation history as LangChain message objects
-- `config`: Optional configuration dictionary with keys:
-  - `tools`: List of enabled tool names
-  - `chat_id`: Chat identifier
-  - `cancellation_token`: Legacy cancellation token
-  - `headers`: Additional request headers
-  - `callbacks`: Streaming callback functions
-  - `run_context`: Custom `AgentRunContext` instance (reuses if provided)
-  - `event_listeners`: Event listener callables
-  - `current_chat`: Chat object for context
-
-**Returns:**
-
-Updated messages list with assistant reply appended. User-facing content from dual-response tools and all accumulated LLM responses are merged into the final assistant message content.
-
-**Raises:**
-
-- `ToolLoopError`: If max tool rounds, max tool calls, or stuck loop is detected
-- `CancelledError`: If the request is cancelled by the caller
-
-**Lifecycle:**
-
-The entire run is wrapped in `AgentRunContext.run()`, which emits:
-- `RUN_START`: At execution beginning
-- `RUN_END`: On successful completion with analytics summary
-- `RUN_ERROR`: On error condition
-- `RUN_CANCELLED`: On cancellation
-
-## Chat Loop Flow
-
-The iterative chat loop follows this sequence:
-
-1. **Stream completion** from LLM
-2. **Accumulate streamed content** and check for tool calls
-3. **If tool calls exist:**
-   - Guard against infinite loops via `LoopGuard`:
-     - Check iteration depth (`max_iterations`)
-     - Check tool calls per round (`max_tool_calls`)
-     - Detect stuck loops (identical consecutive rounds)
-   - Save streamed content to accumulated responses
-   - Append assistant message with tool calls to conversation
-   - **Execute each tool:**
-     - Emit `TOOL_START` event
-     - Parse and execute tool with injected settings
-     - Handle `ToolResponse` (extract user_content and llm_feedback)
-     - Emit `TOOL_END` or `TOOL_ERROR` event
-     - Append tool message to conversation
-   - Loop back to step 1
-4. **If no tool calls** (final response):
-   - Merge all accumulated LLM content
-   - Add user-facing content from dual-response tools
-   - Record analytics
-   - Return updated messages
-
-## Tool Execution
-
-### Tool Call Execution Flow
-
-Each tool execution:
-
-1. **Checkpoint cancellation** before spending time on tool
-2. **Parse tool arguments** from JSON string or dict
-3. **Locate tool** in the tools registry
-4. **Inject settings** if tool requires project settings
-5. **Execute tool** (with async support)
-6. **Handle results:**
-   - `ToolResponse`: Extract user_content and llm_feedback separately
-   - String/JSON: Use as single response
-7. **Emit events** with tool_call_id, parsed args, and result preview
-8. **Record analytics** for tool execution
-
-### Tool Arguments Parsing
-
-```python
-_parse_tool_arguments(raw_arguments: Any, func_name: str) -> Dict[str, Any]
-```
-
-Safely parses tool arguments accepting both JSON strings and dictionaries. Returns empty dict on parse failure with appropriate logging.
-
-### Tool Events
-
-Tools emit lifecycle events on the run context:
-
-- `TOOL_START`: Includes tool name, tool_call_id, and parsed args (as copy)
-- `TOOL_END`: Includes duration_ms and truncated result preview
-- `TOOL_ERROR`: Includes duration_ms and error message
-
-Event payloads allow listeners (e.g., ChatEventBridge) to surface tool executions as chat messages in real time.
-
-## Request Building
-
-### Building Request kwargs
-
-```python
-_build_request_kwargs(selected_tools: List[str]) -> Dict[str, Any]
-```
-
-Constructs OpenAI API request parameters:
-
-- Includes model and streaming configuration
-- Filters tools by scope (global always included, chat scope selectively included)
-- Sets temperature from LLM settings
-- Enables usage token reporting
-
-### Building System Message
-
-```python
-_build_system_message() -> str
-```
-
-Constructs complete system message combining:
+The system message is built dynamically on each chat from three sources (in order):
 
 1. LLM settings system prompt (if available)
 2. Chat global instructions (loaded fresh from GlobalSettings)
 3. Extra system instructions passed to initialization
 
-This ensures instructions are always up-to-date without caching.
+This ensures global instructions remain current without caching.
+
+## Tool Execution
+
+### Tool Result Normalization
+
+All tool results are normalized via `_normalise_tool_result()` before sending to the model using these priority rules:
+
+1. `None` → Replaced with sentinel string `"(tool returned no output)"`
+2. `str` → Returned as-is (empty strings → sentinel)
+3. `dict`/`list` → JSON-serialized for readability
+4. Other types → Converted via `str()` fallback
+
+This prevents the model from re-issuing identical tool calls due to empty or missing tool messages.
+
+### Dual-Response Tools
+
+Tools can return a `ToolResponse` object containing:
+
+- **user_content**: User-facing content displayed in the final message
+- **llm_feedback**: Lightweight feedback for model context
+
+This allows tools like `code_block_generator` to produce formatted output while keeping the LLM loop efficient.
+
+### Tool Scopes
+
+Tools can be classified by scope:
+
+- **Global scope**: Always included in conversations regardless of selection
+- **Chat scope**: Selectively included based on request configuration
+
+Global scope tools are automatically added to every conversation.
 
 ## Streaming and Callbacks
 
-### Stream Completion
+### Callback Accumulation
+
+Streaming callbacks receive the **full response accumulated so far** on every flush, not just deltas. This ensures:
+
+- Mid-stream persistence of partial content is crash-safe
+- No streamed information is lost during partial saves
+- Callbacks always have complete context
+
+### Event Types
+
+The agent emits the following events via `AgentRunContext`:
+
+- **LLM_REQUEST**: Issued before sending completion request
+- **LLM_CHUNK**: Throttled during streaming
+- **LLM_USAGE**: Provider token usage reported
+- **TOOL_START**: Before executing a tool
+- **TOOL_END**: After successful tool execution
+- **TOOL_ERROR**: When tool execution fails
+- **RUN_START/RUN_END/RUN_ERROR/RUN_CANCELLED**: Run lifecycle events
+
+Tool events carry the `tool_call_id`, parsed JSON arguments, and truncated result preview for real-time rendering.
+
+## Public API
+
+### Chat Method
 
 ```python
-async def _stream_completion(
-    kwargs: Dict[str, Any],
-    openai_messages: List[Dict[str, Any]],
-    headers: Dict[str, str],
-    cancellation_token: Optional[CancellationToken],
-    send_callback: Callable[[str, bool], None],
-    run_context: AgentRunContext,
-) -> Tuple[str, Dict[str, Dict[str, Any]], Any]
+async def chat(
+    self,
+    messages: List[Union[AIMessage, HumanMessage]],
+    config: Optional[Dict[str, Any]] = None,
+) -> List[Union[AIMessage, HumanMessage]]:
 ```
 
-Streams one completion from OpenAI:
+**Parameters:**
 
-- Wraps stream with `run_context.guard_stream()` for cancellation checks
-- Accumulates content chunks and tool calls
-- Emits `LLM_CHUNK` and `LLM_USAGE` events
-- Bridges legacy cancellation tokens onto runtime token
+- **messages**: Conversation history as LangChain message objects
+- **config**: Optional dictionary with keys:
+  - `tools`: List of enabled tool names
+  - `chat_id`: Chat identifier
+  - `cancellation_token`: Legacy cancellation token
+  - `headers`: Extra request headers
+  - `callbacks`: List of streaming callbacks
+  - `run_context`: Custom AgentRunContext
+  - `event_listeners`: List of event listeners
+  - `current_chat`: Chat object for context
 
-**Returns:** Tuple of accumulated content, tool calls dict, and usage info
+**Returns:**
 
-### Callback Sender
+Updated messages list with the assistant reply appended. User-facing content from dual-response tools is included, and all assistant responses across the entire tool-calling loop are preserved.
+
+**Raises:**
+
+- `ToolLoopError`: If loop limits are exceeded or stuck loop detected
+- `CancelledError`: If cancelled by the caller
+
+## Response Accumulation
+
+### Multi-Iteration Merging
+
+The agent preserves all assistant text generated across tool-calling iterations:
+
+- **llm_responses_accumulated**: Collects LLM text from each streaming round
+- **user_facing_content**: Collects user content from dual-response tools
+
+Final content is merged by joining all accumulated LLM responses followed by user-facing content.
+
+### Content Preservation
+
+Previously, only the final response (after all tool calls) was returned, losing intermediate assistant text. Now:
+
+- All streamed content is preserved across iterations
+- Explanatory text before, during, and after tool executions is retained
+- The final message contains complete context from the entire run
+
+## Session Context Injection
+
+SmolAgent can inject session context into tool settings for tools requiring access to current chat or session state:
 
 ```python
-_make_callback_sender(
-    callbacks: Optional[List[Callable[[str], None]]]
-) -> Callable[[str, bool], None]
+if self.session and current_chat:
+    self.settings._active_session = self.session
+    self.session._current_chat = current_chat
 ```
 
-Returns a closure that:
+This allows complex tools like `generate_tasks_tool` to interact with broader execution context beyond direct parameters.
 
-- Buffers streamed chunks
-- Accumulates all chunks across the entire run
-- Flushes **full accumulated response** to callbacks (not just delta)
-- Sends on timer (CALLBACK_FLUSH_SECONDS) or explicit flush
-- Ensures mid-stream persistence is crash-safe
+## Analytics and Usage Recording
 
-## Analytics and Metrics
+### Token Usage Recording
 
-### Recording Token Usage
+Token usage is recorded via `_record_usage()` capturing:
 
-```python
-_record_usage(
-    openai_messages: List[Dict[str, Any]],
-    output_text: str,
-    duration_seconds: float,
-    tags: str,
-    session_id: Optional[str],
-    request_id: Optional[str],
-    usage_info: Any,
-    chat_id: Optional[str],
-)
-```
-
-Records to analytics (non-fatal on error):
-
-- Input and output token counts (from provider or estimated)
-- Duration metrics
+- Input and output tokens (from provider or calculated)
+- Wall-clock duration
 - Model and provider information
-- Cost tracking via k_tokens_cxjcoins
-- Session and chat identifiers
+- User and project context
+- Analytics tags
 
-### Recording Tool Usage
+Calculations fall back to token counting when provider doesn't report usage.
 
-```python
-_record_tool_usage(
-    tool_name: str,
-    time_taken: float,
-    success: bool,
-    error_message: Optional[str],
-    chat_id: Optional[str],
-    request_id: Optional[str],
-)
-```
+### Tool Usage Recording
 
-Records tool execution metrics:
+Tool execution metrics are recorded via `_record_tool_usage()` including:
 
-- Tool name and execution duration
+- Tool name and execution time
 - Success/failure status
-- Error details when applicable
-- Parent chat and request identifiers
+- Error details
+- Parent chat and request IDs
 
-### Preflight Wallet Check
+Both recording methods are non-fatal on error to prevent analytics failures from affecting chat operation.
 
-```python
-_preflight_limit_check()
-```
+## Hardcoded System Rules
 
-Runs pre-flight wallet validation before executing AI requests. Raises `InsufficientFundsError` if user budget is exhausted.
+The agent includes built-in system rules for file handling that are prepended to all system messages:
 
-## Runtime Context Management
+- Use code blocks with file names for file operations
+- Follow original file formatting and indentation
+- Avoid unnecessary changes unless explicitly requested
+- Keep changes simple and easy to review
 
-### Resolving Run Context
+## Error Handling
 
-```python
-_resolve_run_context(config: Dict[str, Any]) -> AgentRunContext
-```
+### Exception Handling
 
-Returns the appropriate run context:
+All exceptions during tool execution are caught (not just OSError/ValueError/TypeError/RuntimeError) and returned as error strings. This ensures:
 
-- Reuses `config["run_context"]` if provided (enables shared cancellation and event listeners)
-- Creates fresh `AgentRunContext` with optional event listeners
-- Allows callers to share context across multiple invocations
+- The model always receives a non-empty tool message
+- No infinite loops due to missing tool responses
+- Proper error feedback to the model for recovery
 
-## Global Configuration
+### Cancellation
 
-### Hardcoded System Rules
+Cancellation is handled through both:
 
-SmolAgent includes hardcoded system rules enforcing best practices for file handling:
+- Legacy `CancellationToken` (bridged to runtime context)
+- Runtime context cancellation (`run_context.cancel()`)
 
-- **Code blocks**: Always use code blocks with file names for file operations
-- **File paths**: Use valid absolute or relative paths based on project context
-- **Formatting preservation**: Maintain original file formatting and indentation
-- **Minimal changes**: Avoid unnecessary changes, formatting, or cleanup unless explicitly requested
-- **Review simplicity**: Keep changes simple and easy for users to review
+Both paths converge on `AgentCancelled` exception with proper stream cleanup.
 
-These rules are automatically prepended to chat global instructions to ensure consistent code handling behavior.
+## Limits and Constraints
 
-## Error Handling and Cancellation
+### Tool Call Limits
 
-### Cancellation Flow
+Limits are resolved from AISettings with priority:
 
-1. **Legacy token check**: `cancellation_token.is_cancelled` triggers runtime cancellation
-2. **Runtime cancellation**: Sets `run_context.token.cancelled` and raises `AgentCancelled`
-3. **Stream closure**: Safely closes response stream on cancellation
-4. **Error translation**: `AgentCancelled` is converted to legacy `CancelledError`
+1. Model-specific configuration
+2. Provider-level configuration
+3. Fallback defaults
 
-### Tool Execution Error Handling
+These limits are enforced by LoopGuard on every tool round to prevent runaway execution.
 
-Tool errors are:
+### Wallet Checks
 
-- Caught (OSError, ValueError, TypeError, RuntimeError)
-- Logged with full exception traceback
-- Returned as string responses (not propagated)
-- Included in `TOOL_ERROR` events with error details
-
-This allows the model to handle and react to failed tool invocations gracefully.
-
-## Constants and Configuration
-
-- `CALLBACK_FLUSH_SECONDS`: Interval (in seconds) for streaming callback flushes
-- `TOOL_RESULT_PREVIEW_MAX_CHARS`: Maximum characters in tool result preview for events
-- `TOOL_SCOPE_GLOBAL`: String constant for global scope tools
-- `TOOL_SCOPE_CHAT`: String constant for chat scope tools
-- `CANCELLED_MESSAGE`: Message when run is cancelled by caller
+Pre-flight wallet validation via `check_user_wallet()` prevents execution when users exceed their budget based on configured token costs.
