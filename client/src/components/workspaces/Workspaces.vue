@@ -51,7 +51,7 @@ import WorkspaceSettings from './WorkspaceSettings.vue'
         </div>
       </div>
 
-      <modal close="true" @close="showModal = false" v-if="showModal">
+      <modal close="true" class="w-5/6" @close="showModal = false" v-if="showModal">
         <WorkspaceSettings
           :workspace="selectedWorkspace"
           :availableProjects="availableProjects"

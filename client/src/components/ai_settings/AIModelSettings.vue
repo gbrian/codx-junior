@@ -230,6 +230,20 @@ import Editor from '../monaco/Editor.vue'
               <span class="label-text text-xs">Merge messages</span>
             </label>
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs">Max Tool Calls</span>
+              </label>
+              <input type="number" class="input input-bordered input-sm" v-model.number="model.max_tool_calls" placeholder="Leave empty for default" step="1" />
+            </div>
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs">Max Iterations</span>
+              </label>
+              <input type="number" class="input input-bordered input-sm" v-model.number="model.max_iterations" placeholder="Leave empty for default" step="1" />
+            </div>
+          </div>
         </div>
 
         <!-- Embeddings Parameters -->

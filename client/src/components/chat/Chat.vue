@@ -252,6 +252,7 @@ export default {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    this.initProject()
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
@@ -272,14 +273,11 @@ export default {
       return this.chat.file_list || []
     },
     messageFiles() {
-      // Collect all files from message.files property and code blocks
       const allMsgFiles = new Set()
       
       this.messages?.forEach(msg => {
-        // Add files from message.files property
         msg.files?.forEach(f => allMsgFiles.add(f))
         
-        // Extract files from code blocks in message content
         if (msg.content) {
           const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
           extractedFiles.forEach(f => allMsgFiles.add(f))
@@ -363,6 +361,9 @@ export default {
     }
   },
   watch: {
+    chat() {
+      this.initProject()
+    },
     uploadProjectFile(newVal, oldVal) {
       if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
         this.detectSearchTerm()
@@ -375,10 +376,12 @@ export default {
     },
   },
   methods: {
+    initProject() {
+      this.$projects.initProjectState(this.chatProject)
+    },
     extractFilesFromCodeBlocks(content) {
       if (!content) return []
       
-      // Match code blocks: ```language path/to/file
       const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
       const files = []
       let match
@@ -386,9 +389,7 @@ export default {
       while ((match = codeBlockRegex.exec(content)) !== null) {
         const filePath = match[2].trim()
         
-        // Filter valid paths (must contain / or .)
         if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
-          // Ensure it's a valid file path (not just noise)
           if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
             files.push(filePath.split(' ')[0])
           }
@@ -705,12 +706,14 @@ export default {
       this.editMessage = message
     },
 
-    toggleHide({ doc_id }) {
-      this.chatSvc.toggleHide({ chat: this.chat, doc_id })
+    toggleHide({ doc_id, hide }) {
+      this.chatSvc.updateExistingMessage(
+        { chat: this.chat, doc_id, update: { hide: !hide } })
     },
 
-    toggleAnswer({ doc_id }) {
-      this.chatSvc.toggleAnswer({ chat: this.chat, doc_id })
+    toggleAnswer({ doc_id, is_answer }) {
+      this.chatSvc.updateExistingMessage(
+        { chat: this.chat, doc_id, update: { is_answer: !is_answer } })
     },
 
     onCopy(message) {
@@ -989,8 +992,12 @@ export default {
       throw new Error('Obsolete')
     },
 
-    removeFileFromMessage(message, file) {
-      this.chatSvc.removeFileFromMessage({ message, file })
+    removeFileFromMessage({ doc_id, files }, file) {
+      this.chatSvc.updateExistingMessage({ 
+        chat: this.chat, 
+        doc_id, 
+        update: { files: files.filter(f => f !== file) }
+      })
     },
 
     removeFileFromChat(file) {
@@ -1061,7 +1068,7 @@ export default {
     },
 
     hideAll() {
-      this.chatSvc.hideAll({ chat: this.chat })
+      this.visibleMessages.forEach(m => this.toggleHide(m))
     },
 
     toggleDocumentSearch() {
@@ -1189,7 +1196,11 @@ export default {
 
     onProfilesChanged(selectedProfiles) {
       this.chat.profiles = selectedProfiles.map(p => p.name || p)
-      return this.chatSvc.saveChatInfo(this.chat)
+      return this.saveChatInfo()
+    },
+
+    saveChatInfo(chat) {
+      return this.chatSvc.saveChatInfo(chat || this.chat)
     },
 
     replaceEmoji({ emoji }) {

@@ -1,80 +1,155 @@
-This is a very large, sophisticated class that acts as a central service layer (a "Facade" or "Manager") for knowledge extraction, enrichment, indexing, and retrieval. It coordinates file system I/O, database interaction (`KnowledgeDB`), AI API calls (`AI`), and asynchronous operations.
+# Knowledge Management System
 
-Given its complexity, the primary areas for improvement are **architecture** (separating concerns), **reliability** (transactionality and error handling), and **maintainability** (reducing coupling).
+## Overview
 
-Here is a detailed code review and set of refactoring recommendations.
+The `Knowledge` class is a comprehensive document management system for the CODX Junior project. It handles document indexing, enrichment, searching, and summarization using AI-powered processing and a vector database backend.
 
----
+## Core Functionality
 
-# 🧠 Knowledge Class Review and Refactoring Guide
+### Initialization
 
-## I. 🎯 Overall Architectural Assessment (SOLID Principles)
+The Knowledge system initializes with project settings and optional progress callbacks:
 
-The current `Knowledge` class violates the Single Responsibility Principle (SRP). It handles too many distinct concerns:
-1. **File Management/Indexing:** Listing, deleting, checking file validity (`detect_changes`, `delete_documents`).
-2. **AI Processing:** Extracting summaries, keywords, and training data (`enrich_document`, `build_doc_summary`).
-3. **Database Interaction:** Calling DB methods, updating records (`index_documents`, `get_all_sources`).
-4. **UI/Workflow:** Managing progress callbacks (`parallel_enrich`, `index_documents`).
-5. **Content Generation:** Building the technical summary documentation (Markdown generation) and project overview (`build_project_summary`, `build_code_changes_summary`).
+- **AI Integration**: Lazy-loads an AI instance for RAG model operations
+- **Database**: Manages a Milvus-based knowledge database
+- **Loaders**: Uses KnowledgeLoader for file discovery and processing
+- **Wiki Management**: Integrates with WikiManager for document generation
 
-**Recommendation:** Break this monolithic class into several smaller, dedicated Service classes.
+### Document Loading and Indexing
 
-| Current Role | Proposed Module/Service | Responsibility |
-| :--- | :--- | :--- |
-| **`KnowledgeManager` (The core)** | Coordinated workflow execution. | Orchestrates calls to services below. Handles the overall state machine (Index -> Enrich -> Index DB -> Build Summary). |
-| `enrich_document`, `get_ai()` | `AIEnrichmentService` | Single responsibility: Communicating with the AI platform for structured data extraction, keyword generation, summarization, etc. |
-| `build_project_summary`, `build_code_changes_summary` | `KnowledgeDocGenerator` (or `SummaryWriter`) | Single responsibility: Using inputs (file lists, changes) to construct sophisticated prompts and generate formatted markdown reports. |
-| `reload`, `index_documents` | `KnowledgeIndexingService` | Handles the stateful process of taking raw documents and committing them to the database. Focuses on idempotency and transactions. |
+#### File Discovery
+- `get_all_repo_files()`: Retrieves all repository files
+- `detect_changes()`: Identifies modified files by filtering empty files and applying ignore patterns
+- `is_valid_file()`: Validates files against ignore patterns
 
----
+#### Document Reloading
+- `reload(full=False)`: Asynchronously reloads documents incrementally or completely
+  - On full reload, resets the database
+  - Loads only changed documents if not full reload
+  - Triggers summary building after indexing
+  
+- `reload_path(path)`: Loads documents from a specific file path with error handling
 
-## II. 🚧 Specific Method-Level Refactoring Suggestions
+### Document Enrichment
 
-### 1. Core Consistency & Type Management
-*   **Mixed Approach:** The class mixes synchronous code (e.g., `get_all_sources`, `delete_documents`) with asynchronous code (`reload`, `parallel_enrich`, `index_documents`). All methods that interact with the database or network should consistently use `async` and `await`.
-    *   **Action:** Convert all public-facing methods to be async (e.g., add `async def` to `delete_documents`, `status`, etc.).
+#### AI-Powered Enhancement
+The `enrich_document()` method augments documents with AI-generated metadata:
 
-### 2. The Enrichment Workflow (`enrich_document` & `parallel_enrich`)
-This section is complex and relies heavily on fragile string/JSON parsing, which is the largest point of failure risk.
+**Enrichment Fields:**
+- **Summary**: 10-line business-focused summarization
+- **Keywords**: Hyphen-separated keyword extraction
+- **Category**: Automatic document classification
+- **Content Graph**: Node and relation representation of content
 
-*   **Problem:** Structured output (like keyword arrays or JSON objects) from LLMs should *never* be parsed solely with `next(extract_json_blocks(...))`. This assumes perfect adherence to the prompt format.
-    *   **Recommendation (Critical):** If your underlying `AI` library supports it, use forced **Function/Tool Calling**. Instead of prompting the AI for raw JSON that needs parsing (`summary_prompt = f"""...Return a JSON object with this information: ..."""`), define a Pydantic model structure and ask the LLM to return an instance of that defined function schema. This dramatically increases reliability.
-*   **Problem:** The metadata handling is spread out. When `enrich_document` runs, it modifies `doc.metadata` directly.
-    *   **Recommendation:** Pass a dedicated `MetadataBuilder` object (or service) into `enrich_document`. All generated fields (summary, keywords, etc.) are written to this builder, keeping the document metadata clean until all enrichment steps are complete.
+**Training Data Generation** (optional):
+- Creates 10 user request/AI response pairs for model fine-tuning
+- Extracted from document content
 
-### 3. State Management and Transactions (`index_documents`)
-This function is the most critical and least robust regarding failure recovery. It mixes indexing, marking versions as deleted, and summary updating.
+#### Parallel Processing
+`parallel_enrich()` processes multiple documents concurrently using asyncio:
+- Provides progress callbacks for each enrichment stage
+- Tracks completion rates and errors
+- Handles exceptions gracefully with error reporting
 
-*   **Problem:** The process (Enrich -> Delete Old -> Index New -> Build Summary) is not transactional. If AI successfully enriches 10 documents, but the DB connection fails during step D (`self.get_db().index_documents`), then the sources might be partially indexed and the summary update is skipped/fails.
-    *   **Recommendation (Highest Priority):** Treat the entire execution of `index_documents` as a transaction unit:
-        1.  Start transaction (conceptually).
-        2.  Enrich all documents.
-        3.  Delete old versions in bulk.
-        4.  Index new versions in bulk.
-        5.  If all steps succeed, commit the changes and update the summary.
-        6.  If any step fails, rollback or log major failures for manual recovery.
+### Indexing Pipeline
 
-### 4. Prompt Management (Hardcoding)
-Prompt templates are embedded deep within methods (`build_project_summary`, `enrich_document`, etc.). Changing a prompt requires navigating and modifying the entire class.
+The `index_documents()` method orchestrates the complete indexing workflow:
 
-*   **Recommendation:** Centralize all complex prompts into external files (e.g., `.txt` or `.jinja2`) or dedicated static/const module variables. This improves readability and allows non-Python engineers to tweak prompts without touching code logic.
+1. **Preparation**: Collects unique sources and calculates MD5 checksums
+2. **Enrichment**: Parallel AI enrichment of all documents
+3. **Cleanup**: Deletes old versions of updated documents
+4. **Indexing**: Stores enriched documents in the database with metadata
+5. **Summary**: Updates project summary document incrementally
 
-### 5. Code Polish and Cleanliness
-1.  **Type Hinting:** While generally good, refine the type hinting (e.g., `all_sources: List[str]`).
-2.  **Redundant Logic:** The initial check for empty files in `detect_changes` (`is_empty(file_path): return False if os.stat(file_path).st_size else True`) is overly complicated; typically, checking the size being zero suffices, but confirm this precisely reflects your intended logic (e.g., distinguishing between empty vs non-tracked files).
-3.  **Class Methods:** The `get_documents_from_sources` method relies on file system reading and mixes file path construction (`f"{self.settings.abs_project_path}/{file_path}"`) with I/O, which is acceptable but makes the function difficult to test without creating temporary files.
+**Progress Tracking**: Reports progress through multiple stages:
+- Document processing
+- Enrichment progress
+- Indexing progress
+- Summary generation
 
----
-# 🚀 Summary of Actionable Code Changes Checklist
+### Document Search and Retrieval
 
-| Focus Area | Change Required | Impact Level | Why? |
-| :--- | :--- | :--- | :--- |
-| **Architecture** | Decompose `Knowledge` into specialized services (e.g., `IndexingService`, `AIManager`). | High | Improves SRP, makes the codebase modular and testable. |
-| **Reliability** | Implement transactional logic within `index_documents`. | Critical | Ensures state consistency: either all changes are applied, or none are. |
-| **AI Interaction** | Replace raw prompt JSON extraction with an enforced Function Call/Tool Using system (if available in `AI`). | High | Makes the data extraction robust against LLM generation "drift." |
-| **Async Consistency** | Ensure ALL public methods interacting with disk/network use `async`/`await`. | Medium | Guarantees correct execution flow and resource management. |
-| **Configuration** | Externalize all large prompt templates into dedicated configuration files or constants. | Medium | Improves maintainability and separates content from logic. |
-| **Metadata** | Standardize metadata keys (e.g., always use `source_file` instead of switching between `source`, `filepath`). | Low/Medium | Reduces confusion when reading the code multiple times. |
+#### Search Capabilities
+`search(query, search_type='fulltext', limit=100)`:
+- Performs full-text search in indexed documents
+- Supplements results with file path matches when query appears in filename
+- Returns Document objects with source paths
+
+#### Document Loading
+`doc_from_project_file(file_path)`: Loads raw document content from project files with metadata
+
+`doc_and_summary(doc)`: Enhances documents with AI-generated summaries in both metadata and content
+
+### Project Summary Management
+
+#### Summary Generation
+`build_project_summary(added_sources=None, deleted_sources=None)`:
+- Generates concise markdown overview of the entire project
+- Updates incrementally based on file changes
+- Stored at `project_summary.md` in the CODX path
+- Helps LLM models understand project structure and locate relevant files
+
+**Summary Features:**
+- Logical grouping of files by folders
+- One-line descriptions of key files
+- Incorporates added and deleted files
+- Based solely on file paths and existing content
+
+#### Summary Access
+- `get_project_summary()`: Retrieves current project summary from disk
+- Cached locally to reduce AI calls
+
+### Utility Functions
+
+#### Document Management
+- `delete_documents(documents=None, sources=None)`: Removes documents from knowledge base and updates summary
+- `clean_deleted_documents()`: Identifies and removes documents for deleted files
+- `reset()`: Clears database and marks all files for reindexing
+
+#### Keyword and Query Processing
+- `extract_query_keywords(query)`: Uses AI to extract search-optimized keywords from queries
+- `get_categories()`: Retrieves all document categories from database
+
+#### Status and Information
+- `status()`: Returns comprehensive knowledge base status including file count, folders, keywords, and database info
+- `get_db_info()`: Provides database-specific information
+- `get_all_sources()`: Lists all indexed document sources
+- `is_valid_project_file(file_path)`: Validates if a file is in project sources
+
+### Change Summary Generation
+
+`build_code_changes_summary(diff, force=False)`:
+- Analyzes unified diff format code changes
+- Generates human-friendly reports with file grouping and descriptions
+- Caches results in `last_changes_summary.md`
+- Can be forced to regenerate despite cache
+
+### Helper Methods
+
+- `get_documents_from_sources(file_paths)`: Creates Document objects from file paths with language detection
+- `build_doc_summary(doc)`: Generates AI-powered document summaries with keywords
+- `create_wiki_doc(source)`: Generates wiki documentation for source files
+
+## Progress Callback System
+
+The system supports granular progress tracking through callback events:
+
+- `DOCUMENT_PROCESSING`: Stage initialization
+- `DOCUMENT_ENRICHED`: Individual document enrichment completion
+- `DOCUMENT_INDEXED`: Individual document indexing completion
+- `ITERATION_COMPLETE`: Stage completion
+- `COMPLETED`: Full process completion
+
+Error events are also reported with context information for debugging and monitoring.
+
+## Database Integration
+
+The system uses KnowledgeDB (Milvus-backed) for:
+- Document storage and retrieval
+- Vector similarity search
+- Metadata management
+- Source tracking with MD5 checksums
+- Last update timestamps for incremental loading
 
 ## Dependencies
 **Imports from:** codx/junior/knowledge/knowledge_db.py, codx/junior/model/model.py, codx/junior/engine/progress_callback.py, codx/junior/utils/utils.py, codx/junior/ai/__init__.py, codx/junior/settings.py, codx/junior/knowledge/knowledge_loader.py, codx/junior/knowledge/knowledge_prompts.py, codx/junior/knowledge/knowledge_keywords.py, codx/junior/wiki/wiki_manager.py

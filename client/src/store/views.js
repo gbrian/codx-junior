@@ -9,10 +9,11 @@ export const state = () => ({
   views: [],
   currentView: null,
   lastView: null,
-  // Desktop API and layout state owned here
   _desktopApi: null,
   _layoutChangeDisposable: null,
   _activePanelDisposable: null,
+  _panelAddDisposable: null,
+  _panelRemoveDisposable: null,
   fullscreenPanelId: null
 })
 
@@ -44,32 +45,51 @@ export const mutations = mutationTree(state, {
   removeView(state, viewName) {
     state.views = state.views.filter(v => v.name !== viewName)
   },
-  // Desktop API registration - owned by views store
   setDesktopApi(state, api) {
-    // Dispose previous layout change listener
+    // Cleanup old disposables
     if (state._layoutChangeDisposable?.dispose) {
       state._layoutChangeDisposable.dispose()
       state._layoutChangeDisposable = null
     }
-
-    // Dispose previous active panel listener
     if (state._activePanelDisposable?.dispose) {
       state._activePanelDisposable.dispose()
       state._activePanelDisposable = null
     }
+    if (state._panelAddDisposable?.dispose) {
+      state._panelAddDisposable.dispose()
+      state._panelAddDisposable = null
+    }
+    if (state._panelRemoveDisposable?.dispose) {
+      state._panelRemoveDisposable.dispose()
+      state._panelRemoveDisposable = null
+    }
 
     state._desktopApi = api
 
-    if (api?.onDidLayoutChange) {
+    if (!api) return
+
+    // Setup all event listeners
+    if (api.onDidLayoutChange) {
       state._layoutChangeDisposable = api.onDidLayoutChange(() => {
-        $storex.views.saveCurrentView()
+        $storex.views.onLayoutChanged()
       })
     }
 
-    // Listen for active panel changes to lazy-load chat if needed
-    if (api?.onDidActivePanelChange) {
+    if (api.onDidActivePanelChange) {
       state._activePanelDisposable = api.onDidActivePanelChange((event) => {
         $storex.views.onPanelActive(event)
+      })
+    }
+
+    if (api.onDidAddPanel) {
+      state._panelAddDisposable = api.onDidAddPanel(() => {
+        $storex.views.onLayoutChanged()
+      })
+    }
+
+    if (api.onDidRemovePanel) {
+      state._panelRemoveDisposable = api.onDidRemovePanel((panel) => {
+        $storex.views.onPanelRemoved(panel)
       })
     }
   },
@@ -81,14 +101,12 @@ export const mutations = mutationTree(state, {
   }
 })
 
-// Helper - returns localStorage key scoped to active project
 function getProjectStorageKey() {
   const projectName = $storex.projects?.activeProject?.project_name
   if (!projectName) return null
   return `${STORAGE_KEY_PREFIX}_${projectName}`
 }
 
-// Extract registered apps from a saved layout's panels structure
 function extractAppsFromLayout(layout) {
   const apps = []
   if (!layout.panels) return apps
@@ -165,15 +183,24 @@ export const actions = actionTree(
       $storex.views.setLastView(null)
       await $storex.projects.saveLastActiveProject()
       await $storex.views.loadViews()
+      
+      $storex.ui.resetOpenApps()
       await $storex.views.autoLoadLastView()
     },
 
     async autoLoadLastView({ state }) {
       const lastView = state.lastView
-      if (!lastView?.layout) return
+      if (!lastView?.layout) {
+        console.warn('No last view found, creating empty layout')
+        return
+      }
 
       try {
-        if (!state._desktopApi) return
+        if (!state._desktopApi) {
+          console.warn('Desktop API not yet available for auto-loading view')
+          return
+        }
+        
         await $storex.views.loadView(lastView)
       } catch (error) {
         console.error('Failed to auto-load last view:', error)
@@ -216,7 +243,6 @@ export const actions = actionTree(
         const desktopApi = state._desktopApi
         if (desktopApi) {
           desktopApi.fromJSON(view.layout)
-          // Sync registered apps from restored layout into UI store
           await $storex.views.syncAppsFromLayout(view.layout)
         }
       } catch (error) {
@@ -294,7 +320,6 @@ export const actions = actionTree(
       }
     },
 
-    // Notify UI store of apps present in a layout so they appear as open
     async syncAppsFromLayout(_, layout) {
       try {
         const apps = extractAppsFromLayout(layout)
@@ -352,7 +377,6 @@ export const actions = actionTree(
       }
     },
 
-    // Toggle fullscreen for a panel via the desktop API
     togglePanelFullscreen({ state }, panelId) {
       if (!state._desktopApi) return
       try {
@@ -394,20 +418,32 @@ export const actions = actionTree(
       }
     },
 
-    // Handles active panel change events from the desktop API - lazy-loads chats based on status
     async onPanelActive(_, panel) {
+      if (!panel) {
+        return
+      }
       try {
-        // Extract chat params from the panel - panels with chat component store chat in params
         const params = panel.params?.params || panel.params
         const chat = params?.chat
         if (!chat?.id) return
 
-        // Use loadUninitialized to check status and load if needed
         await $storex.chats.loadUninitialized(chat)
       } catch (error) {
         console.error('Error handling active panel change:', error)
       }
     },
+
+    async onPanelRemoved(_, panel) {
+      try {
+        const app = panel.params?.app
+        if (app) {
+          $storex.ui.closeApp(app)
+        }
+      } catch (error) {
+        console.error('Error handling panel remove:', error)
+      }
+    },
+
     async activatePanel(_, panelId) {
       try {
         const desktopApi = $storex.views._desktopApi
@@ -421,5 +457,82 @@ export const actions = actionTree(
         console.error(`Error activating panel ${panelId}:`, error)
       }
     },
+
+    addPanelToDesktop(_, { id, title, component, position, params, renderer }) {
+      const desktopApi = $storex.views._desktopApi
+      if (!desktopApi) return
+      
+      try {
+        if (!desktopApi.panels.find(p => p.id === id)) {
+          desktopApi.addPanel({
+            id,
+            title,
+            component,
+            position,
+            renderer,
+            params: {
+              ...params,
+              tabName: title,
+            },
+            tabComponent: 'tabComponent'
+          })
+        }
+      } catch (error) {
+        console.error(`Error adding panel ${id}:`, error)
+        throw error
+      }
+    },
+
+    removePanelFromDesktop(_, panelId) {
+      const desktopApi = $storex.views._desktopApi
+      if (!desktopApi) return
+      
+      try {
+        const panel = desktopApi.getPanel(panelId)
+        if (panel) {
+          desktopApi.removePanel(panel)
+        }
+      } catch (error) {
+        console.error(`Error removing panel ${panelId}:`, error)
+      }
+    },
+
+    syncPanelsWithApps({ state }) {
+      const desktopApi = state._desktopApi
+      if (!desktopApi) return
+
+      const { openApps } = $storex.ui
+      const apps = Object.values(openApps)
+      const panelTabIds = desktopApi.panels.map(p => p.id)
+      const openAppTabIds = apps.map(app => app.tabId)
+
+      // Add missing app panels
+      apps
+        .filter(({ tabId }) => !panelTabIds.includes(tabId))
+        .forEach(app => {
+          if (!app?.tabId) return
+          const component = app.component || 'app-window'
+          const renderer = 'always'
+          try {
+            $storex.views.addPanelToDesktop({
+              id: app.tabId,
+              title: app.name,
+              component,
+              renderer,
+              params: {
+                ...app.params || {},
+                app
+              }
+            })
+          } catch (error) {
+            console.error('Error adding app panel:', error)
+          }
+        })
+
+      // Remove closed app panels
+      panelTabIds
+        .filter(tabId => !openAppTabIds.includes(tabId))
+        .forEach(tabId => $storex.views.removePanelFromDesktop(tabId))
+    }
   }
 )

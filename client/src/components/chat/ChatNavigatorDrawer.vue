@@ -1,6 +1,7 @@
 <script setup>
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatNavigatorNode from './ChatNavigatorNode.vue'
+import TaskSettings from '@/components/kanban/TaskSettings.vue'
 </script>
 
 <template>
@@ -30,7 +31,7 @@ import ChatNavigatorNode from './ChatNavigatorNode.vue'
         <div class="shrink-0 p-4 border-b border-base-content/10">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-lg font-bold flex items-center gap-2">
-              <ChatIcon :model="rootChat.mode" />
+              <ChatIcon :mode="rootChat.mode" />
               {{ rootChat.name }}Actions
             </h2>
             <button class="btn btn-sm btn-ghost" @click="closeDrawer">
@@ -60,11 +61,19 @@ import ChatNavigatorNode from './ChatNavigatorNode.vue'
               Tasks
             </a>
             <a 
-              class="tab tab-sm  flex gap-1"
+              class="tab tab-sm flex gap-1"
+              :class="activeTab === 'settings' ? 'tab-active' : ''"
+              @click="switchToSettings"
+            >
+              <i class="fa-solid fa-sliders text-xs"></i>
+              Settings
+            </a>
+            <a 
+              class="tab tab-sm flex gap-1"
               :class="activeTab === 'actions' ? 'tab-active' : ''"
               @click="activeTab = 'actions'"
             >
-              <i class="fa-solid fa-sliders text-xs"></i>
+              <i class="fa-solid fa-gear text-xs"></i>
               Actions
             </a>
           </div>
@@ -103,14 +112,23 @@ import ChatNavigatorNode from './ChatNavigatorNode.vue'
                 </div>
               </div>
 
-              <!-- Add Subtask Button -->
-              <button
-                class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2"
-                @click.stop="onAddSubtask(rootChat)"
-                title="Create subtask"
-              >
-                <i class="fa-solid fa-plus text-primary"></i>
-              </button>
+              <!-- Action Buttons -->
+              <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                <button
+                  class="btn btn-xs btn-ghost"
+                  @click.stop="openTaskSettings(rootChat)"
+                  title="Edit task settings"
+                >
+                  <i class="fa-solid fa-gear text-primary"></i>
+                </button>
+                <button
+                  class="btn btn-xs btn-ghost"
+                  @click.stop="onAddSubtask(rootChat)"
+                  title="Create subtask"
+                >
+                  <i class="fa-solid fa-plus text-primary"></i>
+                </button>
+              </div>
             </div>
 
             <!-- Children Nodes -->
@@ -123,12 +141,39 @@ import ChatNavigatorNode from './ChatNavigatorNode.vue'
               :depth="0"
               @select="selectChat"
               @add-subtask="onAddSubtask"
+              @edit-settings="openTaskSettings"
             />
 
             <!-- Empty State -->
             <div v-if="!rootChildren.length && !isLoading" class="text-center text-sm text-base-content/40 py-8">
               <i class="fa-regular fa-inbox text-2xl block mb-2 opacity-50"></i>
               No subtasks yet
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div v-if="activeTab === 'settings' && selectedTask" class="flex-1 overflow-y-auto flex flex-col">
+            <div class="flex-1 overflow-y-auto p-4">
+              <TaskSettings 
+                :taskData="selectedTask"
+                :isEmbedded="true"
+                @close="discardTaskSettings"
+                @save="saveTaskSettings"
+              />
+            </div>
+            <div class="shrink-0 border-t border-base-content/10 p-4 flex gap-2 bg-base-200">
+              <button 
+                class="btn btn-sm btn-ghost flex-1" 
+                @click="discardTaskSettings"
+              >
+                Discard
+              </button>
+              <button 
+                class="btn btn-sm btn-primary flex-1" 
+                @click="saveTaskSettings"
+              >
+                Save
+              </button>
             </div>
           </div>
 
@@ -228,7 +273,7 @@ import ChatNavigatorNode from './ChatNavigatorNode.vue'
 
 <script>
 export default {
-  components: { ChatIcon, ChatNavigatorNode },
+  components: { ChatIcon, ChatNavigatorNode, TaskSettings },
   props: {
     rootChat: {
       type: Object,
@@ -251,7 +296,9 @@ export default {
     return {
       isOpen: false,
       isLoading: false,
-      activeTab: 'navigator'
+      activeTab: 'navigator',
+      selectedTask: null,
+      taskDataSnapshot: null
     }
   },
   computed: {
@@ -292,10 +339,38 @@ export default {
     },
     closeDrawer() {
       this.isOpen = false
+      this.discardTaskSettings()
     },
     selectChat(chat) {
       this.$emit('select', chat)
       this.closeDrawer()
+    },
+    openTaskSettings(task) {
+      this.selectedTask = JSON.parse(JSON.stringify(task))
+      this.taskDataSnapshot = JSON.parse(JSON.stringify(task))
+      this.activeTab = 'settings'
+    },
+    switchToSettings() {
+      if (!this.selectedTask) {
+        this.selectedTask = JSON.parse(JSON.stringify(this.rootChat))
+        this.taskDataSnapshot = JSON.parse(JSON.stringify(this.rootChat))
+      }
+      this.activeTab = 'settings'
+    },
+    saveTaskSettings() {
+      if (this.selectedTask) {
+        this.$chats.saveChatInfo(this.selectedTask)
+        this.taskDataSnapshot = JSON.parse(JSON.stringify(this.selectedTask))
+      }
+      this.activeTab = 'navigator'
+    },
+    discardTaskSettings() {
+      if (this.taskDataSnapshot) {
+        this.selectedTask = JSON.parse(JSON.stringify(this.taskDataSnapshot))
+      }
+      this.selectedTask = null
+      this.taskDataSnapshot = null
+      this.activeTab = 'navigator'
     },
     onAddNewTask() {
       this.$emit('add-subtask', this.rootChat)

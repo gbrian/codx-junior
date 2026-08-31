@@ -138,6 +138,21 @@
             </div>
           </div>
         </div>
+        <!-- Tool Limits -->
+        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-base-300">
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs"><i class="fa-solid fa-toolbox mr-1 text-secondary"></i>Max Tool Calls</span>
+            </label>
+            <input class="input input-bordered input-sm" type="number" v-model.number="provider.max_tool_calls" placeholder="Leave empty for default" step="1" />
+          </div>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs"><i class="fa-solid fa-repeat mr-1 text-secondary"></i>Max Iterations</span>
+            </label>
+            <input class="input input-bordered input-sm" type="number" v-model.number="provider.max_iterations" placeholder="Leave empty for default" step="1" />
+          </div>
+        </div>
       </div>
     </div>
 

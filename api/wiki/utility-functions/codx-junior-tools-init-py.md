@@ -1,72 +1,80 @@
-# Tools Module
+# Tools Module Documentation
 
-The tools module aggregates all available tools for chat and project interactions within the codx-junior API. Tools are organized as callable functions with associated metadata for seamless integration with language models and the API.
+The Tools module provides a comprehensive collection of callable functions designed for chat and project interactions within the codx-junior API. These tools are organized with associated metadata to facilitate seamless integration with language models and the API infrastructure.
 
-## Tool Scope Levels
+## Overview
 
-Tools are categorized by their availability scope:
+Tools are categorized by scope levels that determine their availability:
 
 - **global**: Tools always included in conversations (e.g., `code_block_generator`)
 - **chat**: Tools available based on conversation context and selection
 - **profile**: Tools available based on user profile or role
 
-## Tool Response Types
-
 Tools can return responses in two formats:
-
-- **str**: Traditional single-string response used for LLM context
-- **ToolResponse**: Dual-return object for tools that need to produce both user-facing content and LLM feedback
+- **str**: Traditional single-string responses used for LLM context
+- **ToolResponse**: Dual-return objects for tools requiring both user-facing content and LLM feedback
 
 ## Available Tools
 
 ### fetch_webpage
 
-Fetch a webpage and convert it to markdown format.
+Fetches a webpage and converts it to markdown format.
 
 **Parameters:**
 - `url` (string, required): The URL of the webpage to fetch
-- `include_images` (boolean): Whether to include image references in the markdown
-- `max_length` (integer): Maximum length of the output markdown
-- `headers` (object): Optional HTTP headers for the request
+- `include_images` (boolean, optional): Whether to include image references in the markdown
+- `max_length` (integer, optional): Maximum length of the output markdown
+- `headers` (object, optional): Optional HTTP headers for the request
 
 **Scope:** chat
 
 ### project_search
 
-Search for documents within a project using the provided search string.
+Searches for documents within a project using provided search strings. Supports multiple searches in a single call to reduce API calls.
 
 **Parameters:**
-- `search` (string, required): The search query string used to find relevant documents
-- `validation` (string): Optional brief text used to validate the content found by the search. This helps reduce large documents and extract only important content
+- `search` (array of strings, required): Array of search query strings. Use multiple queries to search for different topics in a single call (e.g., `['authentication logic', 'user database schema', 'API endpoints']`)
+- `validation` (string, optional): Brief text used to validate content found by searches, helping reduce large documents and extract only relevant content
 
-**Scope:** chat
+**Scope:** chat  
+**Dual Response:** Yes
 
 ### project_read_file
 
-Allows reading project file content from a relative or absolute file path.
+Reads project file contents from relative or absolute file paths. Supports reading multiple files in a single call to improve efficiency.
 
 **Parameters:**
-- `file_path` (string, required): Relative or absolute path to the file to read
+- `file_paths` (array of strings, required): Array of paths to files to read. Always read multiple related files in a single call instead of making separate calls (e.g., `['src/config.py', 'src/main.py', 'tests/test_config.py']`)
+
+**Scope:** chat  
+**Dual Response:** Yes
+
+### project_structure
+
+Returns the project structure with files and folders as a tree-like representation, excluding invalid files.
+
+**Parameters:**
+- `include_details` (boolean, optional, default: false): If true, includes additional metadata like file counts and folder statistics
+- `max_depth` (integer, optional): Maximum folder depth to traverse; leave null for no limit
+- `include_file_sizes` (boolean, optional, default: false): If true, includes file sizes in bytes for each file
 
 **Scope:** chat
 
 ### generate_tasks_tool
 
-Generate sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
+Generates sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
 
 **Parameters:**
-- `instructions` (string): Optional additional instructions to guide task creation (e.g., 'Focus on frontend tasks' or 'Split by component')
+- `instructions` (string, optional): Additional instructions to guide task creation (e.g., 'Focus on frontend tasks' or 'Split by component')
 
 **Scope:** chat  
-**Response Type:** Dual response (ToolResponse)
+**Dual Response:** Yes
 
-## Exports
+## Best Practices
 
-The module exports the following for external use:
-
-- `TOOLS`: Complete tool definitions and configurations
-- `ToolResponse`: Response model for dual-return tools
-- All individual tool functions: `fetch_webpage`, `project_search`, `project_read_file`, `project_write_file`, `code_writer`, `code_block_generator`, `generate_tasks_tool`
+- Use batch operations when possible: tools supporting multiple inputs should be utilized to reduce API calls
+- The `validation` parameter in `project_search` helps extract only relevant content from larger documents
+- For file operations, read multiple related files in single calls rather than making separate requests
 
 ## Dependencies
 **Imports from:** codx/junior/tools/fetch_webpage.py, codx/junior/tools/project_tools.py, codx/junior/tools/code_writer.py

@@ -41,7 +41,8 @@
   "tools": [
     "project_search",
     "fetch_webpage",
-    "project_read_file"
+    "project_read_file",
+    "project_structure"
   ],
   "tags": [],
   "api_settings": {

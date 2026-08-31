@@ -43,6 +43,19 @@ CHANGED: session context injection:
     access to the current chat or session state (e.g., generate_tasks_tool).
     This allows tools to interact with the broader execution context beyond
     just their direct parameters.
+
+CHANGED: full response accumulation across tool loops:
+    Assistant responses generated during tool-calling loops are now accumulated
+    across iterations. Previously, only the final response (after all tool calls)
+    was returned to the client, losing all intermediate assistant text. Now all
+    streamed content is preserved and merged into the final message, ensuring
+    no information is lost when the model generates explanatory text before,
+    during, or after tool executions.
+
+CHANGED: tool call and iteration limits:
+    max_tool_calls and max_iterations are now resolved from AISettings with
+    priority: Model > Provider > Fallback. These limits are passed to LoopGuard
+    to enforce per-round breadth and overall depth limits on tool execution.
 """
 import json
 import logging
@@ -93,7 +106,7 @@ TOOL_SCOPE_GLOBAL: str = "global"
 TOOL_SCOPE_CHAT: str = "chat"
 
 
-HARDCODED_SYSTEM_RULES="\n".join([
+HARDCODED_SYSTEM_RULES = "\n".join([
     "## Working with files",
     "When working with files always use a 'code blocks' and add the file name after the code block language.",
     "See an example:",
@@ -177,6 +190,17 @@ class SmolAgent:
         settings. This allows complex tools like generate_tasks_tool to interact
         with the broader conversation state.
 
+    CHANGED: full response accumulation:
+        Assistant responses from all iterations (including those with tool_calls)
+        are now accumulated and merged into the final message. This preserves
+        all assistant text generated during the tool-calling loop, not just
+        the final response.
+
+    CHANGED: loop guard with resolved limits:
+        max_tool_calls and max_iterations are resolved from AISettings
+        (priority: Model > Provider > Fallback) and enforced by LoopGuard
+        on every tool round to prevent breadth and depth violations.
+
     Conversation flow
     ```mermaid
         flowchart TD
@@ -187,21 +211,22 @@ class SmolAgent:
             E -->|chunk| E1[Accumulate chunk]
             E1 -->|flush| E2[Callback with FULL accumulated content]
             E --> F{finish_reason?}
-            F -->|tool_calls| G[LoopGuard.check]
-            G -->|ok| H[Execute tools - TOOL_START/END/ERROR]
-            H --> I{Dual-response tool?}
-            I -->|yes| I1[Extract user_content + llm_feedback]
-            I -->|no| I2[Single string response]
-            I1 --> I3[Accumulate user_content]
-            I1 --> J[Send llm_feedback to model]
-            I2 --> J
-            I3 --> J
-            J --> K[Append to openai_messages]
-            K --> E
-            G -->|stuck| L[Raise ToolLoopError - RUN_ERROR]
-            F -->|stop / length| M[Merge LLM content + accumulated user content]
-            M --> N[Record usage - RUN_END]
-            E -->|cancelled| O[RUN_CANCELLED - raise CancelledError]
+            F -->|tool_calls| G[LoopGuard.check - depth & breadth & stuck]
+            G -->|ok| H["Save streamed content to llm_responses_accumulated"]
+            H --> I[Execute tools - TOOL_START/END/ERROR]
+            I --> J{Dual-response tool?}
+            J -->|yes| J1[Extract user_content + llm_feedback]
+            J -->|no| J2[Single string response]
+            J1 --> J3[Accumulate user_content]
+            J1 --> K[Send llm_feedback to model]
+            J2 --> K
+            J3 --> K
+            K --> L[Append to openai_messages]
+            L --> E
+            G -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
+            F -->|stop / length| N[Merge all llm_responses_accumulated + user_content]
+            N --> O[Record usage - RUN_END]
+            E -->|cancelled| P[RUN_CANCELLED - raise CancelledError]
     ```
     """
 
@@ -242,10 +267,13 @@ class SmolAgent:
 
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         logger.info(
-            "SmolAgent created. USER: %s, MODEL: %s, URL: %s",
+            "SmolAgent created. USER: %s, MODEL: %s, URL: %s, "
+            "MAX_TOOL_CALLS: %s, MAX_ITERATIONS: %s",
             user.username if user else "NONE",
             self.model,
             self.base_url,
+            self.llm_settings.max_tool_calls,
+            self.llm_settings.max_iterations,
         )
 
     def _build_system_message(self) -> str:
@@ -300,10 +328,13 @@ class SmolAgent:
         Returns:
             Updated *messages* list with the assistant reply appended.
             User-facing content from dual-response tools is included in
-            the assistant message content.
+            the assistant message content. All assistant responses across
+            the entire tool-calling loop are preserved and merged into
+            the final message.
 
         Raises:
-            ToolLoopError:  If max tool rounds or a stuck loop is detected.
+            ToolLoopError:  If max tool rounds, max tool calls, or a stuck
+                           loop is detected.
             CancelledError: If the request is cancelled by the caller.
         """
         config = config or {}
@@ -337,14 +368,19 @@ class SmolAgent:
         1. Stream completion from LLM
         2. Accumulate streamed content and check for tool calls
         3. If tool_calls exist:
-           a. Guard against infinite loops
-           b. Append assistant message with tool_calls to conversation
-           c. For each tool:
+           a. Guard against infinite loops (via LoopGuard):
+              - Check iteration depth (max_iterations)
+              - Check tool calls per round (max_tool_calls)
+              - Detect stuck loops (identical consecutive rounds)
+           b. **Save the streamed content to llm_responses_accumulated**
+           c. Append assistant message with tool_calls to conversation
+           d. For each tool:
               - Execute the tool
               - If result is ToolResponse: extract user_content and llm_feedback
               - Append tool message to conversation
-           d. Loop back to step 1
+           e. Loop back to step 1
         4. If no tool_calls, merge LLM content with accumulated user_content
+           and all prior llm_responses_accumulated from tool-calling iterations
         5. Record analytics and return updated messages
 
         Args:
@@ -354,11 +390,13 @@ class SmolAgent:
 
         Returns:
             Updated *messages* list with the assistant reply appended.
-            User-facing content from dual-response tools is merged into
-            the final assistant message content.
+            User-facing content from dual-response tools and all LLM-streamed
+            text from all iterations (including tool-calling rounds) are merged
+            into the final assistant message content.
 
         Raises:
-            ToolLoopError:  If max tool rounds or a stuck loop is detected.
+            ToolLoopError:  If max iterations, max tool calls, or stuck loop
+                           is detected.
             AgentCancelled: If cancellation is requested mid-run.
         """
         chat_id: Optional[str] = config.get("chat_id")
@@ -382,9 +420,17 @@ class SmolAgent:
         system_message = self._build_system_message()
         openai_messages = to_openai_messages(messages, system=system_message)
 
-        loop_guard = LoopGuard()
+        # Initialize LoopGuard with resolved limits from AISettings.
+        # Priority: Model > Provider > Fallback.
+        # These limits are enforced on every tool round to prevent runaway
+        # execution or breadth violations.
+        loop_guard = LoopGuard(
+            max_iterations=self.llm_settings.max_iterations,
+            max_tool_calls=self.llm_settings.max_tool_calls,
+        )
         request_start = time.monotonic()
         user_facing_content: List[str] = []
+        llm_responses_accumulated: List[str] = []
 
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
@@ -400,9 +446,24 @@ class SmolAgent:
             )
 
             if not tool_calls:
+                # Final response (no tool calls): add current content to accumulated
+                if content:
+                    llm_responses_accumulated.append(content)
                 break
 
+            # Tool calls detected: save streamed content and continue loop
+            if content:
+                llm_responses_accumulated.append(content)
+                logger.debug(
+                    "SmolAgent: round %d accumulated %d bytes of LLM text "
+                    "before tool execution",
+                    loop_guard.rounds + 1,
+                    len(content),
+                )
+
             # Guard against loops BEFORE executing any tool.
+            # This checks: depth (max_iterations), breadth (max_tool_calls),
+            # and stuck loops (identical consecutive rounds).
             loop_guard.check(tool_calls)
 
             logger.info(
@@ -452,7 +513,7 @@ class SmolAgent:
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
             openai_messages=openai_messages,
-            output_text=content,
+            output_text="\n\n".join(llm_responses_accumulated),
             duration_seconds=duration_seconds,
             tags=tags,
             session_id=session_id,
@@ -461,21 +522,26 @@ class SmolAgent:
             chat_id=chat_id,
         )
 
-        # Merge LLM-streamed content with user-facing content from
-        # dual-response tools. User content like formatted code blocks should
-        # be included in the final message alongside the assistant's text.
-        final_content = content
+        # Merge all components into the final response:
+        # 1. All LLM-streamed content across all iterations (tool-calling and final)
+        # 2. User-facing content from dual-response tools
+        final_content_parts: List[str] = []
+        final_content_parts.extend(llm_responses_accumulated)
+        final_content_parts.extend(user_facing_content)
+        final_content = "\n\n".join(part for part in final_content_parts if part)
+
         if user_facing_content:
-            user_content_text = "\n\n".join(user_facing_content)
-            final_content = (
-                f"{content}\n\n{user_content_text}"
-                if content
-                else user_content_text
-            )
             logger.info(
                 "SmolAgent: merged %d user-facing content segment(s) "
-                "into final message",
+                "with %d LLM response segment(s) into final message",
                 len(user_facing_content),
+                len(llm_responses_accumulated),
+            )
+        if len(llm_responses_accumulated) > 1:
+            logger.info(
+                "SmolAgent: final message contains text from %d iteration(s) "
+                "of the tool loop",
+                len(llm_responses_accumulated),
             )
 
         messages.append(AIMessage(content=final_content))
@@ -903,7 +969,7 @@ class SmolAgent:
 
         Args:
             openai_messages:  Full conversation sent to the model.
-            output_text:      Final assistant response text.
+            output_text:      Final assistant response text (all iterations merged).
             duration_seconds: Total wall-clock duration.
             tags:             Analytics tag string.
             session_id:       Session identifier.

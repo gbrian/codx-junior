@@ -547,6 +547,16 @@
           "path": "/codx/junior/tools/model.py",
           "slug": "codx-junior-tools-model-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-model-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/project_structure.py",
+          "slug": "codx-junior-tools-project-structure-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-project-structure-py.md"
+        },
+        {
+          "path": "/codx/junior/tools/project_tools.py",
+          "slug": "codx-junior-tools-project-tools-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-project-tools-py.md"
         }
       ],
       "id": "utility-functions",

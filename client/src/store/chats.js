@@ -1,7 +1,7 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
 import { ChatSearchRequest } from '@/api/model/ChatSearchRequest'
-import { CHAT_STATUS } from './chatStatuses'
+import { ENTITY_STATUS } from './entityStatuses'
 
 export const namespaced = true
 
@@ -21,7 +21,7 @@ function registerChat(state, chat) {
   state.chats[chat.id] = {
     ...existingChat,
     ...chat,
-    status: chat.status || CHAT_STATUS.UNINITIALIZED
+    status: chat.status || ENTITY_STATUS.UNINITIALIZED
   }
 }
 
@@ -129,6 +129,11 @@ export const mutations = mutationTree(state, {
       ...chat,
       status
     }
+  },
+
+  clearChats(state) {
+    state.chats = {}
+    state.activeChatId = null
   }
 })
 
@@ -138,10 +143,13 @@ export const actions = actionTree(
     async init ({ state }) {
     },
     async loadChats({ state }) {
-      const chats = await $storex.api.chats.list()
+      const activeProject = $storex.projects.activeProject
+      if (!activeProject?.$api) return
+      
+      const chats = await activeProject.$api.chats.list()
       chats.forEach(chat => {
         if (chat.id && !state.chats[chat.id]) {
-          registerChat(state, { ...chat, status: CHAT_STATUS.UNINITIALIZED })
+          registerChat(state, { ...chat, status: ENTITY_STATUS.UNINITIALIZED })
         }
       })
     },
@@ -228,15 +236,15 @@ export const actions = actionTree(
       const storedChat = state.chats[chat.id]
       if (!storedChat) return null
 
-      if (storedChat.status === CHAT_STATUS.LOADED) {
+      if (storedChat.status === ENTITY_STATUS.LOADED) {
         return storedChat
       }
 
-      if (storedChat.status === CHAT_STATUS.LOADING) {
+      if (storedChat.status === ENTITY_STATUS.LOADING) {
         return storedChat
       }
 
-      if (storedChat.status === CHAT_STATUS.UNINITIALIZED) {
+      if (storedChat.status === ENTITY_STATUS.UNINITIALIZED) {
         return await $storex.chats.loadChat(chat)
       }
 
@@ -244,28 +252,28 @@ export const actions = actionTree(
     },
     async saveChat({ state }, chat) {
       /*
-      $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.SAVING })
+      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
       try {
         const project = getChatProject(chat)
         await project.$api.chats.save(chat)
         await $storex.chats.loadChat(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       }
       */
       console.error("DEPRECATED: We can't change the whole chat anymore. Use fine-grained functions")
     },
     async saveChatInfo({ state }, chat) {
-      $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.SAVING })
+      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
       try {
         const project = getChatProject(chat)
         const updatedChat = await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
         registerChat(state, updatedChat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
         return updatedChat
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       }
       return null
     },
@@ -285,23 +293,23 @@ export const actions = actionTree(
       }
       if (!state.chats[chat.id]) {
         const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADING })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
         try {
           const loadedChat = await project.$api.chats.loadChat(chat)
           registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
         } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.UNINITIALIZED })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
         }
-      } else if (state.chats[chat.id].status === CHAT_STATUS.UNINITIALIZED) {
+      } else if (state.chats[chat.id].status === ENTITY_STATUS.UNINITIALIZED) {
         const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADING })
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
         try {
           const loadedChat = await project.$api.chats.loadChat(chat)
           registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.LOADED })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
         } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: CHAT_STATUS.UNINITIALIZED })
+          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
         }
       }
       return state.chats[chat.id]
@@ -310,9 +318,9 @@ export const actions = actionTree(
       const project = getChatProject(chat)
       const freshChat = await project.$api.chats.loadChat(chat)
       if (freshChat && state.chats[chat.id]) {
-        Object.assign(state.chats[chat.id], { ...freshChat, status: CHAT_STATUS.LOADED })
+        Object.assign(state.chats[chat.id], { ...freshChat, status: ENTITY_STATUS.LOADED })
       } else {
-        registerChat(state, { ...freshChat, status: CHAT_STATUS.LOADED })
+        registerChat(state, { ...freshChat, status: ENTITY_STATUS.LOADED })
       }
       return state.chats[chat.id]
     },
@@ -354,21 +362,14 @@ export const actions = actionTree(
         throw error
       }
     },
-    async updateMessage({ state }, { chat, messageDocId, fieldUpdates }) {
-      if (!chat?.id || !messageDocId) return
+    async updateMessage({ state }, { chat, message }) {
+      if (!chat?.id || !message?.doc_id) return
 
       const project = getChatProject(chat)
 
       try {
-        const updatedChat = await project.$api.chats.updateMessageField(chat.id, messageDocId, fieldUpdates)
-        
-        if (updatedChat && updatedChat.messages) {
-          state.chats[chat.id].messages = updatedChat.messages
-        } else if (updatedChat) {
-          // If server doesn't return full chat, update local message directly
-          const msg = state.chats[chat.id]?.messages?.find(m => m.doc_id === messageDocId)
-          if (msg) Object.assign(msg, fieldUpdates)
-        }
+        const updatedChat = await project.$api.chats.updateMessage(chat.id, message)
+        registerChat(state, { ...updatedChat, status: ENTITY_STATUS.LOADED })
         
         return updatedChat
       } catch (error) {
@@ -382,9 +383,9 @@ export const actions = actionTree(
       const project = getChatProject(chat)
 
       try {
-        // Batch update multiple message fields
-        const promises = messages.map(({ doc_id, ...updates }) => 
-          project.$api.chats.updateMessageField(chat.id, doc_id, updates)
+        // Batch update multiple messages
+        const promises = messages.map(message => 
+          project.$api.chats.updateMessage(chat.id, message)
         )
         
         const results = await Promise.all(promises)
@@ -464,7 +465,7 @@ export const actions = actionTree(
         messages: [],
         auto_initialize: !chat.name,
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
-        status: CHAT_STATUS.UNINITIALIZED,
+        status: ENTITY_STATUS.UNINITIALIZED,
         ...chat
       }
       return await $storex.chats.saveChatInfo(chat)
@@ -481,12 +482,12 @@ export const actions = actionTree(
         mode: 'chat',
         profiles: [],
         chat_index: 0,
-        status: CHAT_STATUS.UNINITIALIZED,
+        status: ENTITY_STATUS.UNINITIALIZED,
         ...chat
       }
       const project = getChatProject(chat)
       const savedChat = await project.$api.chats.fromUrl(chat)
-      registerChat(state, { ...savedChat, status: CHAT_STATUS.LOADED })
+      registerChat(state, { ...savedChat, status: ENTITY_STATUS.LOADED })
       if (!chat.temp) {
         await $storex.chats.setActiveChat(savedChat)
       }

@@ -45,8 +45,6 @@ export default {
   },
   data() {
     return {
-      dockviewApi: null,
-      registeredComponents: {},
       failedPanels: [],
       panelErrorTimeout: null
     }
@@ -55,9 +53,6 @@ export default {
     apps() {
       const { openApps } = this.$ui
       return Object.values(openApps)
-    },
-    panelTabIds() {
-      return this.dockviewApi?.panels.map(p => p.id) || []
     },
     uiReady() {
       return this.$ui.uiReady
@@ -70,13 +65,10 @@ export default {
       return count === 1
         ? `Failed to load panel: ${this.failedPanels[0]}`
         : `Failed to load ${count} panels`
-    },
-    openAppTabIds() {
-      return this.apps.map(app => app.tabId)
     }
   },
   watch: {
-    apps(newVal) {
+    apps() {
       this.syncPanelsWithApps()
     },
     uiReady() {
@@ -96,122 +88,21 @@ export default {
       }
       this.closeViewEditor()
     },
-    init() {
-    },
     syncPanelsWithApps() {
-      const { panelTabIds, openAppTabIds } = this
-      
-      this.apps
-        .filter(({ tabId }) => !panelTabIds.includes(tabId))
-        .forEach(app => this.addAppPanel(app))
-      
-      panelTabIds
-        .filter(tabId => !openAppTabIds.includes(tabId))
-        .forEach(tabId => this.removePanel(tabId))
-      
-      if (!this.apps.length) {
-        this.init()
-      }
-    },
-    addAppPanel(app) {
-      if (!app?.tabId) return
-      const component = app.component || 'app-window'
-      const renderer = 'always'
-      try {
-        this.addPanel({
-          id: app.tabId,
-          title: app.name,
-          component,
-          renderer,
-          params: {
-            ...app.params || {},
-            app
-          }
-        })
-      } catch(ex) {
-        console.error('Error adding app panel:', ex)
-        this.handlePanelError(app.tabId, app.name)
-      }
+      this.$storex.views.syncPanelsWithApps()
     },
     onReady(event) {
-      this.dockviewApi = event.api
-      this.$views.setDesktopApi(this.dockviewApi)
-      this.setupPanelEventHandlers()
+      this.$storex.views.setDesktopApi(event.api)
       this.restoreLayout()
-      this.dockviewApi.onDidAddPanel(this.onAddPanel.bind(this))
-      this.dockviewApi.onDidRemovePanel(this.onRemovePanel.bind(this))
-      this.dockviewApi.onDidLayoutChange(this.onLayoutChange.bind(this))
-    },
-    setupPanelEventHandlers() {
-      if (!this.dockviewApi) return
-      try {
-        this.dockviewApi.onDidPanelError?.((event) => {
-          this.onPanelError(event)
-        })
-      } catch(e) {
-        console.warn('Panel event handler not available:', e)
-      }
     },
     onPanelError(event) {
       const panelId = event?.panelId || event?.id
       const panelTitle = this.getPanelTitle(panelId)
       console.error(`Panel error (${panelId}):`, event)
-      this.handlePanelError(panelId, panelTitle)
-      this.safelyRemovePanel(panelId)
+      this.handlePanelError(panelTitle || panelId)
+      this.$storex.views.removePanelFromDesktop(panelId)
     },
-    onAddPanel() {
-      this.$storex.views.onLayoutChanged()
-    },
-    onRemovePanel(panel) {
-      try {
-        this.$ui.closeApp(panel.params?.app)
-      } catch(e) {
-        console.warn('Error closing app on panel remove:', e)
-      }
-      this.$storex.views.onLayoutChanged()
-    },
-    onLayoutChange() {
-      this.$storex.views.onLayoutChanged()
-    },
-    addPanel({ id, title, component = 'window', position, params, renderer }) {
-      if (!this.dockviewApi) return
-      try {
-        if (!this.dockviewApi.panels.find(p => p.id === id)) {
-          this.dockviewApi.addPanel({
-            id,
-            title,
-            component,
-            position,
-            renderer,
-            params: {
-              ...params,
-              tabName: title,
-            },
-            tabComponent: 'tabComponent'
-          })
-        }
-      } catch(e) {
-        console.error(`Error adding panel ${id}:`, e)
-        this.handlePanelError(id, title)
-        throw e
-      }
-    },
-    removePanel(id) {
-      if (!this.dockviewApi) return
-      this.safelyRemovePanel(id)
-    },
-    safelyRemovePanel(id) {
-      try {
-        const panel = this.dockviewApi?.getPanel(id)
-        if (panel) {
-          this.dockviewApi.removePanel(panel)
-        }
-      } catch(e) {
-        console.error(`Error removing panel ${id}:`, e)
-      }
-    },
-    handlePanelError(panelId, panelTitle) {
-      const displayName = panelTitle || panelId
+    handlePanelError(displayName) {
       if (!this.failedPanels.includes(displayName)) {
         this.failedPanels.push(displayName)
       }
@@ -234,38 +125,26 @@ export default {
     },
     getPanelTitle(panelId) {
       try {
-        const panel = this.dockviewApi?.getPanel(panelId)
+        const desktopApi = this.$storex.views._desktopApi
+        const panel = desktopApi?.getPanel(panelId)
         return panel?.title || panelId
-      } catch(e) {
+      } catch (e) {
         return panelId
       }
     },
-    registerComponent(name, component) {
-      this.registeredComponents = {
-        ...this.registeredComponents,
-        [name]: component
-      }
-    },
     async restoreLayout() {
-      if (!this.dockviewApi || !this.uiReady) return false
-      
+      if (!this.$storex.views._desktopApi || !this.uiReady) return
       try {
-        await this.$storex.views.restoreProjectLayout(this.dockviewApi)
-        this.init()
-        return true
+        await this.$storex.views.restoreProjectLayout(this.$storex.views._desktopApi)
       } catch (e) {
         console.warn('Failed to restore layout:', e)
-        return false
       }
     },
     getLayout() {
-      return this.dockviewApi ? this.dockviewApi.toJSON() : null
+      return this.$storex.views._desktopApi?.toJSON() || null
     }
   },
   expose: [
-    'addPanel',
-    'removePanel',
-    'registerComponent',
     'restoreLayout',
     'getLayout'
   ]

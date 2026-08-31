@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 from codx.junior.model.model import CodxUser
@@ -103,18 +104,18 @@ class Knowledge:
             self.refresh_last_update()
             return documents
         except Exception as ex:
-            logger.error(f"Error loading knowledge {ex}")
+            logger.error("Error loading knowledge %s", ex)
 
     async def reload_path(self, path: str):
         try:
             documents = self.loader.load(path=path)
             if documents:
                 await self.index_documents(documents, raiseIfError=True)
-                logger.info(f"reload_path DONE {path} {len(documents)} documents")
+                logger.info("reload_path DONE %s %d documents", path, len(documents))
             else:
                 logger.info("File '%s' produced no documents", path)
         except Exception as e:
-            logger.exception(f"Error in reload_path for {path}: {e}")
+            logger.exception("Error in reload_path for %s: %s", path, e)
 
     def get_all_documents(self, include=[]):
         return self.get_db().get_all_documents(include=include)
@@ -123,12 +124,12 @@ class Knowledge:
         sources = [source for source in self.get_all_sources() \
                       if not self.loader.is_valid_file(source)]
         if sources:
-            logger.info(f'Documents to delete: {sources}')
+            logger.info("Documents to delete: %s", sources)
             self.get_db().delete_documents(sources=sources)
             return True
         return False
 
-    def enrich_document(self, doc, metadata, categories=[]):
+    async def enrich_document(self, doc, metadata, categories=[]):
         """
         Enrich a single document with AI-generated metadata.
         
@@ -141,7 +142,7 @@ class Knowledge:
             Enriched document or None if enrichment fails.
         """
         if doc.metadata.get("indexed"):
-            raise Exception(f"Doc already indexed {doc.metadata}")
+            raise Exception("Doc already indexed %s" % doc.metadata)
         
         for k in metadata.keys():
             doc.metadata[k] = metadata[k]
@@ -150,13 +151,13 @@ class Knowledge:
 
         if self.settings.knowledge_enrich_documents:
             try:
-                summary_prompt = f"""
+                summary_prompt = """
 Analyze this document:
 <document>
-{doc.page_content}
+%s
 </document>
 <categories>
-{",".join(categories)}
+%s
 </categories>
 
 Return a JSON object with this information:
@@ -164,22 +165,22 @@ Return a JSON object with this information:
  * "keywords": An array of keywords. Use "-" instead spaces for keywords.
  * "category": Choose a category from the list for this document or return a new one if doesn't fit 
  * "content_graph": Create a graph representation of the content using nodes and relations.
-"""
-                messages = self.get_ai().chat(prompt=summary_prompt)
+""" % (doc.page_content, ",".join(categories))
+                messages = await self.get_ai().a_chat(prompt=summary_prompt)
                 doc.metadata = {
                     **doc.metadata,
                     **next(extract_json_blocks(messages[-1].content))
                 }
             except Exception as ex:
-                logger.error(f"Error enriching document {source}: {ex}")
+                logger.error("Error enriching document %s: %s", source, ex)
                 doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
 
         if self.settings.knowledge_generate_training_dataset:
             try:
-                summary_prompt = f"""
+                summary_prompt = """
 Given this document:
 <document>
-{doc.page_content}
+%s
 </document>
 
 Generate a training dataset for finetuning a model.
@@ -187,12 +188,12 @@ Return a JSON list with 10 entries.
 Each entry having fields:
  * "user_request": Create a user request using the document content.
  * "ai_response": Create a response for the generated user_request using the document content.
-"""
-                messages = self.get_ai().chat(prompt=summary_prompt)
+""" % doc.page_content
+                messages = await self.get_ai().a_chat(prompt=summary_prompt)
                 training = next(extract_json_blocks(messages[-1].content))
                 doc.metadata["training"] = training 
             except Exception as ex:
-                logger.info(f"Error creating training dataset {source}: {ex}")
+                logger.info("Error creating training dataset %s: %s", source, ex)
                 doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
         
         doc.metadata["indexed"] = 1
@@ -221,50 +222,48 @@ Each entry having fields:
                 {
                     "stage": "enrichment",
                     "total_documents": total,
-                    "message": f"Starting enrichment of {total} documents",
+                    "message": "Starting enrichment of %d documents" % total,
                 }
             )
         
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(
-                    self.enrich_document,
-                    doc=doc,
-                    metadata=metadata,
-                    categories=self.get_categories()
-                ): idx for idx, doc in enumerate(documents)
-            }
-            
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    result = future.result()
-                    if result is not None:
-                        valid_documents.append(result)
-                    
-                    completed += 1
-                    
-                    if self.callback:
-                        await self.callback.on_progress(
-                            ProgressEventType.DOCUMENT_ENRICHED,
-                            {
-                                "index": idx,
-                                "total": total,
-                                "completed": completed,
-                                "progress_percent": int((completed / total) * 100),
-                                "source": result.metadata.get("source") if result else "unknown",
-                            }
-                        )
-                except Exception as ex:
-                    if self.callback:
-                        await self.callback.on_error(
-                            ex,
-                            {
-                                "document_index": idx,
-                                "stage": "enrichment",
-                                "total_documents": total,
-                            }
-                        )
+        # Use asyncio.gather instead of ThreadPoolExecutor for proper async handling
+        tasks = [
+            self.enrich_document(
+                doc=doc,
+                metadata=metadata,
+                categories=self.get_categories()
+            )
+            for doc in documents
+        ]
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for idx, result in enumerate(results):
+            if isinstance(result, Exception):
+                if self.callback:
+                    await self.callback.on_error(
+                        result,
+                        {
+                            "document_index": idx,
+                            "stage": "enrichment",
+                            "total_documents": total,
+                        }
+                    )
+            elif result is not None:
+                valid_documents.append(result)
+                completed += 1
+                
+                if self.callback:
+                    await self.callback.on_progress(
+                        ProgressEventType.DOCUMENT_ENRICHED,
+                        {
+                            "index": idx,
+                            "total": total,
+                            "completed": completed,
+                            "progress_percent": int((completed / total) * 100),
+                            "source": result.metadata.get("source") if result else "unknown",
+                        }
+                    )
         
         if self.callback:
             await self.callback.on_progress(
@@ -296,11 +295,11 @@ Each entry having fields:
             The summary content as a string, or an empty string if not yet generated.
         """
         if os.path.isfile(self.summary_file_path):
-            with open(self.summary_file_path, "r") as f:
+            with open(self.summary_file_path, "r", encoding="utf-8") as f:
                 return f.read()
         return ""
 
-    def build_project_summary(self, added_sources: list = None, deleted_sources: list = None) -> str:
+    async def build_project_summary(self, added_sources: list = None, deleted_sources: list = None) -> str:
         """
         Generate or update the project summary document using AI.
 
@@ -340,30 +339,34 @@ Each entry having fields:
         added_block = ""
         if added_sources:
             added_relative = sorted([s.replace(project_root, "") for s in added_sources])
-            added_block = f"""<added_files>
-{chr(10).join(added_relative)}
-</added_files>"""
+            added_block = "".join([
+                "<added_files>",
+                chr(10).join(added_relative),
+                "</added_files>"
+            ])
 
         deleted_block = ""
         if deleted_sources:
             deleted_relative = sorted([s.replace(project_root, "") for s in deleted_sources])
-            deleted_block = f"""<deleted_files>
-{chr(10).join(deleted_relative)}
-</deleted_files>"""
+            deleted_block = "".join([
+                "<deleted_files>",
+                chr(10).join(deleted_relative),
+                "</deleted_files>"
+            ])
 
-        prompt = f"""
-<project_name>{self.settings.project_name}</project_name>
-<project_path>{project_root}</project_path>
-<all_project_files>
-{chr(10).join(relative_sources)}
-</all_project_files>
-{added_block}
-{deleted_block}
-<current_summary>
-{current_summary}
-</current_summary>
-
-You are maintaining a concise project summary document for the project "{self.settings.project_name}".
+        prompt = "".join([
+            "<project_name>%s</project_name>" % self.settings.project_name,
+            "<project_path>%s</project_path>" % project_root,
+            "<all_project_files>",
+            chr(10).join(relative_sources),
+            "</all_project_files>",
+            added_block,
+            deleted_block,
+            "<current_summary>",
+            current_summary,
+            "</current_summary>",
+            """
+You are maintaining a concise project summary document for the project "%s".
 
 The summary helps LLM models to:
 1. Get a high-level overview of the project structure and purpose.
@@ -379,14 +382,15 @@ Rules:
 - Output only the raw markdown content, no extra wrapping or comments.
 - Include a short project description at the top if inferable from file names.
 - For each group list the key files with a one-line hint about their purpose.
-"""
+""" % self.settings.project_name
+        ])
 
         try:
-            messages = self.get_ai().chat(prompt=prompt)
+            messages = await self.get_ai().a_chat(prompt=prompt)
             updated_summary = messages[-1].content.strip()
 
             os.makedirs(os.path.dirname(self.summary_file_path), exist_ok=True)
-            with open(self.summary_file_path, "w") as f:
+            with open(self.summary_file_path, "w", encoding="utf-8") as f:
                 f.write(updated_summary)
 
             logger.info(
@@ -484,7 +488,7 @@ Rules:
                     )
                 
                 if "float data" in str(ex):
-                    logger.error(f"Float data error, resetting index for {self.settings.abs_project_path}")
+                    logger.error("Float data error, resetting index for %s", self.settings.abs_project_path)
                     self.reset()
                 elif raiseIfError:
                     raise ex
@@ -500,7 +504,7 @@ Rules:
                     }
                 )
             
-            self.build_project_summary(added_sources=all_sources)
+            await self.build_project_summary(added_sources=all_sources)
         except Exception as ex:
             logger.exception("Error updating project summary: %s", ex)
             if _callback:
@@ -529,7 +533,15 @@ Rules:
 
         # Update the project summary to reflect removed files
         try:
-            self.build_project_summary(deleted_sources=deleted_sources)
+            # Note: This is a sync method calling async. Consider refactoring to async.
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(
+                    self.build_project_summary(deleted_sources=deleted_sources)
+                )
+            finally:
+                loop.close()
         except Exception as ex:
             logger.exception("Error updating project summary after deletion: %s", ex)
     
@@ -539,7 +551,7 @@ Rules:
         self.get_db().reset()
         changes, _ = self.detect_changes()
         for file in changes:
-            exec_command(f'touch "{file}"', cwd=self.settings.abs_project_path)
+            exec_command('touch "%s"' % file, cwd=self.settings.abs_project_path)
 
     def search(self, query, search_type='fulltext', limit=100):
         """
@@ -570,9 +582,9 @@ Rules:
         Returns:
             Document with file content and metadata.
         """
-        file_path = f"{self.settings.abs_project_path}/{file_path}"
+        file_path = "%s/%s" % (self.settings.abs_project_path, file_path)
 
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding="utf-8") as f:
             metadata = {
                 "source": file_path
             }
@@ -590,7 +602,7 @@ Rules:
         """
         summary = self.build_doc_summary(doc)
         doc.metadata = {**doc.metadata, **summary}
-        doc.page_content = f"## SUMMARY:\n{json.dumps(summary, indent=2)}\n## CONTENT:\n{doc.page_content}"
+        doc.page_content = "## SUMMARY:\n%s\n## CONTENT:\n%s" % (json.dumps(summary, indent=2), doc.page_content)
         return doc
 
     def build_doc_summary(self, doc):
@@ -603,22 +615,22 @@ Rules:
         Returns:
             Dictionary with summary metadata.
         """
-        prompt = f"""CREATE A SUMMARY LIKE THIS:
+        prompt = """CREATE A SUMMARY LIKE THIS:
 
 ```json
-{{
+{
   "keywords": "<csv_keywords>",
   "summary": "<brief summary about the document>"
-}}
+}
 ```
 
 FROM THIS CONTENT:
 
-  * FILE NAME: {doc.metadata['source']}
-  * LANGUAGE: {doc.metadata['language']}
-  * CONTENT: {doc.page_content}
-"""
-        messages = self.get_ai().chat("", prompt)
+  * FILE NAME: %s
+  * LANGUAGE: %s
+  * CONTENT: %s
+""" % (doc.metadata['source'], doc.metadata['language'], doc.page_content)
+        messages = self.get_ai().chat(prompt=prompt)
         response = messages[-1].content.strip()
         blocks = list(extract_blocks(response))
         summary = {
@@ -642,12 +654,12 @@ FROM THIS CONTENT:
         """
         try:
             prompt, system = self.knowledge_prompts.extract_query_tags(query)
-            messages = self.get_ai().chat(system, prompt)
+            messages = self.get_ai().chat(prompt=prompt)
             response = messages[-1].content.strip()
-            keywords = [f"TAG_{k}" for k in response.split(",")]
+            keywords = ["TAG_%s" % k for k in response.split(",")]
             return keywords
         except Exception as ex:
-            logger.exception(f"Error extracting query keywords: {ex}")
+            logger.exception("Error extracting query keywords: %s", ex)
 
     async def index_document(self, text, metadata):
         """
@@ -719,7 +731,7 @@ FROM THIS CONTENT:
         }
         return status_info
 
-    def build_code_changes_summary(self, diff: str, force=False):
+    async def build_code_changes_summary(self, diff: str, force=False):
         """
         Build a human-friendly summary of code changes.
         
@@ -730,13 +742,13 @@ FROM THIS CONTENT:
         Returns:
             Summary markdown string.
         """
-        last_changes_summary_file_path = f"{self.get_db().db_path}/last_changes_summary.md"
+        last_changes_summary_file_path = "%s/last_changes_summary.md" % self.get_db().db_path
         chages_summary = ""
         if force:
             ai = self.get_ai()
-            messages = ai.chat(prompt=f"""
+            messages = await ai.a_chat(prompt="""
 ```diff
-{diff}
+%s
 ```
 
 Analyze staged changes.
@@ -772,12 +784,12 @@ Added modules A, B, for this and that
 ```
 
 ... the methods Foo and Bar has been updated to...
-""")
+""" % diff)
             chages_summary = messages[-1].content
-            with open(last_changes_summary_file_path, 'w') as f:
+            with open(last_changes_summary_file_path, 'w', encoding="utf-8") as f:
                 f.write(chages_summary)
         elif os.path.isfile(last_changes_summary_file_path):
-            with open(last_changes_summary_file_path, 'r') as f:
+            with open(last_changes_summary_file_path, 'r', encoding="utf-8") as f:
                 chages_summary = f.read()
         return chages_summary
     
@@ -794,9 +806,11 @@ Added modules A, B, for this and that
         """
         def create_document(file_path: str) -> Document:
             language = file_path.split(".")[-1] if "." in file_path else "txt"
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding="utf-8") as f:
                 return Document(page_content=f.read(), metadata={
                     "language": language,
                     "source": file_path
                 })
         return [create_document(file_path) for file_path in file_paths]
+
+# Made with ❤️ by codx-junior

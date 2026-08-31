@@ -9,7 +9,7 @@
     <!-- Modal Box -->
     <div
       v-bind="$attrs"
-      class="relative z-10 bg-base-100 rounded-2xl shadow-2xl border border-base-300 w-full max-w-lg max-h-[90vh] flex flex-col mx-4 animate-fade-in"
+      class="relative z-10 bg-base-100 rounded-2xl shadow-2xl border border-base-300 max-h-[90vh] flex flex-col mx-4 animate-fade-in"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-base-300">

@@ -2,15 +2,16 @@
 
 ## Overview
 
-The Chat API module provides FastAPI route handlers for managing chat interactions, messages, and kanban boards in the codx-junior project. It enables creating, updating, deleting, searching, and exporting chats with full-text search capabilities and merge-safe operations.
+The Chat API provides endpoints for managing chat conversations, messages, and kanban boards within the codx-junior project. It enables full CRUD operations on chats, message management, search capabilities, and export functionality.
 
 ## Core Endpoints
 
-### Chat Cancellation
+### Chat Management
 
-#### `POST /chat/cancel`
+#### Cancel In-Flight Chat Request
+**POST** `/chat/cancel`
 
-Cancels an in-flight chat request using either a chat ID or cancellation token UUID.
+Cancels an active chat request by chat ID or cancellation token UUID.
 
 **Request Payload:**
 ```json
@@ -21,18 +22,96 @@ Cancels an in-flight chat request using either a chat ID or cancellation token U
 ```
 
 **Response:**
-- Success: `{ "cancelled": true, "method": "chat_id"|"token_id" }`
-- Failure: `{ "cancelled": false, "error": "..." }`
+```json
+{
+  "cancelled": true,
+  "method": "chat_id|token_id"
+}
+```
 
-**Notes:**
-- At least one key (chat_id or token_id) must be provided
-- Uses the CANCELLATION_REGISTRY to perform actual cancellation
+At least one identifier (chat_id or token_id) must be provided. The endpoint uses the `CANCELLATION_REGISTRY` to manage active cancellation tokens.
 
-### Message Management
+---
 
-#### `POST /chats/message`
+#### List or Retrieve Chats
+**GET** `/chats`
 
-Adds a single message to a chat (merge-safe, idempotent).
+Retrieves chats with optional filtering, export, or single-chat retrieval.
+
+**Query Parameters:**
+- `file_path`: Load a specific chat by file path
+- `id`: Load a specific chat by ID
+- `export_format`: Export format (markdown, docx, pdf, excel, etc.)
+- `from_date`: ISO-format date for filtering (list operation only)
+
+**Response:**
+- Single Chat object (when `id` or `file_path` provided)
+- File download (when `export_format` provided)
+- List of Chat objects (default)
+
+---
+
+#### Create/Execute Chat
+**POST** `/chats`
+
+Initiates a chat with the project and delegates AI turn execution to the session.
+
+**Request Payload:**
+```json
+{
+  "chat_id": "<UUID>",
+  "messages": [...],
+  ...
+}
+```
+
+**Response:** Updated Chat object with AI responses
+
+---
+
+#### Save Chat
+**PUT** `/chats`
+
+Persists a chat to storage with optional message filtering.
+
+**Query Parameters:**
+- `chat_only`: Set to "1" to save only chat metadata without messages
+
+**Request Payload:**
+```json
+{
+  "chat_id": "<UUID>",
+  ...
+}
+```
+
+**Response:** Saved Chat object
+
+---
+
+#### Delete Chat
+**DELETE** `/chats`
+
+Removes a chat from storage.
+
+**Query Parameters:**
+- `chat_id`: Chat UUID to delete
+
+**Response:**
+```json
+{
+  "deleted": true
+}
+```
+
+---
+
+### Message Operations
+
+#### Add Message
+**POST** `/chats/message`
+
+Adds a new message to a chat (merge-safe, idempotent).
 
 **Request Payload:**
 ```json
@@ -42,16 +121,19 @@ Adds a single message to a chat (merge-safe, idempotent).
     "content": "...",
     "role": "user|assistant|system",
     "doc_id": "<optional UUID>",
-    "...": "other Message fields"
+    ...
   }
 }
 ```
 
-**Returns:** The updated Chat object with merged messages.
+**Response:** Updated Chat object with merged messages
 
-#### `PUT /chats/message`
+---
 
-Updates an existing message in a chat (merge-safe).
+#### Update Message
+**PUT** `/chats/message`
+
+Updates an existing message in a chat (merge-safe). Messages are matched by doc_id; if not found, the message is appended.
 
 **Request Payload:**
 ```json
@@ -61,31 +143,34 @@ Updates an existing message in a chat (merge-safe).
     "doc_id": "<message UUID>",
     "content": "...",
     "role": "user|assistant|system",
-    "...": "other Message fields"
+    ...
   }
 }
 ```
 
-**Notes:**
-- Messages are matched by doc_id
-- If not found, the message is appended
-- Returns the updated Chat object
+**Response:** Updated Chat object
 
-#### `DELETE /chats/message`
+---
+
+#### Remove Message
+**DELETE** `/chats/message`
 
 Removes a message from a chat (merge-safe).
 
 **Query Parameters:**
-- `chat_id`: Chat UUID (required)
-- `message_doc_id`: Message doc_id to remove (required)
+- `chat_id`: Chat UUID
+- `message_doc_id`: Message doc_id to remove
 
-**Returns:** The updated Chat object with the message removed.
+**Response:** Updated Chat object with message removed
+
+---
 
 ### Chat Metadata
 
-#### `POST /chats/metadata`
+#### Update Chat Metadata
+**POST** `/chats/metadata`
 
-Updates chat metadata only (name, description, board, column, etc.) without touching messages.
+Updates chat metadata (name, description, board, column, etc.) without modifying messages.
 
 **Request Payload:**
 ```json
@@ -96,35 +181,21 @@ Updates chat metadata only (name, description, board, column, etc.) without touc
     "description": "...",
     "board": "...",
     "column": "...",
-    "...": "other fields (excluding messages)"
+    ...
   }
 }
 ```
 
-**Returns:** The updated Chat object.
+**Response:** Updated Chat object
 
-### Chat Listing and Retrieval
+---
 
-#### `GET /chats`
+### Search and Advanced Operations
 
-Lists chats with optional filtering and export functionality.
+#### Search Chats
+**POST** `/chats/search`
 
-**Query Parameters:**
-- `file_path`: Load a specific chat by file path
-- `id`: Load a specific chat by ID
-- `export_format`: Export format (markdown, docx, pdf, excel, etc.)
-- `from_date`: ISO-format date for filtering (list operation only)
-
-**Returns:**
-- Single Chat object if `id` or `file_path` is provided
-- Export response with appropriate content-type if `export_format` is specified
-- List of Chat objects otherwise
-
-### Chat Search
-
-#### `POST /chats/search`
-
-Searches chats with full-text search, field-level filtering, and pagination.
+Performs full-text search on chats with field-level filtering and pagination.
 
 **Request Payload:**
 ```json
@@ -134,137 +205,153 @@ Searches chats with full-text search, field-level filtering, and pagination.
   "to_date": "<ISO-format date, optional>",
   "page": 1,
   "page_size": 20,
-  "filters": {}
+  "filters": { ... }
 }
 ```
 
-**Response Structure:**
+**Response:**
 ```json
 {
-  "results": [],
+  "results": [...],
   "total": 0,
   "page": 1,
   "page_size": 20,
   "total_pages": 0,
   "has_next": false,
-  "has_prev": false,
-  "error": "string (if applicable)"
+  "has_prev": false
 }
 ```
 
-**Validation Rules:**
-- Page must be >= 1
-- Page size is clamped between 1 and 100
-- Query parameter cannot be empty
-- Dates must use ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+Page size is capped at 100. Query parameter cannot be empty. Date format must be ISO (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS).
 
-### Chat Operations
+---
 
-#### `POST /chats`
+#### Initialize Chat from URL
+**POST** `/chats/from-url`
 
-Main chat endpoint. Delegates to session for AI turn execution.
+Initializes a chat session by loading content from a URL.
 
-**Request:** Chat object data
+**Request Payload:**
+```json
+{
+  "chat_id": "<UUID>",
+  "url": "...",
+  ...
+}
+```
 
-**Process:**
-1. Initializes Chat object from request data
-2. Executes chat event notification
-3. Calls `chat_with_project()` on the session
-4. Saves the chat
+**Response:** Chat object with loaded content
 
-**Returns:** Updated Chat object.
+---
 
-#### `POST /chats/from-url`
+#### Generate Subtasks
+**POST** `/chats/sub-tasks`
 
-Initializes a chat from a URL. Delegates to session.
+Generates subtasks from an existing chat using AI analysis.
 
-**Request:** Chat object data with URL information
+**Request Payload:**
+```json
+{
+  "chat_id": "<UUID>",
+  ...
+}
+```
 
-**Process:**
-1. Initializes Chat object
-2. Calls `init_chat_from_url()` on the session
-3. Saves the chat
+**Response:** Generated tasks/subtasks
 
-**Returns:** Updated Chat object.
+---
 
-#### `POST /chats/sub-tasks`
+### Kanban Board Operations
 
-Generates subtasks from chat content. Delegates to session.
+#### Load Kanban
+**GET** `/kanban`
 
-**Request:** Chat object data
+Retrieves the current kanban board state.
 
-**Returns:** Generated tasks result from session.
+**Response:** Kanban board object
 
-#### `PUT /chats`
+---
 
-Saves a chat using the chat manager.
+#### Save Kanban
+**POST** `/kanban`
 
-**Request:** Chat object data
+Persists kanban board state (columns, tasks, etc.).
 
-**Query Parameters:**
-- `chat_only`: Set to "1" to save only the chat without related data
+**Request Payload:**
+```json
+{
+  "title": "...",
+  "columns": [...],
+  ...
+}
+```
 
-**Returns:** Saved Chat object.
+**Response:**
+```json
+{
+  "saved": true
+}
+```
 
-#### `DELETE /chats`
+---
 
-Deletes a chat by chat_id.
+#### Delete Kanban
+**DELETE** `/kanban`
 
-**Query Parameters:**
-- `chat_id`: Chat ID to delete (required)
-
-**Returns:** `{ "deleted": true }`
-
-### Kanban Management
-
-#### `GET /kanban`
-
-Loads the kanban board. Delegates to chat_manager.
-
-**Returns:** Kanban object.
-
-#### `POST /kanban`
-
-Saves kanban board configuration. Delegates to chat_manager.
-
-**Request:** Kanban object data (JSON)
-
-**Returns:** `{ "saved": true }`
-
-#### `DELETE /kanban`
-
-Deletes a kanban board.
+Removes a kanban board.
 
 **Query Parameters:**
-- `kanban_title`: Title of the kanban board to delete (required)
+- `kanban_title`: Title of the kanban board to delete
 
-**Returns:** `{ "deleted": true }`
+**Response:**
+```json
+{
+  "deleted": true
+}
+```
 
-## Error Handling
-
-All endpoints implement comprehensive error handling with structured responses:
-- Missing required parameters return appropriate error messages
-- Invalid inputs (pagination, dates, etc.) return descriptive errors
-- Unexpected exceptions are logged and returned with error details
-- All error responses follow the pattern: `{ "error": "message" }`
-
-## Dependencies
-
-- **FastAPI**: Web framework for routing and request handling
-- **CANCELLATION_REGISTRY**: Manages in-flight request cancellations
-- **Chat Manager**: Handles all chat persistence and search operations
-- **Message Model**: Database model for chat messages
-- **Chat Model**: Database model for chat data
+---
 
 ## Session Integration
 
-All endpoints access the chat manager through `request.state.codx_junior_session`, which provides:
-- `get_chat_manager()`: Access to chat persistence layer
-- `chat_event()`: Event notification mechanism
-- `chat_with_project()`: AI interaction execution
+All endpoints require access to `codx_junior_session` via `request.state`, which provides:
+- `get_chat_manager()`: Returns the ChatManager for database operations
+- `chat_event()`: Logs chat-related events
+- `chat_with_project()`: Executes AI chat logic
+- `save_chat()`: Persists chat state
+- `generate_tasks()`: AI-powered task generation
 - `init_chat_from_url()`: URL-based chat initialization
-- `generate_tasks()`: Task generation from chat
-- `save_chat()`: Chat persistence
+
+---
+
+## Error Handling
+
+All endpoints include comprehensive exception handling with structured error responses:
+
+```json
+{
+  "error": "<error message>"
+}
+```
+
+Common error scenarios:
+- Missing required parameters (chat_id, message, etc.)
+- Chat not found
+- Invalid pagination or date formats
+- Unexpected server errors
+
+Errors are logged via the `logger` module with context-specific information.
+
+---
+
+## Key Features
+
+- **Merge-Safe Operations**: Message add/update/remove operations are designed to be merge-safe and idempotent
+- **Flexible Retrieval**: Support for single-chat retrieval by ID or file path
+- **Export Support**: Multiple export formats (markdown, docx, pdf, excel)
+- **Pagination**: Search results support configurable page-based pagination
+- **Cancellation Support**: In-flight requests can be cancelled via chat_id or token_id
+- **Kanban Integration**: Dedicated endpoints for kanban board management
 
 ## Dependencies
 **Imports from:** codx/junior/ai/cancellation.py, codx/junior/db.py, codx/junior/profiling/profiler.py

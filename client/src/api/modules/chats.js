@@ -62,14 +62,6 @@ export const chatsModule = (API) => ({
     return API.delete(`/api/chats/message?chat_id=${chatId}&message_doc_id=${messageDocId}`)
   },
 
-  async updateMessageField(chatId, messageDocId, fieldUpdates) {
-    return API.put('/api/chats/message/field', { 
-      chat_id: chatId, 
-      message_doc_id: messageDocId,
-      ...fieldUpdates 
-    })
-  },
-
   async updateMetadata(chatId, metadata) {
     return API.post('/api/chats/metadata', { chat_id: chatId, metadata })
   },

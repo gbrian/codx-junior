@@ -22,6 +22,15 @@ class AIProvider(BaseModel):
         description="List of model prices fetched from the provider's pricing page.",
         default=[]
     )
+    # Priority: Model > Provider > Fallback
+    max_tool_calls: Optional[int] = Field(
+        default=None,
+        description="Maximum number of tool calls allowed per request at provider level."
+    )
+    max_iterations: Optional[int] = Field(
+        default=None,
+        description="Maximum number of iterative tool loops allowed per request at provider level."
+    )
 
 class AIModelPrice(BaseModel):
     model_name: str = Field(description="Model name as listed by the provider")
@@ -56,6 +65,15 @@ class AIModel(BaseModel):
     system: Optional[str] = Field(description="Model system instructions", default="")
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
     model_file: Optional[str] = Field(description="Custom Modelfile", default=None)
+    # Priority: Model > Provider > Fallback
+    max_tool_calls: Optional[int] = Field(
+        default=None,
+        description="Maximum number of tool calls allowed per request at model level (overrides provider)."
+    )
+    max_iterations: Optional[int] = Field(
+        default=None,
+        description="Maximum number of iterative tool loops allowed per request at model level (overrides provider)."
+    )
 
 class AISettings(BaseModel):
     provider: Optional[str] = Field(default="")
@@ -80,6 +98,14 @@ class AISettings(BaseModel):
         description="Resolved cost in cxjcoins per 1K tokens (model-level takes precedence over provider-level).",
         default=None
     )
+    max_tool_calls: Optional[int] = Field(
+        default=None,
+        description="Resolved maximum number of tool calls per request (model-level takes precedence over provider-level)."
+    )
+    max_iterations: Optional[int] = Field(
+        default=None,
+        description="Resolved maximum number of iterative tool loops per request (model-level takes precedence over provider-level)."
+    )
 
 
 KNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')
@@ -103,3 +129,5 @@ OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
                             ai_provider="llmfactory",
                             settings=AILLMModelSettings(),
                             url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
+
+# Made with ❤️ by codx-junior

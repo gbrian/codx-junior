@@ -46,152 +46,154 @@ import Chat from '../chat/Chat.vue'
       </button>
     </div>
 
-    <!-- Table -->
-    <div class="overflow-x-auto rounded-xl border border-base-300 bg-base-100">
-      <table class="table table-sm w-full">
-        <thead class="bg-base-200">
-          <tr>
-            <th
-              v-for="col in columns"
-              :key="col.key"
-              class="cursor-pointer hover:bg-base-300 transition-colors select-none"
-              :class="col.align === 'right' ? 'text-right' : ''"
-              @click="toggleSort(col.key)"
-            >
-              <div class="flex items-center gap-1" :class="col.align === 'right' ? 'justify-end' : ''">
-                <span>{{ col.label }}</span>
-                <span class="w-3 text-primary">
-                  <i v-if="sortKey === col.key" :class="sortAsc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down'"></i>
-                  <i v-else class="fa-solid fa-sort text-base-content/20"></i>
-                </span>
-              </div>
-            </th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="filteredModels.length === 0">
-            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content/40">
-              <i class="fa-solid fa-ghost text-2xl mb-2 block"></i>
-              No models found
-            </td>
-          </tr>
-          <template v-for="model in filteredModels" :key="model.name">
-            <tr
-              class="hover:bg-base-200 cursor-pointer transition-colors"
-              @click="editModel(model)"
-            >
-              <!-- Name -->
-              <td>
-                <div class="flex items-center gap-2">
-                  <div :class="model.model_type === 'llm' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'"
-                       class="rounded-full w-7 h-7 flex items-center justify-center text-xs shrink-0">
-                    <i :class="model.model_type === 'llm' ? 'fa-solid fa-brain' : 'fa-solid fa-file'"></i>
-                  </div>
-                  <div>
-                    <div class="font-semibold text-primary text-sm">{{ model.name }}</div>
-                    <div class="text-xs text-base-content/40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
-                  </div>
-                </div>
-              </td>
-              <!-- Type -->
-              <td>
-                <span :class="model.model_type === 'llm' ? 'badge-warning' : 'badge-info'" class="badge badge-xs">
-                  {{ model.model_type === 'llm' ? 'LLM' : 'Embeddings' }}
-                </span>
-              </td>
-              <!-- Provider -->
-              <td class="text-sm text-base-content/70">{{ model.ai_provider || '-' }}</td>
-              <!-- Temperature / Vector -->
-              <td class="text-sm text-center">
-                <span v-if="model.model_type === 'llm'">{{ model.settings?.temperature ?? '-' }}</span>
-                <span v-else class="text-xs text-base-content/60">{{ model.settings?.vector_size || '-' }}</span>
-              </td>
-              <!-- Context / Chunk -->
-              <td class="text-sm text-center">
-                <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
-                <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
-              </td>
-              <!-- Model File -->
-              <td class="text-center">
-                <i v-if="model.model_file" class="fa-solid fa-file-code text-secondary text-sm" title="Custom model file"></i>
-                <span v-else class="text-base-content/30 text-xs">-</span>
-              </td>
-              <!-- Cost -->
-              <td class="text-right">
-                <div class="flex flex-col items-end gap-0.5 text-xs">
-                  <template v-if="model.input_k_tokens_cxjcoins != null || model.output_k_tokens_cxjcoins != null">
-                    <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">
-                      ↓ {{ model.input_k_tokens_cxjcoins }}
-                    </span>
-                    <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">
-                      ↑ {{ model.output_k_tokens_cxjcoins }}
-                    </span>
-                  </template>
-                  <span v-else-if="model.k_tokens_cxjcoins != null" class="text-yellow-500">
-                    {{ model.k_tokens_cxjcoins }} /1K
+    <!-- Table Container with Scrolling -->
+    <div class="flex-1 overflow-hidden rounded-xl border border-base-300 bg-base-100 flex flex-col">
+      <div class="overflow-x-auto overflow-y-auto flex-1">
+        <table class="table table-sm w-full">
+          <thead class="bg-base-200 sticky top-0">
+            <tr>
+              <th
+                v-for="col in columns"
+                :key="col.key"
+                class="cursor-pointer hover:bg-base-300 transition-colors select-none"
+                :class="col.align === 'right' ? 'text-right' : ''"
+                @click="toggleSort(col.key)"
+              >
+                <div class="flex items-center gap-1" :class="col.align === 'right' ? 'justify-end' : ''">
+                  <span>{{ col.label }}</span>
+                  <span class="w-3 text-primary">
+                    <i v-if="sortKey === col.key" :class="sortAsc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down'"></i>
+                    <i v-else class="fa-solid fa-sort text-base-content/20"></i>
                   </span>
-                  <template v-else-if="getProviderPrice(model)">
-                    <span class="text-green-400 opacity-80">
-                      ↓ ${{ getProviderPrice(model).input_price_per_1k_tokens }}
-                    </span>
-                    <span class="text-blue-400 opacity-80">
-                      ↑ ${{ getProviderPrice(model).output_price_per_1k_tokens }}
-                    </span>
-                    <span class="text-base-content/30 text-[10px] flex items-center gap-0.5">
-                      <i class="fa-solid fa-list-ul"></i> provider
-                    </span>
-                  </template>
-                  <span v-else class="text-base-content/30">-</span>
                 </div>
-              </td>
-              <!-- Actions -->
-              <td @click.stop>
-                <div class="flex justify-end gap-1">
-                  <button class="btn btn-xs btn-circle btn-ghost text-info" @click="showModelInfo = model">
-                    <i class="fa-solid fa-circle-info"></i>
-                  </button>
-                  <button class="btn btn-xs btn-circle btn-ghost" @click="editModel(model)">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                  </button>
-                  <!-- Test chat button — only for LLM models -->
-                  <button
-                    v-if="model.model_type === 'llm'"
-                    class="btn btn-xs btn-circle btn-ghost text-success"
-                    :class="quickTestModel?.name === model.name && 'text-warning'"
-                    @click="toggleQuickTestChat(model)"
-                    title="Test chat"
-                  >
-                    <i class="fa-solid fa-comment-dots"></i>
-                  </button>
-                  <button
-                    class="btn btn-xs btn-circle btn-ghost text-secondary"
-                    :class="model.loading && 'animate-pulse text-warning'"
-                    @click="reloadModel(model)"
-                  >
-                    <i class="fa-solid fa-arrows-rotate"></i>
-                  </button>
-                </div>
+              </th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="filteredModels.length === 0">
+              <td :colspan="columns.length + 1" class="text-center py-10 text-base-content/40">
+                <i class="fa-solid fa-ghost text-2xl mb-2 block"></i>
+                No models found
               </td>
             </tr>
-            <!-- Inline quick test chat row -->
-            <tr v-if="quickTestModel?.name === model.name && quickTestChat" @click.stop>
-              <td :colspan="columns.length + 1" class="p-0">
-                <div class="bg-base-200 border-t border-base-300 flex flex-col" style="height: 420px">
-                  <div class="flex items-center gap-2 px-3 py-2 bg-base-300 text-xs text-base-content/60">
-                    <i class="fa-solid fa-comment-dots text-success"></i>
-                    <span class="font-semibold">Testing: <span class="text-primary">{{ model.name }}</span></span>
-                    <button class="btn btn-xs btn-ghost ml-auto text-error" @click="closeQuickTestChat">
-                      <i class="fa-solid fa-xmark"></i> Close
+            <template v-for="model in filteredModels" :key="model.name">
+              <tr
+                class="hover:bg-base-200 cursor-pointer transition-colors"
+                @click="editModel(model)"
+              >
+                <!-- Name -->
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div :class="model.model_type === 'llm' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'"
+                         class="rounded-full w-7 h-7 flex items-center justify-center text-xs shrink-0">
+                      <i :class="model.model_type === 'llm' ? 'fa-solid fa-brain' : 'fa-solid fa-file'"></i>
+                    </div>
+                    <div>
+                      <div class="font-semibold text-primary text-sm">{{ model.name }}</div>
+                      <div class="text-xs text-base-content/40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
+                    </div>
+                  </div>
+                </td>
+                <!-- Type -->
+                <td>
+                  <span :class="model.model_type === 'llm' ? 'badge-warning' : 'badge-info'" class="badge badge-xs">
+                    {{ model.model_type === 'llm' ? 'LLM' : 'Embeddings' }}
+                  </span>
+                </td>
+                <!-- Provider -->
+                <td class="text-sm text-base-content/70">{{ model.ai_provider || '-' }}</td>
+                <!-- Temperature / Vector -->
+                <td class="text-sm text-center">
+                  <span v-if="model.model_type === 'llm'">{{ model.settings?.temperature ?? '-' }}</span>
+                  <span v-else class="text-xs text-base-content/60">{{ model.settings?.vector_size || '-' }}</span>
+                </td>
+                <!-- Context / Chunk -->
+                <td class="text-sm text-center">
+                  <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
+                  <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
+                </td>
+                <!-- Model File -->
+                <td class="text-center">
+                  <i v-if="model.model_file" class="fa-solid fa-file-code text-secondary text-sm" title="Custom model file"></i>
+                  <span v-else class="text-base-content/30 text-xs">-</span>
+                </td>
+                <!-- Cost -->
+                <td class="text-right">
+                  <div class="flex flex-col items-end gap-0.5 text-xs">
+                    <template v-if="model.input_k_tokens_cxjcoins != null || model.output_k_tokens_cxjcoins != null">
+                      <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">
+                        ↓ {{ model.input_k_tokens_cxjcoins }}
+                      </span>
+                      <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">
+                        ↑ {{ model.output_k_tokens_cxjcoins }}
+                      </span>
+                    </template>
+                    <span v-else-if="model.k_tokens_cxjcoins != null" class="text-yellow-500">
+                      {{ model.k_tokens_cxjcoins }} /1K
+                    </span>
+                    <template v-else-if="getProviderPrice(model)">
+                      <span class="text-green-400 opacity-80">
+                        ↓ ${{ getProviderPrice(model).input_price_per_1k_tokens }}
+                      </span>
+                      <span class="text-blue-400 opacity-80">
+                        ↑ ${{ getProviderPrice(model).output_price_per_1k_tokens }}
+                      </span>
+                      <span class="text-base-content/30 text-[10px] flex items-center gap-0.5">
+                        <i class="fa-solid fa-list-ul"></i> provider
+                      </span>
+                    </template>
+                    <span v-else class="text-base-content/30">-</span>
+                  </div>
+                </td>
+                <!-- Actions -->
+                <td @click.stop>
+                  <div class="flex justify-end gap-1">
+                    <button class="btn btn-xs btn-circle btn-ghost text-info" @click="showModelInfo = model">
+                      <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                    <button class="btn btn-xs btn-circle btn-ghost" @click="editModel(model)">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <!-- Test chat button — only for LLM models -->
+                    <button
+                      v-if="model.model_type === 'llm'"
+                      class="btn btn-xs btn-circle btn-ghost text-success"
+                      :class="quickTestModel?.name === model.name && 'text-warning'"
+                      @click="toggleQuickTestChat(model)"
+                      title="Test chat"
+                    >
+                      <i class="fa-solid fa-comment-dots"></i>
+                    </button>
+                    <button
+                      class="btn btn-xs btn-circle btn-ghost text-secondary"
+                      :class="model.loading && 'animate-pulse text-warning'"
+                      @click="reloadModel(model)"
+                    >
+                      <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
                   </div>
-                  <Chat class="grow min-h-0 p-2" :chat="quickTestChat" />
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+                </td>
+              </tr>
+              <!-- Inline quick test chat row -->
+              <tr v-if="quickTestModel?.name === model.name && quickTestChat" @click.stop>
+                <td :colspan="columns.length + 1" class="p-0">
+                  <div class="bg-base-200 border-t border-base-300 flex flex-col" style="height: 420px">
+                    <div class="flex items-center gap-2 px-3 py-2 bg-base-300 text-xs text-base-content/60">
+                      <i class="fa-solid fa-comment-dots text-success"></i>
+                      <span class="font-semibold">Testing: <span class="text-primary">{{ model.name }}</span></span>
+                      <button class="btn btn-xs btn-ghost ml-auto text-error" @click="closeQuickTestChat">
+                        <i class="fa-solid fa-xmark"></i> Close
+                      </button>
+                    </div>
+                    <Chat class="grow min-h-0 p-2" :chat="quickTestChat" />
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Edit modal -->

@@ -501,7 +501,7 @@ export default {
     },
     async saveChat(chat) {
       this.editName = false
-      return this.$chats.saveChat(chat || this.workingChat)
+      return this.$chats.saveChatInfo(chat || this.workingChat)
     },
     saveChatInfo(chat) {
       this.editName = false
@@ -774,7 +774,7 @@ ${this.subtaskDescription}`
         file_list,
         child_index
       })
-      await this.$chats.saveChat(chat)
+      await this.$chats.saveChatInfo(chat)
       if (description) {
         this.$storex.projects.chatWihProject(chat)
       }

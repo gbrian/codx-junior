@@ -190,15 +190,17 @@ export const mutations = mutationTree(state, {
   cloneApp(state, app) {
     $storex.ui.showApp({ ...app, tabId: null })
   },
+  resetOpenApps(state) {
+    state.openApps = {}
+    state.activeApp = null
+  },
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     app.openedAt = Date.now()
     
-    // Check if app is already open (non-mobile only)
     if (state.viewMode !== 'vibe' && !state.isMobile) {
       const existingApp = Object.values(state.openApps).find(openApp => {
-        // Match by key if available, otherwise by component and params
         if (app.key && openApp.key) {
           return openApp.key === app.key
         }
@@ -207,7 +209,6 @@ export const mutations = mutationTree(state, {
       })
       
       if (existingApp) {
-        // Activate existing app instead
         state.activeApp = existingApp
         $storex.views.activatePanel(existingApp.tabId)
         return
@@ -259,6 +260,7 @@ export const mutations = mutationTree(state, {
   },
   openChat(_, chat) {
     $storex.ui.showApp({
+      tabId: chat.id,
       name: chat.name,
       component: 'chat',
       params: {
@@ -273,7 +275,7 @@ export const mutations = mutationTree(state, {
   openFileInViewer(_, filePath) {
     const fileName = filePath.split('/').pop()
     $storex.ui.showApp({
-      key: `file-viewer-${filePath}`,
+      tabId: `file-viewer-${filePath}`,
       name: fileName,
       component: 'file-viewer',
       params: { filePath }
@@ -440,7 +442,7 @@ export const actions = actionTree(
 
     openTeamChannel(_, { team, channel }) {
       $storex.ui.showApp({
-        key: `team-channel-${channel.id}`,
+        tabId: `team-channel-${channel.id}`,
         name: `# ${channel.name}`,
         component: 'team-channel',
         params: { team, channel }
@@ -450,7 +452,7 @@ export const actions = actionTree(
     async openTeamDM(_, { team, member }) {
       const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
       $storex.ui.showApp({
-        key: `team-dm-${team.id}-${member.id}`,
+        tabId: `team-dm-${team.id}-${member.id}`,
         name: `@ ${member.username}`,
         component: 'team-dm',
         params: { team, member, chatId }
@@ -459,7 +461,7 @@ export const actions = actionTree(
 
     openTeamMediaLibrary(_, { team }) {
       $storex.ui.showApp({
-        key: `team-media-${team.id}`,
+        tabId: `team-media-${team.id}`,
         name: `🖼 ${team.name} Media`,
         component: 'team-media-library',
         params: { team }
@@ -477,7 +479,7 @@ export const actions = actionTree(
 
     openProjects() {
       $storex.ui.showApp({
-        key: 'projects',
+        tabId: 'projects',
         name: 'Projects',
         component: 'projects',
         params: {}
@@ -486,7 +488,7 @@ export const actions = actionTree(
 
     openTeams() {
       $storex.ui.showApp({
-        key: 'teams',
+        tabId: 'teams',
         name: 'Teams',
         component: 'teams',
         params: {}
@@ -495,7 +497,7 @@ export const actions = actionTree(
 
     openWorkspaces() {
       $storex.ui.showApp({
-        key: 'workspaces',
+        tabId: 'workspaces',
         name: 'Workspaces',
         component: 'workspaces',
         params: {}
@@ -512,9 +514,9 @@ export const actions = actionTree(
 
     openMediaLibrary() {
       $storex.ui.showApp({
-        key: 'media-library',
+        tgabId: 'media-library',
         name: 'Media Library',
-        component: 'media-library',
+        compotabIdnent: 'media-library',
         params: {}
       })
     },
@@ -525,7 +527,7 @@ export const actions = actionTree(
 
     openTutorial(_, tutorialId) {
       $storex.ui.showApp({
-        key: `tutorial-${tutorialId}`,
+        tabId: `tutorial-${tutorialId}`,
         name: 'Knowledge',
         component: 'knowledge',
         params: { tutorial: tutorialId }

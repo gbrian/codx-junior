@@ -71,63 +71,20 @@ export class ChatService extends Service {
     return await this.$storex.chats.removeMessage({ chat, messageDocId: message.doc_id })
   }
 
-  async toggleHide({ chat, doc_id }) {
-    if (!chat?.id || !doc_id) {
-      return
-    }
-
-    const msg = chat.messages.find((m) => m.doc_id === doc_id)
-    if (!msg) return
-
-    const newHideValue = !msg.hide
-    return await this.$storex.chats.updateMessage({ 
-      chat, 
-      messageDocId: doc_id,
-      fieldUpdates: { hide: newHideValue }
-    })
-  }
-
-  async toggleAnswer({ chat, doc_id }) {
-    if (!chat?.id || !doc_id) {
-      return
-    }
-
-    const msg = chat.messages.find((m) => m.doc_id === doc_id)
-    if (!msg) return
-
-    const newAnswerValue = !msg.is_answer
-    return await this.$storex.chats.updateMessage({ 
-      chat, 
-      messageDocId: doc_id,
-      fieldUpdates: { is_answer: newAnswerValue }
-    })
-  }
-
-  async hideAll({ chat }) {
-    if (!chat?.id || !chat.messages?.length) {
-      return
-    }
-
-    const hideUpdates = chat.messages.map(m => ({
-      doc_id: m.doc_id,
-      hide: true
-    }))
-
-    return await this.$storex.chats.updateMessages({ 
-      chat, 
-      messages: hideUpdates 
-    })
-  }
-
   async updateExistingMessage({ chat, doc_id, update }) {
     if (!chat?.id || !doc_id) {
       return
     }
 
+    const msg = chat.messages.find((m) => m.doc_id === doc_id)
+    if (!msg) return
+
     return await this.$storex.chats.updateMessage({ 
       chat, 
-      messageDocId: doc_id,
-      fieldUpdates: update
+      message: {
+        ...msg,
+        ...update
+      }
     })
   }
 
@@ -360,14 +317,7 @@ export class ChatService extends Service {
       auto_initialize: true
     }
     const quickChat = await this.$chats.createNewChatWithProject({ project, chat })
-    this.$storex.ui.showApp({
-        key: 'chat',
-        name: 'Chat',
-        component: 'chat',
-        params: {
-          chat: quickChat
-        }
-      })
+    this.$storex.ui.openChat(quickChat)
   }
 
   async createChat({

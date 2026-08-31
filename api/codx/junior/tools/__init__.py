@@ -24,6 +24,7 @@ from typing import Optional, Dict, Union
 # Import tools
 from .fetch_webpage import fetch_webpage
 from .project_tools import project_search, project_read_file, project_write_file
+from .project_structure import project_structure
 from .code_writer import code_writer
 from .code_block_generator import code_block_generator
 from .generate_tasks_tool import generate_tasks_tool
@@ -40,6 +41,7 @@ __all__ = [
     "project_search",
     "project_read_file",
     "project_write_file",
+    "project_structure",
     "code_writer",
     "code_block_generator",
     "generate_tasks_tool",
@@ -98,24 +100,28 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_search",
-                "description": "Search for documents within a project using the provided search string.",
+                "description": "Search for documents within a project using provided search strings. Supports multiple searches in a single call to reduce API calls. Each search query returns the most relevant documents from the project.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "search": {
-                            "type": "string",
-                            "description": "The search query string used to find relevant documents."
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "A search query string to find relevant documents."
+                            },
+                            "description": "Array of search query strings. Use multiple queries to search for different topics in a single call. Example: ['authentication logic', 'user database schema', 'API endpoints']"
                         },
                         "validation": {
                             "type": "string",
-                            "description": "An optional brief text used to validate the content found by the search. This text will help reducing large documents and extracting only important content. "
+                            "description": "An optional brief text used to validate the content found by the searches. This helps reduce large documents and extract only important content relevant to your needs."
                         }
                     },
                     "required": ["search"]
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
         "tool_call": project_search
     },
     {
@@ -123,21 +129,57 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_read_file",
-                "description": "Allows to read project's file content from a relative or absolute file path",
+                "description": "Read project file contents from relative or absolute file paths. Supports reading multiple files in a single call to reduce API calls and improve efficiency.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Relative or absolute path to the file to read."
+                        "file_paths": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "The path to a file to read."
+                            },
+                            "description": "Array of paths to files to read. Always read multiple related files in a single call instead of making separate calls. Example: ['src/config.py', 'src/main.py', 'tests/test_config.py']"
                         }
                     },
-                    "required": ["file_path"]
+                    "required": ["file_paths"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tool_call": project_read_file
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_structure",
+                "description": "Get the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "include_details": {
+                            "type": "boolean",
+                            "description": "If true, includes additional metadata like file counts and folder statistics.",
+                            "default": False
+                        },
+                        "max_depth": {
+                            "type": "integer",
+                            "description": "Maximum folder depth to traverse. Leave null for no limit.",
+                            "default": None
+                        },
+                        "include_file_sizes": {
+                            "type": "boolean",
+                            "description": "If true, includes file sizes in bytes for each file.",
+                            "default": False
+                        }
+                    },
+                    "required": []
                 }
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat"},
-        "tool_call": project_read_file
+        "tool_call": project_structure
     },
     {
         "tool_json": {

@@ -9,7 +9,9 @@
   "parsed_content": null,
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/coding_agent.profile",
   "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/coding_agent.profile.md",
-  "profiles": [],
+  "profiles": [
+    "software_developer"
+  ],
   "llm_model": "",
   "use_knowledge": true,
   "user": {
@@ -40,7 +42,9 @@
   },
   "tools": [
     "project_search",
-    "project_read_file"
+    "project_read_file",
+    "project_structure",
+    "fetch_webpage"
   ],
   "tags": [],
   "api_settings": {

@@ -3,6 +3,7 @@ import { $storex } from '.'
 import { API } from '../api/api'
 import { v4 as uuidv4 } from 'uuid'
 import Fuse from 'fuse.js'
+import { ENTITY_STATUS } from './entityStatuses'
 
 export const namespaced = true
 
@@ -291,17 +292,31 @@ const initProject = async project => {
       project.$api.setActiveProject(project),
       project.$api.projects.ai.models.list()
     ])
+    project.$state.status = ENTITY_STATUS.LOADED
     project.$state.ai.models = models
     
-    Object.assign(project.$state, { 
-      profiles: await promiseOrDefault(project.$api.profiles.list, []), 
-      chats: await promiseOrDefault(project.$api.chats.list, []),
-      knowledge: null,
-      _mentionList: null,
-      get mentionList() {
+    // Initialize data first
+    const profiles = await promiseOrDefault(() => project.$api.profiles.list(), [])
+    const files = await promiseOrDefault(() => project.$api.knowledge.files(), null)
+    
+    // Assign all properties directly to $state for proper reactivity
+    project.$state.profiles = profiles
+    project.$state.files = files
+    project.$state.knowledge = null
+    project.$state._mentionList = null
+    
+    // Add getter for mentionList
+    Object.defineProperty(project.$state, 'mentionList', {
+      get() {
         return this._mentionList
       },
-      get childProjects() {
+      enumerable: true,
+      configurable: true
+    })
+    
+    // Add getter for childProjects
+    Object.defineProperty(project.$state, 'childProjects', {
+      get() {
         const parentPath = project.abs_project_path
         const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`
         return $storex.projects.allProjects.filter(p =>
@@ -309,60 +324,72 @@ const initProject = async project => {
           p.abs_project_path?.startsWith(normalizedParentPath)
         )
       },
-      get linkedProjects() {
+      enumerable: true,
+      configurable: true
+    })
+    
+    // Add getter for linkedProjects
+    Object.defineProperty(project.$state, 'linkedProjects', {
+      get() {
         const { project_dependencies } = project
         return project_dependencies?.split(",")
           .map(project_name => $storex.projects.allProjects
             .find(p => p.project_name === project_name))
           .filter(f => !!f) || []
       },
-      async searchMentions({ query, limit = 10, onResults, controller }) {
-        const relatedProjects = getRelatedProjects(project)
-        const allProjectsToSearch = [project, ...relatedProjects]
+      enumerable: true,
+      configurable: true
+    })
+    
+    // Add searchMentions method directly
+    project.$state.searchMentions = async function({ query, limit = 10, onResults, controller }) {
+      const relatedProjects = getRelatedProjects(project)
+      const allProjectsToSearch = [project, ...relatedProjects]
+      
+      const seenKeys = new Set()
+      const allResults = []
+      
+      try {
+        controller.isSearching = true
         
-        const seenKeys = new Set()
-        const allResults = []
-        
-        try {
-          controller.isSearching = true
+        for (const proj of allProjectsToSearch) {
+          controller.checkCancelled()
           
-          for (const proj of allProjectsToSearch) {
-            controller.checkCancelled()
+          try {
+            const projectResults = await searchProjectMentions(proj, query, limit, controller)
             
-            try {
-              const projectResults = await searchProjectMentions(proj, query, limit, controller)
-              
-              for (const mention of projectResults) {
-                const key = mention.file || mention.name
-                if (!seenKeys.has(key)) {
-                  seenKeys.add(key)
-                  allResults.push(mention)
-                }
-              }
-              
-              if (onResults) {
-                const filtered = allResults
-                  .filter(({ score }) => score < 0.25)
-                  .slice(0, limit)
-                onResults(filtered)
-              }
-            } catch (error) {
-              if (error.message !== 'Search cancelled') {
-                console.error(`Error searching in project ${proj.project_name}:`, error)
+            for (const mention of projectResults) {
+              const key = mention.file || mention.name
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key)
+                allResults.push(mention)
               }
             }
+            
+            if (onResults) {
+              const filtered = allResults
+                .filter(({ score }) => score < 0.25)
+                .slice(0, limit)
+              onResults(filtered)
+            }
+          } catch (error) {
+            if (error.message !== 'Search cancelled') {
+              console.error(`Error searching in project ${proj.project_name}:`, error)
+            }
           }
-          
-          return allResults
-            .filter(({ score }) => score < 0.25)
-            .slice(0, limit)
-        } finally {
-          controller.isSearching = false
         }
+        
+        return allResults
+          .filter(({ score }) => score < 0.25)
+          .slice(0, limit)
+      } finally {
+        controller.isSearching = false
       }
-    })
+    }
+    
   } catch (ex) {
     console.log("Error initializing project", project, ex)
+    project.$state.status = ENTITY_STATUS.LOADED
   }
   return project
 }
@@ -373,7 +400,6 @@ export const mutations = mutationTree(state, {
   setActiveProject(state, project) {
     state.activeProject = project
     $storex.projects.saveLastActiveProject()
-    $storex.views.onActiveProjectChanged()
   },
   setLogs(state, logs) {
     state.logs = logs
@@ -386,6 +412,12 @@ export const mutations = mutationTree(state, {
   },
   setProjectLoading(state, value) {
     state.projectLoading = value
+  },
+  setProjectStatus(state, { projectId, status }) {
+    const project = state.allProjectsById[projectId]
+    if (project && project.$state) {
+      project.$state.status = status
+    }
   },
   addWizard(state, wizard) {
     wizard.id = wizard.id || new Date().getTime()
@@ -437,7 +469,7 @@ export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
   profiles: state => getProfiles(state.activeProject),
   allChats: state => $storex.chats.allChats.map(chat => createProjectChat(state.activeProject, chat)),
-  kanban: state => state.activeProject.$state.kanban,
+  kanban: state => state.activeProject?.$state?.kanban,
   allBoards: state => state.kanban?.boards ? Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })) : [],
   boardHierarchy: state => (boardTitle) => {
     if (!state.kanban?.boards) return []
@@ -462,7 +494,8 @@ export const getters = getterTree(state, {
   allPRs: () => $storex.chats.allPRs,
   projectDependencies: state => getProjectDependencies(state.activeProject),
   childProjects: state => {
-    const parentPath = state.activeProject.abs_project_path
+    const parentPath = state.activeProject?.abs_project_path
+    if (!parentPath) return []
     const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`
     return state.allProjects.filter(p =>
       p.abs_project_path !== parentPath &&
@@ -470,7 +503,8 @@ export const getters = getterTree(state, {
     )
   },
   parentProject: state => {
-    const childPath = state.activeProject.abs_project_path
+    const childPath = state.activeProject?.abs_project_path
+    if (!childPath) return null
     return state.allProjects.find(p => {
       if (p.abs_project_path === childPath) return false
       const normalizedParentPath = p.abs_project_path.endsWith('/') ? p.abs_project_path : `${p.abs_project_path}/`
@@ -614,10 +648,9 @@ export const actions = actionTree(
           overlay?.completeStep('models', `${models.length} models loaded`)
 
           overlay?.markStepLoading('chats')
+          // Clear previous chats and load only active project chats
+          $storex.chats.clearChats()
           await $storex.chats.loadChats()
-          if ($storex.chats.activeChat?.project_id !== API.activeProject.project_id) {
-            $storex.chats.clearActiveChat()
-          }
           overlay?.completeStep('chats', 'Chats loaded')
 
           $storex.projects.addRecentProject(state.activeProject)
@@ -626,9 +659,6 @@ export const actions = actionTree(
           
           overlay?.completeStep('finalize', 'Ready')
           overlay?.finishLoading()
-
-          await $storex.views.onActiveProjectChanged()
-
         } catch(ex) {
           console.error("Error setting active project", ex)
           const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
@@ -828,7 +858,7 @@ export const actions = actionTree(
         if (!$api) {
           project.$api = await API.project(project)
           project.$state = createState()
-          initProject(project)
+          project.$state.status = ENTITY_STATUS.UNINITIALIZED
         }
       }))
     },
@@ -1064,6 +1094,26 @@ export const actions = actionTree(
       } catch (error) {
         console.error('Failed to save last active project:', error)
       }
+    },
+
+    async initProjectState({ state }, project) {
+      const targetProject = project || state.activeProject
+      if (!targetProject) {
+        throw new Error('No project provided or active project set')
+      }
+
+      // Ensure project is initialized
+      if (!targetProject.$state) {
+        targetProject.$state = createState()
+        targetProject.$state.status = ENTITY_STATUS.UNINITIALIZED
+      }
+
+      // Initialize if not already done
+      if (targetProject.$state.status === ENTITY_STATUS.UNINITIALIZED) {
+        await initProject(targetProject)
+      }
+
+      return targetProject.$state
     },
 
     createSearchController() {

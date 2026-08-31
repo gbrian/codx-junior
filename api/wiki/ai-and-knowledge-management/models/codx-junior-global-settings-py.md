@@ -1,95 +1,141 @@
-# Global Settings Management
+# Global Settings Module Documentation
 
-This module handles the persistence, loading, and retrieval of global application settings, including configurations for AI models, API providers, and general system settings.
+## Overview
 
-## Core Concepts
+The Global Settings module provides comprehensive read/write access to application-wide configuration through a `GlobalSettingsManager`. It manages settings in separate section files while maintaining version history and supporting legacy single-file migration.
 
-The primary configuration structure is managed by `GlobalSettings`. This configuration includes various components:
+## Core Features
 
-*   **AI Models (`ai_models`):** Definitions of supported Large Language Models (LLMs).
-*   **API Providers (`ai_providers`):** Credentials and endpoints for external AI services.
-*   **OAuth Providers (`oauth_providers`):** Settings for OAuth authentication providers.
-*   **Git User Info:** Configuration for git username and email.
+### Settings Management
+- **Sectioned Storage**: Each settings field is stored as an independent section file
+- **Version History**: Manager maintains historical versions of configuration changes
+- **Legacy Migration**: Automatic migration from single-file to sectioned format
+- **In-Memory Cache**: Global singleton instance for efficient access
 
-### Paths and Storage
+### Key Components
 
-Global settings are stored in a JSON file located at:
-*   `GLOBAL_SETTINGS_FOLDER`: Defaults to the `HOME` environment variable, or can be set via `CODX_JUNIOR_CONFIG_FOLDER`.
-*   `GLOBAL_SETTINGS_PATH`: The full path to the configuration file (`{GLOBAL_SETTINGS_FOLDER}/global_settings.json`).
+#### Manager Singleton
+```
+get_manager() → GlobalSettingsManager
+```
+Returns the singleton instance of `GlobalSettingsManager` for centralized settings management.
 
-## Function Reference
+#### Primary Operations
 
-### Settings Persistence and Initialization
+**Reading Settings**
+```
+read_global_settings() → GlobalSettings
+```
+Assembles all section files into a complete `GlobalSettings` instance. Falls back to defaults for missing sections.
 
-#### `read_global_settings()`
-This function attempts to load the global settings from the configured JSON path (`GLOBAL_SETTINGS_PATH`).
+**Writing Settings**
+```
+write_global_settings(global_settings: GlobalSettings) → None
+```
+Persists all settings by writing each field as a separate section file. Applies git configuration side effects when credentials are present.
 
-*   If successful, it deserializes the data into a `GlobalSettings` object and stores it globally.
-*   If an error occurs during loading, it logs the error, initializes a default empty `GlobalSettings` instance, and writes that default structure back to the file upon execution (Section: `read_global_settings`).
+**Updating Single Section**
+```
+write_settings_section(section: str, data: any) → None
+```
+Writes a single settings section without affecting others. Automatically refreshes the in-memory instance.
 
-#### `write_global_settings(global_settings: GlobalSettings)`
-Saves the provided `GlobalSettings` object to the global settings file.
+**Retrieving Cached Settings**
+```
+get_global_settings() → Optional[GlobalSettings]
+```
+Returns the current in-memory settings instance (loaded during module initialization).
 
-*   **Steps:**
-    1.  Serializes the `GlobalSettings` dictionary.
-    2.  Calls `backup_up_global_settings()` before saving.
-    3.  Writes the data to `GLOBAL_SETTINGS_PATH`.
-    4.  If Git username and email are specified, it executes git commands (`git config --global user.name`, etc.) using the system command utility (Section: `write_global_settings`).
+## AI Configuration Helpers
 
-#### `backup_up_global_settings()`
-Handles the creation of a backup copy of the current global settings file before writing new settings.
+### Provider Management
+```
+get_provider_settings(ai_provider: str, global_settings: Optional[GlobalSettings] = None) → AIProvider
+```
+Retrieves provider configuration by name with environment variables expanded. Raises `ValueError` if provider not found.
 
-*   **Mechanism:** Creates a directory named `codx-junior-backup` in the parent directory of `GLOBAL_SETTINGS_PATH`.
-*   **Naming:** Backup files are timestamped (e.g., `global_settings_backup_YYYYMMDD_HHMMSS.json`).
-*   **Cleanup:** It automatically removes historical backups, ensuring that only the last 20 backups are retained (Section: `backup_up_global_settings`).
+### Model Management
+```
+get_model(llm_model: str, global_settings: Optional[GlobalSettings] = None) → Optional[AIModel]
+```
+Finds a model by name or `ai_model` identifier.
 
-### Configuration Retrieval Utilities
+```
+save_model(model: AIModel) → None
+```
+Upserts an `AIModel` into the `ai_models` section.
 
-#### `get_provider_settings(ai_provider: str, global_settings = None)`
-Retrieves a specific AI API provider's configured settings.
+### Advanced Model Resolution
+```
+get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings] = None) → AISettings
+```
+Builds a fully-resolved `AISettings` object with the following resolution priorities:
 
-*   **Input:** The name of the AI provider (`ai_provider`) and optional `global_settings`.
-*   **Output:** An initialized `AIProvider` object.
-*   **Process:** Finds the matching provider by name within the `GlobalSettings` object, expands environment variables in API URLs and keys, and returns the instance (Section: `get_provider_settings`).
+**Pricing Resolution**
+1. Model-specific pricing
+2. Provider's price_list entry matching model identifier
+3. Provider-level default pricing
+4. None
 
-#### `get_model(llm_model: str, global_settings = None)`
-Retrieves a specific AI Model's configuration.
+**Tool Limits Resolution**
+1. Model-level limits (if set)
+2. Provider-level limits (if set)
+3. None (no limit)
 
-*   **Input:** The name or model ID of the LLM (`llm_model`) and optional `global_settings`.
-*   **Output:** An initialized `AIModel` object.
-*   **Process:** Searches through `GlobalSettings.ai_models` matching either the `name` or `ai_model` attribute (Section: `get_model`).
+Raises `ValueError` if model or provider not found.
 
-#### `get_oauth_provider(oauth_provider: str)`
-Retrieves a specific OAuth authentication provider configuration.
+### Internal Resolution Functions
+```
+_resolve_model_price(model: AIModel, provider: AIProvider)
+```
+Determines token pricing based on model and provider hierarchy.
 
-*   **Input:** The name of the oauth provider (`oauth_provider`).
-*   **Output:** An initialized structure matching the `OAuthProvider` definition, or `None`.
-*   **Process:** Searches through `GlobalSettings.oauth_providers` (Section: `get_oauth_provider`).
+```
+_resolve_tool_limits(model: AIModel, provider: AIProvider) → tuple
+```
+Resolves `max_tool_calls` and `max_iterations` with model-level priority over provider-level settings.
 
-#### `get_model_settings(llm_model: str, global_settings = None)`
-Retrieves a comprehensive set of operational settings required to run an LLM model instance.
+## OAuth Configuration
+```
+get_oauth_provider(oauth_provider: str)
+```
+Retrieves OAuth provider configuration by name.
 
-*   **Input:** The model name (`llm_model`) and optional `global_settings`.
-*   **Output:** An initialized `AISettings` object containing resolved credentials, cost data, system prompts, etc.
-*   **Process:**
-    1.  Retrieves the raw `AIModel` (using `get_model`).
-    2.  Retrieves the corresponding `APIProvider` (using `get_provider_settings`).
-    3.  Calculates pricing using `_resolve_model_price`.
-    4.  Assembles all details, including expanded environment variables and resolved costs, into a single `AISettings` object (Section: `get_model_settings`).
+## Git Configuration
 
-#### `save_model(model: AIModel, global_settings = None)`
-Updates the current global settings configuration by ensuring a specific model is listed.
+### Git Config Application
+```
+_apply_git_config(global_settings: GlobalSettings) → None
+```
+Applies git username and email from settings to global git configuration. Executed automatically when settings are written.
 
-*   **Input:** The `AIModel` instance to be saved and optional `global_settings`.
-*   **Action:** It updates the list of models in `GlobalSettings`, replacing an existing entry if it has the same name, or adding the new model (Section: `save_model`).
+## Migration System
 
-### Pricing Resolution
+### Legacy Settings Migration
+```
+_migrate_legacy_settings() → None
+```
+Automatically migrates legacy single-file format (`global_settings.json`) to sectioned storage on first run. Skips if section files already exist. Preserves the original legacy file as backup.
 
-#### `_resolve_model_price(model: AIModel, provider: AIProvider)`
-A private utility function responsible for determining the specific cost per 1k input and output tokens. It follows a strict priority order:
+**Migration Conditions**
+- Only runs if legacy file exists at `GLOBAL_SETTINGS_PATH`
+- Skips if section files already exist (migration already completed)
+- Preserves original file for safety
 
-1.  **Provider Price List Match:** Checks if the provider's attached `price_list` contains an entry matching the model ID (highest priority).
-2.  **Fallback to Provider Defaults:** If no specific list match is found, it uses the default input and output token costs set on the entire `AIProvider` object (lowest priority) (Section: `_resolve_model_price`).
+## Configuration Paths
+
+- **Home Directory**: `$HOME` environment variable (default: `/root`)
+- **Settings Directory**: `$CODX_JUNIOR_CONFIG_FOLDER` environment variable (default: home directory)
+- **Legacy File Path**: `{GLOBAL_SETTINGS_FOLDER}/global_settings.json`
+
+## Initialization
+
+The module automatically:
+1. Migrates legacy settings if needed
+2. Loads settings into memory via `read_global_settings()`
+3. Maintains singleton manager instance for subsequent operations
+
+All operations work with the cached `GLOBAL_SETTINGS` instance, which is refreshed after any write operation.
 
 ## Dependencies
 **Imports from:** codx/junior/utils/utils.py, codx/junior/model/model.py

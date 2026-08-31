@@ -1,5 +1,6 @@
 <script setup>
 import AppIcon from '../apps/AppIcon.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -124,14 +125,13 @@ import AppIcon from '../apps/AppIcon.vue'
             </div>
           </div>
 
-          <div class="join w-full">
-            <select class="select select-bordered select-xs join-item flex-1" v-model="selectedProjectId">
-              <option value="*">★ All Projects</option>
-              <option v-for="p in availableProjects" :key="p.project_id" :value="p.project_id">{{ p.project_name }}</option>
-            </select>
-            <button class="btn btn-xs btn-primary join-item" @click="toggleProjectSelection(selectedProjectId)">
-              <i class="fa-solid fa-plus"></i>
-            </button>
+          <!-- CHANGED: Replace dropdown with ProjectDetailt component -->
+          <div class="mb-2">
+            <p class="text-xs text-base-content/50 mb-2">Click to add project:</p>
+            <ProjectDetailt
+              :options="availableProjects"
+              @select="onProjectSelected"
+            />
           </div>
         </div>
       </div>
@@ -200,7 +200,6 @@ export default {
   emits: ['close', 'save', 'delete'],
   data() {
     return {
-      selectedProjectId: null,
       selectedUserId: ''
     }
   },
@@ -223,6 +222,14 @@ export default {
     }
   },
   methods: {
+    onProjectSelected(project) {
+      if (!project || !project.project_id) return
+      if (!this.workspace.project_ids) this.workspace.project_ids = []
+      // Avoid duplicates
+      if (!this.workspace.project_ids.includes(project.project_id)) {
+        this.workspace.project_ids.push(project.project_id)
+      }
+    },
     toggleProjectSelection(projectId) {
       if (!this.workspace.project_ids) this.workspace.project_ids = []
       const idx = this.workspace.project_ids.indexOf(projectId)

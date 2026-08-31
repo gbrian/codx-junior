@@ -2,172 +2,142 @@
 
 ## Overview
 
-The Chat Manager module is responsible for chat persistence and management within the CODX Junior system. It provides a comprehensive suite of operations ranging from simple full-chat save/load functionality to granular, merge-safe message operations that can be safely executed during active AI turns.
+The Chat Manager module is responsible for chat persistence, retrieval, and management within the CODX Junior project. It provides both full-chat operations and granular, merge-safe message operations that support concurrent updates during AI turns without data loss.
 
-## Key Features
-
-### Full-Chat Operations
-- **Save and load complete chats** with automatic board/column defaults and ID assignment
-- **Chat listing** with optional date filtering
-- **Chat search** with full-text capabilities, time-frame filtering, and pagination
-- **Kanban board management** for organizing chats
-
-### Granular Message Operations
-The module exposes merge-safe message operations designed for real-time updates during AI execution:
-
-- **`add_message`** — Appends a message to a chat with immediate persistence (idempotent by `doc_id`)
-- **`update_message`** — Updates an existing message matched by `doc_id`, or appends if not found
-- **`remove_message`** — Removes a message while preserving concurrent updates
-- **`update_chat_metadata`** — Updates chat metadata without touching messages
-
-### Merge Strategy
-
-The module implements a last-writer-wins merge strategy per message (keyed by `doc_id`):
-
-1. When persisting mid-turn changes, the stored chat is reloaded
-2. Message lists are merged by comparing `updated_at` timestamps
-3. If a message's `doc_id` exists in both stored and incoming messages, the one with the newer timestamp wins
-4. New incoming messages are appended in their original order
-5. Messages without a `doc_id` receive one automatically
-
-### Timestamp Handling
-
-Timestamps historically exist in two formats:
-- `str(datetime.now())` — space separator (Message default)
-- `datetime.isoformat()` — T separator (used by granular operations)
-
-The `_parse_timestamp` function normalizes both formats to enable correct datetime comparison. Raw string comparison was incorrect because the 'T' variant always lexicographically beats the space variant, allowing older messages to overwrite newer ones.
-
-## Core Methods
+## Core Responsibilities
 
 ### Chat Persistence
+- Full-chat save/load operations via `save_chat()` and `load_chat()`
+- Granular message operations (`add_message()`, `update_message()`, `remove_message()`)
+- Merge-safe persistence that prevents data loss during concurrent updates
+- Support for chat metadata updates via `update_chat_metadata()`
 
-**`save_chat(chat, chat_only=False)`**
-Persists a chat to disk with the following behaviors:
-- Assigns default board/column if missing
-- Generates a chat ID if not present
-- Updates `updated_at` timestamp
-- When `chat_only=True`, preserves stored messages (metadata-only update)
-- Handles migration from legacy YAML format
-- Cleans up old file paths if the chat was moved
-- Emits a "changed" event through the EventManager
+### Chat Retrieval & Discovery
+- List chats with optional time-based filtering
+- Search chats with full-text capabilities
+- Find chats by ID, board, column, or name
+- Load chat data from various storage formats (JSON, YAML legacy)
 
-**`store_chat(chat)`**
-Writes a chat to its `file_path` as JSON.
+### Additional Features
+- Full-text search across chat data with time-frame filtering and pagination
+- Kanban board configuration management
+- Chat export to multiple formats (markdown, DOCX, PDF, Excel)
+- Event emission for chat changes
+- Cross-project chat ownership resolution
 
-**`delete_chat(file_path=None, chat_id=None)`**
-Removes a chat file from disk, with safety checks to prevent deletion outside the chat directory.
+## Key Concepts
 
-### Chat Retrieval
+### Message Merge Strategy
 
-**`load_chat(board, column=None, chat_name=None)`**
-Loads a chat by board/column/name, returning an empty Chat object if not found.
+The module implements a last-writer-wins merge strategy when combining stored and in-memory messages. Each message is identified by a unique `doc_id`, and conflicts are resolved by comparing `updated_at` timestamps:
 
-**`load_chat_from_path(chat_file, chat_only=False)`**
-Loads a Chat from a JSON file. When `chat_only=True`, the returned chat has an empty message list.
+- **No conflict**: New messages are kept as-is
+- **Conflict**: The message with the later `updated_at` timestamp wins
+- **Message ordering**: Stored message order is preserved; new incoming messages are appended
 
-**`find_by_id(chat_id)`**
-Locates and loads a chat by its UUID.
+This approach ensures that rapid, concurrent updates (such as tool-usage notifications and streamed partial responses) never result in data loss.
 
-**`list_chats(from_date=None)`**
-Returns a sorted list of all chats (metadata only, no messages), optionally filtered by modification date and sorted by index/`updated_at` in descending order.
+### Timestamp Normalization
 
-### Search Operations
+Historical chat data contains timestamps in two formats:
+- `str(datetime.now())` — space separator (Message default)
+- `datetime.isoformat()` — T separator (stamped by granular operations)
 
-**`search_chats(query, from_date=None, to_date=None, page=1, page_size=20)`**
-Provides full-text search across chat data, delegating to the `ChatSearcher` class. Supports:
-- Case-insensitive substring matching
-- Date range filtering (from/to dates are inclusive)
-- Pagination with configurable page size
-- Returns a dictionary with paginated results and metadata
+The `_parse_timestamp()` function handles both formats to enable correct timestamp comparison. Without this normalization, raw string comparison would incorrectly favor the 'T' format lexicographically, potentially allowing older messages to overwrite newer ones.
 
-### Message Operations
+### Hot-Path Optimization
 
-**`add_message(chat, message)`**
-Appends a message to a chat with immediate merge-safe persistence. The operation is idempotent: if a message with the same `doc_id` already exists on the chat, it is not added twice. Used for real-time event notifications (tool usage, run lifecycle).
+Granular message operations are called frequently during AI turns (tool events, throttled stream persists). The `_load_stored_chat()` method includes a fast-path optimization:
 
-**`update_message(chat, message)`**
-Updates an existing message matched by `doc_id`, or appends it if not found. Useful for streaming partial responses and tool event updates.
+- When `chat.file_path` is known and valid, it reads directly from disk
+- Falls back to scanning the task tree via `find_by_id()` for moved/renamed chats
+- Significantly reduces overhead on high-frequency operations
 
-**`remove_message(chat, message_doc_id)`**
-Removes the message identified by `message_doc_id` while applying the removal on top of the merged message list, ensuring no concurrent changes are lost.
+## Main Classes & Methods
 
-**`update_chat_metadata(chat, metadata)`**
-Updates chat metadata fields (name, description, board, column, etc.) without modifying messages. Returns the persisted chat.
+### ChatManager
 
-### Internal Helpers
-
-**`_load_stored_chat(chat)`**
-Loads the persisted version of a chat with a fast-path optimization. When `chat.file_path` is valid and within the manager's directory tree, it reads directly; otherwise falls back to `find_by_id`. This optimization is critical for hot-path code invoked on every tool event during AI turns.
-
-**`_persist_chat_messages(chat)`**
-Merge-safe persistence used by granular message operations. Reloads the stored chat, merges message lists to prevent mid-turn saves from clobbering concurrent updates, then delegates to `save_chat`.
-
-**`_merge_message_lists(stored_messages, incoming_messages)`**
-Merges two message lists by `doc_id` using `updated_at` to determine which version wins. Preserves stored message ordering; new incoming messages are appended in their original relative order.
-
-## Path Management
-
-**`get_chat_file(chat)`**
-Builds the canonical file path for a chat using the pattern:
+#### Initialization
+```python
+__init__(settings: CODXJuniorSettings, event_manager: Optional[EventManager] = None)
 ```
-{chat_path}/{board}/{column}/{slugified_name}.{id}.json
-```
+Initializes the manager and creates the required directory structure.
 
-**`chat_paths(last_update=None)`**
-Returns chat file paths, optionally filtering by last update time. Searches for both `.yaml` and `.json` files.
+#### Message Operations
 
-**`chat_board_column_name_from_path(file_path)`**
-Parses board, column, and name components from a chat file path.
+- **`add_message(chat, message)`**: Append a message to chat (idempotent by `doc_id`) and persist immediately
+- **`update_message(chat, message)`**: Update an existing message by `doc_id` or append if not found
+- **`remove_message(chat, message_doc_id)`**: Remove a message by `doc_id` and persist
+- **`update_chat_metadata(chat, metadata)`**: Update chat metadata without modifying messages
 
-## Owner Project Resolution
+#### Chat Persistence
 
-**`_resolve_owner_manager(chat)`**
-Returns the ChatManager owning a chat. When a chat belongs to a different project (via `owner_project_id`), a manager scoped to that project is returned, ensuring persistence lands in the correct location.
+- **`save_chat(chat, chat_only=False)`**: Persist chat to disk with board/column defaults, ID assignment, and event emission
+- **`store_chat(chat)`**: Write chat to its `file_path` as JSON
+- **`delete_chat(file_path=None, chat_id=None)`**: Delete a chat file from disk
 
-## Kanban Management
+#### Chat Loading
 
-**`load_kanban()`**
-Loads the project's kanban configuration from a JSON file with automatic defaults when missing.
+- **`load_chat(board, column, chat_name)`**: Load chat by location or return empty Chat
+- **`load_chat_from_path(chat_file, chat_only=False)`**: Load Chat from JSON file
+- **`find_by_id(chat_id)`**: Find and load a chat by UUID
+- **`list_chats(from_date=None)`**: Return sorted list of all chats (metadata only)
 
-**`save_kanban(kanban)`**
-Persists kanban configuration to disk.
+#### Search & Discovery
 
-**`delete_kanban(kanban_title)`**
-Removes an entire kanban board directory.
+- **`search_chats(query, from_date, to_date, page, page_size)`**: Full-text search with pagination
+- **`find_chats(last_update=None)`**: Return chats based on filter criteria
+- **`chat_paths(last_update=None)`**: Get chat file paths with optional time filtering
+- **`chat_count()`**: Return total number of chat files on disk
+- **`last_chats()`**: Return up to three chats modified within the last two days
 
-**`load_kanban_from_file(kanban_file)`**
-Loads kanban state from a JSON file, applying defaults and handling legacy format migration.
+#### Kanban Management
 
-**`chat_count()`**
-Returns the total number of chat files on disk.
+- **`load_kanban()`**: Load project's kanban configuration (profiled function)
+- **`load_kanban_from_file(kanban_file)`**: Load kanban state with defaults
+- **`save_kanban(kanban)`**: Persist kanban configuration to disk
+- **`delete_kanban(kanban_title)`**: Remove entire kanban board directory
 
-**`last_chats()`**
-Returns up to three chats modified within the last two days.
+#### Chat Export
 
-## Chat Export
+- **`export_chat(chat_id, export_format)`**: Export chat and descendants to specified format
+- **`build_markdown_document(chat_id)`**: Generate markdown document from chat (excluding hidden messages)
+- **`traverse_chat_messages(chat_id, all_chats)`**: Recursively traverse messages following links and child chats
 
-**`build_markdown_document(chat_id)`**
-Traverses a chat and its descendants, generating a markdown document. Messages with `hide=True` are excluded.
+#### Path Helpers
 
-**`traverse_chat_messages(chat_id, all_chats)`**
-Recursively traverses messages in a chat and its descendants, following both linked chats (via `message_id`) and child chats (via `parent_id`).
+- **`get_chat_file(chat)`**: Build canonical file path for a chat
+- **`chat_board_column_name_from_path(file_path)`**: Parse board, column, and name from file path
 
-**`export_chat(chat_id, export_format)`**
-Exports a chat and its descendants to a specified format (markdown, docx, pdf, excel), returning an `ExportedDocument` with the exported content.
+## Helper Functions
 
-## Constants
+### `_parse_timestamp(value: Optional[str]) -> datetime`
 
-- **`DEFAULT_BOARD`** — `"kanban"` — Default board name for new chats
-- **`DEFAULT_COLUMN`** — `"tasks"` — Default column name for new chats
+Parses message timestamps in either historical format:
+- Returns parsed datetime for valid timestamps
+- Returns `datetime.min` for unparseable/missing values (sorts oldest)
+- Ensures correct comparison regardless of timestamp format
 
-## Integration
+## Integration Points
 
-The module relies on the following contracts with `ChatEventBridge`:
+### Owned by ChatEventBridge
+The module fulfills a contract with `codx.junior.chat.chat_event_bridge.ChatEventBridge`:
+- `add_message()` is idempotent (skips duplicates by `doc_id`)
+- `update_message()` matches by `doc_id` (appends if missing)
+- Both operations merge against stored chat to prevent loss of concurrent updates
 
-- `add_message` inserts idempotently, skipping in-memory duplicates by `doc_id`
-- `update_message` matches by `doc_id` and appends if missing
-- Both operations merge against the stored chat, ensuring concurrent updates are never lost
+### Event Emission
+- Emits `"changed"` events via `event_manager` when chats are saved
+- Supports cross-project chat ownership via `_resolve_owner_manager()`
+
+### Cross-Project Support
+The `owner_project_id` field allows chats to be owned by different projects. The manager transparently resolves and forwards operations to the owning project's manager.
+
+## Default Configuration
+
+- **Default Board**: `"kanban"`
+- **Default Column**: `"tasks"`
+- **Chat Storage**: `{codx_path}/tasks/{board}/{column}/{slugified_name}.{id}.json`
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/db.py, codx/junior/utils/utils.py, codx/junior/profiling/profiler.py, codx/junior/chat/chat_export.py, codx/junior/events/event_manager.py, codx/junior/project/project_discover.py

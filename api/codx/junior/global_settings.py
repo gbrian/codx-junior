@@ -251,9 +251,35 @@ def _resolve_model_price(model: AIModel, provider: AIProvider):
     return provider.input_k_tokens_cxjcoins, provider.output_k_tokens_cxjcoins
 
 
+def _resolve_tool_limits(model: AIModel, provider: AIProvider) -> tuple:
+    """
+    Resolve tool call and iteration limits with priority: Model > Provider > None.
+
+    Priority:
+    1. Model-level max_tool_calls/max_iterations (if set)
+    2. Provider-level max_tool_calls/max_iterations (if set)
+    3. None (no limit configured)
+
+    Args:
+        model: The AIModel.
+        provider: The AIProvider.
+
+    Returns:
+        Tuple of (max_tool_calls, max_iterations) - either int or None for each.
+    """
+    max_tool_calls = model.max_tool_calls if model.max_tool_calls is not None else provider.max_tool_calls
+    max_iterations = model.max_iterations if model.max_iterations is not None else provider.max_iterations
+    return max_tool_calls, max_iterations
+
+
 def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings] = None) -> AISettings:
     """
     Build a fully-resolved AISettings object for the given model name.
+
+    Resolves pricing and tool limits with the following priority:
+    - Pricing: Model > Provider price_list > Provider default > None
+    - Tool calls: Model > Provider > None
+    - Iterations: Model > Provider > None
 
     Args:
         llm_model: Model name or ai_model identifier.
@@ -272,6 +298,7 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
 
     provider = get_provider_settings(model.ai_provider, global_settings=resolved_settings)
     input_price, output_price = _resolve_model_price(model, provider)
+    max_tool_calls, max_iterations = _resolve_tool_limits(model, provider)
 
     return AISettings(
         **model.settings.__dict__,
@@ -286,6 +313,8 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
         input_k_tokens_cxjcoins=input_price,
         output_k_tokens_cxjcoins=output_price,
         url=model.url,
+        max_tool_calls=max_tool_calls,
+        max_iterations=max_iterations,
     )
 
 

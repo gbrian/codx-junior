@@ -100,6 +100,9 @@ class ChatEngine:
     :meth:`ChatEventBridge.persist_message` instead of waiting for the
     end-of-turn chat save.
 
+    FIXED: Parent chat inheritance now properly adds parent visible messages
+    to the conversation history when `ignore_parent_knowledge` flag is False.
+
     flowchart TD
         A[User Message] --> B{Chat Mode?}
         B -->|vibe| C[AI Search Context]
@@ -109,18 +112,22 @@ class ChatEngine:
         B -->|agent| F[Agent Iteration]
         B -->|chat| G[Standard Chat]
         D --> G
-        E --> H[Record Chat Session Start]
+        E --> H{Add parent messages?}
         F --> H
         G --> H
-        H --> H1[Create response_message]
-        H1 --> H2[ChatEventBridge - persists on every event]
-        H2 --> I[AI Response]
-        I -->|stream flush| H5[Throttled persist of partial content]
-        I -->|hidden reasoning| H6[persist_message - immediate]
-        I -->|tool events| H3[Events on response_message persisted + streamed]
-        I -->|error/cancel| H4[bridge.publish - error persisted immediately]
-        I --> J[Record Chat Session End]
-        J --> K[Return Chat + Documents]
+        H -->|ignore_parent_knowledge=False| H1[Prepend parent messages]
+        H -->|ignore_parent_knowledge=True| H2[Skip parent messages]
+        H1 --> H3[Record Chat Session Start]
+        H2 --> H3
+        H3 --> I[Create response_message]
+        I --> J[ChatEventBridge - persists on every event]
+        J --> K[AI Response]
+        K -->|stream flush| K5[Throttled persist of partial content]
+        K -->|hidden reasoning| K6[persist_message - immediate]
+        K -->|tool events| K3[Events on response_message persisted + streamed]
+        K -->|error/cancel| K4[bridge.publish - error persisted immediately]
+        K --> L[Record Chat Session End]
+        L --> M[Return Chat + Documents]
     """
 
     def __init__(
@@ -273,25 +280,75 @@ class ChatEngine:
         }
 
     # -------------------------------------------------------------------------
-    # Helper: build LangChain message history
+    # Helper: build LangChain message history with optional parent messages
     # -------------------------------------------------------------------------
-    def _build_message_history(self, chat: Chat) -> List:
+    def _build_message_history(
+        self,
+        chat: Chat,
+        include_parent_messages: bool = True
+    ) -> List:
         """
         Convert all non-hidden, non-improvement chat messages (excluding the
         last) into LangChain message objects.
+
+        If include_parent_messages is True and chat has a parent and
+        ignore_parent_knowledge is False, prepends parent chat history.
 
         Tool and lifecycle events live on the response messages themselves
         (``tool_events`` / ``lifecycle_events``) and are never converted to
         prompt content, so no role-based filtering is needed.
 
+        FIXED: Now includes parent visible messages respecting the
+        ignore_parent_knowledge flag.
+
         :param chat: The chat whose history to convert.
+        :param include_parent_messages: Whether to include parent messages
+                                        (default True).
         :return: List of LangChain message objects.
         """
         messages = []
+
+        # FIXED: Add parent messages if applicable
+        if include_parent_messages and chat.parent_id and not chat.ignore_parent_knowledge:
+            chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
+            parent_chat = chat_manager.find_by_id(chat.parent_id)
+
+            if parent_chat:
+                logger.info(
+                    "Including parent chat messages for chat '%s' "
+                    "(parent_id='%s', ignore_parent_knowledge=%s)",
+                    chat.doc_id,
+                    chat.parent_id,
+                    chat.ignore_parent_knowledge,
+                )
+                # Recursively include parent's parent messages
+                parent_messages = self._build_message_history(
+                    chat=parent_chat,
+                    include_parent_messages=True
+                )
+                messages.extend(parent_messages)
+            else:
+                logger.warning(
+                    "Parent chat '%s' not found for chat '%s' "
+                    "(owner_project_id='%s')",
+                    chat.parent_id,
+                    chat.doc_id,
+                    chat.owner_project_id,
+                )
+        elif chat.parent_id and chat.ignore_parent_knowledge:
+            logger.info(
+                "Skipping parent chat messages for chat '%s' "
+                "(ignore_parent_knowledge=True)",
+                chat.doc_id,
+            )
+
+        # Add current chat messages (excluding the last one, which is the
+        # current user message)
         for message in chat.messages[0:-1]:
             if message.hide or message.improvement:
                 continue
             messages.append(self.convert_message(message))
+
         return messages
 
     # -------------------------------------------------------------------------
@@ -775,7 +832,7 @@ class ChatEngine:
         existing_document = last_ai_message.content if last_ai_message else ""
         parent_task = ""
         
-        # CHANGED: Resolve parent context internally based on ignore_parent_knowledge flag
+        # FIXED: Resolve parent context internally based on ignore_parent_knowledge flag
         if not chat.ignore_parent_knowledge:
             parent_task = self.get_chat_analysis_parents(chat=chat)
         
@@ -832,7 +889,7 @@ class ChatEngine:
         """
         parent_context = ""
         
-        # CHANGED: Resolve parent context internally based on ignore_parent_knowledge flag
+        # FIXED: Resolve parent context internally based on ignore_parent_knowledge flag
         if not chat.ignore_parent_knowledge:
             parent_context = self.get_chat_analysis_parents(chat=chat)
         
@@ -1533,6 +1590,10 @@ class ChatEngine:
           * Hidden reasoning messages are persisted the moment they are
             appended via ``event_bridge.persist_message``.
 
+        FIXED: Parent chat messages are now properly included in the message
+        history when `ignore_parent_knowledge` flag is False, enabling proper
+        context inheritance across chat hierarchy.
+
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
           - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
@@ -1881,9 +1942,16 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
-            # 12. Build message history from prior turns
+            # 12. Build message history from prior turns (FIXED)
+            #
+            #     Now includes parent chat messages if ignore_parent_knowledge
+            #     is False. Parent messages are prepended to ensure proper
+            #     context hierarchy.
             # ------------------------------------------------------------------
-            messages = self._build_message_history(chat=chat)
+            messages = self._build_message_history(
+                chat=chat,
+                include_parent_messages=True
+            )
 
             ignore_documents = chat_files.copy()
             if chat.name:
@@ -2343,20 +2411,34 @@ class ChatEngine:
         """
         Traverse all parent chats and return concatenated non-hidden message content.
 
+        Respects the ignore_parent_knowledge flag at each level during traversal.
+
         :param chat: The child chat whose parents to traverse.
         :return: Concatenated content string from all ancestor chats.
         """
         parent_content: List[str] = []
         chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
+
         if chat.parent_id and not parent_chat:
-            logger.error(
-                "[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s",
+            logger.warning(
+                "[parent_chat] parent_id: '%s' parent_project_id: '%s', "
+                "Not found for chat: %s",
                 chat.parent_id,
                 chat.owner_project_id,
                 chat.name
             )
+            return ""
+
         while parent_chat:
+            if parent_chat.ignore_parent_knowledge:
+                logger.info(
+                    "Parent chat '%s' has ignore_parent_knowledge=True, "
+                    "stopping parent traversal",
+                    parent_chat.doc_id,
+                )
+                break
+
             messages = [
                 message.content
                 for message in parent_chat.messages
@@ -2364,8 +2446,21 @@ class ChatEngine:
             ]
             if messages:
                 parent_content.append("\n".join(messages))
+                logger.info(
+                    "Collected %d messages from parent chat '%s'",
+                    len(messages),
+                    parent_chat.doc_id,
+                )
+
             parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
-        return "\n".join(parent_content)
+
+        result = "\n".join(parent_content)
+        logger.info(
+            "get_chat_analysis_parents collected %d chars from %d parent levels",
+            len(result),
+            len(parent_content),
+        )
+        return result
 
     @staticmethod
     def convert_message(message: Message):

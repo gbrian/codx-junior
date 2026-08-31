@@ -13,76 +13,158 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
 </script>
 
 <template>
-  <div class="w-full h-full flex gap-0" v-if="settings">
-    <!-- Sidebar Navigation -->
-    <aside class="w-64 bg-base-200 border-r border-base-300 flex flex-col">
-      <div class="p-6 border-b border-base-300">
-        <h1 class="text-lg font-bold text-base-content">Global Settings</h1>
-        <p class="text-xs text-base-content/60 mt-1">Manage your workspace</p>
+  <div class="w-full h-full container" v-if="settings">
+    <div class="w-full h-full flex gap-0">
+      <!-- Desktop Sidebar -->
+      <aside class="hidden @md:flex w-64 bg-base-200 border-r border-base-300 flex-col">
+        <div class="p-6 border-b border-base-300">
+          <h1 class="text-lg font-bold text-base-content">Global Settings</h1>
+          <p class="text-xs text-base-content/60 mt-1">Manage your workspace</p>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+          <button
+            v-for="item in navItems"
+            :key="item.id"
+            @click="activeTab = item.id"
+            :class="[
+              'w-full text-left px-4 py-3 rounded-lg transition-colors duration-200',
+              'flex items-center gap-3',
+              activeTab === item.id
+                ? 'bg-primary text-primary-content font-medium'
+                : 'text-base-content/70 hover:bg-base-300 hover:text-base-content'
+            ]"
+          >
+            <i :class="`fa-solid ${item.icon} w-4 text-center`"></i>
+            <span class="text-sm">{{ item.label }}</span>
+          </button>
+        </nav>
+
+        <!-- Desktop Footer Actions -->
+        <div class="p-4 border-t border-base-300 space-y-2">
+          <button
+            @click="reloadSettings"
+            class="w-full btn btn-sm btn-ghost justify-start gap-2"
+          >
+            <i class="fa-solid fa-arrow-rotate-right text-xs"></i>
+            <span>Reload</span>
+          </button>
+          <button
+            @click="saveSettings"
+            class="w-full btn btn-sm btn-primary justify-start gap-2"
+          >
+            <i class="fa-solid fa-floppy-disk text-xs"></i>
+            <span>Save Changes</span>
+          </button>
+          <ExportImportButton :data="settings" @change="submit" class="w-full">
+            <i class="fa-solid fa-download text-xs"></i>
+          </ExportImportButton>
+        </div>
+      </aside>
+
+      <!-- Mobile Drawer -->
+      <div class="drawer @md:hidden w-full">
+        <input id="settings-drawer" type="checkbox" class="drawer-toggle" v-model="drawerOpen" />
+        <div class="drawer-content flex flex-col w-full h-full overflow-auto">
+          <!-- Mobile Header with Menu Button -->
+          <div class="border-b border-base-300 px-4 py-4 bg-base-100 flex items-center justify-between">
+            <label for="settings-drawer" class="btn btn-ghost btn-sm btn-circle">
+              <i class="fa-solid fa-bars text-lg"></i>
+            </label>
+            <h2 class="text-lg font-bold text-base-content flex-1 ml-4">
+              {{ getActiveLabel() }}
+            </h2>
+          </div>
+
+          <!-- Mobile Main Content -->
+          <div class="flex-1 overflow-y-auto p-4">
+            <SecurityUserList :settings="settings" v-if="activeTab === 'users'" />
+            <Workspaces :settings="settings" v-if="activeTab === 'workspaces'" />
+            <ProjectScripts :settings="settings" v-if="activeTab === 'scripts'" />
+            <OAuthSettings :settings="settings" v-if="activeTab === 'oauth'" />
+            <PluginsEditor v-if="activeTab === 'plugins'" />
+            <GeneralSettings :settings="settings" v-if="activeTab === 'general'" />
+            <AISettings :settings="settings" v-if="activeTab === 'ai'" />
+            <AgentSettings v-if="activeTab === 'agents'" />
+            <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
+            <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
+          </div>
+
+          <!-- Mobile Footer Actions -->
+          <div class="border-t border-base-300 px-4 py-3 bg-base-100 flex gap-2">
+            <button
+              @click="reloadSettings"
+              class="btn btn-sm btn-ghost btn-circle"
+              title="Reload"
+            >
+              <i class="fa-solid fa-arrow-rotate-right text-sm"></i>
+            </button>
+            <button
+              @click="saveSettings"
+              class="btn btn-sm btn-primary flex-1"
+            >
+              <i class="fa-solid fa-floppy-disk text-xs"></i>
+              <span>Save</span>
+            </button>
+            <ExportImportButton :data="settings" @change="submit" class="btn btn-sm btn-ghost btn-circle">
+              <i class="fa-solid fa-download text-sm"></i>
+            </ExportImportButton>
+          </div>
+        </div>
+
+        <!-- Mobile Drawer Sidebar -->
+        <div class="drawer-side z-40">
+          <label for="settings-drawer" class="drawer-overlay"></label>
+          <aside class="w-64 bg-base-200 border-r border-base-300 flex flex-col h-full">
+            <div class="p-6 border-b border-base-300">
+              <h1 class="text-lg font-bold text-base-content">Settings</h1>
+              <p class="text-xs text-base-content/60 mt-1">Navigate</p>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+              <button
+                v-for="item in navItems"
+                :key="item.id"
+                @click="selectTab(item.id)"
+                :class="[
+                  'w-full text-left px-4 py-3 rounded-lg transition-colors duration-200',
+                  'flex items-center gap-3',
+                  activeTab === item.id
+                    ? 'bg-primary text-primary-content font-medium'
+                    : 'text-base-content/70 hover:bg-base-300 hover:text-base-content'
+                ]"
+              >
+                <i :class="`fa-solid ${item.icon} w-4 text-center`"></i>
+                <span class="text-sm">{{ item.label }}</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
       </div>
 
-      <nav class="flex-1 overflow-y-auto p-4 space-y-2">
-        <button
-          v-for="item in navItems"
-          :key="item.id"
-          @click="activeTab = item.id"
-          :class="[
-            'w-full text-left px-4 py-3 rounded-lg transition-colors duration-200',
-            'flex items-center gap-3',
-            activeTab === item.id
-              ? 'bg-primary text-primary-content font-medium'
-              : 'text-base-content/70 hover:bg-base-300 hover:text-base-content'
-          ]"
-        >
-          <i :class="`fa-solid ${item.icon} w-4 text-center`"></i>
-          <span class="text-sm">{{ item.label }}</span>
-        </button>
-      </nav>
+      <!-- Desktop Main Content -->
+      <main class="hidden @md:flex flex-1 flex-col overflow-hidden">
+        <div class="border-b border-base-300 px-8 py-4 bg-base-100">
+          <h2 class="text-2xl font-bold text-base-content">
+            {{ getActiveLabel() }}
+          </h2>
+          <p class="text-sm text-base-content/60 mt-1">{{ getActiveDescription() }}</p>
+        </div>
 
-      <!-- Footer Actions -->
-      <div class="p-4 border-t border-base-300 space-y-2">
-        <button
-          @click="reloadSettings"
-          class="w-full btn btn-sm btn-ghost justify-start gap-2"
-        >
-          <i class="fa-solid fa-arrow-rotate-right text-xs"></i>
-          <span>Reload</span>
-        </button>
-        <button
-          @click="saveSettings"
-          class="w-full btn btn-sm btn-primary justify-start gap-2"
-        >
-          <i class="fa-solid fa-floppy-disk text-xs"></i>
-          <span>Save Changes</span>
-        </button>
-        <ExportImportButton :data="settings" @change="submit" class="w-full">
-          <i class="fa-solid fa-download text-xs"></i>
-        </ExportImportButton>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <div class="border-b border-base-300 px-8 py-4 bg-base-100">
-        <h2 class="text-2xl font-bold text-base-content">
-          {{ getActiveLabel() }}
-        </h2>
-        <p class="text-sm text-base-content/60 mt-1">{{ getActiveDescription() }}</p>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-8">
-        <SecurityUserList :settings="settings" v-if="activeTab === 'users'" />
-        <Workspaces :settings="settings" v-if="activeTab === 'workspaces'" />
-        <ProjectScripts :settings="settings" v-if="activeTab === 'scripts'" />
-        <OAuthSettings :settings="settings" v-if="activeTab === 'oauth'" />
-        <PluginsEditor v-if="activeTab === 'plugins'" />
-        <GeneralSettings :settings="settings" v-if="activeTab === 'general'" />
-        <AISettings :settings="settings" v-if="activeTab === 'ai'" />
-        <AgentSettings v-if="activeTab === 'agents'" />
-        <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
-        <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
-      </div>
-    </main>
+        <div class="flex-1 overflow-y-auto p-8">
+          <SecurityUserList :settings="settings" v-if="activeTab === 'users'" />
+          <Workspaces :settings="settings" v-if="activeTab === 'workspaces'" />
+          <ProjectScripts :settings="settings" v-if="activeTab === 'scripts'" />
+          <OAuthSettings :settings="settings" v-if="activeTab === 'oauth'" />
+          <PluginsEditor v-if="activeTab === 'plugins'" />
+          <GeneralSettings :settings="settings" v-if="activeTab === 'general'" />
+          <AISettings :settings="settings" v-if="activeTab === 'ai'" />
+          <AgentSettings v-if="activeTab === 'agents'" />
+          <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
+          <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -92,6 +174,7 @@ export default {
     return {
       activeTab: 'general',
       settings: null,
+      drawerOpen: false,
       navItems: [
         { id: 'general', label: 'General', icon: 'fa-sliders' },
         { id: 'ai', label: 'AI Models', icon: 'fa-brain' },
@@ -133,6 +216,10 @@ export default {
         console.error('Import failed', e)
         this.$ui.addNotification({ text: 'Import failed', type: 'error' })
       }
+    },
+    selectTab(tabId) {
+      this.activeTab = tabId
+      this.drawerOpen = false
     },
     getActiveLabel() {
       return this.navItems.find(item => item.id === this.activeTab)?.label || 'Settings'
