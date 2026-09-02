@@ -2,16 +2,16 @@
 
 ## Overview
 
-The Generate Tasks Tool is a utility that enables LLM models to request generation of sub-tasks from within chat conversations. It bridges the SmolAgent execution environment with the task generation pipeline, allowing intelligent splitting of complex work into actionable, manageable sub-tasks.
+The Generate Tasks Tool is a utility that allows Language Model (LM) models to request generation of sub-tasks from within conversations. It bridges the SmolAgent execution environment with the task generation pipeline, enabling AI-driven task decomposition.
 
 ## Purpose
 
-This tool invokes the task generation pipeline, which analyzes the current chat context and creates a list of actionable sub-tasks. Each generated sub-task is created as a child chat connected to the parent through a parent_id relationship, maintaining organizational structure within the project.
+This tool invokes the task generation pipeline, which analyzes the current chat context and automatically creates a list of actionable sub-tasks. Each generated sub-task is created as a child chat connected to the parent through a parent_id relationship.
 
 ## Function Signature
 
 ```python
-def generate_tasks_tool(
+generate_tasks_tool(
     instructions: str = "",
     settings: Optional["CODXJuniorSettings"] = None,
 ) -> ToolResponse
@@ -19,50 +19,57 @@ def generate_tasks_tool(
 
 ## Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `instructions` | `str` | No | Optional additional instructions to guide the AI in creating sub-tasks (e.g., 'Focus on frontend tasks' or 'Split by component'). |
-| `settings` | `CODXJuniorSettings` | No | The CODXJuniorSettings instance, typically passed by the SmolAgent runtime. |
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `instructions` | `str` | Optional additional instructions for task generation to guide the AI in creating sub-tasks | `""` |
+| `settings` | `CODXJuniorSettings` | CODXJuniorSettings instance (passed by SmolAgent) | `None` |
 
 ## Return Value
 
-Returns a `ToolResponse` object containing:
+The function returns a `ToolResponse` object containing:
 
-- **user_content**: Human-readable summary of generated tasks
-- **llm_feedback**: JSON task list for model context
-
-## Behavior
-
-The tool performs the following operations:
-
-1. **Validation**: Verifies that settings are provided and an active session exists
-2. **Context Retrieval**: Accesses the current chat from the session context via the chat manager
-3. **Task Generation**: Invokes the asynchronous task generation pipeline
-4. **Async Handling**: Manages both async and sync execution contexts appropriately
-5. **Response Building**: Constructs a summary message with task information
+- **user_response**: Human-readable summary of generated tasks
+- **llm_response**: JSON task list for model context
 
 ## Exception Handling
 
-The tool raises exceptions in the following scenarios:
+The tool raises the following exceptions:
 
-| Exception | Condition |
-|-----------|-----------|
-| `ValueError` | Settings parameter is not provided |
-| `RuntimeError` | No active session exists in settings or no current chat found in session context |
-| `RuntimeError` | Task generation pipeline fails |
+| Exception | Scenario |
+|-----------|----------|
+| `ValueError` | If settings parameter is not provided |
+| `RuntimeError` | If no active session is available in settings or if task generation fails |
 
-All exceptions are logged with appropriate context for debugging purposes.
+## How It Works
 
-## Usage Notes
+1. **Validation**: Verifies that settings are provided and contain an active session context
+2. **Session Access**: Retrieves the active session from settings
+3. **Chat Context**: Obtains the current chat from the session context
+4. **Task Generation**: Invokes the async task generation pipeline via `session.chat_engine_actions.generate_tasks()`
+5. **Response Building**: Constructs a response containing task summaries and status
 
-- The SmolAgent runtime must inject the session context into settings via the `_active_session` attribute
-- The session must provide access to a current chat via the `_current_chat` attribute
-- The tool handles both asynchronous contexts (where an event loop is already running) and synchronous contexts (where a new event loop must be created)
-- Task generation happens asynchronously, with tasks appearing on the project board after completion
+## Event Loop Handling
 
-## Related Components
+The tool intelligently handles both asynchronous and synchronous contexts:
 
-- **CODXJuniorSettings**: Configuration object required for tool operation
-- **CODXJuniorSession**: Session management for accessing chat and task contexts
-- **ToolResponse**: Response model for tool outputs
-- **SmolAgent**: The runtime environment that executes this tool
+- If already in an async context, it creates a task that can be handled by the caller
+- If in a synchronous context, it runs the generation using `asyncio.run()`
+
+## Integration with SmolAgent
+
+The tool is designed to be injected into SmolAgent's execution environment. The SmolAgent runtime must:
+
+1. Provide the `settings` parameter with an active session reference stored in `settings._active_session`
+2. Ensure the session has a current chat available in `session._current_chat`
+3. Handle the asynchronous task creation appropriately based on the execution context
+
+## Error Handling
+
+The tool includes comprehensive error handling with logging at multiple levels:
+
+- **ERROR**: When settings are not provided
+- **INFO**: When task generation starts and completes successfully
+- **DEBUG**: When tasks are created asynchronously
+- **EXCEPTION**: When errors occur during task generation
+
+All exceptions are logged with full context before being raised to the caller.

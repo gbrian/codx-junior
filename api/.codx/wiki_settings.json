@@ -255,6 +255,11 @@
               "path": "/codx/junior/model/ai_model.py",
               "slug": "codx-junior-model-ai-model-py.md",
               "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-ai-model-py.md"
+            },
+            {
+              "path": "/codx/junior/model/profile.py",
+              "slug": "codx-junior-model-profile-py.md",
+              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-profile-py.md"
             }
           ],
           "id": "models",
@@ -374,6 +379,11 @@
           "path": "/codx/junior/tools/generate_tasks_tool.py",
           "slug": "codx-junior-tools-generate-tasks-tool-py.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-tools-generate-tasks-tool-py.md"
+        },
+        {
+          "path": "/codx/junior/ai/smol/tool_cache.py",
+          "slug": "codx-junior-ai-smol-tool-cache-py.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-tool-cache-py.md"
         }
       ],
       "id": "ai-and-knowledge-management",

@@ -8,62 +8,12 @@ Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
     * delegates logging, event emission and cancellation to
       :class:`engine.agent_runtime.AgentRunContext`,
     * keeps streaming, callbacks, cancellation and analytics.
+    * caches tool results per conversation to avoid re-execution.
 
 Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
 messages in real time.
-
-CHANGED: accumulated streaming callbacks:
-    Streaming callbacks now receive the FULL response accumulated so far on
-    every flush (not just the delta since the last flush). Downstream
-    consumers assign the callback payload directly to the response message
-    content and may persist it mid-stream (crash-safety), so sending only
-    deltas caused partial persists to contain just the last fragment of the
-    response. Accumulation guarantees no information is lost mid-run.
-
-CHANGED: tool scope support:
-    Tools can now be classified by scope (global, chat, profile). Global scope
-    tools are always included in conversations, while chat scope tools are
-    selectively included based on the request configuration.
-
-CHANGED: dual-response tools:
-    Tools can now return a ToolResponse object with both user-facing content
-    (displayed to the user) and lightweight LLM feedback (for model context).
-    This allows tools like code_block_generator to generate formatted output
-    while keeping the LLM loop lightweight.
-
-CHANGED: global chat instructions:
-    chat_global_instructions are loaded from GlobalSettings on every chat
-    (not cached) and prepended to the system message. Extra system instructions
-    passed to SmolAgent are appended after the global instructions.
-
-CHANGED: session context injection:
-    SmolAgent now injects session context into settings for tools that need
-    access to the current chat or session state (e.g., generate_tasks_tool).
-    This allows tools to interact with the broader execution context beyond
-    just their direct parameters.
-
-CHANGED: full response accumulation across tool loops:
-    Assistant responses generated during tool-calling loops are now accumulated
-    across iterations. Previously, only the final response (after all tool calls)
-    was returned to the client, losing all intermediate assistant text. Now all
-    streamed content is preserved and merged into the final message, ensuring
-    no information is lost when the model generates explanatory text before,
-    during, or after tool executions.
-
-CHANGED: tool call and iteration limits:
-    max_tool_calls and max_iterations are now resolved from AISettings with
-    priority: Model > Provider > Fallback. These limits are passed to LoopGuard
-    to enforce per-round breadth and overall depth limits on tool execution.
-
-CHANGED: robust tool result handling:
-    Tool results are now normalised before being sent back to the model.
-    None results are converted to a meaningful sentinel string, non-string/
-    non-dict results are JSON-serialised, and ALL exceptions (not just the
-    original four types: OSError/ValueError/TypeError/RuntimeError) are caught
-    and returned as error strings. This prevents the model from re-issuing
-    identical tool calls due to empty/missing/None tool messages.
 """
 import json
 import logging
@@ -94,6 +44,7 @@ from codx.junior.ai.smol.messages import (
     make_tool_message,
     to_openai_messages,
 )
+from codx.junior.ai.smol.tool_cache import ToolCache
 from codx.junior.analytics import Analytics
 from codx.junior.analytics.token_counter import count_tokens
 from codx.junior.model.model import CodxUser
@@ -221,77 +172,37 @@ class SmolAgent:
     ``config["run_context"]`` (e.g. to share a Socket.IO listener or a
     cancellation token) or plain listeners via ``config["event_listeners"]``.
 
-    CHANGED: streaming callback contract:
-        Callbacks registered via ``config["callbacks"]`` receive the FULL
-        response accumulated so far on every flush, never just the newest
-        delta. This makes mid-stream persistence of partial content
-        crash-safe (no fragment-only saves).
-
-    CHANGED: tool scope support:
-        Global scope tools are always included in conversations regardless of
-        the selected_tools list. Chat scope tools are selectively included
-        based on the request configuration.
-
-    CHANGED: dual-response tools:
-        Tools can return a ToolResponse object with both user-facing content
-        and LLM feedback. User content is accumulated for the final message,
-        while LLM feedback is sent to the model for continued processing.
-
-    CHANGED: global chat instructions:
-        chat_global_instructions are loaded from GlobalSettings on every chat
-        (not cached) and prepended to the system message. Extra system
-        instructions passed to SmolAgent are appended after global instructions.
-
-    CHANGED: session context injection:
-        Tools can access the current chat and session via injected context in
-        settings. This allows complex tools like generate_tasks_tool to interact
-        with the broader conversation state.
-
-    CHANGED: full response accumulation:
-        Assistant responses from all iterations (including those with tool_calls)
-        are now accumulated and merged into the final message. This preserves
-        all assistant text generated during the tool-calling loop, not just
-        the final response.
-
-    CHANGED: loop guard with resolved limits:
-        max_tool_calls and max_iterations are resolved from AISettings
-        (priority: Model > Provider > Fallback) and enforced by LoopGuard
-        on every tool round to prevent breadth and depth violations.
-
-    CHANGED: robust tool result handling:
-        Tool results are normalised via ``_normalise_tool_result`` before being
-        sent back to the model. None/empty results are replaced with a
-        meaningful sentinel. All exceptions (not just OSError/ValueError/
-        TypeError/RuntimeError) are caught and returned as error strings so the
-        model always receives a non-empty tool message, preventing re-issuance
-        of identical calls.
-
     Conversation flow
     ```mermaid
         flowchart TD
             A[chat] --> B[Resolve AgentRunContext]
             B --> C[run_context.run - RUN_START]
             C --> D[Build OpenAI messages]
-            D --> E[Stream completion via guard_stream]
-            E -->|chunk| E1[Accumulate chunk]
-            E1 -->|flush| E2[Callback with FULL accumulated content]
-            E --> F{finish_reason?}
-            F -->|tool_calls| G[LoopGuard.check - depth & breadth & stuck]
-            G -->|ok| H["Save streamed content to llm_responses_accumulated"]
-            H --> I[Execute tools - TOOL_START/END/ERROR]
-            I --> J{Dual-response tool?}
-            J -->|yes| J1[Extract user_content + normalise llm_feedback]
-            J -->|no| J2[Normalise result - never None/empty]
-            J1 --> J3[Accumulate user_content]
-            J1 --> K[Send llm_feedback to model]
-            J2 --> K
-            J3 --> K
-            K --> L[Append to openai_messages]
-            L --> E
-            G -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
-            F -->|stop / length| N[Merge all llm_responses_accumulated + user_content]
-            N --> O[Record usage - RUN_END]
-            E -->|cancelled| P[RUN_CANCELLED - raise CancelledError]
+            D --> E[Initialize ToolCache]
+            E --> F[Stream completion via guard_stream]
+            F -->|chunk| F1[Accumulate chunk]
+            F1 -->|flush| F2[Callback with FULL accumulated content]
+            F --> G{finish_reason?}
+            G -->|tool_calls| H[Check ToolCache]
+            H -->|HIT| H1[Skip _execute_tool - use cached]
+            H -->|HIT| H2[Emit TOOL_END with cached=true]
+            H -->|MISS| I[LoopGuard.check - depth & breadth & stuck]
+            I -->|ok| J[Execute tool - TOOL_START/END/ERROR]
+            H1 --> K{Dual-response tool?}
+            J --> K
+            K -->|yes| K1[Append user_response to response_content]
+            K -->|yes| K2[Send llm_response as tool result to model only]
+            K -->|no| K3[Send normalised result as tool result to model only]
+            K1 --> K4[Flush full response_content to callback]
+            K2 --> L[Append to openai_messages]
+            K3 --> L
+            K4 --> L
+            L --> F
+            I -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
+            G -->|stop / length| N[Append final LLM text to response_content]
+            N --> O[response_message.content = response_content]
+            O --> P[Record usage + cache stats - RUN_END]
+            F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
     ```
     """
 
@@ -382,6 +293,9 @@ class SmolAgent:
         ``RUN_START`` / ``RUN_END`` / ``RUN_ERROR`` / ``RUN_CANCELLED`` events
         with an analytics summary attached.
 
+        Tool results are cached within this conversation to avoid re-execution
+        if the model requests the same tool with identical arguments.
+
         Args:
             messages: Conversation history as LangChain message objects.
             config:   Optional dict with keys: ``tools``, ``chat_id``,
@@ -392,10 +306,9 @@ class SmolAgent:
 
         Returns:
             Updated *messages* list with the assistant reply appended.
-            User-facing content from dual-response tools is included in
-            the assistant message content. All assistant responses across
-            the entire tool-calling loop are preserved and merged into
-            the final message.
+            The reply contains LLM-streamed text and user_response from
+            dual-response tools. Tool results (llm_response, plain outputs)
+            are never included in the final response.
 
         Raises:
             ToolLoopError:  If max tool rounds, max tool calls, or a stuck
@@ -429,25 +342,17 @@ class SmolAgent:
         """
         Execute the iterative streaming/tool loop for one conversation.
 
-        Flow:
-        1. Stream completion from LLM
-        2. Accumulate streamed content and check for tool calls
-        3. If tool_calls exist:
-           a. Guard against infinite loops (via LoopGuard):
-              - Check iteration depth (max_iterations)
-              - Check tool calls per round (max_tool_calls)
-              - Detect stuck loops (identical consecutive rounds)
-           b. **Save the streamed content to llm_responses_accumulated**
-           c. Append assistant message with tool_calls to conversation
-           d. For each tool:
-              - Execute the tool
-              - Normalise the result via _normalise_tool_result (never None/empty)
-              - If result is ToolResponse: normalise both user_content and llm_feedback
-              - Append tool message to conversation
-           e. Loop back to step 1
-        4. If no tool_calls, merge LLM content with accumulated user_content
-           and all prior llm_responses_accumulated from tool-calling iterations
-        5. Record analytics and return updated messages
+        Response accumulation strategy:
+        - ``response_content``: single accumulator for all content:
+          * LLM-streamed text across every iteration (tool-calling rounds + final).
+          * user_response from ToolResponse tools (appended when produced).
+        - Tool results (llm_response and plain outputs) go to the model via
+          tool messages but are NEVER added to response_content.
+
+        Tool caching:
+        - Identical tool calls (same name + args) are cached per conversation.
+        - Cached results bypass LoopGuard checks (don't count towards limits).
+        - Both successful and failed results are cached.
 
         Args:
             messages:    Conversation history as LangChain message objects.
@@ -491,9 +396,17 @@ class SmolAgent:
             max_iterations=self.llm_settings.max_iterations,
             max_tool_calls=self.llm_settings.max_tool_calls,
         )
+
+        # Initialize tool cache for this conversation.
+        # Cached results bypass LoopGuard checks and don't count towards limits.
+        tool_cache = ToolCache()
+
         request_start = time.monotonic()
-        user_facing_content: List[str] = []
-        llm_responses_accumulated: List[str] = []
+
+        # Single accumulator for all user-facing response content:
+        # LLM-streamed text + user_response from dual-response tools.
+        # Tool results (llm_response, plain outputs) are never included here.
+        response_content: str = ""
 
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
@@ -509,14 +422,15 @@ class SmolAgent:
             )
 
             if not tool_calls:
-                # Final response (no tool calls): add current content to accumulated
+                # Final response (no tool calls): append content and exit
                 if content:
-                    llm_responses_accumulated.append(content)
+                    response_content += content
                 break
 
-            # Tool calls detected: save streamed content and continue loop
+            # Tool calls detected: append any LLM text streamed in this round
+            # before processing tools, so it appears in order in the response.
             if content:
-                llm_responses_accumulated.append(content)
+                response_content += content
                 logger.debug(
                     "SmolAgent: round %d accumulated %d bytes of LLM text "
                     "before tool execution",
@@ -524,60 +438,146 @@ class SmolAgent:
                     len(content),
                 )
 
-            # Guard against loops BEFORE executing any tool.
-            # This checks: depth (max_iterations), breadth (max_tool_calls),
-            # and stuck loops (identical consecutive rounds).
-            loop_guard.check(tool_calls)
+            # Separate cached and non-cached tool calls
+            cached_calls: Dict[str, Dict[str, Any]] = {}
+            uncached_calls: Dict[str, Dict[str, Any]] = {}
+
+            for tool_id, tool_call in tool_calls.items():
+                func_name = tool_call["function"]
+                params = self._parse_tool_arguments(
+                    tool_call.get("arguments", "{}"), func_name
+                )
+                cached_result = tool_cache.get(func_name, params)
+
+                if cached_result is not None:
+                    cached_calls[tool_id] = {
+                        "tool_call": tool_call,
+                        "params": params,
+                        "result": cached_result,
+                    }
+                else:
+                    uncached_calls[tool_id] = tool_call
+
+            # Guard ONLY against uncached tool calls. Cached results bypass
+            # LoopGuard checks entirely (don't count towards max_tool_calls
+            # or max_iterations).
+            if uncached_calls:
+                loop_guard.check(uncached_calls)
+
+            total_tools = len(tool_calls)
+            cached_count = len(cached_calls)
+            if cached_count > 0:
+                logger.info(
+                    "SmolAgent: round %d: %d/%d tool(s) cached, "
+                    "%d new",
+                    loop_guard.rounds,
+                    cached_count,
+                    total_tools,
+                    len(uncached_calls),
+                )
 
             logger.info(
                 "SmolAgent: round %d: executing %d tool(s)",
                 loop_guard.rounds,
-                len(tool_calls),
+                len(uncached_calls),
             )
+
+            # Add message to record which tools were requested
             openai_messages.append(
                 make_assistant_tool_calls_message(tool_calls, content=content)
             )
-            for tool_call in tool_calls.values():
+
+            # Process cached tool calls (no execution, just emit events)
+            for tool_id, cached_info in cached_calls.items():
+                tool_call = cached_info["tool_call"]
+                result = cached_info["result"]
+                func_name = tool_call["function"]
+
+                # Emit TOOL_END with cached=True for observability
+                run_context.emit(
+                    AgentEventType.TOOL_END,
+                    tool=func_name,
+                    tool_call_id=tool_id,
+                    duration_ms=0,
+                    result=(
+                        result[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+                        if isinstance(result, str)
+                        else str(result)[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+                    ),
+                    cached=True,
+                )
+
+                # Append cached result to model conversation
+                openai_messages.append(
+                    make_tool_message(
+                        tool_call_id=tool_id,
+                        content=_normalise_tool_result(result, func_name),
+                    )
+                )
+
+                logger.debug(
+                    "SmolAgent: cached tool '%s' appended to conversation "
+                    "(openai_messages now has %d entries)",
+                    func_name,
+                    len(openai_messages),
+                )
+
+            # Process uncached tool calls — check cancellation between each
+            # tool execution so a cancellation request is honoured promptly
+            # even when multiple tools are being processed sequentially in
+            # one round.
+            for tool_id, tool_call in uncached_calls.items():
+                # Cancellation checkpoint BEFORE each tool.
+                # _execute_tool also calls checkpoint internally, but checking
+                # here ensures we never start a tool when already cancelled.
+                run_context.checkpoint()
+
                 tool_result = await self._execute_tool(
                     tool_call,
                     request_id=request_id,
                     chat_id=chat_id,
                     run_context=run_context,
+                    tool_cache=tool_cache,
                 )
 
                 if isinstance(tool_result, ToolResponse):
-                    # Dual-response tool: accumulate user-facing content and
-                    # send normalised LLM feedback back to the model.
-                    # Guard against None/empty user_content before appending.
-                    if tool_result.user_content:
-                        user_facing_content.append(tool_result.user_content)
+                    # Dual-response tool:
+                    # - user_response → response_content (appears in final response)
+                    # - llm_response → model tool message only (NOT in response)
+                    if tool_result.user_response:
+                        response_content += (
+                            f"\n```\n{tool_result.user_response}\n```\n"
+                        )
+                        # Flush the FULL accumulated content to client immediately
+                        # so user_response is visible during processing.
+                        send_callback(response_content, True)
                         logger.debug(
                             "SmolAgent: dual-response tool '%s' produced %d bytes "
-                            "of user content",
+                            "of user content; flushed full accumulated response",
                             tool_call["function"],
-                            len(tool_result.user_content),
+                            len(tool_result.user_response),
                         )
                     # Normalise LLM feedback – the model must never receive
                     # an empty tool message or it will repeat the same call.
-                    llm_feedback = _normalise_tool_result(
-                        tool_result.llm_feedback, tool_call["function"]
+                    llm_response = _normalise_tool_result(
+                        tool_result.llm_response, tool_call["function"]
                     )
                     openai_messages.append(
                         make_tool_message(
-                            tool_call_id=tool_call["id"],
-                            content=llm_feedback,
+                            tool_call_id=tool_id,
+                            content=llm_response,
                         )
                     )
                 else:
-                    # Traditional single-response tool: normalise before sending.
-                    # This handles None, empty string, and non-string return values
-                    # that would otherwise cause the model to repeat the call.
+                    # Traditional single-response tool: normalise and send to
+                    # the model only. Plain tool results are NOT added to the
+                    # final user-facing response.
                     normalised = _normalise_tool_result(
                         tool_result, tool_call["function"]
                     )
                     openai_messages.append(
                         make_tool_message(
-                            tool_call_id=tool_call["id"],
+                            tool_call_id=tool_id,
                             content=normalised,
                         )
                     )
@@ -592,38 +592,23 @@ class SmolAgent:
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
             openai_messages=openai_messages,
-            output_text="\n\n".join(llm_responses_accumulated),
+            output_text=response_content,
             duration_seconds=duration_seconds,
             tags=tags,
             session_id=session_id,
             request_id=request_id,
             usage_info=usage_info,
             chat_id=chat_id,
+            tool_cache=tool_cache,
         )
 
-        # Merge all components into the final response:
-        # 1. All LLM-streamed content across all iterations (tool-calling and final)
-        # 2. User-facing content from dual-response tools
-        final_content_parts: List[str] = []
-        final_content_parts.extend(llm_responses_accumulated)
-        final_content_parts.extend(user_facing_content)
-        final_content = "\n\n".join(part for part in final_content_parts if part)
-
-        if user_facing_content:
+        if response_content:
             logger.info(
-                "SmolAgent: merged %d user-facing content segment(s) "
-                "with %d LLM response segment(s) into final message",
-                len(user_facing_content),
-                len(llm_responses_accumulated),
-            )
-        if len(llm_responses_accumulated) > 1:
-            logger.info(
-                "SmolAgent: final message contains text from %d iteration(s) "
-                "of the tool loop",
-                len(llm_responses_accumulated),
+                "SmolAgent: final response assembled with %d characters",
+                len(response_content),
             )
 
-        messages.append(AIMessage(content=final_content))
+        messages.append(AIMessage(content=response_content))
         return messages
 
     # ── Runtime context ────────────────────────────────────────────────────────
@@ -751,6 +736,7 @@ class SmolAgent:
         run_context: AgentRunContext,
         request_id: Optional[str] = None,
         chat_id: Optional[str] = None,
+        tool_cache: Optional[ToolCache] = None,
     ) -> Union[str, ToolResponse]:
         """
         Execute a single tool call and return its output.
@@ -764,15 +750,20 @@ class SmolAgent:
         never receives an empty tool message that would cause it to repeat
         the same call.
 
+        Results are cached by tool name + parameters hash for reuse within
+        the conversation.
+
         Tools can return either:
-            - str: Traditional single-response (used for LLM context)
-            - ToolResponse: Dual-response with user_content and llm_feedback
+            - str: Traditional single-response (used for LLM context only)
+            - ToolResponse: Dual-response; user_response goes to the final
+              response, llm_response goes to the model only.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
             run_context: Unified runtime context for this run.
             request_id:  Traceability link to the triggering LLM request.
             chat_id:     Chat identifier for analytics.
+            tool_cache:  Optional tool result cache for this conversation.
 
         Returns:
             The tool result as a string or ToolResponse object.
@@ -829,10 +820,15 @@ class SmolAgent:
 
             # Build result_preview for the TOOL_END event payload.
             if isinstance(result, ToolResponse):
-                result_preview = (result.llm_feedback or "")[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+                result_preview = (result.llm_response or "")[:TOOL_RESULT_PREVIEW_MAX_CHARS]
             else:
                 result_str = result if isinstance(result, str) else json.dumps(result)
                 result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
+
+            # Cache the result before returning
+            if tool_cache:
+                tool_cache.set(func_name, params, result, success=True)
+
             return result
 
         except Exception as ex:
@@ -841,8 +837,14 @@ class SmolAgent:
             # re-issues the same tool call due to a missing tool message.
             success = False
             error_message = str(ex)
+            error_result = f"Error executing tool '{func_name}': {ex}"
             logger.exception("SmolAgent: error executing tool '%s'", func_name)
-            return f"Error executing tool '{func_name}': {ex}"
+
+            # Cache the error result too so we don't re-execute a failing tool
+            if tool_cache:
+                tool_cache.set(func_name, params, error_result, success=False)
+
+            return error_result
 
         finally:
             duration_ms = (time.monotonic() - tool_start) * 1000
@@ -969,17 +971,6 @@ class SmolAgent:
         Return a closure that batches streamed chunks and flushes the FULL
         ACCUMULATED response to callbacks.
 
-        CHANGED: accumulation fix:
-        Previously each flush sent only the delta buffered since the last
-        flush and then cleared the buffer. Downstream consumers (e.g.
-        ``ChatEngine.send_message_event``) ASSIGN the callback payload to
-        ``response_message.content`` and may PERSIST it mid-stream via the
-        ChatEventBridge throttled persist: so partial saves contained only
-        the last fragment of the response. Now the sender keeps the complete
-        response accumulated across the whole run and sends it on every
-        flush, guaranteeing that no streamed information is ever lost in
-        mid-run persists.
-
         flowchart TD
             A[chunk arrives] --> B[Append to buffer]
             B --> C{flush or interval elapsed?}
@@ -1048,9 +1039,13 @@ class SmolAgent:
         request_id: Optional[str],
         usage_info: Any,
         chat_id: Optional[str],
+        tool_cache: Optional[ToolCache] = None,
     ) -> None:
         """
         Record token usage to analytics (non-fatal on error).
+
+        Includes tool cache statistics in analytics for visibility into
+        cache performance.
 
         Args:
             openai_messages:  Full conversation sent to the model.
@@ -1061,6 +1056,7 @@ class SmolAgent:
             request_id:       Last request identifier.
             usage_info:       Provider-reported token usage (may be ``None``).
             chat_id:          Chat identifier.
+            tool_cache:       Tool cache for this conversation (optional).
         """
         try:
             input_tokens = getattr(usage_info, "prompt_tokens", 0) or 0
@@ -1077,6 +1073,16 @@ class SmolAgent:
             if not output_tokens:
                 output_tokens = count_tokens(output_text, model=self.model)
 
+            # Augment tags with cache statistics if available
+            cache_tags = tags
+            if tool_cache:
+                cache_stats = tool_cache.stats()
+                cache_tags += (
+                    f",cache_hits:{cache_stats['hits']},"
+                    f"cache_misses:{cache_stats['misses']},"
+                    f"cache_hit_rate:{cache_stats['hit_rate']}"
+                )
+
             _get_analytics().record_token_usage(
                 username=self.user.username if self.user else "anonymous",
                 project_name=self.settings.project_name or "",
@@ -1087,7 +1093,7 @@ class SmolAgent:
                 output_tokens=output_tokens,
                 duration_seconds=duration_seconds,
                 session_id=session_id,
-                tags=tags,
+                tags=cache_tags,
                 input_k_tokens_cxjcoins=getattr(
                     self.llm_settings, "input_k_tokens_cxjcoins", 0.0
                 ) or 0.0,

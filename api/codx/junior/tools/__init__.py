@@ -100,24 +100,35 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_search",
-                "description": "Search for documents within a project using the provided search string.",
+                "description": (
+                    "Search for documents within a project using one or more search queries. "
+                    "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
+                    "as a list instead of making separate calls. "
+                    "Example: search=[\"authentication\", \"user session\"] instead of two separate calls."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "search": {
-                            "type": "string",
-                            "description": "The search query string used to find relevant documents."
+                            "type": ["string", "array"],
+                            "description": (
+                                "Single search query (string) or list of search queries (array of strings). "
+                                "Combining multiple related queries in one call is more efficient."
+                            )
                         },
                         "validation": {
                             "type": "string",
-                            "description": "An optional brief text used to validate the content found by the search. This text will help reducing large documents and extracting only important content. "
+                            "description": (
+                                "Optional text used to validate and filter search results. "
+                                "Helps extract only important content from large documents."
+                            )
                         }
                     },
                     "required": ["search"]
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
         "tool_call": project_search
     },
     {
@@ -125,21 +136,60 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_read_file",
-                "description": "Allows to read project's file content from a relative or absolute file path",
+                "description": (
+                    "Read project file content from one or multiple file paths. "
+                    "BULK OPERATION: To reduce tool calls, read multiple related files at once "
+                    "by providing a list of paths instead of making separate calls. "
+                    "Example: file_path=[\"src/main.py\", \"config/settings.py\"] "
+                    "instead of two separate calls. "
+                    "Invalid or missing files are returned as error blocks."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "file_path": {
-                            "type": "string",
-                            "description": "Relative or absolute path to the file to read."
+                            "type": ["string", "array"],
+                            "description": (
+                                "Single file path (string) or list of file paths (array of strings). "
+                                "Supports relative or absolute paths and glob patterns. "
+                                "Reading multiple files in one call is more efficient."
+                            )
                         }
                     },
                     "required": ["file_path"]
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
         "tool_call": project_read_file
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_write_file",
+                "description": (
+                    "Write content to a project file. Creates the file or directory if it doesn't exist. "
+                    "Currently supports writing a single file per call."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to write."
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The content to write to the file."
+                        }
+                    },
+                    "required": ["file_path", "content"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tool_call": project_write_file
     },
     {
         "tool_json": {
@@ -199,8 +249,5 @@ TOOLS = [
         "tool_call": generate_tasks_tool
     }
 ]
-
-# Documentation advice
-# Don't document **kwargs parameters. They are internal.
 
 # Made with ❤️ by codx-junior

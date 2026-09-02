@@ -39,8 +39,8 @@ def generate_tasks_tool(
 
     Returns:
         ToolResponse with:
-            - user_content: Human-readable summary of generated tasks
-            - llm_feedback: JSON task list for model context
+            - user_response: Human-readable summary of generated tasks
+            - llm_response: JSON task list for model context
 
     Raises:
         ValueError: If settings is not provided or session is unavailable.
@@ -123,8 +123,8 @@ def generate_tasks_tool(
         )
 
         return ToolResponse(
-            user_content=user_message,
-            llm_feedback=task_list,
+            user_response=user_message,
+            llm_response=task_list,
         )
 
     except Exception as ex:

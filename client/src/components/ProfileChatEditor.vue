@@ -51,6 +51,7 @@ import Chat from '@/components/chat/Chat.vue'
         :showHidden="false"
         :childrenChats="[]"
         :filter="null"
+        :files="chatFiles"
         @refresh-chat="reloadChat"
       />
     </div>
@@ -78,7 +79,8 @@ import { v4 as uuidv4 } from 'uuid'
 
 export default {
   props: {
-    profile: Object
+    profile: Object,
+    initialContent: String
   },
   emits: ['update:chatId', 'content-changed', 'save-chat-id'],
   data() {
@@ -97,6 +99,18 @@ export default {
         .filter(c => c.mode === 'task' && c.project_id === this.$project.project_id)
         .map(c => ({ id: c.id, name: c.name }))
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    },
+    chatFiles() {
+      // ADDED: Construct markdown file reference from profile path
+      if (!this.profile?.path) return null
+      
+      const markdownPath = this.profile.path.replace('.profile', '.md.profile')
+      return [
+        {
+          path: markdownPath,
+          name: `${this.profile.name}.md`
+        }
+      ]
     }
   },
   watch: {

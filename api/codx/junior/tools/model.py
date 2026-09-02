@@ -23,21 +23,21 @@ class ToolResponse:
     for continued processing.
 
     Attributes:
-        user_content: Formatted content displayed to the user.
-        llm_feedback: Lightweight feedback for the LLM context.
+        user_response: Formatted content displayed to the user.
+        llm_response: Lightweight feedback for the LLM context.
     """
 
-    def __init__(self, user_content: str, llm_feedback: str) -> None:
+    def __init__(self, user_response: str, llm_response: str) -> None:
         """
         Initialize a dual-return tool response.
 
         Args:
-            user_content: Content visible to the user in the chat interface.
-            llm_feedback: Feedback/status message for the LLM context.
+            user_response: Content visible to the user in the chat interface.
+            llm_response: Feedback/status message for the LLM context.
         """
-        self.user_content: str = user_content
-        self.llm_feedback: str = llm_feedback
+        self.user_response: str = user_response
+        self.llm_response: str = llm_response
 
     def __str__(self) -> str:
         """Return the LLM feedback (for backward compatibility)."""
-        return self.llm_feedback
+        return self.llm_response

@@ -35,8 +35,8 @@ def code_block_generator(
 
     Returns:
         ToolResponse: A dual-return object containing:
-                     - user_content: The formatted markdown code block
-                     - llm_feedback: Status message for the LLM
+                     - user_response: The formatted markdown code block
+                     - llm_response: Status message for the LLM
 
     Example:
         >>> result = code_block_generator(
@@ -44,9 +44,9 @@ def code_block_generator(
         ...     file_path="codx/app.py",
         ...     content="print('hello')"
         ... )
-        >>> result.user_content
+        >>> result.user_response
         '```python codx/app.py\\nprint(\'hello\')\\n```'
-        >>> result.llm_feedback
+        >>> result.llm_response
         'Code block created successfully'
 
     Made with ❤️ by codx-junior
@@ -57,24 +57,24 @@ def code_block_generator(
             error_msg: str = "Language parameter must be a non-empty string"
             logger.warning(error_msg)
             return ToolResponse(
-                user_content="",
-                llm_feedback=error_msg
+                user_response="",
+                llm_response=error_msg
             )
 
         if not isinstance(file_path, str) or not file_path.strip():
             error_msg = "File path parameter must be a non-empty string"
             logger.warning(error_msg)
             return ToolResponse(
-                user_content="",
-                llm_feedback=error_msg
+                user_response="",
+                llm_response=error_msg
             )
 
         if not isinstance(content, str):
             error_msg = "Content parameter must be a string"
             logger.warning(error_msg)
             return ToolResponse(
-                user_content="",
-                llm_feedback=error_msg
+                user_response="",
+                llm_response=error_msg
             )
 
         logger.debug(
@@ -89,15 +89,15 @@ def code_block_generator(
         logger.debug("Code block generated successfully for: %s", file_path)
 
         return ToolResponse(
-            user_content=code_block,
-            llm_feedback="Code block created successfully"
+            user_response=code_block,
+            llm_response="Code block created successfully"
         )
 
     except Exception as e:
         error_msg = f"Unexpected error generating code block: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return ToolResponse(
-            user_content="",
-            llm_feedback=error_msg
+            user_response="",
+            llm_response=error_msg
         )
 

@@ -1,29 +1,29 @@
-# Tools Module
+# Tools Module Documentation
 
 ## Overview
 
-The Tools module aggregates all available tools for chat and project interactions within the codx-junior API. Tools are implemented as callable functions with associated metadata for seamless integration with language models and the API.
+The tools module serves as the central aggregation point for all available tools in the codx-junior API. These tools enable chat interactions and project manipulations through callable functions with associated metadata designed for language model integration.
 
-## Tool Scope Levels
+## Tool Organization
 
-Tools are organized by their availability and usage context:
+Tools are organized into three distinct scope levels that determine their availability:
 
-- **global**: Tools always included in conversations (e.g., `code_block_generator`)
-- **chat**: Tools available based on conversation context and selection
+- **global**: Tools that are always included in conversations (e.g., `code_block_generator`)
+- **chat**: Tools available based on conversation context and user selection
 - **profile**: Tools available based on user profile or role
 
-## Tool Response Types
+## Response Types
 
-Tools can return responses in two formats:
+Tools support two response mechanisms:
 
-- **str**: Traditional single-string response used for LLM context
-- **ToolResponse**: Dual-return object for tools that need to produce both user-facing content and LLM feedback
+- **str**: Traditional single-string responses used for language model context
+- **ToolResponse**: A dual-return object for tools requiring both user-facing content and language model feedback
 
 ## Available Tools
 
 ### fetch_webpage
 
-Fetch a webpage and convert it to markdown format.
+Retrieves and converts webpage content to markdown format.
 
 **Parameters:**
 - `url` (string, required): The URL of the webpage to fetch
@@ -31,62 +31,86 @@ Fetch a webpage and convert it to markdown format.
 - `max_length` (integer): Maximum length of the output markdown
 - `headers` (object): Optional HTTP headers for the request
 
-**Scope:** chat
+**Scope:** chat | **Async:** No
 
 ### project_search
 
-Search for documents within a project using the provided search string.
+Searches for documents within a project using one or more search queries. Supports bulk operations to reduce tool calls by providing multiple queries simultaneously.
 
 **Parameters:**
-- `search` (string, required): The search query string used to find relevant documents
-- `validation` (string): Optional brief text used to validate content found by the search, helping reduce large documents and extract only important content
+- `search` (string or array, required): Single search query or list of search queries
+- `validation` (string): Optional text to validate and filter search results from large documents
 
-**Scope:** chat
+**Scope:** chat | **Async:** No | **Dual Response:** Yes
+
+**Note:** Providing multiple related queries in one call is more efficient than making separate calls.
 
 ### project_read_file
 
-Read project file content from a relative or absolute file path.
+Reads project file content from one or multiple file paths. Supports bulk operations for reading multiple files at once.
 
 **Parameters:**
-- `file_path` (string, required): Relative or absolute path to the file to read
+- `file_path` (string or array, required): Single file path or list of file paths; supports relative/absolute paths and glob patterns
 
-**Scope:** chat
+**Scope:** chat | **Async:** No | **Dual Response:** Yes
+
+**Note:** Invalid or missing files are returned as error blocks. Multiple file reads in one call are more efficient.
+
+### project_write_file
+
+Writes content to a project file, automatically creating the file or directory if it doesn't exist.
+
+**Parameters:**
+- `file_path` (string, required): Relative or absolute path to the file
+- `content` (string, required): The content to write to the file
+
+**Scope:** chat | **Async:** No | **Dual Response:** Yes
+
+**Note:** Currently supports writing a single file per call.
 
 ### project_structure
 
-Get the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.
+Retrieves the project structure with files and folders, presenting a tree-like representation of project organization.
 
 **Parameters:**
-- `include_details` (boolean): If true, includes additional metadata like file counts and folder statistics (default: false)
-- `max_depth` (integer): Maximum folder depth to traverse; null for no limit (default: null)
-- `include_file_sizes` (boolean): If true, includes file sizes in bytes for each file (default: false)
+- `include_details` (boolean): Includes additional metadata like file counts and folder statistics (default: False)
+- `max_depth` (integer): Maximum folder depth to traverse; null for unlimited (default: None)
+- `include_file_sizes` (boolean): Includes file sizes in bytes for each file (default: False)
 
-**Scope:** chat
-
-### generate_tasks_tool
-
-Generate sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
-
-**Parameters:**
-- `instructions` (string): Optional additional instructions to guide task creation (e.g., "Focus on frontend tasks" or "Split by component")
-
-**Scope:** chat | **Dual Response:** Enabled
-
-### code_writer
-
-Utility for writing and managing code within projects.
-
-**Scope:** global
+**Scope:** chat | **Async:** No
 
 ### code_block_generator
 
-Utility for generating code blocks with proper formatting and syntax highlighting.
+Tool for generating code blocks with associated metadata for integration with the API.
 
 **Scope:** global
 
-## Test Tool
+### code_writer
 
-A simple debugging utility that returns a test confirmation message.
+Tool for writing and managing code within the project context.
+
+### generate_tasks_tool
+
+Generates sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
+
+**Parameters:**
+- `instructions` (string): Optional additional instructions to guide task creation (e.g., 'Focus on frontend tasks')
+
+**Scope:** chat | **Async:** No | **Dual Response:** Yes
+
+## Bulk Operations
+
+Several tools support bulk operations to improve efficiency:
+
+- **project_search**: Provide multiple search queries as an array
+- **project_read_file**: Provide multiple file paths as an array
+
+This approach reduces the number of tool calls and improves overall performance compared to making separate requests.
+
+## Error Handling
+
+- The `project_read_file` tool returns invalid or missing files as error blocks
+- All tools maintain logging capabilities through the integrated logger for debugging purposes
 
 ## Dependencies
 **Imports from:** codx/junior/tools/fetch_webpage.py, codx/junior/tools/project_tools.py, codx/junior/tools/code_writer.py

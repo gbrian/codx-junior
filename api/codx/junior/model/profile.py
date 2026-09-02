@@ -21,7 +21,6 @@ class Profile(BaseModel):
     content: Optional[str] = Field(default=None)
     parsed_content: Optional[str] = Field(default=None)
     path: str = Field(default="")
-    content_path: str = Field(default="")
     profiles: Optional[List[str]] = Field(default=[], description="Linked profiles to include with this profile")
     llm_model: Optional[str] = Field(default='')
     use_knowledge: Optional[bool] = Field(default=True)
