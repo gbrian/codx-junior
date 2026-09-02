@@ -4,6 +4,7 @@ import json
 import logging
 import datetime
 import yaml
+import re
 
 from pathlib import Path
 
@@ -52,6 +53,8 @@ WIKI_FILE_PATH_TEMPLATE = "/{slug}.md"
 HOME_PAGE_UPDATE_EVENT = "Build home page"
 WIKI_TREE_FILE_NAME = 'wiki_tree.json'
 MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
+INVALID_FILENAME_CHARS = re.compile(r'[\[\]<>:"|?*\x00-\x1f]')
+MAX_FILENAME_LENGTH = 200
 
 
 class WikiCategory(BaseModel):
@@ -103,6 +106,17 @@ class WikiManager:
         return self._ai_instance
 
     def _ai_chat(self, prompt: str, tags: str = "", clean: bool = True):
+        """
+        Execute an AI chat request with the given prompt.
+
+        Args:
+            prompt: The prompt to send to the AI.
+            tags: Additional tags for the request.
+            clean: Whether to clean markdown code fence wrapping.
+
+        Returns:
+            List of chat messages from the AI.
+        """
         tags = f"{tags},wiki" if tags else "wiki"
         headers = {"tags": tags}
         messages = self._get_ai().chat(prompt=prompt, headers=headers)
@@ -129,11 +143,14 @@ class WikiManager:
         """Read and deserialize wiki_settings from JSON."""
         try:
             file_path = self._get_settings_path()
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 wiki_settings = json.load(f)
             logger.info("Wiki settings loaded from %s", file_path)
             self._fix_wiki_categories(wiki_settings)
             return wiki_settings
+        except FileNotFoundError:
+            logger.warning("Wiki settings file not found: %s", file_path)
+            return {"categories": []}
         except Exception as e:
             logger.exception("Error loading wiki settings: %s", e)
             return {"categories": [], "error": str(e)}
@@ -248,6 +265,11 @@ class WikiManager:
             logger.debug("Wiki is not active, skipping document creation for %s", source)
             return None
 
+        # Validate source path to prevent malformed filenames
+        if not self._is_valid_source_path(source):
+            logger.warning("Invalid source path detected: %s", source)
+            return None
+
         file_content = self._read_file(source)
         if not file_content:
             logger.warning("Empty or unreadable file, skipping: %s", source)
@@ -264,6 +286,11 @@ class WikiManager:
         project_name = self.settings.project_name
         wiki_path = category["path"]
         wiki_file_path = self._determine_wiki_file_path(category, source)
+
+        # Validate wiki file path before attempting to read
+        if not self._is_valid_wiki_file_path(wiki_file_path):
+            logger.error("Invalid wiki file path generated: %s", wiki_file_path)
+            return None
 
         current_wiki_content = (
             self._read_file(wiki_file_path)
@@ -435,11 +462,13 @@ class WikiManager:
     # ─────────────────────────────────────────────────────────────
 
     def compile_wiki(self) -> None:
+        """Compile the wiki based on its configuration."""
         wiki_settings = self.load_wiki_settings()
         if wiki_settings.get("mode") == "mkdocs":
             self._update_mkdocs()
 
     def _update_wiki_conf(self) -> None:
+        """Update wiki configuration files."""
         wiki_settings = self.load_wiki_settings()
         if wiki_settings.get("mode") == "mkdocs":
             self._update_mkdocs()
@@ -454,7 +483,7 @@ class WikiManager:
 
         current_mkdocs_content: Dict[str, Any] = {"nav": []}
         if mkdocs_file_path.exists():
-            with open(mkdocs_file_path, 'r') as f:
+            with open(mkdocs_file_path, 'r', encoding='utf-8') as f:
                 loaded = yaml.safe_load(f)
                 if isinstance(loaded, dict):
                     current_mkdocs_content = loaded
@@ -502,7 +531,7 @@ class WikiManager:
                 return
 
             current_mkdocs_content["nav"] = updated_nav
-            with open(mkdocs_file_path, 'w') as f:
+            with open(mkdocs_file_path, 'w', encoding='utf-8') as f:
                 yaml.dump(current_mkdocs_content, f, default_flow_style=False, allow_unicode=True)
             logger.info("mkdocs.yml updated at %s", mkdocs_file_path)
         except Exception as e:
@@ -513,6 +542,7 @@ class WikiManager:
     # ─────────────────────────────────────────────────────────────
 
     def build_dependency_graph(self) -> DependencyGraph:
+        """Build and save the project dependency graph."""
         graph = DependencyGraph(settings=self.settings)
         file_paths = self.loader.list_repository_files()
         ignore_patterns = [self.wiki_path, MKDOCS_YAML_FILE_NAME]
@@ -522,6 +552,7 @@ class WikiManager:
         return graph
 
     def build_domains(self, graph: DependencyGraph = None) -> List[Dict]:
+        """Build domain-based wiki pages."""
         if graph is None:
             graph = DependencyGraph(settings=self.settings)
             if not graph.load():
@@ -554,6 +585,7 @@ class WikiManager:
         return domains
 
     def build_wiki_index(self, graph: DependencyGraph = None, domains: List[Dict] = None) -> Dict:
+        """Build and index wiki content."""
         if graph is None:
             graph = DependencyGraph(settings=self.settings)
             if not graph.load():
@@ -570,6 +602,7 @@ class WikiManager:
         return index
 
     def build_module_page(self, file_path: str, graph: DependencyGraph = None) -> str:
+        """Generate a module documentation page."""
         if graph is None:
             graph = DependencyGraph(settings=self.settings)
             if not graph.load():
@@ -635,12 +668,65 @@ Do not add code fences around the entire document.
         pass
 
     # ─────────────────────────────────────────────────────────────
+    # File path validation helpers
+    # ─────────────────────────────────────────────────────────────
+
+    def _is_valid_source_path(self, file_path: str) -> bool:
+        """
+        Validate that the source path is a legitimate file path.
+        Prevent processing of content that looks like markdown or code.
+        """
+        if not isinstance(file_path, str):
+            logger.error("Source path must be a string, got %s", type(file_path))
+            return False
+
+        # Check for markdown/code patterns that shouldn't be file paths
+        if file_path.startswith("```") or file_path.startswith("["):
+            logger.warning("Source path looks like code/markdown content: %s", file_path)
+            return False
+
+        # Normalize path
+        normalized = os.path.normpath(file_path)
+
+        # Check for path traversal attempts
+        if ".." in normalized:
+            logger.warning("Path traversal attempt detected: %s", file_path)
+            return False
+
+        return True
+
+    def _is_valid_wiki_file_path(self, file_path: str) -> bool:
+        """
+        Validate that the wiki file path is safe to write to.
+        Check for invalid filename characters.
+        """
+        try:
+            # Ensure path is normalized
+            normalized = os.path.normpath(file_path)
+
+            # Check each component for invalid characters
+            for part in normalized.split(os.sep):
+                if INVALID_FILENAME_CHARS.search(part):
+                    logger.warning("Invalid characters in wiki file path component '%s'", part)
+                    return False
+
+                if len(part) > MAX_FILENAME_LENGTH:
+                    logger.warning("Wiki file path component too long: %s (max %d)", part, MAX_FILENAME_LENGTH)
+                    return False
+
+            return True
+        except Exception as e:
+            logger.exception("Error validating wiki file path %s: %s", file_path, e)
+            return False
+
+    # ─────────────────────────────────────────────────────────────
     # Category helpers
     # ─────────────────────────────────────────────────────────────
 
     def _find_category_for_file(
         self, file_path: str, all_categories: List[Dict[str, Any]]
     ) -> Optional[Dict[str, Any]]:
+        """Find the category that contains the given file."""
         file_path = file_path.replace(self.settings.abs_project_path, '')
         for category in all_categories:
             for f in category.get("files", []):
@@ -651,6 +737,7 @@ Do not add code fences around the entire document.
     def _assign_category_to_file(
         self, source: str, wiki_settings: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
+        """Assign a file to a category, using AI if necessary."""
         all_categories = self._get_all_categories(wiki_settings["categories"])
         category = self._find_category_for_file(file_path=source, all_categories=all_categories)
         user_language = wiki_settings.get("language", "English")
@@ -712,6 +799,16 @@ Do not add code fences around the entire document.
         return category
 
     def _determine_wiki_file_path(self, category: Dict[str, Any], source: str) -> str:
+        """
+        Determine the wiki file path for a source file.
+
+        Args:
+            category: The category containing the file.
+            source: The source file path.
+
+        Returns:
+            The full wiki file path.
+        """
         if category.get("single_file", False):
             return path_join(self.wiki_path, f"{category['path']}.md")
         return path_join(self.wiki_path, category["path"], self._get_file_wiki_name(source))
@@ -727,6 +824,22 @@ Do not add code fences around the entire document.
         keywords: List[str],
         wiki_settings: Dict[str, Any],
     ) -> str:
+        """
+        Prepare the AI prompt for generating wiki documentation.
+
+        Args:
+            current_wiki_content: Existing wiki content (if any).
+            category: The target category.
+            file_content: The source file content.
+            project_name: Name of the project.
+            source: Path to the source file.
+            title: Category title.
+            keywords: Category keywords.
+            wiki_settings: Wiki configuration.
+
+        Returns:
+            The formatted prompt for the AI.
+        """
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
 
@@ -774,6 +887,17 @@ Do not add code fences around the entire document.
     def _create_changeset_document(
         self, current_wiki_content: str, page_content: str, source: str
     ) -> str:
+        """
+        Create a summary of changes between wiki versions.
+
+        Args:
+            current_wiki_content: The previous wiki content.
+            page_content: The new wiki content.
+            source: The source file path.
+
+        Returns:
+            A formatted changeset document.
+        """
         prompt = f"""
         <old_wiki>
         {current_wiki_content}
@@ -788,7 +912,17 @@ Do not add code fences around the entire document.
         changes = self._ai_chat(prompt=prompt)[-1].content
         return f'<wiki_changes source="{source}">\n{changes}\n</wiki_changes>'
 
-    def _build_dependency_section(self, deps: Dict, source: str) -> str:
+    def _build_dependency_section(self, deps: Dict[str, Any], source: str) -> str:
+        """
+        Build a dependency section for the wiki page.
+
+        Args:
+            deps: Dictionary of dependencies from the dependency graph.
+            source: The source file path.
+
+        Returns:
+            Formatted markdown dependency section, or empty string if no deps.
+        """
         imports = deps.get("imports", [])
         imported_by = deps.get("imported_by", [])
         if not imports and not imported_by:
@@ -809,6 +943,14 @@ Do not add code fences around the entire document.
         """
         Flatten the hierarchical category tree into a single list,
         assigning each category a unique slugified *path*.
+
+        Args:
+            categories: List of category definitions.
+            flattened_list: Accumulator for flattened categories (auto-initialized).
+            parent: Parent category context.
+
+        Returns:
+            Flattened list of all categories and subcategories.
         """
         # FIX: never use a mutable default argument
         if flattened_list is None:
@@ -829,7 +971,12 @@ Do not add code fences around the entire document.
         return flattened_list
 
     def _fix_wiki_categories(self, wiki_settings: Dict[str, Any]) -> None:
-        """Ensure every category and file entry has correct path/slug metadata."""
+        """
+        Ensure every category and file entry has correct path/slug metadata.
+
+        Args:
+            wiki_settings: The wiki settings dictionary to fix in-place.
+        """
         categories = self._get_all_categories(wiki_settings.get("categories", []))
         for category in categories:
             if not category.get("path"):
@@ -841,7 +988,33 @@ Do not add code fences around the entire document.
                 )
 
     def _read_file(self, file_path: str) -> str:
+        """
+        Read a file from the project.
+
+        Args:
+            file_path: Path to the file to read.
+
+        Returns:
+            The file content as a string.
+        """
         return read_file(file_path, self.settings.abs_project_path)
 
     def _get_file_wiki_name(self, source: str) -> str:
-        return slugify(source.replace(self.settings.abs_project_path, "")) + ".md"
+        """
+        Generate a safe wiki filename from a source file path.
+
+        Args:
+            source: The source file path.
+
+        Returns:
+            A slugified markdown filename.
+        """
+        # Extract filename without path
+        filename = os.path.basename(source)
+        # Remove extension if present
+        name_without_ext = os.path.splitext(filename)[0]
+        # Slugify and ensure it's valid
+        safe_slug = slugify(name_without_ext)
+        if not safe_slug:
+            safe_slug = "document"
+        return f"{safe_slug}.md"

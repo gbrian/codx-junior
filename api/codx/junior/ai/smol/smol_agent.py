@@ -14,6 +14,17 @@ Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
 messages in real time.
+
+Message Structure
+When tools are used in a conversation, the agent now produces two separate
+messages:
+    * **Thinking Message**: Contains tool-calling rounds' LLM text and any
+      intermediate processing noise (tool executions, reasoning steps).
+    * **Final Answer Message**: Contains only the final LLM response without
+      any tool-related preprocessing.
+
+This separation keeps the user-facing response clean while preserving the
+full execution trace via the thinking message.
 """
 import json
 import logging
@@ -199,8 +210,8 @@ class SmolAgent:
             K4 --> L
             L --> F
             I -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
-            G -->|stop / length| N[Append final LLM text to response_content]
-            N --> O[response_message.content = response_content]
+            G -->|stop / length| N[Append final LLM text to final_answer_content]
+            N --> O[Split response into thinking + final answer messages]
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
     ```
@@ -296,6 +307,14 @@ class SmolAgent:
         Tool results are cached within this conversation to avoid re-execution
         if the model requests the same tool with identical arguments.
 
+        Message Structure
+        When tools are used, the response includes:
+        - **Thinking Message** (if tools were used): Contains all tool-calling
+          rounds' text and intermediate reasoning.
+        - **Final Answer Message**: Contains only the final LLM response.
+
+        If no tools are used, only the final answer message is returned.
+
         Args:
             messages: Conversation history as LangChain message objects.
             config:   Optional dict with keys: ``tools``, ``chat_id``,
@@ -305,10 +324,10 @@ class SmolAgent:
                       ``current_chat`` (the Chat object for context).
 
         Returns:
-            Updated *messages* list with the assistant reply appended.
-            The reply contains LLM-streamed text and user_response from
-            dual-response tools. Tool results (llm_response, plain outputs)
-            are never included in the final response.
+            Updated *messages* list with assistant replies appended:
+            - If tools were used: thinking message + final answer message.
+            - If no tools: only the final answer message.
+            Tool results (llm_response, plain outputs) are never included.
 
         Raises:
             ToolLoopError:  If max tool rounds, max tool calls, or a stuck
@@ -343,11 +362,16 @@ class SmolAgent:
         Execute the iterative streaming/tool loop for one conversation.
 
         Response accumulation strategy:
-        - ``response_content``: single accumulator for all content:
-          * LLM-streamed text across every iteration (tool-calling rounds + final).
-          * user_response from ToolResponse tools (appended when produced).
-        - Tool results (llm_response and plain outputs) go to the model via
-          tool messages but are NEVER added to response_content.
+        - ``thinking_content``: Accumulates LLM text during tool-calling rounds
+          (preprocessing/reasoning noise).
+        - ``final_answer_content``: Accumulates LLM text during the final round
+          (after the model stops making tool calls).
+        - User responses from dual-response tools go into ``thinking_content``
+          (not the final answer).
+
+        Message generation:
+        - If any tools were used: emit thinking message + final answer message.
+        - If no tools: emit only final answer message.
 
         Tool caching:
         - Identical tool calls (same name + args) are cached per conversation.
@@ -360,7 +384,7 @@ class SmolAgent:
             run_context: Unified runtime context for this run.
 
         Returns:
-            Updated *messages* list with the assistant reply appended.
+            Updated *messages* list with assistant reply(s) appended.
 
         Raises:
             ToolLoopError:  If max iterations, max tool calls, or stuck loop
@@ -403,10 +427,14 @@ class SmolAgent:
 
         request_start = time.monotonic()
 
-        # Single accumulator for all user-facing response content:
-        # LLM-streamed text + user_response from dual-response tools.
-        # Tool results (llm_response, plain outputs) are never included here.
-        response_content: str = ""
+        # Track whether any tools were used in this conversation.
+        # If true, we'll emit both thinking and final answer messages.
+        tools_were_used: bool = False
+
+        # Separate accumulators for thinking (tool-calling rounds) and final answer
+        # (after the model stops making tool calls).
+        thinking_content: str = ""
+        final_answer_content: str = ""
 
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
@@ -422,15 +450,17 @@ class SmolAgent:
             )
 
             if not tool_calls:
-                # Final response (no tool calls): append content and exit
+                # Final response (no tool calls): accumulate in final_answer_content
+                # and exit the loop.
                 if content:
-                    response_content += content
+                    final_answer_content += content
                 break
 
-            # Tool calls detected: append any LLM text streamed in this round
-            # before processing tools, so it appears in order in the response.
+            # Tool calls detected: mark that tools were used and accumulate LLM
+            # text in thinking_content (this is preprocessing/reasoning).
+            tools_were_used = True
             if content:
-                response_content += content
+                thinking_content += content
                 logger.debug(
                     "SmolAgent: round %d accumulated %d bytes of LLM text "
                     "before tool execution",
@@ -542,18 +572,18 @@ class SmolAgent:
 
                 if isinstance(tool_result, ToolResponse):
                     # Dual-response tool:
-                    # - user_response → response_content (appears in final response)
+                    # - user_response → thinking_content (part of preprocessing)
                     # - llm_response → model tool message only (NOT in response)
                     if tool_result.user_response:
-                        response_content += (
+                        thinking_content += (
                             f"\n```\n{tool_result.user_response}\n```\n"
                         )
-                        # Flush the FULL accumulated content to client immediately
-                        # so user_response is visible during processing.
-                        send_callback(response_content, True)
+                        # Flush the FULL accumulated thinking content to client
+                        # immediately so user_response is visible during processing.
+                        send_callback(thinking_content, True)
                         logger.debug(
                             "SmolAgent: dual-response tool '%s' produced %d bytes "
-                            "of user content; flushed full accumulated response",
+                            "of user content; flushed full accumulated thinking",
                             tool_call["function"],
                             len(tool_result.user_response),
                         )
@@ -570,8 +600,8 @@ class SmolAgent:
                     )
                 else:
                     # Traditional single-response tool: normalise and send to
-                    # the model only. Plain tool results are NOT added to the
-                    # final user-facing response.
+                    # the model only. Plain tool results are NOT added to any
+                    # response (thinking or final).
                     normalised = _normalise_tool_result(
                         tool_result, tool_call["function"]
                     )
@@ -592,7 +622,8 @@ class SmolAgent:
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
             openai_messages=openai_messages,
-            output_text=response_content,
+            output_text=final_answer_content,
+            thinking_text=thinking_content if tools_were_used else "",
             duration_seconds=duration_seconds,
             tags=tags,
             session_id=session_id,
@@ -602,13 +633,27 @@ class SmolAgent:
             tool_cache=tool_cache,
         )
 
-        if response_content:
-            logger.info(
-                "SmolAgent: final response assembled with %d characters",
-                len(response_content),
-            )
+        if tools_were_used:
+            # Emit thinking message if tools were used
+            if thinking_content:
+                logger.info(
+                    "SmolAgent: final thinking message assembled with %d characters",
+                    len(thinking_content),
+                )
+                messages.append(AIMessage(content=thinking_content))
 
-        messages.append(AIMessage(content=response_content))
+        # Always emit final answer message
+        if final_answer_content:
+            logger.info(
+                "SmolAgent: final answer message assembled with %d characters",
+                len(final_answer_content),
+            )
+            messages.append(AIMessage(content=final_answer_content))
+        elif not tools_were_used:
+            # Edge case: no tools used and no content (shouldn't happen, but handle it)
+            logger.warning("SmolAgent: no content produced in chat")
+            messages.append(AIMessage(content=""))
+
         return messages
 
     # ── Runtime context ────────────────────────────────────────────────────────
@@ -755,8 +800,8 @@ class SmolAgent:
 
         Tools can return either:
             - str: Traditional single-response (used for LLM context only)
-            - ToolResponse: Dual-response; user_response goes to the final
-              response, llm_response goes to the model only.
+            - ToolResponse: Dual-response; user_response goes to the thinking
+              message, llm_response goes to the model only.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -1033,6 +1078,7 @@ class SmolAgent:
         self,
         openai_messages: List[Dict[str, Any]],
         output_text: str,
+        thinking_text: str,
         duration_seconds: float,
         tags: str,
         session_id: Optional[str],
@@ -1045,11 +1091,13 @@ class SmolAgent:
         Record token usage to analytics (non-fatal on error).
 
         Includes tool cache statistics in analytics for visibility into
-        cache performance.
+        cache performance. Usage is calculated based on both thinking
+        and final answer content produced by the model.
 
         Args:
             openai_messages:  Full conversation sent to the model.
-            output_text:      Final assistant response text (all iterations merged).
+            output_text:      Final answer content (the final response).
+            thinking_text:    Thinking content (tool-calling rounds text).
             duration_seconds: Total wall-clock duration.
             tags:             Analytics tag string.
             session_id:       Session identifier.
@@ -1071,7 +1119,9 @@ class SmolAgent:
                 )
                 input_tokens = count_tokens(input_text, model=self.model)
             if not output_tokens:
-                output_tokens = count_tokens(output_text, model=self.model)
+                # Count tokens for both thinking and final answer content
+                combined_output = thinking_text + output_text
+                output_tokens = count_tokens(combined_output, model=self.model)
 
             # Augment tags with cache statistics if available
             cache_tags = tags

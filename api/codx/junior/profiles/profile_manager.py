@@ -3,6 +3,7 @@ import json
 import pathlib
 import logging
 import re
+import shutil
 
 from typing import List
 
@@ -66,7 +67,14 @@ class ProfileManager:
         def _files (file_gen):
             return [str(file) for file in file_gen]
 
-        return _files(list(pathlib.Path(self.profiles_path).rglob("*.profile")))
+        # Look for profiles in both old format (flat) and new format (in folders)
+        profiles = []
+        # New format: [profile_name]/[profile_name].profile
+        profiles.extend(_files(list(pathlib.Path(self.profiles_path).rglob("*/*.profile"))))
+        # Old format fallback: *.profile (for backward compatibility)
+        profiles.extend(_files(list(pathlib.Path(self.profiles_path).glob("*.profile"))))
+        
+        return profiles
 
     def list_all_profiles(self):
         parent_projects = find_project_parents(project=self.settings)
@@ -124,14 +132,15 @@ class ProfileManager:
                 
                 profile.path = profile_path
 
-            #TODO: Old versions
-            profile.content_path = f"{profile_path}.md"
-            if os.path.isfile(profile.content_path):
-                with open(profile.content_path, 'r') as f:
-                  profile.content = f.read()
-                self.save_profile(profile=profile)
-                os.remove(profile.content_path)
-                
+            # Load content from markdown file in new format: [profile_name]/[profile_name].md
+            profile_dir = os.path.dirname(profile_path)
+            markdown_content_path = os.path.join(profile_dir, f"{profile.name}.md")
+            
+            if os.path.isfile(markdown_content_path):
+                with open(markdown_content_path, 'r') as f:
+                    profile.content = f.read()
+                logger.info(f"Loaded profile content from: {markdown_content_path}")
+            
             if not profile.avatar:
                 profile.avatar = f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={profile.name}"
             profile.project_id = self.settings.project_id
@@ -146,23 +155,84 @@ class ProfileManager:
                 avatar=f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={pathlib.Path(profile_path).stem}"
             )
 
+    def _migrate_profile_to_folder(self, profile_name: str, old_profile_path: str):
+        """Migrate a profile from flat structure to folder structure"""
+        profile_folder = os.path.join(self.profiles_path, profile_name)
+        os.makedirs(profile_folder, exist_ok=True)
+        
+        new_profile_path = os.path.join(profile_folder, f"{profile_name}.profile")
+        
+        # Move profile JSON file
+        if os.path.isfile(old_profile_path) and old_profile_path != new_profile_path:
+            shutil.move(old_profile_path, new_profile_path)
+            logger.info(f"Migrated profile from {old_profile_path} to {new_profile_path}")
+        
+        # Move associated markdown content file (old format: [profile_name].md.profile or [profile_name].profile.md)
+        old_markdown_paths = [
+            f"{old_profile_path.replace('.profile', '')}.md.profile",
+            f"{old_profile_path.replace('.profile', '')}.profile.md"
+        ]
+        
+        for old_markdown_path in old_markdown_paths:
+            if os.path.isfile(old_markdown_path):
+                new_markdown_path = os.path.join(profile_folder, f"{profile_name}.md")
+                shutil.move(old_markdown_path, new_markdown_path)
+                logger.info(f"Migrated markdown content from {old_markdown_path} to {new_markdown_path}")
+                break
+
     def save_profile(self, profile: Profile):
         if not profile.name:
-            raise Exception('Invalid profie')
+            raise Exception('Invalid profile')
 
-        profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
+        # Create profile folder
+        profile_folder = os.path.join(self.profiles_path, profile.name)
+        os.makedirs(profile_folder, exist_ok=True)
+        
+        # New profile path in folder structure
+        profile_path = os.path.join(profile_folder, f"{profile.name}.profile")
         
         logger.info(f"Save profile {profile_path}")
+        
+        # Check if profile exists in old flat format and migrate it
+        old_profile_path = os.path.join(self.profiles_path, f"{profile.name}.profile")
+        if os.path.isfile(old_profile_path) and old_profile_path != profile_path:
+            self._migrate_profile_to_folder(profile.name, old_profile_path)
+        
+        # Save profile content to markdown file in new format: [profile_name]/[profile_name].md
+        if profile.content:
+            markdown_content_path = os.path.join(profile_folder, f"{profile.name}.md")
+            with open(markdown_content_path, 'w') as f:
+                f.write(profile.content)
+            logger.info(f"Saved profile content to: {markdown_content_path}")
+        
+        # Save profile JSON without content property
         with open(profile_path, 'w') as f:
-            profile.parsed_content = None
-            f.write(json.dumps(profile.model_dump(), indent=2))
+            profile_data = profile.model_dump()
+            profile_data['content'] = None
+            profile_data['parsed_content'] = None
+            f.write(json.dumps(profile_data, indent=2))
 
     def delete_profile(self, profile_name):
-        project_profile_paths = self.project_profile_paths()
-        profile_file_name = f"{profile_name}.profile"
-        profile_path = [file_path for file_path in project_profile_paths if file_path.endswith(profile_file_name)]
-        if profile_path:
-            os.remove(profile_path[0])
+        # Delete profile in new folder structure
+        profile_folder = os.path.join(self.profiles_path, profile_name)
+        if os.path.isdir(profile_folder):
+            shutil.rmtree(profile_folder)
+            logger.info(f"Deleted profile folder: {profile_folder}")
+        
+        # Also check and delete old flat format (backward compatibility)
+        old_profile_path = os.path.join(self.profiles_path, f"{profile_name}.profile")
+        if os.path.isfile(old_profile_path):
+            os.remove(old_profile_path)
+            logger.info(f"Deleted old format profile: {old_profile_path}")
+            
+            old_markdown_paths = [
+                f"{old_profile_path.replace('.profile', '')}.md.profile",
+                f"{old_profile_path.replace('.profile', '')}.profile.md"
+            ]
+            for old_markdown_path in old_markdown_paths:
+                if os.path.isfile(old_markdown_path):
+                    os.remove(old_markdown_path)
+                    logger.info(f"Deleted old format markdown: {old_markdown_path}")
 
     def is_profile_match(self, profile: Profile, file_path: str):
         try:

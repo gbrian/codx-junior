@@ -10,15 +10,15 @@ Codx Junior API is a sophisticated backend system that combines FastAPI for robu
 
 ### Application Infrastructure
 
-**App Module**: The FastAPI foundation that handles HTTP requests, configures middleware, manages real-time communication through Socket.IO, and orchestrates background task execution for asynchronous operations.
+**App Module**: The FastAPI foundation that handles HTTP requests, configures middleware, manages real-time communication through Socket.IO, and orchestrates background task execution for asynchronous operations. The module implements a sophisticated middleware pipeline designed to enhance request processing with settings extraction, timeout management, and performance monitoring capabilities. Socket.IO integration enables real-time bidirectional communication through dedicated namespace architecture, supporting live chat updates, status notifications, and collaborative features.
+
+**Session Management**: Establishes `CODXJuniorSession` instances through a dedicated middleware chain with three distinct layers—Settings extraction, Timeout management, and Process Time tracking—ensuring comprehensive request context management and performance observability. Session initialization occurs automatically via middleware, making sessions seamlessly available throughout the request lifecycle.
 
 **Engine Module**: The operational backbone responsible for project creation, session management, and high-level business logic that powers all features exposed through the application layer. The Engine coordinates critical operations including analytics tracking, session recording, and token usage monitoring to ensure comprehensive observability across all chat interactions. The Engine Module implements systematic issue management with structured error tracking and analysis capabilities to identify root causes, prevent silent failures, and manage cascading effects across system operations through comprehensive error handling and failure prevention mechanisms.
 
 **Database and Data Storage**: Persistent data management with intelligent database routing and configuration supporting comprehensive application requirements.
 
 **Security and Authentication**: Implements GitHub OAuth integration, user management, and authentication protocols ensuring secure access across the platform.
-
-**Session Management**: Handles the complete session lifecycle, channel communication, and state management for coordinated multi-user operations.
 
 ## AI and Intelligent Agents
 
@@ -34,45 +34,37 @@ The system features multiple specialized agents, each optimized for specific ope
 
 **SmolAgent**: A streamlined, async-first agent engineered for efficient iterative tool execution with sophisticated modern architecture. SmolAgent represents a refined approach to agent orchestration prioritizing clarity, performance, and production-readiness through:
 
-- **Async-Only Design**: Purpose-built for asynchronous operations with no legacy synchronous code paths, ensuring efficient resource utilization and responsive feedback through iterative loops.
-- **Safety First**: Comprehensive error handling with graceful degradation ensuring system reliability. All exceptions during tool execution are caught and handled gracefully as error strings, with explicit exception types tracked for root cause analysis. Non-fatal issues are logged appropriately to aid diagnostics while maintaining continued operation.
-- **Streaming Architecture**: Full response accumulation with progressive delivery throughout the entire request lifecycle, enabling real-time feedback while maintaining complete response state with crash-safe persistence guarantees.
-- **Sophisticated Tool Organization**: Global, chat-scoped, and profile-specific tools are dynamically filtered and organized based on execution context and permissions through explicit scope metadata.
-- **Session Context Injection**: Session context is intelligently injected into tool parameters, enabling tools to access and operate within proper execution context without explicit parameter passing.
-- **Robust Tool Result Handling**: Comprehensive normalization of tool outputs with intelligent truncation to 256 characters for context efficiency while preserving full results internally. Tool results are exclusively used for iterative tool execution and never included in final user responses, ensuring clean separation between internal processing and user-facing content.
-- **Tool Result Caching**: Caches results per conversation by function name and parameters, with comprehensive cache statistics tracking cache hits, misses, and hit rate metrics for observability. Cached results bypass loop guard checks entirely, enabling efficient iteration without consuming protection budget.
-- **Loop Protection**: LoopGuard prevents infinite iteration loops through three protection mechanisms—model-based limits, provider-based limits, and fallback limits—with intelligent violation behavior and priority-ordered resolution ensuring predictable loop termination. Cached tool calls bypass limit enforcement entirely, enabling efficient reuse without protection overhead.
-- **Cancellation Support**: Flexible cancellation mechanisms including pre-stream abort before streaming begins with immediate token cleanup and zero response delivery, and mid-stream abort during active streaming with exact-once guarantee preventing duplicate token consumption.
-- **Event Emission**: Comprehensive event system emitting lifecycle, LLM, and tool events with detailed payloads for complete observability and system integration.
-- **Analytics Tracking**: Built-in analytics recording token usage, tool execution logging, cache statistics, and session context with resilient graceful degradation patterns ensuring analytics failures never cascade into core service delivery.
-- **Production-Ready Design**: Engineered as a practical, ready-to-use tool with clear initialization patterns and straightforward integration for developers.
+- **Async-Only Design**: Purpose-built for asynchronous operations with no legacy synchronous code paths, ensuring efficient resource utilization and responsive feedback through iterative loops
 
-### SmolAgent Core Architecture
+- **Safety First**: Comprehensive error handling with graceful degradation ensuring system reliability. All exceptions during tool execution are caught and handled gracefully as error strings, with explicit exception types tracked for root cause analysis. Non-fatal issues are logged appropriately to aid diagnostics while maintaining continued operation
 
-**Conversation Flow**: SmolAgent orchestrates message processing and tool invocation through a systematic multi-phase pipeline progressing through initialization, message processing, iterative tool execution, response streaming, completion handling, event emission, and recovery and cleanup phases with careful attention to crash-safety and state management throughout.
+- **Streaming Architecture**: Full response accumulation with progressive delivery throughout the entire request lifecycle, enabling real-time feedback while maintaining complete response state with crash-safe persistence guarantees
 
-**Tool Management**: SmolAgent provides sophisticated tool organization across multiple scope levels:
-- **Global Tools** — Available across all contexts and conversations
-- **Chat-Scoped Tools** — Limited to specific chat contexts with explicit scope metadata
-- **Profile-Specific Tools** — Available only within user profiles with access control enforcement
+- **Iterative Execution Pattern**: SmolAgent executes a sophisticated iterative pattern coordinating message processing, tool invocation, result normalization, and loop guard evaluation with intelligent state management between iterations. Specific cancellation checkpoints are integrated throughout the execution flow for responsive user interactions
 
-Tools are dynamically filtered based on execution context and permissions, with tool definitions managed through a modular structure containing specification, settings, and callable references.
+- **Tool Organization and Discovery**: Sophisticated organization of global, chat-scoped, and profile-specific tools with dynamic filtering based on execution context and permissions. Tools are discovered through explicit scope metadata and module-level TOOLS registry, enabling precise availability control
 
-**Tool Execution Patterns**: SmolAgent executes tools with comprehensive error handling, intelligently parses arguments from LLM responses, normalizes results with intelligent truncation to 256 characters for context efficiency, and manages both single-response and dual-response tool patterns. Tool execution is fully cached by function name and parameters.
+- **Session Context Injection**: Session context is intelligently injected into tool parameters, enabling tools to access and operate within proper execution context without explicit parameter passing
 
-**Dual-Response Tools**: SmolAgent distinguishes between single-response tools returning simple values and dual-response tools implementing the `ToolResponse` model. The ToolResponse model enables tools to deliver tailored outputs to different audiences:
-- **user_content** — User-facing output optimized for clarity and actionability
-- **llm_feedback** — Technical context and detailed information optimized for iterative decision-making
+- **Tool Events and Observability**: Comprehensive event system emitting `TOOL_START`, `TOOL_END`, and `TOOL_ERROR` events with detailed payloads for complete observability and system integration
 
-**Response Accumulation Strategy**: Responses are accumulated progressively throughout the chat lifecycle with explicit separation between user-facing output and tool execution content. Tool results are exclusively used for iterative decision-making and never included in final user responses, ensuring clean separation between internal processing and user-facing content.
+- **Robust Tool Result Handling**: Comprehensive normalization of tool outputs with intelligent truncation to 256 characters for context efficiency while preserving full results internally. Tool results are exclusively used for iterative tool execution and never included in final user responses, ensuring clean separation between internal processing and user-facing content
 
-**System Instructions**: SmolAgent applies hardcoded file handling rules for specific file patterns, automatically managing binary files and system metadata. These rules ensure consistent handling of environment configurations, version control metadata, and compiled artifacts across all operations.
+- **Tool Result Caching**: Caches results per conversation by function name and parameters with comprehensive cache statistics tracking cache hits, misses, and hit rate metrics for observability. Cached results bypass loop guard checks entirely, enabling efficient iteration without consuming protection budget
 
-**Event Emission System**: Comprehensive event emission provides complete observability through lifecycle events (RUN_START, RUN_END, RUN_ERROR, RUN_CANCELLED), tool events (capturing tool invocation and execution context), and LLM events (documenting model interactions). Events include detailed payloads with execution context, parsed arguments, result previews, and processing metadata enabling external monitoring and integration.
+- **Loop Protection**: LoopGuard prevents infinite iteration loops through three protection mechanisms—model-based limits, provider-based limits, and fallback limits—with intelligent violation behavior and priority-ordered resolution ensuring predictable loop termination. Cached tool calls bypass limit enforcement entirely, enabling efficient reuse without protection overhead
 
-**RuntimeContext**: The `AgentRunContext` serves as the unified runtime state container for SmolAgent execution, managing accumulated response content, tool execution results, event tracking, loop guard state, and cancellation signals throughout execution.
+- **Dual-Response Tools**: Tools can implement the ToolResponse pattern to deliver distinct user-facing outputs (`user_response`) and technical context (`llm_response`) for language models within a single response, optimizing content for different audiences
 
-**Cancellation Mechanisms**: SmolAgent supports flexible cancellation enabling responsive user interactions through pre-stream cancellation (abort before streaming begins with immediate token cleanup), mid-stream cancellation (gracefully terminate during active streaming with exact-once guarantee), and token-based identification for precise client-side operation termination.
+- **Cancellation Support**: Flexible cancellation mechanisms including pre-stream abort before streaming begins with immediate token cleanup and zero response delivery, and mid-stream abort during active streaming with exact-once guarantee preventing duplicate token consumption
+
+- **Analytics Tracking**: Built-in analytics recording token usage, tool execution logging, cache statistics, and session context with resilient graceful degradation patterns ensuring analytics failures never cascade into core service delivery
+
+- **Wallet and Preflight Checks**: Validation of wallet state before execution to ensure cost management and token availability
+
+- **Session Injection**: Automatic injection of `_active_session` and `_current_chat` context into tool parameters for seamless access to execution context
+
+- **Production-Ready Design**: Engineered as a practical, ready-to-use tool with clear initialization patterns and straightforward integration for developers
 
 ## Knowledge and Models
 
@@ -80,7 +72,7 @@ Tools are dynamically filtered based on execution context and permissions, with 
 
 **Knowledge Milvus Base**: The foundational knowledge management component implementing a sophisticated document lifecycle and comprehensive seven-stage processing pipeline designed to transform raw source code and documentation into semantically rich, queryable knowledge assets:
 
-### Core Functionality
+### Knowledge Processing Core Functionality
 
 **Loading Operations**: Initialize and load documents into the knowledge base with comprehensive source tracking and change detection capabilities. The system supports both individual document loading with automatic change detection and repository-level synchronization for bulk updates.
 
@@ -105,97 +97,135 @@ Tools are dynamically filtered based on execution context and permissions, with 
 
 **Database Integration**: Complete lifecycle management for knowledge base maintenance including reset operations, cleanup of deleted documents, and refresh of update timestamps with Milvus vector database capabilities.
 
-**Status and Monitoring**: Comprehensive status tracking and indexing observability providing clear insight into knowledge base operations and processing progress.
-
 **Pydantic Data Models**: Comprehensive, professionally organized model definitions spanning 50+ data structures across multiple functional domains providing a foundation for all data structures and configurations throughout the platform. Models are organized into logical categories including communication models, board and column models, knowledge management models, provider configuration models, development and automation models, UI and navigation models, user models, AI models, project configuration models, system configuration models, plugin system models, and agent and OAuth models.
 
 **AI Models and Provider Configuration**: The system supports seamless integration with multiple AI providers through dedicated configuration models including built-in provider support with OLLAMA_PROVIDER and default embeddings for resource-efficient local deployment, provider-specific settings for OpenAI, Anthropic, and Mistral with customizable parameters, configurable embedding models for semantic analysis and knowledge retrieval, and flexible provider selection enabling optimal performance across different deployment scenarios.
 
 **Model Configuration**: System-wide configuration through GlobalSettings which manages AI provider selection, embedding configuration, user access controls, feature flags, and API keys across all model categories. Settings are logically organized into domains with clearly defined subsections. Global instructions are loaded fresh from GlobalSettings on each chat to ensure consistency across operations.
 
-## Profile Management
-
-**Profile Manager**: Comprehensive system for managing user profiles and profile-related configurations with sophisticated profile discovery, operations, and lifecycle management across the platform.
-
-### Core Components
-
-**Initialization**: The ProfileManager establishes multiple paths for profile discovery across the system:
-1. **Project profiles** — Located within `project_path/.codx/profiles/` with highest priority
-2. **Base profiles** — Located within the system base profiles directory with secondary priority
-3. **External provider profiles** — Profiles from external provider integrations with fallback access
-
-**Profile Discovery and Listing**: Profiles are discovered through a hierarchical three-tier priority system:
-- **Project Profiles** — Highest priority, profiles within specific project directories enabling project-specific customization
-- **Base Profiles** — Secondary priority, system and default profiles available across the platform
-- **External Provider Profiles** — Fallback access for profiles from external providers
-
-The `list_profiles()` method retrieves profiles from the current project context, while `list_all_profiles()` returns profiles from all configured sources for comprehensive discovery.
-
-**Hierarchical Profile Lookup**: The system implements a sophisticated four-level lookup hierarchy ensuring optimal profile resolution:
-1. **Project-level profiles** — Project-specific customizations with highest precedence
-2. **Parent project profiles** — Inherited configurations from parent projects
-3. **CODX Junior project level** — System-wide profiles as fallback
-4. **External provider profiles** — External integrations as final fallback
-
-**Content Processing**: The `get_profile_with_content()` method handles complete profile retrieval with content parsing and template resolution. Profile content supports template variables with explicit regex pattern syntax: `{{variable_name}}` for dynamic content substitution. Undefined variables preserve their original `{{var}}` syntax, enabling graceful handling of missing context.
-
-**Template Resolution**: Template variables are resolved lazily through lambda functions in the execution context. This approach enables efficient processing of profile content with deferred evaluation until context becomes available.
-
-**Profile File Structure**: Profiles are organized as dual-file pairs where `.profile` files contain JSON metadata and configuration, while `.md.profile` files contain associated markdown content and documentation. This separation enables efficient metadata queries alongside rich content storage.
-
-**Profile Context Variables**: Profile metadata includes essential context variables for LLM integration: `project_path` and `project_name`, enabling seamless integration into AI processing workflows.
-
-**Profile Matching**: Intelligent profile identification logic enables flexible profile discovery based on criteria and requirements.
-
-**Profile Operations**: The system provides comprehensive CRUD operations:
-- **Loading**: Retrieve specific profiles by reference with full content parsing and context variable resolution
-- **Saving**: Persist profile configurations with automatic content deduplication and exclusion from JSON metadata
-- **Deleting**: Remove profiles with complete lifecycle management
-- **Bulk Operations**: Process multiple profiles simultaneously for efficiency
-
-**Profile Inheritance**: Profiles support inheritance across projects, enabling configuration reuse and centralized management while maintaining project-specific customizations.
-
-**Linked Profile Management**: Specialized management of profiles linked across project boundaries with sophisticated filtering and file-based organization for efficient profile discovery and access control.
-
-**Graceful Degradation**: The system supports minimal valid profiles that contain essential metadata even when full configuration is unavailable, ensuring operational continuity through error handling with graceful degradation.
-
-**Deduplication**: The system intelligently manages linked profiles with sophisticated deduplication logic, preventing duplicate profile processing while maintaining access to all unique configurations.
-
-**Tree Generation**: Profiles support tree generation for visual structure representation with disabled file output by default and configurable filtering for efficient exploration.
-
 ## Project Tools and Utilities
 
 The **Project Tools** module provides essential utility functions for file management, AI operations, and project-level interactions within the CODX Junior framework, serving as a comprehensive bridge between the AI system and project resources.
 
-### Core Functions
+### Key Features
 
-**AI Management**: Initialize and return AI instances configured with project settings and user context through integrated configuration management.
+- **AI Initialization**: Configure AI instances with project settings and user context through the `get_ai()` utility function
+- **Code Block Processing**: Convert and format code blocks with the `code_block()` function providing flexible output routing and comprehensive language support
+- **Path Resolution**: Convert and validate file paths with boundary protection to ensure secure file operations
+- **File Operations**: Read and write files with UTF-8 encoding support and comprehensive validation
+- **Bulk File Reading**: Process up to 10 files per operation with automatic language detection through `project_read_file()`
+- **Search and Knowledge Base**: Query project resources with `project_search()` supporting optional AI-powered filtering and automatic result deduplication by source file
+- **Bulk Search Operations**: Execute up to 5 queries per operation with `project_search()` returning comprehensive results with automatic deduplication
+- **Project Structure Exploration**: Understand project organization with visual representation through `project_structure()`
 
-**Code Processing**: Process and format code to ensure it follows project standards, generating properly formatted markdown code blocks with syntax highlighting and file path annotations.
+### Configuration
 
-**File Path Resolution**: Convert relative or absolute file paths into absolute project paths with comprehensive validation and recursive glob search for flexible file discovery within project boundaries.
+| Feature | Limit | Purpose |
+|---------|-------|---------|
+| **Bulk File Reading** | 10 files per call | Efficient multi-file processing |
+| **Bulk Search Operations** | 5 queries per call | Comprehensive knowledge base searches |
 
-### File Operations
+### Error Handling and Validation
 
-**File Reading**: Access project files with comprehensive error documentation and graceful handling of missing resources. Automatically detects file extensions, handles UTF-8 encoding transparently, and returns content in structured markdown code blocks with language specification and file path metadata.
+All functions implement explicit exception handling with comprehensive error management including path validation preventing unauthorized file access, safe file operations with verification, graceful handling of missing resources, and UTF-8 encoding with proper error handling for all file operations. Each function includes detailed exception documentation to aid in error diagnosis and handling.
 
-**File Writing**: Write and create files within project structures with complete validation and UTF-8 encoding support. Security features include path boundary validation preventing unauthorized file access with automatic parent directory creation.
+### Best Practices
 
-**File Searching**: Search project knowledge bases for documents matching query strings with optional AI-powered content filtering, automatic result deduplication by source file, and graceful handling of missing resources.
+- Use bulk operations for processing multiple items to reduce tool invocations and improve efficiency
+- Implement proper path handling strategies with validation to ensure security and prevent unauthorized access
+- Apply search validation techniques to verify results match actual requirements before use
+- Monitor file size and optimize operations for large-scale file processing
+- Consider context efficiency when working with large file contents
 
-### Additional Capabilities
+## Custom Tools and Integration
 
-**Project Structure**: Provides utilities for exploring and understanding the organization of a project's files and folders. Returns a tree-like ASCII representation featuring visual file indicators, optional metadata display, and configurable maximum folder depth traversal.
+**Custom Tools System**: A flexible and extensible framework for defining, registering, and executing specialized tools that extend the capabilities of the AI system. The custom tools module enables seamless integration of domain-specific functionality with comprehensive tool management and sophisticated execution patterns.
 
-### Error Handling and Security
+### Tool Architecture
 
-All functions implement explicit exception handling with comprehensive documentation of error scenarios. Path validation prevents access to files outside the intended project scope, and write operations include comprehensive security measures with path boundary enforcement.
+**Tool Registration and Management**: Tools are registered within the custom tools module with comprehensive metadata including:
+- Tool name and description for identification and documentation
+- Input parameters with JSON schema validation
+- Output format specifications
+- Scope information (global, chat-level, or profile-specific)
+- Execution context and permissions requirements
+
+**Tool Discovery and Organization**: The system provides intelligent tool discovery through:
+- Scope-based filtering enabling precise availability control
+- Dynamic tool discovery based on execution context
+- Module-level tool registry for centralized management
+- Permission-based availability restricting tools to authorized users
+
+**Tool Execution and Integration**: Tools are executed within a sophisticated execution framework providing:
+- Parameter validation and schema enforcement
+- Context injection for session and chat awareness
+- Error handling with graceful degradation
+- Result normalization and formatting
+- Event emission for complete observability
+
+**Custom Tool Development**: The framework enables developers to create custom tools with:
+- Standardized tool definition patterns
+- Clear parameter and output specifications
+- Built-in error handling and validation
+- Integration with session and chat context
+- Support for dual-response patterns (user-facing and LLM context)
+
+### Custom Tool Manager
+
+The Custom Tool Manager provides comprehensive tool management capabilities with systematic handling of tool creation, retrieval, updates, and deletion. All operations maintain atomic consistency ensuring reliable tool lifecycle management.
+
+**Create Tool**: Establish new custom tools through structured creation process with automatic metadata initialization and script file generation. The system manages tool registration with proper resource allocation and configuration setup.
+
+**List Tools**: Retrieve custom tools with efficient filtering and comprehensive metadata representation. The system provides detailed tool information enabling complete tool discovery and capability assessment.
+
+**Update Tool**: Modify existing custom tool configurations with preservation of creation metadata and consistent version tracking. Updates maintain tool integrity while enabling configuration refinement.
+
+**Delete Tool**: Remove custom tools with recursive resource cleanup ensuring complete tool removal from the system. All associated scripts and metadata are properly cleaned up.
+
+**File Management**: Sophisticated handling of tool-related files including script storage, metadata persistence, and automatic directory management with proper hierarchy maintenance.
+
+**Metadata Files**: JSON structures maintaining comprehensive tool information including configuration, status, and operational metadata for complete tool state tracking.
+
+**Script Files**: Storage and management of tool implementation scripts with support for multiple programming languages, automatic naming conventions, and organized directory structures.
+
+**Error Handling**: Comprehensive error management with specific error types and behaviors for invalid operations, resource conflicts, and execution failures with detailed error reporting for diagnosis.
+
+### API Endpoints
+
+The Custom Tools API provides a comprehensive set of endpoints for managing tools:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/projects/custom-tools` | GET | Retrieve all custom tools for a project |
+| `/api/projects/custom-tools` | POST | Create a new custom tool |
+| `/api/projects/custom-tools/{tool_id}` | GET | Retrieve a specific custom tool |
+| `/api/projects/custom-tools/{tool_id}` | PUT | Update an existing custom tool |
+| `/api/projects/custom-tools/{tool_id}` | DELETE | Delete a custom tool |
+| `/api/projects/custom-tools/{tool_id}/execute` | POST | Execute a custom tool |
+
+**Authentication**: All endpoints require authentication. The execute endpoint only requires authentication (not admin role).
+
+**Authorization**: Create, update, and delete operations require admin authorization. The execute endpoint does not require admin authorization; it requires only authentication.
+
+**Behavior**: The create endpoint automatically sets the `created_by` field to the authenticated user's username and initializes creation timestamps in UTC. The update endpoint preserves the original `created_by` value and creation timestamp while updating modification metadata. Timestamps are always recorded in UTC timezone.
+
+**Validation**: The system validates that tool names are unique within a project and enforces required parameters in tool definitions. JSON schema validation ensures parameter definitions conform to standard JSON Schema specifications.
+
+**Tool Activation**: Tools must be marked as active before they can be executed. Inactive tools are excluded from availability to agents and are not executable.
+
+**Logging**: The system maintains comprehensive logging at multiple levels:
+- **INFO**: Tool creation, updates, deletions, and successful executions
+- **DEBUG**: Detailed parameter validation steps and execution context information
+- **WARNING**: Attempts to execute inactive tools or tools with validation issues
+- **ERROR**: Tool execution failures with exception details and root cause information
+
+**Execution Response**: The execute endpoint returns a 200 status code with execution results. The response may contain errors in the result field even with a 200 status, indicating partial success or recoverable errors during execution.
 
 ## Tools and Utilities
 
 The platform provides a flexible tool ecosystem organized across multiple scope levels, enabling precise tool availability and security. Tools follow a modular architecture pattern designed to maximize flexibility, maintain backward compatibility, and preserve operational context across interactions.
 
-### Tool Architecture and Design
+### Tool Organization and Design
 
 **Centralized Aggregation System**: The tools module serves as a centralized aggregation point for all tool implementations, organizing them into a cohesive ecosystem while maintaining clean separation between tool definitions, configurations, and execution logic.
 
@@ -213,28 +243,90 @@ The system evaluates global and chat-specific availability independently to dete
 The `ToolResponse` model provides a structured approach for tools to implement sophisticated response patterns. This model enables tools to deliver tailored outputs to different audiences within a single response, optimizing content for both end users and language models.
 
 **ToolResponse Model Structure**:
-- **user_content**: User-facing output optimized for clarity, actionability, and readability
-- **llm_feedback**: Technical context and detailed information optimized for language model processing
+- **user_response**: User-facing output optimized for clarity, actionability, and readability
+- **llm_response**: Technical context and detailed information optimized for language model processing
 
 ### Available Tools
 
 The platform includes specialized tools for critical operations:
 
-- **Code Block Generator**: A versatile tool for converting and formatting code blocks with flexible output routing and comprehensive language support
+- **Code Block Generator**: A versatile tool for converting and formatting code blocks with flexible output routing and comprehensive language support. Features include bulk operations, flexible output routing, and comprehensive language support
 - **Webpage Fetching**: Fetch a webpage and convert it to markdown for integration with knowledge base and reference material processing
-- **Project Search**: Efficiently locate project resources, files, and documentation with optional AI-powered filtering and automatic result deduplication by source file
-- **Project Read File**: Reads and accesses project files for analysis and processing with comprehensive error documentation
+- **Project Search**: Efficiently locate project resources, files, and documentation with optional AI-powered filtering and automatic result deduplication by source file. Features include bulk operations (up to 5 queries per call), AI-powered filtering, and automatic deduplication
+- **Project Read File**: Reads and accesses project files for analysis and processing with support for bulk operations reading multiple files (up to 10 per call) in a single call. Features include bulk operations, automatic language detection, and UTF-8 encoding support
 - **Project Structure**: Provides utilities for exploring and understanding project organization with visual indicators and metadata display
-- **Project Write File**: Write and create files within project structures with complete validation and UTF-8 encoding support
+- **Project Write File**: Write and create files within project structures with complete validation, UTF-8 encoding support, and automatic parent directory creation. Features include automatic parent directory creation, comprehensive validation, and error handling
 - **Generate Tasks Tool**: Transforms a chat conversation into actionable sub-tasks, automatically analyzing context and splitting complex discussions into manageable tasks
+- **Custom Tools**: Extensible framework enabling developers to create domain-specific tools with standardized patterns, parameter validation, and seamless AI system integration
 
 ### Tool Organization and Best Practices
 
-**Bulk Operations**: Tools supporting bulk operations provide performance optimization for processing multiple items efficiently through single requests.
+**Bulk Operations**: Tools supporting bulk operations provide performance optimization for processing multiple items efficiently through single requests. Bulk operations include specific limits: file reading supports up to 10 files per call, while search supports up to 5 queries per call.
 
 **Dual Response Tools**: Tools implementing the `ToolResponse` pattern deliver enhanced value by providing distinct user-facing summaries and technical context for language models.
 
 **Search Result Validation**: When using search tools, validate results match your actual needs—optional AI-powered filtering helps refine results but manual verification ensures accuracy for critical operations.
+
+## Profile Management
+
+**Profile Manager**: Comprehensive system for managing user profiles and profile-related configurations with sophisticated profile discovery, operations, and lifecycle management across the platform.
+
+### Key Features
+
+**Hierarchical Profile Discovery**: The ProfileManager establishes multiple tiers for profile discovery:
+1. **Project profiles** — Located within `project_path/.codx/profiles/` with highest priority
+2. **Base profiles** — Located within the system base profiles directory with secondary priority
+3. **External provider profiles** — Profiles from external provider integrations with fallback access
+
+**Modern Folder-Based Structure**: Profiles are organized as dual-file pairs with improved clarity:
+- `.profile` files contain JSON metadata and configuration
+- `.md.profile` files contain associated markdown content and documentation
+
+This structure replaces legacy flat-file approaches with a modern `[profile_name]/[profile_name].profile` organization.
+
+**Profile Lookup Hierarchy**: The system implements a four-level lookup priority ensuring optimal profile resolution:
+1. **Project-level profiles** — Project-specific customizations with highest precedence
+2. **Parent project profiles** — Inherited configurations from parent projects
+3. **CODX Junior project level** — System-wide profiles as fallback
+4. **External provider profiles** — External integrations as final fallback
+
+**Content Processing and Templates**: The `get_profile_with_content()` method handles complete profile retrieval with content parsing and template variable resolution. Profile content supports template variables through explicit syntax: `{{ variable_name }}` (with spaces) for dynamic content substitution. Template variables include `{{ project_path }}` and `{{ project_name }}` for seamless AI integration. Undefined variables are left unchanged, enabling graceful handling of missing context.
+
+**Discovery Methods**: The ProfileManager provides specialized methods for profile discovery:
+- **`base_profiles()`** — Returns profiles from the system base directory
+- **`project_profile_paths()`** — Explicitly locates project-level profile paths
+
+**Profile Operations**: The system provides comprehensive CRUD operations:
+- **Loading**: Retrieve specific profiles by reference with full content parsing and context variable resolution
+- **Saving**: Persist profile configurations with automatic content deduplication and exclusion from JSON metadata
+- **Deleting**: Remove profiles with complete lifecycle management
+- **Bulk Operations**: Process multiple profiles simultaneously for efficiency
+
+**Profile Relationships**: Profiles support inheritance across projects, enabling configuration reuse and centralized management while maintaining project-specific customizations. The system manages linked profiles across project boundaries with sophisticated deduplication logic preventing duplicate profile processing while maintaining access to all unique configurations.
+
+**Graceful Degradation**: The system supports minimal valid profiles containing essential metadata even when full configuration is unavailable, ensuring operational continuity through error handling with graceful degradation for malformed content.
+
+## Wiki Management
+
+**Wiki Manager**: Comprehensive system for creating and managing project wikis with sophisticated document organization, domain classification, and category management. The WikiManager handles the complete lifecycle of wiki creation and maintenance:
+
+### Core Capabilities
+
+**Wiki Tree Creation**: Automatically generates hierarchical wiki structures from repository files with intelligent organization into logical sections and subsections.
+
+**Domain Building**: Orchestrates parallel document processing to build semantic domains that group related documentation and code concepts together.
+
+**Index Creation**: Constructs comprehensive wiki indices enabling efficient search and navigation across the entire documentation structure.
+
+**Category Management**: Manages hierarchical category structures with proper validation and organization of wiki content.
+
+**File Organization**: Systematically organizes wiki files with predictable naming patterns and comprehensive validation of file paths.
+
+**Settings Persistence**: Caches and persists wiki configuration with intelligent validation to ensure consistency across operations.
+
+**Multi-Format Support**: Supports both VitePress and MkDocs documentation frameworks with flexible configuration.
+
+**AI Integration**: Leverages AI models for intelligent document analysis, category assignment, and content summarization while maintaining concurrent processing efficiency through ThreadPoolExecutor for parallel operations.
 
 ## Chat Management and API
 
@@ -399,35 +491,116 @@ The system implements multi-layered crash-safety mechanisms designed to handle u
 
 The system implements comprehensive error handling across multiple dimensions with graceful degradation as a core principle. Errors encountered during tool execution, argument parsing, validation, analytics operations, cancellation handling, and loop protection are managed without disrupting primary service delivery. Non-fatal issues are logged appropriately to aid diagnostics while maintaining continued operation, ensuring that system reliability is preserved across diverse failure scenarios.
 
+## API Endpoints and Operations
+
+The application exposes a comprehensive set of API endpoints organized into functional categories:
+
+### Project Management
+- Create, retrieve, update, and delete projects
+- Manage project metadata and configuration
+- Handle project-level settings and preferences
+
+### Code Operations
+- Execute code analysis and transformations
+- Manage code repositories and version control
+- Process code changes and generate diffs
+
+### File Management
+- Read and write project files
+- Organize file structures
+- Handle file uploads and media management
+- Generate file diffs for change tracking
+
+### Settings & Profiles
+- Manage user and project settings
+- Configure user profiles and preferences
+- Handle global system settings
+
+### System & Infrastructure
+- Monitor system health and performance
+- Access application logs
+- Manage system configuration
+- View infrastructure metrics
+
+### Utility Operations
+- Generate code blocks with formatting
+- Fetch and process web content
+- Search project knowledge bases
+- Manage custom tools and extensions
+
+### Static File Serving
+The application serves static files including documentation, assets, and public resources with proper content-type handling and caching strategies. Uploads are served with MD5 hash naming conventions in subdirectory structures (`/images/message/`) for efficient organization and retrieval.
+
+## App Module - Key Endpoints and Configuration
+
+The App Module serves as the FastAPI foundation, providing critical endpoints organized into functional categories with comprehensive middleware and configuration support.
+
+### Endpoint Organization
+
+**Health & System**
+- **GET /health** — System health status and availability checks
+- **GET /logs** — Access application logs with filtering and retrieval
+
+**Settings Management**
+- **GET /settings** — Retrieve current system and user settings
+- **POST /settings** — Update system configuration and preferences
+
+**Project Operations**
+- **GET /projects** — List projects with filtering and pagination
+- **POST /projects** — Create new projects with configuration
+- **GET /projects/{id}** — Retrieve specific project details
+- **PUT /projects/{id}** — Update project configuration
+- **DELETE /projects/{id}** — Remove projects
+
+**File and Code Operations**
+- **GET /projects/{id}/files** — List project files
+- **POST /projects/{id}/files** — Upload and create files
+- **GET /projects/{id}/files/{path}** — Read file contents
+- **PUT /projects/{id}/files/{path}** — Modify file contents
+- **DELETE /projects/{id}/files/{path}** — Remove files
+
+**Logging Configuration**
+
+The App Module implements selective logging to optimize performance and focus on critical operations. The following loggers are disabled to reduce noise:
+- **httpx** — HTTP client logging suppressed
+- **openai** — OpenAI client logging suppressed
+- **watchfiles** — File monitoring logging suppressed
+- **asyncio** — Async runtime logging suppressed
+
+Critical loggers remain enabled to provide essential operational visibility while maintaining system performance.
+
 ## Documentation Organization and Approach
 
 This wiki employs a refined documentation structure that prioritizes clarity and practical utility:
 
 ### Content Organization Principles
 
-- **Endpoint-Centric API Documentation**: Chat API endpoints are organized with clear HTTP methods, paths, and operations for practical reference
+- **User-Focused Structure**: Documentation is organized around capabilities, use cases, and practical benefits rather than implementation details
+- **API-Reference Format**: Chat API and custom tools documentation uses structured sections for quick-reference clarity
 - **Feature-Focused Sections**: Tool documentation emphasizes capabilities, use cases, and practical benefits
 - **Professional Formatting**: Standardized tables, structured headings, and consistent section organization for improved scannability
 - **Practical Integration Guidance**: Integration notes and configuration requirements are clearly separated from API specifications
 - **Progressive Disclosure**: Users can understand high-level capabilities from this overview and navigate to detailed documentation for specific implementation guidance
 - **Diagnostic-Focused Problem Analysis**: Error handling documentation emphasizes root cause analysis and problem diagnosis
 - **High-Level Architecture Focus**: Core architecture and responsibilities are documented at the system level rather than implementation details
-- **User-Focused Behavior Emphasis**: Documentation prioritizes understanding practical system behavior and capabilities over implementation complexity
+- **Agent-Focused Documentation**: SmolAgent documentation emphasizes the iterative execution pattern with intelligent state management, comprehensive tool management with caching and loop protection, dual-response tool patterns, event emission systems for observability, and sophisticated crash-safety mechanisms
 
 ### Navigation Structure
 
 This wiki is organized into the following primary sections:
 
 - **Project Overview**: High-level architecture understanding and system purpose
-- **App Module**: FastAPI configuration, middleware setup, and Socket.IO integration
+- **App Module**: FastAPI configuration, middleware setup, Socket.IO integration, and key endpoints
 - **Engine Module**: Core backend logic, project operations, and session handling
 - **AI and Knowledge Management**: Agents including SmolAgent with comprehensive documentation; Pydantic data models; and knowledge processing with sophisticated seven-stage document pipeline
 - **Database and Data Storage**: Data persistence strategies and storage architecture
 - **Security and Authentication**: Authentication mechanisms and security practices
 - **Session Management**: Session lifecycle, channel coordination, and state management
-- **Profile Management**: User profile management with sophisticated discovery, dual-file structure, hierarchical lookup with four-level priority system, and comprehensive lifecycle operations
-- **Project Tools and Utilities**: File management operations, AI operations, and project-level interaction utilities
-- **Tools and Utilities**: Tool implementations, response patterns, and helper modules with complete tool ecosystem documentation
+- **Profile Management**: User profile management with sophisticated hierarchical discovery, dual-file folder-based structure, four-level lookup priority, template variable support with explicit syntax, and comprehensive lifecycle operations
+- **Wiki Management**: Wiki creation and maintenance with sophisticated document organization, domain classification, and category management
+- **Custom Tools and Integration**: Flexible tool framework for extending AI system capabilities with domain-specific functionality, comprehensive tool management, and standardized API endpoints
+- **Project Tools and Utilities**: File management operations, AI operations, and project-level interaction utilities with enhanced bulk operation support and performance considerations
+- **Tools and Utilities**: Tool implementations, response patterns, and helper modules with complete tool ecosystem documentation including custom tools system
 - **Chat Engine and API**: Central orchestration hub with message lifecycle management and crash-safe operations
 - **Utility Functions**: Reference helper modules and supporting functionality
 
@@ -437,4 +610,4 @@ Each section in this wiki is designed for practical reference with clear archite
 
 ---
 
-**Last Updated**: This documentation reflects the current state of the CODX API with comprehensive updates across all system components. Recent significant enhancements have been made to the Profile Management system with refined documentation reflecting feature-based organization that emphasizes what ProfileManager does and how its features work together rather than implementation details. The documentation now features an overview section introducing key capabilities, a directory structure section showing both old and new format visuals, a profile model section listing key properties, and key functionality grouping methods by logical purpose. Profile discovery has been consolidated to clarify the hierarchical explanation, profile linking emphasizes deduplication purpose, utility functions expand generated_llm_tree() description with sorting behavior details, and loading behavior clarifies graceful error handling for malformed JSON as a key feature. SmolAgent documentation maintains comprehensive coverage including detailed multi-phase conversation flow, Tool Result Normalization with intelligent truncation to 256 characters for context efficiency, LoopGuard with three protection mechanisms and intelligent violation behavior with cached bypass, Tool Result Caching with comprehensive hit/miss/rate metrics and per-conversation organization, Dual-Response Tool patterns for sophisticated output routing to different audiences, System Instructions for hardcoded file handling, Event Emission with comprehensive lifecycle and tool event tracking, AgentRunContext for unified execution state management, and comprehensive callback flush behavior documentation. All documentation continues to emphasize core concepts including tool caching optimization, loop protection through multiple strategies, comprehensive analytics with resilient graceful degradation, structured event types for complete observability, error handling philosophy prioritizing non-fatal issue logging and continued operation, and system limits with intelligent enforcement. Documentation maintains user-focused behavior emphasis and graceful error handling ensuring system reliability and performance across diverse operational scenarios.
+**Last Updated**: This documentation reflects the current state of the CODX API with comprehensive updates across all system components. Recent improvements include enhanced presentation of App Module architecture with explicit Session Management middleware chain details and key endpoint specifications; expanded coverage of Knowledge Milvus integration and seven-stage document processing pipeline; enhanced custom tool manager documentation with structured operation descriptions; improved wiki management documentation with concurrent processing efficiency details; improved profile management documentation with explicit template variable syntax support and four-level lookup hierarchy; restructured custom tools API documentation with user-focused content emphasizing practical capabilities and use cases; comprehensive API endpoints organization by functional categories with clear HTTP method and route specifications. All documentation continues to emphasize core concepts including tool caching optimization for efficient iteration, comprehensive analytics with resilient graceful degradation, structured event types for complete observability, error handling philosophy prioritizing non-fatal issue logging and continued operation, and multi-layered crash-safety ensuring system reliability and performance across diverse operational scenarios.

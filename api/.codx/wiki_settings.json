@@ -13,23 +13,38 @@
         {
           "name": "README.md",
           "path": "/shared/codx-junior/api/README.md",
-          "slug": "shared-codx-junior-api-readme-md.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/shared-codx-junior-api-readme-md.md"
+          "slug": "readme.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/readme.md"
         },
         {
           "path": "/pyproject.toml",
-          "slug": "pyproject-toml.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/pyproject-toml.md"
+          "slug": "pyproject.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/pyproject.md"
         },
         {
           "path": "/codx/junior/api/chat.py",
-          "slug": "codx-junior-api-chat-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-api-chat-py.md"
+          "slug": "chat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/chat.md"
         },
         {
           "path": "/codx/junior/tools/code_block_generator.py",
-          "slug": "codx-junior-tools-code-block-generator-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-tools-code-block-generator-py.md"
+          "slug": "code-block-generator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/code-block-generator.md"
+        },
+        {
+          "path": "/codx/junior/model/custom_tool.py",
+          "slug": "custom-tool.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/custom-tool.md"
+        },
+        {
+          "path": "/codx/junior/custom_tools/custom_tool_executor.py",
+          "slug": "custom-tool-executor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/custom-tool-executor.md"
+        },
+        {
+          "path": "/codx/junior/custom_tools/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
         }
       ],
       "id": "project-overview",
@@ -50,30 +65,30 @@
         {
           "name": "app.py",
           "path": "/shared/codx-junior/api/codx/junior/app.py",
-          "slug": "shared-codx-junior-api-codx-junior-app-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/shared-codx-junior-api-codx-junior-app-py.md"
+          "slug": "app.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/app.md"
         },
         {
           "name": "background.py",
           "path": "/shared/codx-junior/api/codx/junior/background.py",
-          "slug": "shared-codx-junior-api-codx-junior-background-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/shared-codx-junior-api-codx-junior-background-py.md"
+          "slug": "background.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/background.md"
         },
         {
           "name": "main.py",
           "path": "/shared/codx-junior/api/codx/junior/main.py",
-          "slug": "shared-codx-junior-api-codx-junior-main-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/shared-codx-junior-api-codx-junior-main-py.md"
+          "slug": "main.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/main.md"
         },
         {
           "path": "/codx/junior/engine/git_engine.py",
-          "slug": "codx-junior-engine-git-engine-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/codx-junior-engine-git-engine-py.md"
+          "slug": "git-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/git-engine.md"
         },
         {
           "path": "/codx/junior/api/files.py",
-          "slug": "codx-junior-api-files-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/app-module/codx-junior-api-files-py.md"
+          "slug": "files.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/files.md"
         }
       ],
       "id": "app-module",
@@ -93,38 +108,38 @@
         {
           "name": "engine.py",
           "path": "/shared/codx-junior/api/codx/junior/engine.py",
-          "slug": "shared-codx-junior-api-codx-junior-engine-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/shared-codx-junior-api-codx-junior-engine-py.md"
+          "slug": "engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/engine.md"
         },
         {
           "path": "/codx/junior/chat/chat_engine.py",
-          "slug": "codx-junior-chat-chat-engine-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-chat-chat-engine-py.md"
+          "slug": "chat-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/chat-engine.md"
         },
         {
           "path": "/codx/junior/engine/code_engine.py",
-          "slug": "codx-junior-engine-code-engine-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-code-engine-py.md"
+          "slug": "code-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/code-engine.md"
         },
         {
           "path": "/codx/junior/app.py",
-          "slug": "codx-junior-app-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-app-py.md"
+          "slug": "app.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/app.md"
         },
         {
           "path": "/codx/junior/engine/file_engine.py",
-          "slug": "codx-junior-engine-file-engine-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-file-engine-py.md"
+          "slug": "file-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/file-engine.md"
         },
         {
           "path": "/codx/junior/engine/chat_engine_actions.py",
-          "slug": "codx-junior-engine-chat-engine-actions-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/codx-junior-engine-chat-engine-actions-py.md"
+          "slug": "chat-engine-actions.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/chat-engine-actions.md"
         },
         {
           "path": "/content.mermaid",
-          "slug": "content-mermaid.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/engine-module/content-mermaid.md"
+          "slug": "content.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/content.md"
         }
       ],
       "id": "engine-module",
@@ -155,40 +170,40 @@
             {
               "name": "Base Agent",
               "path": "/shared/codx-junior/api/codx/junior/agents/base_agent.py",
-              "slug": "shared-codx-junior-api-codx-junior-agents-base-agent-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/shared-codx-junior-api-codx-junior-agents-base-agent-py.md"
+              "slug": "base-agent.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/base-agent.md"
             },
             {
               "name": "DevOps Agent",
               "path": "/shared/codx-junior/api/codx/junior/agents/devops_agent.py",
-              "slug": "shared-codx-junior-api-codx-junior-agents-devops-agent-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/shared-codx-junior-api-codx-junior-agents-devops-agent-py.md"
+              "slug": "devops-agent.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/devops-agent.md"
             },
             {
               "name": "Git Issues Agent",
               "path": "/shared/codx-junior/api/codx/junior/agents/git_issues_agent.py",
-              "slug": "shared-codx-junior-api-codx-junior-agents-git-issues-agent-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/shared-codx-junior-api-codx-junior-agents-git-issues-agent-py.md"
+              "slug": "git-issues-agent.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/git-issues-agent.md"
             },
             {
               "path": "/codx/junior/api/github.py",
-              "slug": "codx-junior-api-github-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-api-github-py.md"
+              "slug": "github.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/github.md"
             },
             {
               "path": "/codx/junior/ai/smol/smol_agent.py",
-              "slug": "codx-junior-ai-smol-smol-agent-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-ai-smol-smol-agent-py.md"
+              "slug": "smol-agent.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/smol-agent.md"
             },
             {
               "path": "/engine/agent_runtime.py",
-              "slug": "engine-agent-runtime-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/engine-agent-runtime-py.md"
+              "slug": "agent-runtime.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/agent-runtime.md"
             },
             {
               "path": "/codx/junior/ai/smol/__init__.py",
-              "slug": "codx-junior-ai-smol-init-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/agents/codx-junior-ai-smol-init-py.md"
+              "slug": "init.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/agents/init.md"
             }
           ],
           "id": "agents",
@@ -207,59 +222,59 @@
             {
               "name": "Model",
               "path": "/shared/codx-junior/api/codx/junior/model/model.py",
-              "slug": "shared-codx-junior-api-codx-junior-model-model-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/shared-codx-junior-api-codx-junior-model-model-py.md"
+              "slug": "model.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/model.md"
             },
             {
               "name": "User Model",
               "path": "/shared/codx-junior/api/codx/junior/model/user.py",
-              "slug": "shared-codx-junior-api-codx-junior-model-user-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/shared-codx-junior-api-codx-junior-model-user-py.md"
+              "slug": "user.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/user.md"
             },
             {
               "path": "/codx/junior/knowledge/embeddings.py",
-              "slug": "codx-junior-knowledge-embeddings-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py.md"
+              "slug": "embeddings.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/embeddings.md"
             },
             {
               "path": "/codx/junior/ai/openai_ai.py",
-              "slug": "codx-junior-ai-openai-ai-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-ai-openai-ai-py.md"
+              "slug": "openai-ai.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/openai-ai.md"
             },
             {
               "path": "/codx/junior/global_settings.py",
-              "slug": "codx-junior-global-settings-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-global-settings-py.md"
+              "slug": "global-settings.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/global-settings.md"
             },
             {
               "path": "/codx/junior/ai/vllm_cpu_ai.py",
-              "slug": "codx-junior-ai-vllm-cpu-ai-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-ai-vllm-cpu-ai-py.md"
+              "slug": "vllm-cpu-ai.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/vllm-cpu-ai.md"
             },
             {
               "path": "/codx/junior/ai/ai.py",
-              "slug": "codx-junior-ai-ai-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-ai-ai-py.md"
+              "slug": "ai.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/ai.md"
             },
             {
               "path": "/codx/junior/profiles/profile_manager.py",
-              "slug": "codx-junior-profiles-profile-manager-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-profiles-profile-manager-py.md"
+              "slug": "profile-manager.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/profile-manager.md"
             },
             {
               "path": "/codx/junior/model/logs.py",
-              "slug": "codx-junior-model-logs-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-logs-py.md"
+              "slug": "logs.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/logs.md"
             },
             {
               "path": "/codx/junior/model/ai_model.py",
-              "slug": "codx-junior-model-ai-model-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-ai-model-py.md"
+              "slug": "ai-model.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/ai-model.md"
             },
             {
               "path": "/codx/junior/model/profile.py",
-              "slug": "codx-junior-model-profile-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/models/codx-junior-model-profile-py.md"
+              "slug": "profile.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/profile.md"
             }
           ],
           "id": "models",
@@ -279,70 +294,70 @@
             {
               "name": "Code Splitter",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_splitter.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-code-splitter-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-code-splitter-py.md"
+              "slug": "knowledge-code-splitter.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-code-splitter.md"
             },
             {
               "name": "Code to Documents",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_to_documents.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-code-to-documents-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-code-to-documents-py.md"
+              "slug": "knowledge-code-to-documents.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-code-to-documents.md"
             },
             {
               "name": "Keyword Extraction",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_keywords.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-keywords-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-keywords-py.md"
+              "slug": "knowledge-keywords.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-keywords.md"
             },
             {
               "name": "Document Enrichment",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_loader.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-loader-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-loader-py.md"
+              "slug": "knowledge-loader.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-loader.md"
             },
             {
               "name": "Query Tags",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_prompts.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-prompts-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-prompts-py.md"
+              "slug": "knowledge-prompts.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-prompts.md"
             },
             {
               "name": "QA Splitter",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_qa_splitter.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-qa-splitter-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-qa-splitter-py.md"
+              "slug": "knowledge-qa-splitter.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-qa-splitter.md"
             },
             {
               "name": "Training",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-training-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-training-py.md"
+              "slug": "knowledge-training.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-training.md"
             },
             {
               "name": "Wiki Integration",
               "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_wiki.py",
-              "slug": "shared-codx-junior-api-codx-junior-knowledge-knowledge-wiki-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/shared-codx-junior-api-codx-junior-knowledge-knowledge-wiki-py.md"
+              "slug": "knowledge-wiki.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-wiki.md"
             },
             {
               "path": "/codx/junior/background.py",
-              "slug": "codx-junior-background-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/codx-junior-background-py.md"
+              "slug": "background.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/background.md"
             },
             {
               "path": "/codx/junior/knowledge/knowledge_loader.py",
-              "slug": "codx-junior-knowledge-knowledge-loader-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-loader-py.md"
+              "slug": "knowledge-loader.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-loader.md"
             },
             {
               "path": "/codx/junior/api/knowledge.py",
-              "slug": "codx-junior-api-knowledge-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/codx-junior-api-knowledge-py.md"
+              "slug": "knowledge.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge.md"
             },
             {
               "path": "/codx/junior/knowledge/knowledge_milvus.py",
-              "slug": "codx-junior-knowledge-knowledge-milvus-py.md",
-              "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-milvus-py.md"
+              "slug": "knowledge-milvus.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/knowledge/knowledge-milvus.md"
             }
           ],
           "id": "knowledge",
@@ -352,38 +367,38 @@
       "files": [
         {
           "path": "/codx/junior/model/model.py",
-          "slug": "codx-junior-model-model-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-model-model-py.md"
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/model.md"
         },
         {
           "path": "/codx/junior/ai/smol/loop_guard.py",
-          "slug": "codx-junior-ai-smol-loop-guard-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-loop-guard-py.md"
+          "slug": "loop-guard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/loop-guard.md"
         },
         {
           "path": "/codx/junior/ai/smol/constants.py",
-          "slug": "codx-junior-ai-smol-constants-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-constants-py.md"
+          "slug": "constants.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/constants.md"
         },
         {
           "path": "/codx/junior/chat/chat_event_bridge.py",
-          "slug": "codx-junior-chat-chat-event-bridge-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-chat-chat-event-bridge-py.md"
+          "slug": "chat-event-bridge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/chat-event-bridge.md"
         },
         {
           "path": "/codx/junior/wiki/wiki_manager.py",
-          "slug": "codx-junior-wiki-wiki-manager-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-wiki-wiki-manager-py.md"
+          "slug": "wiki-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/wiki-manager.md"
         },
         {
           "path": "/codx/junior/tools/generate_tasks_tool.py",
-          "slug": "codx-junior-tools-generate-tasks-tool-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-tools-generate-tasks-tool-py.md"
+          "slug": "generate-tasks-tool.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/generate-tasks-tool.md"
         },
         {
           "path": "/codx/junior/ai/smol/tool_cache.py",
-          "slug": "codx-junior-ai-smol-tool-cache-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/ai-and-knowledge-management/codx-junior-ai-smol-tool-cache-py.md"
+          "slug": "tool-cache.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/tool-cache.md"
         }
       ],
       "id": "ai-and-knowledge-management",
@@ -403,39 +418,49 @@
         {
           "name": "DB Router",
           "path": "/shared/codx-junior/api/codx/junior/api/db_router.py",
-          "slug": "shared-codx-junior-api-codx-junior-api-db-router-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/shared-codx-junior-api-codx-junior-api-db-router-py.md"
+          "slug": "db-router.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/db-router.md"
         },
         {
           "name": "DB Settings",
           "path": "/shared/codx-junior/api/codx/junior/settings.py",
-          "slug": "shared-codx-junior-api-codx-junior-settings-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/shared-codx-junior-api-codx-junior-settings-py.md"
+          "slug": "settings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/settings.md"
         },
         {
           "path": "/README.md",
-          "slug": "readme-md.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md"
+          "slug": "readme.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/readme.md"
         },
         {
           "path": "/codx/junior/db.py",
-          "slug": "codx-junior-db-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/codx-junior-db-py.md"
+          "slug": "db.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/db.md"
         },
         {
           "path": "/codx/junior/analytics/analytics.py",
-          "slug": "codx-junior-analytics-analytics-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/codx-junior-analytics-analytics-py.md"
+          "slug": "analytics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/analytics.md"
         },
         {
           "path": "/codx/junior/model/workspace.py",
-          "slug": "codx-junior-model-workspace-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/codx-junior-model-workspace-py.md"
+          "slug": "workspace.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/workspace.md"
         },
         {
           "path": "/codx/junior/api/workspaces.py",
-          "slug": "codx-junior-api-workspaces-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/codx-junior-api-workspaces-py.md"
+          "slug": "workspaces.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/workspaces.md"
+        },
+        {
+          "path": "/codx/junior/api/custom_tools.py",
+          "slug": "custom-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/custom-tools.md"
+        },
+        {
+          "path": "/codx/junior/custom_tools/custom_tool_manager.py",
+          "slug": "custom-tool-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/custom-tool-manager.md"
         }
       ],
       "id": "database-and-data-storage",
@@ -455,14 +480,14 @@
         {
           "name": "GitHub OAuth",
           "path": "/shared/codx-junior/api/codx/junior/security/github_oauth.py",
-          "slug": "shared-codx-junior-api-codx-junior-security-github-oauth-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/security-and-authentication/shared-codx-junior-api-codx-junior-security-github-oauth-py.md"
+          "slug": "github-oauth.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/security-and-authentication/github-oauth.md"
         },
         {
           "name": "User Management",
           "path": "/shared/codx-junior/api/codx/junior/security/user_management.py",
-          "slug": "shared-codx-junior-api-codx-junior-security-user-management-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/security-and-authentication/shared-codx-junior-api-codx-junior-security-user-management-py.md"
+          "slug": "user-management.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/security-and-authentication/user-management.md"
         }
       ],
       "id": "security-and-authentication",
@@ -481,14 +506,14 @@
         {
           "name": "Session Channel",
           "path": "/shared/codx-junior/api/codx/junior/sio/session_channel.py",
-          "slug": "shared-codx-junior-api-codx-junior-sio-session-channel-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/session-management/shared-codx-junior-api-codx-junior-sio-session-channel-py.md"
+          "slug": "session-channel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/session-management/session-channel.md"
         },
         {
           "name": "Session Manager",
           "path": "/shared/codx-junior/api/codx/junior/session/session_manager.py",
-          "slug": "shared-codx-junior-api-codx-junior-session-session-manager-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/session-management/shared-codx-junior-api-codx-junior-session-session-manager-py.md"
+          "slug": "session-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/session-management/session-manager.md"
         }
       ],
       "id": "session-management",
@@ -508,70 +533,70 @@
         {
           "name": "Chat Utils",
           "path": "/shared/codx-junior/api/codx/junior/utils/chat_utils.py",
-          "slug": "shared-codx-junior-api-codx-junior-utils-chat-utils-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/shared-codx-junior-api-codx-junior-utils-chat-utils-py.md"
+          "slug": "chat-utils.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/chat-utils.md"
         },
         {
           "name": "Browser Use",
           "path": "/shared/codx-junior/api/codx/junior/browser/browseruse.py",
-          "slug": "shared-codx-junior-api-codx-junior-browser-browseruse-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/shared-codx-junior-api-codx-junior-browser-browseruse-py.md"
+          "slug": "browseruse.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/browseruse.md"
         },
         {
           "name": "Log Parser",
           "path": "/shared/codx-junior/api/codx/junior/log_parser.py",
-          "slug": "shared-codx-junior-api-codx-junior-log-parser-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/shared-codx-junior-api-codx-junior-log-parser-py.md"
+          "slug": "log-parser.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/log-parser.md"
         },
         {
           "path": "/codx/junior/globals.py",
-          "slug": "codx-junior-globals-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-globals-py.md"
+          "slug": "globals.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/globals.md"
         },
         {
           "path": "/codx/junior/utils/content_formatter.py",
-          "slug": "codx-junior-utils-content-formatter-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-utils-content-formatter-py.md"
+          "slug": "content-formatter.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/content-formatter.md"
         },
         {
           "path": "/codx/junior/ai/smol/messages.py",
-          "slug": "codx-junior-ai-smol-messages-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-ai-smol-messages-py.md"
+          "slug": "messages.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/messages.md"
         },
         {
           "path": "/codx/junior/chat_manager.py",
-          "slug": "codx-junior-chat-manager-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-chat-manager-py.md"
+          "slug": "chat-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/chat-manager.md"
         },
         {
           "path": "/codx/junior/chat_searcher.py",
-          "slug": "codx-junior-chat-searcher-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-chat-searcher-py.md"
+          "slug": "chat-searcher.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/chat-searcher.md"
         },
         {
           "path": "/codx/junior/tools/__init__.py",
-          "slug": "codx-junior-tools-init-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-init-py.md"
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/init.md"
         },
         {
           "path": "/codx/junior/tools/model.py",
-          "slug": "codx-junior-tools-model-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-model-py.md"
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/model.md"
         },
         {
           "path": "/codx/junior/tools/project_structure.py",
-          "slug": "codx-junior-tools-project-structure-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-project-structure-py.md"
+          "slug": "project-structure.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/project-structure.md"
         },
         {
           "path": "/codx/junior/tools/project_tools.py",
-          "slug": "codx-junior-tools-project-tools-py.md",
-          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/utility-functions/codx-junior-tools-project-tools-py.md"
+          "slug": "project-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/project-tools.md"
         }
       ],
       "id": "utility-functions",
       "path": "utility-functions"
     }
   ],
-  "path": "/home/codx-junior/codx-junior/api/.codx/wiki_settings.json"
+  "path": "/home/codx-junior-projects/codx-junior/api/.codx/wiki_settings.json"
 }

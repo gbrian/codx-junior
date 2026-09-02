@@ -46,6 +46,23 @@ def get_ai(settings: CODXJuniorSettings, tool_name: str) -> AI:
     return AI(settings=settings, user=user)
 
 
+def _to_relative_path(settings: CODXJuniorSettings, abs_path: str) -> str:
+    """
+    Convert an absolute file path to a relative path within the project.
+
+    Args:
+        settings: The project settings.
+        abs_path: Absolute path to convert.
+
+    Returns:
+        str: Relative path from project root.
+    """
+    if abs_path.startswith(settings.abs_project_path):
+        rel_path = os.path.relpath(abs_path, settings.abs_project_path)
+        return rel_path
+    return abs_path
+
+
 async def code_block(file_path: str, code: str, code_language: str, **kwargs) -> str:
     """
     Ensure the code follows the project's standards and best practices and return it in a code block format.
@@ -130,7 +147,8 @@ def _read_single_file(settings: CODXJuniorSettings, file_path: str) -> tuple[str
         extension = abs_path.split(".")[-1] if "." in abs_path else ""
         with open(abs_path, "r", encoding="utf-8") as file:
             content = file.read()
-            formatted = f"```{extension} {file_path}\n{content}\n```"
+            rel_path = _to_relative_path(settings=settings, abs_path=abs_path)
+            formatted = f"```{extension} {rel_path}\n{content}\n```"
             logger.debug("Successfully read file: %s", file_path)
             return formatted, None
 
@@ -321,6 +339,12 @@ def project_search(
                 except Exception as e:
                     logger.error("Error filtering document content: %s", str(e))
 
+            # Convert document source to relative path if it belongs to project
+            source = doc.metadata.get("source", "")
+            if source and source.startswith(settings.abs_project_path):
+                rel_source = _to_relative_path(settings=settings, abs_path=source)
+                doc.metadata["source"] = rel_source
+
             all_results.append(document_to_code_block(doc))
 
     # Build responses
@@ -391,8 +415,10 @@ def project_write_file(file_path: str, content: str, **kwargs) -> ToolResponse:
         logger.info("Successfully wrote to file: %s", file_path)
         file_size = len(content.encode("utf-8"))
 
-        user_response = f"✓ File written successfully: `{file_path}` ({file_size} bytes)"
-        llm_response = f"Write completed: {file_path} ({file_size} bytes)"
+        rel_path = _to_relative_path(settings=settings, abs_path=abs_path)
+
+        user_response = f"✓ File written successfully: `{rel_path}` ({file_size} bytes)"
+        llm_response = f"Write completed: {rel_path} ({file_size} bytes)"
 
         return ToolResponse(user_response=user_response, llm_response=llm_response)
 

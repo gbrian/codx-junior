@@ -5,6 +5,7 @@ import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
+import Document from './document/Document.vue'
 import { EXTENSION_LANGUAGE_MAP } from '../store'
 
 </script>
@@ -60,7 +61,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
             <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
               <span v-if="loadingStats">Loading...</span>
-              <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats">
+              <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats && !isMarkdown">
                 <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
                 <i class="fa-solid fa-code-compare" v-else></i>
                 {{ stats }}
@@ -87,7 +88,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             </span>
           </div>
 
-          <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
+          <div v-if="stats && !editMode && !isNoChange && !isMarkdown" class="flex items-center gap-2 ml-2">
             <div
               class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
               :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
@@ -213,7 +214,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div v-if="isDangerousChange && !editMode && !showDiff" class="alert alert-warning">
+      <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning">
         <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
         </svg>
@@ -256,15 +257,33 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="editMode"
           />
 
-          <!-- CHANGED: Highlighter key now only updates on code content hash changes, not parent re-renders -->
-          <VueCodeHighlighter
-            :key="codeHash"
-            class="h-full"
-            :code="effectiveCode"
-            :lang="validatedLanguage"
-            :title="fileName"
-            v-if="effectiveCode && !editMode && !showDiff"
-          />
+          <!-- Document component for markdown files -->
+          <div class="h-full" v-if="effectiveCode && !editMode && !showDiff">
+            <Document
+              v-if="isMarkdown"
+              :content="effectiveCode"
+              :files="files"
+              :project="project"
+              :chat="chat"
+              :message="message"
+              :loading="!finished"
+              class="h-full overflow-auto"
+              @add-file="$emit('add-file', $event)"
+              @save-file="$emit('save-file', $event)"
+              @open-file="$emit('open-file', $event)"
+              @edit-message="$emit('edit-message', $event)"
+              @sub-task="$emit('sub-task', $event)"
+            />
+
+            <VueCodeHighlighter
+              v-else
+              :key="codeHash"
+              class="h-full"
+              :code="effectiveCode"
+              :lang="validatedLanguage"
+              :title="fileName"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -357,6 +376,10 @@ export default {
       return this.language === 'diff'
     },
 
+    isMarkdown() {
+      return this.validatedLanguage === 'md'
+    },
+
     fileName() {
       return this.file?.split('/').reverse()[0]
     },
@@ -431,7 +454,7 @@ export default {
         
         if (this.showCode) {
           await this.loadDiffInfo()
-          if (!this.isNewFile && this.stats && !this.isNoChange) {
+          if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
             this.showDiff = true
           }
         }
@@ -591,7 +614,7 @@ export default {
       this.diffEditContent = this.code
       this.diffBaseContent = this.code
       this.hasUnsavedFileChanges = false
-      this.showDiff = !!this.orgContent && !this.isNoChange
+      this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
     },
 
     parseStatsString() {
@@ -605,7 +628,7 @@ export default {
     },
 
     calculateDiffPercentages() {
-      if (!this.stats || !this.orgContent) return
+      if (!this.stats || !this.orgContent || this.isMarkdown) return
       const { deletions, insertions } = this.parseStatsString()
       const total = deletions + insertions
       this.deletionCount = deletions
@@ -621,6 +644,7 @@ export default {
     },
 
     evaluateChangeRisk() {
+      if (this.isMarkdown) return
       const { deletions, insertions } = this.parseStatsString()
       const originalLines = this.orgContent?.split('\n').length || 1
       const newLines = this.effectiveCode?.split('\n').length || 1
@@ -699,7 +723,7 @@ export default {
           this.diffBaseContent = this.effectiveCode
           this.calculateDiffPercentages()
 
-          if (!this.isNewFile && this.stats && !this.isNoChange) {
+          if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
             this.showDiff = true
           }
 

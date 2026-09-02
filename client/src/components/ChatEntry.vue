@@ -8,6 +8,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
 import ChatEntryMobile from './ChatEntryMobile.vue'
 import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
+import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import Collapsible from './Collapsible.vue'
 import ChatEntryDrawer from './ChatEntryDrawer.vue'
@@ -201,6 +202,15 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-regular fa-file-lines"></i>
           </button>
           <button 
+            :class="showFileView && 'btn-active'"
+            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
+            data-tip="View files" 
+            @click.stop="toggleFileView"
+            v-if="hasCodeBlocksOrFiles"
+          >
+            <i class="fa-solid fa-file-code"></i>
+          </button>
+          <button 
             :class="showPRView && 'btn-active'"
             class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
             data-tip="Review code changes" 
@@ -261,7 +271,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
 
       <!-- TOC for long documents (only show when no events OR when viewing in timeline mode) -->
       <DocumentSummary
-        v-if="!srcView && isDone && messageContent && !showPRView && !hasEvents"
+        v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents"
         :content="messageContent"
         :minHeadings="3"
         :documentId="documentId"
@@ -278,7 +288,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-2 rounded">{{ displayMessage.content }}</pre>
 
         <Document 
-          v-if="!showDiff && !srcView && !showPRView && !code_patches && !isWord"
+          v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord"
           :content="messageContent"
           :files="chatFiles"
           :project="chatProject"
@@ -311,14 +321,14 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         </div>
 
         <CodeDiff
-          v-if="showDiff && !showPRView"
+          v-if="showDiff && !showPRView && !showFileView"
           :new-string="displayMessage.diffMessage.content"
           :old-string="messageContent"
           theme="dark"
         />
 
         <!-- Code patches section -->
-        <div v-if="code_patches && !showPRView" class="space-y-3">
+        <div v-if="code_patches && !showPRView && !showFileView" class="space-y-3">
           <div 
             v-for="patch in code_patches" 
             :key="patch.file_path"
@@ -348,9 +358,23 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           </div>
         </div>
 
+        <!-- File View -->
+        <MessageFileView
+          v-if="showFileView && !srcView && !showDiff && !showPRView"
+          :codeBlocks="prViewCodeBlocks"
+          :linkedFiles="displayMessage.files"
+          :chat="chat"
+          :message="message"
+          @save-file="$emit('save-file', $event)"
+          @add-file="$emit('add-file', $event)"
+          @open-file="$emit('open-file', $event)"
+          @sub-task="$emit('sub-task', $event)"
+          @remove-file="$emit('remove-file', $event)"
+        />
+
         <!-- PR View -->
         <MessagePRView
-          v-if="showPRView && !srcView && !showDiff"
+          v-if="showPRView && !srcView && !showDiff && !showFileView"
           :codeBlocks="prViewCodeBlocks"
           :chat="chat"
           :message="message"
@@ -362,7 +386,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         />
 
         <!-- Images carousel -->
-        <div v-if="images && !showPRView && images?.length" class="mt-3">
+        <div v-if="images && !showPRView && !showFileView && images?.length" class="mt-3">
           <p class="text-xs font-semibold mb-2">
             <i class="fa-solid fa-images"></i> Images
           </p>
@@ -385,7 +409,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         </div>
 
         <!-- Linked files -->
-        <div v-if="displayMessage.files?.length && !showPRView" class="mt-3 p-2 bg-base-200 rounded-md">
+        <div v-if="displayMessage.files?.length && !showPRView && !showFileView" class="mt-3 p-2 bg-base-200 rounded-md">
           <div class="flex items-center justify-between mb-2">
             <p class="text-xs font-semibold">
               <i class="fa-solid fa-link"></i> Linked files
@@ -461,6 +485,7 @@ export default {
       improvementData: null,
       showDiff: false,
       showPRView: false,
+      showFileView: false,
       documentId: 'doc-' + Math.random().toString(36).slice(2, 8),
       activeBranch: null,
       branchLoading: false,
@@ -572,6 +597,9 @@ export default {
     hasPRViewBlocks() {
       return this.$service.chat.hasCodeBlocksWithFilePaths(this.displayMessage)
     },
+    hasCodeBlocksOrFiles() {
+      return this.prViewCodeBlocks.length > 0 || this.displayMessage.files?.length > 0
+    },
     prViewCodeBlocks() {
       return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
     },
@@ -675,12 +703,22 @@ export default {
       if (this.srcView) {
         this.showDiff = false
         this.showPRView = false
+        this.showFileView = false
       }
     },
     toggleShowDiff() {
       this.showDiff = !this.showDiff
       if (this.showDiff) {
         this.srcView = false
+        this.showPRView = false
+        this.showFileView = false
+      }
+    },
+    toggleFileView() {
+      this.showFileView = !this.showFileView
+      if (this.showFileView) {
+        this.srcView = false
+        this.showDiff = false
         this.showPRView = false
       }
     },
@@ -689,6 +727,7 @@ export default {
       if (this.showPRView) {
         this.srcView = false
         this.showDiff = false
+        this.showFileView = false
         this.loadActiveBranch()
       }
     },
