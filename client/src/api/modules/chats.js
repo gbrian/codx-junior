@@ -90,6 +90,46 @@ export const chatsModule = (API) => ({
     return API.post(`/api/chat/cancel`, { token_id: cancellationTokenId })
   },
 
+  // ── Message Archive Endpoints ──────────────────────────────────────────
+
+  async getArchivedMessages(chatId, filters = {}) {
+    let qs = ""
+    if (filters) {
+      const params = new URLSearchParams(filters).toString()
+      qs = params ? `?${params}` : ""
+    }
+    return API.get(`/api/analytics/chat-sessions/${chatId}/messages${qs}`)
+  },
+
+  async getCompleteContext(chatId, filters = {}) {
+    let qs = ""
+    if (filters) {
+      const params = new URLSearchParams(filters).toString()
+      qs = params ? `?${params}` : ""
+    }
+    return API.get(`/api/analytics/chat-sessions/${chatId}/complete-context${qs}`)
+  },
+
+  // ── Admin Message Archive Endpoints ────────────────────────────────────
+
+  async adminGetArchivedMessages(chatId, filters = {}) {
+    let qs = ""
+    if (filters) {
+      const params = new URLSearchParams(filters).toString()
+      qs = params ? `?${params}` : ""
+    }
+    return API.get(`/api/analytics/admin/chat-sessions/${chatId}/messages${qs}`)
+  },
+
+  async adminGetCompleteContext(chatId, filters = {}) {
+    let qs = ""
+    if (filters) {
+      const params = new URLSearchParams(filters).toString()
+      qs = params ? `?${params}` : ""
+    }
+    return API.get(`/api/analytics/admin/chat-sessions/${chatId}/complete-context${qs}`)
+  },
+
   kanban: {
     async load() {
       return API.get('/api/kanban')

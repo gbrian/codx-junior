@@ -24,7 +24,7 @@
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://gbrian.codxjunior.com/only_icon.png",
   "log_ignore": "/var/log/supervisor,openai_ai chat_completions",
-  "last_access_time": "2026-05-23 10:20:42.041624",
+  "last_access_time": "2026-09-02 17:50:20.960805",
   "project_scripts": [],
   "embeddings_model": "",
   "llm_model": "",
@@ -32,5 +32,6 @@
   "wiki_model": "",
   "last_error": "",
   "urls": [],
-  "repo_url": null
+  "repo_url": null,
+  "mcp_servers": []
 }

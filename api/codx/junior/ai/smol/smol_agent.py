@@ -30,8 +30,10 @@ import json
 import logging
 import time
 import uuid
+import inspect
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Set
+from asyncio import Future
 
 from openai import OpenAI
 from langchain.messages import AIMessage, HumanMessage
@@ -57,6 +59,7 @@ from codx.junior.ai.smol.messages import (
 )
 from codx.junior.ai.smol.tool_cache import ToolCache
 from codx.junior.analytics import Analytics
+from codx.junior.analytics.model import ArchivedMessage, ToolCallMessage
 from codx.junior.analytics.token_counter import count_tokens
 from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
@@ -447,6 +450,8 @@ class SmolAgent:
                 cancellation_token=cancellation_token,
                 send_callback=send_callback,
                 run_context=run_context,
+                request_id=request_id,
+                chat_id=chat_id,
             )
 
             if not tool_calls:
@@ -690,6 +695,8 @@ class SmolAgent:
         cancellation_token: Optional[CancellationToken],
         send_callback: Callable[[str, bool], None],
         run_context: AgentRunContext,
+        request_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> Tuple[str, Dict[str, Dict[str, Any]], Any]:
         """
         Stream one completion, collecting content, tool calls and usage.
@@ -708,6 +715,8 @@ class SmolAgent:
             send_callback:      Chunk callback sender (accumulating: flushes
                                 the full response so far to callbacks).
             run_context:        Unified runtime context for this run.
+            request_id:         Unique request identifier for traceability.
+            chat_id:            Chat identifier for linking to archived messages.
 
         Returns:
             Tuple of ``(content, tool_calls, usage_info)``.
@@ -771,7 +780,31 @@ class SmolAgent:
             raise
 
         send_callback("", True)
-        return "".join(content_parts), accumulator.tool_calls, usage_info
+        content = "".join(content_parts)
+
+        # Archive the complete message exchange after successful streaming
+        if request_id and (content or accumulator.tool_calls):
+            try:
+                analytics = _get_analytics()
+                analytics.record_archived_message(
+                    message_id=str(uuid.uuid4()),
+                    chat_id=chat_id or "",
+                    username=self.user.username if self.user else "anonymous",
+                    project_name=self.settings.project_name or "",
+                    project_id=getattr(self.settings, "project_id", "") or "",
+                    model=self.model,
+                    provider=self.llm_settings.provider or "",
+                    request_messages=openai_messages,
+                    response_content=content,
+                    request_id=request_id,
+                    duration_seconds=0.0,
+                    input_tokens=getattr(usage_info, "prompt_tokens", 0) or 0,
+                    output_tokens=getattr(usage_info, "completion_tokens", 0) or 0,
+                )
+            except OSError as ex:
+                logger.warning("SmolAgent: failed to archive message: %s", ex)
+
+        return content, accumulator.tool_calls, usage_info
 
     # ── Tool execution ─────────────────────────────────────────────────────────
 
@@ -893,6 +926,8 @@ class SmolAgent:
 
         finally:
             duration_ms = (time.monotonic() - tool_start) * 1000
+            duration_seconds = time.monotonic() - tool_start
+
             if success:
                 run_context.emit(
                     AgentEventType.TOOL_END,
@@ -909,9 +944,35 @@ class SmolAgent:
                     duration_ms=duration_ms,
                     error=error_message,
                 )
+
+            # Archive the tool call execution
+            try:
+                analytics = _get_analytics()
+                # Sanitize params to remove non-serializable objects (asyncio.Future, etc.)
+                sanitized_params = self._sanitize_for_serialization(dict(params))
+                sanitized_result = self._sanitize_for_serialization(result if isinstance(result, (str, dict, list)) else str(result))
+                analytics.record_tool_call_message(
+                    message_id=str(uuid.uuid4()),
+                    chat_id=chat_id or "",
+                    tool_call_id=tool_call_id or "",
+                    tool_name=func_name,
+                    username=self.user.username if self.user else "anonymous",
+                    project_name=self.settings.project_name or "",
+                    project_id=getattr(self.settings, "project_id", "") or "",
+                    request_args=sanitized_params,
+                    result=sanitized_result,
+                    result_sent_to_model=_normalise_tool_result(result, func_name),
+                    success=success,
+                    error_message=error_message,
+                    duration_seconds=duration_seconds,
+                    cached=False,
+                )
+            except OSError as ex:
+                logger.warning("SmolAgent: failed to archive tool call message: %s", ex)
+
             self._record_tool_usage(
                 tool_name=func_name,
-                time_taken=time.monotonic() - tool_start,
+                time_taken=duration_seconds,
                 success=success,
                 error_message=error_message,
                 chat_id=chat_id,
@@ -940,6 +1001,49 @@ class SmolAgent:
                     "SmolAgent: cannot parse arguments for tool '%s': %s", func_name, ex
                 )
         return {}
+
+    @staticmethod
+    def _sanitize_for_serialization(obj: Any) -> Any:
+        """
+        Recursively sanitize an object to remove non-serializable items
+        (e.g., asyncio.Future, coroutines, Pydantic models).
+
+        Args:
+            obj: Object to sanitize.
+
+        Returns:
+            Serialization-safe version of the object.
+        """
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        if isinstance(obj, Future):
+            return f"<{type(obj).__name__}>"
+
+        if inspect.iscoroutine(obj):
+            return f"<{type(obj).__name__}>"
+
+        if hasattr(obj, 'model_dump'):
+            # Pydantic model
+            try:
+                return SmolAgent._sanitize_for_serialization(obj.model_dump())
+            except Exception:
+                return str(obj)
+
+        if isinstance(obj, dict):
+            return {
+                SmolAgent._sanitize_for_serialization(k): SmolAgent._sanitize_for_serialization(v)
+                for k, v in obj.items()
+            }
+
+        if isinstance(obj, (list, tuple)):
+            return [SmolAgent._sanitize_for_serialization(item) for item in obj]
+
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            return str(obj)
 
     # ── Request building helpers ───────────────────────────────────────────────
 

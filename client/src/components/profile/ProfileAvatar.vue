@@ -14,6 +14,7 @@ import Document from '../document/Document.vue';
       <div class="card-body text-xs">
         <div class="badge badge-primary">{{ profile.name }}</div>
         <p>{{ profile.description }}</p>
+        <div>Tools: {{ profile.tools }}</div>
         <Document class="max-h-60 overflow-auto" :content="profile.content" />
         <slot></slot>
       </div>

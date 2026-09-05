@@ -1,5 +1,6 @@
 <script setup>
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
+import MCPServerListEditor from '@/components/project_settings/MCPServerListEditor.vue'
 </script>
 
 <template>
@@ -142,6 +143,10 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
                   <ModelSelector v-model="settings.llm_model" />
                 </div>
               </div>
+            </div>
+
+            <div v-if="activeTab === 'mcp'">
+              <MCPServerListEditor v-model="settings.mcp_servers" />
             </div>
 
             <div v-if="activeTab === 'knowledge'">
@@ -443,6 +448,10 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
             </div>
           </div>
 
+          <div v-if="activeTab === 'mcp'">
+            <MCPServerListEditor v-model="settings.mcp_servers" />
+          </div>
+
           <div v-if="activeTab === 'knowledge'">
             <div class="space-y-6">
               <div class="flex justify-between items-start gap-6">
@@ -627,6 +636,9 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 
 <script>
 export default {
+  components: {
+    MCPServerListEditor
+  },
   data() {
     return {
       activeTab: 'general',
@@ -636,6 +648,7 @@ export default {
       navItems: [
         { id: 'general', label: 'General', icon: 'fa-sliders' },
         { id: 'ai', label: 'AI Models', icon: 'fa-brain' },
+        { id: 'mcp', label: 'MCP Servers', icon: 'fa-server' },
         { id: 'knowledge', label: 'Knowledge', icon: 'fa-lightbulb' },
         { id: 'miscellaneous', label: 'Miscellaneous', icon: 'fa-ellipsis' },
         { id: 'danger', label: 'Danger Zone', icon: 'fa-exclamation-triangle' }
@@ -658,6 +671,9 @@ export default {
   methods: {
     async reloadSettings() {
       this.settings = await this.$project?.$api.settings.read()
+      if (this.settings && !this.settings.mcp_servers) {
+        this.settings.mcp_servers = []
+      }
       this.confirmDelete = false
     },
     async saveSettings() {
@@ -683,6 +699,7 @@ export default {
       const descriptions = {
         general: 'Configure project name, path, wiki, and branches',
         ai: 'Select AI models for different project tasks',
+        mcp: 'Configure Model Context Protocol servers',
         knowledge: 'Configure knowledge base and RAG settings',
         miscellaneous: 'Other project settings and preferences',
         danger: 'Irreversible actions for this project'

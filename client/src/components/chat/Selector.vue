@@ -68,7 +68,6 @@
           class="input input-sm input-bordered w-full"
           @click.stop
         />
-
         <!-- Scrollable grid with custom slot rendering -->
         <div class="grid grid-cols-3 gap-2 overflow-y-auto max-h-56">
           <div
@@ -157,10 +156,11 @@
         />
 
         <!-- Scrollable grid with custom slot rendering -->
-        <div class="grid grid-cols-4 gap-2 overflow-y-auto max-h-96 mb-4">
+        <div class="grid grid-cols-3 gap-2 overflow-y-auto max-h-96 mb-4">
           <div
             v-for="(item, ix) in filteredAndSorted"
             :key="item.name"
+            class="click"
             :class="isItemSelected(item.name) ? 'ring-2 ring-primary' : ''"
             @click="selectItem(item)"
           >

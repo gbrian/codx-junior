@@ -16,7 +16,7 @@ import ProfileCard from '../ProfileCard.vue'
     <!-- Custom profile card rendering in mini style -->
     <template #default="{ item, selected }">
       <div :class="selected ? 'ring-2 ring-primary rounded-lg' : 'rounded-lg'">
-        <ProfileCard :profile="item" :mini="true" />
+        <ProfileCard :profile="item" :mini="$ui.isMobile" />
       </div>
     </template>
   </Selector>
@@ -66,7 +66,7 @@ export default {
       try {
         if (project?.$api) {
           const profilesList = await project?.$api.profiles.list()
-          this.profiles = profilesList || []
+          this.profiles = (profilesList || []).sort((a, b) => a.name > b.name ? 1 : -1)
         }
       } catch (error) {
         console.error('[ChatProfileSelector] Error loading profiles:', error)

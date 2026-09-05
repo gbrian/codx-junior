@@ -21,7 +21,7 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
       <span class="badge badge-info badge-sm" v-if="isProjectProfile">Built-in</span>
       <div class="grow"></div>
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
-      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isInherit || loading">
+      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="isInherit || loading">
         <i class="fa-solid fa-trash"></i>
       </button>
       <button type="button" class="btn btn-sm btn-ghost" @click="reloadProfile" :disabled="loading">
@@ -310,10 +310,12 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
         <h3 class="font-bold text-lg text-error">
           <i class="fa-solid fa-triangle-exclamation mr-2"></i> Delete Profile?
         </h3>
-        <p class="text-sm text-base-content/70">This action cannot be undone. The profile will be removed from this project.</p>
+        <p class="text-sm text-base-content/70">
+          This will permanently delete the profile "{{ editProfile.name }}" from this project. This action cannot be undone.
+        </p>
         <div class="modal-action">
           <button type="button" @click="confirmDelete = false" class="btn btn-sm btn-ghost">Cancel</button>
-          <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error">
+          <button type="button" @click="confirmDeleteAction" :disabled="deleting" class="btn btn-sm btn-error" :class="deleting && 'loading loading-spinner'">
             <i class="fa-solid fa-trash mr-1"></i> Delete
           </button>
         </div>
@@ -338,6 +340,7 @@ export default {
     return {
       editProfile: { ...this.profile },
       confirmDelete: false,
+      deleting: false,
       tab: 'content',
       contentMode: 'view',
       newProfile: '',
@@ -391,12 +394,30 @@ export default {
       this.$emit('cancel')
     },
     onDeleteProfile() {
-      if (!this.confirmDelete) {
-        this.confirmDelete = true
-        return
+      this.confirmDelete = true
+    },
+    async confirmDeleteAction() {
+      this.deleting = true
+      try {
+        await this.$storex.profiles.deleteProfile({
+          project: this.project,
+          profile: this.profile
+        })
+        this.confirmDelete = false
+        this.$ui.addNotification({
+          text: `Profile "${this.profile.name}" deleted successfully`,
+          type: 'success'
+        })
+        this.$emit('deleted')
+      } catch (error) {
+        console.error('Failed to delete profile:', error)
+        this.$ui.addNotification({
+          text: 'Failed to delete profile',
+          type: 'error'
+        })
+      } finally {
+        this.deleting = false
       }
-      this.confirmDelete = false
-      this.$emit('delete')
     },
     copyContent() {
       this.$storex.ui.copyTextToClipboard(this.editProfile.content)
@@ -435,7 +456,6 @@ export default {
       this.tools = [...tools, ...plugins.filter(p => p.extends?.includes('profile'))]
     },
     async onSaveChatId(chatId) {
-      // Auto-save profile when chat is selected
       if (!chatId) return
 
       this.savingChatId = true

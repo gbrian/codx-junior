@@ -45,6 +45,31 @@
           "path": "/codx/junior/custom_tools/__init__.py",
           "slug": "init.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/analytics/storage.py",
+          "slug": "storage.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/storage.md"
+        },
+        {
+          "path": "/codx/junior/api/analytics.py",
+          "slug": "analytics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/analytics.md"
+        },
+        {
+          "path": "/codx/junior/analytics/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/tools/apply_file_changes.py",
+          "slug": "apply-file-changes.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/apply-file-changes.md"
+        },
+        {
+          "path": "/codx/junior/api/analytics_model.py",
+          "slug": "analytics-model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/analytics-model.md"
         }
       ],
       "id": "project-overview",
@@ -461,6 +486,11 @@
           "path": "/codx/junior/custom_tools/custom_tool_manager.py",
           "slug": "custom-tool-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/custom-tool-manager.md"
+        },
+        {
+          "path": "/codx/junior/settings.py",
+          "slug": "settings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/settings.md"
         }
       ],
       "id": "database-and-data-storage",

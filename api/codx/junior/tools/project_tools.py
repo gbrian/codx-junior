@@ -370,9 +370,47 @@ def project_search(
     return ToolResponse(user_response=user_response, llm_response=llm_response)
 
 
+def _add_changes_to_git(settings: CODXJuniorSettings, file_path: str) -> bool:
+    """
+    Add previous changes to git before writing file.
+
+    Args:
+        settings: The project settings.
+        file_path: The relative file path to stage in git.
+
+    Returns:
+        bool: True if git operation succeeded or git is not active, False otherwise.
+    """
+    try:
+        # Check if git is initialized in the project
+        git_dir = os.path.join(settings.abs_project_path, ".git")
+        if not os.path.isdir(git_dir):
+            logger.debug("Git not initialized in project, skipping git operations")
+            return True
+
+        # Stage the file changes using git add
+        from codx.junior.utils.utils import exec_command
+        git_cmd = f"git add {file_path}"
+        stdout, stderr = exec_command(git_cmd, cwd=settings.abs_project_path)
+
+        if stderr and "fatal" in stderr.lower():
+            logger.warning("Git add failed for %s: %s", file_path, stderr)
+            return False
+
+        logger.debug("Successfully staged changes for: %s", file_path)
+        return True
+
+    except Exception as e:
+        logger.warning("Error adding changes to git: %s", str(e))
+        return False
+
+
 def project_write_file(file_path: str, content: str, **kwargs) -> ToolResponse:
     """
     Write content to a project file, creating it if it doesn't exist.
+
+    If git is active, stages the file changes before writing. This ensures
+    previous changes are tracked before the new content is written.
 
     Args:
         file_path: The path to the file to write.
@@ -406,6 +444,12 @@ def project_write_file(file_path: str, content: str, **kwargs) -> ToolResponse:
         )
 
     try:
+        # Get relative path for git operations
+        rel_path = _to_relative_path(settings=settings, abs_path=abs_path)
+
+        # Stage changes in git if git is active
+        _add_changes_to_git(settings=settings, file_path=rel_path)
+
         # Create parent directories if they don't exist
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
@@ -414,8 +458,6 @@ def project_write_file(file_path: str, content: str, **kwargs) -> ToolResponse:
 
         logger.info("Successfully wrote to file: %s", file_path)
         file_size = len(content.encode("utf-8"))
-
-        rel_path = _to_relative_path(settings=settings, abs_path=abs_path)
 
         user_response = f"✓ File written successfully: `{rel_path}` ({file_size} bytes)"
         llm_response = f"Write completed: {rel_path} ({file_size} bytes)"

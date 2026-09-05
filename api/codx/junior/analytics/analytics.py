@@ -2,7 +2,17 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent, ChatSessionEvent
+from codx.junior.analytics.model import (
+    TokenUsageEvent,
+    ToolUsageEvent,
+    ChatSessionEvent,
+    ChatContextSummary,
+    ChatMetrics,
+    EnrichedTokenUsageEvent,
+    EnrichedToolUsageEvent,
+    ArchivedMessage,
+    ToolCallMessage,
+)
 from codx.junior.analytics.storage import AnalyticsStorage
 from codx.junior.globals import ANALYTICS_DATA_PATH
 
@@ -17,6 +27,13 @@ class Analytics:
     ``codx.junior.globals.ANALYTICS_DATA_PATH`` which is sourced from the
     ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment variable.
 
+    Supports:
+    - Token usage tracking (input/output tokens, cost)
+    - Tool execution metrics (success rate, duration)
+    - Chat session lifecycle recording
+    - Complete message archival (request/response pairs)
+    - Tool call execution history with arguments and results
+
     Diagram:
     classDiagram
         class Analytics {
@@ -24,9 +41,14 @@ class Analytics:
             +record_token_usage(...)
             +record_tool_usage(...)
             +record_chat_session(...)
+            +record_archived_message(...)
+            +record_tool_call_message(...)
             +get_usage_by_user(...)
             +get_chat_sessions_by_user(...)
             +get_chat_with_requests(chat_id)
+            +get_archived_messages_for_chat(chat_id)
+            +get_tool_call_messages_for_chat(chat_id)
+            +get_chat_complete_context(chat_id)
             +get_tool_metrics(...)
         }
     """
@@ -259,6 +281,160 @@ class Analytics:
             duration_seconds,
             cancelled,
             error,
+        )
+        return event
+
+    def record_archived_message(
+        self,
+        *,
+        message_id: str,
+        chat_id: str,
+        username: str,
+        project_name: str,
+        project_id: str,
+        model: str,
+        provider: str,
+        request_messages: List[Dict[str, Any]],
+        response_content: str,
+        request_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
+        tool_name: Optional[str] = None,
+        duration_seconds: float = 0.0,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        error: Optional[str] = None,
+        cancelled: bool = False,
+    ) -> ArchivedMessage:
+        """
+        Record a complete message exchanged with the AI provider.
+
+        Captures the full request-response cycle for complete traceability
+        and audit. Links to chat and optionally to a tool call.
+
+        Args:
+            message_id:       Unique identifier for this archived message.
+            chat_id:          Parent chat identifier.
+            username:         User who triggered the message.
+            project_name:     Project context.
+            project_id:       Project identifier.
+            model:            LLM model used.
+            provider:         LLM provider.
+            request_messages: Full list of messages sent to the provider.
+            response_content: Full response content from the provider.
+            request_id:       Unique request identifier (for linking to token event).
+            tool_call_id:     If triggered by a tool call, the tool_call_id.
+            tool_name:        If triggered by a tool, the tool name.
+            duration_seconds: Wall-clock duration.
+            input_tokens:     Request token count.
+            output_tokens:    Response token count.
+            error:            Error message if failed.
+            cancelled:        Whether the request was cancelled.
+
+        Returns:
+            The persisted ``ArchivedMessage``.
+        """
+        event = ArchivedMessage(
+            message_id=message_id,
+            chat_id=chat_id,
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            model=model,
+            provider=provider,
+            request_messages=request_messages,
+            response_content=response_content,
+            request_id=request_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            duration_seconds=duration_seconds,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            error=error,
+            cancelled=cancelled,
+        )
+        self.storage.write_archived_message(event)
+        logger.info(
+            "Archived message recorded: message_id=%s chat_id=%s model=%s request_id=%s "
+            "tool_call_id=%s duration=%.2fs",
+            message_id,
+            chat_id,
+            model,
+            request_id,
+            tool_call_id,
+            duration_seconds,
+        )
+        return event
+
+    def record_tool_call_message(
+        self,
+        *,
+        message_id: str,
+        chat_id: str,
+        tool_call_id: str,
+        tool_name: str,
+        username: str,
+        project_name: str,
+        project_id: str,
+        request_args: Dict[str, Any],
+        result: Any,
+        result_sent_to_model: str,
+        success: bool,
+        error_message: Optional[str] = None,
+        duration_seconds: float = 0.0,
+        cached: bool = False,
+    ) -> ToolCallMessage:
+        """
+        Record a complete tool call execution with all messaging.
+
+        Captures the tool invocation, execution result, and the normalised
+        result sent back to the model for complete audit trail.
+
+        Args:
+            message_id:           Unique identifier for this tool call record.
+            chat_id:              Parent chat identifier.
+            tool_call_id:         The tool call ID from the AI provider.
+            tool_name:            Name of the tool being executed.
+            username:             User context.
+            project_name:         Project context.
+            project_id:           Project identifier.
+            request_args:         Parsed arguments sent to the tool.
+            result:               The raw result returned by the tool.
+            result_sent_to_model: The normalised result string sent to model.
+            success:              Whether the tool executed successfully.
+            error_message:        Error details if execution failed.
+            duration_seconds:     Tool execution duration.
+            cached:               Whether this result was cached.
+
+        Returns:
+            The persisted ``ToolCallMessage``.
+        """
+        event = ToolCallMessage(
+            message_id=message_id,
+            chat_id=chat_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            request_args=request_args,
+            result=result,
+            result_sent_to_model=result_sent_to_model,
+            success=success,
+            error_message=error_message,
+            duration_seconds=duration_seconds,
+            cached=cached,
+        )
+        self.storage.write_tool_call_message(event)
+        logger.info(
+            "Tool call message recorded: message_id=%s chat_id=%s tool_call_id=%s "
+            "tool_name=%s success=%s duration=%.3fs cached=%s",
+            message_id,
+            chat_id,
+            tool_call_id,
+            tool_name,
+            success,
+            duration_seconds,
+            cached,
         )
         return event
 
@@ -625,6 +801,170 @@ class Analytics:
             "chat_session": chat_session,
             "llm_requests": llm_requests,
             "tool_calls": tool_calls,
+        }
+
+    def get_archived_messages_for_chat(
+        self,
+        chat_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> List[ArchivedMessage]:
+        """
+        Get all archived messages for a specific chat.
+
+        Provides complete request-response pairs exchanged with the LLM provider,
+        enabling full audit trail and debugging of chat interactions.
+
+        Args:
+            chat_id:    The chat identifier.
+            start_date: Optional date filter (inclusive).
+            end_date:   Optional date filter (inclusive).
+            request_id: Optional filter by request id.
+
+        Returns:
+            List of ``ArchivedMessage`` objects ordered by timestamp.
+        """
+        return self.storage.read_archived_messages(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+            request_id=request_id,
+        )
+
+    def get_tool_call_messages_for_chat(
+        self,
+        chat_id: str,
+        tool_call_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[ToolCallMessage]:
+        """
+        Get all tool call messages for a specific chat.
+
+        Provides complete tool execution history with arguments, results, and
+        normalized responses sent back to the model.
+
+        Args:
+            chat_id:      The chat identifier.
+            tool_call_id: Optional filter by tool call id.
+            start_date:   Optional date filter (inclusive).
+            end_date:     Optional date filter (inclusive).
+
+        Returns:
+            List of ``ToolCallMessage`` objects ordered by timestamp.
+        """
+        return self.storage.read_tool_call_messages(
+            chat_id=chat_id,
+            tool_call_id=tool_call_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def get_chat_complete_context(
+        self,
+        chat_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get complete context for a chat including all messages, requests, and tool calls.
+
+        Provides the most comprehensive view of a chat for audit and debugging,
+        combining session metadata, token usage, archived messages, and tool
+        execution history.
+
+        Args:
+            chat_id:    The chat identifier.
+            start_date: Optional date filter for messages/requests.
+            end_date:   Optional date filter for messages/requests.
+
+        Returns:
+            Dict with keys:
+                - chat_session: ChatSessionEvent metadata
+                - metrics: ChatMetrics aggregated data
+                - llm_requests: List of TokenUsageEvent
+                - llm_requests_messages: List of ArchivedMessage (the actual content)
+                - tool_calls: List of ToolUsageEvent
+                - tool_call_messages: List of ToolCallMessage (with args/results)
+                - tool_metrics: Aggregated tool execution metrics by tool name
+        """
+        chat_sessions = self.storage.read_chat_sessions(chat_id=chat_id)
+        if not chat_sessions:
+            logger.warning("No chat session found for chat_id=%s", chat_id)
+            return {
+                "chat_session": None,
+                "metrics": ChatMetrics().to_dict(),
+                "llm_requests": [],
+                "llm_requests_messages": [],
+                "tool_calls": [],
+                "tool_call_messages": [],
+                "tool_metrics": {},
+            }
+
+        chat_session = chat_sessions[-1]
+
+        llm_requests = self.storage.read_events(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        tool_calls = self.storage.read_tool_events(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        archived_messages = self.storage.read_archived_messages(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        tool_call_messages = self.storage.read_tool_call_messages(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Compute metrics
+        metrics = ChatMetrics()
+        for req in llm_requests:
+            metrics.total_input_tokens += req.input_tokens
+            metrics.total_output_tokens += req.output_tokens
+            metrics.total_tokens += req.total_tokens
+            metrics.llm_calls += 1
+            metrics.total_llm_duration_seconds += req.duration_seconds
+            metrics.total_cxjcoins += req.total_cxjcoins
+
+        for tool in tool_calls:
+            metrics.tool_calls += 1
+            if tool.success:
+                metrics.successful_tool_calls += 1
+            else:
+                metrics.failed_tool_calls += 1
+            metrics.total_tool_duration_seconds += tool.time_taken
+
+        if metrics.tool_calls > 0:
+            metrics.avg_tool_duration_seconds = (
+                metrics.total_tool_duration_seconds / metrics.tool_calls
+            )
+
+        # Compute tool metrics by name
+        tool_metrics = self._aggregate_tool_events(
+            tool_calls,
+            lambda e: e.name
+        )
+
+        return {
+            "chat_session": chat_session.to_dict(),
+            "metrics": metrics.to_dict(),
+            "llm_requests": [req.to_dict() for req in llm_requests],
+            "llm_requests_messages": [msg.to_dict() for msg in archived_messages],
+            "tool_calls": [tool.to_dict() for tool in tool_calls],
+            "tool_call_messages": [msg.to_dict() for msg in tool_call_messages],
+            "tool_metrics": tool_metrics,
         }
 
     # ── Tool Usage Query API ───────────────────────────────────────────────────

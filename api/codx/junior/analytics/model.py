@@ -1,309 +1,481 @@
-from dataclasses import dataclass, field, asdict, fields
+import json
+import logging
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import Optional, List, Any, Dict
-import time
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TokenUsageEvent:
     """
-    Represents a single LLM call with token consumption metadata.
-
-    Fields:
-        username:              The user who triggered the request.
-        project_name:          The project context for the request.
-        project_id:            The project identifier.
-        model:                 LLM model name used (e.g. "gpt-4o").
-        provider:              LLM provider (e.g. "openai", "litellm").
-        input_tokens:          Number of tokens in the prompt/input.
-        output_tokens:         Number of tokens in the completion/output.
-        total_tokens:          Sum of input + output tokens.
-        duration_seconds:      Wall-clock seconds from first request to last chunk.
-        timestamp:             Unix epoch timestamp of the event.
-        iso_date:              ISO-8601 date string (YYYY-MM-DD) for partitioning.
-        session_id:            Optional session/conversation identifier.
-        tags:                  Comma-separated tags associated with the request.
-        input_k_tokens_cxjcoins:   Price per 1K input tokens in CXJ coins (from AISettings).
-        output_k_tokens_cxjcoins:  Price per 1K output tokens in CXJ coins (from AISettings).
-        total_cxjcoins:        Total cost in CXJ coins for this event.
-        request_id:            Request id for traceability
-        tokens_from_provider:  Token count comes from provider's response, else they are calculated
-        chat_id:               Chat identifier for linking to chat sessions
+    Record of a single LLM token consumption event.
+    
+    Tracks token usage, cost, and timing information for LLM requests
+    within the context of a chat session.
     """
+    
     username: str
+    """User who triggered the request."""
+    
     project_name: str
+    """Project context name."""
+    
     project_id: str
+    """Project identifier."""
+    
     model: str
+    """LLM model name (e.g., 'gpt-4o')."""
+    
     provider: str
+    """LLM provider (e.g., 'openai')."""
+    
     input_tokens: int
+    """Number of tokens in the prompt/input."""
+    
     output_tokens: int
+    """Number of tokens in the completion/output."""
+    
     total_tokens: int
+    """Sum of input + output tokens."""
+    
     duration_seconds: float = 0.0
-    timestamp: float = field(default_factory=time.time)
-    iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """Wall-clock duration of the LLM request."""
+    
     session_id: Optional[str] = None
+    """Optional session/conversation identifier."""
+    
     tags: str = ""
+    """Comma-separated tags associated with the request."""
+    
     input_k_tokens_cxjcoins: float = 0.0
+    """Price per 1K input tokens in CXJ coins."""
+    
     output_k_tokens_cxjcoins: float = 0.0
-    total_cxjcoins: float = 0.0
-    request_id: str = None
+    """Price per 1K output tokens in CXJ coins."""
+    
+    request_id: Optional[str] = None
+    """Unique request identifier for traceability."""
+    
     tokens_from_provider: bool = False
+    """Whether token count comes from provider's response."""
+    
     chat_id: Optional[str] = None
+    """Chat identifier for linking to chat sessions."""
+    
+    timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
+    """Unix timestamp when the event occurred."""
+    
+    iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """ISO date (YYYY-MM-DD) for file partitioning."""
+    
+    total_cxjcoins: float = 0.0
+    """Total cost in CXJ coins for this event."""
 
-    def __post_init__(self):
-        """Compute total_cxjcoins from input/output tokens and their respective prices if not set."""
+    def __post_init__(self) -> None:
+        """Recalculate total_cxjcoins from token counts and pricing."""
         if self.total_cxjcoins == 0.0:
             input_cost = (self.input_tokens / 1000.0) * self.input_k_tokens_cxjcoins
             output_cost = (self.output_tokens / 1000.0) * self.output_k_tokens_cxjcoins
             self.total_cxjcoins = input_cost + output_cost
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
         return asdict(self)
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "TokenUsageEvent":
-        """
-        Build a TokenUsageEvent from a dict, tolerating old/missing/incorrect fields.
-
-        Backwards-compatibility rules:
-        - Old records may have 'k_tokens_cxjcoins' instead of the split fields;
-          in that case both input and output prices are set to that value.
-        - Any field that is missing or of an incompatible type falls back to
-          the dataclass default (or default_factory) for that field.
-        """
-        field_defaults: dict = {}
-        for f in fields(cls):
-            if f.default is not f.default_factory:
-                field_defaults[f.name] = f.default
-            elif f.default_factory is not f.default_factory:
-                pass
-
-        cleaned: dict = {}
-        legacy_k = data.get("k_tokens_cxjcoins")
-        known_fields = {f.name: f for f in fields(cls)}
-
-        for name, f in known_fields.items():
-            raw = data.get(name)
-
-            if raw is None and name in ("input_k_tokens_cxjcoins", "output_k_tokens_cxjcoins"):
-                raw = legacy_k
-
-            if raw is None:
-                continue
-
-            try:
-                target_type = f.type
-                origin = getattr(target_type, "__origin__", None)
-                if origin is type(None):
-                    cleaned[name] = raw
-                    continue
-
-                if target_type in (int, float, str, bool):
-                    cleaned[name] = target_type(raw)
-                elif target_type == Optional[str] or str(target_type) in ("typing.Optional[str]", "Optional[str]"):
-                    cleaned[name] = str(raw) if raw is not None else None
-                else:
-                    cleaned[name] = raw
-            except (TypeError, ValueError):
-                pass
-
-        return cls(**cleaned)
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "TokenUsageEvent":
+        """Create instance from dictionary."""
+        return TokenUsageEvent(**data)
 
 
 @dataclass
 class ToolUsageEvent:
     """
-    Represents a single tool execution with metadata.
-
-    Fields:
-        name:              Tool function name (e.g., "project_search").
-        username:          User who triggered the tool.
-        project_name:      Project context for the tool call.
-        project_id:        Project identifier.
-        time_taken:        Execution duration in seconds.
-        success:           Boolean flag indicating successful execution.
-        error_message:     Error details if execution failed (None if successful).
-        chat_id:           Reference to the parent chat/conversation session.
-        request_id:        Traceability link to the LLM request that triggered the tool.
-        timestamp:         Unix epoch timestamp of when the tool was executed.
-        iso_date:          ISO-8601 date string (YYYY-MM-DD) for partitioning.
+    Record of a single tool execution event.
+    
+    Captures tool invocation, execution duration, and success/failure status
+    within the context of a chat session.
     """
+    
     name: str
+    """Tool function name."""
+    
     username: str
+    """User who triggered the tool."""
+    
     project_name: str
+    """Project context name."""
+    
     project_id: str
+    """Project identifier."""
+    
     time_taken: float
+    """Execution duration in seconds."""
+    
     success: bool
+    """Whether the tool executed successfully."""
+    
     error_message: Optional[str] = None
+    """Error details if execution failed."""
+    
     chat_id: Optional[str] = None
+    """Chat identifier for linking to chat sessions."""
+    
+    tool_id: Optional[str] = None
+    """Tool call ID for linking to specific tool invocations within a chat."""
+    
     request_id: Optional[str] = None
-    timestamp: float = field(default_factory=time.time)
+    """Request ID linking to the LLM request that triggered the tool."""
+    
+    timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
+    """Unix timestamp when the tool was executed."""
+    
     iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """ISO date (YYYY-MM-DD) for file partitioning."""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
         return asdict(self)
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "ToolUsageEvent":
-        """
-        Build a ToolUsageEvent from a dict, tolerating missing/incorrect fields.
-
-        Any field that is missing or of an incompatible type falls back to
-        the dataclass default (or default_factory) for that field.
-        """
-        cleaned: dict = {}
-        known_fields = {f.name: f for f in fields(cls)}
-
-        for name, f in known_fields.items():
-            raw = data.get(name)
-
-            if raw is None:
-                continue
-
-            try:
-                target_type = f.type
-                origin = getattr(target_type, "__origin__", None)
-                if origin is type(None):
-                    cleaned[name] = raw
-                    continue
-
-                if target_type in (int, float, str, bool):
-                    cleaned[name] = target_type(raw)
-                elif target_type == Optional[str] or str(target_type) in ("typing.Optional[str]", "Optional[str]"):
-                    cleaned[name] = str(raw) if raw is not None else None
-                else:
-                    cleaned[name] = raw
-            except (TypeError, ValueError):
-                pass
-
-        return cls(**cleaned)
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ToolUsageEvent":
+        """Create instance from dictionary."""
+        return ToolUsageEvent(**data)
 
 
 @dataclass
 class ChatSessionEvent:
     """
-    Represents a chat session with full context for traceability.
-
-    Captures the complete chat lifecycle including profiles, files, parent relationships,
-    and iteration data. Enables reconstruction of full request-response chains from
-    analytics data. Can be updated incrementally as the chat progresses.
-
-    Fields:
-        chat_id:               Unique chat identifier (from chat.id).
-        chat_name:             Human-readable chat name.
-        username:              User who created/executed the chat.
-        project_name:          Project context name.
-        project_id:            Project identifier.
-        mode:                  Chat mode ('task', 'agent', 'vibe', 'chat').
-        profiles:              List of profile names applied to this chat.
-        files:                 List of file paths accessed during chat.
-        parent_chat_id:        Parent chat ID if this is a nested chat (optional).
-        iteration:             Current agent iteration number.
-        max_iterations:        Maximum iterations allowed for agent mode.
-        llm_model:             LLM model used for this chat.
-        parent_request_id:     Parent request ID if spawned from tool call (optional).
-        session_id:            Session identifier for grouping chats (optional).
-        started_at:            Unix timestamp when chat started.
-        ended_at:              Unix timestamp when chat ended (optional).
-        duration_seconds:      Total chat duration in seconds.
-        input_message_count:   Number of input messages in chat.
-        output_message_count:  Number of output messages in chat.
-        cancelled:             Whether the chat was cancelled.
-        error:                 Error message if chat failed (optional).
-        timestamp:             Unix timestamp for storage partitioning.
-        iso_date:              ISO-8601 date string (YYYY-MM-DD) for partitioning.
+    Record of a complete chat session lifecycle.
+    
+    Captures metadata about a chat session including mode, profiles, files,
+    and execution context for traceability and analytics.
     """
+    
     chat_id: str
+    """Unique chat identifier."""
+    
     chat_name: str
+    """Human-readable chat name."""
+    
     username: str
+    """User who created/executed the chat."""
+    
     project_name: str
+    """Project context name."""
+    
     project_id: str
+    """Project identifier."""
+    
     mode: str
+    """Chat mode ('task', 'agent', 'vibe', 'chat')."""
+    
     profiles: List[str] = field(default_factory=list)
+    """List of profile names applied to this chat."""
+    
     files: List[str] = field(default_factory=list)
+    """List of file paths accessed during chat."""
+    
     parent_chat_id: Optional[str] = None
+    """Parent chat ID if this is a nested chat."""
+    
     iteration: int = 0
+    """Current agent iteration number."""
+    
     max_iterations: int = 0
+    """Maximum iterations allowed for agent mode."""
+    
     llm_model: str = ""
+    """LLM model used for this chat."""
+    
     parent_request_id: Optional[str] = None
+    """Parent request ID if spawned from tool call."""
+    
     session_id: Optional[str] = None
-    started_at: float = field(default_factory=lambda: datetime.utcnow().timestamp())
-    ended_at: Optional[float] = None
-    duration_seconds: float = 0.0
-    input_message_count: int = 0
-    output_message_count: int = 0
+    """Session identifier for grouping chats."""
+    
     cancelled: bool = False
+    """Whether the chat was cancelled."""
+    
     error: Optional[str] = None
+    """Error message if chat failed."""
+    
+    duration_seconds: float = 0.0
+    """Total chat duration in seconds."""
+    
+    input_message_count: int = 0
+    """Number of input messages in chat."""
+    
+    output_message_count: int = 0
+    """Number of output messages in chat."""
+    
     timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
+    """Unix timestamp for storage partitioning."""
+    
     iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """ISO date (YYYY-MM-DD) for file partitioning."""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
         return asdict(self)
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "ChatSessionEvent":
-        """
-        Build a ChatSessionEvent from a dict, tolerating missing/incorrect fields.
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ChatSessionEvent":
+        """Create instance from dictionary."""
+        return ChatSessionEvent(**data)
 
-        Any field that is missing or of an incompatible type falls back to
-        the dataclass default (or default_factory) for that field.
-        """
-        cleaned: dict = {}
-        known_fields = {f.name: f for f in fields(cls)}
 
-        for name, f in known_fields.items():
-            raw = data.get(name)
+@dataclass
+class ArchivedMessage:
+    """
+    Record of a complete message exchanged with the AI provider.
+    
+    Captures the full request-response cycle for traceability and audit.
+    Links to chat and optionally to a tool call within that chat.
+    
+    Diagram:
+    classDiagram
+        class ArchivedMessage {
+            +str message_id
+            +str chat_id
+            +Optional str request_id
+            +Optional str tool_call_id
+            +List request_messages
+            +str response_content
+            +int input_tokens
+            +int output_tokens
+            +float duration_seconds
+            +Optional str error
+            +float timestamp
+            +str iso_date
+        }
+    """
+    
+    message_id: str
+    """Unique identifier for this archived message."""
+    
+    chat_id: str
+    """Parent chat identifier for linking."""
+    
+    username: str
+    """User who triggered the message."""
+    
+    project_name: str
+    """Project context."""
+    
+    project_id: str
+    """Project identifier."""
+    
+    model: str
+    """LLM model used."""
+    
+    provider: str
+    """LLM provider."""
+    
+    request_messages: List[Dict[str, Any]]
+    """Full list of messages sent to provider (including system prompt)."""
+    
+    response_content: str
+    """Full response content from the provider."""
+    
+    request_id: Optional[str] = None
+    """Unique request identifier linking to token usage event."""
+    
+    tool_call_id: Optional[str] = None
+    """Tool call ID if this message was triggered by a tool call."""
+    
+    tool_name: Optional[str] = None
+    """Name of the tool that triggered this message."""
+    
+    duration_seconds: float = 0.0
+    """Wall-clock duration of the LLM request."""
+    
+    input_tokens: int = 0
+    """Token count for the request."""
+    
+    output_tokens: int = 0
+    """Token count for the response."""
+    
+    error: Optional[str] = None
+    """Error message if the request failed."""
+    
+    cancelled: bool = False
+    """Whether the request was cancelled."""
+    
+    timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
+    """Unix timestamp when the message was archived."""
+    
+    iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """ISO date (YYYY-MM-DD) for file partitioning."""
 
-            if raw is None:
-                continue
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return asdict(self)
 
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ArchivedMessage":
+        """Create instance from dictionary."""
+        return ArchivedMessage(**data)
+
+
+@dataclass
+class ToolCallMessage:
+    """
+    Record of all messages exchanged during a single tool call's execution.
+    
+    Captures the tool invocation parameters, execution result, and any
+    messages exchanged with the AI model regarding this tool.
+    
+    Diagram:
+    classDiagram
+        class ToolCallMessage {
+            +str message_id
+            +str chat_id
+            +str tool_call_id
+            +str tool_name
+            +Dict request_args
+            +Any result
+            +str result_sent_to_model
+            +bool success
+            +bool cached
+            +Optional str error_message
+            +float duration_seconds
+            +float timestamp
+            +str iso_date
+        }
+    """
+    
+    message_id: str
+    """Unique identifier for this tool call message record."""
+    
+    chat_id: str
+    """Parent chat identifier."""
+    
+    tool_call_id: str
+    """The tool call ID from the AI provider."""
+    
+    tool_name: str
+    """Name of the tool being executed."""
+    
+    username: str
+    """User context."""
+    
+    project_name: str
+    """Project context."""
+    
+    project_id: str
+    """Project identifier."""
+    
+    request_args: Dict[str, Any]
+    """Parsed arguments sent to the tool."""
+    
+    result: Any
+    """Result returned by the tool (string, dict, ToolResponse, or error)."""
+    
+    result_sent_to_model: str
+    """Normalized result string sent back to the model."""
+    
+    success: bool
+    """Whether the tool executed successfully."""
+    
+    error_message: Optional[str] = None
+    """Error details if execution failed."""
+    
+    duration_seconds: float = 0.0
+    """Tool execution duration."""
+    
+    cached: bool = False
+    """Whether this result was served from cache."""
+    
+    timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
+    """Unix timestamp when the tool was executed."""
+    
+    iso_date: str = field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
+    """ISO date (YYYY-MM-DD) for file partitioning."""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        data = asdict(self)
+        # Convert result to JSON-serializable form
+        try:
+            data["result"] = json.dumps(data["result"], ensure_ascii=False)
+        except (TypeError, ValueError):
+            data["result"] = str(data["result"])
+        return data
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ToolCallMessage":
+        """Create instance from dictionary, restoring result from JSON."""
+        # Restore result from JSON string
+        if isinstance(data.get("result"), str):
             try:
-                target_type = f.type
-                origin = getattr(target_type, "__origin__", None)
-
-                if origin is type(None):
-                    cleaned[name] = raw
-                    continue
-
-                if origin is list:
-                    if isinstance(raw, list):
-                        cleaned[name] = raw
-                    else:
-                        cleaned[name] = [raw] if raw else []
-                    continue
-
-                if target_type in (int, float, str, bool):
-                    cleaned[name] = target_type(raw)
-                elif target_type == Optional[str] or str(target_type) in ("typing.Optional[str]", "Optional[str]"):
-                    cleaned[name] = str(raw) if raw is not None else None
-                else:
-                    cleaned[name] = raw
-            except (TypeError, ValueError):
+                data["result"] = json.loads(data["result"])
+            except (json.JSONDecodeError, ValueError):
                 pass
+        return ToolCallMessage(**data)
 
-        return cls(**cleaned)
 
+@dataclass
+class ChatMetrics:
+    """Aggregated metrics for a chat session."""
+    
+    total_input_tokens: int = 0
+    """Sum of input tokens across all LLM calls."""
+    
+    total_output_tokens: int = 0
+    """Sum of output tokens across all LLM calls."""
+    
+    total_tokens: int = 0
+    """Sum of all tokens (input + output)."""
+    
+    llm_calls: int = 0
+    """Count of LLM requests made in chat."""
+    
+    total_llm_duration_seconds: float = 0.0
+    """Sum of all LLM request durations."""
+    
+    total_cxjcoins: float = 0.0
+    """Total cost in CXJ coins for all LLM calls."""
+    
+    tool_calls: int = 0
+    """Count of tool executions in chat."""
+    
+    successful_tool_calls: int = 0
+    """Count of successful tool executions."""
+    
+    failed_tool_calls: int = 0
+    """Count of failed tool executions."""
+    
+    total_tool_duration_seconds: float = 0.0
+    """Sum of all tool execution durations."""
+    
+    avg_tool_duration_seconds: float = 0.0
+    """Average tool execution duration."""
 
-# ── ADDED: Enriched response types for chat-aware analytics ───────────────────
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return asdict(self)
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ChatMetrics":
+        """Create instance from dictionary."""
+        return ChatMetrics(**data)
 
 
 @dataclass
 class EnrichedTokenUsageEvent:
-    """
-    TokenUsageEvent enriched with associated ChatSessionEvent metadata.
-
-    Merges token usage data with chat context for comprehensive analytics views.
-    Allows users/admins to understand token consumption in the context of specific chats.
-
-    Fields:
-        token_event:    The base TokenUsageEvent.
-        chat_session:   Associated ChatSessionEvent (if chat_id was present), else None.
-    """
+    """Token usage event enriched with associated chat session context."""
+    
     token_event: TokenUsageEvent
+    """The base TokenUsageEvent."""
+    
     chat_session: Optional[ChatSessionEvent] = None
+    """Associated ChatSessionEvent if chat_id was present."""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dict with nested structure."""
+        """Convert to dictionary."""
         return {
             "token_event": self.token_event.to_dict(),
             "chat_session": self.chat_session.to_dict() if self.chat_session else None,
@@ -312,21 +484,16 @@ class EnrichedTokenUsageEvent:
 
 @dataclass
 class EnrichedToolUsageEvent:
-    """
-    ToolUsageEvent enriched with associated ChatSessionEvent metadata.
-
-    Merges tool execution data with chat context for comprehensive tool analytics.
-    Allows users/admins to understand tool usage in the context of specific chats.
-
-    Fields:
-        tool_event:     The base ToolUsageEvent.
-        chat_session:   Associated ChatSessionEvent (if chat_id was present), else None.
-    """
+    """Tool usage event enriched with associated chat session context."""
+    
     tool_event: ToolUsageEvent
+    """The base ToolUsageEvent."""
+    
     chat_session: Optional[ChatSessionEvent] = None
+    """Associated ChatSessionEvent if chat_id was present."""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dict with nested structure."""
+        """Convert to dictionary."""
         return {
             "tool_event": self.tool_event.to_dict(),
             "chat_session": self.chat_session.to_dict() if self.chat_session else None,
@@ -334,65 +501,23 @@ class EnrichedToolUsageEvent:
 
 
 @dataclass
-class ChatMetrics:
-    """
-    Aggregated metrics for token usage and tool execution within a chat session.
-
-    Provides a summary view of resource consumption and tool execution
-    statistics for a complete chat lifecycle.
-
-    Fields:
-        total_input_tokens:      Sum of input tokens across all LLM calls in chat.
-        total_output_tokens:     Sum of output tokens across all LLM calls in chat.
-        total_tokens:            Sum of all tokens (input + output).
-        llm_calls:               Count of LLM requests made in chat.
-        total_llm_duration_seconds: Sum of all LLM request durations.
-        total_cxjcoins:          Total cost in CXJ coins for all LLM calls.
-        tool_calls:              Count of tool executions in chat.
-        successful_tool_calls:   Count of successful tool executions.
-        failed_tool_calls:       Count of failed tool executions.
-        total_tool_duration_seconds: Sum of all tool execution durations.
-        avg_tool_duration_seconds: Average tool execution duration.
-    """
-    total_input_tokens: int = 0
-    total_output_tokens: int = 0
-    total_tokens: int = 0
-    llm_calls: int = 0
-    total_llm_duration_seconds: float = 0.0
-    total_cxjcoins: float = 0.0
-    tool_calls: int = 0
-    successful_tool_calls: int = 0
-    failed_tool_calls: int = 0
-    total_tool_duration_seconds: float = 0.0
-    avg_tool_duration_seconds: float = 0.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dict."""
-        return asdict(self)
-
-
-@dataclass
 class ChatContextSummary:
-    """
-    Complete chat context with session info and aggregated metrics.
-
-    Provides a high-level summary of a chat session including metadata,
-    resource consumption, and tool execution statistics. Ideal for
-    dashboard and summary views.
-
-    Fields:
-        chat_session:   The ChatSessionEvent containing chat metadata.
-        metrics:        Aggregated ChatMetrics for the session.
-        llm_request_count: Number of LLM requests in session (for detail queries).
-        tool_call_count: Number of tool calls in session (for detail queries).
-    """
+    """Summary of a chat session with metrics and request counts."""
+    
     chat_session: ChatSessionEvent
+    """The ChatSessionEvent containing chat metadata."""
+    
     metrics: ChatMetrics
+    """Aggregated ChatMetrics for the session."""
+    
     llm_request_count: int = 0
+    """Number of LLM requests in session."""
+    
     tool_call_count: int = 0
+    """Number of tool calls in session."""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dict with nested structure."""
+        """Convert to dictionary."""
         return {
             "chat_session": self.chat_session.to_dict(),
             "metrics": self.metrics.to_dict(),

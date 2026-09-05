@@ -3,6 +3,7 @@ import { SocketManager } from './socket'
 import { filesModule } from './modules/files'
 import { globalSettingsModule } from './modules/globalSettings'
 import { analyticsModule } from './modules/analytics'
+import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
 
@@ -634,6 +635,12 @@ const initializeAPI = ({ project, user } = {}) => {
       }
       return API._analyticsModule
     },
+    get logs() {
+      if (!API._logsModule) {
+        API._logsModule = logsModule(API)
+      }
+      return API._logsModule
+    },
     engine: {
       update() {
         return API.get('/api/update')
@@ -666,63 +673,6 @@ const initializeAPI = ({ project, user } = {}) => {
         await API.settings.read()
       }
       return API
-    },
-
-    logs: {
-      async read(logName, size) {
-        return API.get(`/api/logs/${logName}?log_size=${size}`)
-      },
-      async list() {
-        return API.get('/api/logs')
-      },
-
-      system: {
-        async read(logName, size) {
-          return API.get(`/api/system/logs/${logName}?log_size=${size}`)
-        },
-        async list() {
-          return API.get('/api/system/logs')
-        },
-      },
-      ai: {
-        me(limit = 10) {
-          return API.get(`/api/logs/me?limit=${limit}`)
-        },
-
-        list({ startDate, endDate, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
-          const qs = _buildLogsQS({ startDate, endDate, project, model, provider, direction, sessionId, page, pageSize })
-          return API.get(`/api/logs/list${qs}`)
-        },
-
-        get(logId) {
-          return API.get(`/api/logs/${encodeURIComponent(logId)}`)
-        },
-        admin: {
-          list({ startDate, endDate, username, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
-            const qs = _buildLogsQS({ startDate, endDate, username, project, model, provider, direction, sessionId, page, pageSize })
-            return API.get(`/api/logs/admin/list${qs}`)
-          },
-
-          get(logId) {
-            return API.get(`/api/logs/admin/${encodeURIComponent(logId)}`)
-          },
-
-          delete(logId) {
-            return API.delete(`/api/logs/admin/${encodeURIComponent(logId)}`)
-          },
-
-          purge({ startDate, endDate, username, project, model, provider } = {}) {
-            return API.post('/api/logs/admin/purge', {
-              start_date: startDate  || null,
-              end_date:   endDate    || null,
-              username:   username   || null,
-              project:    project    || null,
-              model:      model      || null,
-              provider:   provider   || null,
-            })
-          }
-        }
-      }
     },
 
     get files() {
@@ -782,25 +732,6 @@ const initializeAPI = ({ project, user } = {}) => {
 
   API.initConnection()
   return API
-}
-
-function _buildLogsQS(params) {
-  const keyMap = {
-    startDate: 'start_date',
-    endDate:   'end_date',
-    username:  'username',
-    project:   'project',
-    model:     'model',
-    provider:  'provider',
-    direction: 'direction',
-    sessionId: 'session_id',
-    page:      'page',
-    pageSize:  'page_size',
-  }
-  const parts = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${keyMap[k] || k}=${encodeURIComponent(v)}`)
-  return parts.length ? `?${parts.join('&')}` : ''
 }
 
 export const API = initializeAPI()

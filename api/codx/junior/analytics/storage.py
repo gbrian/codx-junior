@@ -1,11 +1,18 @@
-import os
 import json
 import logging
+import os
 import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from codx.junior.analytics.model import TokenUsageEvent, ToolUsageEvent, ChatSessionEvent
+from codx.junior.analytics.model import (
+    ArchivedMessage,
+    ChatSessionEvent,
+    ChatMetrics,
+    ToolCallMessage,
+    ToolUsageEvent,
+    TokenUsageEvent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,78 +22,109 @@ FILE_DATE_FORMAT = "%Y-%m-%d"
 
 class AnalyticsStorage:
     """
-    Incremental append-only storage for analytics events.
+    Incremental append-only storage for analytics events and archived messages.
 
-    Files are written under:
-        <analytics_path>/<YYYY-MM-DD>_token_usage.jsonl
-        <analytics_path>/tools/<YYYY-MM-DD>_tool_usage.jsonl
-        <analytics_path>/chat_sessions/<YYYY-MM-DD>_chat_sessions.jsonl
+    Organizes files by type under subdirectories with hybrid partitioning:
+    - <base_path>/YYYY-MM-DD_token_usage.jsonl
+    - <base_path>/tools/YYYY-MM-DD_tool_usage.jsonl
+    - <base_path>/chat_sessions/YYYY-MM-DD_chat_sessions.jsonl
+    - <base_path>/messages/YYYY-MM-DD/{request_id}_archived_messages.jsonl
+    - <base_path>/messages/YYYY-MM-DD/{request_id}_tool_call_messages.jsonl
 
-    The analytics path is a global directory shared across all projects,
-    initialised from the ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment
-    variable (see ``codx.junior.globals.ANALYTICS_DATA_PATH``).
+    Messages are partitioned by request_id to avoid huge single-day files.
+    Each request gets its own small JSONL file for archived and tool call messages.
 
-    Each line is a JSON-encoded event dict (JSONL format).
-    A threading lock guards concurrent writes within the same process.
-
+    Implements thread-safe append operations with a module-level lock.
+    Provides filtering and querying capabilities across date ranges.
+    
     Diagram:
+    ```
     classDiagram
         class AnalyticsStorage {
-            +str base_path
-            +write(event: TokenUsageEvent)
-            +write_tool_event(event: ToolUsageEvent)
-            +write_chat_session(event: ChatSessionEvent)
-            +read_events(start_date, end_date, username, project_name) List
-            +read_tool_events(start_date, end_date, chat_id, username, project_name, tool_name) List
-            +read_chat_sessions(start_date, end_date, chat_id, username, project_name) List
+            -str base_path
+            -str tools_path
+            -str chat_sessions_path
+            -str messages_path
+            -Lock _lock
+            +__init__(analytics_path: str)
+            +write(event: TokenUsageEvent) void
+            +write_tool_event(event: ToolUsageEvent) void
+            +write_chat_session(event: ChatSessionEvent) void
+            +write_archived_message(event: ArchivedMessage) void
+            +write_tool_call_message(event: ToolCallMessage) void
+            +read_events(...) List[TokenUsageEvent]
+            +read_tool_events(...) List[ToolUsageEvent]
+            +read_chat_sessions(...) List[ChatSessionEvent]
+            +read_archived_messages(chat_id, ...) List[ArchivedMessage]
+            +read_tool_call_messages(chat_id, ...) List[ToolCallMessage]
             +list_available_dates() List[str]
-            +rewrite_events_for_date_range(provider, model, start_date, end_date, input_k_tokens_cxjcoins, output_k_tokens_cxjcoins)
+            +rewrite_events_for_date_range(...) int
         }
+    ```
     """
 
     _lock = threading.Lock()
 
-    def __init__(self, analytics_path: str):
+    def __init__(self, analytics_path: str) -> None:
         """
+        Initialize storage with base directory and create subdirectories.
+
         Args:
             analytics_path: Global directory where all analytics JSONL files
-                            are stored.  Typically set from
-                            ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH``.
+                          are stored. Typically set from environment variable
+                          CODX_JUNIOR_API_ANALYTICS_DATA_PATH.
         """
         self.base_path = analytics_path
         self.tools_path = os.path.join(analytics_path, "tools")
         self.chat_sessions_path = os.path.join(analytics_path, "chat_sessions")
+        self.messages_path = os.path.join(analytics_path, "messages")
+
+        # Create all necessary directories
         os.makedirs(self.base_path, exist_ok=True)
         os.makedirs(self.tools_path, exist_ok=True)
         os.makedirs(self.chat_sessions_path, exist_ok=True)
-        logger.info("AnalyticsStorage initialised at: %s", self.base_path)
+        os.makedirs(self.messages_path, exist_ok=True)
+
+        logger.info("AnalyticsStorage initialized at: %s", self.base_path)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _file_path_for_date(self, iso_date: str) -> str:
-        """Return the JSONL file path for a given ISO date string."""
+        """Return token usage JSONL file path for given ISO date."""
         return os.path.join(self.base_path, f"{iso_date}_token_usage.jsonl")
 
     def _tool_file_path_for_date(self, iso_date: str) -> str:
-        """Return the tool usage JSONL file path for a given ISO date string."""
+        """Return tool usage JSONL file path for given ISO date."""
         return os.path.join(self.tools_path, f"{iso_date}_tool_usage.jsonl")
 
     def _chat_session_file_path_for_date(self, iso_date: str) -> str:
-        """Return the chat session JSONL file path for a given ISO date string."""
-        return os.path.join(self.chat_sessions_path, f"{iso_date}_chat_sessions.jsonl")
+        """Return chat session JSONL file path for given ISO date."""
+        return os.path.join(
+            self.chat_sessions_path, f"{iso_date}_chat_sessions.jsonl"
+        )
+
+    def _archived_message_file_path(self, iso_date: str, request_id: str) -> str:
+        """Return archived message JSONL file path for request_id within date."""
+        date_dir = os.path.join(self.messages_path, iso_date)
+        return os.path.join(date_dir, f"{request_id}_archived_messages.jsonl")
+
+    def _tool_call_message_file_path(self, iso_date: str, request_id: str) -> str:
+        """Return tool call message JSONL file path for request_id within date."""
+        date_dir = os.path.join(self.messages_path, iso_date)
+        return os.path.join(date_dir, f"{request_id}_tool_call_messages.jsonl")
 
     def _current_file_path(self) -> str:
-        """Get the current token usage file path for today."""
+        """Get current token usage file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._file_path_for_date(today)
 
     def _current_tool_file_path(self) -> str:
-        """Get the current tool usage file path for today."""
+        """Get current tool usage file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._tool_file_path_for_date(today)
 
     def _current_chat_session_file_path(self) -> str:
-        """Get the current chat session file path for today."""
+        """Get current chat session file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._chat_session_file_path_for_date(today)
 
@@ -94,9 +132,9 @@ class AnalyticsStorage:
 
     def write(self, event: TokenUsageEvent) -> None:
         """
-        Append a single ``TokenUsageEvent`` to today's JSONL file.
+        Append a TokenUsageEvent to today's JSONL file.
 
-        Thread-safe via a module-level lock.
+        Thread-safe via module-level lock. Logs on success and errors.
 
         Args:
             event: The analytics event to persist.
@@ -120,9 +158,9 @@ class AnalyticsStorage:
 
     def write_tool_event(self, event: ToolUsageEvent) -> None:
         """
-        Append a single ``ToolUsageEvent`` to today's tool usage JSONL file.
+        Append a ToolUsageEvent to today's tool usage JSONL file.
 
-        Thread-safe via a module-level lock.
+        Thread-safe via module-level lock.
 
         Args:
             event: The tool usage event to persist.
@@ -146,9 +184,9 @@ class AnalyticsStorage:
 
     def write_chat_session(self, event: ChatSessionEvent) -> None:
         """
-        Append a single ``ChatSessionEvent`` to today's chat session JSONL file.
+        Append a ChatSessionEvent to today's chat session JSONL file.
 
-        Thread-safe via a module-level lock. Allows incremental updates by
+        Thread-safe via module-level lock. Allows incremental updates by
         appending multiple records for the same chat_id at different lifecycle points.
 
         Args:
@@ -171,6 +209,89 @@ class AnalyticsStorage:
             except OSError as ex:
                 logger.error("AnalyticsStorage.write_chat_session failed: %s", ex)
 
+    def write_archived_message(self, event: ArchivedMessage) -> None:
+        """
+        Append an ArchivedMessage to its request_id-specific JSONL file.
+
+        Thread-safe via module-level lock. Stores complete request/response
+        content for audit and debugging purposes. Each request_id gets its own
+        file to avoid huge single-day files.
+
+        Args:
+            event: The archived message to persist.
+        """
+        if not event.request_id:
+            logger.warning(
+                "ArchivedMessage missing request_id: message_id=%s chat_id=%s",
+                event.message_id,
+                event.chat_id,
+            )
+            return
+
+        iso_date = event.iso_date
+        date_dir = os.path.join(self.messages_path, iso_date)
+        file_path = self._archived_message_file_path(iso_date, event.request_id)
+
+        line = json.dumps(event.to_dict(), ensure_ascii=False)
+        with self._lock:
+            try:
+                os.makedirs(date_dir, exist_ok=True)
+                with open(file_path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                logger.debug(
+                    "Analytics: wrote archived message message_id=%s chat_id=%s user=%s model=%s request_id=%s",
+                    event.message_id,
+                    event.chat_id,
+                    event.username,
+                    event.model,
+                    event.request_id,
+                )
+            except OSError as ex:
+                logger.error("AnalyticsStorage.write_archived_message failed: %s", ex)
+
+    def write_tool_call_message(self, event: ToolCallMessage) -> None:
+        """
+        Append a ToolCallMessage to its request_id-specific JSONL file.
+
+        Thread-safe via module-level lock. Stores tool invocation parameters,
+        execution result, and any AI model interactions. Each request_id gets
+        its own file to keep files small.
+
+        Args:
+            event: The tool call message to persist.
+        """
+        if not event.tool_call_id:
+            logger.warning(
+                "ToolCallMessage missing tool_call_id: message_id=%s chat_id=%s",
+                event.message_id,
+                event.chat_id,
+            )
+            return
+
+        iso_date = event.iso_date
+        # Use tool_call_id as the partition key for tool call messages
+        date_dir = os.path.join(self.messages_path, iso_date)
+        file_path = self._tool_call_message_file_path(iso_date, event.tool_call_id)
+
+        line = json.dumps(event.to_dict(), ensure_ascii=False)
+        with self._lock:
+            try:
+                os.makedirs(date_dir, exist_ok=True)
+                with open(file_path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                logger.debug(
+                    "Analytics: wrote tool call message message_id=%s chat_id=%s tool_call_id=%s tool_name=%s user=%s",
+                    event.message_id,
+                    event.chat_id,
+                    event.tool_call_id,
+                    event.tool_name,
+                    event.username,
+                )
+            except OSError as ex:
+                logger.error(
+                    "AnalyticsStorage.write_tool_call_message failed: %s", ex
+                )
+
     # ── Read ───────────────────────────────────────────────────────────────────
 
     def read_events(
@@ -184,11 +305,11 @@ class AnalyticsStorage:
         chat_id: Optional[str] = None,
     ) -> List[TokenUsageEvent]:
         """
-        Read and optionally filter stored events from JSONL files.
+        Read and optionally filter stored token usage events from JSONL files.
 
         Args:
-            start_date:   Inclusive ISO date lower bound (``YYYY-MM-DD``).
-            end_date:     Inclusive ISO date upper bound (``YYYY-MM-DD``).
+            start_date:   Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:     Inclusive ISO date upper bound (YYYY-MM-DD).
             username:     Filter by exact username.
             project_name: Filter by exact project name.
             project_id:   Filter by exact project id.
@@ -196,7 +317,7 @@ class AnalyticsStorage:
             chat_id:      Filter by exact chat id.
 
         Returns:
-            List of matching ``TokenUsageEvent`` objects ordered by timestamp.
+            List of matching TokenUsageEvent objects ordered by timestamp.
         """
         available = self.list_available_dates()
         matching_files = []
@@ -239,11 +360,11 @@ class AnalyticsStorage:
         request_id: Optional[str] = None,
     ) -> List[ToolUsageEvent]:
         """
-        Read and optionally filter stored tool events from JSONL files.
+        Read and optionally filter stored tool usage events from JSONL files.
 
         Args:
-            start_date:   Inclusive ISO date lower bound (``YYYY-MM-DD``).
-            end_date:     Inclusive ISO date upper bound (``YYYY-MM-DD``).
+            start_date:   Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:     Inclusive ISO date upper bound (YYYY-MM-DD).
             chat_id:      Filter by exact chat/session id.
             username:     Filter by exact username.
             project_name: Filter by exact project name.
@@ -252,7 +373,7 @@ class AnalyticsStorage:
             request_id:   Filter by exact request id.
 
         Returns:
-            List of matching ``ToolUsageEvent`` objects ordered by timestamp.
+            List of matching ToolUsageEvent objects ordered by timestamp.
         """
         available = self.list_available_dates()
         matching_files = []
@@ -298,15 +419,15 @@ class AnalyticsStorage:
         Read and optionally filter stored chat session events from JSONL files.
 
         Args:
-            start_date:   Inclusive ISO date lower bound (``YYYY-MM-DD``).
-            end_date:     Inclusive ISO date upper bound (``YYYY-MM-DD``).
+            start_date:   Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:     Inclusive ISO date upper bound (YYYY-MM-DD).
             chat_id:      Filter by exact chat id.
             username:     Filter by exact username.
             project_name: Filter by exact project name.
             project_id:   Filter by exact project id.
 
         Returns:
-            List of matching ``ChatSessionEvent`` objects ordered by timestamp.
+            List of matching ChatSessionEvent objects ordered by timestamp.
         """
         available = self.list_available_dates()
         matching_files = []
@@ -335,8 +456,146 @@ class AnalyticsStorage:
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def read_archived_messages(
+        self,
+        chat_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> List[ArchivedMessage]:
+        """
+        Read and optionally filter archived messages for a specific chat.
+
+        Args:
+            chat_id:    The chat identifier (required).
+            start_date: Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:   Inclusive ISO date upper bound (YYYY-MM-DD).
+            request_id: Filter by exact request id.
+
+        Returns:
+            List of matching ArchivedMessage objects ordered by timestamp.
+        """
+        # If request_id is provided, fetch directly from its file
+        if request_id:
+            available_dates = self.list_available_dates()
+            matching_dates = []
+            for date_str in available_dates:
+                if start_date and date_str < start_date:
+                    continue
+                if end_date and date_str > end_date:
+                    continue
+                matching_dates.append(date_str)
+
+            events: List[ArchivedMessage] = []
+            for date_str in matching_dates:
+                file_path = self._archived_message_file_path(date_str, request_id)
+                events.extend(self._read_archived_message_file(file_path))
+
+            # Filter by chat_id
+            events = [e for e in events if e.chat_id == chat_id]
+            events.sort(key=lambda e: e.timestamp)
+            return events
+
+        # Otherwise scan all request files in date range for this chat
+        available_dates = self.list_available_dates()
+        matching_dates = []
+        for date_str in available_dates:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            matching_dates.append(date_str)
+
+        events: List[ArchivedMessage] = []
+        for date_str in matching_dates:
+            date_dir = os.path.join(self.messages_path, date_str)
+            if not os.path.isdir(date_dir):
+                continue
+            try:
+                for fname in os.listdir(date_dir):
+                    if fname.endswith("_archived_messages.jsonl"):
+                        file_path = os.path.join(date_dir, fname)
+                        events.extend(self._read_archived_message_file(file_path))
+            except OSError as ex:
+                logger.warning("Error listing messages directory %s: %s", date_dir, ex)
+
+        # Filter by chat_id
+        events = [e for e in events if e.chat_id == chat_id]
+        events.sort(key=lambda e: e.timestamp)
+        return events
+
+    def read_tool_call_messages(
+        self,
+        chat_id: str,
+        tool_call_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[ToolCallMessage]:
+        """
+        Read and optionally filter tool call messages for a specific chat.
+
+        Args:
+            chat_id:      The chat identifier (required).
+            tool_call_id: Filter by exact tool call id.
+            start_date:   Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:     Inclusive ISO date upper bound (YYYY-MM-DD).
+
+        Returns:
+            List of matching ToolCallMessage objects ordered by timestamp.
+        """
+        # If tool_call_id is provided, fetch directly from its file
+        if tool_call_id:
+            available_dates = self.list_available_dates()
+            matching_dates = []
+            for date_str in available_dates:
+                if start_date and date_str < start_date:
+                    continue
+                if end_date and date_str > end_date:
+                    continue
+                matching_dates.append(date_str)
+
+            events: List[ToolCallMessage] = []
+            for date_str in matching_dates:
+                file_path = self._tool_call_message_file_path(date_str, tool_call_id)
+                events.extend(self._read_tool_call_message_file(file_path))
+
+            # Filter by chat_id
+            events = [e for e in events if e.chat_id == chat_id]
+            events.sort(key=lambda e: e.timestamp)
+            return events
+
+        # Otherwise scan all tool call files in date range for this chat
+        available_dates = self.list_available_dates()
+        matching_dates = []
+        for date_str in available_dates:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            matching_dates.append(date_str)
+
+        events: List[ToolCallMessage] = []
+        for date_str in matching_dates:
+            date_dir = os.path.join(self.messages_path, date_str)
+            if not os.path.isdir(date_dir):
+                continue
+            try:
+                for fname in os.listdir(date_dir):
+                    if fname.endswith("_tool_call_messages.jsonl"):
+                        file_path = os.path.join(date_dir, fname)
+                        events.extend(self._read_tool_call_message_file(file_path))
+            except OSError as ex:
+                logger.warning("Error listing messages directory %s: %s", date_dir, ex)
+
+        # Filter by chat_id
+        events = [e for e in events if e.chat_id == chat_id]
+        events.sort(key=lambda e: e.timestamp)
+        return events
+
+    # ── Internal Readers ──────────────────────────────────────────────────────
+
     def _read_file(self, file_path: str) -> List[TokenUsageEvent]:
-        """Parse a single JSONL file into a list of events, skipping bad lines."""
+        """Parse single JSONL file into list of events, skipping bad lines."""
         events: List[TokenUsageEvent] = []
         try:
             with open(file_path, "r", encoding="utf-8") as fh:
@@ -361,7 +620,7 @@ class AnalyticsStorage:
         return events
 
     def _read_tool_file(self, file_path: str) -> List[ToolUsageEvent]:
-        """Parse a single tool usage JSONL file into a list of events, skipping bad lines."""
+        """Parse single tool usage JSONL file into list of events, skipping bad lines."""
         events: List[ToolUsageEvent] = []
         try:
             with open(file_path, "r", encoding="utf-8") as fh:
@@ -386,7 +645,7 @@ class AnalyticsStorage:
         return events
 
     def _read_chat_session_file(self, file_path: str) -> List[ChatSessionEvent]:
-        """Parse a single chat session JSONL file into a list of events, skipping bad lines."""
+        """Parse single chat session JSONL file into list of events, skipping bad lines."""
         events: List[ChatSessionEvent] = []
         try:
             with open(file_path, "r", encoding="utf-8") as fh:
@@ -410,12 +669,71 @@ class AnalyticsStorage:
             logger.error("Error reading chat session file %s: %s", file_path, ex)
         return events
 
+    def _read_archived_message_file(
+        self, file_path: str
+    ) -> List[ArchivedMessage]:
+        """Parse single archived message JSONL file into list of events, skipping bad lines."""
+        events: List[ArchivedMessage] = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                for line_no, line in enumerate(fh, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        events.append(ArchivedMessage.from_dict(data))
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
+                        logger.warning(
+                            "Skipping malformed archived message line %d in %s: %s",
+                            line_no,
+                            file_path,
+                            ex,
+                        )
+        except FileNotFoundError:
+            pass
+        except OSError as ex:
+            logger.error("Error reading archived message file %s: %s", file_path, ex)
+        return events
+
+    def _read_tool_call_message_file(
+        self, file_path: str
+    ) -> List[ToolCallMessage]:
+        """Parse single tool call message JSONL file into list of events, skipping bad lines."""
+        events: List[ToolCallMessage] = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                for line_no, line in enumerate(fh, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        events.append(ToolCallMessage.from_dict(data))
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
+                        logger.warning(
+                            "Skipping malformed tool call message line %d in %s: %s",
+                            line_no,
+                            file_path,
+                            ex,
+                        )
+        except FileNotFoundError:
+            pass
+        except OSError as ex:
+            logger.error("Error reading tool call message file %s: %s", file_path, ex)
+        return events
+
+    # ── Date Management ────────────────────────────────────────────────────────
+
     def list_available_dates(self) -> List[str]:
         """
         Return sorted list of ISO date strings for which data files exist.
 
+        Inspects the base analytics path for token_usage JSONL files to
+        determine which dates have data.
+
         Returns:
-            Sorted list of ``YYYY-MM-DD`` strings.
+            Sorted list of YYYY-MM-DD strings in ascending order.
         """
         dates: List[str] = []
         try:
@@ -443,28 +761,24 @@ class AnalyticsStorage:
         """
         Recompute cxjcoins for matching events in a date range using new prices.
 
-        Iterates over every day in ``[start_date, end_date]`` (inclusive),
-        updates the ``input_k_tokens_cxjcoins``, ``output_k_tokens_cxjcoins``
-        and ``total_cxjcoins`` fields for every event whose ``provider`` and
-        ``model`` match the supplied values, and atomically replaces the
-        original file.
+        Iterates over every day in [start_date, end_date] (inclusive),
+        updates pricing fields for every event whose provider and model match
+        the supplied values, and atomically replaces the original file.
 
-        Each matching event is loaded via ``TokenUsageEvent.from_dict()``,
-        the new pricing fields are applied and ``total_cxjcoins`` is forced to
-        ``0.0`` so that ``TokenUsageEvent.__post_init__`` recalculates it
-        correctly before the event is serialised back to disk.
+        Each matching event is loaded via TokenUsageEvent.from_dict(), the new
+        pricing fields are applied and total_cxjcoins is forced to 0.0 so that
+        TokenUsageEvent.__post_init__ recalculates it correctly.
 
         Args:
-            provider:                  Provider name to match (e.g. ``"openai"``).
-            model:                     Model name to match (e.g. ``"gpt-4o"``).
-            start_date:                Inclusive start date in ``YYYY-MM-DD`` format.
-            end_date:                  Inclusive end date in ``YYYY-MM-DD`` format.
-            input_k_tokens_cxjcoins:   New price per 1 000 input tokens in cxjcoins.
-            output_k_tokens_cxjcoins:  New price per 1 000 output tokens in cxjcoins.
+            provider:                  Provider name to match (e.g. "openai").
+            model:                     Model name to match (e.g. "gpt-4o").
+            start_date:                Inclusive start date in YYYY-MM-DD format.
+            end_date:                  Inclusive end date in YYYY-MM-DD format.
+            input_k_tokens_cxjcoins:   New price per 1000 input tokens.
+            output_k_tokens_cxjcoins:  New price per 1000 output tokens.
 
         Returns:
-            Total number of events that were updated across all files in the
-            date range.
+            Total number of events updated across all files in date range.
         """
         logger.info(
             "rewrite_events_for_date_range: starting rewrite for provider=%s model=%s "
@@ -518,13 +832,17 @@ class AnalyticsStorage:
                                 raw.get("provider") == provider
                                 and raw.get("model") == model
                             ):
-                                # Patch pricing fields and reset total so that
-                                # TokenUsageEvent.__post_init__ recalculates it.
-                                raw["input_k_tokens_cxjcoins"] = input_k_tokens_cxjcoins
-                                raw["output_k_tokens_cxjcoins"] = output_k_tokens_cxjcoins
+                                # Patch pricing fields and reset total so
+                                # __post_init__ recalculates it.
+                                raw["input_k_tokens_cxjcoins"] = (
+                                    input_k_tokens_cxjcoins
+                                )
+                                raw["output_k_tokens_cxjcoins"] = (
+                                    output_k_tokens_cxjcoins
+                                )
                                 raw["total_cxjcoins"] = 0.0
 
-                                # Deserialise → __post_init__ recomputes total_cxjcoins
+                                # Deserialize → __post_init__ recomputes
                                 event = TokenUsageEvent.from_dict(raw)
 
                                 updated_lines.append(

@@ -32,6 +32,7 @@ export const actions = actionTree(
     },
     async deleteProfile({ state }, { project, profile }) {
       await project.$api.profiles.delete(profile.name)
+      return $storex.profiles.loadProjectProfiles(project)
     }
   }
 )

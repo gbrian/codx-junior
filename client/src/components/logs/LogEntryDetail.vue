@@ -1,9 +1,11 @@
 <script setup>
+import ProfileAvatar from '../profile/ProfileAvatar.vue'
+import ChatFileList from '../chat/ChatFileList.vue'
 </script>
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" @click.self="$emit('close')">
-    <div class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-base-300">
+    <div class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col border border-base-300 overflow-hidden">
 
       <!-- Header -->
       <div
@@ -18,52 +20,28 @@
 
         <div class="w-px h-5 bg-base-content/20"></div>
 
-        <!-- Direction indicator -->
-        <div class="flex items-center gap-2 shrink-0">
-          <div class="relative flex items-center justify-center w-8 h-8 rounded-lg" :class="directionColor.bg">
-            <span v-if="isFull" class="flex flex-col items-center leading-[0] gap-[2px]">
-              <i class="fa-solid fa-arrow-up text-[10px]" :class="directionColor.text"></i>
-              <i class="fa-solid fa-arrow-down text-[10px]" :class="directionColor.text"></i>
+        <!-- Title & Meta -->
+        <div class="flex flex-col gap-1 flex-1 min-w-0">
+          <div class="text-sm font-bold text-base-content truncate">{{ chatInfo?.chat_name }}</div>
+          <div class="flex items-center gap-2 text-xs text-base-content/60">
+            <span class="font-mono">{{ chatInfo?.chat_id?.slice(0, 12) }}…</span>
+            <span v-if="chatInfo?.mode" class="badge badge-sm badge-ghost">{{ chatInfo.mode }}</span>
+            <span v-if="hasError" class="badge badge-error badge-sm gap-1">
+              <i class="fa-solid fa-circle-exclamation text-xs"></i> error
             </span>
-            <i v-else-if="displayEntry?.direction === 'request'" class="fa-solid fa-arrow-up text-base text-success"></i>
-            <i v-else class="fa-solid fa-arrow-down text-base text-warning"></i>
-          </div>
-          <div>
-            <div class="text-xs font-bold uppercase tracking-widest leading-none" :class="directionColor.text">
-              {{ isFull ? 'full' : (displayEntry?.direction || '—') }}
-            </div>
-            <div class="text-xs text-base-content/30 font-mono leading-none mt-0.5">{{ displayEntry?.timestamp }}</div>
           </div>
         </div>
 
-        <div class="w-px h-5 bg-base-content/20"></div>
-
-        <!-- Meta chips -->
-        <div class="flex items-center gap-1.5 flex-wrap flex-1 min-w-0 overflow-hidden">
-          <div class="badge badge-primary badge-sm gap-1 shrink-0">
-            <i class="fa-solid fa-robot text-xs"></i>{{ displayEntry?.model || 'unknown' }}
+        <!-- Quick meta chips -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <div v-if="chatInfo?.username" class="badge badge-primary badge-sm gap-1">
+            <i class="fa-regular fa-user text-xs"></i>{{ chatInfo.username }}
           </div>
-          <div class="badge badge-secondary badge-sm gap-1 shrink-0">
-            <i class="fa-solid fa-plug text-xs"></i>{{ displayEntry?.provider || 'unknown' }}
+          <div v-if="chatInfo?.project_name" class="badge badge-secondary badge-sm gap-1">
+            <i class="fa-solid fa-folder text-xs"></i>{{ chatInfo.project_name }}
           </div>
-          <div class="badge badge-ghost badge-sm gap-1 shrink-0">
-            <i class="fa-regular fa-user text-xs"></i>{{ displayEntry?.username }}
-          </div>
-          <div v-if="displayEntry?.project" class="badge badge-accent badge-sm gap-1 shrink-0">
-            <i class="fa-solid fa-folder text-xs"></i>{{ displayEntry?.project }}
-          </div>
-          <div v-if="responseEntry?.duration_seconds != null" class="badge badge-info badge-sm gap-1 shrink-0">
-            <i class="fa-solid fa-stopwatch text-xs"></i>{{ responseEntry.duration_seconds.toFixed(2) }}s
-          </div>
-          <div v-if="displayEntry?.session_id" class="badge badge-ghost badge-sm font-mono gap-1 shrink-0">
-            <i class="fa-solid fa-comments text-xs"></i>{{ displayEntry?.session_id.slice(0, 8) }}…
-          </div>
-          <div v-if="isFull" class="badge badge-info badge-sm gap-1 shrink-0">
-            <i class="fa-solid fa-arrows-up-down text-xs"></i> full
-          </div>
-          <!-- Error badge in header — shown prominently when errors exist -->
-          <div v-if="hasError" class="badge badge-error badge-sm gap-1 shrink-0 animate-pulse">
-            <i class="fa-solid fa-circle-exclamation text-xs"></i> error
+          <div v-if="metricsInfo?.total_tokens" class="badge badge-info badge-sm gap-1">
+            <i class="fa-solid fa-coins text-xs"></i>{{ metricsInfo.total_tokens }} tokens
           </div>
         </div>
 
@@ -72,244 +50,497 @@
         </button>
       </div>
 
+      <!-- Tab Navigation -->
+      <div class="flex gap-0 border-b border-base-300 px-4 shrink-0 bg-base-200/50 overflow-x-auto">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="[
+            'flex items-center gap-2 px-4 py-2.5 border-b-2 text-sm font-semibold transition-colors whitespace-nowrap',
+            activeTab === tab.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-base-content/60 hover:text-base-content'
+          ]"
+        >
+          <i :class="`fa-solid ${tab.icon}`"></i>
+          {{ tab.label }}
+        </button>
+      </div>
+
       <!-- Loading -->
-      <div v-if="loading" class="flex items-center justify-center p-16">
+      <div v-if="loading" class="flex items-center justify-center p-16 flex-1">
         <span class="loading loading-spinner loading-lg text-primary"></span>
       </div>
 
-      <!-- Main content -->
-      <div v-else-if="displayEntry" class="overflow-y-auto flex-1 min-h-0 flex flex-col">
+      <!-- Content Container - Fixed Height with Internal Scroll -->
+      <div class="overflow-y-auto flex-1 min-h-0">
+        <div class="p-4 space-y-4">
 
-        <!-- Base URL banner -->
-        <div v-if="displayEntry.base_url" class="flex items-center gap-2 px-4 py-2 bg-base-200/50 border-b border-base-300 text-xs font-mono text-base-content-ERROR-40 shrink-0">
-          <i class="fa-solid fa-globe shrink-0"></i>
-          <span class="truncate">{{ displayEntry.base_url }}</span>
-        </div>
-
-        <!-- Error banner — shown when any entry has error info -->
-        <div v-if="hasError" class="flex flex-col gap-2 px-4 py-3 bg-error/10 border-b border-error/30 shrink-0">
-          <div class="flex items-center gap-2 text-error text-sm font-bold">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span>ERROR DETECTED</span>
-          </div>
-          <!-- Request error block -->
-          <div v-if="requestError" class="flex items-start gap-3 rounded-lg bg-base-100 border border-error/40 px-3 py-2.5">
-            <div class="flex items-center gap-1.5 shrink-0 mt-0.5">
-              <i class="fa-solid fa-arrow-up text-success text-xs"></i>
-              <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Request</span>
-            </div>
-            <div class="w-px self-stretch bg-error/20 mx-1"></div>
-            <div class="flex flex-col gap-0.5 min-w-0">
-              <span class="text-xs font-bold text-error font-mono">{{ requestError.error_type }}</span>
-              <span class="text-sm text-base-content/80 break-words">{{ requestError.error_message }}</span>
-            </div>
-          </div>
-          <!-- Response error block -->
-          <div v-if="responseError" class="flex items-start gap-3 rounded-lg bg-base-100 border border-error/40 px-3 py-2.5">
-            <div class="flex items-center gap-1.5 shrink-0 mt-0.5">
-              <i class="fa-solid fa-arrow-down text-warning text-xs"></i>
-              <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Response</span>
-            </div>
-            <div class="w-px self-stretch bg-error/20 mx-1"></div>
-            <div class="flex flex-col gap-0.5 min-w-0">
-              <span class="text-xs font-bold text-error font-mono">{{ responseError.error_type }}</span>
-              <span class="text-sm text-base-content/80 break-words">{{ responseError.error_message }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-4 space-y-4 flex-1">
-
-          <!-- REQUEST messages -->
-          <div
-            class="rounded-xl overflow-hidden border flex flex-col"
-            :class="requestError ? 'border-error/50' : requestEntry ? 'border-success/40' : 'border-base-300'"
-          >
-            <div
-              class="flex items-center gap-2 px-4 py-2 border-b text-xs font-semibold shrink-0"
-              :class="requestError
-                ? 'bg-error/10 border-error/20 text-error'
-                : requestEntry
-                  ? 'bg-success/10 border-success/20 text-success'
-                  : 'bg-base-200 border-base-300 text-base-content-ERROR-40'"
-            >
-              <i class="fa-solid fa-arrow-up-from-bracket"></i>
-              <span>REQUEST MESSAGES</span>
-              <span class="font-mono font-normal opacity-60 ml-1">
-                {{ requestMessages.length }} msg{{ requestMessages.length !== 1 ? 's' : '' }}
-              </span>
-              <span v-if="!requestEntry" class="ml-2 opacity-40 italic font-normal">(not available)</span>
-              <!-- Request error inline badge with tooltip -->
-              <div v-if="requestError" class="tooltip" :data-tip="requestError.error_message">
-                <div class="badge badge-error badge-xs gap-1 ml-1 cursor-help">
-                  <i class="fa-solid fa-circle-exclamation text-xs"></i>{{ requestError.error_type }}
+          <!-- OVERVIEW TAB -->
+          <div v-if="activeTab === 'overview'" class="space-y-4">
+            
+            <!-- Chat Session Info -->
+            <div class="rounded-xl border border-base-300 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                <i class="fa-solid fa-info-circle text-primary"></i>
+                <span class="text-sm font-semibold">Chat Session</span>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 p-4">
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Chat ID</div>
+                  <div class="text-sm font-mono text-base-content/70 break-all">{{ chatInfo?.chat_id }}</div>
                 </div>
-              </div>
-              <button class="btn btn-xs btn-ghost ml-auto opacity-50" @click="messagesExpanded = !messagesExpanded">
-                <i :class="messagesExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" class="text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Request error inline detail -->
-            <div v-if="requestError" class="flex items-start gap-2 px-4 py-3 bg-error/5 border-b border-error/20">
-              <i class="fa-solid fa-triangle-exclamation text-error text-sm mt-0.5 shrink-0"></i>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs font-bold text-error font-mono">{{ requestError.error_type }}</span>
-                <span class="text-sm text-base-content/80">{{ requestError.error_message }}</span>
-              </div>
-            </div>
-
-            <div
-              class="divide-y divide-base-300 overflow-y-auto transition-all duration-200"
-              :class="messagesExpanded ? 'max-h-[60vh]' : 'max-h-64'"
-            >
-              <div
-                v-for="(msg, i) in requestMessages"
-                :key="i"
-                class="px-4 py-3"
-                :class="{
-                  'bg-primary/5': msg.role === 'user',
-                  'bg-secondary/5': msg.role === 'assistant',
-                  'bg-warning/5': msg.role === 'system',
-                  'bg-info/5': msg.role === 'tool'
-                }"
-              >
-                <div class="flex items-center gap-2 mb-2">
-                  <div
-                    class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold"
-                    :class="{
-                      'bg-primary/15 text-primary': msg.role === 'user',
-                      'bg-secondary/15 text-secondary': msg.role === 'assistant',
-                      'bg-warning/15 text-warning': msg.role === 'system',
-                      'bg-info/15 text-info': msg.role === 'tool'
-                    }"
-                  >
-                    <i :class="{
-                      'fa-regular fa-user': msg.role === 'user',
-                      'fa-solid fa-robot': msg.role === 'assistant',
-                      'fa-solid fa-gear': msg.role === 'system',
-                      'fa-solid fa-wrench': msg.role === 'tool'
-                    }" class="text-xs"></i>
-                    <span class="ml-1 uppercase tracking-wider text-xs">{{ msg.role }}</span>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Mode</div>
+                  <div class="badge badge-outline">{{ chatInfo?.mode || '—' }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Status</div>
+                  <div class="flex items-center gap-2">
+                    <span v-if="chatInfo?.cancelled" class="badge badge-warning">Cancelled</span>
+                    <span v-else-if="chatInfo?.error" class="badge badge-error">Error</span>
+                    <span v-else class="badge badge-success">Completed</span>
                   </div>
-                  <span v-if="msg.name" class="text-xs text-base-content/30 font-mono">{{ msg.name }}</span>
-                  <span class="ml-auto text-xs text-base-content/20 font-mono">{{ i + 1 }}/{{ requestMessages.length }}</span>
                 </div>
-                <pre class="whitespace-pre-wrap font-sans text-sm text-base-content leading-relaxed">{{ msgContent(msg) }}</pre>
-              </div>
-
-              <div v-if="!requestMessages.length && !requestError" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
-                — No messages in request payload —
-              </div>
-            </div>
-          </div>
-
-          <!-- RESPONSE content -->
-          <div
-            class="rounded-xl overflow-hidden border flex flex-col"
-            :class="responseError ? 'border-error/50' : responseEntry ? 'border-warning/40' : 'border-base-300'"
-          >
-            <div
-              class="flex items-center gap-2 px-4 py-2 border-b text-xs font-semibold shrink-0"
-              :class="responseError
-                ? 'bg-error/10 border-error/20 text-error'
-                : responseEntry
-                  ? 'bg-warning/10 border-warning/20 text-warning'
-                  : 'bg-base-200 border-base-300 text-base-content-ERROR-40'"
-            >
-              <i class="fa-solid fa-arrow-down-to-bracket"></i>
-              <span>RESPONSE CONTENT</span>
-              <span v-if="responseEntry?.duration_seconds != null" class="font-mono font-normal opacity-70 ml-1">
-                {{ responseEntry.duration_seconds.toFixed(2) }}s
-              </span>
-              <span v-if="!responseEntry" class="ml-2 opacity-40 italic font-normal">(not available)</span>
-              <!-- Response error inline badge with tooltip -->
-              <div v-if="responseError" class="tooltip" :data-tip="responseError.error_message">
-                <div class="badge badge-error badge-xs gap-1 ml-1 cursor-help">
-                  <i class="fa-solid fa-circle-exclamation text-xs"></i>{{ responseError.error_type }}
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Username</div>
+                  <div class="text-sm">{{ chatInfo?.username || '—' }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Project</div>
+                  <div class="text-sm">{{ chatInfo?.project_name || '—' }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Started</div>
+                  <div class="text-sm font-mono text-xs">{{ formatDate(chatInfo?.timestamp) }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Duration</div>
+                  <div class="text-sm font-semibold">{{ formatDuration(chatInfo?.duration_seconds) }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Input Messages</div>
+                  <div class="text-sm font-semibold">{{ chatInfo?.input_message_count || 0 }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Output Messages</div>
+                  <div class="text-sm font-semibold">{{ chatInfo?.output_message_count || 0 }}</div>
                 </div>
               </div>
-              <button v-if="responseEntry" class="btn btn-xs btn-ghost ml-auto opacity-50" @click="responseExpanded = !responseExpanded">
-                <i :class="responseExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" class="text-xs"></i>
-              </button>
             </div>
 
-            <!-- Response error detail block -->
-            <div v-if="responseError" class="flex items-start gap-2 px-4 py-3 bg-error/5 border-b border-error/20">
-              <i class="fa-solid fa-triangle-exclamation text-error text-sm mt-0.5 shrink-0"></i>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs font-bold text-error font-mono">{{ responseError.error_type }}</span>
-                <span class="text-sm text-base-content/80">{{ responseError.error_message }}</span>
+            <!-- Error Info -->
+            <div v-if="hasError" class="rounded-xl border border-error/50 bg-error/5 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-error/10 border-b border-error/30 shrink-0">
+                <i class="fa-solid fa-triangle-exclamation text-error"></i>
+                <span class="text-sm font-semibold text-error">Error Details</span>
+              </div>
+              <div class="p-4 space-y-2">
+                <div class="text-sm text-base-content/80">{{ chatInfo?.error }}</div>
               </div>
             </div>
-
-            <div
-              v-if="responseEntry && responseContent"
-              class="px-4 py-3 overflow-y-auto transition-all duration-200"
-              :class="responseExpanded ? 'max-h-[60vh]' : 'max-h-48'"
-            >
-              <pre class="whitespace-pre-wrap font-sans text-sm text-base-content leading-relaxed">{{ responseContent }}</pre>
-            </div>
-
-            <div v-if="responseEntry && !responseContent && !responseError" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
-              — No content —
-            </div>
-
-            <div v-if="!responseEntry" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
-              — No response entry found —
-            </div>
-
-            <!-- Tool calls -->
-            <div v-if="responseToolCalls" class="border-t border-warning/20">
-              <div class="flex items-center gap-1.5 px-4 py-2 bg-base-200 text-xs font-semibold text-base-content/50 shrink-0">
-                <i class="fa-solid fa-wrench text-xs"></i> TOOL CALLS
+            <div class="flex gap-2 justify-between text-xs">
+              <!-- Profiles -->
+              <div v-if="profiles.length" class="rounded-xl border border-base-300 overflow-hidden flex">
+                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                  <i class="fa-solid fa-user-group text-secondary"></i>
+                  <span class="text-sm font-semibold">Profiles</span>
+                </div>
+                <div class="p-4 flex gap-2">
+                  <ProfileAvatar
+                    v-for="profile in profiles"
+                    :key="profile.name"
+                    :profile="profile"
+                    width="10"
+                  />
+                </div>
               </div>
-              <div class="px-4 py-3 overflow-y-auto max-h-48">
-                <pre class="text-xs text-base-content/70 bg-base-200 rounded-lg p-3 whitespace-pre-wrap">{{ formatJson(responseToolCalls) }}</pre>
-              </div>
-            </div>
-          </div>
 
-          <!-- Raw payloads collapsible -->
-          <div class="collapse collapse-arrow rounded-xl border border-base-300 bg-base-200">
-            <input type="checkbox" />
-            <div class="collapse-title text-xs font-mono font-semibold text-base-content-ERROR-40 py-2.5 min-h-0 flex items-center gap-2">
-              <i class="fa-solid fa-code"></i> raw payloads
-            </div>
-            <div class="collapse-content bg-base-300/30 space-y-3">
-              <div v-if="requestEntry">
-                <div class="text-xs text-success font-semibold mb-1 mt-2">↑ request</div>
-                <pre class="text-xs font-mono text-base-content/60 whitespace-pre-wrap overflow-auto max-h-48">{{ formatJson(requestEntry.payload) }}</pre>
-              </div>
-              <div v-if="responseEntry">
-                <div class="text-xs text-warning font-semibold mb-1">↓ response</div>
-                <pre class="text-xs font-mono text-base-content/60 whitespace-pre-wrap overflow-auto max-h-48">{{ formatJson(responseEntry.payload) }}</pre>
+              <!-- Files -->
+              <div v-if="chatInfo?.files?.length" class="rounded-xl border border-base-300 overflow-hidden flex">
+                <div class="p-4">
+                  <ChatFileList
+                    :files="chatInfo.files"
+                    :message-files="[]"
+                    :chat-project="getChatProject()"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Footer: request IDs + tags -->
-          <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-base-300">
-            <div v-if="displayEntry.request_id" class="flex items-center gap-1.5 text-xs font-mono bg-base-200 border border-base-300 rounded-lg px-2 py-1">
-              <i class="fa-solid fa-fingerprint text-primary text-xs"></i>
-              <span class="text-base-content/50">{{ displayEntry.request_id.slice(0, 20) }}…</span>
-              <button class="btn btn-xs btn-ghost btn-circle" title="Find paired entry" @click="$emit('find-pair', displayEntry.request_id)">
-                <i class="fa-solid fa-link text-info text-xs"></i>
-              </button>
+          <!-- METRICS TAB -->
+          <div v-if="activeTab === 'metrics'" class="space-y-4">
+            
+            <!-- Overall Metrics -->
+            <div class="rounded-xl border border-info/40 bg-info/5 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-info/10 border-b border-info/30 shrink-0">
+                <i class="fa-solid fa-gauge text-info"></i>
+                <span class="text-sm font-semibold">Overall Metrics</span>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
+                <div class="space-y-1 p-3 rounded-lg bg-base-100 border border-info/20">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Total Tokens</div>
+                  <div class="text-2xl font-bold text-info">{{ metricsInfo?.total_tokens || 0 }}</div>
+                </div>
+                <div class="space-y-1 p-3 rounded-lg bg-base-100 border border-info/20">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Input Tokens</div>
+                  <div class="text-2xl font-bold text-success">{{ metricsInfo?.total_input_tokens || 0 }}</div>
+                </div>
+                <div class="space-y-1 p-3 rounded-lg bg-base-100 border border-info/20">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Output Tokens</div>
+                  <div class="text-2xl font-bold text-warning">{{ metricsInfo?.total_output_tokens || 0 }}</div>
+                </div>
+                <div class="space-y-1 p-3 rounded-lg bg-base-100 border border-info/20">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Cost</div>
+                  <div class="text-2xl font-bold text-primary">{{ formatCost(metricsInfo?.total_cxjcoins) }}</div>
+                </div>
+              </div>
             </div>
-            <div v-if="displayEntry.parent_request_id" class="flex items-center gap-1.5 text-xs font-mono bg-warning/10 border border-warning/30 rounded-lg px-2 py-1">
-              <i class="fa-solid fa-turn-up text-warning text-xs"></i>
-              <span class="text-base-content/50">{{ displayEntry.parent_request_id.slice(0, 16) }}…</span>
-              <button class="btn btn-xs btn-warning btn-outline ml-1" @click="$emit('navigate-parent', displayEntry.parent_request_id)">
-                ↑ Parent
-              </button>
+
+            <!-- LLM Calls Metrics -->
+            <div v-if="metricsInfo" class="rounded-xl border border-base-300 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                <i class="fa-solid fa-message text-secondary"></i>
+                <span class="text-sm font-semibold">LLM Requests</span>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Total Calls</div>
+                  <div class="text-xl font-bold">{{ metricsInfo.llm_calls || 0 }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Duration</div>
+                  <div class="text-xl font-bold">{{ formatDuration(metricsInfo.total_llm_duration_seconds) }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Avg Duration</div>
+                  <div class="text-xl font-bold">{{ formatDuration(metricsInfo.total_llm_duration_seconds / (metricsInfo.llm_calls || 1)) }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Cost</div>
+                  <div class="text-xl font-bold text-primary">{{ formatCost(metricsInfo.total_cxjcoins) }}</div>
+                </div>
+              </div>
             </div>
-            <div v-if="displayEntry.tags" class="flex items-center gap-1 text-xs bg-base-200 border border-base-300 rounded-lg px-2 py-1">
-              <i class="fa-solid fa-tag text-base-content/30 text-xs"></i>
-              <span class="text-base-content/50">{{ displayEntry.tags }}</span>
+
+            <!-- Tool Calls Metrics -->
+            <div v-if="metricsInfo" class="rounded-xl border border-base-300 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                <i class="fa-solid fa-wrench text-accent"></i>
+                <span class="text-sm font-semibold">Tool Calls</span>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Total Calls</div>
+                  <div class="text-xl font-bold">{{ metricsInfo.tool_calls || 0 }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Successful</div>
+                  <div class="text-xl font-bold text-success">{{ metricsInfo.successful_tool_calls || 0 }}</div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Failed</div>
+                  <div class="text-xl font-bold" :class="metricsInfo.failed_tool_calls ? 'text-error' : ''">
+                    {{ metricsInfo.failed_tool_calls || 0 }}
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <div class="text-xs text-base-content/50 font-semibold uppercase">Avg Duration</div>
+                  <div class="text-xl font-bold">{{ formatDuration(metricsInfo.avg_tool_duration_seconds) }}</div>
+                </div>
+              </div>
             </div>
-            <span class="ml-auto text-xs text-base-content/20 font-mono">{{ displayEntry.log_id }}</span>
+
+            <!-- Tool Breakdown -->
+            <div v-if="toolMetrics && Object.keys(toolMetrics).length" class="space-y-3">
+              <div v-for="(metrics, toolName) in toolMetrics" :key="toolName" class="rounded-xl border border-base-300 overflow-hidden">
+                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                  <i class="fa-solid fa-cube text-warning"></i>
+                  <span class="text-sm font-semibold">{{ toolName }}</span>
+                  <span class="ml-auto badge badge-sm" :class="metrics.success_rate === 100 ? 'badge-success' : 'badge-warning'">
+                    {{ metrics.success_rate.toFixed(0) }}%
+                  </span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 p-4">
+                  <div><div class="text-xs text-base-content/50">Calls</div><div class="font-bold">{{ metrics.total_calls }}</div></div>
+                  <div><div class="text-xs text-base-content/50">Success</div><div class="font-bold text-success">{{ metrics.successful }}</div></div>
+                  <div><div class="text-xs text-base-content/50">Failed</div><div class="font-bold" :class="metrics.failed ? 'text-error' : ''">{{ metrics.failed }}</div></div>
+                  <div><div class="text-xs text-base-content/50">Total Time</div><div class="font-bold">{{ formatDuration(metrics.total_duration) }}</div></div>
+                  <div><div class="text-xs text-base-content/50">Avg Time</div><div class="font-bold">{{ formatDuration(metrics.avg_duration) }}</div></div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- LLM REQUESTS TAB -->
+          <div v-if="activeTab === 'requests'" class="space-y-4">
+            <div v-if="!llmRequests.length" class="text-center py-8 text-base-content/50">
+              <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-30"></i>
+              No LLM requests found
+            </div>
+
+            <div v-for="(req, idx) in llmRequests" :key="idx" class="rounded-xl border border-base-300 overflow-hidden">
+              <button
+                @click="toggleRequestExpansion(idx)"
+                class="w-full flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 hover:bg-base-300 transition-colors"
+              >
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                  <i :class="expandedSections[`req-${idx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-primary shrink-0"></i>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-semibold">Request #{{ idx + 1 }}</span>
+                    <span class="badge badge-primary badge-sm">{{ req.model }}</span>
+                    <span class="badge badge-info badge-sm">{{ req.total_tokens }} tokens</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xs text-base-content/50">{{ formatDuration(req.duration_seconds) }}</span>
+                  <span class="text-xs font-mono text-base-content/30">{{ formatDate(req.timestamp) }}</span>
+                </div>
+              </button>
+
+              <!-- CHANGED: Condensed request detail — single compact info strip instead of three grids -->
+              <div v-if="expandedSections[`req-${idx}`]" class="bg-base-50 border-t border-base-300">
+
+                <!-- Compact info strip -->
+                <div class="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-base-300 bg-base-200/40 text-xs">
+                  <!-- Tokens -->
+                  <span class="badge badge-success badge-sm gap-1" title="Input tokens">
+                    <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i>{{ req.input_tokens || 0 }}
+                  </span>
+                  <span class="badge badge-warning badge-sm gap-1" title="Output tokens">
+                    <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>{{ req.output_tokens || 0 }}
+                  </span>
+                  <span class="text-base-content/30">·</span>
+                  <!-- Duration & cost -->
+                  <span class="badge badge-ghost badge-sm gap-1" title="Duration">
+                    <i class="fa-regular fa-clock text-xs"></i>{{ formatDuration(req.duration_seconds) }}
+                  </span>
+                  <span class="badge badge-primary badge-sm gap-1" title="Cost">
+                    <i class="fa-solid fa-coins text-xs"></i>{{ formatCost(req.total_cxjcoins) }}
+                  </span>
+                  <span class="text-base-content/30">·</span>
+                  <!-- Model & provider -->
+                  <span class="font-mono text-base-content/60">{{ req.model }}</span>
+                  <span class="badge badge-ghost badge-sm">{{ req.provider }}</span>
+                  <span class="text-base-content/30">·</span>
+                  <!-- Pricing -->
+                  <span class="text-base-content/50" title="Input price / Output price (CXJ per 1k tokens)">
+                    {{ req.input_k_tokens_cxjcoins }}/{{ req.output_k_tokens_cxjcoins }} CXJ/1k
+                  </span>
+                  <span class="text-base-content/30">·</span>
+                  <!-- Token source -->
+                  <span v-if="req.tokens_from_provider" class="badge badge-success badge-xs" title="Tokens from provider">provider</span>
+                  <span v-else class="badge badge-ghost badge-xs" title="Tokens calculated">calculated</span>
+                  <!-- Request ID -->
+                  <span v-if="req.request_id" class="font-mono text-base-content/30" title="Request ID">{{ req.request_id.slice(0, 8) }}…</span>
+                  <!-- Session ID -->
+                  <span v-if="req.session_id" class="font-mono text-base-content/30" title="Session ID">s:{{ req.session_id.slice(0, 6) }}</span>
+                  <!-- Tags -->
+                  <template v-if="req.tags">
+                    <span class="text-base-content/30">·</span>
+                    <span v-for="tag in req.tags.split(',')" :key="tag" class="badge badge-ghost badge-xs">{{ tag.trim() }}</span>
+                  </template>
+                </div>
+
+                <!-- Messages section -->
+                <div class="p-3 space-y-3">
+                  <!-- Messages Loading or Empty State -->
+                  <div v-if="messagesLoading[idx]" class="flex items-center gap-2">
+                    <span class="loading loading-spinner loading-sm text-primary"></span>
+                    <span class="text-xs text-base-content/60">Loading messages...</span>
+                  </div>
+
+                  <div v-else-if="requestMessages[idx]">
+                    <!-- Warning if no messages found -->
+                    <div v-if="!requestMessages[idx].llm.length && !requestMessages[idx].tool.length" class="alert alert-warning p-3">
+                      <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+                      <span class="text-sm">No messages found for this request</span>
+                      <button class="btn btn-sm btn-ghost" @click="loadMessagesForRequest(idx)">
+                        <i class="fa-solid fa-redo text-xs"></i> Retry
+                      </button>
+                    </div>
+
+                    <!-- Messages for this request -->
+                    <div v-else class="space-y-3">
+                      <div class="text-sm font-semibold text-base-content/70">Associated Messages</div>
+
+                      <!-- LLM Archived Messages -->
+                      <div v-if="requestMessages[idx].llm.length" class="space-y-3">
+                        <div class="text-xs font-semibold text-secondary/80 flex items-center gap-1">
+                          <i class="fa-solid fa-comments text-xs"></i>
+                          LLM Archived Messages ({{ requestMessages[idx].llm.length }})
+                        </div>
+
+                        <div v-for="(msg, mIdx) in requestMessages[idx].llm" :key="`llm-${idx}-${mIdx}`" class="rounded-lg border border-secondary/20 overflow-hidden">
+                          <!-- Archived message header -->
+                          <div class="flex items-center gap-2 px-3 py-2 bg-secondary/10 border-b border-secondary/20">
+                            <i class="fa-solid fa-robot text-xs text-secondary"></i>
+                            <span class="text-xs font-semibold text-secondary">{{ msg.model }}</span>
+                            <span class="badge badge-xs badge-ghost">{{ msg.provider }}</span>
+                            <div class="ml-auto flex items-center gap-2">
+                              <span class="badge badge-xs badge-success">in: {{ msg.input_tokens }}</span>
+                              <span class="badge badge-xs badge-warning">out: {{ msg.output_tokens }}</span>
+                              <span class="text-xs text-base-content/40 font-mono">{{ formatDate(msg.timestamp) }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Request context messages (collapsible) -->
+                          <div v-if="msg.request_messages && msg.request_messages.length" class="border-b border-secondary/10">
+                            <button
+                              @click="toggleSection(`llm-req-${idx}-${mIdx}`)"
+                              class="w-full flex items-center gap-2 px-3 py-2 bg-base-200/50 hover:bg-base-200 transition-colors text-left"
+                            >
+                              <i :class="expandedSections[`llm-req-${idx}-${mIdx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-xs text-base-content/40 shrink-0"></i>
+                              <span class="text-xs text-base-content/60 font-semibold">Context Messages ({{ msg.request_messages.length }})</span>
+                            </button>
+                            <div v-if="expandedSections[`llm-req-${idx}-${mIdx}`]" class="space-y-1 p-2 max-h-80 overflow-y-auto">
+                              <div
+                                v-for="(ctxMsg, cIdx) in msg.request_messages"
+                                :key="cIdx"
+                                class="rounded p-2 text-xs"
+                                :class="{
+                                  'bg-base-300/50 border border-base-content/10': ctxMsg.role === 'system',
+                                  'bg-info/5 border border-info/20': ctxMsg.role === 'user',
+                                  'bg-secondary/5 border border-secondary/20': ctxMsg.role === 'assistant',
+                                  'bg-accent/5 border border-accent/20': ctxMsg.role === 'tool',
+                                }"
+                              >
+                                <div class="font-semibold mb-1 capitalize" :class="{
+                                  'text-base-content/50': ctxMsg.role === 'system',
+                                  'text-info': ctxMsg.role === 'user',
+                                  'text-secondary': ctxMsg.role === 'assistant',
+                                  'text-accent': ctxMsg.role === 'tool',
+                                }">{{ ctxMsg.role }}</div>
+                                <div class="font-mono text-base-content/70 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{{ truncateContent(ctxMsg.content) }}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Response content -->
+                          <div class="p-3 space-y-1">
+                            <div class="text-xs font-semibold text-secondary flex items-center gap-1">
+                              <i class="fa-solid fa-reply text-xs"></i> Response
+                            </div>
+                            <div class="font-mono text-xs text-base-content/80 whitespace-pre-wrap break-words max-h-60 overflow-y-auto bg-base-100 border border-secondary/20 rounded p-2">{{ msg.response_content || '—' }}</div>
+                          </div>
+
+                          <!-- Error if any -->
+                          <div v-if="msg.error" class="px-3 pb-3">
+                            <div class="p-2 rounded bg-error/10 border border-error/30">
+                              <div class="text-xs text-error font-semibold mb-1">Error</div>
+                              <div class="text-xs text-error/80">{{ msg.error }}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tool Messages -->
+                      <div v-if="requestMessages[idx].tool.length" class="space-y-2">
+                        <div class="text-xs font-semibold text-accent/80 flex items-center gap-1">
+                          <i class="fa-solid fa-wrench text-xs"></i>
+                          Tool Calls ({{ requestMessages[idx].tool.length }})
+                        </div>
+                        <div v-for="(msg, mIdx) in requestMessages[idx].tool" :key="`tool-${idx}-${mIdx}`" class="rounded-lg bg-accent/10 border border-accent/20 p-3 space-y-3">
+                          <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-accent">{{ msg.tool_name }}</span>
+                            <span class="badge badge-accent badge-xs">{{ msg.tool_call_id?.slice(0, 8) }}</span>
+                          </div>
+                          <div v-if="msg.request_args && Object.keys(msg.request_args).length" class="space-y-1">
+                            <div class="text-xs text-base-content/60 font-semibold">Arguments:</div>
+                            <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-32 overflow-y-auto border border-base-300">
+                              {{ formatJson(msg.request_args) }}
+                            </div>
+                          </div>
+                          <div v-if="msg.result" class="space-y-1">
+                            <div class="text-xs text-base-content/60 font-semibold">Result:</div>
+                            <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-32 overflow-y-auto border border-base-300">
+                              {{ typeof msg.result === 'string' ? msg.result : formatJson(msg.result) }}
+                            </div>
+                          </div>
+                          <div v-if="msg.error_message" class="p-2 rounded-lg bg-error/10 border border-error/30">
+                            <div class="text-xs text-error font-semibold mb-1">Error</div>
+                            <div class="text-xs text-error/80">{{ msg.error_message }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TOOL CALLS TAB -->
+          <div v-if="activeTab === 'tools'" class="space-y-4">
+            <div v-if="!toolCalls.length" class="text-center py-8 text-base-content/50">
+              <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-30"></i>
+              No tool calls found
+            </div>
+
+            <div v-for="(tool, idx) in toolCalls" :key="idx" class="rounded-xl border border-base-300 overflow-hidden">
+              <button
+                @click="toggleSection(`tool-${idx}`)"
+                class="w-full flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 hover:bg-base-300 transition-colors"
+              >
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                  <i :class="expandedSections[`tool-${idx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-primary shrink-0"></i>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-semibold">{{ tool.name }}</span>
+                    <span v-if="tool.success" class="badge badge-success badge-sm">Success</span>
+                    <span v-else class="badge badge-error badge-sm">Failed</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xs text-base-content/50">{{ formatDuration(tool.time_taken) }}</span>
+                  <span class="text-xs font-mono text-base-content/30">{{ formatDate(tool.timestamp) }}</span>
+                </div>
+              </button>
+
+              <div v-if="expandedSections[`tool-${idx}`]" class="p-4 space-y-3 bg-base-50 border-t border-base-300">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div class="space-y-1">
+                    <div class="text-xs text-base-content/50 uppercase">Tool Name</div>
+                    <div class="text-sm font-semibold">{{ tool.name }}</div>
+                  </div>
+                  <div class="space-y-1">
+                    <div class="text-xs text-base-content/50 uppercase">Duration</div>
+                    <div class="text-sm font-bold">{{ formatDuration(tool.time_taken) }}</div>
+                  </div>
+                  <div class="space-y-1">
+                    <div class="text-xs text-base-content/50 uppercase">Status</div>
+                    <div :class="tool.success ? 'text-success' : 'text-error'" class="text-sm font-bold">
+                      {{ tool.success ? 'Success' : 'Failed' }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Error Message -->
+                <div v-if="tool.error_message" class="p-3 rounded-lg bg-error/10 border border-error/30">
+                  <div class="text-xs text-error font-semibold mb-1">Error</div>
+                  <div class="text-sm text-error/80">{{ tool.error_message }}</div>
+                </div>
+
+                <!-- Tool Event Details -->
+                <div class="text-xs space-y-2 pt-2 border-t border-base-300">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base-content/50 font-semibold uppercase w-24">Request ID:</span>
+                    <span class="font-mono text-base-content/70 break-all flex-1">{{ tool.request_id || '—' }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-base-content/50 font-semibold uppercase w-24">Chat ID:</span>
+                    <span class="font-mono text-base-content/70 break-all flex-1">{{ tool.chat_id || '—' }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-base-content/50 font-semibold uppercase w-24">Project:</span>
+                    <span class="text-base-content/70 flex-1">{{ tool.project_name || '—' }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -319,69 +550,148 @@
 <script>
 export default {
   name: 'LogEntryDetail',
-  emits: ['close', 'navigate-parent', 'find-pair', 'open-entry'],
   props: {
-    requestEntry: { type: Object, default: null },
-    responseEntry: { type: Object, default: null },
+    chatSession: { type: Object, default: null },
     loading: { type: Boolean, default: false },
+    isAdmin: { type: Boolean, default: false }
   },
+  emits: ['close'],
   data() {
     return {
-      messagesExpanded: false,
-      responseExpanded: false
+      activeTab: 'overview',
+      expandedSections: {},
+      requestMessages: {},
+      messagesLoading: {},
+      tabs: [
+        { id: 'overview', label: 'Overview', icon: 'fa-chart-pie' },
+        { id: 'metrics', label: 'Metrics', icon: 'fa-gauge' },
+        { id: 'requests', label: 'LLM Requests', icon: 'fa-message' },
+        { id: 'tools', label: 'Tool Calls', icon: 'fa-wrench' }
+      ],
+      profiles: []
     }
   },
+
+  created() {
+    this.loadProfiles()
+  },
+
   computed: {
-    isFull() {
-      return !!(this.requestEntry && this.responseEntry)
-    },
-    displayEntry() {
-      return this.requestEntry || this.responseEntry
-    },
-    directionColor() {
-      if (this.hasError) return { bg: 'bg-error/20', text: 'text-error' }
-      if (this.isFull) return { bg: 'bg-info/20', text: 'text-info' }
-      if (this.requestEntry) return { bg: 'bg-success/20', text: 'text-success' }
-      return { bg: 'bg-warning/20', text: 'text-warning' }
-    },
-    // Extract error fields from request entry
-    requestError() {
-      if (!this.requestEntry?.error_type) return null
-      return {
-        error_type: this.requestEntry.error_type,
-        error_message: this.requestEntry.error_message
-      }
-    },
-    // Extract error fields from response entry
-    responseError() {
-      if (!this.responseEntry?.error_type) return null
-      return {
-        error_type: this.responseEntry.error_type,
-        error_message: this.responseEntry.error_message
-      }
-    },
     hasError() {
-      return !!(this.requestError || this.responseError)
+      return !!this.chatSession?.chat_session?.error
     },
-    requestMessages() {
-      return this.requestEntry?.payload?.messages || []
+    chatInfo() {
+      return this.chatSession?.chat_session
     },
-    responseContent() {
-      return this.responseEntry?.payload?.content || null
+    metricsInfo() {
+      return this.chatSession?.metrics
     },
-    responseToolCalls() {
-      const tc = this.responseEntry?.payload?.tool_calls
-      return tc && tc.length ? tc : null
+    llmRequests() {
+      return this.chatSession?.llm_requests || []
+    },
+    toolCalls() {
+      return this.chatSession?.tool_calls || []
+    },
+    toolMetrics() {
+      return this.chatSession?.tool_metrics
+    },
+    chatProject() {
+      const { project_id } = this.chatInfo
+      return this.$projects.allProjectsById[project_id] || this.$project
     }
   },
+
+  watch: {
+    chatSession() {
+      this.loadProfiles()
+    }
+  },
+
   methods: {
-    msgContent(msg) {
-      if (typeof msg.content === 'string') return msg.content
-      if (Array.isArray(msg.content)) return msg.content.map(c => c.text || JSON.stringify(c)).join('\n')
-      return JSON.stringify(msg.content, null, 2)
+    toggleSection(key) {
+      this.expandedSections[key] = !this.expandedSections[key]
     },
+
+    async toggleRequestExpansion(idx) {
+      const key = `req-${idx}`
+      this.expandedSections[key] = !this.expandedSections[key]
+
+      if (this.expandedSections[key] && !this.requestMessages[idx]) {
+        await this.loadMessagesForRequest(idx)
+      }
+    },
+
+    async loadMessagesForRequest(idx) {
+      if (!this.chatSession?.chat_session?.chat_id) return
+
+      const req = this.llmRequests[idx]
+      // request_id is on token_event
+      const requestId = req?.token_event?.request_id
+
+      if (!requestId) {
+        this.requestMessages[idx] = { llm: [], tool: [] }
+        return
+      }
+
+      this.messagesLoading[idx] = true
+
+      try {
+        const chatId = this.chatSession.chat_session.chat_id
+
+        const result = await this.$project.$api.analytics.admin.chatSessionMessages(chatId, { requestId })
+
+        const llm = (result.llm_messages || [])
+
+        const tool = (result.tool_messages || [])
+
+        this.requestMessages[idx] = { llm, tool }
+      } catch (err) {
+        console.error('Failed to load request messages:', err)
+        this.requestMessages[idx] = { llm: [], tool: [] }
+      } finally {
+        this.messagesLoading[idx] = false
+      }
+    },
+
+    async loadProfiles() {
+      if (!this.chatSession) {
+        return
+      }
+      this.profiles = (await this.$storex.profiles.loadProjectProfiles(this.chatProject))
+            .filter(p => this.chatInfo?.profiles?.includes(p.name))
+    },
+
+    getChatProject() {
+      return this.$projects?.allProjects?.find(p => p.project_id === this.chatInfo?.project_id)
+    },
+
     formatJson(obj) {
-      try { return JSON.stringify(obj, null, 2) } catch { return String(obj) }
+      try {
+        return JSON.stringify(obj, null, 2)
+      } catch {
+        return String(obj)
+      }
+    },
+
+    formatDuration(seconds) {
+      return seconds ? `${seconds.toFixed(2)}s` : '—'
+    },
+
+    formatCost(coins) {
+      return coins ? `${coins.toFixed(5)} CXJ` : '—'
+    },
+
+    formatDate(timestamp) {
+      if (typeof timestamp === 'number') {
+        return new Date(timestamp * 1000).toLocaleString()
+      }
+      return new Date(timestamp).toLocaleString()
+    },
+    truncateContent(content) {
+      if (!content) return '—'
+      if (typeof content !== 'string') return this.formatJson(content)
+      const limit = 2000
+      return content.length > limit ? content.slice(0, limit) + '\n… (truncated)' : content
     }
   }
 }

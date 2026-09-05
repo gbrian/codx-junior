@@ -1,110 +1,128 @@
-# Project Tools Module Documentation
+# Project Tools Documentation
 
 ## Overview
 
-The Project Tools module provides comprehensive utilities for file operations, searching, and reading within a project. It enables efficient interaction with project files through support for bulk operations and intelligent content processing.
+The `project_tools.py` module provides a comprehensive set of utilities for file operations, searching, and reading within a project. It supports bulk operations to optimize performance and reduce tool call overhead.
+
+**Key Features:**
+- Single and bulk file reading with glob pattern support
+- Document search with validation filtering
+- File writing with git integration
+- Automatic path resolution and conversion
+- Error handling and logging
+
+---
 
 ## Core Functions
 
 ### File Reading Operations
 
-#### `project_read_file()`
+#### `project_read_file(file_path, **kwargs)`
 
 Reads the content of one or multiple files from the project with support for bulk operations.
 
 **Parameters:**
-- `file_path` (Union[str, List[str]]): Single file path or list of file paths to read. Supports relative paths, absolute paths, and glob patterns.
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
+- `file_path` (Union[str, List[str]]): Single file path or list of file paths
+  - Supports relative and absolute paths
+  - Supports glob patterns for flexible file matching
+- `**kwargs`: Additional arguments
+  - `settings` (CODXJuniorSettings): Project settings (**required**)
 
 **Returns:**
-- `ToolResponse`: Contains user-facing summary and LLM-compatible response with file contents and error information
+- `ToolResponse`: Contains:
+  - `user_response`: Summary of read operations
+  - `llm_response`: File contents with error blocks for invalid/missing files
 
-**Key Features:**
-- Supports reading multiple files in a single call to reduce tool invocations
-- Automatic error handling for invalid or missing files
-- Relative path conversion for consistency
-- Logging of successful and failed read operations
-- Warning when exceeding recommended bulk operation limit (10 files)
+**Exceptions:**
+- `ValueError`: If file_path is not provided or empty
+- `Exception`: If project settings are not provided
+
+**Performance Notes:**
+- Maximum recommended files per call: 10 (MAX_FILES_BULK_OP)
+- Exceeding the limit triggers a warning but operation continues
+- Use bulk reading for related files to reduce tool calls
 
 **Example:**
 ```python
-project_read_file(["src/main.py", "config/settings.py"])
+result = project_read_file(["src/main.py", "config/settings.py"])
 ```
 
-#### `_read_single_file()`
-
-Internal function that reads a single file and handles error reporting.
-
-**Parameters:**
-- `settings` (CODXJuniorSettings): Project settings
-- `file_path` (str): Path to the file to read
-
-**Returns:**
-- `tuple[str, Optional[str]]`: Returns formatted content with None error, or error block with error description
-
-**Error Handling:**
-- Validates file path belongs to project directory
-- Checks file existence before reading
-- Catches IOError and OSError exceptions
-- Returns formatted error blocks for debugging
-
-### File Writing Operations
-
-#### `project_write_file()`
-
-Writes content to a project file, creating the file and parent directories if needed.
-
-**Parameters:**
-- `file_path` (str): The path to the file to write
-- `content` (str): The content to write to the file
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
-
-**Returns:**
-- `ToolResponse`: Contains confirmation message and operation summary
-
-**Features:**
-- Automatic parent directory creation
-- Path validation to ensure file belongs to project
-- File size reporting in response
-- Comprehensive error handling with descriptive messages
+---
 
 ### Search Operations
 
-#### `project_search()`
+#### `project_search(search, validation=None, **kwargs)`
 
-Searches for documents within a project using one or more search queries with optional result filtering.
+Searches for documents within the project using one or more search queries with optional content filtering.
 
 **Parameters:**
-- `search` (Union[str, List[str]]): Single search query or list of queries to execute
-- `validation` (Optional[str]): Optional text to validate and filter search results
-- `**kwargs`: Additional arguments including:
+- `search` (Union[str, List[str]]): Single query or list of search queries
+- `validation` (Optional[str]): Text to validate and filter search results
+  - Helps extract relevant content from large documents
+  - Defaults to joined search queries if not provided
+- `**kwargs`: Additional arguments
   - `settings` (CODXJuniorSettings): Project settings
 
 **Returns:**
-- `ToolResponse`: Contains formatted search results and summary of queries executed
+- `ToolResponse`: Contains:
+  - `user_response`: Summary of search execution
+  - `llm_response`: Formatted search results with code blocks
 
-**Key Features:**
-- Supports bulk searching with multiple queries in a single call
-- Document deduplication by source
-- AI-powered content filtering when validation text is provided
-- Automatic relative path conversion for project files
-- Limit of 10 documents per query
-- Warning when exceeding recommended bulk operation limit (5 queries)
+**Exceptions:**
+- `ValueError`: If search argument is not provided or empty
+
+**Performance Notes:**
+- Maximum recommended queries per call: 5 (MAX_QUERIES_BULK_OP)
+- Returns up to 10 documents per query
+- Deduplicates results by source file
+- Converts absolute paths to relative paths in results
 
 **Example:**
 ```python
-project_search(["authentication", "user session", "login"])
+result = project_search(["authentication", "user session", "login"])
 ```
+
+---
+
+### File Writing Operations
+
+#### `project_write_file(file_path, content, **kwargs)`
+
+Writes content to a project file, creating it if it doesn't exist. Integrates with git to stage changes before writing.
+
+**Parameters:**
+- `file_path` (str): Path to the file to write
+- `content` (str): Content to write to the file
+- `**kwargs`: Additional arguments
+  - `settings` (CODXJuniorSettings): Project settings (**required**)
+
+**Returns:**
+- `ToolResponse`: Contains:
+  - `user_response`: Confirmation message with file path and byte size
+  - `llm_response`: Summary of write operation
+
+**Exceptions:**
+- `Exception`: If project settings are not provided or file path is invalid
+
+**Git Integration:**
+- Automatically stages file changes if git is initialized in the project
+- Skips git operations if `.git` directory is not present
+- Logs warnings if git staging fails but continues with file writing
+
+**Example:**
+```python
+result = project_write_file("src/new_file.py", "print('hello')")
+```
+
+---
 
 ## Utility Functions
 
 ### Path Conversion
 
-#### `path_to_absolute_project_path()`
+#### `path_to_absolute_project_path(settings, file_path)`
 
-Converts relative or absolute file paths to absolute project paths.
+Converts a relative or absolute file path to an absolute project path.
 
 **Parameters:**
 - `settings` (CODXJuniorSettings): Project settings
@@ -115,81 +133,81 @@ Converts relative or absolute file paths to absolute project paths.
 
 **Features:**
 - Handles both relative and absolute paths
-- Supports glob patterns for file discovery
-- Validates path belongs to project directory
+- Supports glob patterns for flexible file matching
+- Validates that resolved path belongs to project directory
 
-#### `_to_relative_path()`
+#### `_to_relative_path(settings, abs_path)`
 
-Converts absolute file paths to relative paths within the project.
+Converts an absolute file path to a relative path within the project.
 
 **Parameters:**
 - `settings` (CODXJuniorSettings): Project settings
 - `abs_path` (str): Absolute path to convert
 
 **Returns:**
-- `str`: Relative path from project root
+- `str`: Relative path from project root, or original path if outside project
+
+---
 
 ### Code Processing
 
-#### `code_block()`
+#### `code_block(file_path, code, code_language, **kwargs)`
 
-Processes code to ensure project standards compliance and returns it in formatted code block.
+Ensures code follows project standards and returns it in code block format.
 
 **Parameters:**
 - `file_path` (str): Absolute file path
-- `code` (str): The code to process
-- `code_language` (str): Programming language of the code
-- `**kwargs`: Additional arguments including:
-  - `settings` (CODXJuniorSettings): Project settings (required)
+- `code` (str): Code to process
+- `code_language` (str): Programming language identifier
+- `**kwargs`: Additional arguments
+  - `settings` (CODXJuniorSettings): Project settings (**required**)
 
 **Returns:**
-- `str`: Processed code in code block format
+- `str`: Processed code in formatted code block
 
-**Process:**
-- Uses CODXJuniorSession for code validation
-- Applies project-specific formatting rules
-- Returns formatted code block with language and path information
+**Processing:**
+- Applies project-specific code formatting rules
+- Integrates with CODXJuniorSession for standardization
 
-#### `get_ai()`
+---
 
-Initializes and returns an AI instance for tool usage.
+### AI Integration
+
+#### `get_ai(settings, tool_name)`
+
+Initializes and returns a configured AI instance for tool usage.
 
 **Parameters:**
 - `settings` (CODXJuniorSettings): Project settings
-- `tool_name` (str): Name of the tool requesting the AI instance
+- `tool_name` (str): Name of the tool requesting AI instance
 
 **Returns:**
-- `AI`: Configured AI instance with proper settings
+- `AI`: Configured AI instance with user context
+
+---
 
 ## Configuration Constants
 
-- `BULK_OPERATION_THRESHOLD`: 3 - Minimum files for considering bulk operation
-- `MAX_FILES_BULK_OP`: 10 - Recommended maximum files per read operation
-- `MAX_QUERIES_BULK_OP`: 5 - Recommended maximum searches per operation
-- `FILE_READ_ERROR_TEMPLATE`: Error message format for file read failures
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `BULK_OPERATION_THRESHOLD` | 3 | Minimum files for bulk operation consideration |
+| `MAX_FILES_BULK_OP` | 10 | Maximum recommended files per read operation |
+| `MAX_QUERIES_BULK_OP` | 5 | Maximum recommended queries per search operation |
+| `FILE_READ_ERROR_TEMPLATE` | Format string | Template for file read error messages |
 
-## Response Structure
-
-All public functions return a `ToolResponse` object containing:
-- `user_response`: Human-readable summary and confirmation messages
-- `llm_response`: Detailed response content for language model consumption
+---
 
 ## Error Handling
 
-The module implements comprehensive error handling:
-- Path validation to prevent directory traversal attacks
-- File existence verification before operations
-- Exception catching for IOError and OSError
-- Detailed error logging for debugging
-- Graceful degradation with error blocks in responses
+The module provides comprehensive error handling:
 
-## Bulk Operations
+- **Invalid Paths**: Returns error blocks indicating path validation failures
+- **Missing Files**: Reports files not found with descriptive error messages
+- **Read/Write Failures**: Logs IOError and OSError with detailed messages
+- **Git Operations**: Gracefully handles git-related failures without blocking file operations
+- **Search Failures**: Returns empty results with informative summaries
 
-For optimal performance, the module encourages bulk operations:
-- Multiple files can be read in a single `project_read_file()` call
-- Multiple queries can be executed in a single `project_search()` call
-- Warnings are logged when exceeding recommended limits
-- All operations maintain individual error tracking
+All errors are logged at appropriate levels (warning, error) for debugging and monitoring.
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/engine.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/utils/utils.py, codx/junior/ai/__init__.py, codx/junior/model/model.py

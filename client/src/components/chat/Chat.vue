@@ -10,6 +10,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
 import ChatFilePreview from './ChatFilePreview.vue'
 import ChatMessageEditor from './ChatMessageEditor.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
+import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
 </script>
 
 <template>
@@ -18,184 +19,239 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
     @dragleave.prevent="draggingOver = false"
     @drop.prevent="onDropChat"
   >
-    <!-- File list section -->
-    <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
-      <div class="w-full" v-if="chatFiles.length || messageFiles.length">
-        <ChatFileList
-          :files="chatFiles"
-          :message-files="messageFiles"
-          :chat-project="chatProject"
-          @remove-file="removeFileFromChat"
-          @add-file="onAddFileToChat"
-          @add-as-message="addFileContentAsMessage"
-          @sync-notebook="syncNotebook"
-          @export-notebook="exportNotebook"
-          @preview-file="openFilePreview"
-          v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
-        />
-      </div>
-      <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
-        <ChatProfileSelector
-          :project="chatProject"
-          :selected-profiles="chat.profiles"
-          :use-modal="true"
-          @profiles-changed="onProfilesChanged"
-        />
-        <CheckLists :chat="chat" :readOnly="readOnly" />
-      </div>
-    </div>
-
-    <!-- PR View Section -->
-    <div class="grow overflow-auto" v-show="isPRView">
-      <PRChangesPanel
-        class="h-full flex flex-col overflow-auto"
-        :chat="chat"
-        @comment="onPRFileComment"
-      />
-    </div>
-
-    <!-- Main Chat View -->
-    <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
-      
-      <!-- Message Editor Mode -->
-      <div class="w-full h-full" v-if="editMessage">
-        <ChatMessageEditor
-          :message="editMessage"
-          @save="onMessageEdited"
-          @discard="onEditorDiscard"
-        />
+    <!-- Loading Skeleton -->
+    <div v-if="isChatLoading" class="h-full flex flex-col gap-2 p-4">
+      <!-- Header skeleton -->
+      <div class="shrink-0 flex gap-2 items-center justify-between">
+        <div class="skeleton h-10 w-32"></div>
+        <div class="skeleton h-10 w-20"></div>
       </div>
 
-      <!-- Normal Chat Mode -->
-      <template v-else>
-        <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
-          <div class="h-full flex flex-col relative">
-            <ChatMessageList
-              ref="messageList"
-              class="w-full grow overflow-y-auto overflow-x-hidden"
-              :chat="chat"
-              :messages="messages"
-              :mention-list="mentionList"
-              :read-only="readOnly"
-              :users-list="usersList"
-              :children-chats="childrenChats"
-              @edited="onMessageEdited"
-              @remove="removeMessage"
-              @remove-file="removeFileFromMessage($event.message, $event.file)"
-              @hide="toggleHide"
-              @answer="toggleAnswer"
-              @run-edit="runEdit"
-              @copy="onCopy"
-              @add-file-to-chat="onAddFile"
-              @image="imagePreview = $event"
-              @generate-code="onGenerateCode"
-              @reload-file="onReloadMessageFile"
-              @open-file="onOpenFile"
-              @save-file="onSaveFile"
-              @add-file="onAddFile"
-              @edit-message="onEditMessage"
-              @thread="onNewThread"
-              @sub-task="onChatEntryCreateSubtask"
-              @set-active-chat="$chats.setActiveChat($event)"
-              @message-changed="onMessageChanged"
-              @run-agents="onMessageRunAgents"
-              @preview-file="handleFilePreview"
-              @search-files="onSelectionSearchFiles"
-            />
-
-            <!-- Input Section -->
-            <div class="relative" v-if="readOnly !== true">
-              <ChatIntelliSense
-                ref="intelliSense"
-                :suggestions="intelliSenseSuggestions"
-                :active-index="intelliSenseIndex"
-                :query="intelliSenseQuery"
-                :search-controller="searchController"
-                :progress="intelliSenseProgress"
-                @select="onIntelliSenseSelect"
-                @hover="intelliSenseIndex = $event"
-                @accept-multi="onIntelliSenseAcceptMulti"
-                @cancel="cancelIntelliSense"
-              />
-              <ChatInputBox
-                ref="inputBox"
-                :waiting="waiting"
-                :is-editing="!!editMessage"
-                :is-voice-session="isVoiceSession"
-                :searching="searchingInKnowledge"
-                :read-only="readOnly"
-                :selected-model="chat.llm_model"
-                :ai-models="aiModels"
-                :images="images"
-                :profiles="profiles"
-                :selected-profiles="selectedProfiles"
-                :cursor-word="cursorWord"
-                :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-                @close.knowledge="showDocumentSearchModal = false"
-                @send="sendMessage"
-                @add-message="addNewMessage()"
-                @search-message="addSearchMessage"
-                @cancel-edit="onResetEdit"
-                @paste="onContentPaste"
-                @keydown="onChatInputKeyDown"
-                @drop.stop="onDrop"
-                @model-changed="onLLMModelChanged"
-                @profiles-selected="onProfilesSelected"
-                @toggle-voice="toggleVoiceSession"
-                @remove-image="removeImage"
-                @preview-image="imagePreview = $event"
-              />
-              <ChatFileList
-                :files="files"
-                :message-files="[]"
-                :chat-project="chatProject"
-                @remove-file="removeFileFromFiles"
-                @add-file="addFileContentAsMessage"
-                @preview-file="handleFilePreview"
-                v-if="files?.length"
-              />
-            </div>
+      <!-- Messages skeleton -->
+      <div class="grow flex flex-col gap-3 overflow-y-auto">
+        <!-- Message 1 -->
+        <div class="flex gap-2">
+          <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-24"></div>
+            <div class="skeleton h-12 w-full"></div>
           </div>
         </div>
 
-        <!-- File Preview Panel -->
-        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
-          <ChatFilePreview
-            class="h-full"
-            :file-path="previewFile"
-            :chat-project="chatProject"
-            @close="closeFilePreview"
-            @saved="onPreviewFileSaved"
-          />
+        <!-- Message 2 -->
+        <div class="flex gap-2 justify-end">
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-20 ml-auto"></div>
+            <div class="skeleton h-12 w-full"></div>
+          </div>
         </div>
-      </template>
 
-    </div>
+        <!-- Message 3 -->
+        <div class="flex gap-2">
+          <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-16 w-full"></div>
+          </div>
+        </div>
+      </div>
 
-    <!-- Modals -->
-    <ChatImagePreviewModal
-      :image-preview="imagePreview"
-      @cancel="imagePreview = null"
-      @confirm="onAddImage"
-      @extract-text="onExtractTextImage"
-    />
-
-    <ChatFileSelectorModal
-      :show="selectFile"
-      :file-path="uploadProjectFile"
-      @update:filePath="uploadProjectFile = $event"
-      @close="selectFile = false"
-      @add-file="addChatFile"
-      @file-change="handleFileChange"
-    />
-
-    <!-- Notification Toast -->
-    <div v-if="notebookStatus" class="toast toast-top toast-center z-50">
-      <div class="alert alert-info text-xs">
-        <i class="fa-solid fa-book-open mr-1"></i>
-        <span>{{ notebookStatus }}</span>
+      <!-- Input skeleton -->
+      <div class="shrink-0 flex flex-col gap-2">
+        <div class="skeleton h-20 w-full"></div>
+        <div class="skeleton h-10 w-24"></div>
       </div>
     </div>
+
+    <!-- Normal Chat Content -->
+    <template v-else>
+      <!-- File list section -->
+      <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
+        <div class="w-full" v-if="chatFiles.length || messageFiles.length">
+          <ChatFileList
+            :files="chatFiles"
+            :message-files="messageFiles"
+            :chat-project="chatProject"
+            @remove-file="removeFileFromChat"
+            @add-file="onAddFileToChat"
+            @add-as-message="addFileContentAsMessage"
+            @sync-notebook="syncNotebook"
+            @export-notebook="exportNotebook"
+            @preview-file="openFilePreview"
+            v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
+          />
+        </div>
+        <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+          <ChatProfileSelector
+            :project="chatProject"
+            :selected-profiles="chat.profiles"
+            :use-modal="true"
+            @profiles-changed="onProfilesChanged"
+          />
+          <CheckLists :chat="chat" :readOnly="readOnly" />
+        </div>
+      </div>
+
+      <!-- PR View Section -->
+      <div class="grow overflow-auto" v-show="isPRView">
+        <PRChangesPanel
+          class="h-full flex flex-col overflow-auto"
+          :chat="chat"
+          @comment="onPRFileComment"
+        />
+      </div>
+
+      <!-- Main Chat View -->
+      <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
+        
+        <!-- Message Editor Mode -->
+        <div class="w-full h-full" v-if="editMessage">
+          <ChatMessageEditor
+            :message="editMessage"
+            @save="onMessageEdited"
+            @discard="onEditorDiscard"
+          />
+        </div>
+
+        <!-- Normal Chat Mode -->
+        <template v-else>
+          <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
+            <div class="h-full flex flex-col relative">
+              <ChatMessageList
+                ref="messageList"
+                class="w-full grow overflow-y-auto overflow-x-hidden"
+                :chat="chat"
+                :messages="messages"
+                :mention-list="mentionList"
+                :read-only="readOnly"
+                :users-list="usersList"
+                :children-chats="childrenChats"
+                @edited="onMessageEdited"
+                @remove="removeMessage"
+                @remove-file="removeFileFromMessage($event.message, $event.file)"
+                @hide="toggleHide"
+                @answer="toggleAnswer"
+                @run-edit="runEdit"
+                @copy="onCopy"
+                @add-file-to-chat="onAddFile"
+                @image="imagePreview = $event"
+                @generate-code="onGenerateCode"
+                @reload-file="onReloadMessageFile"
+                @open-file="onOpenFile"
+                @save-file="onSaveFile"
+                @add-file="onAddFile"
+                @edit-message="onEditMessage"
+                @thread="onNewThread"
+                @sub-task="onChatEntryCreateSubtask"
+                @set-active-chat="$chats.setActiveChat($event)"
+                @message-changed="onMessageChanged"
+                @run-agents="onMessageRunAgents"
+                @preview-file="handleFilePreview"
+                @search-files="onSelectionSearchFiles"
+              />
+
+              <!-- Input Section -->
+              <div class="relative" v-if="readOnly !== true">
+                <ChatIntelliSense
+                  ref="intelliSense"
+                  :suggestions="intelliSenseSuggestions"
+                  :active-index="intelliSenseIndex"
+                  :query="intelliSenseQuery"
+                  :search-controller="searchController"
+                  :progress="intelliSenseProgress"
+                  @select="onIntelliSenseSelect"
+                  @hover="intelliSenseIndex = $event"
+                  @accept-multi="onIntelliSenseAcceptMulti"
+                  @cancel="cancelIntelliSense"
+                />
+                <ChatInputBox
+                  ref="inputBox"
+                  :waiting="waiting"
+                  :is-editing="!!editMessage"
+                  :is-voice-session="isVoiceSession"
+                  :searching="searchingInKnowledge"
+                  :read-only="readOnly"
+                  :selected-model="chat.llm_model"
+                  :ai-models="aiModels"
+                  :images="images"
+                  :profiles="profiles"
+                  :selected-profiles="selectedProfiles"
+                  :cursor-word="cursorWord"
+                  :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                  @close.knowledge="showDocumentSearchModal = false"
+                  @send="sendMessage"
+                  @add-message="addNewMessage()"
+                  @search-message="addSearchMessage"
+                  @cancel-edit="onResetEdit"
+                  @paste="onContentPaste"
+                  @keydown="onChatInputKeyDown"
+                  @drop.stop="onDrop"
+                  @model-changed="onLLMModelChanged"
+                  @profiles-selected="onProfilesSelected"
+                  @toggle-voice="toggleVoiceSession"
+                  @remove-image="removeImage"
+                  @preview-image="imagePreview = $event"
+                />
+                <ChatFileList
+                  :files="files"
+                  :message-files="[]"
+                  :chat-project="chatProject"
+                  @remove-file="removeFileFromFiles"
+                  @add-file="addFileContentAsMessage"
+                  @preview-file="handleFilePreview"
+                  v-if="files?.length"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- File Preview Panel -->
+          <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
+            <ChatFilePreview
+              class="h-full"
+              :file-path="previewFile"
+              :chat-project="chatProject"
+              @close="closeFilePreview"
+              @saved="onPreviewFileSaved"
+            />
+          </div>
+        </template>
+
+      </div>
+
+      <!-- Modals -->
+      <ChatImagePreviewModal
+        :image-preview="imagePreview"
+        @cancel="imagePreview = null"
+        @confirm="onAddImage"
+        @extract-text="onExtractTextImage"
+      />
+
+      <ChatFileSelectorModal
+        :show="selectFile"
+        :file-path="uploadProjectFile"
+        @update:filePath="uploadProjectFile = $event"
+        @close="selectFile = false"
+        @add-file="addChatFile"
+        @file-change="handleFileChange"
+      />
+
+      <ChatFileUploadConfirmModal
+        :show="showUploadConfirmModal"
+        :files="pendingUploadFiles"
+        :upload-path="uploadPath"
+        @confirm="confirmUpload"
+        @cancel="cancelUpload"
+      />
+
+      <!-- Notification Toast -->
+      <div v-if="notebookStatus" class="toast toast-top toast-center z-50">
+        <div class="alert alert-info text-xs">
+          <i class="fa-solid fa-book-open mr-1"></i>
+          <span>{{ notebookStatus }}</span>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -245,7 +301,11 @@ export default {
       intelliSenseDismissed: false,
       searchController: null,
       previousQuery: null,
-      previousEditorText: ''
+      previousEditorText: '',
+      showUploadConfirmModal: false,
+      pendingUploadFiles: [],
+      uploadPath: '',
+      uploadContext: null
     }
   },
   created() {
@@ -265,6 +325,9 @@ export default {
   computed: {
     chatSvc() {
       return this.$service.chat
+    },
+    isChatLoading() {
+      return !this.chat?.id || this.chat?.loading === true
     },
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []
@@ -503,6 +566,62 @@ export default {
         await this.processImageFile(imageFile)
       }
       return imageFiles.length > 0
+    },
+
+    showUploadConfirmation(fileList, uploadPath, context) {
+      this.pendingUploadFiles = Array.from(fileList)
+      this.uploadPath = uploadPath
+      this.uploadContext = context
+      this.showUploadConfirmModal = true
+    },
+
+    async confirmUpload() {
+      this.showUploadConfirmModal = false
+      const uploadedPaths = await this.performUpload(this.pendingUploadFiles, this.uploadPath)
+      
+      if (this.uploadContext.chatDrop) {
+        uploadedPaths.forEach(path => this.onAddFile(path))
+      } else {
+        uploadedPaths.forEach(path => this.addFileToMessage(path))
+      }
+      
+      this.pendingUploadFiles = []
+      this.uploadPath = ''
+      this.uploadContext = null
+    },
+
+    cancelUpload() {
+      this.showUploadConfirmModal = false
+      this.pendingUploadFiles = []
+      this.uploadPath = ''
+      this.uploadContext = null
+    },
+
+    async performUpload(fileList, uploadPath) {
+      const uploadedFilePaths = []
+
+      for (const file of fileList) {
+        try {
+          console.log('[UPLOAD] Uploading file:', { name: file.name, size: file.size })
+          const result = await this.$storex.api.files.upload(file, uploadPath)
+          const filePath = result?.path || result
+          uploadedFilePaths.push(filePath)
+          console.log('[UPLOAD] File uploaded successfully:', { name: file.name, path: filePath })
+        } catch (error) {
+          console.error('[UPLOAD] Failed to upload file:', file.name, error)
+          this.$ui?.addNotification?.({
+            text: `Failed to upload ${file.name}: ${error.message}`,
+            type: 'error'
+          })
+        }
+      }
+
+      return uploadedFilePaths
+    },
+
+    async uploadLocalFiles(fileList, chatDrop) {
+      const uploadPath = this.chatProject?.upload_path || '/upload'
+      this.showUploadConfirmation(fileList, uploadPath, { chatDrop })
     },
 
     onEditorDiscard() {
@@ -851,6 +970,18 @@ export default {
           if (await this.processMultipleImages(imageFiles)) {
             itemsAdded = true
           }
+        }
+
+        // Upload non-image local files
+        const nonImageFiles = [...e.dataTransfer.files]
+          .filter(f => f.type.indexOf("image") === -1)
+        if (nonImageFiles.length > 0) {
+          console.log('[DROP] Found non-image files', {
+            count: nonImageFiles.length,
+            files: nonImageFiles.map(f => f.name)
+          })
+          await this.uploadLocalFiles(nonImageFiles, chatDrop)
+          itemsAdded = true
         }
       }
 

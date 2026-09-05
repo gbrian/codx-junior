@@ -36,7 +36,7 @@ services:
       # coder config
       - ./coder:/coder
       - codx-junior-config:/config
-      - ./coder/coder-init.sh:/custom-cont-init.d/coder-init.sh
+      - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
       # Access docker
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:

@@ -16,7 +16,7 @@ import LogEntryDetail from './LogEntryDetail.vue'
         <div>
           <h1 class="text-2xl font-bold text-base-content">Chat Logs Analyzer</h1>
           <p class="text-xs text-base-content/50">
-            Raw AI JSONL logs · {{ isAdminView ? 'Admin — all users' : 'Your logs' }}
+            Chat sessions & enriched analytics · {{ isAdminView ? 'Admin — all users' : 'Your logs' }}
           </p>
         </div>
       </div>
@@ -63,13 +63,13 @@ import LogEntryDetail from './LogEntryDetail.vue'
       <LogsLiveMetrics :logs="logs" :total="total" />
     </div>
 
-    <!-- Request trace breadcrumb -->
-    <div v-if="requestIdFilter" class="alert alert-info mb-4 py-2">
+    <!-- Session filter breadcrumb -->
+    <div v-if="sessionIdFilter" class="alert alert-info mb-4 py-2">
       <i class="fa-solid fa-sitemap text-sm"></i>
       <span class="text-sm">
-        Showing entries for <span class="font-mono font-bold">request_id: {{ requestIdFilter }}</span>
+        Showing entries for <span class="font-mono font-bold">session_id: {{ sessionIdFilter }}</span>
       </span>
-      <button class="btn btn-xs btn-ghost ml-auto" @click="clearRequestIdFilter">
+      <button class="btn btn-xs btn-ghost ml-auto" @click="clearSessionIdFilter">
         <i class="fa-solid fa-xmark"></i> Clear
       </button>
     </div>
@@ -98,20 +98,18 @@ import LogEntryDetail from './LogEntryDetail.vue'
         @select="openDetail"
         @page="goToPage"
         @page-size="onPageSizeChange"
-        @navigate-request="onNavigateRequest"
+        @navigate-session="onNavigateSession"
       />
     </div>
 
     <!-- Detail modal -->
     <LogEntryDetail
       v-if="selectedLog"
-      :request-entry="detailRequest"
-      :response-entry="detailResponse"
+      :is-admin="isAdminView"
+      :chat-session="selectedSession"
       :loading="detailLoading"
       @close="closeDetail"
       @navigate-parent="onNavigateParent"
-      @find-pair="onFindPair"
-      @open-entry="onOpenPairedEntry"
     />
   </div>
 </template>
@@ -133,52 +131,71 @@ export default {
       pageSize: 50,
       hasMore: false,
       selectedLog: null,
-      detailRequest: null,
-      detailResponse: null,
+      selectedSession: null,
       autoRefreshTimer: null,
-      requestIdFilter: null,
+      sessionIdFilter: null,
       filters: {
-        startDate: sevenDaysAgo,
+        startDate: today,
         endDate: today,
-        direction: '',
-        model: '',
-        provider: '',
-        sessionId: '',
-        tags: '',
+        projectName: '',
         username: '',
-        project: '',
         autoRefresh: null,
       }
     }
   },
-
   computed: {
-    // Auto-detect admin mode from store — no manual toggle needed
     isAdminView() {
       return !!this.$storex.users.isAdmin
     },
     availableModels() {
-      return [...new Set(this.logs.map(l => l.model).filter(Boolean))].sort()
+      return [...new Set(this.logs.map(s => s.llm_model).filter(Boolean))].sort()
     },
     availableProviders() {
-      return [...new Set(this.logs.map(l => l.provider).filter(Boolean))].sort()
+      // Extract provider from model name if present, or use 'unknown'
+      return [...new Set(this.logs.map(s => {
+        const model = s.llm_model || 'unknown'
+        // Models typically follow pattern like "claude-haiku-4-5" or "gpt-4"
+        // Extract provider from model name
+        if (model.includes('claude')) return 'anthropic'
+        if (model.includes('gpt')) return 'openai'
+        if (model.includes('gemini')) return 'google'
+        return 'unknown'
+      }).filter(Boolean))].sort()
     }
   },
 
   watch: {
-    'filters.autoRefresh'(val) { this.setupAutoRefresh(val) }
+    'filters.autoRefresh'(val) { 
+      this.setupAutoRefresh(val)
+    }
   },
 
   methods: {
+    async loadProfiles() {
+      const chatprojects = [...new Set(this.logs.map(l => l.project_id))]
+                            .map(project_id => this.$projects.allProjectsById[project_id])
+      this.profiles = {}
+      chatprojects.forEach(async project => {
+        const projectProfiles = await this.$storex.profiles.loadProjectProfiles(project)
+        projectProfiles.forEach(profile => {
+          this.profiles[project.project_id] = {
+            ...this.profiles[project.project_id],
+            [profile.name]: profile
+          }
+        })
+      })
+    },
+
     onFilterChange() { this.page = 1; this.loadLogs() },
 
     clearFilters() {
       const today = new Date().toISOString().split('T')[0]
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString().split('T')[0]
       this.filters = {
-        startDate: sevenDaysAgo, endDate: today,
-        direction: '', model: '', provider: '', sessionId: '',
-        tags: '', username: '', project: '',
+        startDate: sevenDaysAgo,
+        endDate: today,
+        projectName: '',
+        username: '',
         autoRefresh: this.filters.autoRefresh,
       }
       this.page = 1
@@ -199,15 +216,91 @@ export default {
       return {
         startDate: f.startDate,
         endDate: f.endDate,
-        direction: f.direction || undefined,
-        model: f.model || undefined,
-        provider: f.provider || undefined,
-        sessionId: f.sessionId || undefined,
-        project: f.project || undefined,
-        requestId: this.requestIdFilter || undefined,
-        page: this.page,
-        pageSize: this.pageSize,
+        projectName: f.projectName || undefined,
+        username: f.username || undefined,
       }
+    },
+    getLogProfiles({ project_id, profiles }) {
+      project_id = project_id || this.$project.project_id
+      const projectProfiles = this.profiles[project_id]
+      return projectProfiles ? profiles.map(name => projectProfiles[name])
+                .filter(p => !!p) : []
+    },
+    /**
+     * Transform nested chat_session response into flat table format
+     * Each response item has: { chat_session, metrics, llm_request_count, tool_call_count }
+     */
+    async transformSessions(rawSessions) {
+      if (!rawSessions || !Array.isArray(rawSessions)) return []
+      
+      await this.loadProfiles()
+
+      return rawSessions.map(item => {
+        const cs = item.chat_session || {}
+        const metrics = item.metrics || {}
+        
+        return {
+          // Chat session fields
+          chat_id: cs.chat_id,
+          id: cs.chat_id, // Alias for table compatibility
+          chat_name: cs.chat_name,
+          username: cs.username,
+          project_name: cs.project_name,
+          project_id: cs.project_id || this.$project.project_id,
+          mode: cs.mode,
+          profiles: this.getLogProfiles(cs),
+          files: cs.files || [],
+          parent_chat_id: cs.parent_chat_id,
+          iteration: cs.iteration,
+          max_iterations: cs.max_iterations,
+          llm_model: cs.llm_model,
+          parent_request_id: cs.parent_request_id,
+          session_id: cs.session_id,
+          started_at: cs.started_at,
+          ended_at: cs.ended_at,
+          duration_seconds: cs.duration_seconds,
+          input_message_count: cs.input_message_count,
+          output_message_count: cs.output_message_count,
+          cancelled: cs.cancelled,
+          error: cs.error,
+          timestamp: cs.timestamp,
+          iso_date: cs.iso_date,
+          
+          // Metrics fields
+          total_input_tokens: metrics.total_input_tokens,
+          total_output_tokens: metrics.total_output_tokens,
+          total_tokens: metrics.total_tokens,
+          llm_calls: metrics.llm_calls,
+          total_llm_duration_seconds: metrics.total_llm_duration_seconds,
+          total_cxjcoins: metrics.total_cxjcoins,
+          tool_calls: metrics.tool_calls,
+          successful_tool_calls: metrics.successful_tool_calls,
+          failed_tool_calls: metrics.failed_tool_calls,
+          total_tool_duration_seconds: metrics.total_tool_duration_seconds,
+          
+          // Aggregated fields
+          llm_request_count: item.llm_request_count,
+          tool_call_count: item.tool_call_count,
+          
+          // For table display compatibility
+          model: cs.llm_model,
+          provider: this.extractProvider(cs.llm_model),
+          direction: 'response', // Chat sessions are complete interactions
+          payload_preview: cs.chat_name || '—',
+        }
+      })
+    },
+
+    /**
+     * Extract provider from model name
+     */
+    extractProvider(model) {
+      if (!model) return 'unknown'
+      if (model.includes('claude')) return 'anthropic'
+      if (model.includes('gpt')) return 'openai'
+      if (model.includes('gemini')) return 'google'
+      if (model.includes('llama')) return 'meta'
+      return 'unknown'
     },
 
     async loadLogs() {
@@ -215,110 +308,76 @@ export default {
       this.error = null
       try {
         const params = this.buildParams()
-        // Admins use the admin endpoint which returns logs for all users
-        const result = this.isAdminView
-          ? await this.$project.$api.logs.ai.admin.list({ ...params, username: this.filters.username || undefined })
-          : await this.$project.$api.logs.ai.list(params)
-        this.logs = result?.items || []
-        this.total = result?.total || 0
-        this.hasMore = result?.has_more || false
+        // Use chatSessions endpoint for both user and admin views
+        const response = this.isAdminView
+          ? await this.$project.$api.analytics.admin.chatSessions(params)
+          : await this.$project.$api.analytics.chatSessions(params)
+        
+        // Transform nested response into flat format
+        const transformed = await this.transformSessions(response)
+        this.logs = transformed
+        this.total = transformed.length
+        this.hasMore = false
       } catch (err) {
-        console.error('Failed to load logs:', err)
-        this.error = 'Failed to load log entries. Please try again.'
+        console.error('Failed to load chat sessions:', err)
+        this.error = 'Failed to load chat sessions. Please try again.'
       } finally {
         this.loading = false
       }
     },
 
-    async fetchFull(logId) {
-      return this.isAdminView
-        ? await this.$project.$api.logs.ai.admin.get(logId)
-        : await this.$project.$api.logs.ai.get(logId)
-    },
-
-    async fetchByRequestId(requestId) {
-      const result = this.isAdminView
-        ? await this.$project.$api.logs.ai.admin.list({ requestId, pageSize: 10 })
-        : await this.$project.$api.logs.ai.list({ requestId, pageSize: 10 })
-      return result?.items || []
+    async loadChatSession(chatId) {
+      try {
+        const params = {
+          startDate: this.filters.startDate,
+          endDate: this.filters.endDate,
+        }
+        return this.isAdminView
+          ? await this.$project.$api.analytics.admin.chatSession(chatId, params)
+          : await this.$project.$api.analytics.chatSession(chatId, params)
+      } catch (err) {
+        console.error('Failed to load chat session:', err)
+        throw err
+      }
     },
 
     async openDetail(log) {
       this.selectedLog = log
-      this.detailRequest = null
-      this.detailResponse = null
+      this.selectedSession = null
       this.detailLoading = true
       try {
-        const full = await this.fetchFull(log.log_id)
-        if (!full?.request_id) {
-          this.assignEntry(full)
-          return
-        }
-        const siblings = await this.fetchByRequestId(full.request_id)
-        await this.resolveRequestResponse(full, siblings)
+        const session = await this.loadChatSession(log.chat_id || log.id)
+        this.selectedSession = session
       } catch (err) {
-        console.error('Failed to load log detail:', err)
-        this.error = 'Failed to load log detail.'
+        console.error('Failed to load chat session detail:', err)
+        this.error = 'Failed to load chat session detail.'
       } finally {
         this.detailLoading = false
       }
     },
 
-    assignEntry(entry) {
-      if (entry?.direction === 'request') {
-        this.detailRequest = entry
-      } else {
-        this.detailResponse = entry
-      }
-    },
-
-    async resolveRequestResponse(full, siblings) {
-      const siblingMeta = siblings.find(s => s.log_id !== full.log_id)
-      this.assignEntry(full)
-      if (!siblingMeta) return
-      try {
-        const siblingFull = await this.fetchFull(siblingMeta.log_id)
-        this.assignEntry(siblingFull)
-      } catch (err) {
-        console.error('Failed to fetch sibling:', err)
-        this.assignEntry(siblingMeta)
-      }
-    },
-
     closeDetail() {
       this.selectedLog = null
-      this.detailRequest = null
-      this.detailResponse = null
+      this.selectedSession = null
     },
 
-    onNavigateParent(parentRequestId) {
+    onNavigateParent(parentSessionId) {
       this.closeDetail()
-      this.requestIdFilter = parentRequestId
+      this.sessionIdFilter = parentSessionId
       this.page = 1
       this.loadLogs()
     },
 
-    onNavigateRequest(requestId) {
-      this.requestIdFilter = requestId
+    onNavigateSession(sessionId) {
+      this.sessionIdFilter = sessionId
       this.page = 1
       this.loadLogs()
     },
 
-    onFindPair(requestId) {
-      this.closeDetail()
-      this.requestIdFilter = requestId
+    clearSessionIdFilter() {
+      this.sessionIdFilter = null
       this.page = 1
       this.loadLogs()
-    },
-
-    clearRequestIdFilter() {
-      this.requestIdFilter = null
-      this.page = 1
-      this.loadLogs()
-    },
-
-    onOpenPairedEntry(entry) {
-      this.openDetail(entry)
     },
   },
 

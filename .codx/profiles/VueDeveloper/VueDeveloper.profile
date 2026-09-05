@@ -1,0 +1,52 @@
+{
+  "name": "VueDeveloper",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=vuedeveloper",
+  "description": "Vuejs developer assistant",
+  "category": "assistant",
+  "file_match": "\\.vue$",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/VueDeveloper.profile",
+  "profiles": [
+    "software_developer"
+  ],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "6651499e-ba84-4d18-a785-3a9a1b8a67c4",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-06-24T06:19:53.886694",
+      "updated_at": "2026-06-24T06:19:53.886705",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": "42bb6a67-8db3-4db2-bf11-ab38fcea6e0b"
+}

@@ -14,6 +14,7 @@ import AppIcon from '../apps/AppIcon.vue'
   </div>
 </template>
 <script>
+
 export default {
   props: ['params'],
   data() {
@@ -50,7 +51,7 @@ export default {
       return this.params.params.project_id
     },
     isUpdating() {
-        return this.chat?.id && this.$storex.chats.isChatUpdating(this.chat.id)
+      return this.$storex.chats.isChatUpdating(this.chat?.id)
     }
   },
   methods: {

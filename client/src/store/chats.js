@@ -51,7 +51,8 @@ export const getters = getterTree(state, {
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
   isChatUpdating: state => (chatId) => {
-    return (state.chatEvents[chatId]?.updatingCount || 0) > 0
+    return (state.chatEvents[chatId]?.updatingCount || 0) > 0 ||
+      state.chats[chatId]?.status === ENTITY_STATUS.LOADING
   },
   activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
   chatProject: state => ({ project_id, owner_project_id }) => {
@@ -68,6 +69,7 @@ export const getters = getterTree(state, {
   },
   rootChat: state => (chatId) => getRootChat(state, chatId),
   searchResults: state => state.searchResults,
+  getChatProject: state => getChatProject
 })
 
 export const mutations = mutationTree(state, {

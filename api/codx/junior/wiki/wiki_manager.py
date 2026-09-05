@@ -674,23 +674,69 @@ Do not add code fences around the entire document.
     def _is_valid_source_path(self, file_path: str) -> bool:
         """
         Validate that the source path is a legitimate file path.
-        Prevent processing of content that looks like markdown or code.
+        Reject paths that contain invalid characters or patterns from code/markdown.
+
+        Checks for:
+        - Non-string types
+        - Markdown/code syntax patterns (```, [, etc.)
+        - Invalid filesystem characters (brackets, pipes, etc.)
+        - Path traversal attempts
+        - Paths that don't end with file extensions
+
+        Args:
+            file_path: The path to validate.
+
+        Returns:
+            True if the path is valid, False otherwise.
         """
         if not isinstance(file_path, str):
             logger.error("Source path must be a string, got %s", type(file_path))
             return False
 
-        # Check for markdown/code patterns that shouldn't be file paths
-        if file_path.startswith("```") or file_path.startswith("["):
-            logger.warning("Source path looks like code/markdown content: %s", file_path)
+        # Check for empty or whitespace-only paths
+        if not file_path or not file_path.strip():
+            logger.warning("Source path is empty or whitespace-only: %s", file_path)
             return False
 
-        # Normalize path
-        normalized = os.path.normpath(file_path)
+        # Check for markdown/code patterns that shouldn't be file paths
+        if file_path.startswith("```"):
+            logger.warning("Source path looks like code block start: %s", file_path)
+            return False
+
+        if file_path.startswith("["):
+            logger.warning("Source path looks like markdown link: %s", file_path)
+            return False
+
+        # Check for any markdown inline code or other special markup
+        if file_path.startswith("`") or file_path.startswith("*"):
+            logger.warning("Source path looks like markdown formatting: %s", file_path)
+            return False
+
+        # Normalize path to catch various forms
+        try:
+            normalized = os.path.normpath(file_path)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to normalize path %s: %s", file_path, e)
+            return False
 
         # Check for path traversal attempts
-        if ".." in normalized:
+        if ".." in normalized or normalized.startswith(".."):
             logger.warning("Path traversal attempt detected: %s", file_path)
+            return False
+
+        # Check for invalid filesystem characters that might slip through
+        if INVALID_FILENAME_CHARS.search(file_path):
+            logger.warning("Invalid filesystem characters in path: %s", file_path)
+            return False
+
+        # Reject paths without extensions (likely malformed)
+        # Exception: allow paths that are clearly directories (should have slashes)
+        if os.path.sep in file_path or "/" in file_path:
+            # It's a path with directories, which is ok
+            pass
+        elif "." not in os.path.basename(file_path):
+            # Single filename without extension - reject it
+            logger.warning("Path has no file extension (likely malformed): %s", file_path)
             return False
 
         return True
@@ -698,7 +744,13 @@ Do not add code fences around the entire document.
     def _is_valid_wiki_file_path(self, file_path: str) -> bool:
         """
         Validate that the wiki file path is safe to write to.
-        Check for invalid filename characters.
+        Check for invalid filename characters and excessive length.
+
+        Args:
+            file_path: The wiki file path to validate.
+
+        Returns:
+            True if the path is safe to use, False otherwise.
         """
         try:
             # Ensure path is normalized
@@ -706,12 +758,23 @@ Do not add code fences around the entire document.
 
             # Check each component for invalid characters
             for part in normalized.split(os.sep):
+                if not part:
+                    # Empty component (e.g., from double slashes) - skip
+                    continue
+
+                # Check for invalid characters
                 if INVALID_FILENAME_CHARS.search(part):
                     logger.warning("Invalid characters in wiki file path component '%s'", part)
                     return False
 
+                # Check for excessive length
                 if len(part) > MAX_FILENAME_LENGTH:
-                    logger.warning("Wiki file path component too long: %s (max %d)", part, MAX_FILENAME_LENGTH)
+                    logger.warning(
+                        "Wiki file path component too long: '%s' (%d chars, max %d)",
+                        part,
+                        len(part),
+                        MAX_FILENAME_LENGTH
+                    )
                     return False
 
             return True
@@ -952,7 +1015,6 @@ Do not add code fences around the entire document.
         Returns:
             Flattened list of all categories and subcategories.
         """
-        # FIX: never use a mutable default argument
         if flattened_list is None:
             flattened_list = []
 
@@ -1018,3 +1080,5 @@ Do not add code fences around the entire document.
         if not safe_slug:
             safe_slug = "document"
         return f"{safe_slug}.md"
+
+# Made with ❤️ by codx-junior

@@ -15,7 +15,7 @@
   "knowledge_context_rag_distance": 0.4,
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
-  "knowledge_file_ignore": ".codx,assets,public",
+  "knowledge_file_ignore": ".codx,assets,public,fontawesome",
   "knowledge_generate_training_dataset": false,
   "save_mentions": true,
   "watching": true,

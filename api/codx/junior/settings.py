@@ -20,7 +20,8 @@ from codx.junior.utils.utils import (
 )
 from codx.junior.model.model import (
     ProjectScript,
-    AISettings
+    AISettings,
+    MCPServer
 )
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,8 @@ class CODXJuniorSettings(BaseModel):
 
     repo_url: Optional[str] = Field(default=None)
 
+    mcp_servers: Optional[List[MCPServer]] = Field(default=[], description="List of MCP servers configured for this project")
+
     is_git_root: Optional[bool] = Field(default=False)
 
     def __str__(self):
@@ -110,6 +113,14 @@ class CODXJuniorSettings(BaseModel):
     def get_project_workspaces(self):
         global_settings = read_global_settings()
         return [w for w in global_settings.workspaces if self.project_id in w.project_ids]
+
+    def get_active_mcp_servers(self) -> List[MCPServer]:
+        """Get list of active MCP servers."""
+        return [server for server in self.mcp_servers if server.active]
+
+    def get_mcp_server_by_name(self, name: str) -> Optional[MCPServer]:
+        """Get MCP server by name."""
+        return next((server for server in self.mcp_servers if server.name == name), None)
 
     @classmethod
     def from_codx_path(cls, codx_path: str):

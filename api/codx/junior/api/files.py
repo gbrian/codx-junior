@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import APIRouter, Request, Response, status, UploadFile, File
+from fastapi import APIRouter, Request, Response, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
 
 from codx.junior.engine import CODXJuniorSession
@@ -141,8 +141,8 @@ async def search_files_content(request: Request):
 async def upload_file(
     request: Request,
     file: UploadFile = File(...),
-    path: str = "",
-    process: bool = False,
+    path: str = Form(""),
+    process: bool = Form(False),
 ):
     """
     Upload a single file to the project.
@@ -165,7 +165,10 @@ async def upload_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             content="Missing required parameter: path"
         )
-
+    if path[0] == '/':
+        path = path[1:]
+    path = os.path.join(path, file.filename)
+    
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
 
@@ -207,7 +210,8 @@ async def upload_file(
 async def upload_multiple_files(
     request: Request,
     files: list[UploadFile] = File(...),
-    process: bool = False,
+    process: bool = Form(False),
+
 ):
     """
     Upload multiple files to the project in batch.

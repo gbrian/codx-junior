@@ -41,7 +41,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
-      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode">
+      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
@@ -91,6 +91,13 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
         class="h-full"
         v-else-if="editMode"
       />
+      <div class="w-full h-full flex items-center justify-center bg-base-300" v-else-if="isPdf">
+        <iframe
+          :src="pdfDataUrl"
+          class="w-full h-full"
+          title="PDF Viewer"
+        ></iframe>
+      </div>
       <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
         <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
       </div>
@@ -144,7 +151,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </template>
 
 <script>
-const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'pdf', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
+const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
 
 export default {
   name: 'FileViewer',
@@ -189,8 +196,16 @@ export default {
     fileExtension() {
       return this.displayFileName.split('.').pop()?.toLowerCase()
     },
+    isPdf() {
+      return this.fileExtension === 'pdf'
+    },
     isBinary() {
       return BINARY_EXTENSIONS.includes(this.fileExtension)
+    },
+    pdfDataUrl() {
+      if (!this.fileContent || !this.isPdf) return ''
+      const encodedContent = btoa(this.fileContent)
+      return `data:application/pdf;base64,${encodedContent}`
     },
     validatedLanguage() {
       const lang = EXTENSION_LANGUAGE_MAP[this.fileExtension] || this.fileExtension
@@ -201,7 +216,6 @@ export default {
       }
       return 'markdown'
     },
-    // Check if current content differs from original file content
     hasChanges() {
       return this.editContent !== this.fileContent
     }

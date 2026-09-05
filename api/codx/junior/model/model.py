@@ -166,6 +166,12 @@ class OAuthProvider(BaseModel):
     secret: str = Field(default="")
     token_url: str = Field(default="")
 
+class MCPServer(BaseModel):
+    """Model representing a Model Context Protocol (MCP) server configuration."""
+    name: str = Field(description="Name of the MCP server")
+    url: str = Field(description="URL/endpoint of the MCP server")
+    api_key: Optional[str] = Field(default="", description="API key for authentication")
+    active: bool = Field(default=True, description="Whether the MCP server is active")
 
 # Define the PluginArgument model
 class PluginArgument(BaseModel):

@@ -42,8 +42,8 @@ export const filesModule = (API) => ({
   upload(file, path, process = false) {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('path', path)
-    formData.append('process', process)
+    formData.append('path', path || '')
+    formData.append('process', process ? 'true' : 'false')
     return API.post(`/api/files/upload`, formData)
   },
 
@@ -52,7 +52,7 @@ export const filesModule = (API) => ({
     files.forEach((file) => {
       formData.append('files', file)
     })
-    formData.append('process', process)
+    formData.append('process', process ? 'true' : 'false')
     return API.post(`/api/files/upload-multiple`, formData)
   },
 

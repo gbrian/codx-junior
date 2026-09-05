@@ -236,6 +236,36 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
       </div>
     </template>
 
+    <!-- DISABLED. Thinking section - CHANGED: Now uses Collapsible with Document -->
+    <Collapsible v-if="false && displayMessage.think" :defaultOpen="false" class="mx-3 mt-3">
+      <template #icon>
+        <i class="fa-solid fa-brain text-info"></i>
+      </template>
+      <template #title>
+        <span class="text-sm font-semibold text-info">Thinking Process</span>
+      </template>
+      <div class="p-3">
+        <Document 
+          :content="displayMessage.think"
+          :files="chatFiles"
+          :project="chatProject"
+          :chat="chat"
+          :loading="!message.done"
+          :documentId="'think-' + documentId"
+          :message="message"
+          @generate-code="onGenerateCode"
+          @reload-file="$emit('reload-file', { file: $event, message })"
+          @open-file="$emit('open-file', $event)"
+          @save-file="$emit('save-file', $event)"
+          @add-file="$emit('add-file', $event)"
+          @sub-task="$emit('sub-task', $event)"
+          @copy-chapter="onCopyChapter"
+          @create-task="onCreateTask"
+          :mentionList="mentionList"
+        />
+      </div>
+    </Collapsible>
+
     <!-- Content: Full message body -->
     <div class="p-3 flex flex-col gap-3 border-t border-base-300">
       <!-- Loading indicator -->
@@ -252,16 +282,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         @close="onCloseSelectionMenu"
       />
 
-      <!-- Thinking section -->
-      <div 
-        v-if="thinkText" 
-        class="alert alert-info items-start cursor-pointer"
-        @click="displayMessage.full_think = !displayMessage.full_think"
-      >
-        <i class="fa-solid fa-brain"></i>
-        <span>{{ thinkText }}</span>
-      </div>
-
       <!-- Skeleton loader -->
       <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2">
         <div class="skeleton h-12 w-full"></div>
@@ -277,8 +297,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         :documentId="documentId"
         :scrollContainer="$refs.contentArea"
       />
-
-      <!-- Message content container - always show content -->
       <div 
         ref="contentArea"
         @copy.stop="onMessageCopy"

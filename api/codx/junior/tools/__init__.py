@@ -28,6 +28,7 @@ from .project_structure import project_structure
 from .code_writer import code_writer
 from .code_block_generator import code_block_generator
 from .generate_tasks_tool import generate_tasks_tool
+from .apply_file_changes import apply_file_changes
 from .model import ToolResponse
 
 # Configure logging
@@ -45,6 +46,7 @@ __all__ = [
     "code_writer",
     "code_block_generator",
     "generate_tasks_tool",
+    "apply_file_changes",
     "test_tool",
 ]
 
@@ -190,6 +192,50 @@ TOOLS = [
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
         "tool_call": project_write_file
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "apply_file_changes",
+                "description": (
+                    "Apply a list of search and replace changes to a file. "
+                    "Each change is applied sequentially, and indentation is automatically preserved. "
+                    "If a search pattern is not found or matches multiple times, "
+                    "the operation stops and returns conflict information for the LLM to handle."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to modify."
+                        },
+                        "changes": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "search": {
+                                        "type": "string",
+                                        "description": "Text pattern to find (must match exactly once in the file)"
+                                    },
+                                    "replace": {
+                                        "type": "string",
+                                        "description": "Text to replace with (indentation is preserved)"
+                                    }
+                                },
+                                "required": ["search", "replace"]
+                            },
+                            "description": "List of changes to apply, each with 'search' and 'replace' keys"
+                        }
+                    },
+                    "required": ["file_path", "changes"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tool_call": apply_file_changes
     },
     {
         "tool_json": {
