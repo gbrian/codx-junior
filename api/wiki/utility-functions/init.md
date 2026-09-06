@@ -2,152 +2,137 @@
 
 ## Overview
 
-The Tools module is the central aggregator for all available tools in the codx-junior API. It provides callable functions with associated metadata designed for seamless integration with language models and the API infrastructure.
+The tools module aggregates all available tools for chat and project interactions within the codx-junior API. Tools are organized as callable functions with associated metadata for seamless integration with language models and the API infrastructure.
 
-## Module Organization
+## Tool Scope Levels
 
-Tools are organized by **scope levels** that determine their availability:
+Tools are categorized by their availability within the system:
 
-- **global**: Always included in conversations (e.g., `code_block_generator`)
-- **chat**: Available based on conversation context and user selection
-- **profile**: Available based on user profile or role
+- **global**: Tools always included in conversations (e.g., `code_block_generator`)
+- **chat**: Tools available based on conversation context and user selection
+- **profile**: Tools available based on user profile or role
 
-## Response Types
-
-Tools can return data in two formats:
+## Tool Response Types
 
 - **str**: Traditional single-string response used for LLM context
-- **ToolResponse**: Dual-return object for tools requiring both user-facing content and LLM feedback
+- **ToolResponse**: Dual-return object for tools that need to produce both user-facing content and LLM feedback
 
 ## Available Tools
 
 ### fetch_webpage
-Retrieves and converts webpage content to markdown format.
+
+Fetches a webpage and converts it to markdown format.
 
 **Parameters:**
-- `url` (string, required): The webpage URL
-- `include_images` (boolean, optional): Include image references
-- `max_length` (integer, optional): Maximum output length
-- `headers` (object, optional): Custom HTTP headers
+- `url` (string, required): The URL of the webpage to fetch
+- `include_images` (boolean): Whether to include image references in the markdown
+- `max_length` (integer): Maximum length of the output markdown
+- `headers` (object): Optional HTTP headers for the request
 
-**Scope:** chat
+**Settings:** Synchronous, chat scope
 
 ---
 
 ### project_search
-Searches for documents within a project using single or multiple queries.
 
-**Features:**
-- Supports bulk operations with multiple queries in one call
-- Optional validation text to filter results from large documents
-- Returns dual response format
+Searches for documents within a project using one or more search queries. Supports bulk operations to reduce tool calls by providing multiple queries at once.
 
 **Parameters:**
-- `search` (string or array, required): Single query or list of queries
-- `validation` (string, optional): Text to validate and filter results
+- `search` (string or array, required): Single query or list of search queries
+- `validation` (string): Optional text to validate and filter search results
 
-**Scope:** chat  
-**Dual Response:** Yes
+**Settings:** Synchronous, chat scope, dual response, project settings enabled
+
+**Note:** Combining multiple related queries in one call is more efficient than making separate calls.
 
 ---
 
 ### project_read_file
-Reads project file content from single or multiple file paths.
 
-**Features:**
-- Bulk operation support for reading multiple files at once
-- Supports relative, absolute paths, and glob patterns
-- Invalid or missing files returned as error blocks
+Reads project file content from one or multiple file paths. Supports bulk operations to reduce tool calls.
 
 **Parameters:**
-- `file_path` (string or array, required): Single path or list of paths
+- `file_path` (string or array, required): Single file path or list of file paths. Supports relative/absolute paths and glob patterns
 
-**Scope:** chat  
-**Dual Response:** Yes
+**Settings:** Synchronous, chat scope, dual response, project settings enabled
+
+**Note:** Reading multiple files in one call is more efficient. Invalid or missing files are returned as error blocks.
 
 ---
 
 ### project_write_file
-Writes content to a project file, creating the file or directory if needed.
+
+Writes content to a project file. Creates the file or directory if it doesn't exist.
 
 **Parameters:**
-- `file_path` (string, required): Relative or absolute file path
-- `content` (string, required): Content to write
+- `file_path` (string, required): Relative or absolute path to the file
+- `content` (string, required): The content to write to the file
 
-**Scope:** chat  
-**Dual Response:** Yes
+**Settings:** Synchronous, chat scope, dual response, project settings enabled
 
 ---
 
 ### apply_file_changes
-Safely applies batch search-and-replace edits to an existing text file.
 
-**Features:**
-- Validates all changes before writing
-- Each search string must match exactly once
-- Changes applied progressively to the updated file
-- Requires explicit indentation in search and replace patterns
-- File remains unchanged if any conflict occurs
+Safely applies a batch of exact search-and-replace edits to an existing text file. All changes are validated before writing; if any change conflicts, the file remains unchanged.
 
 **Parameters:**
-- `file_path` (string, required): Path to the file to modify
+- `file_path` (string, required): Relative or absolute path to the file to modify
 - `changes` (array, required): List of change objects with:
-  - `search` (string): Exact text pattern to find
-  - `replace` (string): Replacement text with exact formatting
+  - `search` (string): Exact text pattern to find (must match exactly once)
+  - `replace` (string): Text to replace with (include exact indentation)
 
-**Scope:** chat  
-**Dual Response:** Yes
+**Settings:** Synchronous, chat scope, dual response, project settings enabled
+
+**Guidelines:**
+- Include sufficient surrounding context to ensure uniqueness
+- Do NOT rely on indentation preservation—include exact indentation explicitly
+- Each search string must match exactly once in the progressively updated file
 
 ---
 
 ### project_structure
-Retrieves the project structure as a tree-like representation.
+
+Retrieves the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.
 
 **Parameters:**
-- `include_details` (boolean, optional): Add metadata like file counts and folder statistics
-- `max_depth` (integer, optional): Maximum folder depth to traverse
-- `include_file_sizes` (boolean, optional): Include file sizes in bytes
+- `include_details` (boolean, default: false): Includes additional metadata like file counts and folder statistics
+- `max_depth` (integer, default: null): Maximum folder depth to traverse (null for no limit)
+- `include_file_sizes` (boolean, default: false): Includes file sizes in bytes for each file
 
-**Scope:** chat
+**Settings:** Synchronous, chat scope, project settings enabled
 
 ---
 
 ### generate_tasks_tool
-Generates sub-tasks from the current chat by analyzing context and splitting into actionable items. Each sub-task creates a separate connected chat.
+
+Generates sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
 
 **Parameters:**
-- `instructions` (string, optional): Additional guidance for task generation (e.g., "Focus on frontend tasks")
+- `instructions` (string, optional): Additional instructions to guide task creation (e.g., "Focus on frontend tasks" or "Split by component")
 
-**Scope:** chat  
-**Dual Response:** Yes
+**Settings:** Synchronous, chat scope, dual response
 
 ---
 
 ### test_tool
-Simple debugging tool that returns a test message.
 
-**Returns:** "test ok!"
+A simple test tool for debugging purposes.
 
-## Best Practices
+**Returns:** `"test ok!"`
 
-### Bulk Operations
-When using `project_search` and `project_read_file`, combine multiple queries or file paths in a single call to reduce API overhead:
+## Bulk Operations
 
-```
-search=["authentication", "user session"]  // Good
-file_path=["src/main.py", "config/settings.py"]  // Good
-```
+Several tools support bulk operations to improve efficiency:
 
-### apply_file_changes
-- Include sufficient surrounding context to ensure unique search patterns
-- Always specify exact indentation explicitly in both search and replace strings
-- Verify all changes before applying to prevent file conflicts
+- **project_search**: Provide multiple queries as an array in a single call
+- **project_read_file**: Provide multiple file paths as an array in a single call
 
-### Exported API
-All tools are exported in the `__all__` list for external module access, including:
-- Tool functions
-- `ToolResponse` model
-- `TOOLS` configuration array
+This reduces the number of tool invocations and improves overall performance.
+
+## Response Handling
+
+Tools use either traditional string responses or the `ToolResponse` object for dual-return scenarios. The dual-response capability allows tools to provide both user-facing content and LLM feedback simultaneously.
 
 ## Dependencies
 **Imports from:** codx/junior/tools/fetch_webpage.py, codx/junior/tools/project_tools.py, codx/junior/tools/code_writer.py

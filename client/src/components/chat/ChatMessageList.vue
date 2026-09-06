@@ -6,7 +6,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
   <div class="w-full h-full flex flex-col overflow-hidden">
     
     <!-- Scrollable Messages Container -->
-    <div class="flex-1 overflow-y-auto min-h-0">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
       <div class="max-w-[860px] mx-auto flex flex-col px-4 py-6">
 
         <!-- ── Message Blocks ── -->

@@ -2,21 +2,73 @@
 
 ## Overview
 
-The `apply_file_changes` tool provides functionality to apply multiple search and replace changes to a file safely and predictably. Changes are validated and applied sequentially in memory, with atomic file writing to ensure data integrity.
+The `apply_file_changes` tool provides functionality to safely apply multiple search-and-replace changes to files within a project. Changes are applied sequentially in memory and only written to disk if all changes succeed, preventing partial modifications in case of conflicts.
 
 ## Key Features
 
-- **Exact Text Matching**: Uses complete text patterns to ensure precise, unambiguous replacements
-- **Sequential Application**: Applies changes one after another, stopping immediately on any conflict
-- **Atomic Writing**: Uses temporary files and atomic rename to prevent partial writes
-- **Comprehensive Validation**: Validates file access, path security, and change integrity before processing
-- **Detailed Error Reporting**: Provides context-aware error messages with line numbers and surrounding content
-- **Safe Path Handling**: Prevents path traversal attacks by validating all paths against project boundaries
+- **Exact Text Matching**: Uses precise pattern matching to ensure safety and predictability
+- **Atomic Writing**: Implements atomic file writes using temporary files and rename operations
+- **Sequential Application**: Applies changes one at a time, stopping at the first conflict
+- **Context-Aware Errors**: Provides detailed error messages with line numbers and surrounding context
+- **Security**: Validates file paths to prevent directory traversal attacks
+- **Binary Detection**: Automatically detects and rejects binary files
+
+## Core Concepts
+
+### Change Dictionary Format
+
+Each change must be a dictionary containing exactly two required fields:
+
+- **`search`** (string): The exact text pattern to find. Must match exactly once in the file. Include complete surrounding context to ensure uniqueness.
+- **`replace`** (string): The replacement text. Must include all intended formatting and indentation explicitly.
+
+**Important**: Do not rely on indentation preservation. Include the exact indentation in both search and replace strings.
+
+### Validation Process
+
+Before applying any changes, the tool validates:
+
+1. **Settings Validation**: Verifies project settings are provided
+2. **File Path Validation**: Ensures the path is within the project directory
+3. **File Access Validation**: Checks that the file is:
+   - A regular file (not directory)
+   - Not binary
+   - Within size limits (10 MB maximum)
+   - Readable with UTF-8 encoding
+4. **Change Validation**: Confirms each change dictionary has required fields of correct type
+
+### Sequential Application Flow
+
+Changes are applied in order with the following logic:
+
+1. Each change is applied to the in-memory content from the previous change
+2. If a change fails (pattern not found or ambiguous match), processing stops immediately
+3. No file is written if any change fails
+4. All changes must succeed before the file is updated
+
+## Error Handling
+
+The tool detects and reports the following error conditions:
+
+### Pattern Not Found
+Occurs when the search pattern doesn't exist in the file. The error message includes line numbers of similar content found nearby to help refine the search pattern.
+
+### Ambiguous Match
+Occurs when the search pattern matches multiple times in the file. The error message lists line numbers of all occurrences (limited to first 5 shown, with total count). To resolve, expand the search pattern with more surrounding context to make it unique.
+
+### Invalid Change Structure
+Reported if a change dictionary is missing required fields or contains invalid field types.
+
+### File Access Issues
+Reported for binary files, oversized files, encoding problems, or path traversal attempts.
+
+### Write Failures
+Reported if the atomic write operation fails.
 
 ## Function Signature
 
 ```python
-apply_file_changes(
+def apply_file_changes(
     file_path: str,
     changes: List[Dict[str, Any]],
     **kwargs
@@ -25,136 +77,18 @@ apply_file_changes(
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file_path` | str | Yes | Path to the file to modify (relative or absolute) |
-| `changes` | List[Dict[str, Any]] | Yes | List of change dictionaries with `search` and `replace` keys |
-| `settings` (kwargs) | CODXJuniorSettings | Yes | Project settings containing project path |
+- **`file_path`** (string): Path to the file to modify, relative or absolute to project root
+- **`changes`** (list): List of change dictionaries, each with "search" and "replace" keys
+- **`**kwargs`**: Additional arguments including `settings` (CODXJuniorSettings) - required
 
-### Change Dictionary Structure
+### Return Value
 
-Each change must contain:
+Returns a `ToolResponse` containing:
 
-```python
-{
-    "search": str,   # Exact text pattern to find (must be unique in file)
-    "replace": str   # Text to replace with (include all formatting/indentation)
-}
-```
+- **`user_response`**: Code block showing the modified file content on success, or formatted error message on failure
+- **`llm_response`**: Summary of changes applied or detailed conflict information
 
-## Return Value
-
-Returns a `ToolResponse` object containing:
-
-- **user_response**: Code block showing modified file content or error details
-- **llm_response**: Summary of changes applied or conflict details
-
-## Processing Flow
-
-### Validation Phase
-
-1. Validates project settings are provided
-2. Validates file path and resolves to absolute path
-3. Checks path is within project directory (security check)
-4. Validates file exists, is regular file, and not binary
-5. Checks file size doesn't exceed 10 MB limit
-6. Validates all changes have required fields (`search` and `replace`)
-
-### Application Phase
-
-1. Reads file content with UTF-8 encoding
-2. Applies each change sequentially to in-memory content
-3. For each change:
-   - Verifies search pattern exists exactly once in content
-   - Performs replacement if no conflicts detected
-   - Stops immediately if pattern not found or matches multiple times
-4. If all changes succeed, writes modified content atomically to file
-
-### Conflict Detection
-
-The tool detects and reports:
-
-- **Missing Patterns**: Search text not found in file
-- **Ambiguous Matches**: Search pattern found multiple times (shows line numbers)
-- **Invalid Changes**: Missing required fields or wrong data types
-
-## Important Usage Guidelines
-
-### Search Pattern Completeness
-
-Include complete surrounding context in search patterns to ensure exact matching:
-
-```python
-# ✅ GOOD - Includes surrounding code for uniqueness
-{
-    "search": "def old_function():\n    return False",
-    "replace": "def new_function():\n    return True"
-}
-
-# ❌ BAD - Too generic, may match multiple times
-{
-    "search": "return False",
-    "replace": "return True"
-}
-```
-
-### Indentation Handling
-
-Do not rely on automatic indentation preservation. Include exact indentation explicitly:
-
-```python
-# ✅ GOOD - Explicit indentation in both strings
-{
-    "search": "    if condition:\n        do_something()",
-    "replace": "    if condition:\n        do_something_else()"
-}
-```
-
-### Multi-line Changes
-
-Include full line context for multi-line patterns:
-
-```python
-{
-    "search": "import old_module\nimport another_module",
-    "replace": "import new_module\nimport another_module"
-}
-```
-
-## Error Handling
-
-When a change fails:
-
-- No changes are written to disk
-- Complete error context is provided including:
-  - Specific change index that failed
-  - Reason for failure
-  - Line numbers where similar patterns were found
-- LLM receives detailed error information to adjust the change
-
-### Common Error Scenarios
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| Search pattern not found | Text doesn't exist in file | Verify exact text and indentation |
-| Ambiguous match (N occurrences) | Pattern matches multiple times | Add more surrounding context to unique identify location |
-| File appears to be binary | File contains binary data | Use on text files only |
-| File path must belong to project | Path outside project directory | Use paths relative to project root |
-
-## File Size and Encoding
-
-- **Maximum file size**: 10 MB
-- **Encoding**: UTF-8 with explicit newline handling
-- **Newline preservation**: Original line endings are preserved during read/write
-
-## Security Features
-
-- **Path Traversal Prevention**: All paths normalized and validated against project boundaries
-- **Atomic Writing**: Uses temporary files to prevent corruption if process interrupts
-- **Binary Detection**: Refuses to process binary files
-- **Encoding Validation**: Enforces UTF-8 encoding
-
-## Example Usage
+## Usage Example
 
 ```python
 apply_file_changes(
@@ -173,8 +107,29 @@ apply_file_changes(
 )
 ```
 
-## See Also
+## Best Practices
 
-- Path resolution utilities: `path_to_absolute_project_path`, `_to_relative_path`
-- Settings validation: `CODXJuniorSettings`
-- Tool response format: `ToolResponse`
+1. **Use Surrounding Context**: Include lines before and after the code you're changing to ensure uniqueness
+2. **Explicit Formatting**: Include exact indentation, newlines, and spacing in both search and replace strings
+3. **Single Responsibility**: Each change should modify one logical unit
+4. **Test Patterns**: Verify search patterns are unique in the file before requesting changes
+5. **Preserve Structure**: Maintain file formatting conventions and indentation levels
+
+## Constraints
+
+- Maximum file size: 10 MB
+- File must be valid UTF-8 text
+- Binary files are not supported
+- File path must be within the project directory
+- Each search pattern must match exactly once in the file
+
+## Internal Helpers
+
+See relevant sections for implementation details:
+
+- **`_validate_change()`**: Validates change dictionary structure
+- **`_apply_single_change()`**: Applies a single change with conflict detection
+- **`_find_match_context()`**: Locates matches and provides context lines
+- **`_validate_file_access()`**: Checks file type, size, and encoding
+- **`_secure_path_check()`**: Prevents path traversal attacks
+- **`_write_file_atomically()`**: Safely writes changes using temporary file mechanism

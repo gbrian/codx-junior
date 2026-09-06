@@ -1,204 +1,250 @@
-# Git Engine Documentation
+# GitEngine Documentation
 
 ## Overview
 
-The Git Engine is a sub-engine for codx-junior that handles all git repository operations including branches, diffs, pull requests, and commit history management. It provides a comprehensive interface for querying and manipulating git repositories while supporting subprojects with independent git roots.
+The `GitEngine` class is a sub-engine for codx-junior that handles all git repository operations including branches, diffs, pull requests, and file versioning. It provides a comprehensive interface for interacting with git repositories while supporting subprojects and complex branch comparisons.
 
 ## Architecture
 
-The GitEngine class operates as a specialized handler within the CODXJuniorSession framework:
-
 ```
 GitEngine
+├── Repository Operations
+│   ├── get_repo_branches()
+│   ├── get_repo_changes()
+│   └── get_repo_tree()
 ├── Branch Operations
-├── Diff & Changes
-├── PR Review Details
-├── Commit Management
-├── File History
-└── Repository State
+│   ├── get_project_branches()
+│   ├── get_project_branch_commits()
+│   ├── get_branch_details()
+│   └── get_project_current_branch()
+├── Commit Operations
+│   ├── get_commit_list()
+│   ├── get_commit_changes()
+│   └── get_project_branch_commits()
+├── File Operations
+│   ├── diff_file()
+│   ├── reset_project_file()
+│   ├── get_file_content_from_branch()
+│   └── get_file_version_at_depth()
+└── PR Operations
+    ├── get_pr_review_details()
+    └── get_pr_review_details_by_commits()
 ```
 
 ## Core Concepts
 
-### Branch Sanitization
+### Branch Name Sanitization
 
-Branch names are automatically cleaned to remove common git prefixes like `* ` (current branch indicator) or `+ worktree/` markers. This ensures consistent branch name handling across all operations.
+The engine automatically sanitizes branch names by removing common git prefixes such as `* ` (current branch indicator) and `+ worktree/` prefixes. This is handled transparently across all methods through the `_sanitize_branch_name()` method.
 
-### Git Root Resolution
+### File Path Resolution
 
-The engine can determine the correct git root for any file, supporting subprojects with independent git repositories. It traverses the directory structure upward until it finds a `.git` directory, enabling operations on files in nested git repositories.
+The engine intelligently resolves file paths across subprojects by:
+- Converting relative paths to absolute paths using the project root
+- Locating the correct Git root for a given file via `_get_git_root_for_file()`
+- Supporting nested git repositories
 
-### File Modification Tracking
+### Last Modification Tracking
 
-All file-related operations include ISO 8601 formatted modification timestamps, allowing for chronological tracking of changes across different branches and commits.
+All file operations return `last_modification` timestamps in ISO 8601 format, obtained from the file system rather than git history.
 
-## Operations
+## Methods Reference
 
 ### Repository Information
 
-#### Get Repository Branches
-Retrieves all local and remote branches for the project as a deduplicated, sorted list with sanitized names.
+#### `get_repo_branches() → list`
+Returns all git branches (local and remote) for the project with sanitized names sorted alphabetically.
 
-#### Get Project Branches
-Returns both the branch list and a complete repository tree structure including commits and file changes.
+#### `get_project_branches() → dict`
+Returns both branches and the full repository tree structure:
+```python
+{
+    "branches": [...],
+    "repo_tree": [...]
+}
+```
 
-#### Get Repository Tree
-Builds a full repository tree with branches, commits, and associated file information. Each commit includes:
-- Commit hash and author
-- Commit date and message
-- List of modified files with their modification timestamps
+#### `get_repo_tree() → list`
+Builds a comprehensive repository tree containing all branches with their commits and associated files.
 
-#### Get Current Branch
+#### `find_git_root_path() → str`
+Locates the root directory of the git repository by checking parent directories or returning the project path if it's already a git root.
+
+### Branch Operations
+
+#### `get_branch_details(branch_name: str) → dict`
+Extracts detailed commit information from a branch without checking it out:
+```python
+{
+    "commits": [
+        {
+            "commit_hash": "...",
+            "author": "...",
+            "date": "...",
+            "message": "...",
+            "files": [...]
+        }
+    ],
+    "parent_branch": "..."
+}
+```
+
+#### `get_project_current_branch() → str`
 Returns the name of the currently checked-out branch.
+
+#### `get_project_parent_branch() → str`
+Determines the parent branch of the current branch by analyzing git reflog. Returns an empty string if parent cannot be determined.
+
+#### `get_project_branch_commits(branch: str) → dict`
+Returns git log output for a given branch.
+
+#### `get_branch_commits(from_branch: str, repo_path: str) → list`
+Returns a structured list of commits for a branch with parsed author, date, and message information.
 
 ### Commit Operations
 
-#### Get Commit List
-Retrieves a structured list of commits for a specified branch or HEAD. Supports configurable limits on the number of commits returned. Each commit includes:
-- Full and short commit hashes
-- Author name and email
-- ISO 8601 formatted date
-- Commit message and label
+#### `get_commit_list(branch: str = None, limit: int = 50) → list`
+Retrieves a structured list of commits with rich metadata:
+```python
+[
+    {
+        "commit": "full_hash",
+        "short_commit": "8_char_hash",
+        "author": {"name": "...", "email": "..."},
+        "date": "ISO_8601",
+        "message": "...",
+        "label": "hash - message_preview"
+    }
+]
+```
 
-#### Get Branch Details
-Extracts detailed commit information without checking out the branch. Returns commit metadata including:
-- Commit hash and author
-- Commit timestamp and message
-- List of modified files with timestamps
-- Parent branch information
-
-#### Get Branch Commits
-Returns a structured commit list for a specific branch with author and date information.
-
-#### Get Project Parent Branch
-Determines the parent branch of the current branch by analyzing the reflog. Returns an empty string if the parent cannot be determined.
-
-### Change Detection
-
-#### Get Repository Changes
-Analyzes differences between two branches and returns:
-- File change diffs and statistics
-- Per-file commit history
-- Last modification timestamps for each file
-- PR review details
-- Local uncommitted changes (when comparing against the current branch)
-- Overall diff command and output
-
-#### Get Commit Changes
-Returns file changes and diffs between two commits (typically from newer to older). Includes:
-- List of changed files
-- File-level diffs
-- File-level commit history
-- Last modification timestamps
-- PR review details
-
-#### Get Project Changes
-Returns the diff between the current working tree and a specified parent branch or a default reference.
-
-#### Diff File
-Compares a project file against provided content using git's diff functionality. Supports:
-- Default behavior: comparing working tree against new content
-- Branch-based comparison: comparing file content between two branches
-- Diff statistics output
-
-### PR and Review Details
-
-#### Get PR Review Details
-Generates comprehensive PR review information between two branches, including:
-- File-level status (new, deleted, modified)
-- Per-file diffs
-- Commit lists for each file
-- Last modification timestamps
-
-#### Get PR Review Details by Commits
-Similar to PR review details but for comparing two specific commits instead of branches.
+#### `get_commit_changes(from_commit: str, to_commit: str) → dict`
+Returns comprehensive file changes and diffs between two commits:
+```python
+{
+    "diff": "...",
+    "stat": "...",
+    "git_diff_cmd": "...",
+    "pr_details": [...],
+    "branch_file_and_commits": {...},
+    "from_commit": "...",
+    "to_commit": "..."
+}
+```
 
 ### File Operations
 
-#### Get File Content from Branch
-Retrieves file content from a specific branch without checking it out. Returns:
-- File content as a string
-- Empty string if the file doesn't exist in the branch
-- Handles both relative and absolute file paths
+#### `diff_file(path: str, content: str, from_branch: str = None, to_branch: str = None) → dict`
+Compares a file against provided content or between two branches:
+- Default behavior uses `git diff --no-index` to compare working tree against new content
+- When both `from_branch` and `to_branch` are provided, compares the file between those branches
 
-#### Get File Version at Depth
-Navigates through file history to retrieve previous versions without needing commit IDs. The depth parameter allows easy access to historical versions:
+Returns:
+```python
+{
+    "diff": "...",
+    "stats": "..."
+}
+```
+
+#### `reset_project_file(file_path: str) → None`
+Resets a file's last change by executing `git reset` on the specified file.
+
+#### `get_file_content_from_branch(file_path: str, branch: str) → str`
+Retrieves file content from a specific branch without checking it out. Returns empty string if the file doesn't exist in that branch.
+
+#### `get_file_version_at_depth(file_path: str, depth: int = 0) → dict`
+Retrieves a previous version of a file from git history by navigating through commits:
+
+**Depth Levels:**
 - `depth=0`: Immediate previous version (1 commit back)
 - `depth=1`: Version from 2 commits ago
 - `depth=2`: Version from 3 commits ago
 
-Returns comprehensive metadata including:
-- File content
-- Commit hash (full and short)
-- Author information and email
-- Commit date (ISO format)
-- Commit message
-- Error details if the file was not found at that commit
-
-#### Reset Project File
-Resets a file's staged changes, reverting it to the last committed state.
-
-## Data Structures
-
-### Commit Object
-```
+Returns:
+```python
 {
-  "commit": "full_hash",
-  "short_commit": "hash_8chars",
-  "author": {"name": "...", "email": "..."},
-  "date": "ISO_8601_date",
-  "message": "commit message",
-  "label": "hash_8chars - message_preview"
+    "content": "...",
+    "commit": "...",
+    "short_commit": "...",
+    "author": "...",
+    "email": "...",
+    "date": "ISO_8601",
+    "message": "...",
+    "depth": depth_requested,
+    "error": None  # or error message
 }
 ```
 
-### File Change Object
-```
+### Branch Comparison
+
+#### `get_repo_changes(from_branch: str, to_branch: str) → dict`
+Returns comprehensive file changes, diffs, and PR details between two branches:
+```python
 {
-  "file_name": "path/to/file",
-  "status": "new|deleted|modified",
-  "diff": "diff_output",
-  "commits": ["commit_list"],
-  "last_modification": "ISO_8601_datetime"
+    "diff": "...",
+    "stat": "...",
+    "git_diff_cmd": "...",
+    "local_changes": {...},
+    "repo_path": "...",
+    "pr_details": [...],
+    "branch_file_and_commits": {...},
+    "compare_type": "branch"
 }
 ```
 
-### Repository Changes Object
-```
-{
-  "diff": "full_diff_output",
-  "stat": "diff_statistics",
-  "git_diff_cmd": "executed_command",
-  "local_changes": {...},
-  "repo_path": "git_root_path",
-  "pr_details": [...],
-  "commits": [],
-  "branch_file_and_commits": {
-    "file_path": {
-      "commits": [...],
-      "diff": "...",
-      "last_modification": "ISO_8601_datetime"
+Each file entry includes:
+- `commits`: List of commits that modified the file
+- `diff`: Full diff output
+- `last_modification`: ISO 8601 timestamp
+
+#### `get_project_changes(parent_branch: str = None) → dict`
+Returns diff between current working tree and a parent branch. Defaults to `HEAD@{1}` if no parent branch specified.
+
+### Pull Request Operations
+
+#### `get_pr_review_details(from_branch: str, to_branch: str) → list`
+Returns PR review details with file changes, diffs, and commits between two branches:
+```python
+[
+    {
+        "file_name": "...",
+        "status": "new|deleted|modified",
+        "diff": "...",
+        "commits": [...],
+        "last_modification": "ISO_8601"
     }
-  },
-  "compare_type": "branch|commit"
-}
+]
 ```
 
-## Integration Points
+#### `get_pr_review_details_by_commits(from_commit: str, to_commit: str) → list`
+Similar to PR review details but operates between specific commits instead of branches.
 
-The GitEngine integrates with:
-- **CODXJuniorSession**: Parent session providing settings and logging
-- **Project Discovery**: Finding parent project repositories
-- **Utility Functions**: Command execution via `exec_command`
-- **Knowledge Engine**: Building code change summaries from diffs
+## Special Features
+
+### Code Changes Summary
+
+#### `build_code_changes_summary(force: bool = False) → object`
+Builds a summarized view of code changes from git diff using the session's knowledge system.
+
+### Local Changes Handling
+
+When comparing branches, the engine automatically detects and includes local uncommitted changes in the diff if the target branch is the current branch.
 
 ## Error Handling
 
-The engine provides graceful error handling:
-- Logs warnings for unparseable git output
-- Returns empty strings or error descriptions for missing files
-- Validates depth parameters against available commit history
-- Handles both fatal git errors and graceful file-not-found scenarios
+- **Missing files**: Methods return empty strings or empty lists with error messages in return dictionaries
+- **Invalid depths**: `get_file_version_at_depth()` validates depth and returns error information
+- **Git command failures**: Errors are logged and gracefully handled with appropriate return values
+- **Path resolution**: Automatically handles both absolute and relative paths
+
+## Integration Points
+
+The `GitEngine` requires:
+- A `CODXJuniorSession` instance for initialization
+- Access to `session.settings` for project paths and configuration
+- Access to `session.log_info()` for logging important operations
+- Access to `session.get_knowledge()` for code summary building
 
 ## Dependencies
 **Imports from:** codx/junior/project/project_discover.py, codx/junior/utils/utils.py, codx/junior/engine/session.py

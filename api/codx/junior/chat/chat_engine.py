@@ -2229,7 +2229,8 @@ class ChatEngine:
                 
                 return chat, documents
 
-            response_message.think = think_content
+            if think_content:
+                response_message.think = think_content 
             response_message.content = main_content
             response_message.is_thinking = False
             if extra_files:

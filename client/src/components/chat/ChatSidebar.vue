@@ -1,5 +1,6 @@
 <script setup>
 import ChatIcon from './ChatIcon.vue'
+import ChatModeSelector from './ChatModeSelector.vue'
 import ChatSidebarNode from './ChatSidebarNode.vue'
 </script>
 
@@ -26,6 +27,43 @@ import ChatSidebarNode from './ChatSidebarNode.vue'
           {{ rootChat.description }}
         </div>
       </div>
+    </div>
+
+    <!-- Mode Selector (Root Chat Only) -->
+    <div class="px-3 py-2 border-b border-base-300 shrink-0">
+      <ChatModeSelector 
+        :selected-mode="rootChat.mode"
+        @mode-changed="onRootModeChanged"
+      />
+    </div>
+
+    <!-- Parent Content Controls (When Selected Chat is a Child Task) -->
+    <div class="px-3 py-2 border-b border-base-300 shrink-0 space-y-2" v-if="isSelectedChatChild">
+      <div class="text-xs font-semibold text-base-content/60 uppercase">Parent Content</div>
+      
+      <!-- Ignore Parent Knowledge -->
+      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
+        <input 
+          type="checkbox" 
+          class="checkbox checkbox-sm"
+          :checked="selectedChat?.ignore_parent_knowledge"
+          @change="toggleIgnoreParentKnowledge"
+        />
+        <span class="text-xs flex-1">Ignore parent knowledge</span>
+        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Don't use parent chat context"></i>
+      </label>
+
+      <!-- Ignore Parent Files -->
+      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
+        <input 
+          type="checkbox" 
+          class="checkbox checkbox-sm"
+          :checked="selectedChat?.ignore_parent_files"
+          @change="toggleIgnoreParentFiles"
+        />
+        <span class="text-xs flex-1">Ignore parent files</span>
+        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Don't inherit parent file list"></i>
+      </label>
     </div>
 
     <!-- Quick Actions -->
@@ -86,17 +124,46 @@ export default {
     rootChat: { type: Object, required: true },
     allChats: { type: Array, default: () => [] },
     selectedChatId: { type: String, default: null },
-    workingChatMode: { type: String, default: 'chat' }
+    workingChatMode: { type: String, default: 'chat' },
+    chatSearch: { type: String, default: null }
   },
-  emits: ['select', 'add-subtask', 'action'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)
+    },
+    selectedChat() {
+      return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat
+    },
+    isSelectedChatChild() {
+      return this.selectedChat && this.selectedChat.parent_id && this.selectedChat.id !== this.rootChat.id
     }
   },
   methods: {
     selectChat(chat) {
       this.$emit('select', chat)
+    },
+    onRootModeChanged(newMode) {
+      this.rootChat.mode = newMode
+      this.$emit('mode-changed', { chat: this.rootChat, mode: newMode })
+    },
+    toggleIgnoreParentKnowledge() {
+      if (!this.selectedChat) return
+      this.selectedChat.ignore_parent_knowledge = !this.selectedChat.ignore_parent_knowledge
+      this.$emit('parent-flags-changed', {
+        chat: this.selectedChat,
+        flag: 'ignore_parent_knowledge',
+        value: this.selectedChat.ignore_parent_knowledge
+      })
+    },
+    toggleIgnoreParentFiles() {
+      if (!this.selectedChat) return
+      this.selectedChat.ignore_parent_files = !this.selectedChat.ignore_parent_files
+      this.$emit('parent-flags-changed', {
+        chat: this.selectedChat,
+        flag: 'ignore_parent_files',
+        value: this.selectedChat.ignore_parent_files
+      })
     }
   }
 }

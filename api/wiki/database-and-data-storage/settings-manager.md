@@ -1,177 +1,207 @@
-# GlobalSettingsManager Documentation
+# GlobalSettingsManager
 
 ## Overview
 
-GlobalSettingsManager is a robust settings management system that handles storage, versioning, and validation of configuration data. Each top-level settings section is stored independently in its own JSON file with automatic version history tracking.
-
-### Key Features
-
-- **Sectioned Storage**: Each settings section stored in separate JSON files under `<config_folder>/settings/`
-- **Version Control**: Automatic backups maintained under `<config_folder>/history/<section>/`
-- **Schema Validation**: Pydantic-based validation before persisting data
-- **Rollback Capability**: Restore previous versions of any settings section
-- **Flexible Data Handling**: Support for Pydantic models, dictionaries, lists, and scalar values
-
----
+GlobalSettingsManager is a comprehensive settings management system that handles reading, writing, and version control of application settings. Settings are organized into independent sections, with each section stored as a separate JSON file and maintaining its own version history.
 
 ## Architecture
 
 ### Directory Structure
 
+Settings are organized in the following directory hierarchy:
+
 ```
-config_folder/
+<config_folder>/
 ├── settings/
 │   ├── section1.json
 │   ├── section2.json
 │   └── ...
 └── history/
     ├── section1/
-    │   ├── 20240115_120530_123456.json
+    │   ├── 20240115_143022_123456.json
     │   └── ...
     └── section2/
         └── ...
 ```
 
-### Configuration Locations
+- **Settings Directory**: Contains the current state of each section as individual JSON files
+- **History Directory**: Maintains version snapshots organized by section, with timestamps in the format `YYYYMMdd_HHMMSS_microseconds`
 
-The manager uses the following precedence for config folder location:
+### Configuration
+
+The manager's config folder defaults to the following priority:
 
 1. Explicitly provided `config_folder` parameter
 2. `CODX_JUNIOR_CONFIG_FOLDER` environment variable
-3. User's HOME directory
+3. User's home directory
 
----
-
-## Core Operations
+## Core Functionality
 
 ### Reading Settings
 
-#### Read with Model Validation
-```python
-read_section(section: str, model_class: Type[T], default: Optional[T] = None) -> T
-```
+#### `read_section(section, model_class, default=None)`
 
-Reads and deserializes a settings section into a Pydantic model instance. Returns the default value or an empty model instance if the file doesn't exist or contains invalid data.
+Reads and deserializes a settings section into a Pydantic model.
 
-#### Read Raw Data
-```python
-read_section_raw(section: str) -> Any
-```
+**Parameters:**
+- `section`: Name of the section (matches GlobalSettings field name)
+- `model_class`: Pydantic model class for deserialization
+- `default`: Default instance if file is missing or corrupt (optional)
 
-Reads a section as raw Python data (dict, list, or scalar) without model validation.
+**Returns:** Deserialized model instance
 
-#### Read All Sections
-```python
-read_all() -> Dict[str, Any]
-```
+**Behavior:**
+- Returns default or empty model instance if section file doesn't exist
+- Handles JSON deserialization errors gracefully with logging
 
-Reads all available section files and returns them as a dictionary mapping section names to their raw data.
+#### `read_section_raw(section)`
+
+Reads a section as raw Python data without model conversion.
+
+**Returns:** Parsed JSON data (dict, list, or scalar) or None if file not found
+
+#### `read_all()`
+
+Reads all available section files at once.
+
+**Returns:** Dictionary mapping section names to their raw parsed data
 
 ### Writing Settings
 
-```python
-write_section(section: str, data: Any) -> None
-```
+#### `write_section(section, data)`
 
-Serializes and persists settings data with the following workflow:
+Serializes and persists a settings section with automatic backup and validation.
 
-1. **Validates** data against registered schema (if validator exists)
-2. **Backs up** current version to history
-3. **Writes** new data to section file
-4. **Prunes** old history entries beyond `MAX_HISTORY_ENTRIES` (default: 50)
+**Parameters:**
+- `section`: Name of the section
+- `data`: Data to persist (Pydantic model, dict, list, or scalar)
 
-Accepts Pydantic models, dictionaries, lists, or scalar values.
+**Process:**
+1. Validates data against registered schema (if available)
+2. Creates backup of previous version
+3. Writes new data to section file
+4. Prunes history if it exceeds maximum entries
 
----
+**Raises:** `ValidationError` if data fails schema validation
 
 ## Version Control
 
-### List Version History
+### History Management
 
-```python
-list_history(section: str) -> List[SectionVersion]
-```
+#### `list_history(section)`
 
-Returns available version snapshots for a section, ordered from newest to oldest. Each version includes:
-- Section name
-- Timestamp identifier
-- File path
+Lists all available version snapshots for a section.
 
-### Retrieve Specific Version
+**Returns:** List of `SectionVersion` objects ordered from newest to oldest
 
-```python
-get_version(section: str, timestamp: str) -> Any
-```
+**SectionVersion Structure:**
+- `section`: Section name
+- `timestamp`: Timestamp string of the version
+- `file_path`: Absolute path to the version file
 
-Retrieves the raw content of a specific version snapshot by timestamp.
+#### `get_version(section, timestamp)`
 
-### Rollback to Previous Version
+Retrieves the raw content of a specific version snapshot.
 
-```python
-rollback(section: str, timestamp: str) -> bool
-```
+**Parameters:**
+- `section`: Section name
+- `timestamp`: Timestamp string from history
 
-Restores a section to a specific historical version. The current state is automatically backed up before rollback. Returns `True` on success, `False` if the specified version is not found.
+**Returns:** Parsed JSON data of the snapshot or None if not found
 
----
+#### `rollback(section, timestamp)`
 
-## Schema Validation
+Restores a section to a previous historical version.
 
-### Register Single Validator
+**Process:**
+1. Retrieves the specified version
+2. Backs up current state
+3. Restores the historical version as the current state
 
-```python
-register_section_validator(section: str, model_class: Type[BaseModel]) -> None
-```
+**Returns:** True if successful, False if version not found
+
+### History Pruning
+
+The manager automatically maintains version history with these constraints:
+
+- **Maximum entries per section:** 50 (configurable via `MAX_HISTORY_ENTRIES`)
+- **Pruning strategy:** Removes oldest entries when limit exceeded
+- **Timing:** Occurs after each new backup creation
+
+## Validation System
+
+### Registering Validators
+
+#### `register_section_validator(section, model_class)`
 
 Registers a Pydantic model class as the validator for a section.
 
-### Register Multiple Validators
+**Parameters:**
+- `section`: Section name (must match GlobalSettings field name)
+- `model_class`: Pydantic BaseModel class
 
-```python
-register_section_validators(validators: Dict[str, Type[BaseModel]]) -> None
-```
+#### `register_section_validators(validators)`
 
-Registers multiple section validators at once using a dictionary mapping.
+Registers multiple validators at once.
+
+**Parameters:**
+- `validators`: Dictionary mapping section names to model classes
 
 ### Validation Behavior
 
-- **Pydantic Models**: Already-validated models pass through without additional checks
-- **Dictionaries**: Converted to model instances for validation
-- **Lists**: Each item validated against the inner model type
-- **No Validator**: Validation is skipped for sections without registered validators (backward compatible)
+The `_validate_section_data()` method enforces validation with the following logic:
 
----
+- **Pydantic models:** Automatically considered valid if already correct type
+- **Dictionaries:** Validated by attempting model instantiation
+- **Lists:** Each item validated against inner model type
+- **No validator registered:** Validation skipped for backward compatibility
 
-## Data Models
-
-### SectionVersion
-
-Represents a single version snapshot of a settings section:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `section` | str | Name of the section |
-| `timestamp` | str | Timestamp identifier |
-| `file_path` | str | Full path to the version file |
-
----
-
-## Constants
+## Configuration Constants
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `MAX_HISTORY_ENTRIES` | 50 | Maximum backup versions kept per section |
+| `MAX_HISTORY_ENTRIES` | 50 | Maximum version snapshots retained per section |
 | `SETTINGS_DIR_NAME` | "settings" | Directory name for current settings |
 | `HISTORY_DIR_NAME` | "history" | Directory name for version history |
-| `ENCODING` | "utf-8" | File encoding for all read/write operations |
-
----
+| `ENCODING` | "utf-8" | File encoding for JSON files |
 
 ## Error Handling
 
-- **File Not Found**: Returns default value or empty model instance
-- **JSON Parsing Errors**: Logs error and returns default/empty instance
-- **Validation Errors**: Raises `ValidationError` with detailed error information
-- **File System Errors**: Logs errors; backup/write failures raise exceptions
+The manager implements comprehensive error handling:
 
-All errors are logged with appropriate severity levels (DEBUG, INFO, WARNING, ERROR).
+- **File I/O Errors:** Logged with detailed traceback information
+- **JSON Deserialization Errors:** Gracefully returns defaults or empty instances
+- **Validation Errors:** Raised with detailed error information
+- **Directory Creation:** Automatic with parent directory support
+
+All errors are logged at appropriate levels (error, warning, debug) for troubleshooting.
+
+## Usage Example
+
+```python
+from settings_manager import GlobalSettingsManager
+from pydantic import BaseModel
+
+class AppConfig(BaseModel):
+    debug: bool
+    timeout: int
+
+# Initialize manager
+manager = GlobalSettingsManager()
+
+# Register validator
+manager.register_section_validator("app_config", AppConfig)
+
+# Write settings
+config = AppConfig(debug=True, timeout=30)
+manager.write_section("app_config", config)
+
+# Read settings
+loaded_config = manager.read_section("app_config", AppConfig)
+
+# List version history
+versions = manager.list_history("app_config")
+
+# Rollback to previous version
+manager.rollback("app_config", versions[0].timestamp)
+```
