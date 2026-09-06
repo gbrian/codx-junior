@@ -1,6 +1,7 @@
 <script setup>
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ChatFileList from '../chat/ChatFileList.vue'
+import LlmRequestsViewer from './LlmRequestsViewer.vue'
 </script>
 
 <template>
@@ -274,271 +275,12 @@ import ChatFileList from '../chat/ChatFileList.vue'
             </div>
           </div>
 
-          <!-- LLM REQUESTS TAB -->
-          <div v-if="activeTab === 'requests'" class="space-y-4">
-            <div v-if="!llmRequests.length" class="text-center py-8 text-base-content/50">
-              <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-30"></i>
-              No LLM requests found
-            </div>
-
-            <div v-for="(req, idx) in llmRequests" :key="idx" class="rounded-xl border border-base-300 overflow-hidden">
-              <button
-                @click="toggleRequestExpansion(idx)"
-                class="w-full flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 hover:bg-base-300 transition-colors"
-              >
-                <div class="flex items-center gap-3 min-w-0 flex-1">
-                  <i :class="expandedSections[`req-${idx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-primary shrink-0"></i>
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-sm font-semibold">Request #{{ idx + 1 }}</span>
-                    <span class="badge badge-primary badge-sm">{{ req.model }}</span>
-                    <span class="badge badge-info badge-sm">{{ req.total_tokens }} tokens</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="text-xs text-base-content/50">{{ formatDuration(req.duration_seconds) }}</span>
-                  <span class="text-xs font-mono text-base-content/30">{{ formatDate(req.timestamp) }}</span>
-                </div>
-              </button>
-
-              <!-- CHANGED: Condensed request detail — single compact info strip instead of three grids -->
-              <div v-if="expandedSections[`req-${idx}`]" class="bg-base-50 border-t border-base-300">
-
-                <!-- Compact info strip -->
-                <div class="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-base-300 bg-base-200/40 text-xs">
-                  <!-- Tokens -->
-                  <span class="badge badge-success badge-sm gap-1" title="Input tokens">
-                    <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i>{{ req.input_tokens || 0 }}
-                  </span>
-                  <span class="badge badge-warning badge-sm gap-1" title="Output tokens">
-                    <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>{{ req.output_tokens || 0 }}
-                  </span>
-                  <span class="text-base-content/30">·</span>
-                  <!-- Duration & cost -->
-                  <span class="badge badge-ghost badge-sm gap-1" title="Duration">
-                    <i class="fa-regular fa-clock text-xs"></i>{{ formatDuration(req.duration_seconds) }}
-                  </span>
-                  <span class="badge badge-primary badge-sm gap-1" title="Cost">
-                    <i class="fa-solid fa-coins text-xs"></i>{{ formatCost(req.total_cxjcoins) }}
-                  </span>
-                  <span class="text-base-content/30">·</span>
-                  <!-- Model & provider -->
-                  <span class="font-mono text-base-content/60">{{ req.model }}</span>
-                  <span class="badge badge-ghost badge-sm">{{ req.provider }}</span>
-                  <span class="text-base-content/30">·</span>
-                  <!-- Pricing -->
-                  <span class="text-base-content/50" title="Input price / Output price (CXJ per 1k tokens)">
-                    {{ req.input_k_tokens_cxjcoins }}/{{ req.output_k_tokens_cxjcoins }} CXJ/1k
-                  </span>
-                  <span class="text-base-content/30">·</span>
-                  <!-- Token source -->
-                  <span v-if="req.tokens_from_provider" class="badge badge-success badge-xs" title="Tokens from provider">provider</span>
-                  <span v-else class="badge badge-ghost badge-xs" title="Tokens calculated">calculated</span>
-                  <!-- Request ID -->
-                  <span v-if="req.request_id" class="font-mono text-base-content/30" title="Request ID">{{ req.request_id.slice(0, 8) }}…</span>
-                  <!-- Session ID -->
-                  <span v-if="req.session_id" class="font-mono text-base-content/30" title="Session ID">s:{{ req.session_id.slice(0, 6) }}</span>
-                  <!-- Tags -->
-                  <template v-if="req.tags">
-                    <span class="text-base-content/30">·</span>
-                    <span v-for="tag in req.tags.split(',')" :key="tag" class="badge badge-ghost badge-xs">{{ tag.trim() }}</span>
-                  </template>
-                </div>
-
-                <!-- Messages section -->
-                <div class="p-3 space-y-3">
-                  <!-- Messages Loading or Empty State -->
-                  <div v-if="messagesLoading[idx]" class="flex items-center gap-2">
-                    <span class="loading loading-spinner loading-sm text-primary"></span>
-                    <span class="text-xs text-base-content/60">Loading messages...</span>
-                  </div>
-
-                  <div v-else-if="requestMessages[idx]">
-                    <!-- Warning if no messages found -->
-                    <div v-if="!requestMessages[idx].llm.length && !requestMessages[idx].tool.length" class="alert alert-warning p-3">
-                      <i class="fa-solid fa-triangle-exclamation text-sm"></i>
-                      <span class="text-sm">No messages found for this request</span>
-                      <button class="btn btn-sm btn-ghost" @click="loadMessagesForRequest(idx)">
-                        <i class="fa-solid fa-redo text-xs"></i> Retry
-                      </button>
-                    </div>
-
-                    <!-- Messages for this request -->
-                    <div v-else class="space-y-3">
-                      <div class="text-sm font-semibold text-base-content/70">Associated Messages</div>
-
-                      <!-- LLM Archived Messages -->
-                      <div v-if="requestMessages[idx].llm.length" class="space-y-3">
-                        <div class="text-xs font-semibold text-secondary/80 flex items-center gap-1">
-                          <i class="fa-solid fa-comments text-xs"></i>
-                          LLM Archived Messages ({{ requestMessages[idx].llm.length }})
-                        </div>
-
-                        <div v-for="(msg, mIdx) in requestMessages[idx].llm" :key="`llm-${idx}-${mIdx}`" class="rounded-lg border border-secondary/20 overflow-hidden">
-                          <!-- Archived message header -->
-                          <div class="flex items-center gap-2 px-3 py-2 bg-secondary/10 border-b border-secondary/20">
-                            <i class="fa-solid fa-robot text-xs text-secondary"></i>
-                            <span class="text-xs font-semibold text-secondary">{{ msg.model }}</span>
-                            <span class="badge badge-xs badge-ghost">{{ msg.provider }}</span>
-                            <div class="ml-auto flex items-center gap-2">
-                              <span class="badge badge-xs badge-success">in: {{ msg.input_tokens }}</span>
-                              <span class="badge badge-xs badge-warning">out: {{ msg.output_tokens }}</span>
-                              <span class="text-xs text-base-content/40 font-mono">{{ formatDate(msg.timestamp) }}</span>
-                            </div>
-                          </div>
-
-                          <!-- Request context messages (collapsible) -->
-                          <div v-if="msg.request_messages && msg.request_messages.length" class="border-b border-secondary/10">
-                            <button
-                              @click="toggleSection(`llm-req-${idx}-${mIdx}`)"
-                              class="w-full flex items-center gap-2 px-3 py-2 bg-base-200/50 hover:bg-base-200 transition-colors text-left"
-                            >
-                              <i :class="expandedSections[`llm-req-${idx}-${mIdx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-xs text-base-content/40 shrink-0"></i>
-                              <span class="text-xs text-base-content/60 font-semibold">Context Messages ({{ msg.request_messages.length }})</span>
-                            </button>
-                            <div v-if="expandedSections[`llm-req-${idx}-${mIdx}`]" class="space-y-1 p-2 max-h-80 overflow-y-auto">
-                              <div
-                                v-for="(ctxMsg, cIdx) in msg.request_messages"
-                                :key="cIdx"
-                                class="rounded p-2 text-xs"
-                                :class="{
-                                  'bg-base-300/50 border border-base-content/10': ctxMsg.role === 'system',
-                                  'bg-info/5 border border-info/20': ctxMsg.role === 'user',
-                                  'bg-secondary/5 border border-secondary/20': ctxMsg.role === 'assistant',
-                                  'bg-accent/5 border border-accent/20': ctxMsg.role === 'tool',
-                                }"
-                              >
-                                <div class="font-semibold mb-1 capitalize" :class="{
-                                  'text-base-content/50': ctxMsg.role === 'system',
-                                  'text-info': ctxMsg.role === 'user',
-                                  'text-secondary': ctxMsg.role === 'assistant',
-                                  'text-accent': ctxMsg.role === 'tool',
-                                }">{{ ctxMsg.role }}</div>
-                                <div class="font-mono text-base-content/70 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{{ truncateContent(ctxMsg.content) }}</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Response content -->
-                          <div class="p-3 space-y-1">
-                            <div class="text-xs font-semibold text-secondary flex items-center gap-1">
-                              <i class="fa-solid fa-reply text-xs"></i> Response
-                            </div>
-                            <div class="font-mono text-xs text-base-content/80 whitespace-pre-wrap break-words max-h-60 overflow-y-auto bg-base-100 border border-secondary/20 rounded p-2">{{ msg.response_content || '—' }}</div>
-                          </div>
-
-                          <!-- Error if any -->
-                          <div v-if="msg.error" class="px-3 pb-3">
-                            <div class="p-2 rounded bg-error/10 border border-error/30">
-                              <div class="text-xs text-error font-semibold mb-1">Error</div>
-                              <div class="text-xs text-error/80">{{ msg.error }}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Tool Messages -->
-                      <div v-if="requestMessages[idx].tool.length" class="space-y-2">
-                        <div class="text-xs font-semibold text-accent/80 flex items-center gap-1">
-                          <i class="fa-solid fa-wrench text-xs"></i>
-                          Tool Calls ({{ requestMessages[idx].tool.length }})
-                        </div>
-                        <div v-for="(msg, mIdx) in requestMessages[idx].tool" :key="`tool-${idx}-${mIdx}`" class="rounded-lg bg-accent/10 border border-accent/20 p-3 space-y-3">
-                          <div class="flex items-center gap-2">
-                            <span class="text-xs font-semibold text-accent">{{ msg.tool_name }}</span>
-                            <span class="badge badge-accent badge-xs">{{ msg.tool_call_id?.slice(0, 8) }}</span>
-                          </div>
-                          <div v-if="msg.request_args && Object.keys(msg.request_args).length" class="space-y-1">
-                            <div class="text-xs text-base-content/60 font-semibold">Arguments:</div>
-                            <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-32 overflow-y-auto border border-base-300">
-                              {{ formatJson(msg.request_args) }}
-                            </div>
-                          </div>
-                          <div v-if="msg.result" class="space-y-1">
-                            <div class="text-xs text-base-content/60 font-semibold">Result:</div>
-                            <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-32 overflow-y-auto border border-base-300">
-                              {{ typeof msg.result === 'string' ? msg.result : formatJson(msg.result) }}
-                            </div>
-                          </div>
-                          <div v-if="msg.error_message" class="p-2 rounded-lg bg-error/10 border border-error/30">
-                            <div class="text-xs text-error font-semibold mb-1">Error</div>
-                            <div class="text-xs text-error/80">{{ msg.error_message }}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- TOOL CALLS TAB -->
-          <div v-if="activeTab === 'tools'" class="space-y-4">
-            <div v-if="!toolCalls.length" class="text-center py-8 text-base-content/50">
-              <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-30"></i>
-              No tool calls found
-            </div>
-
-            <div v-for="(tool, idx) in toolCalls" :key="idx" class="rounded-xl border border-base-300 overflow-hidden">
-              <button
-                @click="toggleSection(`tool-${idx}`)"
-                class="w-full flex items-center justify-between px-4 py-3 bg-base-200 border-b border-base-300 hover:bg-base-300 transition-colors"
-              >
-                <div class="flex items-center gap-3 min-w-0 flex-1">
-                  <i :class="expandedSections[`tool-${idx}`] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-primary shrink-0"></i>
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-sm font-semibold">{{ tool.name }}</span>
-                    <span v-if="tool.success" class="badge badge-success badge-sm">Success</span>
-                    <span v-else class="badge badge-error badge-sm">Failed</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="text-xs text-base-content/50">{{ formatDuration(tool.time_taken) }}</span>
-                  <span class="text-xs font-mono text-base-content/30">{{ formatDate(tool.timestamp) }}</span>
-                </div>
-              </button>
-
-              <div v-if="expandedSections[`tool-${idx}`]" class="p-4 space-y-3 bg-base-50 border-t border-base-300">
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div class="space-y-1">
-                    <div class="text-xs text-base-content/50 uppercase">Tool Name</div>
-                    <div class="text-sm font-semibold">{{ tool.name }}</div>
-                  </div>
-                  <div class="space-y-1">
-                    <div class="text-xs text-base-content/50 uppercase">Duration</div>
-                    <div class="text-sm font-bold">{{ formatDuration(tool.time_taken) }}</div>
-                  </div>
-                  <div class="space-y-1">
-                    <div class="text-xs text-base-content/50 uppercase">Status</div>
-                    <div :class="tool.success ? 'text-success' : 'text-error'" class="text-sm font-bold">
-                      {{ tool.success ? 'Success' : 'Failed' }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Error Message -->
-                <div v-if="tool.error_message" class="p-3 rounded-lg bg-error/10 border border-error/30">
-                  <div class="text-xs text-error font-semibold mb-1">Error</div>
-                  <div class="text-sm text-error/80">{{ tool.error_message }}</div>
-                </div>
-
-                <!-- Tool Event Details -->
-                <div class="text-xs space-y-2 pt-2 border-t border-base-300">
-                  <div class="flex items-center gap-2">
-                    <span class="text-base-content/50 font-semibold uppercase w-24">Request ID:</span>
-                    <span class="font-mono text-base-content/70 break-all flex-1">{{ tool.request_id || '—' }}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-base-content/50 font-semibold uppercase w-24">Chat ID:</span>
-                    <span class="font-mono text-base-content/70 break-all flex-1">{{ tool.chat_id || '—' }}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-base-content/50 font-semibold uppercase w-24">Project:</span>
-                    <span class="text-base-content/70 flex-1">{{ tool.project_name || '—' }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <!-- CONVERSATION TAB — replaces old "LLM Requests" + "Tool Calls" tabs -->
+          <div v-if="activeTab === 'conversation'">
+            <LlmRequestsViewer
+              :chat-session="chatSession"
+              :is-admin="isAdmin"
+            />
           </div>
 
         </div>
@@ -560,13 +302,11 @@ export default {
     return {
       activeTab: 'overview',
       expandedSections: {},
-      requestMessages: {},
-      messagesLoading: {},
+      // CHANGED: replaced 'requests' and 'tools' tabs with single 'conversation' tab
       tabs: [
         { id: 'overview', label: 'Overview', icon: 'fa-chart-pie' },
         { id: 'metrics', label: 'Metrics', icon: 'fa-gauge' },
-        { id: 'requests', label: 'LLM Requests', icon: 'fa-message' },
-        { id: 'tools', label: 'Tool Calls', icon: 'fa-wrench' }
+        { id: 'conversation', label: 'Conversation', icon: 'fa-timeline' }
       ],
       profiles: []
     }
@@ -585,12 +325,6 @@ export default {
     },
     metricsInfo() {
       return this.chatSession?.metrics
-    },
-    llmRequests() {
-      return this.chatSession?.llm_requests || []
-    },
-    toolCalls() {
-      return this.chatSession?.tool_calls || []
     },
     toolMetrics() {
       return this.chatSession?.tool_metrics
@@ -612,47 +346,6 @@ export default {
       this.expandedSections[key] = !this.expandedSections[key]
     },
 
-    async toggleRequestExpansion(idx) {
-      const key = `req-${idx}`
-      this.expandedSections[key] = !this.expandedSections[key]
-
-      if (this.expandedSections[key] && !this.requestMessages[idx]) {
-        await this.loadMessagesForRequest(idx)
-      }
-    },
-
-    async loadMessagesForRequest(idx) {
-      if (!this.chatSession?.chat_session?.chat_id) return
-
-      const req = this.llmRequests[idx]
-      // request_id is on token_event
-      const requestId = req?.token_event?.request_id
-
-      if (!requestId) {
-        this.requestMessages[idx] = { llm: [], tool: [] }
-        return
-      }
-
-      this.messagesLoading[idx] = true
-
-      try {
-        const chatId = this.chatSession.chat_session.chat_id
-
-        const result = await this.$project.$api.analytics.admin.chatSessionMessages(chatId, { requestId })
-
-        const llm = (result.llm_messages || [])
-
-        const tool = (result.tool_messages || [])
-
-        this.requestMessages[idx] = { llm, tool }
-      } catch (err) {
-        console.error('Failed to load request messages:', err)
-        this.requestMessages[idx] = { llm: [], tool: [] }
-      } finally {
-        this.messagesLoading[idx] = false
-      }
-    },
-
     async loadProfiles() {
       if (!this.chatSession) {
         return
@@ -663,14 +356,6 @@ export default {
 
     getChatProject() {
       return this.$projects?.allProjects?.find(p => p.project_id === this.chatInfo?.project_id)
-    },
-
-    formatJson(obj) {
-      try {
-        return JSON.stringify(obj, null, 2)
-      } catch {
-        return String(obj)
-      }
     },
 
     formatDuration(seconds) {
@@ -686,12 +371,6 @@ export default {
         return new Date(timestamp * 1000).toLocaleString()
       }
       return new Date(timestamp).toLocaleString()
-    },
-    truncateContent(content) {
-      if (!content) return '—'
-      if (typeof content !== 'string') return this.formatJson(content)
-      const limit = 2000
-      return content.length > limit ? content.slice(0, limit) + '\n… (truncated)' : content
     }
   }
 }

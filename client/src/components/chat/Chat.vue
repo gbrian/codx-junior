@@ -11,6 +11,7 @@ import ChatFilePreview from './ChatFilePreview.vue'
 import ChatMessageEditor from './ChatMessageEditor.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
 import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
+import { ENTITY_STATUS } from '@/store/entityStatuses'
 </script>
 
 <template>
@@ -327,7 +328,7 @@ export default {
       return this.$service.chat
     },
     isChatLoading() {
-      return !this.chat?.id || this.chat?.loading === true
+      return !this.chat?.id || this.chat?.status === ENTITY_STATUS.LOADING
     },
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []

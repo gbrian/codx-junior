@@ -7,10 +7,8 @@
   "file_match": "\\.vue$",
   "content": null,
   "parsed_content": null,
-  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/VueDeveloper.profile",
-  "profiles": [
-    "software_developer"
-  ],
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/VueDeveloper/VueDeveloper.profile",
+  "profiles": [],
   "llm_model": "",
   "use_knowledge": true,
   "user": {

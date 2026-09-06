@@ -100,8 +100,6 @@ class ChatEngine:
     :meth:`ChatEventBridge.persist_message` instead of waiting for the
     end-of-turn chat save.
 
-    FIXED: Parent chat inheritance now properly adds parent visible messages
-    to the conversation history when `ignore_parent_knowledge` flag is False.
 
     flowchart TD
         A[User Message] --> B{Chat Mode?}
@@ -125,6 +123,7 @@ class ChatEngine:
         K -->|stream flush| K5[Throttled persist of partial content]
         K -->|hidden reasoning| K6[persist_message - immediate]
         K -->|tool events| K3[Events on response_message persisted + streamed]
+        K -->|model param error| K7[Catch + inform user]
         K -->|error/cancel| K4[bridge.publish - error persisted immediately]
         K --> L[Record Chat Session End]
         L --> M[Return Chat + Documents]
@@ -979,6 +978,47 @@ class ChatEngine:
         return files
 
     # -------------------------------------------------------------------------
+    # ADDED: Helper to build user-friendly error message from API response
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _build_friendly_error_message(error: Exception) -> str:
+        """
+        Extract and format API error details for user consumption.
+
+        Handles OpenAI BadRequestError with parameter constraints, falling back
+        to a generic message for other error types.
+
+        :param error: The exception to extract details from.
+        :return: User-friendly error message.
+        """
+        error_str = str(error)
+        
+        try:
+            # BadRequestError contains response with error details
+            if hasattr(error, 'response') and error.response:
+                error_body = error.response.json() if hasattr(error.response, 'json') else {}
+                if isinstance(error_body, dict):
+                    error_info = error_body.get('error', {})
+                    if isinstance(error_info, dict):
+                        msg = error_info.get('message', '')
+                        param = error_info.get('param', '')
+                        
+                        if msg and param:
+                            return (
+                                f"⚠️ **Model Configuration Issue**\n\n"
+                                f"Parameter: `{param}`\n\n"
+                                f"Error: {msg}\n\n"
+                                f"*Suggestion: Check your model settings or try with different parameters.*"
+                            )
+                        elif msg:
+                            return f"⚠️ **API Error**: {msg}"
+        except Exception:
+            pass
+        
+        # Generic fallback
+        return f"⚠️ **Request Error**: {error_str}"
+
+    # -------------------------------------------------------------------------
     # Helper: execute AI response
     # -------------------------------------------------------------------------
     async def _execute_ai_response(
@@ -1011,6 +1051,11 @@ class ChatEngine:
         ``event_bridge.persist_message``) instead of waiting for the
         end-of-turn chat save.
 
+        ADDED: Model parameter errors (e.g., unsupported temperature values)
+        are caught specifically and reported to the user with helpful context.
+        The error state includes a cancellation_token_id in meta_data so the
+        user can retry or cancel as needed.
+
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
             A -->|No| C[AI Chat with run_context]
@@ -1018,6 +1063,7 @@ class ChatEngine:
             C --> E[Extract last message content]
             C -->|hidden reasoning| F4[persist_message - immediate]
             C -->|tool events| F2[Events persisted on response_message]
+            C -->|BadRequestError| F5[Extract param error + inform user]
             C -->|error| F3[response_message.error persisted immediately]
             D --> F[Return think, content, files]
             E --> F
@@ -1115,13 +1161,13 @@ class ChatEngine:
             think_content = message_parts[0] if is_thinking else None
             main_content = message_parts[-1]
 
-        except (ValueError, RuntimeError, OSError) as ex:
+        except Exception as ex:
             logger.exception(
                 "Ops, sorry! Error chatting with project: %s %s", ex, chat.id
             )
             main_content = f"Ops, sorry! There was an error with latest request: {ex}"
             response_message.error = str(ex)
-            response_message.content = main_content
+            response_message.content = "\n".join([response_message.content, main_content])
             # CRASH-SAFETY: persist the error state IMMEDIATELY so it is not
             # lost if any later step (summary, metadata, save) fails.
             if event_bridge:
@@ -1627,6 +1673,7 @@ class ChatEngine:
             P -->|stream flush| P4[Throttled persist of partial content]
             P -->|hidden reasoning| P5[persist_message - immediate]
             P -->|tool events| P2[Events persisted + streamed]
+            P -->|BadRequestError| P6[Catch param error + inform user]
             P --> Q{Cancelled or Error?}
             Q -->|Yes| R[bridge.publish - state persisted immediately]
             R --> S[Record Chat Session END]

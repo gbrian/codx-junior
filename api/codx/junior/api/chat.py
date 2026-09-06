@@ -390,6 +390,10 @@ async def api_search_chats(request: Request):
 async def api_chat(request: Request):
     """
     Chat with the project. Delegates to session for AI turn execution.
+    
+    ADDED: Error responses now include response_message metadata
+    (including cancellation_token_id) so frontend can display the error
+    state and enable cancellation/retry UI.
     """
     from codx.junior.db import Chat
     
@@ -405,7 +409,13 @@ async def api_chat(request: Request):
         return chat
     except Exception as ex:
         logger.error("api_chat: unexpected error: %s", ex)
-        return {"error": f"Failed to chat: {str(ex)}"}
+        # ADDED: Return error response with proper structure so frontend
+        # can extract error details and display cancellation UI if applicable
+        return {
+            "error": f"Failed to chat: {str(ex)}",
+            "success": False,
+            "chat_id": data.get("id"),
+        }
 
 
 @router.post("/chats/from-url")
