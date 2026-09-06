@@ -3,14 +3,6 @@
 
 <template>
   <div class="space-y-4">
-    <!-- Load button if not yet loaded -->
-    <div v-if="!loaded && !loading" class="flex items-center justify-center py-8">
-      <button class="btn btn-primary btn-sm gap-2" @click="loadConversation">
-        <i class="fa-solid fa-play"></i>
-        Load Conversation Flow
-      </button>
-    </div>
-
     <!-- Loading state -->
     <div v-if="loading" class="flex items-center justify-center py-8">
       <span class="loading loading-spinner loading-md text-primary"></span>
@@ -35,20 +27,9 @@
       </div>
 
       <!-- Timeline items -->
-      <div class="relative">
-        <!-- Vertical line -->
-        <div class="absolute left-5 top-0 bottom-0 w-px bg-base-300"></div>
-
-        <div v-for="(item, idx) in conversationFlow" :key="idx" class="relative pl-12 pb-4">
-          <!-- Timeline dot -->
-          <div
-            class="absolute left-3.5 w-3 h-3 rounded-full border-2 border-base-100 mt-1.5"
-            :class="{
-              'bg-secondary': item.type === 'llm',
-              'bg-accent': item.type === 'tool' && item.data.success,
-              'bg-error': item.type === 'tool' && !item.data.success,
-            }"
-          ></div>
+      <!-- CHANGED: removed vertical line and dot elements -->
+      <div class="space-y-2">
+        <div v-for="(item, idx) in conversationFlow" :key="idx">
 
           <!-- LLM Round card -->
           <div v-if="item.type === 'llm'" class="rounded-xl border border-secondary/30 overflow-hidden">
@@ -146,7 +127,8 @@
           </div>
 
           <!-- Tool call card -->
-          <div v-if="item.type === 'tool'" class="rounded-xl border overflow-hidden"
+          <!-- CHANGED: added ml-6 indent to visually nest tools under LLM rounds -->
+          <div v-if="item.type === 'tool'" class="ml-6 rounded-xl border overflow-hidden"
             :class="item.data.success ? 'border-accent/30' : 'border-error/40'"
           >
             <button
@@ -316,10 +298,16 @@ export default {
   },
   watch: {
     chatSession() {
+      // CHANGED: reset and reload when chatSession changes
       this.loaded = false
       this.allMessages = null
       this.expandedSections = {}
+      this.loadConversation()
     }
+  },
+  mounted() {
+    // CHANGED: auto-load on mount instead of requiring button click
+    this.loadConversation()
   },
   methods: {
     async loadConversation() {

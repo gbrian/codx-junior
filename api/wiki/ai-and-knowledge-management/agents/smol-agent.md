@@ -1,195 +1,163 @@
-# SmolAgent Documentation
+# SmolAgent: Async Streaming Chat Agent with Multi-Step Tool Support
 
 ## Overview
 
-SmolAgent is a small, async-only OpenAI chat agent designed for efficient multi-step tool execution. It provides a streaming chat completion interface with integrated tool support, caching, and comprehensive analytics.
+SmolAgent is a lightweight, async-only OpenAI chat agent designed for iterative multi-step tool execution. Unlike traditional recursive implementations, it uses an iterative tool loop for better control flow and combines several architectural improvements:
 
-### Key Characteristics
+- **Async-only API**: Exposes a single `chat()` method with no synchronous variant
+- **Iterative tool loop**: Replaces recursion with a while-based loop for clarity and maintainability
+- **Delegated responsibilities**: Logging, event emission, and cancellation handled by `AgentRunContext`
+- **Tool result caching**: Cached results per conversation prevent redundant execution
+- **Dual message structure**: Separates thinking messages (tool-calling rounds) from final answers
 
-- **Async-only**: Exposes a single async `chat()` method with no synchronous variant
-- **Iterative tool loop**: Uses iterative execution instead of recursion for better control
-- **Delegated responsibilities**: Offloads loop protection, logging, event emission, and cancellation to `AgentRunContext`
-- **Streaming support**: Maintains streaming, callbacks, cancellation, and analytics capabilities
-- **Tool result caching**: Caches tool results per conversation to prevent re-execution
+## Key Features
 
-## Architecture
+### Streaming and Tool Execution
 
-### Conversation Flow
+The agent streams LLM responses while accumulating tool calls. When tools are detected, it executes them iteratively until the model produces a final answer (no more tool calls).
 
-SmolAgent follows a structured conversation flow:
+### Tool Result Caching
 
-1. **Initialization**: Chat request is resolved with `AgentRunContext`
-2. **Message Building**: OpenAI-format messages are constructed from conversation history
-3. **Tool Cache Setup**: Tool result cache is initialized for the conversation
-4. **Streaming Loop**: Completion is streamed via `guard_stream`
-5. **Tool Execution**: When tool calls are detected:
-   - Cached results bypass execution and loop guards
-   - New tool calls are checked against loop limits
-   - Tools are executed sequentially with cancellation checkpoints
-6. **Response Accumulation**: Content is accumulated in thinking and final answer buffers
-7. **Message Generation**: Response is split into thinking and final answer messages
+Identical tool calls (same name and parameters) are cached within a conversation. Cached results:
+- Bypass `LoopGuard` checks and don't count toward execution limits
+- Emit `TOOL_END` events with `cached=True` for observability
+- Improve performance by avoiding redundant expensive operations
 
 ### Message Structure
 
-When tools are used, SmolAgent produces two separate messages:
+When tools are used, the response includes two messages:
+- **Thinking Message**: Contains all tool-calling round text and intermediate reasoning
+- **Final Answer Message**: Contains only the final LLM response without preprocessing noise
 
-- **Thinking Message**: Contains tool-calling rounds' LLM text and intermediate processing. Only generated if tools were used.
-- **Final Answer Message**: Contains only the final LLM response without tool-related preprocessing. Always generated.
+If no tools are used, only the final answer message is returned.
 
-This separation keeps user-facing responses clean while preserving full execution traces.
+### Loop Protection
 
-## Core Methods
+The `LoopGuard` enforces limits on:
+- Maximum iterations (tool-calling rounds)
+- Maximum tool calls per round
+- Detection of stuck loops (repeated identical calls)
 
-### `__init__`
+Only uncached tool calls are counted against these limits.
 
-Initializes a SmolAgent instance with configuration and LLM settings.
+## API
 
-**Parameters:**
-- `settings` (CODXJuniorSettings): Project settings providing LLM configuration
-- `llm_model` (Optional[str]): Optional model override
-- `user` (Optional[CodxUser]): User context for API key and analytics
-- `system` (Optional[str]): Extra system prompt content appended after global instructions
-- `session` (Optional[Any]): Session context for tools requiring access to chat state
+### chat()
 
-**System Message Building:**
-The system message is dynamically constructed from three sources:
-1. LLM settings system prompt
-2. Chat global instructions (loaded fresh on each chat)
-3. Extra system instructions from initialization
+```python
+async def chat(
+    messages: List[Union[AIMessage, HumanMessage]],
+    config: Optional[Dict[str, Any]] = None,
+) -> List[Union[AIMessage, HumanMessage]]
+```
 
-### `chat`
-
-Main public API for running a streaming chat completion with multi-step tool support.
+Runs a streaming chat completion with iterative multi-step tool support.
 
 **Parameters:**
-- `messages` (List[Union[AIMessage, HumanMessage]]): Conversation history
-- `config` (Optional[Dict[str, Any]]): Configuration dict with optional keys:
+- `messages`: Conversation history as LangChain message objects
+- `config`: Optional configuration dict with keys:
   - `tools`: List of tool names to enable
   - `chat_id`: Chat identifier
   - `cancellation_token`: Legacy cancellation token
   - `headers`: Request headers
-  - `callbacks`: Chat message callbacks
-  - `run_context`: AgentRunContext instance
-  - `event_listeners`: List of event callables
+  - `callbacks`: List of callback functions for streaming output
+  - `run_context`: Custom `AgentRunContext` for event handling
+  - `event_listeners`: List of event listener callables
   - `current_chat`: Chat object for context
 
 **Returns:**
-Updated messages list with assistant replies appended. If tools were used, includes both thinking and final answer messages. If no tools were used, only the final answer message.
+Updated messages list with assistant replies appended (thinking message + final answer if tools were used, or just final answer otherwise).
 
 **Raises:**
 - `ToolLoopError`: If max tool rounds, max tool calls, or stuck loop is detected
-- `CancelledError`: If the request is cancelled
+- `CancelledError`: If the request is cancelled by the caller
 
 ## Tool Execution
 
-### Tool Call Processing
-
-Tools are processed in two phases:
-
-1. **Cached Calls**: Previously executed tool calls with identical arguments
-   - Bypass `LoopGuard` checks
-   - Don't count towards execution limits
-   - Emit `TOOL_END` events with `cached=True` flag
-
-2. **Uncached Calls**: New tool invocations
-   - Checked against loop guard limits
-   - Fully executed with error handling
-   - Results cached for future use
-
-### Tool Result Normalization
-
-The `_normalise_tool_result` method ensures the model always receives non-empty tool messages. Conversion rules (in priority order):
-
-1. `None` → sentinel `_TOOL_NO_OUTPUT`
-2. `str` → returned as-is (empty string → sentinel)
-3. `dict`/`list` → JSON-serialized for readability
-4. Anything else → `str()` fallback
-
 ### Tool Response Types
 
-Tools can return:
+Tools can return either:
+- **String**: Traditional single-response (used for LLM context only)
+- **ToolResponse**: Dual-response where:
+  - `user_response` → Added to thinking message
+  - `llm_response` → Sent to model only
 
-- **Traditional single-response** (`str` or any serializable type): Used for LLM context only
-- **Dual-response** (`ToolResponse` object):
-  - `user_response`: Added to thinking message for user visibility
-  - `llm_response`: Sent to model only, not included in user-facing response
+### Tool Events
 
-## Streaming and Callbacks
+The agent emits detailed tool events on `AgentRunContext`:
+- `TOOL_START`: Before execution (includes parsed args)
+- `TOOL_END`: After successful execution (includes result preview and cached flag)
+- `TOOL_ERROR`: When execution fails (includes error details)
 
-### Callback Mechanism
+### Error Handling
 
-The callback sender uses an accumulation strategy:
+All tool exceptions are caught and converted to error strings. The model always receives a non-empty tool message, preventing infinite loops from empty responses.
 
-- Chunks are buffered as they arrive from the stream
-- The **full accumulated response** (not just deltas) is sent to callbacks
-- Flushing occurs on explicit flush flag or after `CALLBACK_FLUSH_SECONDS` interval
-- This ensures crash-safe persistence where any partial save contains complete streamed content
+## System Prompt Construction
 
-## Analytics and Monitoring
+The system message is built dynamically on each chat from three sources (in order):
 
-### Event Emission
+1. LLM settings system prompt (if configured)
+2. `chat_global_instructions` (loaded fresh from GlobalSettings)
+3. Extra system instructions passed to `__init__`
 
-SmolAgent emits detailed events through `AgentRunContext`:
+The hardcoded system rules include guidelines for working with files and code blocks.
 
-- `RUN_START` / `RUN_END` / `RUN_ERROR` / `RUN_CANCELLED`: Run lifecycle events
-- `LLM_REQUEST` / `LLM_CHUNK` / `LLM_USAGE`: LLM streaming events
-- `TOOL_START` / `TOOL_END` / `TOOL_ERROR`: Tool execution events
+## Analytics and Logging
 
-Tool events include:
-- `tool_call_id`: Identifier for the tool call
-- `args`: Parsed JSON request arguments
-- `result`: Truncated preview for user-facing display
-- `cached`: Whether result was from cache
+### Token Usage Recording
 
-### Usage Recording
+Token usage is automatically recorded including:
+- Input and output tokens (from provider or calculated)
+- Duration and performance metrics
+- Cache statistics (hit rate, hits, misses)
 
-Token usage is recorded including:
-- Input and output tokens (from provider or calculated via `count_tokens`)
-- Tool cache statistics (hits, misses, hit rate)
-- Duration and cost metrics
-- Traceability links to chat and request IDs
+### Tool Call Archiving
 
-## Loop Protection
+Each tool execution is archived with:
+- Tool name and call ID
+- Request arguments (sanitized for serialization)
+- Result sent to model
+- Success/failure status and error messages
+- Execution duration
 
-The `LoopGuard` class prevents runaway tool execution:
+### Message Archiving
 
-- Enforces `max_iterations`: Total tool-calling rounds
-- Enforces `max_tool_calls`: Total tool invocations across all rounds
-- Detects stuck loops where the model repeats identical calls
+Complete message exchanges are archived after successful streaming, including:
+- Request and response content
+- Token usage
+- Model and provider information
+- Traceability links
 
-Limits are configurable via LLM settings with priority: Model > Provider > Fallback.
+## Configuration
 
-Cached tool results bypass these checks entirely, allowing the model to reference previously computed results without counting towards limits.
+### Tool Scopes
+
+Tools can be configured with scope settings:
+- `global`: Always included regardless of configuration
+- `chat`: Selectively included based on request configuration
+
+### LLM Settings
+
+Key settings from `CODXJuniorSettings`:
+- `model`: LLM model identifier
+- `api_key`: API authentication
+- `api_url`: API endpoint
+- `max_iterations`: Maximum tool-calling rounds
+- `max_tool_calls`: Maximum tools per round
+- `temperature`: Response randomness
+- `system`: Base system prompt
 
 ## Cancellation Handling
 
-Cancellation is handled through two mechanisms:
+The agent supports cancellation through:
+- Legacy `CancellationToken` (bridged onto runtime token)
+- Runtime `AgentRunContext` cancellation
+- Checkpoints before each tool execution
+- Stream closure on cancellation request
 
-1. **Legacy `CancellationToken`**: Bridged onto the runtime context token for compatibility
-2. **Runtime Context Token**: Native cancellation mechanism via `run_context.checkpoint()`
+Cancelled runs emit `RUN_CANCELLED` events and raise `CancelledError`.
 
-Checkpoints are placed at strategic locations:
-- Before each tool execution
-- During streaming on every chunk
-- Between sequential tool executions
+## Callback System
 
-When cancelled, the stream is gracefully closed and `CancelledError` is raised to the caller.
-
-## Error Handling
-
-All tool execution errors are caught and normalized:
-
-- Exceptions never propagate; error strings are returned to the model
-- The model can react to failed tool invocations
-- Prevents empty tool messages that would cause infinite loops
-- Both successful and failed results are cached
-
-## System Rules for Tool Output
-
-Hardcoded system rules guide tool output formatting:
-
-- Code blocks must include file names after the language specifier
-- File paths should be valid (absolute or relative) based on project context
-- Changes must follow original file formatting and indentation
-- Avoid unnecessary changes unless explicitly requested
-- Keep changes simple and easy to review
+Callbacks receive the **full accumulated response** at periodic intervals (configurable via `CALLBACK_FLUSH_SECONDS`), not just deltas. This approach keeps partial saves crash-safe by always containing complete content streamed to that point.

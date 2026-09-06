@@ -16,13 +16,16 @@ import logging
 import pathlib
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Avoid circular imports - will be injected at runtime
+_SECTION_VALIDATORS: Dict[str, Type[BaseModel]] = {}
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -190,10 +193,18 @@ class GlobalSettingsManager:
         """
         Serialize and persist a settings section, backing up the previous version first.
 
+        Validates data against the registered schema for the section before persisting.
+
         Args:
             section: Name of the section.
             data: Data to persist. Can be a Pydantic model, dict, list, or scalar.
+
+        Raises:
+            ValidationError: If data fails schema validation for this section.
         """
+        # Validate data before backup/write
+        self._validate_section_data(section, data)
+
         self._backup_section(section)
         section_file = self._section_file(section)
 
@@ -210,6 +221,7 @@ class GlobalSettingsManager:
                 "Failed to write section '%s': %s\n%s",
                 section, ex, traceback.format_exc()
             )
+            raise
 
     def list_history(self, section: str) -> List[SectionVersion]:
         """
@@ -295,3 +307,119 @@ class GlobalSettingsManager:
             section = section_file.stem
             result[section] = self.read_section_raw(section)
         return result
+
+    # ------------------------------------------------------------------
+    # Validation API
+    # ------------------------------------------------------------------
+
+    def register_section_validator(
+        self, section: str, model_class: Type[BaseModel]
+    ) -> None:
+        """
+        Register a Pydantic model class as the validator for a section.
+
+        This validator will be used by write_section() to validate data
+        before persisting to disk.
+
+        Args:
+            section: Name of the section (must match GlobalSettings field name).
+            model_class: Pydantic BaseModel class to use for validation.
+        """
+        _SECTION_VALIDATORS[section] = model_class
+        logger.debug("Registered validator for section '%s': %s", section, model_class.__name__)
+
+    def register_section_validators(self, validators: Dict[str, Type[BaseModel]]) -> None:
+        """
+        Register multiple section validators at once.
+
+        Args:
+            validators: Dict mapping section names to their model classes.
+        """
+        for section, model_class in validators.items():
+            self.register_section_validator(section, model_class)
+
+    def _validate_section_data(self, section: str, data: Any) -> None:
+        """
+        Validate section data against its registered schema before write.
+
+        If no validator is registered for the section, validation is skipped
+        (backward compatibility).
+
+        Args:
+            section: Name of the section.
+            data: Data to validate.
+
+        Raises:
+            ValidationError: If data fails schema validation.
+        """
+        # If no validator registered, skip validation
+        if section not in _SECTION_VALIDATORS:
+            logger.debug(
+                "No validator registered for section '%s', skipping validation",
+                section
+            )
+            return
+
+        model_class = _SECTION_VALIDATORS[section]
+
+        try:
+            # If data is already a Pydantic model of the correct type, consider it valid
+            if isinstance(data, model_class):
+                logger.debug("Section '%s' data already validated (Pydantic model)", section)
+                return
+
+            # For dicts, lists, or other data types, attempt to construct the model
+            # This will raise ValidationError if data doesn't conform to the schema
+            if isinstance(data, list):
+                # For list sections, validate each item
+                logger.debug("Validating list section '%s' with %d items", section, len(data))
+                for idx, item in enumerate(data):
+                    try:
+                        # Get the inner model type from the List type hint
+                        inner_model = self._get_list_inner_type(model_class)
+                        if inner_model and not isinstance(item, inner_model):
+                            inner_model(**item) if isinstance(item, dict) else inner_model(item)
+                    except ValidationError as ex:
+                        logger.error(
+                            "Validation error for list item %d in section '%s': %s",
+                            idx, section, ex
+                        )
+                        raise
+            else:
+                # For single object or dict data
+                logger.debug("Validating section '%s' with model %s", section, model_class.__name__)
+                if isinstance(data, dict):
+                    model_class(**data)
+                else:
+                    model_class(data)
+
+            logger.debug("Section '%s' data validation passed", section)
+
+        except ValidationError as ex:
+            logger.error(
+                "Section '%s' validation failed: %s\nValidation details: %s",
+                section, str(ex), ex.errors()
+            )
+            raise
+        except (TypeError, ValueError) as ex:
+            logger.error(
+                "Section '%s' validation error (unexpected type): %s\n%s",
+                section, str(ex), traceback.format_exc()
+            )
+            raise ValidationError(f"Invalid data type for section '{section}': {ex}")
+
+    @staticmethod
+    def _get_list_inner_type(model_class: Type) -> Optional[Type]:
+        """
+        Extract the inner model type from a List[Model] type hint.
+
+        Args:
+            model_class: The type to inspect (should be List[X]).
+
+        Returns:
+            The inner type X, or None if not a List type.
+        """
+        # Check if it's a generic type with __args__
+        if hasattr(model_class, "__args__") and model_class.__args__:
+            return model_class.__args__[0]
+        return None

@@ -737,3 +737,171 @@ class GitEngine:
             return ""
         
         return stdout
+
+    def get_file_version_at_depth(self, file_path: str, depth: int = 0) -> dict:
+        """
+        Retrieve a previous version of a file from git history.
+
+        Navigate through file history by depth level without needing commit IDs.
+        Depth represents how many commits back to look:
+        - depth=0: Get the immediate previous version (1 commit back)
+        - depth=1: Get version from 2 commits ago
+        - depth=2: Get version from 3 commits ago
+        - etc.
+
+        Args:
+            file_path: Relative or absolute path to the file.
+            depth: How many commits back to go (0 = previous version, 1 = two commits back, etc).
+                   Default is 0 (immediate previous version).
+
+        Returns:
+            Dict containing:
+                - "content": File content at that version (empty string if not found)
+                - "commit": Full commit hash
+                - "short_commit": Short commit hash (8 chars)
+                - "author": Author name
+                - "email": Author email
+                - "date": Commit date (ISO format)
+                - "message": Commit message
+                - "depth": The depth requested
+                - "error": Error message if any (None if successful)
+
+        Raises:
+            ValueError: If file_path is empty or depth is negative.
+        """
+        if not file_path:
+            raise ValueError("file_path cannot be empty")
+        if depth < 0:
+            raise ValueError("depth cannot be negative")
+
+        # Resolve git root and file path
+        git_root = self._get_git_root_for_file(file_path)
+        if not os.path.isabs(file_path):
+            abs_file_path = os.path.join(self.settings.abs_project_path, file_path)
+        else:
+            abs_file_path = file_path
+
+        # Normalize file path relative to git root
+        if abs_file_path.startswith(git_root):
+            git_file_path = os.path.relpath(abs_file_path, git_root)
+        else:
+            git_file_path = file_path
+
+        try:
+            # Get commit list for this file
+            pretty = "%H|%an|%ae|%ad|%s"
+            cmd = f"git log --pretty=format:{pretty} --date=iso -- {git_file_path}"
+            stdout, stderr = exec_command(cmd, cwd=git_root)
+
+            if stderr and "fatal" in stderr.lower():
+                logger.warning("Failed to get git log for %s: %s", file_path, stderr)
+                return {
+                    "content": "",
+                    "commit": "",
+                    "short_commit": "",
+                    "author": "",
+                    "email": "",
+                    "date": "",
+                    "message": "",
+                    "depth": depth,
+                    "error": f"Failed to retrieve git history: {stderr}",
+                }
+
+            commits = []
+            for line in stdout.strip().split("\n"):
+                if not line.strip():
+                    continue
+                try:
+                    commit_hash, author, email, date, message = line.split("|", 4)
+                    commits.append({
+                        "commit": commit_hash,
+                        "short_commit": commit_hash[:8],
+                        "author": author,
+                        "email": email,
+                        "date": date.strip(),
+                        "message": message.strip(),
+                    })
+                except ValueError:
+                    logger.warning("Could not parse commit line: %s", line)
+                    continue
+
+            # Check if depth is valid
+            if depth >= len(commits):
+                logger.warning(
+                    "Depth %d exceeds available commits (%d) for file %s",
+                    depth,
+                    len(commits),
+                    file_path
+                )
+                return {
+                    "content": "",
+                    "commit": "",
+                    "short_commit": "",
+                    "author": "",
+                    "email": "",
+                    "date": "",
+                    "message": "",
+                    "depth": depth,
+                    "error": f"Depth {depth} exceeds available commits ({len(commits)})",
+                }
+
+            # Get the commit at the requested depth
+            target_commit = commits[depth]
+
+            # Get file content at that commit
+            cmd = f'git show "{target_commit["commit"]}:{git_file_path}"'
+            file_content, stderr = exec_command(cmd, cwd=git_root)
+
+            # Check for errors
+            if stderr and ("fatal" in stderr.lower() or "does not exist" in stderr.lower()):
+                logger.warning(
+                    "File %s does not exist at commit %s: %s",
+                    file_path,
+                    target_commit["short_commit"],
+                    stderr
+                )
+                return {
+                    "content": "",
+                    "commit": target_commit["commit"],
+                    "short_commit": target_commit["short_commit"],
+                    "author": target_commit["author"],
+                    "email": target_commit["email"],
+                    "date": target_commit["date"],
+                    "message": target_commit["message"],
+                    "depth": depth,
+                    "error": f"File did not exist at this commit",
+                }
+
+            logger.info(
+                "Retrieved file version at depth %d: %s (%s)",
+                depth,
+                file_path,
+                target_commit["short_commit"]
+            )
+
+            return {
+                "content": file_content,
+                "commit": target_commit["commit"],
+                "short_commit": target_commit["short_commit"],
+                "author": target_commit["author"],
+                "email": target_commit["email"],
+                "date": target_commit["date"],
+                "message": target_commit["message"],
+                "depth": depth,
+                "error": None,
+            }
+
+        except Exception as e:
+            error_msg = f"Error retrieving file version: {str(e)}"
+            logger.error(error_msg)
+            return {
+                "content": "",
+                "commit": "",
+                "short_commit": "",
+                "author": "",
+                "email": "",
+                "date": "",
+                "message": "",
+                "depth": depth,
+                "error": error_msg,
+            }

@@ -141,6 +141,7 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
                 <div class="text-sm text-base-content/80">{{ chatInfo?.error }}</div>
               </div>
             </div>
+
             <div class="flex gap-2 justify-between text-xs">
               <!-- Profiles -->
               <div v-if="profiles.length" class="rounded-xl border border-base-300 overflow-hidden flex">
@@ -169,6 +170,42 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
                 </div>
               </div>
             </div>
+
+            <!-- ADDED: Chat History Summary -->
+            <div v-if="chatHistorySummary.length" class="rounded-xl border border-base-300 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+                <i class="fa-solid fa-comments text-primary"></i>
+                <span class="text-sm font-semibold">Chat History Summary</span>
+                <span class="badge badge-ghost badge-xs ml-auto">{{ chatHistorySummary.length }} LLM rounds</span>
+              </div>
+              <div class="p-3 space-y-2 max-h-96 overflow-y-auto">
+                <div
+                  v-for="(round, idx) in chatHistorySummary"
+                  :key="idx"
+                  class="rounded-lg border border-base-300 overflow-hidden"
+                >
+                  <!-- Round header -->
+                  <div class="flex items-center gap-2 px-3 py-1.5 bg-secondary/8 text-xs text-secondary/80">
+                    <i class="fa-solid fa-robot text-xs"></i>
+                    <span class="font-semibold">Round {{ idx + 1 }}</span>
+                    <span class="badge badge-xs badge-ghost font-mono">{{ round.model }}</span>
+                    <span v-if="round.toolCallCount" class="badge badge-xs badge-accent">{{ round.toolCallCount }} tools</span>
+                    <span v-else class="badge badge-xs badge-success">final</span>
+                    <span class="ml-auto font-mono text-base-content/30">{{ formatDuration(round.duration_seconds) }}</span>
+                  </div>
+                  <!-- Response preview -->
+                  <div v-if="round.response_preview" class="px-3 py-2 text-xs text-base-content/70 font-mono whitespace-pre-wrap break-words max-h-24 overflow-y-auto bg-base-100/50">
+                    {{ round.response_preview }}
+                  </div>
+                  <div v-else class="px-3 py-2 text-xs text-base-content/30 italic">No text response (tool calls only)</div>
+                </div>
+              </div>
+            </div>
+            <!-- No history available yet hint -->
+            <div v-else-if="!chatHistorySummary.length && llmRequestsForOverview.length === 0" class="text-center text-xs text-base-content/40 py-2">
+              No LLM history available for this session.
+            </div>
+
           </div>
 
           <!-- METRICS TAB -->
@@ -302,7 +339,6 @@ export default {
     return {
       activeTab: 'overview',
       expandedSections: {},
-      // CHANGED: replaced 'requests' and 'tools' tabs with single 'conversation' tab
       tabs: [
         { id: 'overview', label: 'Overview', icon: 'fa-chart-pie' },
         { id: 'metrics', label: 'Metrics', icon: 'fa-gauge' },
@@ -332,6 +368,51 @@ export default {
     chatProject() {
       const { project_id } = this.chatInfo
       return this.$projects.allProjectsById[project_id] || this.$project
+    },
+    // ADDED: raw llm_requests list for overview use
+    llmRequestsForOverview() {
+      return this.chatSession?.llm_requests || []
+    },
+    // ADDED: build a concise summary of each LLM round for the overview tab
+    chatHistorySummary() {
+      const requests = this.llmRequestsForOverview
+      if (!requests.length) return []
+
+      const toolCalls = this.chatSession?.tool_calls || []
+
+      return requests
+        .map(req => {
+          const tokenData = req.token_event ?? req
+          const reqTs = tokenData.timestamp ?? 0
+
+          // Count tool calls that occurred after this request timestamp
+          const nextReq = requests[requests.indexOf(req) + 1]
+          const nextTs = nextReq
+            ? ((nextReq.token_event ?? nextReq).timestamp ?? Infinity)
+            : Infinity
+
+          const toolsInRound = toolCalls.filter(t => {
+            const toolEvent = t.tool_event ?? t
+            return toolEvent.timestamp >= reqTs && toolEvent.timestamp < nextTs
+          })
+
+          // Get response preview: trim and limit to 300 chars
+          const responseText = tokenData.response_content || ''
+          const preview = responseText.trim().slice(0, 300) + (responseText.length > 300 ? '…' : '')
+
+          return {
+            model: tokenData.model || '',
+            duration_seconds: tokenData.duration_seconds || 0,
+            input_tokens: tokenData.input_tokens || 0,
+            output_tokens: tokenData.output_tokens || 0,
+            toolCallCount: toolsInRound.length,
+            response_preview: preview || null
+          }
+        })
+        .sort((a, b) => {
+          // Already in original order from llm_requests
+          return 0
+        })
     }
   },
 

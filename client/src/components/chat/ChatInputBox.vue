@@ -3,20 +3,34 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 md:px-2 md:py-2 bg-base-100 rounded-md border border-base-300">
-    <!-- Editor area -->
-    <div class="relative">
+  <div
+    class="notion-composer flex flex-col transition-all duration-200"
+    :class="[
+      isFocused
+        ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-xl'
+        : 'bg-base-200/60 rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
+    ]"
+  >
+    <!-- Textarea — ghost style, expands naturally -->
+    <div class="relative px-3 pt-3">
       <textarea
         ref="editor"
-        class="textarea textarea-bordered w-full min-h-24"
-        placeholder="Type your message..."
+        rows="3"
+        class="w-full bg-transparent resize-none outline-none text-sm text-base-content placeholder:text-base-content/30 leading-relaxed"
+        :placeholder="isEditing ? 'Edit your message...' : 'Write something, or @ to mention a file...'"
         @keydown="$emit('keydown', $event)"
         @paste="$emit('paste', $event)"
         @drop="$emit('drop', $event)"
+        @focus="isFocused = true"
+        @blur="isFocused = false"
+        @input="autoResize"
       ></textarea>
     </div>
 
-    <!-- Toolbar with action buttons and selectors -->
+    <!-- Divider -->
+    <div class="mx-3 border-t border-base-300/50 mt-1"></div>
+
+    <!-- Toolbar -->
     <ChatInputToolbar
       :waiting="waiting"
       :is-editing="isEditing"
@@ -67,6 +81,11 @@ export default {
     'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
     'drop', 'profiles-selected'
   ],
+  data() {
+    return {
+      isFocused: false
+    }
+  },
   methods: {
     getEditorText() {
       return this.$refs.editor?.value || ''
@@ -74,15 +93,23 @@ export default {
     setEditorText(text) {
       if (this.$refs.editor) {
         this.$refs.editor.value = text
+        this.autoResize()
       }
     },
     appendEditorText(text) {
       if (this.$refs.editor) {
         this.$refs.editor.value += text
+        this.autoResize()
       }
     },
     focusEditor() {
       this.$refs.editor?.focus()
+    },
+    autoResize() {
+      const el = this.$refs.editor
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = Math.min(el.scrollHeight, 320) + 'px'
     },
     getCaretWordInfo() {
       const textarea = this.$refs.editor
@@ -102,8 +129,8 @@ export default {
   expose: [
     'getEditorText',
     'setEditorText',
-    'appendEditorText', 
-    'focusEditor', 
+    'appendEditorText',
+    'focusEditor',
     'getCaretWordInfo'
   ]
 }

@@ -2,116 +2,152 @@
 
 ## Overview
 
-The tools module provides a comprehensive collection of callable functions designed for chat and project interactions within the codx-junior API. Tools are organized with associated metadata to enable seamless integration with language models and the API infrastructure.
+The Tools module is the central aggregator for all available tools in the codx-junior API. It provides callable functions with associated metadata designed for seamless integration with language models and the API infrastructure.
 
-## Tool Scope Levels
+## Module Organization
 
-Tools are categorized by their availability scope:
+Tools are organized by **scope levels** that determine their availability:
 
-- **global**: Tools always included in conversations (e.g., `code_block_generator`)
-- **chat**: Tools available based on conversation context and selection
-- **profile**: Tools available based on user profile or role
+- **global**: Always included in conversations (e.g., `code_block_generator`)
+- **chat**: Available based on conversation context and user selection
+- **profile**: Available based on user profile or role
 
-## Tool Response Types
+## Response Types
 
-The module supports two response formats:
+Tools can return data in two formats:
 
 - **str**: Traditional single-string response used for LLM context
-- **ToolResponse**: Dual-return object for tools that need to produce both user-facing content and LLM feedback
+- **ToolResponse**: Dual-return object for tools requiring both user-facing content and LLM feedback
 
 ## Available Tools
 
 ### fetch_webpage
-
 Retrieves and converts webpage content to markdown format.
 
 **Parameters:**
-- `url` (string, required): The URL of the webpage to fetch
-- `include_images` (boolean): Whether to include image references in the markdown
-- `max_length` (integer): Maximum length of the output markdown
-- `headers` (object): Optional HTTP headers for the request
+- `url` (string, required): The webpage URL
+- `include_images` (boolean, optional): Include image references
+- `max_length` (integer, optional): Maximum output length
+- `headers` (object, optional): Custom HTTP headers
 
 **Scope:** chat
+
+---
 
 ### project_search
+Searches for documents within a project using single or multiple queries.
 
-Searches for documents within a project using one or more search queries. Supports bulk operations to reduce tool calls by accepting multiple queries simultaneously.
+**Features:**
+- Supports bulk operations with multiple queries in one call
+- Optional validation text to filter results from large documents
+- Returns dual response format
 
 **Parameters:**
-- `search` (string or array, required): Single search query or list of search queries
-- `validation` (string): Optional text to validate and filter search results
+- `search` (string or array, required): Single query or list of queries
+- `validation` (string, optional): Text to validate and filter results
 
 **Scope:** chat  
-**Response Type:** Dual response
+**Dual Response:** Yes
+
+---
 
 ### project_read_file
+Reads project file content from single or multiple file paths.
 
-Reads project file content from one or multiple file paths. Supports bulk operations for efficiency.
+**Features:**
+- Bulk operation support for reading multiple files at once
+- Supports relative, absolute paths, and glob patterns
+- Invalid or missing files returned as error blocks
 
 **Parameters:**
-- `file_path` (string or array, required): Single file path or list of file paths. Supports relative or absolute paths and glob patterns
+- `file_path` (string or array, required): Single path or list of paths
 
 **Scope:** chat  
-**Response Type:** Dual response  
-**Note:** Invalid or missing files are returned as error blocks
+**Dual Response:** Yes
+
+---
 
 ### project_write_file
-
-Writes content to a project file. Creates the file or directory if it doesn't exist.
+Writes content to a project file, creating the file or directory if needed.
 
 **Parameters:**
-- `file_path` (string, required): Relative or absolute path to the file to write
-- `content` (string, required): The content to write to the file
+- `file_path` (string, required): Relative or absolute file path
+- `content` (string, required): Content to write
 
 **Scope:** chat  
-**Response Type:** Dual response
+**Dual Response:** Yes
+
+---
+
+### apply_file_changes
+Safely applies batch search-and-replace edits to an existing text file.
+
+**Features:**
+- Validates all changes before writing
+- Each search string must match exactly once
+- Changes applied progressively to the updated file
+- Requires explicit indentation in search and replace patterns
+- File remains unchanged if any conflict occurs
+
+**Parameters:**
+- `file_path` (string, required): Path to the file to modify
+- `changes` (array, required): List of change objects with:
+  - `search` (string): Exact text pattern to find
+  - `replace` (string): Replacement text with exact formatting
+
+**Scope:** chat  
+**Dual Response:** Yes
+
+---
 
 ### project_structure
-
-Retrieves the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.
+Retrieves the project structure as a tree-like representation.
 
 **Parameters:**
-- `include_details` (boolean): Includes additional metadata like file counts and folder statistics (default: False)
-- `max_depth` (integer): Maximum folder depth to traverse (default: null for no limit)
-- `include_file_sizes` (boolean): Includes file sizes in bytes for each file (default: False)
+- `include_details` (boolean, optional): Add metadata like file counts and folder statistics
+- `max_depth` (integer, optional): Maximum folder depth to traverse
+- `include_file_sizes` (boolean, optional): Include file sizes in bytes
 
 **Scope:** chat
+
+---
 
 ### generate_tasks_tool
-
-Generates sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.
+Generates sub-tasks from the current chat by analyzing context and splitting into actionable items. Each sub-task creates a separate connected chat.
 
 **Parameters:**
-- `instructions` (string): Optional additional instructions to guide task creation (e.g., 'Focus on frontend tasks' or 'Split by component')
+- `instructions` (string, optional): Additional guidance for task generation (e.g., "Focus on frontend tasks")
 
 **Scope:** chat  
-**Response Type:** Dual response
+**Dual Response:** Yes
 
-### code_writer
+---
 
-Enables writing and modifying code within the project context.
+### test_tool
+Simple debugging tool that returns a test message.
 
-**Scope:** chat
+**Returns:** "test ok!"
 
-### code_block_generator
+## Best Practices
 
-Generates code blocks with associated metadata.
+### Bulk Operations
+When using `project_search` and `project_read_file`, combine multiple queries or file paths in a single call to reduce API overhead:
 
-**Scope:** global
+```
+search=["authentication", "user session"]  // Good
+file_path=["src/main.py", "config/settings.py"]  // Good
+```
 
-## Bulk Operation Best Practices
+### apply_file_changes
+- Include sufficient surrounding context to ensure unique search patterns
+- Always specify exact indentation explicitly in both search and replace strings
+- Verify all changes before applying to prevent file conflicts
 
-To optimize performance and reduce tool calls:
-
-- **project_search**: Provide multiple related queries as a list instead of making separate calls
-  - Example: `search=["authentication", "user session"]`
-  
-- **project_read_file**: Read multiple related files in one call by providing a list of paths
-  - Example: `file_path=["src/main.py", "config/settings.py"]`
-
-## ToolResponse Class
-
-The `ToolResponse` class enables tools to provide dual-return functionality, supporting both user-facing content and LLM feedback simultaneously. This is utilized by search, read, write, and task generation tools to deliver comprehensive responses.
+### Exported API
+All tools are exported in the `__all__` list for external module access, including:
+- Tool functions
+- `ToolResponse` model
+- `TOOLS` configuration array
 
 ## Dependencies
 **Imports from:** codx/junior/tools/fetch_webpage.py, codx/junior/tools/project_tools.py, codx/junior/tools/code_writer.py

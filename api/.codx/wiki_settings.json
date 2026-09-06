@@ -491,6 +491,11 @@
           "path": "/codx/junior/settings.py",
           "slug": "settings.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/settings.md"
+        },
+        {
+          "path": "/codx/junior/settings_manager.py",
+          "slug": "settings-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/settings-manager.md"
         }
       ],
       "id": "database-and-data-storage",

@@ -50,86 +50,8 @@
       </div>
     </button>
 
-    <!-- Dropdown panel (when modal is disabled) -->
-    <div
-      v-if="!useModal"
-      v-show="showGrid"
-      class="absolute left-0 bottom-full mb-2 bg-base-200 rounded-lg border border-base-300 shadow-lg z-50 w-full"
-      @click.stop
-    >
-      <div class="p-3 flex flex-col gap-2">
-        <div class="text-sm font-semibold">{{ label }}</div>
-
-        <!-- Filter input -->
-        <input
-          v-model="filterText"
-          type="text"
-          placeholder="Type to filter..."
-          class="input input-sm input-bordered w-full"
-          @click.stop
-        />
-        <!-- Scrollable grid with custom slot rendering -->
-        <div class="grid grid-cols-3 gap-2 overflow-y-auto max-h-56">
-          <div
-            v-for="(item, ix) in filteredAndSorted"
-            :key="item.name"
-            :class="isItemSelected(item.name) ? 'ring-2 ring-primary' : ''"
-            @click="selectItem(item)"
-          >
-            <!-- Slot for custom rendering -->
-            <slot
-              :item="item"
-              :ix="ix"
-              :selected="isItemSelected(item.name)"
-            >
-              <!-- Default rendering fallback -->
-              <div class="flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-300"
-                :class="isItemSelected(item.name) ? 'bg-primary text-primary-content' : 'bg-base-100'"
-                :title="item.description"
-              >
-                <div class="relative">
-                  <img
-                    v-if="item.avatar"
-                    :src="item.avatar"
-                    :alt="item.name"
-                    class="w-3 h-3 rounded-full object-cover"
-                  />
-                  <div
-                    v-else
-                    class="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center"
-                  >
-                    <i class="fa-solid fa-user text-xs"></i>
-                  </div>
-                  <div
-                    v-if="isItemSelected(item.name)"
-                    class="absolute -top-1 -right-1 bg-success text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"
-                  >
-                    ✓
-                  </div>
-                </div>
-                <span class="text-xs font-medium text-center truncate w-full">{{ item.name }}</span>
-              </div>
-            </slot>
-          </div>
-        </div>
-
-        <!-- Footer: count or deselect hint -->
-        <div class="text-xs text-base-content/60 border-t border-base-300 pt-2 flex justify-between items-center">
-          <span>{{ selectedCountText }}</span>
-          <button
-            v-if="allowDeselect && selectedItem"
-            class="btn btn-xs btn-ghost"
-            @click.stop="deselectAll"
-          >
-            clear
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- DaisyUI Modal (when useModal is true) -->
+    <!-- DaisyUI Modal -->
     <dialog
-      v-if="useModal"
       ref="selectorModal"
       class="modal"
       @click.stop="handleModalBackdropClick"
@@ -262,16 +184,11 @@ export default {
     emptyLabel: {
       type: String,
       default: ''
-    },
-    useModal: {
-      type: Boolean,
-      default: false
     }
   },
   data() {
     return {
       internalSelected: [],
-      showGrid: false,
       filterText: '',
       tempSelected: []
     }
@@ -313,26 +230,12 @@ export default {
       immediate: true
     }
   },
-  mounted() {
-    document.addEventListener('click', this.handleDocumentClick)
-  },
-  unmounted() {
-    document.removeEventListener('click', this.handleDocumentClick)
-  },
+
   methods: {
     toggleGrid() {
-      if (this.useModal) {
-        this.showGrid ? this.closeModal() : this.openModal()
-      } else {
-        this.showGrid = !this.showGrid
-        if (this.showGrid) {
-          this.filterText = ''
-          this.$emit('open')
-        }
-      }
+      this.openModal()
     },
     openModal() {
-      this.showGrid = true
       this.filterText = ''
       this.tempSelected = [...this.internalSelected]
       this.$emit('open')
@@ -341,12 +244,10 @@ export default {
       })
     },
     closeModal() {
-      this.showGrid = false
       this.internalSelected = [...this.tempSelected]
       this.$refs.selectorModal?.close()
     },
     confirmModal() {
-      this.showGrid = false
       this.emitSelectionChange()
       this.$refs.selectorModal?.close()
     },
@@ -369,10 +270,6 @@ export default {
         } else {
           this.internalSelected = [item.name]
         }
-        if (!this.useModal) {
-          this.emitSelectionChange()
-          this.closeModal()
-        }
       } else {
         const idx = this.internalSelected.indexOf(item.name)
         if (idx > -1) {
@@ -380,21 +277,12 @@ export default {
         } else {
           this.internalSelected.push(item.name)
         }
-        if (!this.useModal) {
-          this.emitSelectionChange()
-        }
       }
     },
     deselectAll() {
       this.internalSelected = []
-      if (!this.useModal) {
-        this.emitSelectionChange()
-      }
     },
-    handleDocumentClick(event) {
-      if (this.useModal) return
-      if (!this.$el.contains(event.target)) this.showGrid = false
-    }
+
   }
 }
 </script>

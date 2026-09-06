@@ -199,10 +199,12 @@ TOOLS = [
             "function": {
                 "name": "apply_file_changes",
                 "description": (
-                    "Apply a list of search and replace changes to a file. "
-                    "Each change is applied sequentially, and indentation is automatically preserved. "
-                    "If a search pattern is not found or matches multiple times, "
-                    "the operation stops and returns conflict information for the LLM to handle."
+                    "Safely apply a batch of exact search-and-replace edits to one existing text file. "
+                    "Each search string must match exactly once in the progressively updated file. "
+                    "All changes are validated before the file is written; if any change conflicts, "
+                    "the file remains unchanged. Include enough surrounding context in each search "
+                    "string to make it unique. Do NOT rely on indentation preservation—include the "
+                    "exact indentation explicitly in both search and replace strings."
                 ),
                 "parameters": {
                     "type": "object",
@@ -218,11 +220,11 @@ TOOLS = [
                                 "properties": {
                                     "search": {
                                         "type": "string",
-                                        "description": "Text pattern to find (must match exactly once in the file)"
+                                        "description": "Exact text pattern to find (must match exactly once in the file)"
                                     },
                                     "replace": {
                                         "type": "string",
-                                        "description": "Text to replace with (indentation is preserved)"
+                                        "description": "Text to replace with (include exact indentation and formatting)"
                                     }
                                 },
                                 "required": ["search", "replace"]

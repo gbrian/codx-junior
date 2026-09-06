@@ -9,8 +9,6 @@ import ProfileCard from '../ProfileCard.vue'
     :selected-items="selectedProfiles"
     label="Profiles"
     icon="fa-solid fa-plus"
-    :is-single-select="false"
-    :use-modal="useModal"
     @update:selected-items="onProfilesSelected"
   >
     <!-- Custom profile card rendering in mini style -->
@@ -36,10 +34,6 @@ export default {
     selectedProfiles: {
       type: Array,
       default: () => []
-    },
-    useModal: {
-      type: Boolean,
-      default: false
     }
   },
   emits: ['update:selected-profiles', 'profiles-changed'],

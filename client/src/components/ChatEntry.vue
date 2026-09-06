@@ -65,412 +65,430 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     @image="$emit('image', $event)"
   />
 
-  <!-- Desktop rendering with Rich Header -->
-  <Collapsible
+  <!-- =============================================
+       NOTION-STYLE DESKTOP BLOCK RENDERING
+       ============================================= -->
+  <div
     v-else
-    :modelValue="!isCollapsed"
-    @update:modelValue="collapsed = !$event"
-    class="group chat-entry"
+    class="notion-entry group/entry relative w-full"
     :class="[
-      displayMessage.is_answer && 'border-success/50 bg-success/5',
-      isTopic && 'border-info/50 bg-info/5',
-      displayMessage.hide && isCollapsed && 'opacity-50 hover:opacity-100',
-      displayMessage.hide && 'border-l border-l-warning pl-2'
+      displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
     ]"
   >
-    <!-- Icon: Avatar stack -->
-    <template #title>
-      <div class="flex items-center -space-x-2"
-        :class="[
-          displayMessage.hide && 'border-l border-warning pl-2'
-        ]"
-      >
-        <div 
-          class="tooltip tooltip-right" 
-          :data-tip="profile.name || profile.username" 
-          v-for="profile in messageProfiles" 
-          :key="profile.name"
-        >
-          <ProfileAvatar :profile="profile" width="6" />
-        </div>
-      </div>
-    </template>
+    <!-- ── Row: Avatar + Header + Content ── -->
+    <div class="flex gap-3 items-start w-full">
 
-    <!-- Title: User + Timestamp + Model -->
-    <template #icon>
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-neutral-500">{{ formatDate(displayMessage.updated_at) }}</span>
-        <span v-if="timeTaken" class="text-xs text-neutral-400">{{ timeTaken }}</span>
-        <span class="font-semibold text-sm">{{ displayMessage.user }}</span>
-      </div>
-    </template>
-
-    <!-- Summary: Status badges -->
-    <template #summary>
-      <span v-if="cancellationTime" class="badge badge-xs badge-error">
-        <i class="fa-solid fa-ban"></i> Cancelled
-      </span>
-      <div class="badge badge-xs badge-success gap-1" v-if="displayMessage.is_answer">
-        <ChatIcon mode="answer" /> Knowledge
-      </div>
-      <div class="badge badge-xs badge-info badge-outline gap-1" v-if="isTopic">
-        <ChatIcon mode="topic" /> Topic
-      </div>
-      <div 
-        class="badge badge-xs badge-outline gap-1 cursor-pointer hover:badge-info" 
-        @click.stop="openThread"
-        v-if="threadChat"
-      >
-        <ChatIcon :mode="threadChat.mode" /> {{ threadChat.messages?.length || 0 }} replies
-      </div>
-      <span v-if="displayMessage.hide" class="text-xs text-warning/60 gap-1">
-        <i class="fa-solid fa-box-archive"></i> Archived
-      </span>
-      
-      <!-- Events badge - now clickable to open drawer -->
-      <div v-if="hasEvents" class="flex gap-1 ml-1 pl-1 border-l border-base-300">
-        <button 
-          @click.stop="drawerOpen = !drawerOpen"
-          class="badge badge-xs gap-1 cursor-pointer hover:badge-warning transition-all"
-          :class="drawerOpen ? 'badge-warning' : 'badge-warning/60'"
-        >
-          <i class="fa-solid fa-wrench"></i>
-          <span>{{ toolEventCount }}</span>
-        </button>
-        <button 
-          @click.stop="drawerOpen = !drawerOpen"
-          class="badge badge-xs gap-1 cursor-pointer hover:badge-info transition-all"
-          :class="drawerOpen ? 'badge-info' : 'badge-info/60'"
-        >
-          <i class="fa-solid fa-list"></i>
-          <span>{{ lifecycleEventCount }}</span>
-        </button>
-      </div>
-    </template>
-
-    <!-- Action buttons group -->
-    <template #actions>
-      <div class="flex gap-2 items-center">
+      <!-- Avatar column -->
+      <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+        <template v-if="isNewSpeaker">
+          <div
+            v-for="profile in messageProfiles"
+            :key="profile.name"
+            class="tooltip tooltip-right"
+            :data-tip="profile.name || profile.username"
+          >
+            <ProfileAvatar :profile="profile" width="6" />
+          </div>
+        </template>
+        <!-- Connecting line for grouped messages -->
+        <div
+          v-if="!isNewSpeaker"
+          class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
+        ></div>
+        <!-- Events button -->
         <button
-          class="btn btn-xs btn-error gap-1 tooltip tooltip-bottom"
-          data-tip="Stop generation"
-          @click.stop="cancelMessage"
-          v-if="!isDone && cancellationTokenId"
+          v-if="hasEvents"
+          class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+          :class="drawerOpen && 'btn-active text-warning'"
+          data-tip="Events"
+          @click.stop="drawerOpen = !drawerOpen"
         >
-          <span class="loading loading-xs"></span>
-          Stop
+          <i class="fa-solid fa-wrench text-warning/70"></i>
+          <span class="text-[10px]">{{ toolEventCount }}</span>
         </button>
-        
-        <!-- Primary actions row -->
-        <div class="flex gap-1 border-l border-base-300 pl-2">
-          <button 
-            class="btn btn-xs text-warning hover:btn-outline tooltip tooltip-bottom" 
-            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'" 
+      </div>
+
+      <!-- Main block column -->
+      <div class="flex-1 min-w-0 pb-0.5">
+
+        <!-- Header row: only shown on first message of a speaker group -->
+        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none">
+          <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
+          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
+          <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+
+          <!-- State badges inline with header -->
+          <span v-if="cancellationTime" class="badge badge-xs badge-error">
+            <i class="fa-solid fa-ban mr-0.5"></i>Cancelled
+          </span>
+          <span v-if="displayMessage.is_answer" class="badge badge-xs badge-success gap-1">
+            <ChatIcon mode="answer" /> Knowledge
+          </span>
+          <span v-if="isTopic" class="badge badge-xs badge-info gap-1">
+            <ChatIcon mode="topic" /> Topic
+          </span>
+          <span v-if="displayMessage.hide" class="text-[11px] text-warning/50">
+            <i class="fa-solid fa-box-archive"></i> Archived
+          </span>
+        </div>
+
+        <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
+        <div
+          class="absolute right-0 top-0 z-20
+                 opacity-0 group-hover/entry:opacity-100
+                 transition-all duration-150 translate-y-0
+                 flex items-center gap-0.5
+                 bg-base-100/95 backdrop-blur-sm
+                 border border-base-300 rounded-lg shadow-md px-1 py-0.5"
+        >
+          <!-- Stop generation -->
+          <button
+            v-if="!isDone && cancellationTokenId"
+            class="btn btn-xs btn-error gap-1"
+            @click.stop="cancelMessage"
+          >
+            <span class="loading loading-xs"></span>Stop
+          </button>
+
+          <!-- Core actions -->
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
             @click.stop="$emit('hide', message)"
             v-if="isDone"
           >
-            <i class="fa-solid fa-box-archive"></i>
+            <i class="fa-solid fa-box-archive text-warning/70"></i>
           </button>
-
-          <button 
-            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-            data-tip="Create thread" 
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Thread"
             @click.stop="$emit('thread', message)"
           >
             <i class="fa-solid fa-comment-dots"></i>
           </button>
-          <button 
-            class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" 
-            data-tip="Mark as best answer" 
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Mark as answer"
             @click.stop="$emit('answer', message)"
           >
-            <i class="fa-solid fa-check-double"></i>
+            <i class="fa-solid fa-check-double text-success/70"></i>
           </button>
-          <button 
-            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-            data-tip="Copy to clipboard" 
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Copy"
             @click.stop="copyMessageToClipboard"
           >
             <i class="fa-solid fa-copy"></i>
           </button>
-          <button 
-            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
-            data-tip="Show diff" 
-            @click.stop="toggleShowDiff" 
+          <button
             v-if="displayMessage.diffMessage"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showDiff && 'btn-active'"
+            data-tip="Diff"
+            @click.stop="toggleShowDiff"
           >
             <i class="fa-regular fa-file-lines"></i>
           </button>
-          <button 
-            :class="showFileView && 'btn-active'"
-            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
-            data-tip="View files" 
-            @click.stop="toggleFileView"
+          <button
             v-if="hasCodeBlocksOrFiles"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showFileView && 'btn-active'"
+            data-tip="Files"
+            @click.stop="toggleFileView"
           >
             <i class="fa-solid fa-file-code"></i>
           </button>
-          <button 
-            :class="showPRView && 'btn-active'"
-            class="btn btn-xs hover:btn-outline tooltip tooltip-bottom"
-            data-tip="Review code changes" 
-            @click.stop="togglePRView"
+          <button
             v-if="hasPRViewBlocks"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showPRView && 'btn-active'"
+            data-tip="Review"
+            @click.stop="togglePRView"
           >
             <i class="fa-solid fa-code-branch"></i>
           </button>
+
+          <!-- Divider -->
+          <div class="w-px h-4 bg-base-300 mx-0.5"></div>
+
+          <!-- More dropdown -->
+          <div class="dropdown dropdown-end" @click.stop>
+            <button tabindex="0" class="btn btn-xs btn-ghost">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
+            >
+              <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
+              <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
+              <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
+              <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
+            </ul>
+          </div>
         </div>
 
-        <!-- More menu -->
-        <div class="dropdown dropdown-end" @click.stop>
-          <button tabindex="0" class="btn btn-xs btn-ghost">
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-          </button>
-          <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-48 p-1 bg-base-200 z-50">
-            <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group"></i> Run agents</a></li>
-            <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code"></i> View source</a></li>
-            <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen"></i> Edit</a></li>
-            <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can"></i> Delete</a></li>
-          </ul>
-        </div>
-      </div>
-    </template>
-
-    <!-- DISABLED. Thinking section - CHANGED: Now uses Collapsible with Document -->
-    <Collapsible v-if="false && displayMessage.think" :defaultOpen="false" class="mx-3 mt-3">
-      <template #icon>
-        <i class="fa-solid fa-brain text-info"></i>
-      </template>
-      <template #title>
-        <span class="text-sm font-semibold text-info">Thinking Process</span>
-      </template>
-      <div class="p-3">
-        <Document 
-          :content="displayMessage.think"
-          :files="chatFiles"
-          :project="chatProject"
-          :chat="chat"
-          :loading="!message.done"
-          :documentId="'think-' + documentId"
-          :message="message"
-          @generate-code="onGenerateCode"
-          @reload-file="$emit('reload-file', { file: $event, message })"
-          @open-file="$emit('open-file', $event)"
-          @save-file="$emit('save-file', $event)"
-          @add-file="$emit('add-file', $event)"
-          @sub-task="$emit('sub-task', $event)"
-          @copy-chapter="onCopyChapter"
-          @create-task="onCreateTask"
-          :mentionList="mentionList"
-        />
-      </div>
-    </Collapsible>
-
-    <!-- Content: Full message body -->
-    <div class="p-3 flex flex-col gap-3 border-t border-base-300">
-      <!-- Loading indicator -->
-      <progress class="progress progress-sm w-full" v-if="!isDone"></progress>
-
-      <!-- Selection menu -->
-      <ChatEntrySelectionMenu
-        v-if="showSelectionMenu"
-        :selectedText="selectedText"
-        :chatProject="chatProject"
-        @copy="onSelectionCopy"
-        @create-subtask="onSelectionCreateSubtask"
-        @search-files="onSelectionSearchFiles"
-        @close="onCloseSelectionMenu"
-      />
-
-      <!-- Skeleton loader -->
-      <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2">
-        <div class="skeleton h-12 w-full"></div>
-        <div class="skeleton h-12 w-full"></div>
-        <div class="skeleton h-8 w-2/3"></div>
-      </div>
-
-      <!-- TOC for long documents (only show when no events OR when viewing in timeline mode) -->
-      <DocumentSummary
-        v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents"
-        :content="messageContent"
-        :minHeadings="3"
-        :documentId="documentId"
-        :scrollContainer="$refs.contentArea"
-      />
-      <div 
-        ref="contentArea"
-        @copy.stop="onMessageCopy"
-        @mouseup="onContentMouseUp"
-        class="max-w-full bg-base-100 rounded-md p-2"
-      >
-        <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-2 rounded">{{ displayMessage.content }}</pre>
-
-        <Document 
-          v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord"
-          :content="messageContent"
-          :files="chatFiles"
-          :project="chatProject"
-          :chat="chat"
-          :loading="!message.done"
-          :documentId="documentId"
-          :message="message"
-          @generate-code="onGenerateCode"
-          @reload-file="$emit('reload-file', { file: $event, message })"
-          @open-file="$emit('open-file', $event)"
-          @save-file="$emit('save-file', $event)"
-          @add-file="$emit('add-file', $event)"
-          @sub-task="$emit('sub-task', $event)"
-          @copy-chapter="onCopyChapter"
-          @create-task="onCreateTask"
-          :mentionList="mentionList"
+        <!-- ── Thread / Reply badge (always visible if exists) ── -->
+        <div
+          v-if="threadChat"
+          class="mb-1 inline-flex"
         >
-          <template #chapter-actions="{ chapter, fullContent }">
-            <button class="btn btn-sm btn-ghost gap-2" @click="copyChapterMarkdown(chapter, fullContent)">
-              <i class="fa-solid fa-copy"></i> Copy
-            </button>
-            <button class="btn btn-sm btn-ghost gap-2" @click="createTaskFromChapter(chapter, fullContent)">
-              <i class="fa-solid fa-plus"></i> Task
-            </button>
-          </template>
-        </Document>
-
-        <div class="alert alert-error text-xs" v-if="displayMessage.error">
-          {{ displayMessage.error }}
-        </div>
-
-        <CodeDiff
-          v-if="showDiff && !showPRView && !showFileView"
-          :new-string="displayMessage.diffMessage.content"
-          :old-string="messageContent"
-          theme="dark"
-        />
-
-        <!-- Code patches section -->
-        <div v-if="code_patches && !showPRView && !showFileView" class="space-y-3">
-          <div 
-            v-for="patch in code_patches" 
-            :key="patch.file_path"
-            class="border border-base-300 rounded-md p-2"
+          <button
+            class="flex items-center gap-1 text-[11px] text-info hover:text-info hover:underline cursor-pointer"
+            @click.stop="openThread"
           >
-            <div class="text-xs font-bold text-primary mb-2" :title="patch.file_path">
-              {{ patch.file_path.replace($project.abs_project_path, '') }}
-            </div>
-            <div class="text-xs text-neutral-600 mb-2">{{ patch.description }}</div>
-            <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
-            <div class="flex justify-end mt-2">
-              <button 
-                class="btn btn-sm btn-warning gap-1" 
-                :disabled="patch.working" 
-                @click="applyPatch(patch)"
-              >
-                <span class="loading loading-spinner" v-if="patch.working"></span>
-                Apply changes
+            <ChatIcon :mode="threadChat.mode" />
+            <span>{{ threadChat.messages?.length || 0 }} replies</span>
+          </button>
+        </div>
+
+        <!-- ── Loading bar ── -->
+        <progress
+          v-if="!isDone"
+          class="progress progress-xs w-full mb-2 opacity-50"
+        ></progress>
+
+        <!-- ── Selection context menu ── -->
+        <ChatEntrySelectionMenu
+          v-if="showSelectionMenu"
+          :selectedText="selectedText"
+          :chatProject="chatProject"
+          @copy="onSelectionCopy"
+          @create-subtask="onSelectionCreateSubtask"
+          @search-files="onSelectionSearchFiles"
+          @close="onCloseSelectionMenu"
+        />
+
+        <!-- ── Skeleton loader ── -->
+        <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2 py-1">
+          <div class="skeleton h-4 w-full rounded"></div>
+          <div class="skeleton h-4 w-4/5 rounded"></div>
+          <div class="skeleton h-4 w-2/3 rounded"></div>
+        </div>
+
+        <!-- ── Answer / Topic accent bar ── -->
+        <div
+          v-if="displayMessage.is_answer || isTopic"
+          class="absolute left-0 top-0 bottom-0 w-0.5 rounded-full"
+          :class="[
+            displayMessage.is_answer && 'bg-success',
+            isTopic && !displayMessage.is_answer && 'bg-info',
+          ]"
+        ></div>
+
+        <!-- ── TOC for long documents ── -->
+        <DocumentSummary
+          v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents"
+          :content="messageContent"
+          :minHeadings="3"
+          :documentId="documentId"
+          :scrollContainer="$refs.contentArea"
+          class="mb-3"
+        />
+
+        <!-- ── Main content area ── -->
+        <div
+          ref="contentArea"
+          @copy.stop="onMessageCopy"
+          @mouseup="onContentMouseUp"
+          class="min-w-0 w-full notion-content"
+          :class="[
+            displayMessage.is_answer && 'pl-3 border-l-2 border-success/30',
+            isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
+          ]"
+        >
+          <!-- Source view -->
+          <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-3 rounded-lg">{{ displayMessage.content }}</pre>
+
+          <!-- Document / Markdown -->
+          <Document
+            v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord"
+            :content="messageContent"
+            :files="chatFiles"
+            :project="chatProject"
+            :chat="chat"
+            :loading="!message.done"
+            :documentId="documentId"
+            :message="message"
+            @generate-code="onGenerateCode"
+            @reload-file="$emit('reload-file', { file: $event, message })"
+            @open-file="$emit('open-file', $event)"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+            @copy-chapter="onCopyChapter"
+            @create-task="onCreateTask"
+            :mentionList="mentionList"
+          >
+            <template #chapter-actions="{ chapter, fullContent }">
+              <button class="btn btn-sm btn-ghost gap-1" @click="copyChapterMarkdown(chapter, fullContent)">
+                <i class="fa-solid fa-copy"></i> Copy
               </button>
-            </div>
-            <div v-if="patch.res" class="text-xs mt-2">
-              <div class="text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
-              <div class="text-success" v-else>
-                <i class="fa-solid fa-check"></i> Patch applied successfully
-              </div>
-            </div>
+              <button class="btn btn-sm btn-ghost gap-1" @click="createTaskFromChapter(chapter, fullContent)">
+                <i class="fa-solid fa-plus"></i> Task
+              </button>
+            </template>
+          </Document>
+
+          <!-- Error -->
+          <div class="alert alert-error text-xs mt-2" v-if="displayMessage.error">
+            {{ displayMessage.error }}
           </div>
-        </div>
 
-        <!-- File View -->
-        <MessageFileView
-          v-if="showFileView && !srcView && !showDiff && !showPRView"
-          :codeBlocks="prViewCodeBlocks"
-          :linkedFiles="displayMessage.files"
-          :chat="chat"
-          :message="message"
-          @save-file="$emit('save-file', $event)"
-          @add-file="$emit('add-file', $event)"
-          @open-file="$emit('open-file', $event)"
-          @sub-task="$emit('sub-task', $event)"
-          @remove-file="$emit('remove-file', $event)"
-        />
+          <!-- Diff view -->
+          <CodeDiff
+            v-if="showDiff && !showPRView && !showFileView"
+            :new-string="displayMessage.diffMessage.content"
+            :old-string="messageContent"
+            theme="dark"
+          />
 
-        <!-- PR View -->
-        <MessagePRView
-          v-if="showPRView && !srcView && !showDiff && !showFileView"
-          :codeBlocks="prViewCodeBlocks"
-          :chat="chat"
-          :message="message"
-          :activeBranch="activeBranch"
-          @save-file="$emit('save-file', $event)"
-          @add-file="$emit('add-file', $event)"
-          @open-file="$emit('open-file', $event)"
-          @sub-task="$emit('sub-task', $event)"
-        />
-
-        <!-- Images carousel -->
-        <div v-if="images && !showPRView && !showFileView && images?.length" class="mt-3">
-          <p class="text-xs font-semibold mb-2">
-            <i class="fa-solid fa-images"></i> Images
-          </p>
-          <div class="carousel gap-2">
-            <div 
-              class="carousel-item cursor-pointer"
-              v-for="image in images" 
-              :key="image.src" 
-              @click="$emit('image', image)"
+          <!-- Code patches -->
+          <div v-if="code_patches && !showPRView && !showFileView" class="space-y-3 mt-2">
+            <div
+              v-for="patch in code_patches"
+              :key="patch.file_path"
+              class="border border-base-300 rounded-lg p-3 bg-base-200/50"
             >
-              <div class="flex flex-col gap-1">
-                <div 
-                  class="bg-cover bg-center border-2 border-base-300 rounded-md w-20 h-20"
-                  :style="`background-image: url(${image.src})`"
-                ></div>
-                <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
+              <div class="text-xs font-bold text-primary mb-1" :title="patch.file_path">
+                {{ patch.file_path.replace($project.abs_project_path, '') }}
+              </div>
+              <div class="text-xs text-base-content/50 mb-2">{{ patch.description }}</div>
+              <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
+              <div class="flex justify-end mt-2">
+                <button
+                  class="btn btn-sm btn-warning gap-1"
+                  :disabled="patch.working"
+                  @click="applyPatch(patch)"
+                >
+                  <span class="loading loading-spinner" v-if="patch.working"></span>
+                  Apply changes
+                </button>
+              </div>
+              <div v-if="patch.res" class="text-xs mt-2">
+                <div class="text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+                <div class="text-success" v-else>
+                  <i class="fa-solid fa-check"></i> Applied
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Linked files -->
-        <div v-if="displayMessage.files?.length && !showPRView && !showFileView" class="mt-3 p-2 bg-base-200 rounded-md">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-xs font-semibold">
-              <i class="fa-solid fa-link"></i> Linked files
+          <!-- File View -->
+          <MessageFileView
+            v-if="showFileView && !srcView && !showDiff && !showPRView"
+            :codeBlocks="prViewCodeBlocks"
+            :linkedFiles="displayMessage.files"
+            :chat="chat"
+            :message="message"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+            @remove-file="$emit('remove-file', $event)"
+          />
+
+          <!-- PR View -->
+          <MessagePRView
+            v-if="showPRView && !srcView && !showDiff && !showFileView"
+            :codeBlocks="prViewCodeBlocks"
+            :chat="chat"
+            :message="message"
+            :activeBranch="activeBranch"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+          />
+
+          <!-- Images -->
+          <div v-if="images && !showPRView && !showFileView && images?.length" class="mt-3">
+            <p class="text-xs text-base-content/40 mb-2">
+              <i class="fa-solid fa-images mr-1"></i>Images
             </p>
-          </div>
-          <div class="space-y-1">
-            <div 
-              v-for="file in displayMessage.files" 
-              :key="file"
-              class="flex gap-2 items-center text-xs"
-            >
-              <button
-                class="btn btn-xs btn-ghost gap-1 tooltip tooltip-left"
-                data-tip="Add file to chat"
-                @click.stop="$emit('add-file', file)"
+            <div class="carousel gap-2">
+              <div
+                class="carousel-item cursor-pointer"
+                v-for="image in images"
+                :key="image.src"
+                @click="$emit('image', image)"
               >
-                <i class="fa-solid fa-plus"></i>
-              </button>
-              <i class="fa-solid fa-file text-primary"></i>
-              <a class="hover:underline cursor-pointer flex-1 truncate" @click="openFile(file)" :title="file">
-                {{ file.split('/').reverse()[0] }}
-              </a>
-              <i class="fa-regular fa-circle-xmark cursor-pointer hover:text-error" @click.stop="$emit('remove-file', file)"></i>
+                <div class="flex flex-col gap-1">
+                  <div
+                    class="bg-cover bg-center border border-base-300 rounded-lg w-20 h-20 hover:border-primary transition-colors"
+                    :style="`background-image: url(${image.src})`"
+                  ></div>
+                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
+                </div>
+              </div>
             </div>
           </div>
+
+          <!-- Linked files -->
+          <div
+            v-if="displayMessage.files?.length && !showPRView && !showFileView"
+            class="mt-3 pt-2 border-t border-base-300/50"
+          >
+            <p class="text-[11px] text-base-content/40 mb-1.5">
+              <i class="fa-solid fa-paperclip mr-1"></i>Linked files
+            </p>
+            <div class="flex flex-wrap gap-1">
+              <div
+                v-for="file in displayMessage.files"
+                :key="file"
+                class="flex items-center gap-1 text-xs bg-base-200 hover:bg-base-300 rounded-md px-2 py-0.5 transition-colors group/file"
+              >
+                <i class="fa-solid fa-file text-primary/60 text-[10px]"></i>
+                <a
+                  class="hover:underline cursor-pointer max-w-[180px] truncate"
+                  @click="openFile(file)"
+                  :title="file"
+                >
+                  {{ file.split('/').reverse()[0] }}
+                </a>
+                <button
+                  class="opacity-0 group-hover/file:opacity-100 ml-0.5 hover:text-error transition-all"
+                  @click.stop="$emit('add-file', file)"
+                  title="Add to chat"
+                >
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+                <button
+                  class="opacity-0 group-hover/file:opacity-100 hover:text-error transition-all"
+                  @click.stop="$emit('remove-file', file)"
+                >
+                  <i class="fa-regular fa-circle-xmark text-[10px]"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Collapsed toggle (for archived messages) ── -->
+        <div
+          v-if="isCollapsed && displayMessage.hide"
+          class="mt-1 text-[11px] text-base-content/30 cursor-pointer hover:text-base-content/60 transition-colors"
+          @click="collapsed = false"
+        >
+          <i class="fa-solid fa-chevron-down mr-1"></i>Show archived content
         </div>
       </div>
     </div>
-  </Collapsible>
 
-  <!-- Events Drawer -->
-  <ChatEntryDrawer
-    :isOpen="drawerOpen"
-    :lifecycleEvents="message.lifecycle_events"
-    :toolEvents="message.tool_events"
-    :metadata="message.meta_data"
-    @close="drawerOpen = false"
-  />
+    <!-- Events Drawer -->
+    <ChatEntryDrawer
+      :isOpen="drawerOpen"
+      :lifecycleEvents="message.lifecycle_events"
+      :toolEvents="message.tool_events"
+      :metadata="message.meta_data"
+      @close="drawerOpen = false"
+    />
+  </div>
 </template>
 
 <script>
 export default {
-  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker'],
   emits: [
     'generate-code',
     'reload-file',
@@ -636,7 +654,7 @@ export default {
       return this.message?.lifecycle_event ? 1 : 0
     },
     hasEvents() {
-      return this.toolEventCount > 0 || this.lifecycleEventCount > 0
+      return this.toolEventCount > 0
     }
   },
   watch: {
@@ -649,7 +667,7 @@ export default {
   },
   methods: {
     formatDate(date) {
-      return moment(date).format('DD/MMM HH:mm:ss')
+      return moment(date).format('DD/MMM HH:mm')
     },
     extractImprovementData() {
       this.improvementData = null

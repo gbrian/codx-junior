@@ -22,15 +22,11 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
   >
     <!-- Loading Skeleton -->
     <div v-if="isChatLoading" class="h-full flex flex-col gap-2 p-4">
-      <!-- Header skeleton -->
       <div class="shrink-0 flex gap-2 items-center justify-between">
         <div class="skeleton h-10 w-32"></div>
         <div class="skeleton h-10 w-20"></div>
       </div>
-
-      <!-- Messages skeleton -->
       <div class="grow flex flex-col gap-3 overflow-y-auto">
-        <!-- Message 1 -->
         <div class="flex gap-2">
           <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
           <div class="flex-1 flex flex-col gap-2">
@@ -38,16 +34,12 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
             <div class="skeleton h-12 w-full"></div>
           </div>
         </div>
-
-        <!-- Message 2 -->
         <div class="flex gap-2 justify-end">
           <div class="flex-1 flex flex-col gap-2">
             <div class="skeleton h-4 w-20 ml-auto"></div>
             <div class="skeleton h-12 w-full"></div>
           </div>
         </div>
-
-        <!-- Message 3 -->
         <div class="flex gap-2">
           <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
           <div class="flex-1 flex flex-col gap-2">
@@ -56,8 +48,6 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
           </div>
         </div>
       </div>
-
-      <!-- Input skeleton -->
       <div class="shrink-0 flex flex-col gap-2">
         <div class="skeleton h-20 w-full"></div>
         <div class="skeleton h-10 w-24"></div>
@@ -66,7 +56,7 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
 
     <!-- Normal Chat Content -->
     <template v-else>
-      <!-- File list section -->
+      <!-- File list + profile selector header -->
       <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
         <div class="w-full" v-if="chatFiles.length || messageFiles.length">
           <ChatFileList
@@ -104,7 +94,7 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
 
       <!-- Main Chat View -->
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
-        
+
         <!-- Message Editor Mode -->
         <div class="w-full h-full" v-if="editMessage">
           <ChatMessageEditor
@@ -117,42 +107,42 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
         <!-- Normal Chat Mode -->
         <template v-else>
           <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
-            <div class="h-full flex flex-col relative">
-              <ChatMessageList
-                ref="messageList"
-                class="w-full grow overflow-y-auto overflow-x-hidden"
-                :chat="chat"
-                :messages="messages"
-                :mention-list="mentionList"
-                :read-only="readOnly"
-                :users-list="usersList"
-                :children-chats="childrenChats"
-                @edited="onMessageEdited"
-                @remove="removeMessage"
-                @remove-file="removeFileFromMessage($event.message, $event.file)"
-                @hide="toggleHide"
-                @answer="toggleAnswer"
-                @run-edit="runEdit"
-                @copy="onCopy"
-                @add-file-to-chat="onAddFile"
-                @image="imagePreview = $event"
-                @generate-code="onGenerateCode"
-                @reload-file="onReloadMessageFile"
-                @open-file="onOpenFile"
-                @save-file="onSaveFile"
-                @add-file="onAddFile"
-                @edit-message="onEditMessage"
-                @thread="onNewThread"
-                @sub-task="onChatEntryCreateSubtask"
-                @set-active-chat="$chats.setActiveChat($event)"
-                @message-changed="onMessageChanged"
-                @run-agents="onMessageRunAgents"
-                @preview-file="handleFilePreview"
-                @search-files="onSelectionSearchFiles"
-              />
 
-              <!-- Input Section -->
-              <div class="relative" v-if="readOnly !== true">
+            <!-- ── Unified scroll container: messages + composer ── -->
+            <ChatMessageList
+              ref="messageList"
+              class="w-full h-full"
+              :chat="chat"
+              :messages="messages"
+              :mention-list="mentionList"
+              :read-only="readOnly"
+              :users-list="usersList"
+              :children-chats="childrenChats"
+              @edited="onMessageEdited"
+              @remove="removeMessage"
+              @remove-file="removeFileFromMessage($event.message, $event.file)"
+              @hide="toggleHide"
+              @answer="toggleAnswer"
+              @run-edit="runEdit"
+              @copy="onCopy"
+              @add-file-to-chat="onAddFile"
+              @image="imagePreview = $event"
+              @generate-code="onGenerateCode"
+              @reload-file="onReloadMessageFile"
+              @open-file="onOpenFile"
+              @save-file="onSaveFile"
+              @add-file="onAddFile"
+              @edit-message="onEditMessage"
+              @thread="onNewThread"
+              @sub-task="onChatEntryCreateSubtask"
+              @set-active-chat="$chats.setActiveChat($event)"
+              @message-changed="onMessageChanged"
+              @run-agents="onMessageRunAgents"
+              @preview-file="handleFilePreview"
+              @search-files="onSelectionSearchFiles"
+            >
+              <!-- IntelliSense slot — floats above the composer -->
+              <template #intellisense>
                 <ChatIntelliSense
                   ref="intelliSense"
                   :suggestions="intelliSenseSuggestions"
@@ -165,6 +155,10 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   @accept-multi="onIntelliSenseAcceptMulti"
                   @cancel="cancelIntelliSense"
                 />
+              </template>
+
+              <!-- Input box slot -->
+              <template #input>
                 <ChatInputBox
                   ref="inputBox"
                   :waiting="waiting"
@@ -179,7 +173,6 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   :selected-profiles="selectedProfiles"
                   :cursor-word="cursorWord"
                   :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-                  @close.knowledge="showDocumentSearchModal = false"
                   @send="sendMessage"
                   @add-message="addNewMessage()"
                   @search-message="addSearchMessage"
@@ -193,6 +186,10 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   @remove-image="removeImage"
                   @preview-image="imagePreview = $event"
                 />
+              </template>
+
+              <!-- Per-message files slot (files attached to the current message being composed) -->
+              <template #files>
                 <ChatFileList
                   :files="files"
                   :message-files="[]"
@@ -202,8 +199,9 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   @preview-file="handleFilePreview"
                   v-if="files?.length"
                 />
-              </div>
-            </div>
+              </template>
+            </ChatMessageList>
+
           </div>
 
           <!-- File Preview Panel -->
@@ -338,16 +336,13 @@ export default {
     },
     messageFiles() {
       const allMsgFiles = new Set()
-      
       this.messages?.forEach(msg => {
         msg.files?.forEach(f => allMsgFiles.add(f))
-        
         if (msg.content) {
           const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
           extractedFiles.forEach(f => allMsgFiles.add(f))
         }
       })
-      
       return Array.from(allMsgFiles)
     },
     isPRView() {
@@ -445,78 +440,56 @@ export default {
     },
     extractFilesFromCodeBlocks(content) {
       if (!content) return []
-      
       const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
       const files = []
       let match
-      
       while ((match = codeBlockRegex.exec(content)) !== null) {
         const filePath = match[2].trim()
-        
         if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
           if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
             files.push(filePath.split(' ')[0])
           }
         }
       }
-      
       return files
     },
-
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
       const mentionedNames = mentionMatches.map(m => m[1])
-
       const profileNames = this.profiles.map(p => p.name)
       const detectedProfiles = mentionedNames.filter(name => profileNames.includes(name))
-
       const previousMentionMatches = [...this.previousEditorText?.matchAll(/@([^\s]+)/mg) || []]
       const previousMentionedNames = previousMentionMatches.map(m => m[1])
       const previousDetectedProfiles = previousMentionedNames.filter(name => profileNames.includes(name))
-
       const profilesToRemove = previousDetectedProfiles.filter(
         name => !detectedProfiles.includes(name) && !this.selectorProfileNames.includes(name)
       )
-
       profilesToRemove.forEach(name => {
         const idx = this.textProfileNames.indexOf(name)
-        if (idx > -1) {
-          this.textProfileNames.splice(idx, 1)
-        }
+        if (idx > -1) this.textProfileNames.splice(idx, 1)
       })
-
       detectedProfiles.forEach(name => {
-        if (!this.textProfileNames.includes(name)) {
-          this.textProfileNames.push(name)
-        }
+        if (!this.textProfileNames.includes(name)) this.textProfileNames.push(name)
       })
-
       this.previousEditorText = this.editorText
     },
-
     hasFile(fileToCheck, fileList) {
       return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
     },
-
     normalizeFilePath(path) {
       return path?.toLowerCase().trim() || ''
     },
-
     hasFileInChat(file) {
       return this.hasFile(file, this.chatFiles)
     },
-
     hasFileInMessage(file) {
       return this.hasFile(file, this.files)
     },
-
     isProjectFile(textContent) {
       return this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
     },
-
     async processFilePath(filePath, chatDrop) {
       if (!this.isProjectFile(filePath)) return false
-
       if (chatDrop) {
         await this.onAddFile(filePath)
       } else {
@@ -524,31 +497,23 @@ export default {
       }
       return true
     },
-
     async processMultipleFilePaths(textContent, chatDrop) {
       const filePaths = textContent
         .split('\n')
         .map(p => p.trim())
         .filter(p => p && p.length > 0 && this.isProjectFile(p))
-
       if (filePaths.length === 0) return false
-
       for (const filePath of filePaths) {
         await this.processFilePath(filePath, chatDrop)
       }
-
       return true
     },
-
     async processJsonFileList(jsonData, chatDrop) {
       try {
         const { files } = JSON.parse(jsonData)
         if (!files || files.length === 0) return false
-
         for (const file of files) {
-          if (!file.is_dir) {
-            await this.processFilePath(file.path, chatDrop)
-          }
+          if (!file.is_dir) await this.processFilePath(file.path, chatDrop)
         }
         return true
       } catch (ex) {
@@ -556,80 +521,62 @@ export default {
         return false
       }
     },
-
     async processImageFile(imageFile) {
       this.onInputImage(imageFile)
       await this.onAddImage()
     },
-
     async processMultipleImages(imageFiles) {
       for (const imageFile of imageFiles) {
         await this.processImageFile(imageFile)
       }
       return imageFiles.length > 0
     },
-
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)
       this.uploadPath = uploadPath
       this.uploadContext = context
       this.showUploadConfirmModal = true
     },
-
     async confirmUpload() {
       this.showUploadConfirmModal = false
       const uploadedPaths = await this.performUpload(this.pendingUploadFiles, this.uploadPath)
-      
       if (this.uploadContext.chatDrop) {
         uploadedPaths.forEach(path => this.onAddFile(path))
       } else {
         uploadedPaths.forEach(path => this.addFileToMessage(path))
       }
-      
       this.pendingUploadFiles = []
       this.uploadPath = ''
       this.uploadContext = null
     },
-
     cancelUpload() {
       this.showUploadConfirmModal = false
       this.pendingUploadFiles = []
       this.uploadPath = ''
       this.uploadContext = null
     },
-
     async performUpload(fileList, uploadPath) {
       const uploadedFilePaths = []
-
       for (const file of fileList) {
         try {
-          console.log('[UPLOAD] Uploading file:', { name: file.name, size: file.size })
           const result = await this.$storex.api.files.upload(file, uploadPath)
           const filePath = result?.path || result
           uploadedFilePaths.push(filePath)
-          console.log('[UPLOAD] File uploaded successfully:', { name: file.name, path: filePath })
         } catch (error) {
           console.error('[UPLOAD] Failed to upload file:', file.name, error)
-          this.$ui?.addNotification?.({
-            text: `Failed to upload ${file.name}: ${error.message}`,
-            type: 'error'
-          })
+          this.$ui?.addNotification?.({ text: `Failed to upload ${file.name}: ${error.message}`, type: 'error' })
         }
       }
-
       return uploadedFilePaths
     },
-
     async uploadLocalFiles(fileList, chatDrop) {
       const uploadPath = this.chatProject?.upload_path || '/upload'
       this.showUploadConfirmation(fileList, uploadPath, { chatDrop })
     },
-
     onEditorDiscard() {
       this.editMessage = null
       this.onResetEdit()
     },
-
     handleFilePreview(filePath) {
       if (this.$ui.isVibeMode) {
         this.openFilePreview(filePath)
@@ -637,7 +584,6 @@ export default {
         this.$storex.ui.openFileInViewer(filePath)
       }
     },
-
     openFilePreview(filePath) {
       if (this.$ui.isVibeMode) {
         this.previewFile = this.previewFile === filePath ? null : filePath
@@ -645,18 +591,12 @@ export default {
         this.$ui.openFileInViewer(filePath)
       }
     },
-
     closeFilePreview() {
       this.previewFile = null
     },
-
     onPreviewFileSaved({ file, content }) {
-      this.$ui?.addNotification?.({ 
-        text: `Saved: ${file.split('/').reverse()[0]}`,
-        type: 'success'
-      })
+      this.$ui?.addNotification?.({ text: `Saved: ${file.split('/').reverse()[0]}`, type: 'success' })
     },
-
     scheduleIntelliSense(word = null) {
       if (this.intelliSenseDismissed) {
         const currentWord = word || this.cursorWord.word
@@ -665,34 +605,20 @@ export default {
       clearTimeout(this.intelliSenseDebounce)
       this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(word), 220)
     },
-
     async runIntelliSense(word = null) {
       if (this.intelliSenseDismissed) return
       const searchWord = word || this.cursorWord.word
-      if (!searchWord?.startsWith('@')) {
-        this.cancelIntelliSense()
-        return
-      }
+      if (!searchWord?.startsWith('@')) { this.cancelIntelliSense(); return }
       const rawQuery = searchWord.slice(1)
-      if (!rawQuery || rawQuery.trim().length < 3) {
-        this.cancelIntelliSense()
-        return
-      }
-      
-      if (this.previousQuery !== rawQuery && this.searchController) {
-        this.cancelIntelliSense()
-      }
-      
+      if (!rawQuery || rawQuery.trim().length < 3) { this.cancelIntelliSense(); return }
+      if (this.previousQuery !== rawQuery && this.searchController) this.cancelIntelliSense()
       this.previousQuery = rawQuery
       this.searchController = await this.$storex.projects.createSearchController()
       this.intelliSenseQuery = rawQuery
       this.intelliSenseIndex = 0
-      
       this.searchController.onProgress = ({ stage, project }) => {
-        console.log('[IntelliSense]', stage, project)
         this.intelliSenseProgress = `${stage}: ${project}`
       }
-      
       try {
         await this.chatProject?.$state?.searchMentions?.({
           query: rawQuery,
@@ -710,23 +636,16 @@ export default {
           }
         })
       } catch (error) {
-        if (error.message !== 'Search cancelled') {
-          console.error('[IntelliSense] Search error:', error)
-        }
+        if (error.message !== 'Search cancelled') console.error('[IntelliSense] Search error:', error)
       }
       this.intelliSenseProgress = ''
     },
-
     cancelIntelliSense() {
-      if (this.searchController) {
-        this.searchController.cancel()
-        this.searchController = null
-      }
+      if (this.searchController) { this.searchController.cancel(); this.searchController = null }
       this.intelliSenseSuggestions = []
       this.intelliSenseQuery = ''
       this.previousQuery = null
     },
-
     onIntelliSenseSelect(suggestion) {
       const { file, name } = suggestion
       const { caretIndex, word } = this.cursorWord
@@ -735,16 +654,13 @@ export default {
       const right = text.slice(caretIndex)
       let insert = '@' + name
       if (file) {
-        if (!this.hasFileInMessage(file)) {
-          this.addFileToMessage(file)
-        }
+        if (!this.hasFileInMessage(file)) this.addFileToMessage(file)
         insert = ""
       }
       this.setEditorText(left + insert + ' ' + right)
       this.dismissIntelliSense()
       this.$nextTick(() => this.$refs.inputBox?.focusEditor())
     },
-
     onIntelliSenseAcceptMulti(items) {
       const { caretIndex, word } = this.cursorWord
       const text = this.$refs.inputBox?.getEditorText() || ''
@@ -753,9 +669,7 @@ export default {
       const mentionInserts = []
       items.forEach(({ file, name }) => {
         if (file) {
-          if (!this.hasFileInMessage(file)) {
-            this.addFileToMessage(file)
-          }
+          if (!this.hasFileInMessage(file)) this.addFileToMessage(file)
         } else {
           mentionInserts.push('@' + name)
         }
@@ -765,31 +679,21 @@ export default {
       this.dismissIntelliSense()
       this.$nextTick(() => this.$refs.inputBox?.focusEditor())
     },
-
     dismissIntelliSense() {
       this.intelliSenseDismissed = true
     },
-
     onChatInputKeyDown(event) {
       const hasSuggestions = this.intelliSenseSuggestions.length > 0
-
       if (hasSuggestions) {
         if (event.key === 'Tab') {
-          event.preventDefault()
-          event.stopPropagation()
+          event.preventDefault(); event.stopPropagation()
           this.onIntelliSenseSelect(this.intelliSenseSuggestions[this.intelliSenseIndex])
           return
         }
-        if (event.key === 'Escape') {
-          this.dismissIntelliSense()
-          return
-        }
+        if (event.key === 'Escape') { this.dismissIntelliSense(); return }
         if (event.key === ' ' && event.ctrlKey) {
-          event.preventDefault()
-          event.stopPropagation()
-          this.$refs.intelliSense?.toggleSelected(
-            this.intelliSenseSuggestions[this.intelliSenseIndex]
-          )
+          event.preventDefault(); event.stopPropagation()
+          this.$refs.intelliSense?.toggleSelected(this.intelliSenseSuggestions[this.intelliSenseIndex])
           return
         }
         if (event.key === 'ArrowUp') {
@@ -799,43 +703,31 @@ export default {
         }
         if (event.key === 'ArrowDown') {
           event.preventDefault()
-          this.intelliSenseIndex = Math.min(
-            this.intelliSenseSuggestions.length - 1,
-            this.intelliSenseIndex + 1
-          )
+          this.intelliSenseIndex = Math.min(this.intelliSenseSuggestions.length - 1, this.intelliSenseIndex + 1)
           return
         }
       }
-
       this.onEditMessageKeyDown(event)
     },
     onLLMModelChanged(modelName) {
       this.chat.llm_model = modelName
       this.saveChatInfo()
     },
-
     updateCursorWord() {
       this.cursorWord = this.$refs.inputBox?.getCaretWordInfo() ?? {}
     },
-
     setEditorText(text) {
       this.$refs.inputBox?.setEditorText(text)
     },
-
     onEditMessage(message) {
       this.editMessage = message
     },
-
     toggleHide({ doc_id, hide }) {
-      this.chatSvc.updateExistingMessage(
-        { chat: this.chat, doc_id, update: { hide: !hide } })
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
     },
-
     toggleAnswer({ doc_id, is_answer }) {
-      this.chatSvc.updateExistingMessage(
-        { chat: this.chat, doc_id, update: { is_answer: !is_answer } })
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { is_answer: !is_answer } })
     },
-
     onCopy(message) {
       navigator.permissions.query({ name: "clipboard-read" }).then(result => {
         if (result.state === "granted" || result.state === "prompt") {
@@ -843,7 +735,6 @@ export default {
         }
       }).catch(console.error)
     },
-
     runEdit(codeSnipped) {
       this.waiting = true
       this.$storex.api.run.edit({ id: "", messages: [{ role: 'user', content: codeSnipped }] })
@@ -854,7 +745,6 @@ export default {
         .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: ex.message } }))
         .finally(() => { this.waiting = false })
     },
-
     getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
@@ -866,14 +756,12 @@ export default {
         task_item
       })
     },
-
     async postMyMessage({ message, task_item }) {
       const userMessage = this.getUserMessage({ message, task_item })
       await this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
       this.cleanUserInputAndWaitAnswer()
       return userMessage
     },
-
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
@@ -883,24 +771,16 @@ export default {
       this.metadata = null
       this.previousEditorText = ''
     },
-
     async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
-      if (this.editMessage !== null) {
-        this.updateMessage()
-        return false
-      }
+      if (this.editMessage !== null) { this.updateMessage(); return false }
       const message = this.editorText
-      if (message) {
-        await this.postMyMessage({ message, task_item })
-      }
+      if (message) await this.postMyMessage({ message, task_item })
       return true
     },
-
     async addSearchMessage() {
       return this.addNewMessage({ task_item: 'search' })
     },
-
     async sendMessage() {
       if (await this.addNewMessage()) {
         if (!this.isChannel || this.lastMessage?.profiles.length) {
@@ -909,7 +789,6 @@ export default {
         }
       }
     },
-
     async sendChatMessage(chat) {
       this.waiting = true
       try {
@@ -918,7 +797,6 @@ export default {
         this.waiting = false
       }
     },
-
     async updateMessage() {
       const innerText = this.$refs.inputBox?.getEditorText() ?? ''
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
@@ -928,7 +806,6 @@ export default {
       this.editMessage.updated_at = new Date().toISOString()
       this.onResetEdit()
     },
-
     onResetEdit() {
       this.editMessage = null
       this.setEditorText("")
@@ -937,100 +814,43 @@ export default {
       this.textProfileNames = []
       this.previousEditorText = ''
     },
-
     removeMessage(message) {
       this.chatSvc.removeMessage({ chat: this.chat, message })
     },
-
     onMessageChange() {
       const text = this.$refs.inputBox?.getEditorText() ?? ''
-      if (text !== this.editorText) {
-        this.editorText = text
-      }
+      if (text !== this.editorText) this.editorText = text
     },
-
     async onDrop(e, chatDrop) {
       this.pasteWithShift = false
       let itemsAdded = false
-
-      console.log('[DROP] Starting drop operation', {
-        isChatDrop: chatDrop,
-        hasFiles: !!e.dataTransfer.files?.length,
-        filesCount: e.dataTransfer.files?.length || 0,
-        timestamp: new Date().toISOString()
-      })
-
       if (e.dataTransfer.files?.length) {
-        const imageFiles = [...e.dataTransfer.files]
-          .filter(f => f.type.indexOf("image") !== -1)
-        if (imageFiles.length > 0) {
-          console.log('[DROP] Found images', {
-            count: imageFiles.length,
-            files: imageFiles.map(f => f.name)
-          })
-          if (await this.processMultipleImages(imageFiles)) {
-            itemsAdded = true
-          }
-        }
-
-        // Upload non-image local files
-        const nonImageFiles = [...e.dataTransfer.files]
-          .filter(f => f.type.indexOf("image") === -1)
-        if (nonImageFiles.length > 0) {
-          console.log('[DROP] Found non-image files', {
-            count: nonImageFiles.length,
-            files: nonImageFiles.map(f => f.name)
-          })
-          await this.uploadLocalFiles(nonImageFiles, chatDrop)
-          itemsAdded = true
-        }
+        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)
+        if (imageFiles.length > 0 && await this.processMultipleImages(imageFiles)) itemsAdded = true
+        const nonImageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") === -1)
+        if (nonImageFiles.length > 0) { await this.uploadLocalFiles(nonImageFiles, chatDrop); itemsAdded = true }
       }
-
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
-        console.log('[DROP] Found text content', {
-          length: textContent.length,
-          preview: textContent.substring(0, 100)
-        })
-
         if (await this.processMultipleFilePaths(textContent, chatDrop)) {
           itemsAdded = true
         } else if (this.isProjectFile(textContent) && !this.pasteWithShift) {
-          console.log('[DROP] Processing as single project file', { file: textContent, chatDrop })
           await this.processFilePath(textContent, chatDrop)
           this.setEditorText(this.editorText.replace(textContent, ""))
           itemsAdded = true
-        } 
-      }
-
-      const jsonData = e.dataTransfer.getData('application/x-file-list-json')
-      if (jsonData && !itemsAdded) {
-        console.log('[DROP] Found JSON file list')
-        if (await this.processJsonFileList(jsonData, chatDrop)) {
-          itemsAdded = true
         }
       }
-
+      const jsonData = e.dataTransfer.getData('application/x-file-list-json')
+      if (jsonData && !itemsAdded && await this.processJsonFileList(jsonData, chatDrop)) itemsAdded = true
       this.processDropUrls(e.dataTransfer, chatDrop)
-      if (e.dataTransfer.getData("resourceurls")) {
-        itemsAdded = true
-      }
-
+      if (e.dataTransfer.getData("resourceurls")) itemsAdded = true
       if (!itemsAdded) {
-        console.warn('[DROP] No items were added to chat from drop operation')
-        this.$ui?.addNotification?.({
-          text: 'No valid content was added from the dropped items',
-          type: 'warning'
-        })
-      } else {
-        console.log('[DROP] Drop operation completed successfully', { itemsAdded: true })
+        this.$ui?.addNotification?.({ text: 'No valid content was added from the dropped items', type: 'warning' })
       }
     },
-
     onDropChat(e) {
       this.onDrop(e, true)
     },
-
     processDropUrls(dataTransfer, chatDrop) {
       const urls = dataTransfer.getData("resourceurls")
       if (urls) {
@@ -1038,13 +858,10 @@ export default {
           try {
             const { pathname } = new URL(url)
             this.processInputTextContent(pathname, chatDrop)
-          } catch (ex) {
-            console.error(ex)
-          }
+          } catch (ex) { console.error(ex) }
         })
       }
     },
-
     async onContentPaste(e) {
       if (!e.clipboardData?.items) return
       const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
@@ -1055,17 +872,11 @@ export default {
       const handled = this.processInputTextContent(textContent)
       if (handled) return stop()
     },
-
     processInputTextContent(textContent, chatDrop) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
-      if (imgUrl) {
-        console.log('[INPUT] Adding image URL from content', { url: imgUrl })
-        this.images.push(imgUrl)
-        return true
-      }
+      if (imgUrl) { this.images.push(imgUrl); return true }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
-        console.log('[INPUT] Processing project file', { file: textContent, chatDrop })
         if (chatDrop) {
           this.onAddFile(textContent)
         } else {
@@ -1076,17 +887,14 @@ export default {
       }
       return false
     },
-
     addFileToMessage(file) {
       if (!this.hasFileInMessage(file) && !this.files.includes(file)) {
         this.files = [...this.files, file]
       }
     },
-
     onInputImage(file) {
       this.imagePreview = { file }
     },
-
     async onAddImage() {
       if (!this.imagePreview) return
       try {
@@ -1098,11 +906,9 @@ export default {
         this.imagePreview = null
       }
     },
-
     async onExtractTextImage(image) {
       image.alt = await this.chatSvc.extractTextFromImage(image)
     },
-
     async handleFileChange({ target: { files } }) {
       const imageFiles = [...files].filter(file => file.type.startsWith("image/"))
       for (const file of imageFiles) {
@@ -1111,62 +917,45 @@ export default {
       }
       this.selectFile = false
     },
-
     onGenerateCode(codeBlockInfo) {
       this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
     },
-
     removeImage(ix) {
       this.images = this.images.filter((_, imx) => imx !== ix)
     },
-
-    async testProject() {
-      throw new Error('Obsolete')
-    },
-
     removeFileFromMessage({ doc_id, files }, file) {
-      this.chatSvc.updateExistingMessage({ 
-        chat: this.chat, 
-        doc_id, 
-        update: { files: files.filter(f => f !== file) }
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat, doc_id, update: { files: files.filter(f => f !== file) }
       })
     },
-
     removeFileFromChat(file) {
       this.chatSvc.removeFileFromChat({ chat: this.chat, file })
     },
-
     removeFileFromFiles(file) {
       this.files = this.files.filter(f => f !== file)
     },
-
     showNotebookStatus(msg) {
       this.notebookStatus = msg
       setTimeout(() => { this.notebookStatus = null }, 3000)
     },
-
     async syncNotebook(file) {
       try {
         this.showNotebookStatus(`Syncing ${file.split('/').reverse()[0]}...`)
         await this.chatSvc.syncNotebook({ project: this.chatProject, chat: this.chat, file })
         this.showNotebookStatus(`Notebook synced: ${file.split('/').reverse()[0]}`)
       } catch (err) {
-        console.error('syncNotebook error', err)
         this.showNotebookStatus(`Error syncing notebook: ${err.message}`)
       }
     },
-
     async exportNotebook(file) {
       try {
         this.showNotebookStatus(`Exporting to ${file.split('/').reverse()[0]}...`)
         await this.chatSvc.exportNotebook({ project: this.chatProject, chat: this.chat, file })
         this.showNotebookStatus(`Notebook exported: ${file.split('/').reverse()[0]}`)
       } catch (err) {
-        console.error('exportNotebook error', err)
         this.showNotebookStatus(`Error exporting notebook: ${err.message}`)
       }
     },
-
     toggleVoiceSession() {
       if (this.isVoiceSession) return this.stopVoiceSession()
       let silents = 5
@@ -1180,13 +969,11 @@ export default {
         }
       })
     },
-
     stopVoiceSession() {
       this.recognition?.stop()
       this.recognition = null
       this.isVoiceSession = false
     },
-
     onEditMessageKeyDown(event) {
       const stop = () => { event.stopPropagation(); event.preventDefault(); return false }
       if (event.key === 'Escape') { this.onResetEdit(); return stop() }
@@ -1198,63 +985,47 @@ export default {
       else if (event.key === 'V' && event.ctrlKey) { this.pasteWithShift = true; return true }
       return true
     },
-
     hideAll() {
       this.visibleMessages.forEach(m => this.toggleHide(m))
     },
-
     toggleDocumentSearch() {
       this.showDocumentSearchModal = !this.showDocumentSearchModal
     },
-
     closeDocumentSearch() {
       this.showDocumentSearchModal = false
     },
-
     onAddDocument(doc) {
       const source = doc.file || doc.metadata?.source
-      if (source && !this.hasFileInMessage(source)) {
-        this.addFileToMessage(source)
-      }
+      if (source && !this.hasFileInMessage(source)) this.addFileToMessage(source)
     },
-
     async onReloadMessageFile({ file, message }) {
       message.content = await this.chatSvc.fileToMessage({ file })
     },
-
     async onSaveFile({ file, content }) {
       await this.$storex.chats.writeFile({ chat: this.chat, file, content })
       this.$ui.addNotification({ text: `File ${file.split("/").reverse()[0]} saved` })
     },
-
     onOpenFile(file) {
       this.chatProject.$api.coder.openFile(file)
     },
-
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
       this.uploadProjectFile = null
       this.selectFile = false
     },
-
     async onAddFile(file) {
-      if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {
-      }
+      if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {}
     },
-
     async onAddFileToChat(file) {
       await this.onAddFile(file)
     },
-
     onMessageEdited({ doc_id, content, profiles, llm_model }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content, profiles, llm_model } })
       this.editMessage = null
     },
-
     onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
     },
-
     removeMessageMention(mention) {
       const orgMention = this.mentionList?.find(m => m === mention)
       if (orgMention) {
@@ -1263,7 +1034,6 @@ export default {
         this.files = this.files.filter(f => f !== mention.file)
       }
     },
-
     onPRFileComment({ file, lineNumber, comment, diff }) {
       const description = `Comment on ${file} (line ${lineNumber}):\n${diff ? diff + '\n' : ''}${comment}`
       this.createChatSubTask({
@@ -1272,24 +1042,19 @@ export default {
         files: [file]
       })
     },
-
     onChatEntryCreateSubtask({ file, content, title }) {
       const existingChat = file ? this.chatSvc.findChildChatByFile({
         chat: this.chat,
         childrenChats: this.childrenChats,
         file
       }) : null
-      if (existingChat) {
-        this.$chats.setActiveChat(existingChat)
-        return
-      }
+      if (existingChat) { this.$chats.setActiveChat(existingChat); return }
       this.createChatSubTask({
         title: title || file?.split("/").reverse()[0] || content.split("\n")[0],
         description: content,
-        files: file ? [file]: []
+        files: file ? [file] : []
       })
     },
-
     async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id }) {
       const payload = this.chatSvc.buildSubTaskPayload({
         title, description, files, profiles,
@@ -1303,38 +1068,30 @@ export default {
       })
       await this.$chats.createNewChat(payload)
     },
-
     createBlock() {
       this.setEditorText(this.editorText + "```\n\n```")
     },
-
     onNewThread(message) {
       this.$chats.createNewThread({ chat: this.chat, message })
     },
-
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })
       const codeBlock = ["```" + file.split(".")[1] + " " + file, content, "```"].join("\n")
       this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage({ message: codeBlock }) })
     },
-
     addMention(mention) {
       this.mentions.push({ ...mention, active: true })
     },
-
     onProfilesSelected(selectedProfiles) {
       this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
     },
-
     onProfilesChanged(selectedProfiles) {
       this.chat.profiles = selectedProfiles.map(p => p.name || p)
       return this.saveChatInfo()
     },
-
     saveChatInfo(chat) {
       return this.chatSvc.saveChatInfo(chat || this.chat)
     },
-
     replaceEmoji({ emoji }) {
       const { caretIndex, word } = this.cursorWord
       const text = this.$refs.inputBox?.getEditorText() ?? ''
@@ -1342,15 +1099,9 @@ export default {
       const right = text.slice(caretIndex)
       this.setEditorText(left + emoji + right)
     },
-
     async onMessageRunAgents(message) {
-      this.$projects.createSubTasks({
-        chat: this.chat,
-        message,
-        instructions: ""
-      })
+      this.$projects.createSubTasks({ chat: this.chat, message, instructions: "" })
     },
-
     async onSelectionSearchFiles({ query }) {
       this.scheduleIntelliSense("@" + query)
     }

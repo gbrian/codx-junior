@@ -864,6 +864,7 @@ class SmolAgent:
         success = True
         error_message: Optional[str] = None
         result_preview: str = ""
+        result: Union[str, ToolResponse] = ""
         tool_start = time.monotonic()
         # Emit a COPY of the parsed args: `params` is mutated later (settings
         # injection) and listeners may keep a reference to the payload.

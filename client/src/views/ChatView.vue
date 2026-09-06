@@ -459,7 +459,6 @@ export default {
 
       if (!this.theChat) throw new Error('Chat not loaded')
 
-      this.setTaskProject()
       this.setProjectContext()
 
       if (!this.$storex.projects.kanban) {
@@ -478,13 +477,6 @@ export default {
       } catch (error) {
         console.error('Failed to load hierarchy:', error)
       }
-    },
-    setTaskProject() {
-      const chat = this.theChat
-      if (!chat) return
-      this.ownerProject = this.$projects.allProjectsById[chat.owner_project_id]
-      this.targetProject = this.$projects.allProjectsById[chat.project_id] || this.$project
-      this.subtaskProject = this.targetProject
     },
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)

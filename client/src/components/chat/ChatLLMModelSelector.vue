@@ -8,7 +8,6 @@ import Selector from './Selector.vue'
     :selected-items="selectedModelItem"
     label="Model"
     icon="fa-solid fa-brain"
-    :is-single-select="true"
     :allow-deselect="true"
     :empty-label="'default'"
     @update:selected-items="onModelSelected"
@@ -42,19 +41,20 @@ import Selector from './Selector.vue'
 export default {
   props: {
     selectedModel: String,
+    models: { type: Array, default: () => [] }
   },
   emits: ['model-changed'],
   data() {
     return {
-      models: []
+      loadedModels: []
     }
   },
   async created() {
-    this.loadModels()
+    await this.loadModels()
   },
   computed: {
     formattedModels() {
-      return (this.models || []).map(model => ({
+      return (this.loadedModels || []).map(model => ({
         name: model.name,
         description: model.ai_model || model.description,
         avatar: null
@@ -72,7 +72,7 @@ export default {
       this.$emit('model-changed', modelName)
     },
     async loadModels() {
-      this.models = await this.$storex.api.projects.ai.models.list()
+      this.loadedModels = await this.$storex.api.projects.ai.models.list()
     }
   }
 }
