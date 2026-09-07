@@ -1,0 +1,144 @@
+{
+  "id": "78844351-6e7b-436d-9683-5833cd6e090b",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "loaded",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Optimize chat memory with lazy rendering",
+  "pinned": false,
+  "description": "## Summary\n\n1. **Problem**: Multiple chat tabs render all messages simultaneously, wasting browser memory even for non-visible tabs.\n2. **Solution**: Implemented `IntersectionObserver` in `ChatMessageList.vue` to track which messages are within (or near) the viewport.\n3. **Lazy Rendering**: Off-screen messages are replaced with a lightweight `ChatEntryPlaceholder.vue` stub that preserves scroll height using estimated content-based sizing.\n4. **Re-render Guard**: Added `v-memo` on `ChatEntry` to skip costly re-renders when message data hasn't changed.\n5. **UX Safety**: The last 5 messages always render fully regardless of visibility, ensuring the active chat bottom is always responsive.",
+  "messages": [
+    {
+      "doc_id": "6153020b-2b63-461a-b07b-ef03ed89a685",
+      "role": "user",
+      "task_item": "",
+      "content": "   As we can have many tabs with chats we must avoid rendering non-visible content. Analyze the components and see how can we save browser memory",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-09-06 14:10:29.955711",
+      "updated_at": "2026-09-06T14:10:29.955778",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/chat/ChatMessageList.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/ChatEntry.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/document/Document.vue"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "c1406192-dcfc-481d-9109-b630ba69dbd9",
+      "role": "assistant",
+      "task_item": "",
+      "content": "## Analysis\n\nLooking at the components, the main memory concern is that **all chat messages render their full content** regardless of whether the chat tab is visible. The key optimization is to use Vue's built-in `v-memo` and `keepAlive` patterns, but more importantly \u2014 **lazy/virtual rendering** for messages not in the viewport.\n\nThe most impactful change is in `ChatMessageList.vue`: use `v-show` with an `IntersectionObserver` to avoid rendering off-screen message content, and add `v-memo` to prevent unnecessary re-renders.\n\nAlso in `Document.vue`, the chapter parsing happens on every render \u2014 we should ensure caching works properly.\n\nLet me implement **intersection-observer based lazy rendering** for messages:\n\n```vue src/components/chat/ChatMessageList.vue\n<script setup>\nimport ChatEntry from '@/components/ChatEntry.vue'\nimport ChatEntryPlaceholder from '@/components/ChatEntryPlaceholder.vue'\n</script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col overflow-hidden\">\n    \n    <!-- Scrollable Messages Container -->\n    <div class=\"flex-1 overflow-y-auto overflow-x-hidden min-h-0\" ref=\"scrollContainer\">\n      <div class=\"max-w-[860px] mx-auto flex flex-col px-4 py-6\">\n\n        <!-- \u2500\u2500 Message Blocks \u2500\u2500 -->\n        <template v-for=\"(message, ix) in messages\" :key=\"message.doc_id || message.id\">\n          <div\n            :data-message-id=\"message.doc_id || message.id\"\n            :class=\"[\n              'group/block relative message-block',\n              isNewSpeaker(message, ix) ? 'mt-6' : 'mt-0.5',\n            ]\"\n          >\n            <!-- Render full entry only when visible, placeholder otherwise -->\n            <ChatEntry\n              v-if=\"isVisible(message)\"\n              v-memo=\"[message, isNewSpeaker(message, ix)]\"\n              :chat=\"chat\"\n              :message=\"message\"\n              :mentionList=\"mentionList\"\n              :menu-less=\"readOnly\"\n              :usersList=\"usersList\"\n              :isNewSpeaker=\"isNewSpeaker(message, ix)\"\n              @edited=\"$emit('edited', $event)\"\n              @enhance=\"$emit('enhance', message)\"\n              @remove=\"$emit('remove', message)\"\n              @remove-file=\"$emit('remove-file', { message, file: $event })\"\n              @hide=\"$emit('hide', message)\"\n              @answer=\"$emit('answer', message)\"\n              @run-edit=\"$emit('run-edit', $event)\"\n              @copy=\"$emit('copy', message)\"\n              @add-file-to-chat=\"$emit('add-file-to-chat', $event)\"\n              @image=\"$emit('image', { ...$event, readonly: true })\"\n              @generate-code=\"$emit('generate-code', $event)\"\n              @reload-file=\"$emit('reload-file', $event)\"\n              @open-file=\"$emit('open-file', $event)\"\n              @save-file=\"$emit('save-file', $event)\"\n              @add-file=\"$emit('add-file', $event)\"\n              @edit-message=\"$emit('edit-message', $event)\"\n              @code-file-shown.stop=\"$emit('code-file-shown', $event)\"\n              @thread=\"$emit('thread', $event)\"\n              @sub-task=\"$emit('sub-task', $event)\"\n              @message-changed=\"$emit('message-changed', $event)\"\n              @run-agents=\"$emit('run-agents', $event)\"\n              @preview-file=\"$emit('preview-file', $event)\"\n              @search-files=\"$emit('search-files', $event)\"\n            />\n            <!-- Lightweight placeholder to preserve scroll height -->\n            <ChatEntryPlaceholder\n              v-else\n              :message=\"message\"\n              :isNewSpeaker=\"isNewSpeaker(message, ix)\"\n            />\n          </div>\n        </template>\n\n        <!-- Scroll anchor -->\n        <div class=\"h-4\" ref=\"anchor\"></div>\n      </div>\n    </div>\n\n    <!-- Fixed Footer: Composer Section -->\n    <div v-if=\"!readOnly\" class=\"shrink-0\">\n      <div class=\"max-w-[860px] mx-auto px-4 py-4 flex flex-col gap-1.5\">\n\n        <!-- IntelliSense dropdown \u2014 appears above composer -->\n        <div class=\"relative z-50\">\n          <slot name=\"intellisense\" />\n        </div>\n\n        <!-- The input box itself -->\n        <slot name=\"input\" />\n\n        <!-- Attached files row \u2014 below composer -->\n        <slot name=\"files\" />\n\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: [\n    'chat',\n    'messages',\n    'editMessage',\n    'mentionList',\n    'readOnly',\n    'usersList',\n    'childrenChats',\n  ],\n  emits: [\n    'edited',\n    'enhance',\n    'remove',\n    'remove-file',\n    'hide',\n    'answer',\n    'run-edit',\n    'copy',\n    'add-file-to-chat',\n    'image',\n    'generate-code',\n    'reload-file',\n    'open-file',\n    'save-file',\n    'add-file',\n    'edit-message',\n    'code-file-shown',\n    'thread',\n    'sub-task',\n    'set-active-chat',\n    'message-changed',\n    'run-agents',\n    'search-files',\n    'preview-file',\n  ],\n  data() {\n    return {\n      // Set of message IDs currently in/near the viewport\n      visibleIds: new Set(),\n      observer: null,\n    }\n  },\n  computed: {\n    isVibe() {\n      return this.chat.mode === 'vibe'\n    }\n  },\n  watch: {\n    messages(newMessages, oldMessages) {\n      // Observe newly added message blocks after DOM update\n      this.$nextTick(() => this.observeBlocks())\n    }\n  },\n  methods: {\n    scrollToBottom() {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView({ behavior: 'smooth' }), 200)\n    },\n    isNewSpeaker(message, ix) {\n      if (ix === 0) return true\n      const prev = this.messages[ix - 1]\n      return prev.role !== message.role || prev.user !== message.user\n    },\n    isVisible(message) {\n      const id = message.doc_id || message.id\n      // Always render the last 5 messages (bottom of chat) and any observed visible ones\n      const lastFiveIds = this.messages.slice(-5).map(m => m.doc_id || m.id)\n      return this.visibleIds.has(id) || lastFiveIds.includes(id)\n    },\n    setupObserver() {\n      if (this.observer) {\n        this.observer.disconnect()\n      }\n      // rootMargin adds a 200px buffer above and below viewport so content\n      // renders slightly before scrolling into view\n      this.observer = new IntersectionObserver(\n        (entries) => {\n          entries.forEach(entry => {\n            const id = entry.target.dataset.messageId\n            if (!id) return\n            if (entry.isIntersecting) {\n              this.visibleIds = new Set([...this.visibleIds, id])\n            } else {\n              const next = new Set(this.visibleIds)\n              next.delete(id)\n              this.visibleIds = next\n            }\n          })\n        },\n        {\n          root: this.$refs.scrollContainer,\n          rootMargin: '300px 0px 300px 0px',\n          threshold: 0,\n        }\n      )\n      this.observeBlocks()\n    },\n    observeBlocks() {\n      if (!this.observer) return\n      const blocks = this.$el.querySelectorAll('.message-block[data-message-id]')\n      blocks.forEach(block => this.observer.observe(block))\n    },\n  },\n  mounted() {\n    this.$nextTick(() => this.setupObserver())\n  },\n  beforeUnmount() {\n    if (this.observer) {\n      this.observer.disconnect()\n    }\n  }\n}\n</script>\n```\n\nNow create the lightweight placeholder component:\n\n```vue src/components/ChatEntryPlaceholder.vue\n<script setup>\n</script>\n\n<template>\n  <div\n    class=\"w-full flex gap-3 items-start\"\n    :style=\"{ minHeight: placeholderHeight }\"\n  >\n    <!-- Avatar column stub -->\n    <div class=\"w-7 shrink-0\">\n      <div v-if=\"isNewSpeaker\" class=\"w-6 h-6 rounded-full bg-base-300/40\"></div>\n    </div>\n    <!-- Content stub -->\n    <div class=\"flex-1 min-w-0 py-1\">\n      <div v-if=\"isNewSpeaker\" class=\"flex items-center gap-2 mb-1\">\n        <div class=\"h-3 w-20 rounded bg-base-300/40\"></div>\n        <div class=\"h-3 w-12 rounded bg-base-300/30\"></div>\n      </div>\n      <div class=\"h-4 w-3/4 rounded bg-base-300/20\"></div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['message', 'isNewSpeaker'],\n  computed: {\n    placeholderHeight() {\n      // Estimate height based on content length to preserve scroll position\n      const content = this.message?.content || ''\n      const lines = Math.max(1, Math.ceil(content.length / 80))\n      const baseHeight = this.isNewSpeaker ? 48 : 24\n      return `${baseHeight + lines * 20}px`\n    }\n  }\n}\n</script>\n```\n\n## Summary of Changes\n\n| File | Change | Memory Impact |\n|------|--------|---------------|\n| `ChatMessageList.vue` | Added `IntersectionObserver` to track visible messages | \ud83d\udfe2 High \u2014 only renders visible messages |\n| `ChatMessageList.vue` | Added `v-memo` on `ChatEntry` to skip re-renders when message unchanged | \ud83d\udfe2 Medium \u2014 reduces CPU/memory churn |\n| `ChatMessageList.vue` | Always render last 5 messages regardless of visibility | \ud83d\udfe1 UX \u2014 ensures bottom messages are always ready |\n| `ChatMessageList.vue` | Watches `messages` array to observe new DOM blocks | \ud83d\udfe2 Correctness \u2014 new messages get observed |\n| `ChatEntryPlaceholder.vue` | New lightweight stub component | \ud83d\udfe2 High \u2014 replaces heavy `ChatEntry` + `Document` + `Markdown` tree |\n\n### How it works\n\n```\nViewport (300px buffer)\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  [ChatEntry] visible \u2705  \u2502  \u2190 Full render: Document, Markdown, etc.\n\u2502  [ChatEntry] visible \u2705  \u2502\n\u2502  [ChatEntry] visible \u2705  \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n  [Placeholder] \ud83e\udeb6         \u2190 Just a div with estimated height\n  [Placeholder] \ud83e\udeb6         \u2190 No Vue component tree, no Markdown parsing\n  [Placeholder] \ud83e\udeb6\n```\n\nThe `300px rootMargin` ensures content renders slightly **before** it scrolls into view, preventing blank flashes during normal scrolling.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-09-06 14:10:31.082262",
+      "updated_at": "2026-09-06T14:11:17.449043",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1788703831.082182,
+        "cancellation_token_id": "1422493c-c01b-4ce0-b3eb-931e053b52bf",
+        "model": "coding-claude",
+        "analytics": {
+          "prompt_tokens": 12402,
+          "completion_tokens": 2923,
+          "total_tokens": 15325,
+          "tools": {}
+        },
+        "time_taken": 46.366777420043945,
+        "first_chunk_time_taken": 0.7402186393737793,
+        "files": [
+          {
+            "language": "vue",
+            "file_path": "src/components/chat/ChatMessageList.vue",
+            "content": "<script setup>\nimport ChatEntry from '@/components/ChatEntry.vue'\nimport ChatEntryPlaceholder from '@/components/ChatEntryPlaceholder.vue'\n</script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col overflow-hidden\">\n    \n    <!-- Scrollable Messages Container -->\n    <div class=\"flex-1 overflow-y-auto overflow-x-hidden min-h-0\" ref=\"scrollContainer\">\n      <div class=\"max-w-[860px] mx-auto flex flex-col px-4 py-6\">\n\n        <!-- \u2500\u2500 Message Blocks \u2500\u2500 -->\n        <template v-for=\"(message, ix) in messages\" :key=\"message.doc_id || message.id\">\n          <div\n            :data-message-id=\"message.doc_id || message.id\"\n            :class=\"[\n              'group/block relative message-block',\n              isNewSpeaker(message, ix) ? 'mt-6' : 'mt-0.5',\n            ]\"\n          >\n            <!-- Render full entry only when visible, placeholder otherwise -->\n            <ChatEntry\n              v-if=\"isVisible(message)\"\n              v-memo=\"[message, isNewSpeaker(message, ix)]\"\n              :chat=\"chat\"\n              :message=\"message\"\n              :mentionList=\"mentionList\"\n              :menu-less=\"readOnly\"\n              :usersList=\"usersList\"\n              :isNewSpeaker=\"isNewSpeaker(message, ix)\"\n              @edited=\"$emit('edited', $event)\"\n              @enhance=\"$emit('enhance', message)\"\n              @remove=\"$emit('remove', message)\"\n              @remove-file=\"$emit('remove-file', { message, file: $event })\"\n              @hide=\"$emit('hide', message)\"\n              @answer=\"$emit('answer', message)\"\n              @run-edit=\"$emit('run-edit', $event)\"\n              @copy=\"$emit('copy', message)\"\n              @add-file-to-chat=\"$emit('add-file-to-chat', $event)\"\n              @image=\"$emit('image', { ...$event, readonly: true })\"\n              @generate-code=\"$emit('generate-code', $event)\"\n              @reload-file=\"$emit('reload-file', $event)\"\n              @open-file=\"$emit('open-file', $event)\"\n              @save-file=\"$emit('save-file', $event)\"\n              @add-file=\"$emit('add-file', $event)\"\n              @edit-message=\"$emit('edit-message', $event)\"\n              @code-file-shown.stop=\"$emit('code-file-shown', $event)\"\n              @thread=\"$emit('thread', $event)\"\n              @sub-task=\"$emit('sub-task', $event)\"\n              @message-changed=\"$emit('message-changed', $event)\"\n              @run-agents=\"$emit('run-agents', $event)\"\n              @preview-file=\"$emit('preview-file', $event)\"\n              @search-files=\"$emit('search-files', $event)\"\n            />\n            <!-- Lightweight placeholder to preserve scroll height -->\n            <ChatEntryPlaceholder\n              v-else\n              :message=\"message\"\n              :isNewSpeaker=\"isNewSpeaker(message, ix)\"\n            />\n          </div>\n        </template>\n\n        <!-- Scroll anchor -->\n        <div class=\"h-4\" ref=\"anchor\"></div>\n      </div>\n    </div>\n\n    <!-- Fixed Footer: Composer Section -->\n    <div v-if=\"!readOnly\" class=\"shrink-0\">\n      <div class=\"max-w-[860px] mx-auto px-4 py-4 flex flex-col gap-1.5\">\n\n        <!-- IntelliSense dropdown \u2014 appears above composer -->\n        <div class=\"relative z-50\">\n          <slot name=\"intellisense\" />\n        </div>\n\n        <!-- The input box itself -->\n        <slot name=\"input\" />\n\n        <!-- Attached files row \u2014 below composer -->\n        <slot name=\"files\" />\n\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: [\n    'chat',\n    'messages',\n    'editMessage',\n    'mentionList',\n    'readOnly',\n    'usersList',\n    'childrenChats',\n  ],\n  emits: [\n    'edited',\n    'enhance',\n    'remove',\n    'remove-file',\n    'hide',\n    'answer',\n    'run-edit',\n    'copy',\n    'add-file-to-chat',\n    'image',\n    'generate-code',\n    'reload-file',\n    'open-file',\n    'save-file',\n    'add-file',\n    'edit-message',\n    'code-file-shown',\n    'thread',\n    'sub-task',\n    'set-active-chat',\n    'message-changed',\n    'run-agents',\n    'search-files',\n    'preview-file',\n  ],\n  data() {\n    return {\n      // Set of message IDs currently in/near the viewport\n      visibleIds: new Set(),\n      observer: null,\n    }\n  },\n  computed: {\n    isVibe() {\n      return this.chat.mode === 'vibe'\n    }\n  },\n  watch: {\n    messages(newMessages, oldMessages) {\n      // Observe newly added message blocks after DOM update\n      this.$nextTick(() => this.observeBlocks())\n    }\n  },\n  methods: {\n    scrollToBottom() {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView({ behavior: 'smooth' }), 200)\n    },\n    isNewSpeaker(message, ix) {\n      if (ix === 0) return true\n      const prev = this.messages[ix - 1]\n      return prev.role !== message.role || prev.user !== message.user\n    },\n    isVisible(message) {\n      const id = message.doc_id || message.id\n      // Always render the last 5 messages (bottom of chat) and any observed visible ones\n      const lastFiveIds = this.messages.slice(-5).map(m => m.doc_id || m.id)\n      return this.visibleIds.has(id) || lastFiveIds.includes(id)\n    },\n    setupObserver() {\n      if (this.observer) {\n        this.observer.disconnect()\n      }\n      // rootMargin adds a 200px buffer above and below viewport so content\n      // renders slightly before scrolling into view\n      this.observer = new IntersectionObserver(\n        (entries) => {\n          entries.forEach(entry => {\n            const id = entry.target.dataset.messageId\n            if (!id) return\n            if (entry.isIntersecting) {\n              this.visibleIds = new Set([...this.visibleIds, id])\n            } else {\n              const next = new Set(this.visibleIds)\n              next.delete(id)\n              this.visibleIds = next\n            }\n          })\n        },\n        {\n          root: this.$refs.scrollContainer,\n          rootMargin: '300px 0px 300px 0px',\n          threshold: 0,\n        }\n      )\n      this.observeBlocks()\n    },\n    observeBlocks() {\n      if (!this.observer) return\n      const blocks = this.$el.querySelectorAll('.message-block[data-message-id]')\n      blocks.forEach(block => this.observer.observe(block))\n    },\n  },\n  mounted() {\n    this.$nextTick(() => this.setupObserver())\n  },\n  beforeUnmount() {\n    if (this.observer) {\n      this.observer.disconnect()\n    }\n  }\n}\n</script>"
+          },
+          {
+            "language": "vue",
+            "file_path": "src/components/ChatEntryPlaceholder.vue",
+            "content": "<script setup>\n</script>\n\n<template>\n  <div\n    class=\"w-full flex gap-3 items-start\"\n    :style=\"{ minHeight: placeholderHeight }\"\n  >\n    <!-- Avatar column stub -->\n    <div class=\"w-7 shrink-0\">\n      <div v-if=\"isNewSpeaker\" class=\"w-6 h-6 rounded-full bg-base-300/40\"></div>\n    </div>\n    <!-- Content stub -->\n    <div class=\"flex-1 min-w-0 py-1\">\n      <div v-if=\"isNewSpeaker\" class=\"flex items-center gap-2 mb-1\">\n        <div class=\"h-3 w-20 rounded bg-base-300/40\"></div>\n        <div class=\"h-3 w-12 rounded bg-base-300/30\"></div>\n      </div>\n      <div class=\"h-4 w-3/4 rounded bg-base-300/20\"></div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['message', 'isNewSpeaker'],\n  computed: {\n    placeholderHeight() {\n      // Estimate height based on content length to preserve scroll position\n      const content = this.message?.content || ''\n      const lines = Math.max(1, Math.ceil(content.length / 80))\n      const baseHeight = this.isNewSpeaker ? 48 : 24\n      return `${baseHeight + lines * 20}px`\n    }\n  }\n}\n</script>"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "ab8c182664c6",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "profiles": [
+        "VueDeveloper",
+        "daisyui_components",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-09-06 14:08:28.408024",
+  "updated_at": "2026-09-06T14:11:23.935233",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/optimize-chat-memory-with-lazy-rendering.78844351-6e7b-436d-9683-5833cd6e090b.json",
+  "llm_model": "coding-claude",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-09-06T14:11:21.641953+00:00",
+      "summary": "## Summary\n\n1. **Problem**: Multiple chat tabs render all messages simultaneously, wasting browser memory even for non-visible tabs.\n2. **Solution**: Implemented `IntersectionObserver` in `ChatMessageList.vue` to track which messages are within (or near) the viewport.\n3. **Lazy Rendering**: Off-screen messages are replaced with a lightweight `ChatEntryPlaceholder.vue` stub that preserves scroll height using estimated content-based sizing.\n4. **Re-render Guard**: Added `v-memo` on `ChatEntry` to skip costly re-renders when message data hasn't changed.\n5. **UX Safety**: The last 5 messages always render fully regardless of visibility, ensuring the active chat bottom is always responsive.",
+      "message_ids": [
+        "6153020b-2b63-461a-b07b-ef03ed89a685",
+        "c1406192-dcfc-481d-9109-b630ba69dbd9"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

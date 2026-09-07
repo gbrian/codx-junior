@@ -596,6 +596,22 @@ export const actions = actionTree(
     async writeFile({ state }, { chat, file, content }) {
       const project = getChatWorkingProject(chat)
       return project.$api.files.write(file, content)
+    },
+    async getChatProfiles({}, chat) {
+      if (!chat?.id) return []
+      
+      const projectId = chat.project_id || chat.owner_project_id
+      if (!projectId) return []
+      
+      const project = $storex.projects.allProjectsById[projectId]
+      if (!project) return []
+      
+      // Load profiles if not already loaded for this project
+      if (!$storex.profiles.profilesByProject[projectId]) {
+        await $storex.profiles.loadProjectProfiles(project)
+      }
+      
+      return $storex.profiles.profilesByProject[projectId] || []
     }
   }
 )

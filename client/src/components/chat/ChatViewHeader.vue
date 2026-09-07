@@ -45,17 +45,46 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     </div>
     <!-- Divider -->
     <div class="grow"></div>
+    
+    <div class="flex flex-col gap-1 items-end">
 
-    <!-- Message Count Badge -->
-    <div class="flex items-center gap-1 text-xs text-base-content/60 shrink-0 click"
-      @click="$emit('toggle-hidden')"
-    >
-      <i class="fa-solid fa-message"></i>
-      <span class="tabular-nums">{{ messageCount }}</span>
-      <span v-if="hiddenCount" class="flex items-center gap-1 text-warning">
-        <i class="fa-solid fa-eye-slash text-xs"></i>
-        {{ hiddenCount }}
-      </span>
+      <!-- Message Count Badge -->
+      <div class="flex items-center gap-1 text-xs text-base-content/60 shrink-0 click"
+        @click="$emit('toggle-hidden')"
+      >
+        <i class="fa-solid fa-message"></i>
+        <span class="tabular-nums">{{ messageCount }}</span>
+        <span v-if="hiddenCount" class="flex items-center gap-1 text-warning">
+          <i class="fa-solid fa-eye-slash text-xs"></i>
+          {{ hiddenCount }}
+        </span>
+      </div>
+      
+      <!-- TAGS DISPLAY -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div 
+          v-for="tag in chat.tags" 
+          :key="tag"
+          class="badge badge-sm badge-outline gap-1 text-xs"
+        >
+          <span>{{ tag }}</span>
+          <button
+            @click.stop="removeTag(tag)"
+            class="btn btn-ghost btn-xs p-0 h-4 w-4 hover:bg-error/20 hover:text-error"
+            title="Remove tag"
+          >
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+        
+        <button
+          @click.stop="$emit('show-add-tag')"
+          class="btn btn-ghost btn-xs gap-1 text-xs h-6"
+          title="Add new tag"
+        >
+          <i class="fa-solid fa-hashtag text-xs"></i>
+        </button>
+      </div>
     </div>
 
   </div>
@@ -79,7 +108,9 @@ export default {
     'select-project',
     'show-settings',
     'show-export',
-    'confirm-delete'
+    'confirm-delete',
+    'show-add-tag',
+    'remove-tag'
   ],
   data() {
     return {
@@ -102,6 +133,9 @@ export default {
         this.$emit('update-name', this.chat)
       }
       this.editingTitle = false
+    },
+    removeTag(tag) {
+      this.$emit('remove-tag', tag)
     }
   }
 }

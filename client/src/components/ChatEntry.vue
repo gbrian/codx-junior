@@ -286,13 +286,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           class="mb-3"
         />
 
-        THINK:
-        <div class="rounded-md p-2 bg-base-100
-        " v-if="thinkText">
-          
-          {{ thinkText }}
-        </div>
-
         <!-- ── Main content area ── -->
         <div
           ref="contentArea"

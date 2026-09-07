@@ -2,14 +2,19 @@
 import MermaidViewerVue from './MermaidViewer.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import CodeViewer from './CodeViewer.vue'
+import HTMLPreview from './HTMLPreview.vue'
 </script>
 
 <template>
   <div class="rounded-md py-2">
-    <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="showMermaid">
-      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource">
+    <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="showMermaid || showHTMLPreview">
+      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource" v-if="showMermaid">
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
+      </button>
+      <button class="btn btn-xs" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
+        <span v-if="htmlPreview">View code</span>
+        <span v-else>View preview</span>
       </button>
     </div>
 
@@ -18,6 +23,11 @@ import CodeViewer from './CodeViewer.vue'
       theme="dark"
       @click="showMermaidSource = !showMermaidSource"
       v-if="showMermaid && !showMermaidSource"
+    />
+
+    <HTMLPreview
+      :html="codeText"
+      v-if="showHTMLPreview && htmlPreview"
     />
 
     <CodeViewer
@@ -40,14 +50,14 @@ import CodeViewer from './CodeViewer.vue'
     />
 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
-    <div v-html="codeText" v-if="htmlPreview"></div>
   </div>
 </template>
 
 <script>
 const languageMapping = {
   "vue": "html",
-  "markdown": "md"
+  "markdown": "md",
+  "html": "html"
 }
 
 export default {
@@ -60,7 +70,6 @@ export default {
       htmlPreview: false,
       showMermaidSource: false,
       file: null,
-      // ADDED: Track previous text to detect actual changes
       previousText: null
     }
   },
@@ -93,8 +102,11 @@ export default {
     showMermaid() {
       return this.language === 'mermaid' && !this.isVibeCoding
     },
+    showHTMLPreview() {
+      return this.codeLanguage === 'html' && !this.isVibeCoding
+    },
     showCode() {
-      return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
+      return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && (!this.showHTMLPreview || !this.htmlPreview)
     },
     showMarkdown() {
       return this.language === 'md' && !this.fileName
@@ -107,14 +119,12 @@ export default {
     }
   },
   watch: {
-    // CHANGED: Only update codeText if text prop actually changes
     text(newVal) {
       if (newVal !== undefined && newVal !== this.codeText) {
         this.previousText = this.codeText
         this.codeText = newVal
       }
     },
-    // CHANGED: Only update codeText if code prop's content actually changes
     code(newCode) {
       if (newCode?.innerText !== undefined) {
         const innerText = newCode.innerText

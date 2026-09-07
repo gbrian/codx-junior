@@ -23,11 +23,14 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
       :selectedChatId="workingChat?.id"
       :workingChatMode="workingChat?.mode"
       :chatSearch="chatSearch"
+      :isCompact="compactSidebar"
+      :chatProfiles="chatProfiles"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
       @mode-changed="onChatModeChanged"
       @parent-flags-changed="onParentFlagsChanged"
+      @toggle-compact="compactSidebar = !compactSidebar"
     />
 
     <!-- ─────────────────────────────────────────────────────────────
@@ -51,6 +54,8 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
         @show-settings="showTaskSettings = true"
         @show-export="showExportChat = true"
         @confirm-delete="confirmDelete = true"
+        @show-add-tag="newTag = ''"
+        @remove-tag="onRemoveTag"
       />
 
       <!-- CONTENT AREA: History Wall OR Chat View -->
@@ -210,7 +215,9 @@ export default {
       showExportChat: false,
       chatSearch: null,
       targetProject: null,
-      showHistoryWall: false
+      showHistoryWall: false,
+      compactSidebar: true,
+      chatProfiles: []
     }
   },
   created() {
@@ -303,6 +310,7 @@ export default {
       if (!oldVal || oldVal.id !== newVal.id) {
         this.showHistoryWall = false
         this.loadHierarchy()
+        this.loadChatProfiles()
       }
     },
     workingChat(newVal) {
@@ -337,6 +345,8 @@ export default {
       await this.loadHierarchy()
 
       if (this.isPRView) await this.$projects.loadBranches()
+      
+      await this.loadChatProfiles()
     },
     async loadHierarchy() {
       if (!this.theChat) return
@@ -345,6 +355,16 @@ export default {
         await this.$chats.ensureChatRoot(this.theChat)
       } catch (error) {
         console.error('Failed to load hierarchy:', error)
+      }
+    },
+    async loadChatProfiles() {
+      if (!this.workingChat) return
+      try {
+        this.chatProfiles = await this.$chats.getChatProfiles(this.workingChat)
+        this.chatProfiles = this.chatProfiles.filter(p => this.theChat.profiles?.includes(p.name))
+      } catch (error) {
+        console.error('Failed to load chat profiles:', error)
+        this.chatProfiles = []
       }
     },
     async setProjectContext() {
@@ -517,6 +537,12 @@ ${this.subtaskDescription}`
       if (!chat) return
       chat.tags = [...new Set([...(chat.tags || []), this.newTag])]
       this.newTag = null
+      this.saveChatInfo(chat)
+    },
+    onRemoveTag(tag) {
+      const chat = this.workingChat
+      if (!chat) return
+      chat.tags = (chat.tags || []).filter(t => t !== tag)
       this.saveChatInfo(chat)
     },
     toggleChatPinned() {

@@ -55,7 +55,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               <i :class="associatedChat ? 'fa-solid fa-comments' : 'fa-brands fa-trello'"></i>
             </div>
 
-            <div class="hover:text-info cursor-pointer" @click.stop="loadDiffInfo" title="Refresh diff stats">
+            <div class="hover:text-info cursor-pointer" @click.stop="showDiffInfo" title="Refresh diff stats">
               <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
             </div>
 
@@ -452,12 +452,7 @@ export default {
         this.isUserScrolledUp = false
         this.shouldForceScrollToBottom = false
         
-        if (this.showCode) {
-          await this.loadDiffInfo()
-          if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
-            this.showDiff = true
-          }
-        }
+        await this.loadDiffInfo()
       }
       if (this.chat?.mode === 'vibe') {
         this.saveToFile()
@@ -681,48 +676,49 @@ export default {
         this.showDiff = !this.showDiff
       }
     },
-
     async loadDiffInfo() {
+      const diffRequest = {
+        path: this.file,
+        content: this.effectiveCode
+      }
+      if (this.fromBranch) diffRequest.from_branch = this.fromBranch
+      if (this.toBranch) diffRequest.to_branch = this.toBranch
+
+      const { diff, stats, last_modification, size } = await this.$api.files.diff(diffRequest)
+      this.diff = diff
+      this.stats = stats
+      this.last_modification = last_modification
+      this.size = size
+      if (!stats && diff) this.stats = 'File changes'
+
+      let content = ""
+      try {
+        if (this.fromBranch) {
+          const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
+          content = fileContent
+          this.isNewFile = !fileContent
+        } else {
+          const { content: fileContent } = await this.$api.files.read(this.file)
+          content = fileContent
+          this.isNewFile = !fileContent
+        }
+      } catch (ex) {
+        console.error(ex)
+        this.isNewFile = true
+      }
+
+      this.orgContent = content
+      this.diffEditContent = this.effectiveCode
+      this.diffBaseContent = this.effectiveCode
+      this.calculateDiffPercentages()
+    },
+    async showDiffInfo() {
       try {
         this.loadingStats = true
         this.showCode = true
         
         if (this.file) {
-          const diffRequest = {
-            path: this.file,
-            content: this.effectiveCode
-          }
-          if (this.fromBranch) diffRequest.from_branch = this.fromBranch
-          if (this.toBranch) diffRequest.to_branch = this.toBranch
-
-          const { diff, stats, last_modification, size } = await this.$api.files.diff(diffRequest)
-          this.diff = diff
-          this.stats = stats
-          this.last_modification = last_modification
-          this.size = size
-          if (!stats && diff) this.stats = 'File changes'
-
-          let content = ""
-          try {
-            if (this.fromBranch) {
-              const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
-              content = fileContent
-              this.isNewFile = !fileContent
-            } else {
-              const { content: fileContent } = await this.$api.files.read(this.file)
-              content = fileContent
-              this.isNewFile = !fileContent
-            }
-          } catch (ex) {
-            console.error(ex)
-            this.isNewFile = true
-          }
-
-          this.orgContent = content
-          this.diffEditContent = this.effectiveCode
-          this.diffBaseContent = this.effectiveCode
-          this.calculateDiffPercentages()
-
+    
           if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
             this.showDiff = true
           }

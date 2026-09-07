@@ -44,7 +44,7 @@ import parser from '@/utils/markdownParser'
     <!-- Render blocks within chapter -->
     <div class="space-y-4">
       <!-- CHANGED: Use block.hash as stable key to prevent unmounting during streaming -->
-      <div v-for="block in blocks" :title="'type=' + block.type + ' file=' + block.fileName" 
+      <div v-for="block in blocks" 
         :key="block.hash">
         <!-- Code block: has fileName or has type with synthetic fileName -->
         <Code
