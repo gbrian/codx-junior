@@ -39,7 +39,7 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
           </div>
         </div>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Media Library" @click="openMediaLibrary">
+        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Media Library" @click="openFileExplorer">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-image"></i>
           </div>
@@ -169,8 +169,8 @@ export default {
     openTasks() {
       this.$storex.ui.openTasks()
     },
-    openMediaLibrary() {
-      this.$storex.ui.openMediaLibrary()
+    openFileExplorer() {
+      this.$storex.ui.setActiveTab('file-explorer')
     },
     openVibeCoding() {
       this.$storex.ui.openVibeCoding()

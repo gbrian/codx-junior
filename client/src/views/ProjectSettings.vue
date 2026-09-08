@@ -142,6 +142,14 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
                   <label class="label-text block mb-2">Reasoning model</label>
                   <ModelSelector v-model="settings.llm_model" />
                 </div>
+                <div>
+                  <label class="label-text block mb-2">Image generation model</label>
+                  <ModelSelector v-model="settings.image_generation_model" />
+                </div>
+                <div>
+                  <label class="label-text block mb-2">Image vision model</label>
+                  <ModelSelector v-model="settings.image_vision_model" />
+                </div>
               </div>
             </div>
 
@@ -312,7 +320,44 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
 
       <!-- Desktop Main Content -->
       <main class="hidden @md:flex flex-1 flex-col overflow-hidden">
-        <div class="border-b border-base-300 px-8 py-4 bg-base-100">
+        <!-- Tab Navigation (visible when there's enough space) -->
+        <div class="hidden @lg:flex border-b border-base-300 bg-base-100">
+          <div class="flex-1 flex items-center overflow-x-auto px-8">
+            <button
+              v-for="item in navItems"
+              :key="item.id"
+              @click="activeTab = item.id"
+              :class="[
+                'px-4 py-4 text-sm font-medium transition-colors duration-200 whitespace-nowrap',
+                'border-b-2 -mb-0.5',
+                activeTab === item.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-base-content/60 hover:text-base-content'
+              ]"
+            >
+              <i :class="`fa-solid ${item.icon} mr-2`"></i>
+              {{ item.label }}
+            </button>
+          </div>
+          <div class="flex items-center px-8 gap-2 border-l border-base-300">
+            <button
+              @click="reloadSettings"
+              class="btn btn-ghost btn-sm btn-circle"
+              title="Reload"
+            >
+              <i class="fa-solid fa-arrow-rotate-right text-sm"></i>
+            </button>
+            <button
+              @click="saveSettings"
+              class="btn btn-primary btn-sm"
+            >
+              <i class="fa-solid fa-floppy-disk text-xs"></i>
+              <span>Save</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="border-b border-base-300 px-8 py-4 bg-base-100 @lg:hidden">
           <h2 class="text-2xl font-bold text-base-content">
             {{ getActiveLabel() }}
           </h2>
@@ -443,6 +488,30 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
                 </div>
                 <div class="w-96">
                   <ModelSelector v-model="settings.llm_model" />
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="font-bold mb-4 text-lg">Image Models</div>
+
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">Image generation model</label>
+                  <p class="text-xs text-base-content/60">Model for generating images from text prompts (e.g., DALL-E 3).</p>
+                </div>
+                <div class="w-96">
+                  <ModelSelector v-model="settings.image_generation_model" />
+                </div>
+              </div>
+
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">Image vision model</label>
+                  <p class="text-xs text-base-content/60">Model for analyzing and describing images (e.g., GPT-4 Vision).</p>
+                </div>
+                <div class="w-96">
+                  <ModelSelector v-model="settings.image_vision_model" />
                 </div>
               </div>
             </div>

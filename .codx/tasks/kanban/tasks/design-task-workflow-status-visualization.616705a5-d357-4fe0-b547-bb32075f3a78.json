@@ -13,7 +13,7 @@
   "file_list": [],
   "check_lists": [],
   "profiles": [
-    "AZPullRequests"
+    "Designer"
   ],
   "users": [],
   "name": "Design task workflow & status visualization",
@@ -262,7 +262,7 @@
     }
   ],
   "created_at": "2026-09-06 09:39:50.968649",
-  "updated_at": "2026-09-06T15:25:58.152971",
+  "updated_at": "2026-09-07T14:01:59.423294",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

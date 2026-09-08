@@ -76,6 +76,12 @@ class CODXJuniorSettings(BaseModel):
     rag_model: str = Field(default="")
     wiki_model: str = Field(default="")
 
+    # Image generation and vision settings
+    image_generation_model: Optional[str] = Field(default="")
+    image_vision_model: Optional[str] = Field(default="")
+    image_storage_folder: Optional[str] = Field(default="images/generated")
+    image_max_file_size_mb: Optional[int] = Field(default=100)
+
     last_error: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
@@ -121,6 +127,26 @@ class CODXJuniorSettings(BaseModel):
     def get_mcp_server_by_name(self, name: str) -> Optional[MCPServer]:
         """Get MCP server by name."""
         return next((server for server in self.mcp_servers if server.name == name), None)
+
+    def is_image_generation_enabled(self) -> bool:
+        """Check if image generation is enabled (model defined)."""
+        return bool(self.image_generation_model)
+
+    def is_image_vision_enabled(self) -> bool:
+        """Check if image vision is enabled (model defined)."""
+        return bool(self.image_vision_model)
+
+    def get_image_generation_settings(self) -> AISettings:
+        """Get AI settings for image generation model."""
+        if not self.image_generation_model:
+            return AISettings()
+        return get_model_settings(self.image_generation_model)
+
+    def get_image_vision_settings(self) -> AISettings:
+        """Get AI settings for image vision model."""
+        if not self.image_vision_model:
+            return AISettings()
+        return get_model_settings(self.image_vision_model)
 
     @classmethod
     def from_codx_path(cls, codx_path: str):

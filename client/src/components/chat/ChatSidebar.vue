@@ -76,15 +76,17 @@ import ProfileCard from '../ProfileCard.vue'
     <!-- Quick Actions -->
     <div v-if="!isCompact" class="px-3 py-2 border-b border-base-300 shrink-0 space-y-1">
       <button 
-        class="btn btn-sm btn-block btn-ghost justify-start gap-2 text-xs"
+        class="btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
+        title="Create new subtask"
         @click="$emit('add-subtask', rootChat)"
       >
-        <i class="fa-solid fa-plus"></i> New Subtask
+        <i class="fa-solid fa-plus"></i>
+        <span>New task</span>
       </button>
     </div>
 
     <!-- Hierarchy Tree -->
-    <div class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+    <div v-if="!isCompact" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
       <ChatSidebarNode
         v-for="child in rootChildren"
         :key="child.id"
@@ -93,8 +95,11 @@ import ProfileCard from '../ProfileCard.vue'
         :selectedChatId="selectedChatId"
         :isCompact="isCompact"
         @select="selectChat"
+        @add-subtask="$emit('add-subtask', $event)"
+        @delete-chat="$emit('delete-chat', $event)"
       />
     </div>
+    <div v-else class="grow"></div>
 
     <!-- Profiles Section -->
     <div v-if="chatProfiles.length" class="border-t border-base-300 shrink-0">
@@ -167,7 +172,7 @@ export default {
     isCompact: { type: Boolean, default: false },
     chatProfiles: { type: Array, default: () => [] }
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)

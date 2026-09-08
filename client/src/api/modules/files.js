@@ -12,6 +12,12 @@ export const filesModule = (API) => ({
     return API.get(`/api/files/read?path=${encodeURIComponent(path)}`)
   },
 
+  readBinary(path) {
+    return API.get(`/api/files/read?path=${encodeURIComponent(path)}&binary=true`, {
+      responseType: 'arraybuffer'
+    })
+  },
+
   search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false, useRegex = false }) {
     const params = new URLSearchParams()
     params.append('search', search)

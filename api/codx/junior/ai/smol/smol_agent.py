@@ -16,15 +16,12 @@ so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
 messages in real time.
 
 Message Structure
-When tools are used in a conversation, the agent now produces two separate
-messages:
-    * **Thinking Message**: Contains tool-calling rounds' LLM text and any
-      intermediate processing noise (tool executions, reasoning steps).
-    * **Final Answer Message**: Contains only the final LLM response without
-      any tool-related preprocessing.
-
-This separation keeps the user-facing response clean while preserving the
-full execution trace via the thinking message.
+When tools are used in a conversation, the agent now produces a single final
+answer message that combines all tool user_response outputs (thinking content)
+with the final LLM answer. This ensures that all tool-generated user-facing
+content is preserved in the persisted message.
+The thinking content is also streamed live to the client via send_callback
+during tool rounds for real-time feedback.
 """
 import json
 import logging
@@ -63,7 +60,10 @@ from codx.junior.analytics.model import ArchivedMessage, ToolCallMessage
 from codx.junior.analytics.token_counter import count_tokens
 from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.tools import ToolResponse
+from codx.junior.tools import (
+    TOOLS,
+    ToolResponse
+)
 from codx.junior.utils.utils import clean_string
 
 logger = logging.getLogger(__name__)
@@ -200,21 +200,22 @@ class SmolAgent:
             G -->|tool_calls| H[Check ToolCache]
             H -->|HIT| H1[Skip _execute_tool - use cached]
             H -->|HIT| H2[Emit TOOL_END with cached=true]
+            H -->|HIT - ToolResponse| H3[Surface user_response to thinking_content]
             H -->|MISS| I[LoopGuard.check - depth & breadth & stuck]
             I -->|ok| J[Execute tool - TOOL_START/END/ERROR]
             H1 --> K{Dual-response tool?}
             J --> K
-            K -->|yes| K1[Append user_response to response_content]
+            K -->|yes| K1[Append user_response to thinking_content]
             K -->|yes| K2[Send llm_response as tool result to model only]
             K -->|no| K3[Send normalised result as tool result to model only]
-            K1 --> K4[Flush full response_content to callback]
+            K1 --> K4[Flush full thinking_content to callback]
             K2 --> L[Append to openai_messages]
             K3 --> L
             K4 --> L
             L --> F
             I -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
             G -->|stop / length| N[Append final LLM text to final_answer_content]
-            N --> O[Split response into thinking + final answer messages]
+            N --> O[Emit single final answer AIMessage combining thinking + final]
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
     ```
@@ -238,7 +239,6 @@ class SmolAgent:
             session:   Optional session context (injected for tools that need
                       access to current chat or session state).
         """
-        from codx.junior.tools import TOOLS
         self.tools: List[Dict[str, Any]] = TOOLS
 
         self.settings = settings
@@ -311,12 +311,10 @@ class SmolAgent:
         if the model requests the same tool with identical arguments.
 
         Message Structure
-        When tools are used, the response includes:
-        - **Thinking Message** (if tools were used): Contains all tool-calling
-          rounds' text and intermediate reasoning.
-        - **Final Answer Message**: Contains only the final LLM response.
-
-        If no tools are used, only the final answer message is returned.
+        The response always appends a single final answer AIMessage that
+        combines thinking content (tool user_response outputs) with the final
+        LLM answer. This ensures all tool-generated user-facing content is
+        persisted correctly.
 
         Args:
             messages: Conversation history as LangChain message objects.
@@ -327,9 +325,7 @@ class SmolAgent:
                       ``current_chat`` (the Chat object for context).
 
         Returns:
-            Updated *messages* list with assistant replies appended:
-            - If tools were used: thinking message + final answer message.
-            - If no tools: only the final answer message.
+            Updated *messages* list with the final assistant reply appended.
             Tool results (llm_response, plain outputs) are never included.
 
         Raises:
@@ -365,21 +361,23 @@ class SmolAgent:
         Execute the iterative streaming/tool loop for one conversation.
 
         Response accumulation strategy:
-        - ``thinking_content``: Accumulates LLM text during tool-calling rounds
-          (preprocessing/reasoning noise).
-        - ``final_answer_content``: Accumulates LLM text during the final round
-          (after the model stops making tool calls).
-        - User responses from dual-response tools go into ``thinking_content``
-          (not the final answer).
+        - ``thinking_content``: Accumulates LLM text and dual-response
+          user_response strings during tool-calling rounds. Streamed live
+          to the client via send_callback. ALSO included in the final AIMessage
+          so all tool-generated user-facing content is persisted correctly.
+        - ``final_answer_content``: Accumulates LLM text during the final
+          round (after the model stops making tool calls).
 
         Message generation:
-        - If any tools were used: emit thinking message + final answer message.
-        - If no tools: emit only final answer message.
+        - Always emits exactly one AIMessage combining thinking_content and
+          final_answer_content so the persisted message contains everything
+          the user saw during streaming.
 
         Tool caching:
         - Identical tool calls (same name + args) are cached per conversation.
         - Cached results bypass LoopGuard checks (don't count towards limits).
-        - Both successful and failed results are cached.
+        - Cached ToolResponse results surface user_response to thinking_content
+          exactly like uncached ones.
 
         Args:
             messages:    Conversation history as LangChain message objects.
@@ -387,7 +385,7 @@ class SmolAgent:
             run_context: Unified runtime context for this run.
 
         Returns:
-            Updated *messages* list with assistant reply(s) appended.
+            Updated *messages* list with the final assistant reply appended.
 
         Raises:
             ToolLoopError:  If max iterations, max tool calls, or stuck loop
@@ -431,11 +429,12 @@ class SmolAgent:
         request_start = time.monotonic()
 
         # Track whether any tools were used in this conversation.
-        # If true, we'll emit both thinking and final answer messages.
         tools_were_used: bool = False
 
-        # Separate accumulators for thinking (tool-calling rounds) and final answer
-        # (after the model stops making tool calls).
+        # thinking_content: accumulates tool user_response outputs and LLM text
+        # during tool-calling rounds. Streamed live to client AND included in
+        # the final AIMessage so persisted content matches what was streamed.
+        # final_answer_content: the final LLM response after all tool calls.
         thinking_content: str = ""
         final_answer_content: str = ""
 
@@ -542,13 +541,37 @@ class SmolAgent:
                     cached=True,
                 )
 
-                # Append cached result to model conversation
-                openai_messages.append(
-                    make_tool_message(
-                        tool_call_id=tool_id,
-                        content=_normalise_tool_result(result, func_name),
+                # FIX Issue 1: cached ToolResponse must surface user_response
+                # into thinking_content exactly like the uncached path does.
+                if isinstance(result, ToolResponse):
+                    if result.user_response:
+                        thinking_content += (
+                            f"\n```\n{result.user_response}\n```\n"
+                        )
+                        send_callback(thinking_content, True)
+                        logger.debug(
+                            "SmolAgent: cached dual-response tool '%s' produced "
+                            "%d bytes of user content; flushed full accumulated thinking",
+                            func_name,
+                            len(result.user_response),
+                        )
+                    llm_response = _normalise_tool_result(
+                        result.llm_response, func_name
                     )
-                )
+                    openai_messages.append(
+                        make_tool_message(
+                            tool_call_id=tool_id,
+                            content=llm_response,
+                        )
+                    )
+                else:
+                    # Plain cached result: send to model only
+                    openai_messages.append(
+                        make_tool_message(
+                            tool_call_id=tool_id,
+                            content=_normalise_tool_result(result, func_name),
+                        )
+                    )
 
                 logger.debug(
                     "SmolAgent: cached tool '%s' appended to conversation "
@@ -577,7 +600,8 @@ class SmolAgent:
 
                 if isinstance(tool_result, ToolResponse):
                     # Dual-response tool:
-                    # - user_response → thinking_content (part of preprocessing)
+                    # - user_response → thinking_content (streamed live AND
+                    #   included in final AIMessage for persistence)
                     # - llm_response → model tool message only (NOT in response)
                     if tool_result.user_response:
                         thinking_content += (
@@ -638,22 +662,36 @@ class SmolAgent:
             tool_cache=tool_cache,
         )
 
-        if tools_were_used:
-            # Emit thinking message if tools were used
-            if thinking_content:
-                logger.info(
-                    "SmolAgent: final thinking message assembled with %d characters",
-                    len(thinking_content),
-                )
-                messages.append(AIMessage(content=thinking_content))
-
-        # Always emit final answer message
-        if final_answer_content:
+        # thinking_content is streamed live via send_callback during tool rounds
+        # AND must be included in the final AIMessage so that chat_engine.py
+        # persists it correctly. Without this, response_message.content only
+        # gets final_answer_content and all tool user_response outputs are lost
+        # from the saved message even though they were streamed to the client.
+        if tools_were_used and thinking_content:
             logger.info(
-                "SmolAgent: final answer message assembled with %d characters",
+                "SmolAgent: thinking content assembled with %d characters "
+                "(streamed live via callback AND included in final AIMessage)",
+                len(thinking_content),
+            )
+
+        # Always emit exactly one final answer AIMessage combining thinking
+        # content (tool user_response outputs) and the final LLM answer.
+        # This ensures the persisted message matches what was streamed.
+        combined_content = ""
+        if thinking_content:
+            combined_content += thinking_content
+        if final_answer_content:
+            combined_content += final_answer_content
+
+        if combined_content:
+            logger.info(
+                "SmolAgent: final answer message assembled with %d characters "
+                "(%d thinking + %d final answer)",
+                len(combined_content),
+                len(thinking_content),
                 len(final_answer_content),
             )
-            messages.append(AIMessage(content=final_answer_content))
+            messages.append(AIMessage(content=combined_content))
         elif not tools_were_used:
             # Edge case: no tools used and no content (shouldn't happen, but handle it)
             logger.warning("SmolAgent: no content produced in chat")

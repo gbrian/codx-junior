@@ -11,7 +11,6 @@ import WikiViewVue from '../views/WikiView.vue'
 import DocsViewVue from '../views/DocsView.vue'
 import GlobalSettingsVue from '../views/GlobalSettings.vue'
 import KanbanContainerVue from '../components/kanban/KanbanContainer.vue'
-import Files from '../components/apps/Files.vue'
 import MetricsViewer from '../components/metrics/MetricsViewer.vue'
 import AccountSettings from '../components/security/AccountSettings.vue'
 import FileExplorerPanel from '../components/filebrowser/FileExplorerPanel.vue'
@@ -44,7 +43,6 @@ export const APP_COMPONENTS_MAP = {
   'docs': DocsViewVue,
   'global-settings': GlobalSettingsVue,
   'tasks': KanbanContainerVue,
-  'files': Files,
   'metrics': MetricsViewer,
   'account': AccountSettings,
   'file-explorer': FileExplorerPanel,

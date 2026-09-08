@@ -1,6 +1,5 @@
 <script setup>
 import moment from 'moment'
-import { v4 as uuidv4 } from 'uuid'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
@@ -31,6 +30,7 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
       @mode-changed="onChatModeChanged"
       @parent-flags-changed="onParentFlagsChanged"
       @toggle-compact="compactSidebar = !compactSidebar"
+      @delete-chat="onSidebarDeleteChat"
     />
 
     <!-- ─────────────────────────────────────────────────────────────
@@ -51,6 +51,7 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
         @select-project="setChatProject"
+        @select-breadcrumb="onSelectBreadcrumbChat"
         @show-settings="showTaskSettings = true"
         @show-export="showExportChat = true"
         @confirm-delete="confirmDelete = true"
@@ -93,6 +94,19 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
         <div class="modal-action">
           <button class="btn btn-error" @click="confirmDeleteChat">Delete</button>
           <button class="btn" @click="resetConfirmDelete">Cancel</button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- Sidebar Subtask Delete Confirmation -->
+    <modal v-if="confirmDeleteSubtask">
+      <div class="p-6 space-y-4">
+        <h3 class="font-bold text-lg">Delete Subtask</h3>
+        <p class="text-error font-bold">Are you sure you want to delete this subtask?</p>
+        <div class="text-sm bg-base-200 p-3 rounded">{{ confirmDeleteSubtask.name }}</div>
+        <div class="modal-action">
+          <button class="btn btn-error" @click="confirmDeleteSubtaskChat">Delete</button>
+          <button class="btn" @click="confirmDeleteSubtask = null">Cancel</button>
         </div>
       </div>
     </modal>
@@ -194,6 +208,7 @@ export default {
       addNewFile: null,
       showHidden: false,
       confirmDelete: false,
+      confirmDeleteSubtask: null,
       newTag: null,
       showSubtaskModal: false,
       showSubtasksModal: false,
@@ -217,7 +232,8 @@ export default {
       targetProject: null,
       showHistoryWall: false,
       compactSidebar: true,
-      chatProfiles: []
+      chatProfiles: [],
+      activeChatId: null
     }
   },
   created() {
@@ -225,7 +241,7 @@ export default {
   },
   computed: {
     theChat() {
-      const chatId = this.chat?.id || this.params?.params?.chat?.id
+      const chatId = this.activeChatId || this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
     },
     rootChat() {
@@ -402,6 +418,29 @@ export default {
     resetConfirmDelete() {
       this.confirmDelete = false
     },
+    // Triggered from sidebar node delete button
+    onSidebarDeleteChat(chat) {
+      if (!chat) return
+      this.confirmDeleteSubtask = chat
+    },
+    async confirmDeleteSubtaskChat() {
+      const chat = this.confirmDeleteSubtask
+      this.confirmDeleteSubtask = null
+      if (!chat) return
+
+      await this.$chats.deleteChat(chat)
+
+      // If we deleted the currently active chat, navigate to parent or root
+      if (this.workingChat?.id === chat.id) {
+        const parent = this.$chats.chats[chat.parent_id] || this.rootChat
+        if (parent) {
+          this.$ui.isMobile && await this.$chats.setActiveChat(parent)
+          this.$emit('chat', parent)
+        }
+      }
+
+      await this.loadHierarchy()
+    },
     async removeFileFromContext() {
       const chat = this.workingChat
       if (!chat || !this.showFile) return
@@ -463,7 +502,10 @@ export default {
       }
 
       const child = findChild()
-      if (child) this.$chats.setActiveChat(child)
+      if (child) {
+        this.$ui.isMobile && this.$chats.setActiveChat(child)
+        await this.loadHierarchy()
+      }
     },
     newSubChat(parentChat) {
       const chat = parentChat || this.workingChat
@@ -517,6 +559,7 @@ ${this.subtaskDescription}`
         child_index: this.childrenChats.length
       })
       this.resetSubtaskModal()
+      await this.loadHierarchy()
     },
     cancelSubtask() {
       this.resetSubtaskModal()
@@ -556,7 +599,17 @@ ${this.subtaskDescription}`
     },
     onSelectSidebarChat(chat) {
       if (!chat) return
-      this.$chats.setActiveChat(chat)
+      this.activeChatId = chat.id
+      this.$ui.isMobile && this.$chats.setActiveChat(chat)
+      this.$emit('chat', chat)
+      if (chat && !chat.messages?.length) {
+        this.$chats.reloadChat(chat)
+      }
+    },
+    onSelectBreadcrumbChat(chat) {
+      if (!chat) return
+      this.activeChatId = chat.id
+      this.$ui.isMobile && this.$chats.setActiveChat(chat)
       this.$emit('chat', chat)
       if (chat && !chat.messages?.length) {
         this.$chats.reloadChat(chat)
@@ -597,7 +650,6 @@ ${this.subtaskDescription}`
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.$chats.createNewChat({
-        id: uuidv4(),
         board: parent.board,
         name,
         mode,
@@ -616,13 +668,15 @@ ${this.subtaskDescription}`
         this.$storex.projects.chatWihProject(chat)
       }
       if (activateChat) {
-        await this.$chats.setActiveChat(chat)
+        this.$ui.isMobile && await this.$chats.setActiveChat(chat)
+        await this.loadHierarchy()
       }
     },
     async createSubTasks() {
       if (this.showSubtasksModal) {
         this.$projects.createSubtasks({ chat: this.theChat, instructions: this.createTasksInstructions })
         this.showSubtasksModal = false
+        await this.loadHierarchy()
       } else {
         this.showSubtasksModal = true
         this.createTasksInstructions = ''

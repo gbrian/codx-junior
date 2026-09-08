@@ -1,182 +1,160 @@
-# CODX Junior API Engine Module
+# CODX Junior API - Engine Module Documentation
 
 ## Overview
 
-The `app.py` file serves as the main engine module for the CODX Junior API backend. It implements a FastAPI-based REST API with Socket.IO support for real-time communication, managing project sessions, user authentication, and various operational features.
+The `app.py` file serves as the core engine module for the CODX Junior API, implementing a FastAPI-based backend that manages project creation, session management, and real-time communication through Socket.IO. It handles HTTP routing, middleware processing, and background service orchestration.
 
 ## Core Architecture
 
-### Framework & Dependencies
-
-The application is built on:
-- **FastAPI**: Modern async web framework for building REST APIs
-- **Socket.IO**: Real-time bidirectional communication
-- **Flask**: Integration for JSON responses
-- **Concurrent Processing**: ThreadPoolExecutor for background tasks
-
 ### Application Initialization
 
-```
-FastAPI configuration includes:
-- API documentation endpoints (/api/docs, /api/redoc)
-- OpenAPI schema generation (/api/openapi.json)
-- SSL/TLS support with 'adhoc' context
-```
+The FastAPI application is configured with OpenAPI documentation and SSL support:
+- **Base URL**: `/api/`
+- **Documentation**: Available at `/api/docs` and `/api/redoc`
+- **WebSocket**: Socket.IO integration at `/api/socket.io`
 
-### Router Registration
+### Session Management
 
-The application integrates multiple API routers under the `/api` prefix:
-- Chat and messaging (chatGPT_router, chat_router)
-- User management (users_router)
-- Project operations (projects_router)
-- File operations (files_router, file_finder_router)
-- Git integration (git_router)
-- Knowledge management (knowledge_router)
-- Analytics and logging (analytics_router, logs_router)
-- Database operations (db_router)
-- Settings management (global_settings_router)
-- Additional utilities (wiki_router, views_router)
+Sessions are managed through the `CODXJuniorSession` class, which is instantiated per request via the `get_codx_junior_session()` function. Each session includes:
+- User authentication context
+- Socket.IO communication channel
+- Project-specific settings and state
 
-## Session Management
+## Middleware Pipeline
 
-### Session Creation
+### Request Processing Flow
 
-The `get_codx_junior_session()` function creates a CODX Junior session with:
-- User authentication via `get_authenticated_user()`
-- Session channel setup using Socket.IO
-- Codx project path initialization
+1. **Timeout Middleware**: Enforces a global request timeout of 280 seconds (HTTP 504 response on exceeded)
+2. **Settings Middleware**: Loads project-specific CODX Junior settings based on `x-codx-path` header
+3. **Process Time Middleware**: Tracks and logs request processing duration via `X-Process-Time` header
+4. **Validation Handler**: Converts validation errors to standardized JSON responses (status 422)
 
-### Middleware Pipeline
+### Exception Handling
 
-**add_codx_junior_settings Middleware:**
-Extracts and validates the `codx_path` from query parameters or headers (`x-codx-path`), establishing the session context for each request.
+- **RequestValidationError**: Returns custom status code 10422 with detailed error messages
+- **General Exceptions**: Formatted traceback responses with HTTP 500 status
 
-**timeout_middleware:**
-Enforces a global request timeout threshold of 280 seconds, returning HTTP 504 errors when exceeded.
-
-**add_process_time_header Middleware:**
-Tracks and logs request processing time in response headers and application logs.
-
-## Logging Configuration
-
-### Log Management
-
-The application disables verbose logging for specific modules:
-- HTTP clients (httpx, httpcore)
-- OpenAI client operations
-- File watchers and async operations
-- Selenium WebDriver
-
-Debug logs are available for selective re-enabling via `enable_logs()` function.
-
-## Key API Endpoints
+## API Endpoints
 
 ### Health & System
 
-- `GET /api/health`: Health check endpoint
-- `GET /api/system/logs`: List available system and container logs
-- `GET /api/system/logs/{log_name}`: Retrieve log file contents with filtering
-- `POST /api/restart`: Restart API server
-- `POST /api/shutdown`: Graceful server shutdown
+- `GET /api/health` - Health check
+- `POST /api/restart` - Restart API service
+- `POST /api/shutdown` - Graceful server shutdown
 
 ### Project Management
 
-- `GET /api/projects`: List all user-accessible projects and workspaces
-- `POST /api/projects`: Create or load a project
-- `DELETE /api/projects`: Delete current project
-- `GET /api/project/watch`: Enable project watching
-- `GET /api/project/unwatch`: Disable project watching
-- `GET /api/projects/metrics`: Retrieve project metrics
-- `GET /api/projects/readme`: Get project README content
-- `GET /api/projects/ai/models`: List available AI models for project
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/projects` | GET | List all user-accessible projects and workspaces |
+| `/api/projects` | POST | Create new project from path |
+| `/api/projects` | DELETE | Delete current project |
+| `/api/projects/metrics` | GET | Retrieve project metrics |
+| `/api/projects/readme` | GET | Get project README (HTML response) |
+| `/api/project/watch` | GET | Enable project file watching |
+| `/api/project/unwatch` | GET | Disable project file watching |
 
-### File Operations
+### AI & Models
 
-- `GET /api/files/find`: Search for files within project
-- `POST /api/files/write`: Write content to project files
-- `GET /api/files/reset`: Reset file to original state
-- `POST /api/files/diff`: Generate file differences
-- `POST /api/files/diff/comments`: Add comments to file diffs
-- `GET /api/code-server/file/open`: Open file in code editor
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/projects/ai/models` | GET | List available AI models for project |
+| `/api/projects/ai/models/reload` | POST | Reload AI model configuration |
 
-### Settings & Configuration
+### Code Operations
 
-- `GET /api/settings`: Retrieve project settings
-- `PUT /api/settings`: Update and persist project settings
-- `GET /api/profiles`: List user profiles
-- `POST /api/profiles`: Create new profile
-- `GET /api/profiles/{profile_name}`: Retrieve specific profile
-- `DELETE /api/profiles/{profile_name}`: Delete profile
-- `GET /api/profiles/tools`: List available tools
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/run/improve` | POST | Improve existing code with AI |
+| `/api/run/improve/patch` | POST | Generate full file content from partial content |
+| `/api/run/changes/summary` | GET | Build code changes summary |
+| `/api/run/script` | POST | Execute custom script in project context |
+| `/api/files/write` | POST | Write content to project file |
+| `/api/files/reset` | GET | Reset file to original state |
+| `/api/files/diff` | POST | Generate file diff with optional branch comparison |
+| `/api/files/diff/comments` | POST | Generate commented diff |
+| `/api/files/find` | GET | Search for files by pattern |
+| `/api/code-server/file/open` | GET | Open file in code server |
 
-### AI & Code Operations
+### Settings & Profiles
 
-- `POST /api/run/improve`: Improve existing code with AI assistance
-- `POST /api/run/improve/patch`: Generate partial file content improvements
-- `GET /api/run/changes/summary`: Build summary of code changes
-- `POST /api/run/script`: Execute custom scripts within project context
-
-### Media & Display
-
-- `POST /api/images`: Upload and store images with MD5-based naming
-- `POST /api/image-to-text`: Convert uploaded images to text using OCR/AI
-- `GET /api/screen`: Retrieve current display resolution
-- `POST /api/screen`: Set display resolution
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/settings` | GET | Read current project settings |
+| `/api/settings` | PUT | Save project settings |
+| `/api/profiles` | GET | List all profiles |
+| `/api/profiles` | POST | Create new profile |
+| `/api/profiles/{profile_name}` | GET | Read specific profile |
+| `/api/profiles/{profile_name}` | DELETE | Delete profile |
+| `/api/profiles/tools` | GET | List available tools for profiles |
 
 ### Application Management
 
-- `GET /api/apps`: List available project applications
-- `GET /api/apps/run`: Execute specified application
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/apps` | GET | List project applications |
+| `/api/apps/run` | GET | Execute application by name |
 
-## Exception Handling
+### System & Logging
 
-### Custom Exception Handlers
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/system/logs` | GET | List available logs (Docker containers and files) |
+| `/api/system/logs/{log_name}` | GET | Tail specific log (supports size parameter) |
+| `/api/screen` | GET | Get current screen resolution |
+| `/api/screen` | POST | Set screen resolution |
 
-**RequestValidationError Handler:**
-Returns HTTP 422 with formatted validation error messages.
+### Testing
 
-**General Exception Handler:**
-Returns HTTP 500 with full traceback information for debugging.
+- `GET /api/test/sio` - Test Socket.IO connectivity
+
+## Service Lifecycle
+
+### Startup Events
+
+- Initializes background services via `start_background_services()`
+- Dynamically loads and registers all routers from the discovery module
+- Sets up APP_STOP_EVENT for graceful shutdown coordination
+
+### Shutdown Events
+
+- Sets APP_STOP_EVENT flag
+- Stops all background services via `stop_background_services()`
+
+## Dynamic Router Loading
+
+The `load_routers()` function discovers and registers routers from the `codx.junior.api` module. Each router is registered with a specific URL prefix. Failed registrations are logged as errors without halting startup.
+
+## Authentication & Authorization
+
+- User authentication handled by `get_authenticated_user()` dependency
+- Workspace access control based on user roles:
+  - **Admin**: Full access to all workspaces
+  - **Regular users**: Access restricted by workspace `user_ids` configuration or workspace-level app role filters
+
+## Static Files & Uploads
+
+- Static files served from `CODX_JUNIOR_STATIC_FOLDER` at `/api/static`
+- Upload directory created at `{CODX_JUNIOR_STATIC_FOLDER}/uploads`
+
+## Logging Configuration
+
+### Disabled Loggers
+
+The following loggers are set to WARNING level to reduce verbosity:
+- httpx, httpcore, OpenAI client, watchfiles, asyncio, project_watcher, selenium
+
+### Request Logging
+
+All HTTP requests are logged with processing time in milliseconds.
 
 ## Background Services
 
-The application supports background service management:
-- `startup_event()`: Initializes background services on server startup
-- `shutdown_event()`: Gracefully stops background services on server shutdown
-- `APP_STOP_EVENT`: Asyncio event for coordinating shutdown operations
+Background services are managed through:
+- `start_background_services(APP_STOP_EVENT)` - Initializes on startup
+- `stop_background_services()` - Cleanup on shutdown
 
-## Data Models
-
-The API integrates with domain models:
-- `Chat`: Chat message data
-- `Profile`: User profile configuration
-- `Document`: File content representation
-- `GlobalSettings`: Application-wide settings
-- `Screen`: Display configuration
-- `CodxUser`: Authenticated user information
-- `AIModel`: AI model configuration
-
-## Static Files & Resources
-
-The application serves static content:
-- **Static folder**: Mounted at `/api/static`
-- **Image uploads**: Stored in `{CODX_JUNIOR_STATIC_FOLDER}/images`
-- **Message images**: Stored with MD5 hash-based filenames in `{CODX_JUNIOR_STATIC_FOLDER}/images/message`
-
-## User Access Control
-
-The project implements role-based workspace access:
-- **Admin users**: Full access to all workspaces
-- **Empty user_ids**: All users have access
-- **Specified user_ids**: Only listed users have access
-- **Role-based app filtering**: Apps filtered by user role permissions
-
-## Security
-
-- User authentication via `get_authenticated_user()` dependency
-- Session ID validation through `x-sid` headers
-- Codx path validation and sanitization
-- Static file serving with directory access control
+The `CODX_JUNIOR_API_BACKGROUND` environment variable controls background service configuration.
 
 ## Dependencies
 **Imports from:** codx/junior/ai/__init__.py, codx/junior/sio/sio.py, codx/junior/sio/session_channel.py, codx/junior/profiling/profiler.py, codx/junior/api/chatGPTLikeApi.py, codx/junior/api/users.py, codx/junior/api/wiki.py, codx/junior/api/github.py, codx/junior/api/file_finder.py, codx/junior/api/db_router.py, codx/junior/api/global_settings.py, codx/junior/api/project_search.py, codx/junior/api/knowledge.py, codx/junior/api/chat.py, codx/junior/api/views.py, codx/junior/api/analytics.py, codx/junior/api/logs.py, codx/junior/api/projects.py, codx/junior/security/user_management.py, codx/junior/chat/chat_export.py, codx/junior/globals.py, codx/junior/db.py, codx/junior/model/model.py, codx/junior/settings.py, codx/junior/global_settings.py, codx/junior/engine.py, codx/junior/project/project_discover.py, codx/junior/project/project_manager.py, codx/junior/utils/utils.py, codx/junior/background.py, codx/junior/tools/__init__.py

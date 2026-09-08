@@ -253,29 +253,28 @@ export const actions = actionTree(
       return storedChat
     },
     async saveChat({ state }, chat) {
-      /*
-      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
-      try {
-        const project = getChatProject(chat)
-        await project.$api.chats.save(chat)
-        await $storex.chats.loadChat(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-      } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
+      const savedChat = await $storex.chats.saveChatInfo(chat)
+      if (!savedChat) return null
+      if (chat.messages?.length) {
+        await $storex.chats.updateMessages({ chat: savedChat, messages: chat.messages })
       }
-      */
-      console.error("DEPRECATED: We can't change the whole chat anymore. Use fine-grained functions")
+      return state.chats[savedChat.id] || savedChat
     },
     async saveChatInfo({ state }, chat) {
-      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
+      const isNew = !chat.id
+      if (!isNew) {
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
+      }
       try {
         const project = getChatProject(chat)
         const updatedChat = await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
-        registerChat(state, updatedChat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-        return updatedChat
+        registerChat(state, { ...updatedChat, status: ENTITY_STATUS.LOADED })
+        return state.chats[updatedChat.id]
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
+        console.error('[chats store] Failed to save chat info:', error)
+        if (!isNew && chat.id) {
+          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
+        }
       }
       return null
     },
@@ -293,27 +292,21 @@ export const actions = actionTree(
       if (!chat.id) {
         throw Error(`Can't load a chat without id: ${chat}`)
       }
-      if (!state.chats[chat.id]) {
-        const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
-        try {
-          const loadedChat = await project.$api.chats.loadChat(chat)
-          registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-        } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        }
-      } else if (state.chats[chat.id].status === ENTITY_STATUS.UNINITIALIZED) {
-        const project = getChatProject(chat)
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
-        try {
-          const loadedChat = await project.$api.chats.loadChat(chat)
-          registerChat(state, loadedChat)
-          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-        } catch (error) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        }
+
+      const existingChat = state.chats[chat.id]
+      if (existingChat && existingChat.status === ENTITY_STATUS.LOADED) {
+        return existingChat
       }
+
+      const project = getChatProject(chat)
+      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
+      try {
+        const loadedChat = await project.$api.chats.loadChat(chat)
+        registerChat(state, { ...loadedChat, status: ENTITY_STATUS.LOADED })
+      } catch (error) {
+        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
+      }
+
       return state.chats[chat.id]
     },
     async reloadChat({ state }, chat) {
@@ -365,7 +358,11 @@ export const actions = actionTree(
       }
     },
     async updateMessage({ state }, { chat, message }) {
-      if (!chat?.id || !message?.doc_id) return
+      if (!chat?.id) return
+
+      if (!message?.doc_id) {
+        return $storex.chats.addMessage({ chat, message })
+      }
 
       const project = getChatProject(chat)
 
@@ -385,21 +382,22 @@ export const actions = actionTree(
       const project = getChatProject(chat)
 
       try {
-        // Batch update multiple messages
-        const promises = messages.map(message => 
-          project.$api.chats.updateMessage(chat.id, message)
-        )
-        
-        const results = await Promise.all(promises)
-        
-        // Use first result or reload chat if needed
-        if (results[0] && results[0].messages) {
-          state.chats[chat.id].messages = results[0].messages
+        let lastResult = null
+        for (const message of messages) {
+          if (message.doc_id) {
+            lastResult = await project.$api.chats.updateMessage(chat.id, message)
+          } else {
+            lastResult = await project.$api.chats.addMessage(chat.id, message)
+          }
+        }
+
+        if (lastResult?.messages) {
+          state.chats[chat.id].messages = lastResult.messages
         } else {
           await $storex.chats.reloadChat(chat)
         }
-        
-        return results
+
+        return state.chats[chat.id]
       } catch (error) {
         console.error('[chats store] Failed to update messages:', error)
         throw error
@@ -470,7 +468,7 @@ export const actions = actionTree(
         status: ENTITY_STATUS.UNINITIALIZED,
         ...chat
       }
-      return await $storex.chats.saveChatInfo(chat)
+      return await $storex.chats.saveChat(chat)
     },
     async createNewChatWithProject({ state }, { project, chat = {} }) {
       const chatData = {

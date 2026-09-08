@@ -1,7 +1,6 @@
 <script setup>
 import { v4 as uuidv4 } from 'uuid'
 import KanbanList from './KanbanList.vue'
-import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
 import KanbanGridView from './KanbanGridView.vue'
 import KanbanFilesView from './KanbanFilesView.vue'
@@ -263,10 +262,6 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           <button class="btn" @click="showImportModalForColumn = null">Cancel</button>
         </div>
       </modal>
-
-      <modal close="true" @close="showFileFinder = false" v-if="showFileFinder">
-        <FileFinder @select="onAddFile" />
-      </modal>
     </div>
   </div>
 </template>
@@ -297,7 +292,6 @@ export default {
       importOption: 'clipboard',
       importUrl: '',
       searchVisible: false,
-      showFileFinder: false,
       topChats: [],
       columnProject: null,
       loadingChats: false,
@@ -766,15 +760,6 @@ export default {
     },
     async saveKanban() {
       await this.$storex.projects.saveKanban({ project: this.project })
-    },
-    onAddFile(filePaths) {
-      if (this.activeKanbanBoard) {
-        this.activeKanbanBoard.file_list = [
-          ...(this.activeKanbanBoard.file_list || []),
-          ...filePaths
-        ]
-        this.saveKanban()
-      }
     },
     toggleBookmark({ title } = {}) {
       const boardTitle = title || this.activeBoard?.title

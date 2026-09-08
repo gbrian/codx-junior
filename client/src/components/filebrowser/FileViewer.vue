@@ -41,7 +41,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
-      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf">
+      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
@@ -98,6 +98,13 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           title="PDF Viewer"
         ></iframe>
       </div>
+      <div class="w-full h-full flex items-center justify-center bg-base-300 p-4" v-else-if="isImage">
+        <img
+          :src="imageDataUrl"
+          :alt="displayFileName"
+          class="max-w-full max-h-full object-contain"
+        />
+      </div>
       <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
         <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
       </div>
@@ -151,6 +158,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </template>
 
 <script>
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg']
 const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
 
 export default {
@@ -172,7 +180,8 @@ export default {
       showDiff: false,
       showDeleteModal: false,
       deleting: false,
-      showDiscardModal: false
+      showDiscardModal: false,
+      imageDataUrl: ''
     }
   },
   computed: {
@@ -199,13 +208,20 @@ export default {
     isPdf() {
       return this.fileExtension === 'pdf'
     },
+    isImage() {
+      return IMAGE_EXTENSIONS.includes(this.fileExtension)
+    },
     isBinary() {
       return BINARY_EXTENSIONS.includes(this.fileExtension)
     },
     pdfDataUrl() {
       if (!this.fileContent || !this.isPdf) return ''
-      const encodedContent = btoa(this.fileContent)
-      return `data:application/pdf;base64,${encodedContent}`
+      return `data:application/pdf;base64,${this.fileContent}`
+    },
+    imageDataUrl() {
+      if (!this.fileContent || !this.isImage) return ''
+      const mimeType = this.getMimeType(this.fileExtension)
+      return `data:${mimeType};base64,${this.fileContent}`
     },
     validatedLanguage() {
       const lang = EXTENSION_LANGUAGE_MAP[this.fileExtension] || this.fileExtension
@@ -224,6 +240,18 @@ export default {
     this.loadFile()
   },
   methods: {
+    getMimeType(extension) {
+      const mimeTypes = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'ico': 'image/x-icon',
+        'svg': 'image/svg+xml'
+      }
+      return mimeTypes[extension] || 'application/octet-stream'
+    },
     async loadFile() {
       if (!this.displayFilePath) {
         this.error = 'No file path provided'

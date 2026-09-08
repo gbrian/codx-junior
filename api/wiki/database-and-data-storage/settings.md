@@ -1,185 +1,122 @@
-# Settings and Configuration
+# CODX Junior Settings
 
 ## Overview
 
-The `settings.py` module provides core configuration management for CODX Junior projects. It defines the `CODXJuniorSettings` class, which serves as the central data model for project-specific settings and configuration parameters.
+The `CODXJuniorSettings` class is a Pydantic BaseModel that manages project configuration and settings for CODX Junior. It handles database storage, AI model settings, knowledge management, and project-specific configurations.
 
-## CODXJuniorSettings Class
+## Core Properties
 
-### Purpose
-
-`CODXJuniorSettings` is a Pydantic BaseModel that manages all project configuration, including:
-- Project metadata and paths
-- Knowledge base and RAG (Retrieval-Augmented Generation) settings
-- AI model configurations
-- MCP (Model Context Protocol) servers
-- Project scripts and dependencies
-- File storage and access tracking
-
-### Key Fields
-
-#### Project Identification
-- `project_id`: Unique identifier for the project (auto-generated UUID if not provided)
-- `project_name`: Human-readable project name
-- `project_path`: Relative or absolute path to the project directory
-- `abs_project_path`: Computed absolute path to the project
-
-#### File and Path Management
-- `codx_path`: Path to the `.codx` configuration directory
-- `project_branches`: List of git branches associated with the project
-- `project_wiki`: Boolean flag to enable/disable project wiki
-- `project_wiki_path`: Path to wiki documentation
-- `knowledge_file_ignore`: Comma-separated file patterns to exclude from knowledge base
-
-#### Knowledge Base Configuration
-- `knowledge_extract_document_tags`: Extract tags from documents
-- `knowledge_search_type`: Search algorithm type (default: "similarity")
-- `knowledge_search_document_count`: Number of documents to retrieve (default: 10)
-- `knowledge_enrich_documents`: Enable document enrichment
-- `knowledge_context_cutoff_relevance_score`: Minimum relevance threshold (default: 0.9)
-- `knowledge_context_rag_distance`: RAG distance metric (default: 0.4)
-- `knowledge_external_folders`: External folders to include in knowledge base
-- `knowledge_hnsw_M`: HNSW index parameter (default: 1024)
-
-#### AI Model Settings
-- `embeddings_model`: Model for generating embeddings
-- `llm_model`: Primary language model
-- `rag_model`: Model for RAG operations
-- `wiki_model`: Model for wiki generation
-
-#### Additional Configuration
-- `mcp_servers`: List of configured MCP servers with enable/disable status
-- `project_scripts`: Custom scripts associated with the project
-- `project_dependencies`: Comma-separated project dependencies
-- `is_git_root`: Boolean indicating if project root contains `.git` directory
-- `repo_url`: Repository URL
-- `last_access_time`: Timestamp of last project access
-- `last_error`: Most recent error message
-
-### Computed Properties
-
-The following fields are computed and not persisted to storage:
-- `codx_path`
-- `metrics`
-- `users`
-- `is_git_root`
-
-## Core Methods
-
-### Configuration Loading
-
-#### `from_project_file(project_file_path)`
-Loads settings from a project JSON file. This method:
-- Reads configuration from the `project.json` file
-- Normalizes project paths (handles both absolute and relative paths)
-- Auto-generates project ID if missing
-- Detects git repository status
-- Returns a fully configured `CODXJuniorSettings` instance
-
-```
-Usage: settings = CODXJuniorSettings.from_project_file("/path/to/.codx/project.json")
-```
-
-#### `from_codx_path(codx_path)`
-Convenience method that loads settings from a `.codx` directory path.
-
-#### `from_json(settings_dict)`
-Creates settings instance from a dictionary.
-
-### Configuration Saving
-
-#### `save_project()`
-Persists project settings to the project JSON file. This method:
-- Ensures the `.codx` directory exists
-- Auto-generates project ID if not set
-- Filters out computed properties before saving
-- Returns a freshly loaded `CODXJuniorSettings` instance
-- Intelligently determines whether to store `project_path` as custom
-
-### AI and Model Configuration
-
-#### `get_llm_settings(llm_model)`
-Retrieves AI settings for a specified language model. Falls back to project default, then global default.
-
-#### `get_embeddings_settings()`
-Retrieves AI settings for the embeddings model.
-
-#### `get_rag_model()`
-Returns the RAG model, falling back to global settings if not configured.
-
-#### `get_wiki_model()`
-Returns the wiki model, falling back to global settings if not configured.
-
-#### `get_agent_max_iterations()`
-Retrieves maximum agent iterations from global settings.
-
-### MCP Server Management
-
-#### `get_active_mcp_servers()`
-Returns a filtered list of only the active (enabled) MCP servers.
-
-#### `get_mcp_server_by_name(name)`
-Retrieves a specific MCP server configuration by name. Returns `None` if not found.
+### Project Identity
+- **project_id**: Unique identifier for the project (auto-generated UUID if not provided)
+- **project_name**: Human-readable name of the project
+- **project_path**: Relative or absolute path to the project directory
+- **abs_project_path**: Computed absolute path to the project
+- **codx_path**: Path to the .codx settings directory
 
 ### Project Structure
+- **project_branches**: List of available git branches
+- **project_wiki**: Enable/disable project wiki functionality
+- **project_wiki_path**: Custom path for wiki storage
+- **project_preview_url**: URL for project preview
+- **repo_url**: Remote repository URL
+- **is_git_root**: Boolean indicating if project is a git repository root
 
-#### `get_sub_projects()`
-Recursively discovers sub-projects within the project directory by searching for nested `.codx/project.json` files.
+### Knowledge Management
+- **use_knowledge**: Enable/disable knowledge base usage
+- **knowledge_search_type**: Search algorithm type (default: "similarity")
+- **knowledge_search_document_count**: Number of documents to retrieve (default: 10)
+- **knowledge_extract_document_tags**: Enable tag extraction from documents
+- **knowledge_enrich_documents**: Enable document enrichment
+- **knowledge_context_cutoff_relevance_score**: Relevance threshold (default: 0.9)
+- **knowledge_context_rag_distance**: RAG distance threshold (default: 0.4)
+- **knowledge_external_folders**: Comma-separated external folders for knowledge
+- **knowledge_query_subprojects**: Query sub-projects in knowledge search
+- **knowledge_file_ignore**: Files to ignore during knowledge extraction (default: ".codx")
+- **knowledge_hnsw_M**: HNSW index parameter (default: 1024)
+- **knowledge_generate_training_dataset**: Generate training datasets from knowledge
 
-#### `get_sub_projects_paths()`
-Returns a list of absolute paths for all sub-projects.
+### AI Model Configuration
+- **llm_model**: Language model identifier
+- **embeddings_model**: Embeddings model identifier
+- **rag_model**: RAG-specific model identifier
+- **wiki_model**: Wiki generation model identifier
+- **image_generation_model**: Image generation model identifier
+- **image_vision_model**: Image vision/analysis model identifier
 
-#### `get_project_workspaces()`
-Retrieves workspaces from global settings that reference this project.
+### Image Settings
+- **image_storage_folder**: Directory for generated images (default: "images/generated")
+- **image_max_file_size_mb**: Maximum image file size in MB (default: 100)
 
-### Knowledge Base and File Handling
+### Additional Settings
+- **project_scripts**: List of ProjectScript objects for automation
+- **project_dependencies**: Comma-separated project dependencies
+- **mcp_servers**: List of configured MCP servers
+- **watching**: Monitor project for changes
+- **save_mentions**: Store AI mentions/interactions
+- **log_ignore**: Patterns to ignore in logging
+- **last_access_time**: Timestamp of last project access
+- **last_error**: Most recent error message
+- **urls**: Associated URLs
 
-#### `get_ignore_patterns()`
-Builds a comprehensive list of file patterns to exclude from knowledge base indexing. Includes:
-- Git directories (`.git`)
-- Node modules (`node_modules`)
-- Project wiki path
-- Custom patterns from `knowledge_file_ignore`
-- Sub-project paths
+## Key Methods
 
-#### `is_valid_project_file(file_path)`
-Determines whether a file should be included in the knowledge base by checking against ignore patterns.
+### Configuration Loading
+- **from_codx_path(codx_path)**: Load settings from .codx directory
+- **from_project_file(project_file_path)**: Load settings from project.json file
+- **from_json(settings)**: Create settings from dictionary
 
-#### `get_project_dependencies()`
-Parses and returns project dependencies as a list (splits comma-separated string).
+### Configuration Saving
+- **save_project()**: Persist settings to project.json file
 
-### Database and AI Access
+### AI Settings Retrieval
+- **get_llm_settings(llm_model)**: Get AI settings for language model
+- **get_embeddings_settings()**: Get AI settings for embeddings model
+- **get_image_generation_settings()**: Get AI settings for image generation
+- **get_image_vision_settings()**: Get AI settings for image vision
 
-#### `get_dbs()`
-Initializes and returns database instances configured for this project.
+### MCP Server Management
+- **get_active_mcp_servers()**: Retrieve active MCP servers
+- **get_mcp_server_by_name(name)**: Find MCP server by name
 
-#### `get_ai()`
-Initializes and returns AI/LLM instances configured for this project.
+### Image Capabilities
+- **is_image_generation_enabled()**: Check if image generation is configured
+- **is_image_vision_enabled()**: Check if image vision is configured
 
-## CODXJuniorProject Class
+### Project Validation
+- **is_valid_project()**: Verify project has valid AI settings
+- **is_valid_project_file(file_path)**: Check if file should be processed based on ignore patterns
 
-`CODXJuniorProject` extends `CODXJuniorSettings` with additional fields for multi-user and workspace support:
-- `metrics`: Project metrics and statistics
-- `workspaces`: Associated workspace configurations
-- `users`: List of users with project access
-- `permissions`: Permission configuration string
+### Knowledge & Utilities
+- **get_ignore_patterns()**: Retrieve file patterns to exclude from processing
+- **get_sub_projects()**: Find nested projects within this project
+- **get_sub_projects_paths()**: Get absolute paths of sub-projects
+- **get_project_dependencies()**: Parse and return dependencies list
+- **get_project_wiki_path()**: Get absolute wiki directory path
+- **get_valid_keys()**: Get all valid configuration keys (excludes computed properties)
+- **get_dbs()**: Initialize database connections
+- **get_ai()**: Initialize AI interface
+- **get_agent_max_iterations()**: Get maximum agent iterations from global settings
+- **get_project_ai_models()**: Retrieve available AI models
+- **get_wiki_model()**: Get wiki model (project or global fallback)
+- **get_rag_model()**: Get RAG model (project or global fallback)
+- **get_project_workspaces()**: Get workspaces containing this project
+- **get_log_ai()**: Get AI logging configuration from global settings
 
-## Validation
+## Computed Properties
 
-### `is_valid_project()`
-Validates that the project has properly configured AI settings by checking:
-- LLM settings contain an API URL, OR
-- LLM provider is set to 'llmfactory'
+The following properties are computed and excluded from file persistence:
+- codx_path
+- metrics
+- users
+- is_git_root
 
-### `get_valid_keys()`
-Returns all serializable field names, excluding computed properties.
+## Project Extension
 
-## Project File Format
-
-Settings are persisted to `{codx_path}/project.json` as a JSON file containing only non-computed properties. The file structure allows for:
-- Manual configuration editing
-- Version control friendly serialization
-- Backward compatibility
+**CODXJuniorProject** extends `CODXJuniorSettings` with additional properties:
+- **metrics**: Dictionary of project metrics
+- **workspaces**: List of workspace configurations
+- **users**: List of project users
+- **permissions**: Permission string configuration
 
 ## Dependencies
 **Imports from:** codx/junior/global_settings.py, codx/junior/utils/utils.py, codx/junior/model/model.py, codx/junior/__init__.py

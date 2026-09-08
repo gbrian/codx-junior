@@ -36,6 +36,13 @@ import parser from '@/utils/markdownParser'
               <i class="fa-solid fa-copy"></i>
               Copy
             </button>
+            <button
+              class="btn btn-sm btn-ghost gap-2"
+              @click="createTaskFromChapter"
+              :title="'Create task from chapter: ' + chapter.title"
+            >
+              <i class="fa-solid fa-plus"></i> Task
+            </button>
           </slot>
         </div>
       </div>
@@ -65,7 +72,7 @@ import parser from '@/utils/markdownParser'
           @save-file="$emit('save-file', $event)"
           @add-file="$emit('add-file', $event)"
           @edit-message="$emit('edit-message', $event)"
-          @sub-task="$emit('sub-task', $event)"
+          @sub-task="onCodeSubTask"
         />
         <!-- Markdown block: no fileName and markdown/md type -->
         <MarkdownViewer
@@ -75,7 +82,7 @@ import parser from '@/utils/markdownParser'
           :text="block.content"
           @add-file="$emit('add-file', $event)"
           @copy-chapter="$emit('copy-chapter', $event)"
-          @create-task="$emit('create-task', $event)"
+          @create-task="onCreateTask"
         />        
       </div>
     </div>
@@ -95,7 +102,7 @@ import parser from '@/utils/markdownParser'
         :message="message"
         @add-file="$emit('add-file', $event)"
         @copy-chapter="handleChildCopy"
-        @create-task="$emit('create-task', $event)"
+        @create-task="onCreateTask"
         @generate-code="$emit('generate-code', $event)"
         @reload-file="$emit('reload-file', $event)"
         @open-file="$emit('open-file', $event)"
@@ -168,8 +175,27 @@ export default {
         console.error('Failed to copy chapter markdown', err)
       })
     },
+    createTaskFromChapter() {
+      const fullContent = this.fullChapterContent
+      this.$emit('create-task', {
+        title: this.chapter.title,
+        content: fullContent
+      })
+    },
     handleChildCopy(chapterData) {
       this.$emit('copy-chapter', chapterData)
+    },
+    onCreateTask(taskData) {
+      this.$emit('create-task', taskData)
+    },
+    onCodeSubTask(subTaskData) {
+      // CodeViewer emits sub-task with { file, content } where content is the
+      // formatted markdown fence. Re-emit as create-task so it flows through
+      // the same path as chapter tasks and carries content to the parent.
+      this.$emit('create-task', {
+        title: subTaskData.file ? subTaskData.file.split('/').reverse()[0] : '',
+        content: subTaskData.content || ''
+      })
     }
   }
 }

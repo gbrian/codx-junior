@@ -114,6 +114,11 @@
           "path": "/codx/junior/api/files.py",
           "slug": "files.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/files.md"
+        },
+        {
+          "path": "/codx/junior/api/image.py",
+          "slug": "image.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/app-module/image.md"
         }
       ],
       "id": "app-module",
@@ -300,6 +305,11 @@
               "path": "/codx/junior/model/profile.py",
               "slug": "profile.md",
               "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/profile.md"
+            },
+            {
+              "path": "/codx/junior/model/image_model.py",
+              "slug": "image-model.md",
+              "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/models/image-model.md"
             }
           ],
           "id": "models",
@@ -424,6 +434,16 @@
           "path": "/codx/junior/ai/smol/tool_cache.py",
           "slug": "tool-cache.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/tool-cache.md"
+        },
+        {
+          "path": "/codx/junior/engine/image_engine.py",
+          "slug": "image-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/image-engine.md"
+        },
+        {
+          "path": "/codx/junior/tools/image_tools.py",
+          "slug": "image-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/ai-and-knowledge-management/image-tools.md"
         }
       ],
       "id": "ai-and-knowledge-management",
@@ -496,6 +516,11 @@
           "path": "/codx/junior/settings_manager.py",
           "slug": "settings-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/settings-manager.md"
+        },
+        {
+          "path": "/codx/junior/api/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/init.md"
         }
       ],
       "id": "database-and-data-storage",

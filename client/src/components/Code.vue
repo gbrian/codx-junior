@@ -12,9 +12,9 @@ import HTMLPreview from './HTMLPreview.vue'
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
       </button>
-      <button class="btn btn-xs" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
+      <button class="btn btn-sm bg-info/60 my-2 flex gap-2" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
         <span v-if="htmlPreview">View code</span>
-        <span v-else>View preview</span>
+        <span v-else><i class="fa-solid fa-tablet-screen-button"></i> View preview</span>
       </button>
     </div>
 
@@ -103,7 +103,8 @@ export default {
       return this.language === 'mermaid' && !this.isVibeCoding
     },
     showHTMLPreview() {
-      return this.codeLanguage === 'html' && !this.isVibeCoding
+      const extension = this.fileName?.split(".")[1] || this.codeLanguage
+      return extension === 'html' && !this.isVibeCoding
     },
     showCode() {
       return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && (!this.showHTMLPreview || !this.htmlPreview)

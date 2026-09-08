@@ -41,28 +41,24 @@ import ChatIcon from './ChatIcon.vue'
           </div>
         </div>
 
-        <!-- Context Menu -->
-        <div class="opacity-0 group-hover/node:opacity-100 transition-opacity shrink-0">
-          <div class="dropdown dropdown-end">
-            <button 
-              class="btn btn-xs btn-ghost"
-              @click.stop
-            >
-              <i class="fa-solid fa-ellipsis-h text-xs"></i>
-            </button>
-            <ul class="dropdown-content menu bg-base-100 rounded-lg shadow-lg w-40 p-1 z-50 text-xs">
-              <li><a @click.stop="$emit('select', chat)">Open</a></li>
-              <li><a @click.stop="$emit('add-subtask', chat)">New Subtask</a></li>
-              <li class="divider m-0"></li>
-              <li><a @click.stop="togglePin" class="text-warning">
-                <i :class="chat.pinned ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'"></i>
-                {{ chat.pinned ? 'Unpin' : 'Pin' }}
-              </a></li>
-              <li><a @click.stop="toggleArchive" class="text-info">
-                <i class="fa-solid fa-box-archive"></i> Archive
-              </a></li>
-            </ul>
-          </div>
+        <!-- Action Buttons (visible on hover) -->
+        <div class="opacity-0 group-hover/node:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
+          <!-- Plus: Create subtask -->
+          <button
+            class="btn btn-xs btn-ghost p-0 w-5 h-5"
+            title="Create subtask"
+            @click.stop="$emit('add-subtask', chat)"
+          >
+            <i class="fa-solid fa-plus text-xs"></i>
+          </button>
+          <!-- Trash: Delete subtask -->
+          <button
+            class="btn btn-xs btn-ghost p-0 w-5 h-5 text-error hover:bg-error/10"
+            title="Delete subtask"
+            @click.stop="$emit('delete-chat', chat)"
+          >
+            <i class="fa-solid fa-trash text-xs"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -77,6 +73,7 @@ import ChatIcon from './ChatIcon.vue'
         :selectedChatId="selectedChatId"
         @select="$emit('select', $event)"
         @add-subtask="$emit('add-subtask', $event)"
+        @delete-chat="$emit('delete-chat', $event)"
       />
     </div>
   </div>
@@ -89,7 +86,7 @@ export default {
     allChats: { type: Array, default: () => [] },
     selectedChatId: { type: String, default: null }
   },
-  emits: ['select', 'add-subtask'],
+  emits: ['select', 'add-subtask', 'delete-chat'],
   data() {
     return {
       isExpanded: true
@@ -106,12 +103,6 @@ export default {
   methods: {
     selectChat() {
       this.$emit('select', this.chat)
-    },
-    togglePin() {
-      this.chat.pinned = !this.chat.pinned
-    },
-    toggleArchive() {
-      this.chat.hide = !this.chat.hide
     }
   }
 }

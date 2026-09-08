@@ -29,6 +29,7 @@ from .code_writer import code_writer
 from .code_block_generator import code_block_generator
 from .generate_tasks_tool import generate_tasks_tool
 from .apply_file_changes import apply_file_changes
+from .image_tools import explain_image, generate_image
 from .model import ToolResponse
 
 # Configure logging
@@ -47,6 +48,8 @@ __all__ = [
     "code_block_generator",
     "generate_tasks_tool",
     "apply_file_changes",
+    "explain_image",
+    "generate_image",
     "test_tool",
 ]
 
@@ -295,6 +298,56 @@ TOOLS = [
             "dual_response": True,
         },
         "tool_call": generate_tasks_tool
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "explain_image",
+                "description": "Provide a detailed analysis and description of an image using Vision API. Analyzes visual content, composition, colors, text, and context.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "image_base64": {
+                            "type": "string",
+                            "description": "Base64-encoded image content (PNG, JPG, etc.). Can include or exclude 'data:image/...' prefix."
+                        }
+                    },
+                    "required": ["image_base64"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tool_call": explain_image
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "generate_image",
+                "description": "Generate an image from a text prompt using DALL-E. Creates and stores the image in the project, returning the relative URL path.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "Text description of the image to generate (max 4000 characters)"
+                        },
+                        "size": {
+                            "type": "string",
+                            "description": "Image dimensions: 256x256, 512x512, 1024x1024, 1024x1792, or 1792x1024 (default: 1024x1024)"
+                        },
+                        "quality": {
+                            "type": "string",
+                            "description": "Image quality: 'standard' or 'hd' (default: standard)"
+                        }
+                    },
+                    "required": ["prompt"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tool_call": generate_image
     }
 ]
 

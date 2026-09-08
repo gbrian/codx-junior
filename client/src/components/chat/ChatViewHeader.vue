@@ -8,10 +8,20 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     <div class="flex flex-col">
       <!-- Breadcrumb Navigation -->
       <div class="flex items-center gap-2 text-xs min-w-0 flex-shrink-0 click">
-        <span class="text-primary font-bold truncate">{{ rootChat.name }}</span>
+        <span 
+          class="text-primary font-bold truncate hover:underline cursor-pointer transition-colors"
+          @click="$emit('select-breadcrumb', rootChat)"
+        >
+          {{ rootChat.name }}
+        </span>
         <template v-for="(ancestor, idx) in breadcrumb" :key="ancestor.id">
           <i class="fa-solid fa-chevron-right text-xs opacity-50"></i>
-          <span class="truncate hover:underline cursor-pointer text-xs">{{ ancestor.name }}</span>
+          <span 
+            class="truncate hover:underline cursor-pointer text-xs transition-colors hover:text-primary"
+            @click="$emit('select-breadcrumb', ancestor)"
+          >
+            {{ ancestor.name }}
+          </span>
         </template>
       </div>
       <!-- Title (Editable Inline) -->
@@ -106,6 +116,7 @@ export default {
     'toggle-hidden',
     'toggle-pinned',
     'select-project',
+    'select-breadcrumb',
     'show-settings',
     'show-export',
     'confirm-delete',

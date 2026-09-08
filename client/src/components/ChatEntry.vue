@@ -10,8 +10,6 @@ import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
-import Collapsible from './Collapsible.vue'
-import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
@@ -99,9 +97,9 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         <button
           v-if="hasEvents"
           class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
-          :class="drawerOpen && 'btn-active text-warning'"
+          :class="eventsOpen && 'btn-active text-warning'"
           data-tip="Events"
-          @click.stop="drawerOpen = !drawerOpen"
+          @click.stop="toggleEventsPanel"
         >
           <i class="fa-solid fa-wrench text-warning/70"></i>
           <span class="text-[10px]">{{ toolEventCount }}</span>
@@ -297,6 +295,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
           ]"
         >
+
           <!-- Source view -->
           <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-3 rounded-lg">{{ displayMessage.content }}</pre>
 
@@ -474,15 +473,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         </div>
       </div>
     </div>
-
-    <!-- Events Drawer -->
-    <ChatEntryDrawer
-      :isOpen="drawerOpen"
-      :lifecycleEvents="message.lifecycle_events"
-      :toolEvents="message.tool_events"
-      :metadata="message.meta_data"
-      @close="drawerOpen = false"
-    />
   </div>
 </template>
 
@@ -512,7 +502,7 @@ export default {
     'run-edit',
     'code-file-shown',
     'message-changed',
-    'preview-file'
+    'show-events'
   ],
   data() {
     return {
@@ -529,7 +519,7 @@ export default {
       selectedText: '',
       selectionPosition: { top: 0, left: 0 },
       collapsed: false,
-      drawerOpen: false
+      eventsOpen: false
     }
   },
   created() {
@@ -845,6 +835,19 @@ export default {
     },
     onCreateTask(taskData) {
       this.$emit('sub-task', { content: taskData.content, title: taskData.title })
+    },
+    toggleEventsPanel() {
+      this.eventsOpen = !this.eventsOpen
+      if (this.eventsOpen) {
+        this.$emit('show-events', {
+          toolEvents: this.message?.tool_events || [],
+          lifecycleEvents: this.message?.lifecycle_events || [],
+          metadata: this.message?.meta_data,
+          toolCount: this.toolEventCount,
+          lifecycleCount: this.lifecycleEventCount,
+          totalEvents: this.toolEventCount + this.lifecycleEventCount
+        })
+      }
     }
   },
   mounted() {

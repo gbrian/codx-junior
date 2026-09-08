@@ -1,281 +1,203 @@
-# Model Definitions
+# Model Classes Documentation
 
-This module defines the core data models used throughout the Codx Junior AI and Knowledge Management system. It provides structured representations for users, AI configurations, workspaces, chat management, and system settings.
+## Overview
 
-## Core Imports
+This module defines the core data models for the Codx Junior AI and Knowledge Management system. It provides Pydantic-based models for handling user data, AI configurations, workspace management, and project-related entities.
 
-The module integrates models from several dedicated sub-modules:
+## Core Model Classes
 
-- **User Models**: Authentication and user profile management
-- **AI Models**: Provider configurations and language model settings
-- **Profile Models**: User profile and API settings
-- **Workspace Models**: Workspace and application configurations
+### User Models
 
-## Chat and Content Models
+**CodxUser, CodxUserLogin, CodxUserProjectProfile**
+- Imported from `codx.junior.model.user`
+- Handle user authentication, profiles, and project-specific user data
 
-### ChatMessage
-Represents a message in a chat conversation with support for multiple content types.
+### AI Configuration Models
 
-- `role`: Message role (e.g., user, assistant)
-- `content`: List of Content items within the message
+**AIProvider, AIModel, AISettings**
+- Imported from `codx.junior.model.ai_model`
+- Manage AI provider configurations and model settings
+- Support for LLM and embedding models
+- Default providers include Ollama with pre-configured knowledge and embedding models
 
-### Content
-Defines individual content elements within a message.
+**AILLMModelSettings, AIEmbeddingModelSettings, AIModelType**
+- Define specific AI model type configurations
+- Constants: `OLLAMA_PROVIDER`, `OLLAMA_EMBEDDINGS_MODEL`, `OLLAMA_KNOWLEDGE_MODEL`
 
-- `type`: Content type (default: 'text')
-- `text`: Text content
-- `image_url`: Optional image URL reference via ImageUrl object
+### Chat and Communication Models
 
-### ImageUrl
-Container for image URLs in messages.
+**ChatMessage**
+- Role-based messaging (e.g., 'user', 'assistant')
+- Supports multimodal content (text and images)
 
-- `url`: The image URL string
+**Content**
+- Type: text or image
+- Text content as string
+- Image URLs for visual content
 
-## Board and Column Management
+**ImageUrl**
+- Encapsulates URL references for images
 
-### Board
-Organizes chat conversations into a kanban-style board structure.
+### Knowledge Management Models
 
-- `name`: Board identifier
-- `description`: Board description
-- `remote_url`: Optional remote repository URL
-- `bookmark`: Toggle for bookmarking the board
-- `columns`: List of Column objects
+**KnowledgeSearch**
+- `search_term`: Query string
+- `search_type`: Type of search operation
+- `document_search_type`: Specific document search method
+- `document_count`: Number of results
+- `document_cutoff_score`: Score threshold for relevance
+- `document_cutoff_rag`: RAG (Retrieval-Augmented Generation) cutoff threshold
+
+**KnowledgeReloadPath**
+- Path for reloading knowledge sources
+
+**KnowledgeDeleteSources**
+- List of sources to delete from knowledge base
+
+**Document**
+- `id`: Document identifier
+- `page_content`: Document text content
+- `metadata`: Associated document metadata
+
+### Project Management Models
+
+**Board**
+- `name`, `description`: Board identification
+- `columns`: List of Column objects organizing chats
+- `bookmark`: Optional bookmark flag
+- `remote_url`: External board reference
 - `project_id`: Associated project identifier
 
-### Column
-Represents a column within a Board, grouping related chats.
+**Column**
+- `name`: Column identifier
+- `chat_ids`: List of chat IDs in column
+- `project_id`: Parent project reference
 
-- `name`: Column name
-- `chat_ids`: List of chat identifiers in this column
-- `project_id`: Associated project identifier
-
-## Knowledge Management Models
-
-### KnowledgeSearch
-Configuration for searching project knowledge base.
-
-- `search_term`: The search query
-- `search_type`: Type of search to perform
-- `document_search_type`: Specific document search type
-- `document_count`: Number of documents to retrieve
-- `document_cutoff_score`: Minimum relevance score threshold
-- `document_cutoff_rag`: RAG-specific cutoff score
-
-### KnowledgeReloadPath
-Specifies a path for reloading knowledge sources.
-
-- `path`: File system path to reload
-
-### KnowledgeDeleteSources
-Defines sources for deletion from knowledge base.
-
-- `sources`: List of source identifiers to delete
-
-### Document
-Represents a document in the knowledge base.
-
-- `id`: Unique document identifier
-- `page_content`: The document content
-- `metadata`: Associated metadata dictionary
-
-## Tool and Agent Models
-
-### Tool
-Base definition for available tools.
-
-- `name`: Tool identifier
-- `description`: Tool description
-
-### CommandTool
-Extended tool definition supporting command execution.
-
-- `command`: Optional command string to execute
-- Inherits `name` and `description` from Tool
-
-### CodxJuniorBaseTools
-Defines default tools available to agents.
-
-- `knowledge`: Tool for searching project knowledge base
-
-### AgentSettings
-Configuration for agent behavior.
-
-- `max_agent_iteractions`: Maximum number of agent iterations (default: 4)
-
-## Development and Integration Models
-
-### ProjectScript
-Defines scripts for project automation and background tasks.
-
-- `name`: Script identifier
-- `description`: Script purpose
+**ProjectScript**
+- `name`, `description`: Script identification
 - `script`: Bash script content
-- `status`: Current status (running, stopped, error)
-- `background`: Whether script runs in background
-- `restart`: Auto-restart on failure
+- `status`: Running state (running, stopped, error)
+- `background`: Run in background mode
+- `restart`: Auto-restart on stop
+- `engine`: Script execution engine (default: bash)
 - `pid_file_path`: Process ID file location
-- `engine`: Script engine (default: bash)
 
 ### Tool Models
-- **Tool**: Base tool configuration with name and description
-- **CommandTool**: Tool that executes system commands
 
-### PRView
-Pull request visualization configuration.
+**Tool**
+- `name`: Tool identifier
+- `description`: Tool functionality description
 
-- `from_branch`: Source branch
-- `to_branch`: Target branch
+**CodxJuniorBaseTools**
+- Predefined knowledge search tool
 
-### LiveEdit
-Real-time document editing capabilities.
+**CommandTool**
+- Extends Tool with optional command field
 
-- `chat_name`: Associated chat identifier
-- `html`: HTML content
-- `url`: Document URL
-- `message`: Edit message or description
+### Configuration Models
 
-## Provider Configuration Models
+**OpenAISettings**
+- API URL and key configuration
+- Default model: gpt-4o
 
-### OpenAISettings
-OpenAI API configuration.
+**AnthropicAISettings**
+- API URL and key configuration
+- Default model: claude-3-5-sonnet-20240620
 
-- `openai_api_url`: API endpoint URL
-- `openai_api_key`: Authentication key
-- `openai_model`: Model selection (default: gpt-4o)
+**MistralAISettings**
+- API URL and key configuration
+- Default model: codestral-latest
 
-### AnthropicAISettings
-Anthropic Claude API configuration.
+**GitSettings**
+- `username`, `email`: Git configuration
 
-- `anthropic_api_url`: API endpoint URL
-- `anthropic_api_key`: Authentication key
-- `anthropic_model`: Model selection (default: claude-3-5-sonnet-20240620)
+**AgentSettings**
+- `max_agent_iteractions`: Maximum iterations (default: 4)
 
-### MistralAISettings
-Mistral AI API configuration.
+### Workspace and Profile Models
 
-- `mistral_api_url`: API endpoint URL
-- `mistral_api_key`: Authentication key
-- `mistral_model`: Model selection (default: codestral-latest)
+**Workspace, WorkspaceApp, Profile, ProfileApiSettings**
+- Imported from dedicated modules
+- Manage workspace configurations and user profiles
+- Default workspace provided via `DEFAULT_WORKSPACE`
 
-### GitSettings
-Git configuration for version control.
+### Integration Models
 
-- `username`: Git username
-- `email`: Git user email
+**MCPServer**
+- Model Context Protocol server configuration
+- `name`, `url`: Server identification
+- `api_key`: Authentication credentials
+- `active`: Activation status
 
-## Plugin and Extension Models
+**OAuthProvider**
+- OAuth provider configuration
+- `name`, `client_id`, `secret`, `token_url`
 
-### Plugin
-Defines extensible plugin functionality.
+**Plugin**
+- `plugin_id`, `name`, `description`: Plugin identification
+- `module_path`, `plugin_path`, `method`: Code location
+- `arguments`: List of PluginArgument objects
+- `roles`: Permission roles
+- `extends`: Extended functionality list
+- `async_`: Asynchronous execution flag (aliased as "async")
 
-- `plugin_id`: Unique plugin identifier
-- `name`: Display name
-- `description`: Plugin description
-- `module_path`: Python module path
-- `plugin_path`: Plugin file path
-- `method`: Entry point method name
-- `arguments`: List of PluginArgument definitions
-- `roles`: List of user roles that can use plugin
-- `extends`: List of extension points
-- `image`: Optional plugin icon/image URL
-- `async_`: Whether plugin executes asynchronously (aliased as `async`)
+**PluginArgument**
+- `name`, `description`: Argument details
+- `default_value`: Fallback value
 
-### PluginArgument
-Defines plugin function arguments.
+### Media Models
 
-- `name`: Argument name
-- `description`: Argument description
-- `default_value`: Default argument value
+**ImageGenerationRequest, ImageGenerationResponse**
+- Image generation operations
 
-## OAuth and Security Models
+**ImageAnalysisRequest, ImageAnalysisResponse**
+- Image analysis operations
 
-### OAuthProvider
-OAuth provider configuration for authentication.
+**ImageMetadata**
+- Image metadata storage
 
-- `name`: Provider name
-- `client_id`: OAuth client identifier
-- `secret`: OAuth client secret
-- `token_url`: Token endpoint URL
+**LiveEdit**
+- Real-time chat editing
+- `chat_name`: Chat identifier
+- `html`, `url`: Content and location
+- `message`: Edit message
 
-## MCP Server Model
+### Utility Models
 
-### MCPServer
-Model Context Protocol (MCP) server configuration for extended capabilities.
+**Logprobs**
+- Token probability logging
+- `tokens`: Token list
+- `token_logprobs`: Probability values
+- `top_logprobs`: Top alternative probabilities
+- `text_offset`: Character positions
 
-- `name`: Server name
-- `url`: Server endpoint URL
-- `api_key`: Optional authentication key
-- `active`: Whether the server is enabled
+**Bookmark**
+- `name`, `icon`, `title`: Bookmark display
+- `url`, `port`: Resource location
 
-## Logging and Analytics Models
+**PRView**
+- `from_branch`, `to_branch`: Git branch references
 
-### Logprobs
-Token probability information from language models.
+**Screen**
+- Display resolution configurations
+- Default resolution list with 13 common screen sizes
 
-- `tokens`: List of generated tokens
-- `token_logprobs`: Log probability for each token
-- `top_logprobs`: Top alternative log probabilities per token
-- `text_offset`: Character offset for each token
+## Global Settings Model
 
-## User Interface Models
-
-### Bookmark
-Quick access bookmark for important resources.
-
-- `name`: Bookmark identifier
-- `icon`: Optional icon identifier
-- `title`: Display title
-- `url`: Target URL
-- `port`: Optional port number for local services
-
-### Screen
-Display resolution configuration.
-
-- `resolution`: Current resolution setting
-- `resolutions`: List of supported resolutions (13 predefined options from 640x480 to 1920x1200)
-
-## Global System Configuration
-
-### GlobalSettings
-Comprehensive system-wide configuration model containing:
-
-**AI Configuration**
-- `log_ai`: Enable AI logging
-- `embeddings_model`: Embedding model selection
-- `llm_model`: Large language model selection
-- `rag_model`: RAG-specific model
-- `wiki_model`: Wiki knowledge model
-
-**System Paths and Files**
-- `projects_root_path`: Root directory for projects
-- `log_ignore`: List of patterns to ignore in logging
-
-**User and Access**
-- `users`: List of system users
-- `user_logins`: User login history
-- `secret`: Encryption secret
-- `oauth_providers`: OAuth provider configurations
-
-**Workspace Management**
-- `workspaces`: Available workspaces
-- `workspace_start_port`: Port range start for workspace services
-- `workspace_end_port`: Port range end for workspace services
-- `workspace_docker_settings`: Docker configuration for workspaces
-
-**Extensions and Features**
-- `plugins`: Available plugin list
-- `ai_providers`: Configured AI providers
-- `ai_models`: Available AI models
-- `project_scripts`: Automation scripts
-
-**User Interface**
-- `codx_junior_avatar`: System avatar URL
-- `enable_file_manager`: File manager feature toggle
-- `bookmarks`: Quick access bookmarks
-
-**Chat Configuration**
-- `chat_global_instructions`: Default system instructions for chat
+**GlobalSettings**
+- Centralized configuration container
+- AI model selections for embeddings, LLM, RAG, Wiki, vision, and image generation
+- User management with default admin user
+- Workspace configuration with port ranges (16000-17000)
+- Plugin registry
+- OAuth provider configuration
+- Project root path specification
+- File manager toggle
+- Project scripts collection
+- Bookmarks and global chat instructions
+- Logging configuration with AI logging flag and ignore list
+- Environment variables dictionary
+- Docker workspace settings
 
 ## Dependencies
 **Imports from:** codx/junior/model/user.py, codx/junior/model/ai_model.py, codx/junior/model/profile.py

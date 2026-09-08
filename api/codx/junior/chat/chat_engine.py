@@ -67,6 +67,8 @@ Return ONLY a valid JSON object, no extra text.
 Example: {"name": "Fix login bug", "board": "Backend", "column": "In Progress"}
 """
 
+def concat_content(arr):
+    return "\n".join(filter(lambda el: True if el else False, arr))
 
 class ChatEngine:
     """
@@ -584,7 +586,7 @@ class ChatEngine:
         language = language or extension
         language = LANGUAGE_PARSER_MAPPING.get(language, language)
         
-        return "\n".join([
+        return concat_content([
             "### FILE CONTEXT",
             f"This is the actual project's file content for '{source}', use same file path in your response.",
             "This content represent the current file, use it as a base for changes.",
@@ -638,7 +640,7 @@ class ChatEngine:
         :param chat_files: Files already attached to the chat.
         :return: Tuple of (documents, file_list, context_string).
         """
-        history_context = "\n".join([m.content for m in messages])
+        history_context = concat_content([m.content for m in messages])
         pre_search_query = f"{history_context}\n{query}".strip()
 
         pre_docs, pre_file_list, pre_context = (
@@ -686,7 +688,7 @@ class ChatEngine:
 
         try:
             if query:
-                query_context = "\n".join([message.content for message in messages])
+                query_context = concat_content([message.content for message in messages])
                 search_query = self.chat_knowledge.create_knowledge_search_query(
                     query=f"{query_context}\n{query}"
                 )
@@ -842,7 +844,7 @@ class ChatEngine:
         ]
         if answer_messages:
             task_content += "Task Document Header:\n"
-            task_content += "\n".join(answer_messages)
+            task_content += concat_content(answer_messages)
             task_content += "\n\n"
 
         if parent_task:
@@ -1036,7 +1038,7 @@ class ChatEngine:
         cancellation_token: Optional[CancellationToken] = None,
         run_context: Optional[AgentRunContext] = None,
         event_bridge: Optional[ChatEventBridge] = None,
-    ) -> Tuple[Optional[str], Optional[str], List[str], Any]:
+    ) -> Tuple[Optional[str], str, List[str], Any]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
 
@@ -1051,10 +1053,12 @@ class ChatEngine:
         ``event_bridge.persist_message``) instead of waiting for the
         end-of-turn chat save.
 
-        ADDED: Model parameter errors (e.g., unsupported temperature values)
-        are caught specifically and reported to the user with helpful context.
-        The error state includes a cancellation_token_id in meta_data so the
-        user can retry or cancel as needed.
+        FIX Issue 3: The ``is_thinking`` / ``think_content`` detection block
+        has been removed. ``message_parts`` is always a single-element list so
+        ``is_thinking`` was always ``False`` and ``think_content`` always
+        ``None``. The ``think`` field is already populated correctly during
+        streaming via ``send_message_event`` → ``response_message.think``;
+        overwriting it here would erase the streamed think content.
 
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
@@ -1063,7 +1067,6 @@ class ChatEngine:
             C --> E[Extract last message content]
             C -->|hidden reasoning| F4[persist_message - immediate]
             C -->|tool events| F2[Events persisted on response_message]
-            C -->|BadRequestError| F5[Extract param error + inform user]
             C -->|error| F3[response_message.error persisted immediately]
             D --> F[Return think, content, files]
             E --> F
@@ -1089,6 +1092,9 @@ class ChatEngine:
                              hidden reasoning messages as they are produced.
         :return: Tuple of (think_content, main_content, extra_file_list, ai_chat_fn).
         """
+        # FIX Issue 3: think_content is NOT derived here — it is set on
+        # response_message.think during streaming via send_message_event.
+        # Returning None here preserves whatever was already streamed.
         think_content: Optional[str] = None
         main_content = ""
         extra_files: List[str] = []
@@ -1121,12 +1127,12 @@ class ChatEngine:
                     message=f"Knowledge search for: {chat.name}"
                 )
                 send_message_event("* Searching...", False)
-                combined_query = "\n".join([m.content for m in messages])
+                combined_query = concat_content([m.content for m in messages])
                 ai_search_results = await KnowledgeAISearch(
                     settings=self.settings
                 ).ai_search(user_query=combined_query)
                 search_message = build_search_message(ai_search_results)
-                message_parts = [search_message.content]
+                main_content = search_message.content
                 extra_files = search_message.files or []
             else:
                 # The run_context (with the ChatEventBridge listener bound to
@@ -1155,11 +1161,12 @@ class ChatEngine:
                         if event_bridge:
                             event_bridge.persist_message(hidden_msg)
 
-                message_parts = [response_messages[-1].content]
-
-            is_thinking = len(message_parts) == 2
-            think_content = message_parts[0] if is_thinking else None
-            main_content = message_parts[-1]
+                # FIX Issue 3: message_parts was always a single-element list
+                # so is_thinking was always False and think_content always None.
+                # Read only the final answer from the last message directly.
+                # response_message.think is already set correctly by
+                # send_message_event during streaming — do not touch it here.
+                main_content = response_messages[-1].content
 
         except Exception as ex:
             logger.exception(
@@ -1167,7 +1174,7 @@ class ChatEngine:
             )
             main_content = f"Ops, sorry! There was an error with latest request: {ex}"
             response_message.error = str(ex)
-            response_message.content = "\n".join([response_message.content, main_content])
+            response_message.content = concat_content([response_message.content, main_content])
             # CRASH-SAFETY: persist the error state IMMEDIATELY so it is not
             # lost if any later step (summary, metadata, save) fails.
             if event_bridge:
@@ -1428,7 +1435,7 @@ class ChatEngine:
 
             # Strip possible markdown code fences
             if raw.startswith("```"):
-                raw = "\n".join(
+                raw = concat_content(
                     line for line in raw.splitlines()
                     if not line.startswith("```")
                 ).strip()
@@ -2199,10 +2206,14 @@ class ChatEngine:
                 response_message.meta_data["cancelled_at"] = (
                     cancelled_at.isoformat()
                 )
-                response_message.content = (
-                    response_message.content
-                    or "*(Request was cancelled)*"
-                )
+                response_message.content = concat_content([
+                    response_message.content, 
+                    (
+                        response_message.content
+                        or "*(Request was cancelled)*"
+                    )
+                ])
+
                 response_message.done = True
                 # CRASH-SAFETY: persist the cancelled state (and any events
                 # collected so far) immediately; append only if the bridge
@@ -2229,9 +2240,13 @@ class ChatEngine:
                 
                 return chat, documents
 
-            if think_content:
-                response_message.think = think_content 
+            # FIX Issue 3: think_content returned from _execute_ai_response is
+            # always None (detection was removed). response_message.think is
+            # already set correctly during streaming via send_message_event.
+            # Do NOT overwrite it here — doing so would erase streamed think content.
+            # Only set main_content and clear is_thinking flag.
             response_message.content = main_content
+            
             response_message.is_thinking = False
             if extra_files:
                 response_message.files = list(
@@ -2493,7 +2508,7 @@ class ChatEngine:
                 if not message.hide
             ]
             if messages:
-                parent_content.append("\n".join(messages))
+                parent_content.append(concat_content(messages))
                 logger.info(
                     "Collected %d messages from parent chat '%s'",
                     len(messages),
@@ -2502,7 +2517,7 @@ class ChatEngine:
 
             parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
 
-        result = "\n".join(parent_content)
+        result = concat_content(parent_content)
         logger.info(
             "get_chat_analysis_parents collected %d chars from %d parent levels",
             len(result),
@@ -2575,7 +2590,7 @@ class ChatEngine:
             if not message.hide and not message.improvement
         ]
 
-        page_content = "\n".join(valid_messages)
+        page_content = concat_content(valid_messages)
         metadata = {
             "source": chat.file_path,
             "parser": "chat",

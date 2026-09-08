@@ -1,7 +1,6 @@
 import asyncio
 import faulthandler
 import logging
-import hashlib
 import os
 import shutil
 import time
@@ -22,22 +21,8 @@ from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
 
-from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
-from codx.junior.api.users import router as users_router
-from codx.junior.api.wiki import router as wiki_router
-from codx.junior.api.git import router as git_router
-from codx.junior.api.file_finder import router as file_finder_router
-from codx.junior.api.db_router import router as db_router
-from codx.junior.api.global_settings import router as global_settings_router
-from codx.junior.api.project_search import router as project_search
-from codx.junior.api.knowledge import router as knowledge_router
-from codx.junior.api.chat import router as chat_router
-from codx.junior.api.views import router as views_router
-from codx.junior.api.analytics import router as analytics_router
-from codx.junior.api.logs import router as logs_router
-from codx.junior.api.files import router as files_router
-from codx.junior.api.projects import router as projects_router
-
+# Dynamic router loading
+from codx.junior.api import discover_routers
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -69,7 +54,7 @@ disable_logs([
     'selenium.webdriver.common.selenium_manager'
 ])
 
-from fastapi import FastAPI, Request, status, Response, UploadFile, Depends
+from fastapi import FastAPI, Request, status, Response, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -120,8 +105,7 @@ from codx.junior.background import start_background_services, stop_background_se
 
 
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
-IMAGE_UPLOAD_FOLDER = f"{CODX_JUNIOR_STATIC_FOLDER}/images"
-os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(f"{CODX_JUNIOR_STATIC_FOLDER}/uploads", exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT=280
 
@@ -139,21 +123,21 @@ app = FastAPI(
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
 
-app.include_router(chatgpt_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
-app.include_router(wiki_router, prefix="/api")
-app.include_router(git_router, prefix="/api")
-app.include_router(file_finder_router, prefix="/api")
-app.include_router(db_router, prefix="/api")
-app.include_router(global_settings_router, prefix="/api")
-app.include_router(project_search, prefix="/api")
-app.include_router(knowledge_router, prefix="/api")
-app.include_router(chat_router, prefix="/api")
-app.include_router(views_router, prefix="/api")
-app.include_router(analytics_router, prefix="/api")
-app.include_router(logs_router, prefix="/api")
-app.include_router(projects_router, prefix="/api")
-app.include_router(files_router, prefix="/api")
+# Dynamically load and register all routers
+def load_routers():
+    """Load all discovered routers and register them with the FastAPI app."""
+    routers = discover_routers()
+    for router_config in routers:
+        try:
+            app.include_router(
+                router_config['router'],
+                prefix=router_config['prefix']
+            )
+            logger.info(f"Registered router from {router_config['module']}")
+        except Exception as e:
+            logger.error(f"Failed to register router {router_config['module']}: {e}")
+
+load_routers()
 
 APP_STOP_EVENT = asyncio.Event()
     
@@ -382,39 +366,6 @@ def api_project_unwatch(request: Request):
     find_all_projects()
     return { "OK": 1 }
 
-@app.post("/api/images")
-async def api_image_upload(file: UploadFile):
-    """
-    Upload an image file and store it using an MD5 hash as the filename.
-    Returns the relative URL path to access the uploaded image.
-    """
-    # Read the file content as bytes
-    file_content: bytes = await file.read()
-
-    if not file_content:
-        return JSONResponse(content={'error': 'No selected file'}, status_code=400)
-
-    # Create an MD5 hash from the file content to use as a unique filename
-    md5_hash: str = hashlib.md5(file_content).hexdigest()
-
-    # Define the target directory for message images
-    message_image_folder = f"{CODX_JUNIOR_STATIC_FOLDER}/images/message"
-    os.makedirs(message_image_folder, exist_ok=True)
-
-    # Create the full path for the image using the hash
-    image_path = os.path.join(message_image_folder, md5_hash)
-
-    # Save the file only if it doesn't already exist (avoids duplicate writes)
-    if not os.path.exists(image_path):
-        logger.info("Saving uploaded image to %s", image_path)
-        # Open in binary write mode - no encoding argument for binary mode
-        with open(image_path, "wb") as file_object:
-            file_object.write(file_content)
-
-    # Return the relative path to access the image
-    image_url = f'/images/message/{md5_hash}'
-    return {"path": image_url}
-
 @app.get("/api/code-server/file/open")
 def api_file_open(request: Request):
     file_name = request.query_params.get("file_name")
@@ -533,12 +484,6 @@ def api_screen_get():
         logger.error("Error extracting screen resolutions %s", ex)
     return screen
 
-@app.post("/api/image-to-text")
-async def api_image_to_text_endpoint(file: UploadFile, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    file_bytes = await file.read()
-    return codx_junior_session.api_image_to_text(file_bytes)
-
 @app.post("/api/restart")
 def api_restart():
     logger.info("****************** API RESTARTING... bye *******************")
@@ -551,7 +496,7 @@ def api_shutdown():
     os._exit(0)
     
 logger.info("API Static folder: %s", CODX_JUNIOR_STATIC_FOLDER)
-logger.info("API Images folder: %s", IMAGE_UPLOAD_FOLDER)
+logger.info("API Uploads folder: %s", os.path.join(CODX_JUNIOR_STATIC_FOLDER, "uploads"))
 
 app.mount("/api/static", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="static")
 

@@ -50,6 +50,17 @@ from codx.junior.model.workspace import (
     DEFAULT_WORKSPACE,
 )
 
+# ---------------------------------------------------------------------------
+# Import image models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.image_model import (
+    ImageGenerationRequest,
+    ImageAnalysisRequest,
+    ImageMetadata,
+    ImageGenerationResponse,
+    ImageAnalysisResponse,
+)
+
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -193,6 +204,7 @@ class Plugin(BaseModel):
     image: Optional[str] = Field(default=None)
     async_: bool = Field(default=False, alias="async")  # Use alias for async
 
+
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)
     
@@ -200,6 +212,8 @@ class GlobalSettings(BaseModel):
     llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    vision_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    image_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
 
     git: GitSettings = Field(default=GitSettings())
 
