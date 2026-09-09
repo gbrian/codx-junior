@@ -317,6 +317,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
             @sub-task="$emit('sub-task', $event)"
             @copy-chapter="onCopyChapter"
             @create-task="onCreateTask"
+            @block-edited="onBlockEdited"
             :mentionList="mentionList"
           >
             <template #chapter-actions="{ chapter, fullContent }">
@@ -848,6 +849,22 @@ export default {
           totalEvents: this.toolEventCount + this.lifecycleEventCount
         })
       }
+    },
+    onBlockEdited(data) {
+      const { blockHash, originalContent, newContent, block } = data
+      const updatedContent = this.replaceBlockInContent(
+        this.displayMessage.content,
+        originalContent,
+        newContent
+      )
+
+      this.$emit('edited', {
+        ...this.message,
+        content: updatedContent
+      })
+    },
+    replaceBlockInContent(fullContent, originalBlock, newBlock) {
+      return fullContent.replace(originalBlock, newBlock)
     }
   },
   mounted() {

@@ -11,7 +11,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
   <div class="w-full h-full flex flex-col overflow-hidden">
     <!-- File header -->
     <div class="flex items-center gap-3 px-3 py-2 bg-base-200 border-b border-base-300 flex-shrink-0">
-      <i class="fa-regular fa-file text-info"></i>
+      <i :class="getHeaderIcon()"></i>
       <span
         class="text-sm font-mono font-semibold truncate cursor-move hover:opacity-75 transition-opacity"
         :title="displayFilePath"
@@ -41,7 +41,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
-      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage">
+      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
@@ -105,6 +105,14 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           class="max-w-full max-h-full object-contain"
         />
       </div>
+      <div class="w-full h-full flex items-center justify-center bg-base-300" v-else-if="isVideo">
+        <video
+          :src="videoPreviewUrl"
+          controls
+          class="max-w-full max-h-full"
+          :title="displayFileName"
+        ></video>
+      </div>
       <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
         <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
       </div>
@@ -159,7 +167,107 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 
 <script>
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg']
+const VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'ogv', 'ts', 'mts', 'vob']
 const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
+
+const EXTENSION_ICON_MAP = {
+  // Code files
+  'js': 'fa-brands fa-js text-yellow-500',
+  'ts': 'fa-brands fa-js text-blue-500',
+  'jsx': 'fa-brands fa-react text-blue-400',
+  'tsx': 'fa-brands fa-react text-blue-400',
+  'vue': 'fa-brands fa-vuejs text-green-500',
+  'py': 'fa-brands fa-python text-blue-600',
+  'java': 'fa-brands fa-java text-red-600',
+  'cpp': 'fa-regular fa-file-code text-blue-600',
+  'c': 'fa-regular fa-file-code text-blue-600',
+  'cs': 'fa-brands fa-microsoft text-purple-600',
+  'rb': 'fa-brands fa-gem text-red-700',
+  'php': 'fa-brands fa-php text-indigo-600',
+  'go': 'fa-regular fa-file-code text-cyan-500',
+  'rs': 'fa-regular fa-file-code text-orange-600',
+  'swift': 'fa-brands fa-swift text-orange-500',
+  'kt': 'fa-regular fa-file-code text-purple-600',
+  // Markup & Style
+  'html': 'fa-brands fa-html5 text-orange-600',
+  'css': 'fa-brands fa-css3-alt text-blue-500',
+  'scss': 'fa-brands fa-sass text-pink-600',
+  'sass': 'fa-brands fa-sass text-pink-600',
+  'less': 'fa-regular fa-file-code text-blue-400',
+  'xml': 'fa-regular fa-file-code text-orange-600',
+  'json': 'fa-regular fa-file-code text-yellow-600',
+  'yaml': 'fa-regular fa-file-code text-red-600',
+  'yml': 'fa-regular fa-file-code text-red-600',
+  'toml': 'fa-regular fa-file-code text-orange-700',
+  'svg': 'fa-regular fa-file-image text-orange-400',
+  // Templates
+  'ejs': 'fa-regular fa-file-code text-yellow-600',
+  'hbs': 'fa-regular fa-file-code text-orange-700',
+  'pug': 'fa-regular fa-file-code text-brown-600',
+  // Databases
+  'sql': 'fa-solid fa-database text-blue-600',
+  'db': 'fa-solid fa-database text-slate-600',
+  'sqlite': 'fa-solid fa-database text-blue-400',
+  // Documents
+  'md': 'fa-brands fa-markdown text-slate-600',
+  'txt': 'fa-regular fa-file-lines text-slate-500',
+  'pdf': 'fa-solid fa-file-pdf text-red-600',
+  'doc': 'fa-solid fa-file-word text-blue-600',
+  'docx': 'fa-solid fa-file-word text-blue-600',
+  'xls': 'fa-solid fa-file-excel text-green-600',
+  'xlsx': 'fa-solid fa-file-excel text-green-600',
+  'ppt': 'fa-solid fa-file-powerpoint text-orange-600',
+  'pptx': 'fa-solid fa-file-powerpoint text-orange-600',
+  // Media
+  'png': 'fa-regular fa-file-image text-pink-500',
+  'jpg': 'fa-regular fa-file-image text-pink-500',
+  'jpeg': 'fa-regular fa-file-image text-pink-500',
+  'gif': 'fa-regular fa-file-image text-pink-500',
+  'webp': 'fa-regular fa-file-image text-pink-500',
+  'ico': 'fa-regular fa-file-image text-slate-500',
+  'svg': 'fa-regular fa-file-image text-orange-400',
+  'mp4': 'fa-regular fa-file-video text-red-500',
+  'avi': 'fa-regular fa-file-video text-red-500',
+  'mov': 'fa-regular fa-file-video text-red-500',
+  'mkv': 'fa-regular fa-file-video text-red-500',
+  'flv': 'fa-regular fa-file-video text-red-500',
+  'wmv': 'fa-regular fa-file-video text-red-500',
+  'webm': 'fa-regular fa-file-video text-red-500',
+  'ogv': 'fa-regular fa-file-video text-red-500',
+  'ts': 'fa-regular fa-file-video text-red-500',
+  'mts': 'fa-regular fa-file-video text-red-500',
+  'vob': 'fa-regular fa-file-video text-red-500',
+  'mp3': 'fa-regular fa-file-audio text-purple-500',
+  'wav': 'fa-regular fa-file-audio text-purple-500',
+  'flac': 'fa-regular fa-file-audio text-purple-500',
+  'aac': 'fa-regular fa-file-audio text-purple-500',
+  'wma': 'fa-regular fa-file-audio text-purple-500',
+  'ogg': 'fa-regular fa-file-audio text-purple-500',
+  // Archives
+  'zip': 'fa-regular fa-file-zipper text-slate-600',
+  'rar': 'fa-regular fa-file-zipper text-slate-600',
+  'tar': 'fa-regular fa-file-zipper text-slate-600',
+  'gz': 'fa-regular fa-file-zipper text-slate-600',
+  '7z': 'fa-regular fa-file-zipper text-slate-600',
+  'bz2': 'fa-regular fa-file-zipper text-slate-600',
+  // Config
+  'env': 'fa-solid fa-gear text-slate-500',
+  'config': 'fa-solid fa-gear text-slate-500',
+  'conf': 'fa-solid fa-gear text-slate-500',
+  'ini': 'fa-solid fa-gear text-slate-500',
+  // Shell
+  'sh': 'fa-solid fa-terminal text-slate-700',
+  'bash': 'fa-solid fa-terminal text-slate-700',
+  'zsh': 'fa-solid fa-terminal text-slate-700',
+  'fish': 'fa-solid fa-terminal text-slate-700',
+  'bat': 'fa-solid fa-terminal text-slate-700',
+  // Version Control
+  'git': 'fa-brands fa-git-alt text-orange-600',
+  'gitignore': 'fa-brands fa-git-alt text-orange-600',
+  // Other
+  'lock': 'fa-solid fa-lock text-amber-600',
+  'key': 'fa-solid fa-key text-yellow-600'
+}
 
 export default {
   name: 'FileViewer',
@@ -180,8 +288,7 @@ export default {
       showDiff: false,
       showDeleteModal: false,
       deleting: false,
-      showDiscardModal: false,
-      imageDataUrl: ''
+      showDiscardModal: false
     }
   },
   computed: {
@@ -211,8 +318,11 @@ export default {
     isImage() {
       return IMAGE_EXTENSIONS.includes(this.fileExtension)
     },
+    isVideo() {
+      return VIDEO_EXTENSIONS.includes(this.fileExtension)
+    },
     isBinary() {
-      return BINARY_EXTENSIONS.includes(this.fileExtension)
+      return BINARY_EXTENSIONS.includes(this.fileExtension) || this.isVideo
     },
     pdfDataUrl() {
       if (!this.fileContent || !this.isPdf) return ''
@@ -222,6 +332,10 @@ export default {
       if (!this.fileContent || !this.isImage) return ''
       const mimeType = this.getMimeType(this.fileExtension)
       return `data:${mimeType};base64,${this.fileContent}`
+    },
+    videoPreviewUrl() {
+      if (!this.isVideo) return ''
+      return this.$api.files.getFilePreviewUrl(this.filePath)
     },
     validatedLanguage() {
       const lang = EXTENSION_LANGUAGE_MAP[this.fileExtension] || this.fileExtension
@@ -248,9 +362,24 @@ export default {
         'gif': 'image/gif',
         'webp': 'image/webp',
         'ico': 'image/x-icon',
-        'svg': 'image/svg+xml'
+        'svg': 'image/svg+xml',
+        'mp4': 'video/mp4',
+        'avi': 'video/x-msvideo',
+        'mov': 'video/quicktime',
+        'mkv': 'video/x-matroska',
+        'flv': 'video/x-flv',
+        'wmv': 'video/x-ms-wmv',
+        'webm': 'video/webm',
+        'ogv': 'video/ogg',
+        'ts': 'video/mp2t',
+        'mts': 'video/mp2t',
+        'vob': 'video/x-ms-vob'
       }
       return mimeTypes[extension] || 'application/octet-stream'
+    },
+    getHeaderIcon() {
+      const ext = this.fileExtension
+      return EXTENSION_ICON_MAP[ext] || 'fa-regular fa-file text-info'
     },
     async loadFile() {
       if (!this.displayFilePath) {

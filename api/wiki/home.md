@@ -14,21 +14,19 @@ The CodX Junior API is organized into several core modules that work together to
 
 **Engine Module** – The core backend service providing essential operations for project management, session handling, and file processing. Organizes endpoints into logical categories: Health & Diagnostics, Project Management (CRUD operations), Code Improvement & AI, File Operations, Settings & Profiles, Application & Workspace, System Control, and Socket.IO real-time communication. Implements role-based workspace access control with admin and regular user permission levels, handles file processing with secure MD5-based filename generation, provides comprehensive error handling with specific HTTP status codes, and supports dynamic router loading for extensible endpoint organization.
 
-**Chat Engine** – The core conversational AI engine orchestrating sophisticated multi-mode chat interactions with language models. Implements four distinct chat modes optimized for different interaction patterns: **Task (Refine)** for document refinement and iterative task completion, **Chat** for standard conversational interactions, **Agent** for complex workflows with configurable iteration counts, and **Vibe** for contextual understanding with nuanced AI-driven reasoning. 
+**File Engine** – A comprehensive core module managing all file operations with robust path traversal protection and intelligent gitignore handling. Organizes file operations into logical categories: Reading & Writing (with streaming support and atomic operations), Analysis (file metadata and comparison), Directory Operations (comprehensive file structure exploration), Search (gitignore-aware filtering with single file and directory modes), and Profile Management (file information and utilities). Features systematic path resolution and validation with security-focused relative/absolute path handling, utility methods for common operations including readme retrieval and wiki access, git operations with `.gitignore` behavior and rule cascading support, and comprehensive file comparison operations. Implements critical security measures preventing path traversal attacks through comprehensive path validation and secure resolution mechanisms. Includes GitIgnoreManager with efficient pattern matching, supporting gitignore rule cascading and smart filtering that walks the directory tree only once during initialization to optimize performance while avoiding subprocess calls. Supports special features including wiki access, README retrieval, and OCR image-to-text conversion with Tesseract integration for text extraction from images. Implements performance-focused architecture emphasizing caching strategies, early termination optimization, and pagination for efficient handling of large directory structures.
 
-Delivers crash-safety through early metadata persistence (safeguarding response data before streaming begins), event bridge integration for distributed consistency, stream throttling with intelligent buffering, thinking content preservation for recovery and auditing, error state persistence for failure tracking, and duplicate prevention safeguards. Supports configurable knowledge inheritance through flags enabling selective knowledge propagation across related conversations, UUID-based cancellation with fine-grained token lifecycle management, comprehensive session analytics tracking timing metrics and token usage, and seamless hierarchical chat structures where child conversations inherit settings and context from parent conversations while respecting explicit inheritance controls.
+**Chat Engine** – The core conversational AI component orchestrating sophisticated multi-mode chat interactions with language models. Built on workflow-centric design emphasizing clear API contracts and deterministic processing pipelines, the Chat Engine prioritizes user-facing workflow patterns over implementation complexity. Implements crash-safe architecture through multi-layered persistence ensuring data integrity across failure scenarios: early metadata persistence (safeguarding response data before streaming begins), event bridge integration for distributed consistency, stream throttling with intelligent buffering, thinking content preservation for recovery and auditing, error state persistence for failure tracking, and duplicate prevention safeguards. Processes requests through a structured 20-step deterministic pipeline ensuring reliable and predictable message handling. Supports five distinct chat modes optimized for different interaction patterns: **Task (Refine)** for document refinement and iterative task completion with focused output, **Chat** for standard conversational interactions with complete message history, **Agent** for complex workflows with configurable iteration counts and multi-step automation, **Vibe** for contextual understanding with nuanced AI-driven reasoning and sophisticated analysis, and **Search** for knowledge-driven exploration and semantic understanding. Features robust UUID-based cancellation with fine-grained token lifecycle management through dedicated `cancel_chat()` and `cancel_chat_by_token_id()` methods, comprehensive session analytics tracking timing metrics and token usage, seamless hierarchical chat structures where child conversations inherit settings and context from parent conversations while respecting explicit inheritance controls through configurable `ignore_parent_knowledge` and `ignore_parent_files` flags, and intelligent knowledge management with parent chat integration and traversal logic. Implements parent chat message inclusion when `ignore_parent_knowledge=False`, ensuring proper context propagation in hierarchical conversations. Primary entry points are `chat_with_project()` for initiating conversations and `_chat_with_project_inner()` for internal processing logic, with dedicated support for Task, Agent, and Vibe/Search mode-specific processing.
 
-Processes requests through a structured deterministic workflow: **Initialization** with validation and context setup, **History & Context** with parent chat knowledge and file inheritance, **Configuration** resolution from profiles and parameters, **Knowledge Retrieval** through Pre-Search (AI-driven semantic exploration) and RAG-based mechanisms with deduplication, **File Processing** with extraction and deduplication using deterministic ordering, **Prompt Assembly** with mode-specific transformations, **Response Metadata Persistence** before streaming begins for crash-safety, **Response Generation** with streaming integration, **Post-Processing** including chat description and auto-initialization, and **Finalization** with analytics persistence.
+**SmolAgent** – An async-first streaming chat agent engineered for sophisticated, real-time interaction patterns with language models. Built with flow-centric architecture optimized for streaming responses, SmolAgent delivers high-performance conversational capabilities with structured agent loops, multi-turn conversation lifecycle management, intelligent tool management with sophisticated scoping systems (distinguishing between global tools and chat-scoped tools), real-time streaming with dual content streams (thinking content and final answers), and comprehensive event systems providing complete visibility into tool execution and operation flow. The agent initializes with comprehensive configuration management supporting flexible profiles and parameters with intelligent defaults. Each conversation iteration intelligently manages tools through both global and chat-specific scoping, executes sophisticated tool caching mechanisms with cached executions bypassing iteration constraints, and incorporates results before proceeding to the next cycle. Loop Guard constraints enforce maximum iteration counts protecting system stability while iteration counting precisely tracks only uncached tool executions. Implements comprehensive event emissions throughout execution including initialization events, iteration progress tracking, tool execution details, LLM interactions, and completion notifications. Tool Result Normalization ensures consistent handling of diverse tool outputs through standardized processing with priority-based resolution (user response first, then LLM response, then string conversion). Supports dual cancellation approaches: UUID-based global cancellation tokens for external triggers with checkpoint verification, and context-based cancellation for graceful degradation. Fresh loading of global system instructions on every chat invocation ensures messages always reflect current configuration without stale data. Implements hardcoded file handling rules as permanent enforcement mechanisms ensuring consistent and secure file operations. Performs pre-flight wallet verification before initiating agent execution to ensure sufficient resources are available, preventing mid-execution failures and maintaining system stability. Provides comprehensive error handling with explicit exception catching, non-empty error message enforcement, and comprehensive serialization strategies for asyncio.Future, coroutines, Pydantic models, and complex data types.
 
-**SmolAgent** – An async-first streaming chat agent engineered for sophisticated, real-time interaction patterns with language models. Built with flow-centric architecture optimized for streaming responses, SmolAgent delivers high-performance conversational capabilities with structured agent loops, multi-turn conversation lifecycle management, intelligent tool management with scope systems, real-time streaming with buffer and flush mechanics, comprehensive event systems providing complete visibility into tool execution and operation flow, loop protection mechanisms preventing infinite loops, and detailed analytics for token usage and performance tracking. 
-
-The agent initializes with comprehensive configuration management supporting flexible profiles and parameters with intelligent defaults. It processes requests through iterative execution loops with configurable iteration limits (Loop Guard Constraints enforcing maximum iteration counts and resource limits protecting system stability). Each iteration intelligently manages tools through both global and chat-specific scoping, executes sophisticated tool caching mechanisms tracking cache hits and misses, and incorporates results before proceeding to the next cycle. Supports two distinct cancellation approaches: UUID-based global cancellation tokens for external triggers with checkpoint verification at iteration boundaries, and context-based cancellation for graceful degradation when limits are reached. Implements comprehensive event emissions throughout execution including initialization events, iteration progress tracking, tool execution details, completion notifications, and error states. Tool Result Normalization ensures consistent handling of diverse tool outputs through standardized processing. Categorizes errors precisely with ToolLoopError for tool execution failures, CancelledError for cancellation-triggered exceptions, and AgentCancelled for graceful degradation, while preserving non-fatal warnings for observable errors without interruption.
-
-**Tools Engine** – A comprehensive toolkit system serving as the central hub for specialized capabilities organized into logical categories: Web & Content Utilities (browser automation, web scraping, content fetching), Project Management Tools (repository management, file operations, structure analysis), Code & Development Tools (analysis, generation, refactoring), Image & Vision Tools (vision analysis, image processing, generation), and Utility Tools (testing and maintenance). Tools operate within a centralized aggregation system supporting both synchronous and asynchronous execution, enable dual-response patterns for complex workflows, and integrate seamlessly with agent systems. The tools ecosystem emphasizes bulk operations, search-replace functionality with validation, comprehensive error handling, and complete parameter specifications including data types, defaults, and constraints for reliable automation across development workflows. Tools are scoped at global, chat-specific, or profile levels with configurable availability.
+**Tools Engine** – A comprehensive toolkit system serving as the central hub for specialized capabilities organized into logical categories: Web & Content Utilities (browser automation, web scraping, content fetching), Project Management Tools (repository management, file operations, structure analysis), Code & Development Tools (analysis, generation, refactoring), Image & Vision Tools (vision analysis, image processing, generation), and Utility Tools (testing and maintenance). Tools operate within a centralized aggregation system supporting both synchronous and asynchronous execution, enable dual-response patterns for complex workflows distinguishing between human-readable responses and AI model consumption, and integrate seamlessly with agent systems. The tools ecosystem emphasizes bulk operations, search-replace functionality with validation, comprehensive error handling, and complete parameter specifications including data types, defaults, and constraints for reliable automation across development workflows. Tools are scoped at global, chat-specific, or profile levels with configurable availability. Tool execution follows a consistent flow with TOOL_START event on invocation, TOOL_END event with accumulated response on completion, and TOOL_ERROR on failures.
 
 **Image Engine** – Manages comprehensive image operations including generation from text prompts using DALL-E models (supporting sizes from 256x256 to 1792x1024 with quality levels and style options), vision-based analysis using GPT-4 Vision, local storage and file management, OCR text extraction using Tesseract, and detailed metadata tracking. Supports complete image lifecycle management with organized directory structures, atomic metadata persistence in JSON format, and streamlined image deletion with automatic file and metadata cleanup.
 
-**Advanced Features** – Provides fine-grained cancellation support using a UUID-based global registry with ISO-8601 timestamp tracking and comprehensive session analytics including timing metrics, token usage tracking, tool execution tracking, and error states. Supports parent chat knowledge and file inheritance through configurable flags, enabling selective knowledge reuse and context propagation across related conversations. Implements crash-safe persistence mechanisms protecting against data loss through early metadata creation, event bridge integration, and duplicate prevention safeguards.
+**Database Module** – Manages all data persistence operations with support for multiple database backends and efficient connection caching through the `PROJECT_DATABASES` cache strategy. Implements comprehensive CRUD operations (Create, Read, Update, Delete) for all data models with transactional integrity. Provides direct database access patterns for bulk operations and complex queries with structured connection management. Supports hierarchical model organization with relationships between core entities enabling complex data retrieval patterns. Includes specialized models for chat history snapshots (ChatHistoryEntry), message state tracking with reasoning content support, tool events with execution details, and lifecycle tracking. Features robust connection management preventing connection exhaustion and optimizing resource utilization through intelligent caching mechanisms. The database layer maintains structured data schemas with Pydantic-based models organized by functional domain, providing comprehensive validation and type safety for all stored entities.
+
+**Advanced Features** – Provides fine-grained cancellation support using a UUID-based global registry with ISO-8601 timestamp tracking and comprehensive session analytics including timing metrics, token usage tracking, tool execution tracking, and error states. Supports parent chat knowledge and file inheritance through configurable flags, enabling selective knowledge reuse and context propagation across related conversations. Implements crash-safe persistence mechanisms protecting against data loss through early metadata creation, event bridge integration, stream throttling via `maybe_persist_stream()`, hidden reasoning persistence via `event_bridge.persist_message()`, immediate error state setting on exceptions, and duplicate prevention via `_append_message_if_missing()`.
 
 **AI and Knowledge Management** – Integrates artificial intelligence capabilities with robust knowledge processing systems. The system features a comprehensive registry of Pydantic-based data models organized by functional domain, providing comprehensive validation and type safety. Includes support for multiple language models and providers with configurable defaults, providing embeddings-based knowledge retrieval organized across a three-tier architecture (Milvus for vector storage, AISearch for advanced search capabilities, and ChatKnowledge for conversation-specific indexing). Implements intelligent agents for specialized tasks and comprehensive knowledge indexing and retrieval systems with support for semantic search through both Pre-Search (AI-driven exploration) and RAG Search (document-grounded retrieval) mechanisms organized with deterministic file ordering and deduplication safeguards.
 
@@ -85,121 +83,343 @@ The Engine Module organizes API endpoints into logical categories for intuitive 
 | **System Control** | System-wide operations and monitoring | Logs, screen management, system restart and shutdown |
 | **Socket.IO** | Real-time WebSocket communication | Bidirectional real-time updates, session channels, progress tracking |
 
-## Chat Engine Architecture
+## File Management API
 
 ### Overview
 
-The Chat Engine is the core conversational AI component of the CodX Junior project, providing sophisticated multi-mode chat interactions with language models through a streamlined and crash-safe architecture. Built with persistent event tracking as its core principle, the engine processes requests through a deterministic pipeline of logical phases designed for comprehensive reliability and context management.
+Route: `/files`
 
-### Key Features
+The File Management API provides a comprehensive set of file operations for project scope management with robust security, efficient gitignore handling, and streaming support for large files.
 
-**Multi-Mode Interaction Architecture** – Implements four distinct modes optimized for different use patterns: Task (Refine) mode for document refinement and iterative task completion with focused output; Chat mode for standard conversational interactions with complete message history; Agent mode for complex workflows with configurable iteration counts and recursive logic; and Vibe mode for contextual understanding with nuanced AI-driven reasoning and sophisticated analysis.
+### Endpoints
 
-**Crash-Safety Architecture** – Implements robust protection against data loss through multiple critical layers: early metadata persistence ensuring response metadata is created and persisted before content streaming begins, enabling recovery even if streaming fails midway; event bridge integration providing multi-step persistence through distributed consistency mechanisms with automatic state tracking across system failures; stream throttling and protection with intelligent buffering against rapid data loss during network issues; thinking content preservation for recovery, audit trails, and detailed failure analysis; error state persistence for immediate recording with full context enabling precise failure recovery; and duplicate prevention through sophisticated deduplication mechanisms maintaining data integrity.
+**Route: GET `/files/list`**
+Lists files in a directory with gitignore-aware filtering and comprehensive metadata.
 
-**UUID-Based Cancellation Support** – Fine-grained request cancellation with global cancellation token registry featuring ISO-8601 UTC timestamp tracking, four-step flow from creation through cancellation verification with immediate persistence of cancellation state, comprehensive state tracking providing complete visibility into cancellation status and request lifecycle, and graceful degradation with proper cleanup and resource release upon cancellation while preserving state.
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `path` (string, default: ".") – Directory path relative to project root
+- `limit` (integer, default: 50) – Maximum files to return
+- `offset` (integer, default: 0) – Files to skip for pagination
 
-**Knowledge & File Inheritance System** – Supports intelligent knowledge management through parent-child relationships enabling child chats to selectively inherit knowledge and files from parent conversations. Configurable inheritance flags (`ignore_parent_knowledge` and `ignore_parent_files`) enable fine-grained control over knowledge propagation with recursive behavior across chat hierarchies. Knowledge search modes combine Pre-Search for AI-driven semantic exploration and RAG Search for document-grounded retrieval organized with deterministic file ordering. Selective reuse enables flexible knowledge management supporting partial inheritance and customized knowledge sets with deduplication and relevance ranking.
+Response: List of files with size, type, and modification timestamps
 
-**Session Analytics** – Provides comprehensive session tracking including timing metrics (request duration, processing phase timing), token usage tracking (input/output token counts), tool execution tracking (invocation counts, execution duration), error states (exception tracking, error types), model & provider metrics (model used, provider, configuration tracking), and metadata accumulation (session metadata, message counts).
+**Route: POST `/files/upload`**
+Uploads a single file to the project with MD5 hash verification and path stripping.
 
-**Event Streaming** – Emits events throughout the request processing pipeline providing complete visibility into operation flow. Events are generated during initialization, history retrieval, knowledge processing, prompt assembly, response generation, and finalization phases, enabling real-time progress tracking and comprehensive operation auditing.
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `path` (string, required) – Destination path (leading slashes stripped, filename appended)
 
-**File Content Integration** – Integrates file content at multiple points in the processing pipeline. Files are extracted from requests, deduplicated against existing context, parsed for content extraction, prepared with deterministic ordering for prompt inclusion, and tracked throughout processing for comprehensive context management.
+Behavior:
+- Strips leading slashes from paths
+- Appends uploaded filename to path for final storage
+- Logs all upload operations for audit trail
 
-**Performance Optimization** – Incorporates performance optimization strategies including intelligent deduplication mechanisms reducing redundant content processing, stream throttling preventing buffer overflow and network issues, lazy loading deferring expensive operations until necessary, and deterministic ordering ensuring consistent and reproducible behavior across processing phases.
+Response: Upload confirmation with file metadata
+
+**Route: POST `/files/upload-multiple`**
+Uploads multiple files simultaneously with batch processing and enhanced logging.
+
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `files` (array of files, required) – Files to upload
+- `path` (string, required) – Base destination path
+
+Behavior:
+- Processes batch uploads with concurrent handling
+- Uses filenames from uploaded files
+- Comprehensive logging of batch operations and individual file handling
+
+Response: Array of upload results for each file
+
+**Route: GET `/files/search`**
+Searches for files by name with gitignore-aware filtering and deterministic ordering.
+
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `search` (string, required) – Search term for file names
+- `limit` (integer, default: 50) – Maximum results to return
+- `offset` (integer, default: 0) – Results to skip for pagination
+
+Behavior:
+- Returns empty response when search term is empty
+- Applies gitignore rules to filter results
+- Maintains deterministic ordering for consistent pagination
+
+Response: List of matching files with metadata
+
+**Route: GET `/files/preview`**
+Retrieves file content with streaming for large files.
+
+Use Cases:
+- Preview code files in the editor
+- Display text content with syntax highlighting
+- Stream large files efficiently to clients
+
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `path` (string, required) – File path relative to project root
+
+Response: File content with media type detection
+
+**Route: DELETE `/files/{file_id}`**
+Deletes a file from the project with audit logging.
+
+Parameters:
+- `project_id` (string, required) – Project identifier
+- `file_id` (string, required) – File identifier
+
+Response: Deletion confirmation
+
+### Authentication & Session
+
+All file operations require:
+- Valid user authentication with active session
+- Workspace access permissions for the project
+- File path validation within project boundaries
+
+Session requirements:
+- User session established through middleware authentication
+- Workspace filtering to ensure project access
+- Role-based permission validation
+
+### Error Handling
+
+The API provides specific error responses:
+- `400 Bad Request` – Invalid parameters or path validation failures
+- `401 Unauthorized` – Missing or invalid authentication
+- `403 Forbidden` – Insufficient permissions for project access
+- `404 Not Found` – File or project not found
+- `500 Internal Server Error` – Server-side operation failures
+
+All errors are logged with full context for monitoring and troubleshooting.
+
+## Chat Engine
+
+### Overview
+
+The Chat Engine is the core conversational AI component of the CodX Junior application, providing sophisticated multi-mode chat interactions with language models. Built on workflow-centric design emphasizing clear API contracts and deterministic processing pipelines, the engine prioritizes user-facing workflow patterns over implementation complexity.
+
+### Key Responsibilities
+
+The Chat Engine delivers four primary responsibilities:
+
+1. **Chat Processing** – Orchestrates five distinct interaction modes (Task, Chat, Agent, Vibe, Search) optimized for different use patterns with mode-specific transformations and handling
+2. **Knowledge Management** – Enables intelligent knowledge inheritance and hierarchical chat structures with configurable propagation controls and parent-child chat relationships
+3. **Session Management** – Handles complete conversation lifecycle from initialization through finalization with comprehensive analytics tracking
+4. **Crash Safety** – Maintains data integrity through multi-layered persistence mechanisms protecting against loss across failure scenarios
 
 ### Chat Modes
 
-The Chat Engine implements four distinct modes optimized for different interaction patterns:
+The Chat Engine implements five distinct modes optimized for different use patterns:
 
-| Mode | Purpose | Characteristics |
-|------|---------|-----------------|
-| **Task (Refine)** | Document refinement and iterative task completion | Non-answer messages hidden, focused output |
-| **Chat** | Standard conversational interactions | Complete message history, general discussions |
-| **Agent** | Complex workflows with multi-step automation | Configurable iteration counts, recursive logic |
-| **Vibe** | Contextual understanding with nuanced reasoning | AI-driven perspective, sophisticated analysis |
+| Mode | Purpose | Use Case |
+|------|---------|----------|
+| **Task (Refine)** | Document refinement and iterative task completion | Focused output for specific tasks |
+| **Chat** | Standard conversational interactions | Complete message history retention |
+| **Agent** | Complex workflows with recursive logic | Configurable iteration counts and multi-step automation |
+| **Vibe** | Contextual understanding with nuanced reasoning | Sophisticated analysis and understanding |
+| **Search** | Knowledge-driven exploration | Semantic search and discovery |
 
-### Processing Pipeline
+### Internal Processing Pipeline
 
-The Chat Engine processes requests through a deterministic structured workflow ensuring reliability and consistency:
+The Chat Engine processes requests through a sophisticated 20-step deterministic pipeline ensuring reliable and predictable message handling:
 
-1. **Initialization Phase** – Validate incoming chat request and extract core parameters, register cancellation tokens with UUID tracking and ISO-8601 timestamps, initialize request context and session state, establish event tracking and analytics baseline, set up crash-safety checkpoints for recovery.
+1. **Request & Context Setup** – Validate request parameters and establish execution context
+2. **Parent Knowledge Evaluation** – Determine knowledge inheritance from parent conversations
+3. **Parent File Evaluation** – Determine file inheritance from parent conversations
+4. **Chat Mode Flag Resolution** – Resolve and parse chat mode configuration flags
+5. **History Assembly** – Construct complete message history with parent chat integration
+6. **Profile Resolution** – Resolve user profile settings with priority-based ordering
+7. **Knowledge Retrieval** – Execute knowledge retrieval through Pre-Search and RAG mechanisms
+8. **File Processing** – Extract, deduplicate, and prepare files for prompt inclusion
+9. **Metadata Initialization** – Create response metadata before streaming begins
+10. **Prompt Construction** – Build AI prompts with context, knowledge, and files
+11. **AI Response Execution** – Execute streaming AI response with error handling
+12. **Response Post-Processing** – Apply transformations and cleanup to raw AI responses
+13. **Message Persistence** – Persist complete message with all content and metadata
+14. **Lifecycle Event Emission** – Emit structured lifecycle events for session tracking
+15. **Analytics Aggregation** – Collect and aggregate timing, token, and operation metrics
+16. **Mode-Specific Processing** – Apply transformations unique to Task, Agent, and Vibe/Search modes
+17. **Parent Chat Context Integration** – Handle hierarchical relationships and inheritance
+18. **Message History Cleaning** – Build clean history for descriptions and summaries
+19. **Non-Answer Content Hiding** – Hide thinking content and tool events from user-facing output
+20. **Completion & State Finalization** – Final state persistence and resource cleanup
 
-2. **History & Context Phase** – Retrieve full message history with deterministic ordering for consistency, apply parent chat knowledge and file inheritance rules based on configuration flags, construct conversation context from applicable messages with parent message inclusion logic, validate message consistency and integrity.
+### Crash-Safety Architecture
 
-3. **Configuration Phase** – Resolve user profile settings and configurations with priority ordering, merge AI model parameters from multiple sources, apply mode-specific configuration overrides, finalize effective configuration for request.
+The Chat Engine implements a sophisticated multi-layered persistence model ensuring data protection across failure scenarios:
 
-4. **Knowledge Retrieval Phase** – Execute Pre-Search knowledge retrieval mechanism (AI-driven semantic exploration) when knowledge is not disabled, execute RAG-based knowledge search (document-grounded retrieval) with document-grounded deduplication, merge and deduplicate knowledge results across both search mechanisms, rank knowledge by relevance scores, apply knowledge context limits.
+**Layer 1: Early Metadata Persistence** – Response metadata is created before streaming begins, safeguarding critical data from stream initialization failures
 
-5. **File Processing Phase** – Extract and parse files from request and collect from parent chats using deterministic ordering, deduplicate files against existing context and knowledge, resolve file content with streaming and caching support, prepare files for prompt inclusion with deterministic ordering and formatting.
+**Layer 2: Event Bridge Integration** – Multi-step persistence through distributed consistency via `event_bridge.persist_message()`, ensuring event propagation across system components
 
-6. **Prompt Assembly Phase** – Build AI prompt message sequence with parent message integration, integrate knowledge context into prompt with formatting, integrate file content with markdown code block extraction, apply mode-specific prompt transformations and hiding rules.
+**Layer 3: Stream Throttling & Protection** – Intelligent buffering with intelligent flushing via `maybe_persist_stream()`, protecting against incomplete message transmission during stream interruptions
 
-7. **Response Metadata Phase** – Create and persist response metadata early before streaming begins (crash-safe checkpoint), establish baseline for streaming response with event tracking, prepare analytics baseline for session tracking.
+**Layer 4: Hidden Reasoning Persistence** – Thinking content is persisted through the event bridge before final answer streaming, ensuring reasoning is preserved for auditing and recovery
 
-8. **Response Generation Phase** – Execute AI response generation with streaming support and real-time buffering, handle streaming events and intelligent buffering, preserve thinking content throughout streaming for recovery and auditing, track token usage throughout generation, maintain crash-safety state during streaming.
+**Layer 5: Error State Management** – Error state is set immediately upon exception detection, ensuring failure conditions are captured without delay
 
-9. **Post-Processing Phase** – Generate chat description based on response and context, execute auto-initialization if configured with knowledge and file inclusion, apply message hiding rules based on chat mode (Task mode hides non-answer messages), finalize response structure.
+**Layer 6: Duplicate Prevention** – Sophisticated deduplication mechanisms via `_append_message_if_missing()` prevent message duplication during recovery scenarios
 
-10. **Finalization Phase** – Persist analytics and session data with comprehensive metrics, persist error states if exceptions occurred with full context, clean up temporary resources and close file handles, record operation completion with final state tracking.
+### Knowledge & File Inheritance System
 
-## SmolAgent Overview
+Supports intelligent knowledge management through parent-child relationships with configurable inheritance controls:
 
-SmolAgent is an advanced conversational agent designed for sophisticated real-time interactions with language models. It implements a streaming-first architecture that emphasizes real-time feedback and efficient resource utilization.
+- **`ignore_parent_knowledge` flag** – Controls whether child chats inherit knowledge bases and context from parent conversations (when `False`, parent messages are explicitly included in history)
+- **`ignore_parent_files` flag** – Controls whether child chats inherit file references from parent conversations
+- **Hierarchical traversal logic** – Recursive behavior across chat hierarchies enabling cascading inheritance
+- **Selective propagation** – Fine-grained control enabling reuse or isolation of parent conversation context
 
-### Core Architecture & Design
+### UUID-Based Cancellation Support
 
-SmolAgent employs an iterative loop design centered around the `AgentRunContext` which delegates core responsibilities across specialized handlers. The architecture follows an event-driven perspective with complete visibility through comprehensive event systems. Each iteration processes tool calls, executes tools with intelligent caching mechanisms, and incorporates results before proceeding to the next cycle.
+Provides fine-grained request cancellation through:
 
-**Tool Cache System** – Implements sophisticated caching for tool execution with detailed analytics including cache hits, cache misses, and cache hit rate metrics. Tool responses are cached at execution time, preventing redundant computations and accelerating multi-step workflows. Cache statistics are tracked throughout execution for performance monitoring and optimization.
+- **Global cancellation registry** – Centralized token tracking with ISO-8601 UTC timestamp recording at iteration 0
+- **Token lifecycle management** – UUID stamping to metadata for precise identification and tracking
+- **Public cancellation methods** – `cancel_chat()` and `cancel_chat_by_token_id()` for external control
+- **Graceful degradation** – Partial results preservation and safe state transitions
 
-**Cancellation Mechanisms** – Supports two distinct cancellation approaches: UUID-based global cancellation tokens for external cancellation triggers with checkpoint verification at iteration boundaries, and context cancellation for graceful degradation when processing limits are reached. Checkpoints are established at loop boundaries and between phases for clean interruption points.
+### Session Analytics
 
-**Tool Result Normalization** – Standardizes diverse tool outputs through consistent processing ensuring uniform handling regardless of tool type or response format. Normalizes results for reliable downstream consumption and consistent behavior across different tool implementations.
+Provides comprehensive session tracking including:
+
+- **Timing Metrics** – Session start recorded at initialization, session end recorded at finalization with complete duration tracking
+- **Token Usage** – Input/output token counts and model-specific metrics
+- **Tool Execution** – Invocation counts, execution duration, and cache performance
+- **Error Tracking** – Exception types, failure states, and recovery actions
+- **Model Metrics** – Model used, provider, configuration tracking, and performance indicators
+
+### Main Entry Points
+
+- **`chat_with_project()`** – Primary entry point for initiating chat conversations with comprehensive parameter configuration
+- **`_chat_with_project_inner()`** – Internal processing logic handling the 20-step deterministic pipeline and mode-specific transformations
+
+### Configuration & Settings
+
+The Chat Engine accepts comprehensive initialization parameters controlling behavior across different interaction modes, including AI model selection, knowledge retrieval strategies, tool availability, and response generation parameters. Parameters integrate with the global settings system enabling flexible configuration management with intelligent defaults.
+
+## SmolAgent
+
+### Overview
+
+SmolAgent is an advanced conversational agent engineered for sophisticated real-time interactions with language models. Built with flow-centric architecture optimized for streaming responses, SmolAgent serves as the primary interface for conversational AI interactions, handling complex multi-turn conversations with intelligent tool orchestration and comprehensive real-time feedback mechanisms.
 
 ### Core Capabilities
 
-**Streaming Architecture** – Provides native streaming support with real-time response generation and buffered output delivery. The agent processes model responses as they arrive, enabling immediate user feedback and progressive result refinement.
+- **Streaming Architecture** – Native streaming support with real-time response generation and dual content streams (thinking content and final answers)
+- **Intelligent Tool Management** – Sophisticated tool scoping systems distinguishing between global tools and chat-scoped tools with intelligent caching
+- **Multi-Turn Lifecycle** – Complete conversation management from initialization through finalization with comprehensive analytics
+- **Event Visibility** – Comprehensive event emissions providing complete visibility into tool execution and operation flow
+- **Configurable Iteration** – Flexible iteration-based execution with loop protection mechanisms and precise uncached-only iteration counting
+- **Error Resilience** – Comprehensive error handling with explicit exception catching and meaningful diagnostics
+- **Pre-Flight Verification** – Wallet verification ensuring sufficient resources before execution initiation
+- **Fresh Configuration Loading** – Global system instructions loaded on every invocation ensuring current settings
 
-**Tool Integration** – Seamlessly integrates with the Tools Engine for executing specialized capabilities. Tools are scoped (global, chat-specific, profile-level) and support both synchronous and asynchronous execution with dual-response patterns for complex workflows.
+### Conversation Flow
 
-**Agent Loops** – Implements configurable iteration-based execution with loop protection mechanisms preventing infinite execution. Each iteration processes tool calls, executes tools, and incorporates results before proceeding to the next cycle. **Loop Guard Constraints** enforce maximum iteration counts and resource limits protecting system stability. Only uncached tool executions count toward iteration limits, allowing efficient use of cached results without consuming loop budget.
+SmolAgent implements a sophisticated conversation execution flow:
 
-**Event System** – Provides comprehensive event emissions throughout execution with operational clarity. Events include initialization events, iteration progress events, tool execution details with event tables documenting tool call flows, completion events, and error states. Event-driven architecture enables real-time monitoring and integration with external systems.
+1. **Request Validation & Pre-Flight Checks** – Validate incoming request, verify wallet resources, and establish execution context
+2. **System Instructions Loading** – Load fresh global and profile-specific instructions ensuring current configuration
+3. **History Assembly** – Construct message history from provided messages and context
+4. **Tool Preparation** – Filter and prepare tools based on scope configuration (global, chat-specific, profile-level)
+5. **Iteration Loop** – Execute configured iteration count with intelligent tool management and response accumulation
+6. **Result Normalization** – Process tool outputs with priority-based resolution
+7. **Finalization & Analytics** – Persist completion state and usage metrics with comprehensive event emission
 
-**Configuration Management** – Supports flexible configuration through profiles and parameters with intelligent defaults. Configuration includes model selection, iteration limits, tool availability, and behavioral parameters.
+### Tool System
 
-**Analytics & Tracking** – Captures detailed metrics including token usage (input/output counts), execution timing (phase durations, total runtime), tool invocation counts and execution times, tool cache analytics (hits, misses, and hit rate percentages), and error tracking with full context preservation.
+SmolAgent seamlessly integrates with the Tools Engine for executing specialized capabilities. Tools are organized into logical categories and support both synchronous and asynchronous execution.
 
-### Exception Handling
+**Tool Scopes:**
 
-SmolAgent categorizes errors into specific types for precise failure recovery:
+| Scope | Description |
+|-------|-------------|
+| **Global Scope** | System-level tools available across all chat sessions |
+| **Chat Scope** | Chat-specific tools scoped to individual conversations |
+| **Profile Scope** | Profile-specific tools customized for user profiles |
 
-- **ToolLoopError** – Errors occurring during tool execution within the agent loop with full context preservation
-- **CancelledError** – Errors resulting from cancellation requests with clean resource cleanup
-- **AgentCancelled** – Cancellation state exceptions for graceful degradation
+### Tool Caching & Result Handling
 
-**Non-Fatal Failures** – Warnings that do not interrupt execution including tool timeout warnings, partial response recoveries, and degraded operation scenarios. These warnings are logged and tracked for observability without interrupting the agent workflow.
+- **Tool Caching** operates at the conversation level with cached executions bypassing iteration constraints for efficiency
+- **Tool Execution Flow** – TOOL_START event on invocation, TOOL_END event with accumulated response on completion, TOOL_ERROR on failures
+- **Tool Result Normalization** ensures consistent handling with priority order: user response, LLM response, string conversion
+- **Cache Statistics** tracked with hits, misses, and hit rate percentages for performance monitoring
 
-### System Rules
+### Streaming & Real-Time Feedback
 
-SmolAgent enforces explicit hardcoded file-handling rules ensuring consistent code output:
+Features buffer-based callback flushing that accumulates streamed content before delivery with crash-safe flushing ensuring content reaches callbacks even during failures, controlled by periodic flush intervals.
 
-- **Code Block Formatting** – All code content is wrapped in markdown code blocks with language specification
-- **File Path Handling** – Absolute or relative file paths used based on project and conversation context
-- **Original Formatting Preservation** – New file changes maintain original file formatting and indentation
-- **Minimal Changes** – Unnecessary changes, format alterations, or cleanup avoided unless explicitly requested
-- **Complete File Content** – Full file content generated with changes for comprehensive review
+### Cancellation Support
+
+Supports dual cancellation approaches:
+
+- **UUID-Based Tokens** – Global cancellation for external control with checkpoint verification and fine-grained lifecycle management
+- **Context-Based** – Graceful degradation for context-aware cancellation with partial result preservation
+
+### Comprehensive Error Handling
+
+Provides robust error management with:
+
+- **Explicit exception catching** – Comprehensive exception handling throughout execution pipeline
+- **Non-empty error messages** – Meaningful diagnostics for troubleshooting and debugging
+- **Serialization strategies** – Comprehensive handling for asyncio.Future, coroutines, Pydantic models, and complex data types
+- **Failure state tracking** – Error persistence and recovery state management
+
+### Analytics & Monitoring
+
+Provides comprehensive analytics including:
+
+- **Token tracking** – Input/output token counts with detailed model metrics
+- **Tool usage recording** – Execution counts, timing, and cache performance
+- **Performance metrics** – Processing duration, latency measurements, and throughput analysis
+
+## Database and Data Storage
+
+The Database Module forms the foundation of data persistence for the CodX Junior API, managing all data storage and retrieval operations with sophisticated architecture and efficiency optimizations.
+
+### Core Components
+
+**Core Operations** – Implements comprehensive CRUD operations for all data models with transactional integrity, flexible query patterns, and cascading cleanup.
+
+**Connection Caching Strategy** – The Database Module implements the `PROJECT_DATABASES` cache strategy for efficient database connection management that prevents connection exhaustion while maintaining responsiveness, optimizes resource utilization by reusing connections across requests, enables bulk operations with direct access patterns for complex queries, and supports hierarchical queries to manage relationships between core entities.
+
+**Data Models** – Implements structured Pydantic-based models for managing different entity types:
+
+| Model | Purpose |
+|-------|---------|
+| **ChatAttachment** | Stores file attachments and references associated with chat conversations |
+| **Kanban** | Manages kanban board states and task organization within projects |
+| **Message** | Persists conversation messages with support for thinking content, task classification, and state tracking |
+| **Chat** | Stores conversation sessions with AI model tracking, visibility settings, and hierarchical parent-child relationships |
+| **ChatHistoryEntry** | Tracks chat state snapshots for point-in-time recovery and comprehensive audit trails enabling crash-safe recovery |
+
+**Message Models** – Persist conversation messages with comprehensive field support including thinking content, task classification, user read status, file attachments, completion status, thinking mode, knowledge/file inheritance flags, and linked chat references for hierarchical conversations.
+
+**Chat Models** – Store conversation sessions with metadata including AI model tracking, status indicators, linked messages, and chat relationships supporting hierarchical parent-child structures with inherited settings and context propagation.
+
+**Tool Events** – Track tool invocation and execution with detailed call information, tool identifiers, execution parameters, status tracking, and error details.
+
+**Lifecycle Events** – Record state transitions and operational milestones with timestamps and contextual metadata for comprehensive system auditing.
+
+### Data Relationships
+
+Supports hierarchical organization with relationships enabling complete data retrieval patterns:
+
+- **Chat ↔ Messages** – One-to-many relationship for complete message history per chat
+- **Chat ↔ Tool Events** – One-to-many relationship for tool execution tracking
+- **Parent Chat ↔ Child Chats** – Hierarchical relationships for inheritance and context
+- **Messages ↔ Attachments** – Support for file and content attachments
 
 ## Security Features
 
 **Authentication & Authorization** – Role-based access control with workspace filtering, ensuring users only access resources within their authorization scope. Supports role-based permission levels (admin and regular users) with workspace-specific assignments and project-level associations. Integrates both API key and OAuth-based authentication mechanisms including GitHub OAuth integration for secure user authentication and resource protection.
 
-**Access Control** – Implements comprehensive access control through:
-- User authentication validating credentials and managing secure session establishment
-- Workspace access rules enforcing workspace-level permissions ensuring users can only interact with resources in their authorized workspaces
-- Granular permission enforcement at the project and resource levels with admin privileges for administrative operations
+**Access Control** – Implements comprehensive access control through user authentication validating credentials, workspace access rules enforcing permissions, and granular permission enforcement at the project and resource levels with admin privileges for administrative operations.
+
+**Path Security** – Robust file access protection through comprehensive path traversal validation preventing unauthorized file access with systematic directory boundary enforcement and secure path resolution mechanisms.
 
 **Request Processing Pipeline** – Each middleware layer executes in order through the core architecture, adding specific functionality to the request lifecycle with timeout enforcement (280 seconds) and process time tracking for performance monitoring.
 
@@ -260,6 +480,23 @@ The model layer encompasses comprehensive data structures organized to reflect t
 
 ## Key Features
 
+### File Operations
+
+The File Engine provides a centralized hub for all file operations with performance-optimized gitignore handling and comprehensive file management:
+
+- **Path Protection** – Secure path traversal validation preventing unauthorized file access with comprehensive directory boundary enforcement
+- **Binary File Recognition** – Intelligent binary detection and specialized handling for non-text files with consistent binary file processing
+- **Gitignore Support** – Efficient directory pruning based on gitignore patterns with GitIgnoreManager using pattern matching, supporting gitignore rule cascading and smart filtering optimized to walk the directory tree only once during initialization
+- **File Reading & Writing** – Streaming support for large files with automatic binary detection, memory-efficient processing, and atomic write operations with safety mechanisms
+- **File Search** – Gitignore-aware searching with deterministic ordering and efficient filtering, supporting both single file and directory mode searches
+- **Directory Listing** – Comprehensive file structure exploration with hierarchical navigation and metadata retrieval
+- **File Metadata** – Detailed file information retrieval including size, type, modification timestamps, and permission tracking
+- **File Comparison** – Differential analysis for file review and version tracking with granular diff operations
+- **Utility Methods** – Helper operations including readme file retrieval and wiki file access
+- **Special Features** – Wiki access, README retrieval, and OCR image-to-text conversion with Tesseract integration for text extraction from images
+- **Error Handling** – Comprehensive error handling with specific error types for missing files, permission issues, path validation failures, and batch operations
+- **Performance Optimization** – Intelligent caching mechanisms for directory pruning, pagination support for large directory listings, and streaming content delivery for efficient resource usage
+
 ### Image Operations
 
 The Image Engine provides a centralized hub for all image operations:
@@ -275,22 +512,22 @@ The Image Engine provides a centralized hub for all image operations:
 
 Tools operate at multiple scope levels and support both single and bulk operations:
 
-| Scope | Description | Availability |
-|-------|-------------|--------------|
-| **Global Scope** | System-level tools available across all chat sessions | Always accessible to all agents and operations |
-| **Chat Scope** | Chat-specific tools scoped to individual conversations | Available within specific chat context |
-| **Profile Scope** | Profile-specific tools customized for user profiles | Available based on profile settings and permissions |
+| Scope | Description |
+|-------|-------------|
+| **Global Scope** | System-level tools available across all chat sessions |
+| **Chat Scope** | Chat-specific tools scoped to individual conversations |
+| **Profile Scope** | Profile-specific tools customized for user profiles |
 
 **Tool Categories:**
 
-| Category | Purpose | Key Capabilities |
-|----------|---------|-----------------|
-| **Web & Content** | Web content retrieval and processing | Browser automation, web scraping, HTTP requests |
-| **Project Management** | Repository and project management | Git operations, project search, structure analysis |
-| **Code & Development** | Code analysis and creation | Code writing, analysis, refactoring |
-| **Image & Vision** | Image processing and analysis | Vision analysis, image processing, generation |
-| **File Operations** | File reading and modification | File management, search-replace with validation |
-| **Task Management** | Workflow orchestration | Bulk operations, batch processing, task execution |
+| Category | Purpose |
+|----------|---------|
+| **Web & Content** | Web content retrieval and processing with browser automation, web scraping, HTTP requests |
+| **Project Management** | Repository and project management with Git operations, project search, structure analysis |
+| **Code & Development** | Code analysis and creation with code writing, analysis, refactoring |
+| **Image & Vision** | Image processing and analysis with vision analysis, image processing, generation |
+| **File Operations** | File reading and modification with file management, search-replace with validation |
+| **Task Management** | Workflow orchestration with bulk operations, batch processing, task execution |
 
 ### Git Integration
 
@@ -328,11 +565,11 @@ Use the sidebar to explore specific modules and components. Each section contain
 
 - **Project Overview** – High-level system architecture and design principles
 - **App Module** – FastAPI application initialization, configuration, request processing pipeline, middleware implementations, session management, and lifecycle management
-- **Engine Module** – Core backend operations, endpoint organization, Git management, session handling, file upload processing with MD5 verification, and access control
-- **AI and Knowledge Management** – AI and LLM model configurations with provider settings, comprehensive data models organized by functional domain, agents for specialized tasks, knowledge processing with semantic search through Pre-Search and RAG mechanisms, Chat Engine with advanced features and crash-safe architecture supporting deterministic processing with deduplication and file ordering safeguards, comprehensive processing pipeline with logical phases, SmolAgent for streaming interactions with real-time event systems and sophisticated tool caching analytics, tool integration with intelligent caching mechanisms and cache statistics tracking, error handling with exception categorization and non-fatal failure tracking, tool result normalization for consistent output handling, hardcoded file-handling rules for consistent code output, comprehensive image operations, and guidance for Chat Engine and SmolAgent usage
-- **Database and Data Storage** – Data persistence, storage configuration, and settings management
+- **Engine Module** – Core backend operations, endpoint organization, Git management, session handling, file upload processing with MD5 verification, access control, and comprehensive file engine operations
+- **AI and Knowledge Management** – AI and LLM model configurations with provider settings, comprehensive data models organized by functional domain, agents for specialized tasks, knowledge processing with semantic search through Pre-Search and RAG mechanisms, Chat Engine documentation with workflow-centric design emphasizing clear API contracts, main entry points with practical code examples, comprehensive 20-step message pipeline processing stages with deterministic request lifecycle management, detailed mode-specific processing for Task, Agent, and Vibe/Search modes, knowledge inheritance system with parent chat integration and `ignore_parent_knowledge` flag behavior controlling parent message inclusion, crash-safe persistence with multi-layered architecture including early metadata persistence, event bridge integration, stream throttling via `maybe_persist_stream()`, hidden reasoning persistence via `event_bridge.persist_message()`, error state management, and duplicate prevention via `_append_message_if_missing()`, SmolAgent for streaming interactions with flow-centric architecture optimized for real-time responses, tool caching and result normalization with cache statistics, sophisticated iteration management with Loop Guard constraints and cached execution bypass, comprehensive error handling with explicit exception catching and meaningful diagnostics, comprehensive serialization strategy for complex data types, pre-flight wallet verification and fresh configuration loading on every invocation, comprehensive event taxonomy, and comprehensive image operations
+- **Database and Data Storage** – Data persistence with connection caching strategy, comprehensive CRUD operations, hierarchical data model organization, message models with thinking content and file attachment support, chat models with status and linking, ChatHistoryEntry snapshots for crash-safe recovery, Tool Event tracking, and lifecycle event management
 - **Security and Authentication** – Authentication mechanisms, authorization enforcement, and access control
 - **Session Management** – Session handling, session creation, Socket.IO integration through SessionChannel, and real-time communication
 - **Utility Functions** – Helper tools and scripts
 
-For specific implementation details, method signatures, parameter documentation, model field specifications, complete parameter specifications for tools (including data types, defaults, and constraints), structured code examples showing return data formats, and detailed SmolAgent behavior including tool cache analytics with hit rate metrics, loop guard iteration counting mechanisms, and cancellation checkpoints, navigate to the relevant module section in the documentation.
+For specific implementation details, method signatures, parameter documentation, model field specifications, complete parameter specifications for tools (including data types, defaults, and constraints), structured code examples showing return data formats, detailed pipeline workflows, comprehensive error handling strategies, and detailed architecture deep-dives, navigate to the relevant module section in the documentation.

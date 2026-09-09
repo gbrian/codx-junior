@@ -2,6 +2,8 @@
 import MarkdownViewer from '../MarkdownViewer.vue'
 import Code from '../Code.vue'
 import ChapterBlock from './ChapterBlock.vue'
+import BlockEditor from '../BlockEditor.vue'
+import ChapterMenu from './ChapterMenu.vue'
 import parser from '@/utils/markdownParser'
 </script>
 
@@ -11,9 +13,9 @@ import parser from '@/utils/markdownParser'
     @mouseenter="isHovered = true"
     @mouseleave="isHovered = false"
   >
-    <!-- Chapter header with copy button -->
+    <!-- Chapter header with menu -->
     <div v-if="chapter.level > 0">
-      <div class="flex items-center justify-between group/header">
+      <div class="flex items-center justify-between group/header relative">
         <div :class="'heading-' + chapter.level">
           <h1 v-if="chapter.level === 1" class="text-3xl font-bold">{{ chapter.title }}</h1>
           <h2 v-else-if="chapter.level === 2" class="text-2xl font-bold">{{ chapter.title }}</h2>
@@ -22,37 +24,41 @@ import parser from '@/utils/markdownParser'
           <h5 v-else-if="chapter.level === 5" class="font-bold">{{ chapter.title }}</h5>
           <h6 v-else class="font-bold text-sm">{{ chapter.title }}</h6>
         </div>
-        <div class="hidden group-hover/header:flex gap-2 items-center">
-          <slot 
-            name="chapter-actions" 
-            :chapter="chapter"
-            :full-content="fullChapterContent"
-          >
-            <button
-              class="btn btn-sm btn-ghost gap-2"
-              @click="copyChapterMarkdown"
-              :title="'Copy chapter: ' + chapter.title"
-            >
-              <i class="fa-solid fa-copy"></i>
-              Copy
-            </button>
-            <button
-              class="btn btn-sm btn-ghost gap-2"
-              @click="createTaskFromChapter"
-              :title="'Create task from chapter: ' + chapter.title"
-            >
-              <i class="fa-solid fa-plus"></i> Task
-            </button>
-          </slot>
-        </div>
+        
+        <!-- Menu appears on hover -->
+        <ChapterMenu
+          v-if="isHovered && !isEditing"
+          @edit="startEditing"
+          @copy="copyChapterMarkdown"
+          @create-task="createTaskFromChapter"
+        >
+          <template #chapter-actions>
+            <slot 
+              name="chapter-actions" 
+              :chapter="chapter"
+              :full-content="fullChapterContent"
+            />
+          </template>
+        </ChapterMenu>
       </div>
     </div>
 
-    <!-- Render blocks within chapter -->
-    <div class="space-y-4">
-      <!-- CHANGED: Use block.hash as stable key to prevent unmounting during streaming -->
-      <div v-for="block in blocks" 
-        :key="block.hash">
+    <!-- Edit mode: BlockEditor with all chapter content -->
+    <BlockEditor
+      v-if="isEditing"
+      ref="blockEditor"
+      :original-content="fullChapterContent"
+      :is-code-block="false"
+      @edit-start="onEditStart"
+      @edit-cancel="cancelEdit"
+      @edit-save="onEditSave"
+    >
+      <div class="hidden"></div>
+    </BlockEditor>
+
+    <!-- View mode: Render blocks within chapter -->
+    <div v-else class="space-y-4">
+      <div v-for="block in blocks" :key="block.hash">
         <!-- Code block: has fileName or has type with synthetic fileName -->
         <Code
           v-if="isCodeBlock(block)"
@@ -88,7 +94,7 @@ import parser from '@/utils/markdownParser'
     </div>
 
     <!-- Render child chapters -->
-    <div v-if="chapter.children && chapter.children.length">
+    <div v-if="chapter.children && chapter.children.length && !isEditing">
       <ChapterBlock
         v-for="childChapter in chapter.children"
         :key="childChapter.hash"
@@ -109,6 +115,7 @@ import parser from '@/utils/markdownParser'
         @save-file="$emit('save-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         @sub-task="$emit('sub-task', $event)"
+        @block-edited="$emit('block-edited', $event)"
       >
         <template #chapter-actions="{ chapter: childChapter, fullContent }">
           <slot 
@@ -143,11 +150,13 @@ export default {
     'open-file',
     'save-file',
     'edit-message',
-    'sub-task'
+    'sub-task',
+    'block-edited'
   ],
   data() {
     return {
-      isHovered: false
+      isHovered: false,
+      isEditing: false
     }
   },
   computed: {
@@ -162,6 +171,32 @@ export default {
     },
     isCodeBlock(block) {
       return !!block.fileName
+    },
+    startEditing() {
+      this.isEditing = true
+      this.$nextTick(() => {
+        if (this.$refs.blockEditor) {
+          this.$refs.blockEditor.startEdit()
+        }
+      })
+    },
+    cancelEdit() {
+      this.isEditing = false
+    },
+    onEditStart() {
+      // Edit mode activated
+    },
+    onEditSave(editData) {
+      const { originalContent, newContent } = editData
+      this.isEditing = false
+      
+      // Emit block-edited event with the full updated content
+      this.$emit('block-edited', {
+        originalContent,
+        newContent,
+        chapterTitle: this.chapter.title,
+        chapterLevel: this.chapter.level
+      })
     },
     copyChapterMarkdown() {
       const fullContent = this.fullChapterContent
@@ -189,9 +224,6 @@ export default {
       this.$emit('create-task', taskData)
     },
     onCodeSubTask(subTaskData) {
-      // CodeViewer emits sub-task with { file, content } where content is the
-      // formatted markdown fence. Re-emit as create-task so it flows through
-      // the same path as chapter tasks and carries content to the parent.
       this.$emit('create-task', {
         title: subTaskData.file ? subTaskData.file.split('/').reverse()[0] : '',
         content: subTaskData.content || ''

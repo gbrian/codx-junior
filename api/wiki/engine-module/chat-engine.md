@@ -2,377 +2,308 @@
 
 ## Overview
 
-The `ChatEngine` is the core component of the CODX Junior API responsible for managing chat interactions with AI models. It orchestrates message processing, knowledge base searching, context building, and AI response generation across multiple chat modes.
+The `ChatEngine` is the core component responsible for managing chat interactions with AI models in the CODX Junior system. It orchestrates message processing, knowledge search, context building, and AI response generation across multiple chat modes while ensuring crash-safety through continuous state persistence.
 
 ## Key Features
 
-### Chat Modes
+### Multi-Mode Chat Support
 
 The engine supports four distinct chat modes:
 
-- **chat**: Standard conversational mode
-- **task**: Document refinement mode where the AI applies feedback to existing documents
-- **agent**: Iterative task completion mode with multiple attempts
-- **vibe**: AI-driven search mode using semantic understanding
+- **chat**: Standard conversation mode
+- **task** (refine): Document refinement mode where the AI applies comments to existing documents
+- **agent**: Iterative task completion mode with configurable maximum iterations
+- **vibe**: Discovery mode using AI-driven search for context
 
 ### Crash-Safety Architecture
 
 The engine implements comprehensive crash-safety mechanisms:
 
-- **ChatEventBridge**: Persists response messages on every event change, ensuring tool events and lifecycle events survive crashes
-- **Streamed Content Persistence**: Throttled persist of partial content from streaming callbacks
-- **Hidden Reasoning Persistence**: Intermediate reasoning messages are persisted immediately via the event bridge
-- **Error State Persistence**: Response message errors are persisted immediately upon occurrence
+- **ChatEventBridge Integration**: Persists the response message on every event change (tool executions, lifecycle events)
+- **Stream Throttling**: Streamed partial content is persisted at throttled intervals via `maybe_persist_stream()`
+- **Immediate Error Persistence**: Response messages with errors are persisted immediately before subsequent operations
+- **Hidden Reasoning Persistence**: Multi-step reasoning messages are persisted the moment they are appended
 
 ### Cancellation Support
 
-External callers can cancel in-flight requests using:
+A global `CANCELLATION_REGISTRY` enables cancellation of in-flight requests via:
+- Chat document ID: `CANCELLATION_REGISTRY.cancel(chat.doc_id)`
+- Token ID: `CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`
 
-```python
-# By chat document ID
-CANCELLATION_REGISTRY.cancel(chat.doc_id)
+The cancellation token ID is stamped into response metadata immediately and sent with every streaming event.
 
-# By cancellation token ID
-CANCELLATION_REGISTRY.cancel_by_token_id(token_id)
-```
+### Analytics Integration
 
-The cancellation token ID is stamped into response message metadata immediately upon creation, allowing clients to receive it in the first streaming event.
+The engine tracks chat sessions with comprehensive metrics:
+- Session start/end timestamps and duration
+- Message counts (input/output)
+- Model and profile usage
+- Iteration tracking for agent mode
+- Error and cancellation states
 
 ## Core Methods
 
-### Main Entry Point: `chat_with_project()`
+### Main Entry Point
 
-Processes a chat interaction with comprehensive workflow management:
+**`async chat_with_project(chat, disable_knowledge=False, callback=None, append_references=True, chat_mode=None, iteration=0, system=None)`**
 
-```python
-async def chat_with_project(
-    self,
-    chat: Chat,
-    disable_knowledge: bool = False,
-    callback=None,
-    append_references: bool = True,
-    chat_mode: str = None,
-    iteration: int = 0,
-    system: str = None
-)
-```
+Main entry point for processing chat interactions. Handles:
+- Cancellation token registration/unregistration
+- Delegation to internal implementation for full call-tree isolation
+- Multi-iteration agent recursion
 
-**Workflow Steps:**
+### Internal Implementation
 
-1. **Project Context Validation**: Switches project context if chat belongs to different project
-2. **Cancellation Token Registration**: Registers token for request cancellation (root iteration only)
-3. **Query Context Extraction**: Processes user message and identifies task items
-4. **Chat Mode Resolution**: Determines active flags for vibe, search, refine, and agent modes
-5. **Response Message Creation**: Creates response message before AI call and stamps cancellation token ID
-6. **Event Bridge Initialization**: Binds ChatEventBridge early to persist events during run
-7. **Query Mentions Resolution**: Extracts profiles, files, and projects from query
-8. **Chat Files Collection**: Gathers files from all visible messages and parent chats
-9. **Profile & Model Resolution**: Determines active profiles, LLM model, and tools
-10. **Message History Building**: Constructs LangChain messages including parent messages (if not ignored)
-11. **Search Project Resolution**: Identifies projects for knowledge search
-12. **Knowledge Disable Evaluation**: Determines if knowledge search should be disabled
-13. **AI Instance Configuration**: Merges profile system content with optional system prompt
-14. **Pre-Search Execution**: Runs AI-driven search for vibe/search modes
-15. **RAG Knowledge Search**: Performs standard document search if enabled
-16. **Prompt Assembly**: Builds final message list with context and mode-specific prompts
-17. **AI Response Execution**: Invokes AI with tool support and run context
-18. **Response Finalization**: Extracts files, stamps metadata, persists state
-19. **Description Generation**: Creates conversation summary via AI
-20. **Auto-Initialization**: Fills missing metadata for auto_initialize chats
-21. **Agent Iteration**: Recurses if agent mode and iterations remain
-22. **Session Recording**: Records analytics for the complete session
+**`async _chat_with_project_inner(...)`**
 
-### Context Building Methods
+The complete chat processing pipeline including:
 
-#### `_build_message_history()`
+1. **Timing & Context Extraction**: Collects timing information and user message details
+2. **Chat Mode Resolution**: Determines active mode and feature flags
+3. **Response Message Initialization**: Creates response message and stamps cancellation token
+4. **Event Bridge Setup**: Binds ChatEventBridge early for crash-safety
+5. **Query Mention Resolution**: Extracts profiles, files, and projects from query
+6. **Chat Files Collection**: Gathers files from all visible messages with deduplication
+7. **Profile & Model Resolution**: Determines active profiles, LLM model, and tools
+8. **Knowledge Flag Evaluation**: Checks if knowledge search should be disabled
+9. **Message History Building**: Constructs LangChain message history with optional parent messages
+10. **Chat Files Loading**: Reads content of explicitly attached files
+11. **AI Instance Preparation**: Configures AI with merged system prompt
+12. **Pre-Search Execution**: Runs AI-driven search in vibe/search modes
+13. **RAG Knowledge Search**: Performs standard document search if enabled
+14. **AI Prompt Assembly**: Builds final message list for AI invocation
+15. **AI Response Execution**: Invokes AI/search handler with error handling
+16. **Response Metadata Finalization**: Stamps timing, model, and extracted file metadata
+17. **Description Generation**: Creates conversation summary and history entries
+18. **Metadata Auto-Initialization**: Auto-fills chat name/board/column if marked
+19. **Agent Iteration**: Recurses for multi-turn agent tasks
+20. **Session Recording**: Records start/end analytics
 
-Converts chat messages to LangChain format with optional parent message inclusion:
+### Message History Management
 
-- Excludes hidden and improvement messages
-- Includes parent chat history when `ignore_parent_knowledge=False`
-- Recursively processes parent's parent messages
-- Returns list ready for LLM consumption
+**`_build_message_history(chat, include_parent_messages=True)`**
 
-#### `_collect_files_from_visible_messages()`
+Converts non-hidden, non-improvement chat messages to LangChain format. When `include_parent_messages=True` and the chat has a parent with `ignore_parent_knowledge=False`, prepends parent chat history recursively.
 
-Gathers unique file references across all visible messages:
+**`_build_clean_message_history_for_description(chat)`**
 
-- Unions chat-level files with per-message files
-- Deduplicates and sorts for deterministic ordering
-- Essential for multi-turn context preservation
-
-### Knowledge Search Methods
-
-#### `_run_pre_search()`
-
-Executes AI-driven search for vibe and search modes:
-
-- Combines conversation history with current query
-- Delegates to ChatKnowledge for semantic search
-- Returns documents, file list, and formatted context string
-
-#### `_run_rag_knowledge_search()`
-
-Performs standard RAG document search:
-
-- Searches across specified projects
-- Excludes already-provided documents
-- Formats results as code blocks in context string
-- Handles search errors gracefully
+Creates a cleaner conversation history excluding system prompts, profile content, and file details—suitable for generating concise summaries.
 
 ### Profile & Model Resolution
 
-#### `_resolve_profiles_and_model()`
+**`_resolve_profiles_and_model(chat, query_mentions, chat_files, is_refine)`**
 
-Derives active profiles, model, and tools from query mentions:
+Derives active profiles, LLM model, tool list, and profile content. Profiles are sorted by name and their content is formatted for the system prompt. Falls back to default content if files are present but no profiles specified.
 
-- Sorts profiles by name for consistency
-- Builds system prompt content from profile instructions
-- Collects tools from all active profiles
-- Selects LLM model from profile if not explicitly set
-- Returns complete resolution dictionary
+### Knowledge Search
 
-### Message Assembly
+**`_run_pre_search(chat, messages, query, chat_files)`**
 
-#### `_build_ai_prompt_messages()`
+Executes AI-driven pre-search in vibe/search modes. Combines conversation history with current query for richer search context via `ChatKnowledge.ai_search_for_context()`.
 
-Assembles final LangChain message list for AI invocation:
+**`_run_rag_knowledge_search(chat, messages, query, ignore_documents, search_projects)`**
 
-- Appends context as user message if available
-- Adds mode-specific prompts (refine/agent/standard)
-- Prepends working files content
-- Handles context-specific message formatting
+Performs standard RAG document search across specified projects, formatting results as context blocks.
 
-#### `_append_refine_message()`
+### Response Generation
 
-Builds task-refinement prompt for document updates:
+**`async _execute_ai_response(chat, messages, is_search, ai, ai_headers, chat_tools, response_message, task_item, callback, send_message_event, cancellation_token, run_context, event_bridge)`**
 
-- References existing document if available
-- Includes parent context when not ignored
-- Instructs model to apply comments while preserving unchanged content
+Invokes AI or search handler:
+- For searches: Uses `KnowledgeAISearch` with query built from messages
+- For chat: Calls `ai.a_chat()` with run_context for tool/lifecycle event attachment
+- On error: Sets `response_message.error`, persists immediately via event bridge
+- Hidden reasoning messages are persisted immediately rather than waiting for end-of-turn save
 
-#### `_append_agent_message()`
+### File Extraction
 
-Creates agent-style prompt for iterative task completion:
+**`_extract_files_from_response(content)`**
 
-- Provides task context and iteration limits
-- Includes parent context when available
-- Instructs model to return completion marker when done
-
-### Response Handling
-
-#### `_execute_ai_response()`
-
-Invokes AI or search handler with comprehensive error handling:
-
-- Supports both standard AI chat and knowledge search modes
-- Handles hidden reasoning messages with immediate persistence
-- Manages cancellation and errors with response message state preservation
-- Returns think content, main content, extracted files, and callable for future AI operations
-
-#### `_extract_files_from_response()`
-
-Parses code blocks from AI response:
-
-- Matches markdown fence format: ` ```language filename`
-- Handles nested code fences
-- Returns list of extracted file objects with language, path, and content
-
-#### `_finalize_response_metadata()`
-
-Stamps response message with comprehensive metadata:
-
-- Records timing information (total and first-chunk times)
-- Includes model name and active profile names
-- Stores extracted files from response
-- Preserves pre-existing metadata fields like cancellation token ID
-
-### Description & Metadata Generation
-
-#### `_generate_chat_description()`
-
-Creates conversation summaries via AI:
-
-- Builds clean message history excluding file contents and profiles
-- Alternates between user and assistant roles
-- Uses only last message in refine mode
-- Maintains timestamped history entries for context tracking
-- Handles errors gracefully without blocking chat completion
-
-#### `_auto_initialize_chat_metadata()`
-
-Auto-fills missing chat metadata for marked chats:
-
-- Queries AI for suggested name, board, and column values
-- Parses JSON response with error handling
-- Only overwrites empty fields
-- Clears auto_initialize flag on success
-
-### Analytics Recording
-
-#### `_record_chat_session_start()`
-
-Records initial session context:
-
-- Captures chat metadata, mode, profiles, files
-- Records initial message counts
-- Enables per-session tracking across iterations
-
-#### `_record_chat_session_end()`
-
-Records final session metrics:
-
-- Calculates duration and final message counts
-- Captures cancellation and error states
-- Completes session analytics for traceability
-
-## Cancellation Support
-
-### `cancel_chat()`
-
-Cancels request by chat document ID:
-
-```python
-def cancel_chat(self, chat_doc_id: str) -> bool
+Extracts code blocks with filenames from AI response content using the format:
+```
+```language filename
+code content
+```
 ```
 
-### `cancel_chat_by_token_id()`
+Handles nested code fences and returns list of dicts with `language`, `file_path`, and `content` keys.
 
-Cancels request by cancellation token ID (preferred method):
+### Refinement & Agent Prompts
 
-```python
-def cancel_chat_by_token_id(self, token_id: str) -> bool
-```
+**`_append_refine_message(chat, messages, user_message, last_ai_message)`**
 
-## Utility Methods
+Builds task-refinement prompt instructing the model to apply comments to existing documents. Incorporates parent context when `ignore_parent_knowledge=False`.
 
-### `get_query_mentions()`
+**`_append_agent_message(chat, messages, user_message, iterations_left)`**
 
-Extracts profiles, projects, and files from user query:
+Builds agent-style prompt for iterative task completion. Includes iteration count and parent context, instructs model to return `AGENT_DONE_WORD` when finished.
 
-- Resolves @profile and @project mentions
-- Identifies file-associated profiles
-- Returns QueryMentions object with resolved references
+### Metadata Management
 
-### `get_chat_analysis_parents()`
+**`_finalize_response_metadata(response_message, user_message, timing_info, ai_model, chat_profile_names, extracted_files)`**
 
-Traverses parent chat hierarchy:
+Stamps response message with timing, model metadata, and extracted files. Merges user message metadata while preserving fields already set (cancellation token ID, analytics).
 
-- Collects non-hidden message content from ancestors
-- Respects ignore_parent_knowledge flag at each level
-- Returns concatenated parent content string
+**`async _auto_initialize_chat_metadata(chat, messages, ai_chat_fn)`**
 
-### `get_profile_manager()`
+Auto-fills missing chat metadata (name, board, column) for auto_initialize chats using AI suggestions. Clears flag on success.
 
-Returns ProfileManager instance for current project settings.
+**`async _generate_chat_description(chat, messages, is_refine, ai_chat_fn)`**
 
-### `get_chat_manager()`
+Generates 5-line conversation summary excluding technical details. Maintains timestamped history of descriptions as chat evolves.
 
-Returns ChatManager, optionally scoped to specific project:
+### Helper Methods
 
-```python
-def get_chat_manager(self, project_id: str = None) -> ChatManager
-```
+**`_resolve_chat_mode_flags(chat, chat_mode, task_item)`**
 
-### `get_ai()`
+Resolves boolean flags from chat mode and task item that drive branching logic.
 
-Instantiates AI with specified model and optional system prompt:
+**`_collect_files_from_visible_messages(valid_messages, chat_base_files)`**
 
-```python
-def get_ai(self, llm_model: Optional[str] = None, system: str = None) -> AI
-```
+Gathers unique files from all visible messages and base file list. Ensures context from earlier turns is included.
 
-### `switch_project()`
+**`_evaluate_knowledge_flags(chat, disable_knowledge, search_projects, user_message)`**
 
-Switches engine context to different project:
+Determines whether knowledge search should be disabled, emitting diagnostic events.
 
-```python
-def switch_project(self, project_id: str) -> "ChatEngine"
-```
+**`_load_chat_files_content(chat_files, already_in_messages)`**
 
-### `convert_message()`
+Reads and formats content of explicitly attached files, skipping those already embedded in message history.
 
-Converts DB Message to LangChain message type:
+**`_document_to_context(doc)`**
 
-- Handles text, images, and role-based conversion
-- Parses image metadata from JSON
-- Returns appropriate LangChain message object
+Converts a Document to formatted context with language-specific code fence.
 
-### `get_all_search_projects()`
+**`_resolve_chat_file_path(chat_file)`**
 
-Returns all searchable projects:
+Resolves full filesystem path of chat-attached files.
 
-- Includes current project, child projects, and dependencies
-- Useful for multi-project knowledge search
+**`_record_chat_session_start(chat, mode, profiles, files, iteration, max_iterations, llm_model, parent_chat_id)`**
 
-### `index_chat()`
+Records initial chat session context for analytics tracking.
 
-Indexes chat as Document in knowledge system:
+**`_record_chat_session_end(chat, mode, profiles, files, iteration, max_iterations, llm_model, start_time, parent_chat_id, cancelled, error)`**
 
-- Converts valid messages to single document
-- Includes source and metadata
-- Handles indexing errors gracefully
+Records final chat session metrics including duration and outcome.
+
+**`_hide_non_answer_messages(chat)`**
+
+In task mode, hides all prior non-answer messages for cleaner output.
+
+**`_append_message_if_missing(chat, message)`**
+
+Appends message only if not already present (by doc_id). Prevents duplicates when ChatEventBridge has already persisted the message.
+
+**`_build_friendly_error_message(error)`**
+
+Extracts API error details for user-friendly display, handling OpenAI BadRequestError with parameter constraints.
+
+### Chat Analysis
+
+**`get_chat_analysis_parents(chat)`**
+
+Traverses parent chat hierarchy and returns concatenated non-hidden message content. Respects `ignore_parent_knowledge` flag at each level.
+
+### Utility Methods
+
+**`convert_message(message)`**
+
+Converts DB Message object to LangChain message type, handling text, images, and role-based conversion.
+
+**`get_profile_manager()`**
+
+Returns ProfileManager instance for current settings.
+
+**`get_chat_manager(project_id=None)`**
+
+Returns ChatManager optionally scoped to specific project.
+
+**`get_ai(llm_model=None, system=None)`**
+
+Returns configured AI instance for specified model with optional system prompt.
+
+**`get_ai_code_generator_changes(response)`**
+
+Processes AI response to extract code generator changes.
+
+**`get_query_mentions(chat, user_message)`**
+
+Extracts mentions of profiles and projects from query content.
+
+**`get_all_search_projects()`**
+
+Returns all projects including child projects and dependencies.
+
+**`index_chat(chat)`**
+
+Indexes chat as Document in knowledge system.
+
+### Cancellation Management
+
+**`cancel_chat(chat_doc_id)`**
+
+Cancels in-flight chat request by chat document ID.
+
+**`cancel_chat_by_token_id(token_id)`**
+
+Cancels in-flight chat request by cancellation token ID (preferred when token_id is available).
+
+**`switch_project(project_id)`**
+
+Switches to another project and reinitializes knowledge system.
+
+## Chat Mode Details
+
+### Task (Refine) Mode
+
+- Asks AI to apply user comments to existing document
+- Preserves unchanged document parts
+- Incorporates parent task context when available
+- Hides non-answer messages after completion
+
+### Agent Mode
+
+- Iterative task completion with configurable max iterations
+- Returns `AGENT_DONE_WORD` when task complete
+- Recursively calls `_chat_with_project_inner` for next iteration
+- Tracks iteration count and remaining attempts
+
+### Vibe Mode
+
+- Uses AI-driven pre-search for context discovery
+- Builds richer search query from conversation history
+- Typically combined with document refinement
+
+### Search Mode
+
+- Pure knowledge search focused on finding relevant documents
+- Bypasses standard chat flow
+- Uses `KnowledgeAISearch` for context building
+
+## Context Manager
+
+**`chat_action(chat, event)`**
+
+Context manager emitting start/done/error events around chat actions for logging and notifications.
 
 ## Error Handling
 
-### `_build_friendly_error_message()`
+The engine handles errors through:
 
-Extracts and formats API errors for user consumption:
-
-- Parses OpenAI BadRequestError parameter constraints
-- Provides user-friendly error messages
-- Includes suggestions for resolution
-
-## Helper Methods
-
-### `_resolve_chat_mode_flags()`
-
-Resolves boolean flags from chat mode and task item:
-
-- Returns dictionary with mode flags and derived states
-- Drives branching logic throughout processing
-
-### `_evaluate_knowledge_flags()`
-
-Determines if knowledge search should be disabled:
-
-- Checks multiple disable conditions
-- Emits appropriate event messages
-- Returns final disable decision
-
-### `_load_chat_files_content()`
-
-Loads explicitly attached chat files:
-
-- Reads file content from filesystem
-- Formats with language-specific code fences
-- Skips files already in message history
-
-### `_hide_non_answer_messages()`
-
-Hides non-answer messages in task mode:
-
-- Marks all prior messages except answers as hidden
-- Cleans up chat for document-focused workflows
-
-## Configuration
-
-The ChatEngine requires:
-
-- **settings**: CODXJuniorSettings with project configuration
-- **event_manager**: For emitting chat and search events
-- **user** (optional): CodxUser for authenticated sessions
+1. **Model Parameter Errors**: Catches BadRequestError, extracts parameter info, returns user-friendly message
+2. **Cancellation**: Catches CancelledError, stamps cancelled_at metadata, persists state immediately
+3. **Knowledge Search Errors**: Catches OSError/ValueError/RuntimeError, emits error events, continues
+4. **General Exceptions**: Sets response_message.error, persists via bridge before subsequent steps
 
 ## Integration Points
 
-- **LangChain**: Message format conversion and AI communication
-- **AgentRuntime**: Provides AgentRunContext for tool execution tracking
-- **ChatEventBridge**: Persists events and response state
-- **ChatKnowledge**: Handles AI-driven document search
-- **Knowledge/Milvus**: Vector database for RAG searches
-- **ProfileManager**: Resolves active profiles and tools
-- **Analytics**: Records session metrics and traceability
-- **ChatManager**: Database operations for chat persistence
+- **ChatEventBridge**: Attaches tool/lifecycle events to response message, persists on changes
+- **AgentRunContext**: Carries run_id and event listeners for tool tracking
+- **Knowledge System**: Integrates Milvus knowledge base and AI search
+- **Analytics**: Tracks chat sessions for observability
+- **ProfileManager**: Resolves profiles and extracts system prompt content
+- **ChatManager**: Manages persistent chat storage
+- **AI Instance**: Executes LLM calls with configured model and tools
 
 ## Dependencies
 **Imports from:** codx/junior/ai/__init__.py, codx/junior/ai/cancellation.py, codx/junior/chat_manager.py, codx/junior/context.py, codx/junior/db.py, codx/junior/globals.py, codx/junior/project/project_discover.py, codx/junior/knowledge/knowledge_milvus.py, codx/junior/knowledge/knowledge_ai_search.py, codx/junior/knowledge/knowledge_ai_search_message.py, codx/junior/profiles/profile_manager.py, codx/junior/profiling/profiler.py, codx/junior/settings.py, codx/junior/utils/chat_utils.py, codx/junior/utils/utils.py, codx/junior/model/model.py, codx/junior/chat/chat_knowledge.py

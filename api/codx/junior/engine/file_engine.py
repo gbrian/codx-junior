@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import subprocess
+import base64
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Pattern, Tuple
@@ -33,6 +34,9 @@ GIT_DIR = ".git"
 # Upload constraints
 DEFAULT_MAX_FILE_SIZE = 1024 * 1024 * 1024  # 1 GB
 DEFAULT_MAX_TOTAL_SIZE = 4 * DEFAULT_MAX_FILE_SIZE  # 4 GB
+
+# Binary file extensions
+BINARY_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot', 'pdf'}
 
 
 class GitIgnoreManager:
@@ -317,6 +321,7 @@ class FileEngine:
         FE --> search_files_content
         FE --> get_file_info
         FE --> _build_gitignore_manager
+        FE --> get_media_type
     ```
     """
 
@@ -371,6 +376,66 @@ class FileEngine:
             return re.compile(pattern, flags)
         except re.error as ex:
             raise ValueError(f"Invalid regex pattern: {ex}")
+
+    def _is_binary_file(self, file_path: str) -> bool:
+        """
+        Check if a file is binary based on its extension.
+
+        Args:
+            file_path: Absolute path to the file.
+
+        Returns:
+            True if the file extension matches known binary types.
+        """
+        _, ext = os.path.splitext(file_path)
+        return ext.lstrip('.').lower() in BINARY_EXTENSIONS
+
+    def get_media_type(self, file_path: str) -> str:
+        """
+        Determine the media type (MIME type) for a file based on its extension.
+
+        Args:
+            file_path: Absolute path to the file.
+
+        Returns:
+            MIME type string (e.g., 'video/mp4', 'application/pdf').
+        """
+        _, ext = os.path.splitext(file_path)
+        ext = ext.lstrip('.').lower()
+
+        media_types = {
+            # Video
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mov': 'video/quicktime',
+            'mkv': 'video/x-matroska',
+            'flv': 'video/x-flv',
+            'wmv': 'video/x-ms-wmv',
+            'webm': 'video/webm',
+            'ogv': 'video/ogg',
+            'ts': 'video/mp2t',
+            'mts': 'video/mp2t',
+            'vob': 'video/x-ms-vob',
+            # Audio
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'flac': 'audio/flac',
+            'aac': 'audio/aac',
+            'wma': 'audio/x-ms-wma',
+            'ogg': 'audio/ogg',
+            # Images
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'ico': 'image/x-icon',
+            'svg': 'image/svg+xml',
+            # Documents
+            'pdf': 'application/pdf',
+        }
+
+        return media_types.get(ext, 'application/octet-stream')
 
     def get_file_info(self, file_path: str) -> dict:
         """
@@ -515,20 +580,41 @@ class FileEngine:
         """
         Read a project file and return its content along with file metadata.
 
+        For binary files (images, PDFs, etc.), content is returned as base64.
+        For text files, content is returned as plain text.
+
         Args:
             path: File path (relative or absolute).
 
         Returns:
-            Dict with 'content', 'last_modification', and 'size'.
+            Dict with 'content' (base64 for binary, text for text files), 
+            'last_modification', 'size', and 'is_binary' flag.
         """
-        path = self.get_project_file_path(path=path)
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            content = f.read()
-        info = self.get_file_info(path)
-        return {
-            "content": content,
-            **info,
-        }
+        abs_path = self.get_project_file_path(path=path)
+        is_binary = self._is_binary_file(abs_path)
+
+        try:
+            if is_binary:
+                # Read binary file and encode to base64
+                with open(abs_path, "rb") as f:
+                    file_bytes = f.read()
+                content = base64.b64encode(file_bytes).decode('ascii')
+                logger.debug("Read binary file as base64: %s", abs_path)
+            else:
+                # Read text file normally
+                with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                logger.debug("Read text file: %s", abs_path)
+
+            info = self.get_file_info(abs_path)
+            return {
+                "content": content,
+                "is_binary": is_binary,
+                **info,
+            }
+        except OSError as ex:
+            logger.error("Error reading file %s: %s", abs_path, ex)
+            raise
 
     def diff_file(
         self,

@@ -6,7 +6,7 @@ from slugify import slugify
 
 from codx.junior.settings import CODXJuniorSettings
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Union, Any, Dict
 
 from datetime import datetime
@@ -17,11 +17,34 @@ from codx.junior.model.model import PRView
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Message role constants
-# Use these instead of literal strings to keep roles consistent everywhere.
+# Constants
 # ---------------------------------------------------------------------------
 ROLE_USER = "user"
 ROLE_ASSISTANT = "assistant"
+MAX_IMAGE_SIZE_MB = 50
+MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
+
+
+class ChatAttachment(BaseModel):
+    """Represents an image stored in chat or message with file metadata and base64 data."""
+    file_name: str = Field(description="Original file name of the image")
+    file_type: str = Field(description="MIME type (e.g., 'image/png', 'image/jpeg')")
+    file_size: int = Field(description="File size in bytes")
+    base64_data: str = Field(description="Base64 encoded image data")
+    uploaded_at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when image was uploaded")
+    
+    @validator('file_size')
+    def validate_file_size(cls, v):
+        if v > MAX_IMAGE_SIZE_BYTES:
+            raise ValueError(f"Image size exceeds maximum allowed size of {MAX_IMAGE_SIZE_MB}MB")
+        return v
+    
+    @validator('file_type')
+    def validate_file_type(cls, v):
+        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml']
+        if v not in allowed_types:
+            raise ValueError(f"Image type '{v}' not allowed. Allowed types: {', '.join(allowed_types)}")
+        return v
 
 
 class KanbanColumn(BaseModel):
@@ -105,7 +128,7 @@ class Message(BaseModel):
     improvement: bool = Field(default=False)
     created_at: str = Field(default_factory=lambda: str(datetime.now()))
     updated_at: str = Field(default_factory=lambda: str(datetime.now()))
-    images: List[str] = Field(default=[])
+    attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this message")
     files: List[str] = Field(default=[])
     meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (timings, model, analytics...)")
     tool_events: List[ToolEvent] = Field(default=[], description="Tool execution events associated with this response message")
@@ -171,6 +194,7 @@ class Chat(BaseModel):
     llm_model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
+    attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this chat")
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")

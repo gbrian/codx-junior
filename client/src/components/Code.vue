@@ -3,54 +3,79 @@ import MermaidViewerVue from './MermaidViewer.vue'
 import MarkdownViewer from './MarkdownViewer.vue'
 import CodeViewer from './CodeViewer.vue'
 import HTMLPreview from './HTMLPreview.vue'
+import BlockEditor from './BlockEditor.vue'
 </script>
 
 <template>
-  <div class="rounded-md py-2">
-    <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="showMermaid || showHTMLPreview">
-      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource" v-if="showMermaid">
-        <span v-if="showMermaidSource">View diagram</span>
-        <span v-else>View code</span>
-      </button>
-      <button class="btn btn-sm bg-info/60 my-2 flex gap-2" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
-        <span v-if="htmlPreview">View code</span>
-        <span v-else><i class="fa-solid fa-tablet-screen-button"></i> View preview</span>
-      </button>
+  <BlockEditor
+    :originalContent="codeText"
+    :isCodeBlock="!showMarkdown"
+    :language="language"
+    ref="blockEditor"
+    @edit-start="onEditStart"
+    @edit-cancel="onEditCancel"
+    @edit-save="onEditSave"
+  >
+    <div class="rounded-md py-2">
+      <!-- Edit button (shown on hover) -->
+      <div
+        class="absolute -left-10 top-0 opacity-0 hover:opacity-100 transition-opacity"
+        v-if="!isEditing"
+      >
+        <button
+          class="btn btn-xs btn-ghost tooltip tooltip-right"
+          data-tip="Edit block"
+          @click="startEdit"
+        >
+          <i class="fa-solid fa-pen"></i>
+        </button>
+      </div>
+
+      <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="(showMermaid || showHTMLPreview) && !isEditing">
+        <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource" v-if="showMermaid">
+          <span v-if="showMermaidSource">View diagram</span>
+          <span v-else>View code</span>
+        </button>
+        <button class="btn btn-sm bg-info/60 my-2 flex gap-2" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
+          <span v-if="htmlPreview">View code</span>
+          <span v-else><i class="fa-solid fa-tablet-screen-button"></i> View preview</span>
+        </button>
+      </div>
+
+      <MermaidViewerVue
+        :diagram="codeText"
+        theme="dark"
+        @click="showMermaidSource = !showMermaidSource"
+        v-if="showMermaid && !showMermaidSource && !isEditing"
+      />
+
+      <HTMLPreview
+        :html="codeText"
+        v-if="showHTMLPreview && htmlPreview && !isEditing"
+      />
+
+      <CodeViewer
+        :code="codeText"
+        :language="language"
+        :file="file"
+        :files="files"
+        :project="project"
+        :finished="finished"
+        :chat="chat"
+        :message="message"
+        :key="blockHash"
+        v-if="showCode && !isEditing"
+        @reload-file="$emit('reload-file', $event)"
+        @open-file="$emit('open-file', $event)"
+        @save-file="$emit('save-file', $event)"
+        @add-file="$emit('add-file', $event)"
+        @sub-task="$emit('sub-task', $event)"
+        @message-change="onMessageChange"
+      />
+
+      <MarkdownViewer :text="codeText" v-if="showMarkdown && !isEditing" />
     </div>
-
-    <MermaidViewerVue
-      :diagram="codeText"
-      theme="dark"
-      @click="showMermaidSource = !showMermaidSource"
-      v-if="showMermaid && !showMermaidSource"
-    />
-
-    <HTMLPreview
-      :html="codeText"
-      v-if="showHTMLPreview && htmlPreview"
-    />
-
-    <CodeViewer
-      :code="codeText"
-      :language="language"
-      :file="file"
-      :files="files"
-      :project="project"
-      :finished="finished"
-      :chat="chat"
-      :message="message"
-      :key="blockHash"
-      v-if="showCode"
-      @reload-file="$emit('reload-file', $event)"
-      @open-file="$emit('open-file', $event)"
-      @save-file="$emit('save-file', $event)"
-      @add-file="$emit('add-file', $event)"
-      @sub-task="$emit('sub-task', $event)"
-      @message-change="onMessageChange"
-    />
-
-    <MarkdownViewer :text="codeText" v-if="showMarkdown" />
-  </div>
+  </BlockEditor>
 </template>
 
 <script>
@@ -62,7 +87,7 @@ const languageMapping = {
 
 export default {
   props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'message', 'block-hash'],
-  emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed'],
+  emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed', 'block-edited'],
   data() {
     return {
       codeText: null,
@@ -70,7 +95,8 @@ export default {
       htmlPreview: false,
       showMermaidSource: false,
       file: null,
-      previousText: null
+      previousText: null,
+      isEditing: false
     }
   },
   created() {
@@ -137,11 +163,31 @@ export default {
     }
   },
   methods: {
+    startEdit() {
+      this.isEditing = true
+      this.$refs.blockEditor.startEdit()
+    },
+    onEditStart() {
+      this.isEditing = true
+    },
+    onEditCancel() {
+      this.isEditing = false
+    },
+    onEditSave({ originalContent, newContent }) {
+      this.isEditing = false
+      this.codeText = newContent
+      this.$emit('block-edited', {
+        originalContent,
+        newContent,
+        blockHash: this.blockHash,
+        language: this.language
+      })
+      this.rebuildMarkdownText()
+    },
     onMessageChange({ orgContent, newContent }) {
       this.codeText = newContent
       this.rebuildMarkdownText()
     },
-
     rebuildMarkdownText() {
       const siblings = this.$parent?.$children?.filter(c => c.$options?.name === undefined
         ? false
@@ -154,7 +200,6 @@ export default {
 
       this.$emit('text-changed', { block: this, newContent: this.codeText })
     },
-
     buildFence(content) {
       const lang = this.language || ''
       const fileHint = this.file ? ` ${this.file}` : ''

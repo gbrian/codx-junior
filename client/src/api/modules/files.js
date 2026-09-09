@@ -18,6 +18,10 @@ export const filesModule = (API) => ({
     })
   },
 
+  getFilePreviewUrl(path) {
+    return API.connection.prepareUrl("/api/files/preview?path=" + encodeURIComponent(path))
+  },
+
   search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false, useRegex = false }) {
     const params = new URLSearchParams()
     params.append('search', search)

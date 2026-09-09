@@ -131,7 +131,7 @@ import moment from 'moment'
           <div class="flex items-center gap-3">
             <i
               class="w-4 text-sm flex-shrink-0"
-              :class="entry.is_dir ? 'fa-solid fa-folder text-warning' : 'fa-regular fa-file text-info'"
+              :class="getFileIcon(entry)"
             ></i>
             <span class="text-sm font-mono flex-1 truncate" :title="entry.name">
               {{ entry.name }}
@@ -221,7 +221,100 @@ export default {
       uploadProgress: 0,
       uploadProgressBytes: 0,
       uploadTotalBytes: 0,
-      uploadingFileName: ''
+      uploadingFileName: '',
+      extensionIconMap: {
+        // Code files
+        'js': 'fa-brands fa-js text-yellow-500',
+        'ts': 'fa-brands fa-js text-blue-500',
+        'jsx': 'fa-brands fa-react text-blue-400',
+        'tsx': 'fa-brands fa-react text-blue-400',
+        'vue': 'fa-brands fa-vuejs text-green-500',
+        'py': 'fa-brands fa-python text-blue-600',
+        'java': 'fa-brands fa-java text-red-600',
+        'cpp': 'fa-regular fa-file-code text-blue-600',
+        'c': 'fa-regular fa-file-code text-blue-600',
+        'cs': 'fa-brands fa-microsoft text-purple-600',
+        'rb': 'fa-brands fa-gem text-red-700',
+        'php': 'fa-brands fa-php text-indigo-600',
+        'go': 'fa-regular fa-file-code text-cyan-500',
+        'rs': 'fa-regular fa-file-code text-orange-600',
+        'swift': 'fa-brands fa-swift text-orange-500',
+        'kt': 'fa-regular fa-file-code text-purple-600',
+        // Markup & Style
+        'html': 'fa-brands fa-html5 text-orange-600',
+        'css': 'fa-brands fa-css3-alt text-blue-500',
+        'scss': 'fa-brands fa-sass text-pink-600',
+        'sass': 'fa-brands fa-sass text-pink-600',
+        'less': 'fa-regular fa-file-code text-blue-400',
+        'xml': 'fa-regular fa-file-code text-orange-600',
+        'json': 'fa-regular fa-file-code text-yellow-600',
+        'yaml': 'fa-regular fa-file-code text-red-600',
+        'yml': 'fa-regular fa-file-code text-red-600',
+        'toml': 'fa-regular fa-file-code text-orange-700',
+        'svg': 'fa-regular fa-file-image text-orange-400',
+        // Templates
+        'ejs': 'fa-regular fa-file-code text-yellow-600',
+        'hbs': 'fa-regular fa-file-code text-orange-700',
+        'pug': 'fa-regular fa-file-code text-brown-600',
+        // Databases
+        'sql': 'fa-solid fa-database text-blue-600',
+        'db': 'fa-solid fa-database text-slate-600',
+        'sqlite': 'fa-solid fa-database text-blue-400',
+        // Documents
+        'md': 'fa-brands fa-markdown text-slate-600',
+        'txt': 'fa-regular fa-file-lines text-slate-500',
+        'pdf': 'fa-solid fa-file-pdf text-red-600',
+        'doc': 'fa-solid fa-file-word text-blue-600',
+        'docx': 'fa-solid fa-file-word text-blue-600',
+        'xls': 'fa-solid fa-file-excel text-green-600',
+        'xlsx': 'fa-solid fa-file-excel text-green-600',
+        'ppt': 'fa-solid fa-file-powerpoint text-orange-600',
+        'pptx': 'fa-solid fa-file-powerpoint text-orange-600',
+        // Media
+        'png': 'fa-regular fa-file-image text-pink-500',
+        'jpg': 'fa-regular fa-file-image text-pink-500',
+        'jpeg': 'fa-regular fa-file-image text-pink-500',
+        'gif': 'fa-regular fa-file-image text-pink-500',
+        'webp': 'fa-regular fa-file-image text-pink-500',
+        'ico': 'fa-regular fa-file-image text-slate-500',
+        'mp4': 'fa-regular fa-file-video text-red-500',
+        'avi': 'fa-regular fa-file-video text-red-500',
+        'mov': 'fa-regular fa-file-video text-red-500',
+        'mkv': 'fa-regular fa-file-video text-red-500',
+        'flv': 'fa-regular fa-file-video text-red-500',
+        'wmv': 'fa-regular fa-file-video text-red-500',
+        'webm': 'fa-regular fa-file-video text-red-500',
+        'mp3': 'fa-regular fa-file-audio text-purple-500',
+        'wav': 'fa-regular fa-file-audio text-purple-500',
+        'flac': 'fa-regular fa-file-audio text-purple-500',
+        'aac': 'fa-regular fa-file-audio text-purple-500',
+        'wma': 'fa-regular fa-file-audio text-purple-500',
+        'ogg': 'fa-regular fa-file-audio text-purple-500',
+        // Archives
+        'zip': 'fa-regular fa-file-zipper text-slate-600',
+        'rar': 'fa-regular fa-file-zipper text-slate-600',
+        'tar': 'fa-regular fa-file-zipper text-slate-600',
+        'gz': 'fa-regular fa-file-zipper text-slate-600',
+        '7z': 'fa-regular fa-file-zipper text-slate-600',
+        'bz2': 'fa-regular fa-file-zipper text-slate-600',
+        // Config
+        'env': 'fa-solid fa-gear text-slate-500',
+        'config': 'fa-solid fa-gear text-slate-500',
+        'conf': 'fa-solid fa-gear text-slate-500',
+        'ini': 'fa-solid fa-gear text-slate-500',
+        // Shell
+        'sh': 'fa-solid fa-terminal text-slate-700',
+        'bash': 'fa-solid fa-terminal text-slate-700',
+        'zsh': 'fa-solid fa-terminal text-slate-700',
+        'fish': 'fa-solid fa-terminal text-slate-700',
+        'bat': 'fa-solid fa-terminal text-slate-700',
+        // Version Control
+        'git': 'fa-brands fa-git-alt text-orange-600',
+        'gitignore': 'fa-brands fa-git-alt text-orange-600',
+        // Other
+        'lock': 'fa-solid fa-lock text-amber-600',
+        'key': 'fa-solid fa-key text-yellow-600'
+      }
     }
   },
   computed: {
@@ -276,6 +369,16 @@ export default {
     normalizePath(path) {
       if (!path) return ''
       return path.replace(/\/+/g, '/').replace(/\/$/, '')
+    },
+    getFileExtension(fileName) {
+      return fileName.split('.').pop()?.toLowerCase() || ''
+    },
+    getFileIcon(entry) {
+      if (entry.is_dir) {
+        return 'fa-solid fa-folder text-warning'
+      }
+      const ext = this.getFileExtension(entry.name)
+      return this.extensionIconMap[ext] || 'fa-regular fa-file text-info'
     },
     async loadDir(path) {
       const normalizedPath = this.normalizePath(path)

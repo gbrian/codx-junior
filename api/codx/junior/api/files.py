@@ -51,6 +51,47 @@ async def read_file(request: Request):
         return Response(status_code=status.HTTP_404_NOT_FOUND)
 
 
+@router.get("/files/preview")
+async def preview_file(request: Request):
+    """
+    Stream a file's binary content directly for preview/playback.
+    
+    Used for video, audio, images, and other media files that require
+    direct binary streaming instead of base64 encoding.
+
+    Query params:
+    - path: File path (relative or absolute)
+
+    Returns:
+        FileResponse with appropriate Content-Type header based on file extension.
+    """
+    codx_junior_session = request.state.codx_junior_session
+    file_engine = codx_junior_session.get_file_engine()
+
+    path = request.query_params.get("path")
+    if not path:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        abs_file_path = file_engine.get_project_file_path(path)
+        
+        if not os.path.isfile(abs_file_path):
+            return Response(status_code=status.HTTP_404_NOT_FOUND)
+        
+        media_type = file_engine.get_media_type(abs_file_path)
+        
+        return FileResponse(
+            path=abs_file_path,
+            media_type=media_type,
+            filename=os.path.basename(abs_file_path)
+        )
+    except FileNotFoundError:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
+    except ValueError as ex:
+        logger.warning("Invalid file path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
+
+
 @router.get("/files/search")
 async def search_files(request: Request):
     """

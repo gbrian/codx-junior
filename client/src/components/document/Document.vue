@@ -5,7 +5,6 @@ import parser from '@/utils/markdownParser'
 
 <template>
   <div class="flex flex-col @container/document">
-    <!-- CHANGED: Use chapter.hash as stable key to preserve chapter instances during streaming -->
     <ChapterBlock
       v-for="(chapter, index) in chapters"
       :key="chapter.hash || ('chapter-' + chapter.level + '-' + index)"
@@ -26,6 +25,7 @@ import parser from '@/utils/markdownParser'
       @save-file="$emit('save-file', $event)"
       @edit-message="$emit('edit-message', $event)"
       @sub-task="$emit('sub-task', $event)"
+      @block-edited="onBlockEdited"
     >
       <template #chapter-actions="{ chapter, fullContent }">
         <slot 
@@ -58,7 +58,8 @@ export default {
     'edit-message',
     'sub-task',
     'copy-chapter',
-    'create-task'
+    'create-task',
+    'block-edited'
   ],
   data() {
     return {
@@ -68,8 +69,6 @@ export default {
   },
   computed: {
     chapters() {
-      // CHANGED: Always reparse on content change, simpler and more reliable
-      // The hash caching was causing stale chapters to be returned on first load
       const contentHash = this.getContentHash()
 
       if (this.lastContentHash !== null && contentHash === this.lastContentHash && !this.loading) {
@@ -86,7 +85,6 @@ export default {
   },
   methods: {
     getContentHash() {
-      // CHANGED: Simple hash of actual content for proper cache invalidation
       const content = this.content || ''
       let hash = 0
       for (let i = 0; i < content.length; i++) {
@@ -105,6 +103,14 @@ export default {
     },
     handleCreateTask(taskData) {
       this.$emit('create-task', taskData)
+    },
+    onBlockEdited(editData) {
+      const { originalContent, newContent } = editData
+      const updatedContent = this.content.replace(originalContent, newContent)
+      this.$emit('block-edited', {
+        ...editData,
+        fullContent: updatedContent
+      })
     }
   }
 }

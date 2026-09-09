@@ -3,7 +3,6 @@ import CheckLists from './CheckLists.vue'
 import PRChangesPanel from '@/components/vibe/panels/PRChangesPanel.vue'
 import ChatFileList from './ChatFileList.vue'
 import ChatInputBox from './ChatInputBox.vue'
-import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
 import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatIntelliSense from './ChatIntelliSense.vue'
@@ -11,14 +10,17 @@ import ChatFilePreview from './ChatFilePreview.vue'
 import ChatMessageEditor from './ChatMessageEditor.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
 import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
+import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 import { ENTITY_STATUS } from '@/store/entityStatuses'
+import ChatAttachment from '@/api/model/ChatAttachment.js'
 </script>
 
 <template>
   <div class="h-full flex flex-col gap-1 overflow-hidden"
     @dragover.prevent="draggingOver = true"
-    @dragleave.prevent="draggingOver = false"
+    @dragleave.prevent="handleDragLeave"
     @drop.prevent="onDropChat"
+    :class="draggingOver && 'ring-2 ring-primary ring-inset rounded-lg'"
   >
     <!-- Loading Skeleton -->
     <div v-if="isChatLoading" class="h-full flex flex-col gap-2 p-4">
@@ -126,7 +128,7 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
               @run-edit="runEdit"
               @copy="onCopy"
               @add-file-to-chat="onAddFile"
-              @image="imagePreview = $event"
+              @image="onMessageImagePreview"
               @generate-code="onGenerateCode"
               @reload-file="onReloadMessageFile"
               @open-file="onOpenFile"
@@ -168,7 +170,6 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   :read-only="readOnly"
                   :selected-model="chat.llm_model"
                   :ai-models="aiModels"
-                  :images="images"
                   :profiles="profiles"
                   :selected-profiles="selectedProfiles"
                   :cursor-word="cursorWord"
@@ -179,12 +180,15 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
                   @cancel-edit="onResetEdit"
                   @paste="onContentPaste"
                   @keydown="onChatInputKeyDown"
-                  @drop.stop="onDrop"
+                  @drop.stop="onDropInputBox"
                   @model-changed="onLLMModelChanged"
                   @profiles-selected="onProfilesSelected"
                   @toggle-voice="toggleVoiceSession"
-                  @remove-image="removeImage"
-                  @preview-image="imagePreview = $event"
+                />
+                <ChatAttachmentPreview
+                  :attachments="attachments"
+                  @remove-attachment="removeAttachment"
+                  v-if="attachments?.length"
                 />
               </template>
 
@@ -219,13 +223,6 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
       </div>
 
       <!-- Modals -->
-      <ChatImagePreviewModal
-        :image-preview="imagePreview"
-        @cancel="imagePreview = null"
-        @confirm="onAddImage"
-        @extract-text="onExtractTextImage"
-      />
-
       <ChatFileSelectorModal
         :show="selectFile"
         :file-path="uploadProjectFile"
@@ -255,6 +252,8 @@ import { ENTITY_STATUS } from '@/store/entityStatuses'
 </template>
 
 <script>
+import ChatAttachment from '@/api/model/ChatAttachment.js'
+
 export default {
   props: [
     'chat',
@@ -271,8 +270,7 @@ export default {
       editMessage: null,
       editMessageId: null,
       files: [],
-      images: [],
-      imagePreview: null,
+      attachments: [],
       draggingOver: false,
       onDraggingOverInput: false,
       selectFile: false,
@@ -304,7 +302,9 @@ export default {
       showUploadConfirmModal: false,
       pendingUploadFiles: [],
       uploadPath: '',
-      uploadContext: null
+      uploadContext: null,
+      MAX_IMAGE_SIZE_MB: 50,
+      dragCounter: 0
     }
   },
   created() {
@@ -379,7 +379,7 @@ export default {
       return this.activeMessages.filter(message => !message.hide || this.showHidden)
     },
     canPost() {
-      return this.editorText || this.images?.length
+      return this.editorText || this.attachments?.length
     },
     isTask() {
       return this.chat?.mode === 'task'
@@ -432,7 +432,7 @@ export default {
       this.updateCursorWord()
       this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
-    },
+    }
   },
   methods: {
     initProject() {
@@ -521,15 +521,82 @@ export default {
         return false
       }
     },
-    async processImageFile(imageFile) {
-      this.onInputImage(imageFile)
-      await this.onAddImage()
-    },
-    async processMultipleImages(imageFiles) {
-      for (const imageFile of imageFiles) {
-        await this.processImageFile(imageFile)
+    validateImageSize(file) {
+      const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
+      if (file.size > maxSizeBytes) {
+        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
+        return false
       }
-      return imageFiles.length > 0
+      return true
+    },
+    async fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    },
+    async prepareAttachmentFromFile(file) {
+      if (!this.validateImageSize(file)) return null
+      try {
+        const attachment = await ChatAttachment.fromFile(file)
+        return attachment
+      } catch (error) {
+        console.error("Error preparing attachment:", error)
+        this.$ui?.addNotification?.({ text: "Failed to process file", type: 'error' })
+        return null
+      }
+    },
+    async prepareAttachmentFromUrl(imgUrl) {
+      try {
+        const response = await fetch(imgUrl)
+        if (!response.ok) {
+          console.error(`Failed to fetch image from URL: ${imgUrl}`)
+          return null
+        }
+        const blob = await response.blob()
+        const file = new File([blob], this.extractFileNameFromUrl(imgUrl), { type: blob.type })
+        return await ChatAttachment.fromFile(file)
+      } catch (error) {
+        console.error("Error preparing attachment from URL:", error)
+        this.$ui?.addNotification?.({ text: "Failed to process image URL", type: 'error' })
+        return null
+      }
+    },
+    extractFileNameFromUrl(url) {
+      try {
+        const pathname = new URL(url).pathname
+        const fileName = pathname.split('/').pop()
+        return fileName && fileName.length > 0 ? fileName : 'image.png'
+      } catch {
+        return 'image.png'
+      }
+    },
+    onInputAttachmentPreview(file) {
+      this.pendingImage = file
+    },
+    onMessageImagePreview(imageFile) {
+      this.imagePreview = imageFile
+    },
+    async onExtractTextImage(image) {
+      image.alt = await this.chatSvc.extractTextFromImage(image)
+    },
+    async processMultipleImages(imageFiles, isMessage) {
+      const validImageFiles = imageFiles.filter(f => this.validateImageSize(f))
+      if (validImageFiles.length === 0) return false
+      for (const imageFile of validImageFiles) {
+        const attachment = await this.prepareAttachmentFromFile(imageFile)
+        if (attachment) {
+          if (isMessage) {
+            this.attachments.push(attachment)
+          } else {
+            this.chat.attachments.push(attachment)
+          }
+        }
+      }
+      return validImageFiles.length > 0
     },
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)
@@ -745,12 +812,28 @@ export default {
         .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: ex.message } }))
         .finally(() => { this.waiting = false })
     },
+    onGenerateCode({ codeSnippet, language }) {
+      this.waiting = true
+      this.$storex.api.run.generate({ id: "", code: codeSnippet, language })
+        .then(data => {
+          const content = data.code || codeSnippet
+          const codeBlock = `\`\`\`${language || 'text'}\n${content}\n\`\`\``
+          this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: codeBlock } })
+        })
+        .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: `Error: ${ex.message}` } }))
+        .finally(() => { this.waiting = false })
+    },
+    handleFileChange(fileData) {
+      if (fileData) {
+        this.uploadProjectFile = fileData
+      }
+    },
     getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
-        images: this.images,
+        attachments: this.attachments.map(a => a.toJSON()),
         metadata: this.metadata,
         user: this.$user.username,
         task_item
@@ -764,7 +847,7 @@ export default {
     },
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
-      this.images = []
+      this.attachments = []
       this.files = []
       this.mentions = []
       this.textProfileNames = []
@@ -801,8 +884,8 @@ export default {
       const innerText = this.$refs.inputBox?.getEditorText() ?? ''
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
       this.editMessage.profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
+      this.editMessage.attachments = this.attachments.map(a => a.toJSON())
       this.editMessage.content = innerText
-      this.editMessage.images = this.images.map(JSON.stringify)
       this.editMessage.updated_at = new Date().toISOString()
       this.onResetEdit()
     },
@@ -810,7 +893,7 @@ export default {
       this.editMessage = null
       this.setEditorText("")
       this.editMessageId = null
-      this.images = []
+      this.attachments = []
       this.textProfileNames = []
       this.previousEditorText = ''
     },
@@ -821,15 +904,38 @@ export default {
       const text = this.$refs.inputBox?.getEditorText() ?? ''
       if (text !== this.editorText) this.editorText = text
     },
-    async onDrop(e, chatDrop) {
-      this.pasteWithShift = false
-      let itemsAdded = false
-      if (e.dataTransfer.files?.length) {
-        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)
-        if (imageFiles.length > 0 && await this.processMultipleImages(imageFiles)) itemsAdded = true
-        const nonImageFiles = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") === -1)
-        if (nonImageFiles.length > 0) { await this.uploadLocalFiles(nonImageFiles, chatDrop); itemsAdded = true }
+    handleDragLeave(e) {
+      this.dragCounter--
+      if (this.dragCounter === 0) {
+        this.draggingOver = false
       }
+    },
+    onDropInputBox(e) {
+      this.onDrop(e, false)
+    },
+    onDropChat(e) {
+      this.draggingOver = false
+      this.dragCounter = 0
+      this.onDrop(e, true)
+    },
+    async onDrop(e, chatDrop) {
+      let itemsAdded = false
+
+      // Process files from drag-and-drop
+      if (e.dataTransfer.files?.length) {
+        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))
+        if (imageFiles.length > 0) {
+          if (await this.processMultipleImages(imageFiles, !chatDrop)) itemsAdded = true
+        }
+
+        const nonImageFiles = [...e.dataTransfer.files].filter(f => !f.type.startsWith("image/"))
+        if (nonImageFiles.length > 0) {
+          await this.uploadLocalFiles(nonImageFiles, chatDrop)
+          itemsAdded = true
+        }
+      }
+
+      // Process text content (file paths)
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
         if (await this.processMultipleFilePaths(textContent, chatDrop)) {
@@ -840,16 +946,18 @@ export default {
           itemsAdded = true
         }
       }
+
+      // Process JSON file list
       const jsonData = e.dataTransfer.getData('application/x-file-list-json')
       if (jsonData && !itemsAdded && await this.processJsonFileList(jsonData, chatDrop)) itemsAdded = true
+
+      // Process resource URLs
       this.processDropUrls(e.dataTransfer, chatDrop)
       if (e.dataTransfer.getData("resourceurls")) itemsAdded = true
+
       if (!itemsAdded) {
         this.$ui?.addNotification?.({ text: 'No valid content was added from the dropped items', type: 'warning' })
       }
-    },
-    onDropChat(e) {
-      this.onDrop(e, true)
     },
     processDropUrls(dataTransfer, chatDrop) {
       const urls = dataTransfer.getData("resourceurls")
@@ -866,15 +974,26 @@ export default {
       if (!e.clipboardData?.items) return
       const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
-      if (imageFile) { this.onInputImage(imageFile); return stop() }
+      if (imageFile) {
+        const attachment = await this.prepareAttachmentFromFile(imageFile)
+        this.attachments.push(attachment)
+        return stop()
+      }
       const textContent = await this.chatSvc.parseTextFromPaste(e)
       if (!textContent) return
       const handled = this.processInputTextContent(textContent)
       if (handled) return stop()
     },
-    processInputTextContent(textContent, chatDrop) {
+    async processInputTextContent(textContent, chatDrop) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
-      if (imgUrl) { this.images.push(imgUrl); return true }
+      if (imgUrl) {
+        const attachment = await this.prepareAttachmentFromUrl(imgUrl)
+        if (attachment) {
+          this.attachments.push(attachment)
+          return true
+        }
+        return false
+      }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         if (chatDrop) {
@@ -892,36 +1011,11 @@ export default {
         this.files = [...this.files, file]
       }
     },
-    onInputImage(file) {
-      this.imagePreview = { file }
+    removeAttachment(idx) {
+      this.attachments = this.attachments.filter((_, ix) => ix !== idx)
     },
-    async onAddImage() {
-      if (!this.imagePreview) return
-      try {
-        const path = await this.chatSvc.uploadImage({ file: this.imagePreview.file })
-        this.images.push(path)
-      } catch (error) {
-        console.error("Error uploading image:", error)
-      } finally {
-        this.imagePreview = null
-      }
-    },
-    async onExtractTextImage(image) {
-      image.alt = await this.chatSvc.extractTextFromImage(image)
-    },
-    async handleFileChange({ target: { files } }) {
-      const imageFiles = [...files].filter(file => file.type.startsWith("image/"))
-      for (const file of imageFiles) {
-        this.imagePreview = { file }
-        await this.onAddImage()
-      }
-      this.selectFile = false
-    },
-    onGenerateCode(codeBlockInfo) {
-      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
-    },
-    removeImage(ix) {
-      this.images = this.images.filter((_, imx) => imx !== ix)
+    removeAttachmentByIndex(idx) {
+      this.removeAttachment(idx)
     },
     removeFileFromMessage({ doc_id, files }, file) {
       this.chatSvc.updateExistingMessage({

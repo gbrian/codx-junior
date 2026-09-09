@@ -1172,9 +1172,13 @@ class ChatEngine:
             logger.exception(
                 "Ops, sorry! Error chatting with project: %s %s", ex, chat.id
             )
-            main_content = f"Ops, sorry! There was an error with latest request: {ex}"
+            main_content = concat_content([
+                response_message.content,
+                f"> Ops, sorry! There was an error with latest request: {ex}"
+            ])
+            
             response_message.error = str(ex)
-            response_message.content = concat_content([response_message.content, main_content])
+            response_message.content = main_content 
             # CRASH-SAFETY: persist the error state IMMEDIATELY so it is not
             # lost if any later step (summary, metadata, save) fails.
             if event_bridge:
@@ -2542,8 +2546,8 @@ class ChatEngine:
             except JSONDecodeError:
                 return {"src": image, "alt": ""}
 
-        if message.images:
-            images = [parse_image(image) for image in message.images]
+        if message.attachments:
+            images = [parse_image(image) for image in message.attachments]
             text_content = {
                 "type": "text",
                 "text": message.content

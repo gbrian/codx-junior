@@ -4,6 +4,7 @@ import ChatModeSelector from './ChatModeSelector.vue'
 import ChatSidebarNode from './ChatSidebarNode.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ProfileCard from '../ProfileCard.vue'
+import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 </script>
 
 <template>
@@ -101,6 +102,11 @@ import ProfileCard from '../ProfileCard.vue'
     </div>
     <div v-else class="grow"></div>
 
+    <ChatAttachmentPreview
+      :attachments="rootChat.attachments"
+      v-if="rootChat.attachments?.length"
+    />
+
     <!-- Profiles Section -->
     <div v-if="chatProfiles.length" class="border-t border-base-300 shrink-0">
       <div v-if="!isCompact" class="px-3 py-2">
@@ -147,7 +153,7 @@ import ProfileCard from '../ProfileCard.vue'
       >
         <i class="fa-solid fa-gear"></i> Settings
       </button>
-      
+
       <!-- Compact Toggle Button -->
       <button 
         class="btn btn-xs btn-block btn-ghost justify-center gap-2"

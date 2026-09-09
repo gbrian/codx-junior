@@ -6,10 +6,15 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
   <div
     class="notion-composer flex flex-col transition-all duration-200"
     :class="[
-      isFocused
-        ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-xl'
-        : 'bg-base-200/60 rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
+      isDraggingOver
+        ? 'bg-primary/10 ring-2 ring-primary rounded-xl'
+        : isFocused
+          ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-xl'
+          : 'bg-base-200/60 rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
     ]"
+    @dragover.prevent="isDraggingOver = true"
+    @dragleave.prevent="isDraggingOver = false"
+    @drop.prevent="onDrop"        
   >
     <!-- Textarea — ghost style, expands naturally -->
     <div class="relative px-3 pt-3">
@@ -20,7 +25,6 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
         :placeholder="isEditing ? 'Edit your message...' : 'Write something, or @ to mention a file...'"
         @keydown="$emit('keydown', $event)"
         @paste="$emit('paste', $event)"
-        @drop="$emit('drop', $event)"
         @focus="isFocused = true"
         @blur="isFocused = false"
         @input="autoResize"
@@ -83,10 +87,15 @@ export default {
   ],
   data() {
     return {
-      isFocused: false
+      isFocused: false,
+      isDraggingOver: false
     }
   },
   methods: {
+    onDrop(event) {
+      this.isDraggingOver = false
+      this.$emit('drop', event)
+    },
     getEditorText() {
       return this.$refs.editor?.value || ''
     },
