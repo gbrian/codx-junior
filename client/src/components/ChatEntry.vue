@@ -98,12 +98,24 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           v-if="hasEvents"
           class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
           :class="eventsOpen && 'btn-active text-warning'"
-          data-tip="Events"
+          data-tip="Events & Tools"
           @click.stop="toggleEventsPanel"
         >
           <i class="fa-solid fa-wrench text-warning/70"></i>
-          <span class="text-[10px]">{{ toolEventCount }}</span>
+          <span class="text-[10px]">{{ eventCount }}</span>
         </button>
+
+        <button
+          v-if="hasAttachments"
+          class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+          :class="eventsOpen && 'btn-active text-warning'"
+          data-tip="Attachments"
+          @click.stop="toggleEventsPanel"
+        >
+            <i class="fa-solid fa-paperclip text-info"></i>
+            <span class="text-[10px]">{{ attachmentCount }}</span>
+        </button>
+
       </div>
 
       <!-- Main block column -->
@@ -276,7 +288,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
         <!-- ── TOC for long documents ── -->
         <DocumentSummary
-          v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents"
+          v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents && !showAttachments"
           :content="messageContent"
           :minHeadings="3"
           :documentId="documentId"
@@ -301,7 +313,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
           <!-- Document / Markdown -->
           <Document
-            v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord"
+            v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord && !showAttachments"
             :content="messageContent"
             :files="chatFiles"
             :project="chatProject"
@@ -344,7 +356,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           />
 
           <!-- Code patches -->
-          <div v-if="code_patches && !showPRView && !showFileView" class="space-y-3 mt-2">
+          <div v-if="code_patches && !showPRView && !showFileView && !showAttachments" class="space-y-3 mt-2">
             <div
               v-for="patch in code_patches"
               :key="patch.file_path"
@@ -376,7 +388,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
           <!-- File View -->
           <MessageFileView
-            v-if="showFileView && !srcView && !showDiff && !showPRView"
+            v-if="showFileView && !srcView && !showDiff && !showPRView && !showAttachments"
             :codeBlocks="prViewCodeBlocks"
             :linkedFiles="displayMessage.files"
             :chat="chat"
@@ -390,7 +402,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
           <!-- PR View -->
           <MessagePRView
-            v-if="showPRView && !srcView && !showDiff && !showFileView"
+            v-if="showPRView && !srcView && !showDiff && !showFileView && !showAttachments"
             :codeBlocks="prViewCodeBlocks"
             :chat="chat"
             :message="message"
@@ -402,7 +414,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           />
 
           <!-- Images -->
-          <div v-if="images && !showPRView && !showFileView && images?.length" class="mt-3">
+          <div v-if="images && !showPRView && !showFileView && !showAttachments && images?.length" class="mt-3">
             <p class="text-xs text-base-content/40 mb-2">
               <i class="fa-solid fa-images mr-1"></i>Images
             </p>
@@ -426,7 +438,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
           <!-- Linked files -->
           <div
-            v-if="displayMessage.files?.length && !showPRView && !showFileView"
+            v-if="displayMessage.files?.length && !showPRView && !showFileView && !showAttachments"
             class="mt-3 pt-2 border-t border-base-300/50"
           >
             <p class="text-[11px] text-base-content/40 mb-1.5">
@@ -513,6 +525,7 @@ export default {
       showDiff: false,
       showPRView: false,
       showFileView: false,
+      showAttachments: false,
       documentId: 'doc-' + Math.random().toString(36).slice(2, 8),
       activeBranch: null,
       branchLoading: false,
@@ -646,6 +659,15 @@ export default {
     },
     hasEvents() {
       return this.toolEventCount > 0
+    },
+    attachmentCount() {
+      return this.message?.attachments?.length || 0
+    },
+    hasAttachments() {
+      return this.attachmentCount > 0
+    },
+    eventCount() {
+      return this.toolEventCount + this.attachmentCount
     }
   },
   watch: {
@@ -731,6 +753,7 @@ export default {
         this.showDiff = false
         this.showPRView = false
         this.showFileView = false
+        this.showAttachments = false
       }
     },
     toggleShowDiff() {
@@ -739,6 +762,7 @@ export default {
         this.srcView = false
         this.showPRView = false
         this.showFileView = false
+        this.showAttachments = false
       }
     },
     toggleFileView() {
@@ -747,6 +771,7 @@ export default {
         this.srcView = false
         this.showDiff = false
         this.showPRView = false
+        this.showAttachments = false
       }
     },
     togglePRView() {
@@ -755,7 +780,17 @@ export default {
         this.srcView = false
         this.showDiff = false
         this.showFileView = false
+        this.showAttachments = false
         this.loadActiveBranch()
+      }
+    },
+    toggleAttachmentsView() {
+      this.showAttachments = !this.showAttachments
+      if (this.showAttachments) {
+        this.srcView = false
+        this.showDiff = false
+        this.showFileView = false
+        this.showPRView = false
       }
     },
     onRemove() {
@@ -843,10 +878,12 @@ export default {
         this.$emit('show-events', {
           toolEvents: this.message?.tool_events || [],
           lifecycleEvents: this.message?.lifecycle_events || [],
+          attachments: this.message?.attachments || [],
           metadata: this.message?.meta_data,
           toolCount: this.toolEventCount,
           lifecycleCount: this.lifecycleEventCount,
-          totalEvents: this.toolEventCount + this.lifecycleEventCount
+          attachmentCount: this.attachmentCount,
+          totalEvents: this.toolEventCount + this.lifecycleEventCount + this.attachmentCount
         })
       }
     },

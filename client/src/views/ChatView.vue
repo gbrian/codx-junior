@@ -17,6 +17,7 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
          SIDEBAR: Persistent left navigation with hierarchy
          ───────────────────────────────────────────────────────────── -->
     <ChatSidebar
+      :workingChat="workingChat"
       :rootChat="rootChat"
       :allChats="hierarchyChats"
       :selectedChatId="workingChat?.id"
@@ -31,6 +32,7 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
       @parent-flags-changed="onParentFlagsChanged"
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
+      @remove-attachment="onSidebarRemoveAttachment"
     />
 
     <!-- ─────────────────────────────────────────────────────────────
@@ -422,6 +424,10 @@ export default {
     onSidebarDeleteChat(chat) {
       if (!chat) return
       this.confirmDeleteSubtask = chat
+    },
+    onSidebarRemoveAttachment(ix) {
+      this.workingChat.attachments.splice(ix, 1)
+      this.saveChatInfo()
     },
     async confirmDeleteSubtaskChat() {
       const chat = this.confirmDeleteSubtask

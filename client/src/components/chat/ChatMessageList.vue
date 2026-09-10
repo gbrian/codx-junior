@@ -3,6 +3,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 import ChatEntryEventCard from '@/components/ChatEntryEventCard.vue'
 import ChatEntryToolCard from '@/components/ChatEntryToolCard.vue'
 import ChatEntryMetadata from '@/components/ChatEntryMetadata.vue'
+import ChatAttachmentCard from '@/components/ChatAttachmentCard.vue'
 </script>
 
 <template>
@@ -29,6 +30,16 @@ import ChatEntryMetadata from '@/components/ChatEntryMetadata.vue'
 
       <!-- Scrollable Content -->
       <div class="flex-1 overflow-y-auto">
+        <!-- Attachments section -->
+        <div v-if="activeMessageData.attachments && activeMessageData.attachments.length > 0" class="px-4 py-3 border-b border-base-300">
+          <ChatAttachmentCard
+            :attachments="activeMessageData.attachments"
+            :isExpanded="true"
+            @toggle="toggleExpanded('attachments')"
+            @remove-attachment="removeAttachment"
+          />
+        </div>
+        
         <!-- Summary section -->
         <div class="px-4 py-3 border-b border-base-300 flex-shrink-0">
           <h4 class="text-xs font-semibold text-base-content/70 mb-3 flex items-center gap-2">
@@ -38,6 +49,7 @@ import ChatEntryMetadata from '@/components/ChatEntryMetadata.vue'
             :metadata="activeMessageData.metadata"
             :toolCount="activeMessageData.toolCount"
             :lifecycleCount="activeMessageData.lifecycleCount"
+            :attachmentCount="activeMessageData.attachmentCount"
           />
         </div>
 
@@ -76,14 +88,14 @@ import ChatEntryMetadata from '@/components/ChatEntryMetadata.vue'
         <!-- Empty state -->
         <div v-if="activeMessageData.totalEvents === 0" class="text-center py-12 text-base-content/50 text-sm">
           <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>
-          <p>No events or tools executed</p>
+          <p>No events, tools, or attachments</p>
         </div>
       </div>
 
       <!-- Footer stats -->
       <div class="border-t border-base-300 px-4 py-2 text-xs text-base-content/60 flex-shrink-0 bg-base-100">
         <div class="flex justify-between items-center">
-          <span>{{ activeMessageData.totalEvents }} event{{ activeMessageData.totalEvents !== 1 ? 's' : '' }}</span>
+          <span>{{ activeMessageData.totalEvents }} item{{ activeMessageData.totalEvents !== 1 ? 's' : '' }}</span>
           <span v-if="activeMessageData.metadata?.time_taken" class="text-success">
             <i class="fa-solid fa-hourglass-end"></i> {{ formatDuration(activeMessageData.metadata.time_taken) }}
           </span>
@@ -238,6 +250,11 @@ export default {
     },
     toggleExpanded(eventId) {
       this.expandedId = this.expandedId === eventId ? null : eventId
+    },
+    removeAttachment(idx) {
+      if (this.activeMessageData && this.activeMessageData.attachments) {
+        this.activeMessageData.attachments.splice(idx, 1)
+      }
     },
     formatDuration(seconds) {
       if (!seconds) return '0s'

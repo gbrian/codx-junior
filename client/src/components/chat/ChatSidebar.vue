@@ -103,8 +103,9 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     <div v-else class="grow"></div>
 
     <ChatAttachmentPreview
-      :attachments="rootChat.attachments"
-      v-if="rootChat.attachments?.length"
+      :attachments="workingChat.attachments"
+      @remove-attachment="$emit('remove-attachment', $event)"
+      v-if="workingChat.attachments?.length"
     />
 
     <!-- Profiles Section -->
@@ -170,6 +171,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 <script>
 export default {
   props: {
+    workingChat: { type: Object, required: true },
     rootChat: { type: Object, required: true },
     allChats: { type: Array, default: () => [] },
     selectedChatId: { type: String, default: null },
@@ -178,7 +180,7 @@ export default {
     isCompact: { type: Boolean, default: false },
     chatProfiles: { type: Array, default: () => [] }
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)

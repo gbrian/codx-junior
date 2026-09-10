@@ -3,13 +3,13 @@ import Service from "./service"
 import { extractCodeBlocks, hasCodeBlocksWithPaths } from '../utils/codeBlockExtractor'
 
 export class ChatService extends Service {
-  getUserMessage({ message, files, profiles, images, metadata, user, taskItem, task_item }) {
+  getUserMessage({ message, files, profiles, attachments, metadata, user, taskItem, task_item }) {
     return {
       role: "user",
       content: message,
-      images: images?.map(JSON.stringify) || [],
       files,
       profiles,
+      attachments,
       task_item: taskItem,
       user: user || this.$user.username,
       meta_data: metadata,
