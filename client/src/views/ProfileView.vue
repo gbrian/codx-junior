@@ -17,20 +17,108 @@ import ProfileCard from '@/components/ProfileCard.vue';
       <p class="mb-6">
         Explore your project's profiles here! Set up member behavior, instructions, AI model, and tools needed for their tasks.
       </p>  
-      <div class="flex items-center justify-between mb-4">
-        <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
-        <div class="flex gap-2 ml-4">
-          <button class="btn btn-sm btn-ghost" @click="loadProfiles" title="Reload profiles">
-            <i class="fa fa-rotate" :class="{ 'animate-spin': loadingProfiles }"></i>
+      
+      <!-- Filters Row -->
+      <div class="flex flex-col gap-3 mb-4">
+        <!-- Primary filters: Search + Tool dropdown + Actions -->
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-2 flex-1 min-w-64">
+            <input 
+              type="text" 
+              placeholder="Search profiles" 
+              v-model="searchQuery" 
+              class="input input-sm input-bordered flex-1" 
+            />
+            <select 
+              v-model="toolDropdownValue" 
+              @change="addToolFromDropdown"
+              class="select select-sm select-bordered"
+              title="Add tool filter"
+            >
+              <option value="">+ Add Tool</option>
+              <option v-for="tool in availableTools" :key="tool" :value="tool">
+                {{ tool }} ({{ getToolProfileCount(tool) }})
+              </option>
+            </select>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button 
+              class="btn btn-sm btn-ghost" 
+              @click="loadProfiles" 
+              title="Reload profiles"
+              :disabled="loadingProfiles"
+            >
+              <i class="fa fa-rotate" :class="{ 'animate-spin': loadingProfiles }"></i>
+            </button>
+            <button class="btn btn-sm btn-primary" @click="createNewProfile">
+              <i class="fa-solid fa-plus mr-1"></i> Create New
+            </button>
+          </div>
+        </div>
+
+        <!-- Selected Tools Display -->
+        <div v-if="selectedTools.length" class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-semibold text-base-content/70">Selected tools:</span>
+          <div class="flex gap-2 flex-wrap">
+            <span 
+              v-for="tool in selectedTools"
+              :key="tool"
+              class="badge badge-warning gap-1"
+            >
+              <i class="fa-solid fa-wrench"></i> {{ tool }}
+              <button @click="removeTool(tool)" class="hover:text-error">
+                <i class="fa-solid fa-x text-xs"></i>
+              </button>
+            </span>
+          </div>
+          <button 
+            @click="selectedTools = []"
+            class="text-xs text-primary hover:underline ml-2"
+          >
+            Clear all
           </button>
-          <button class="btn btn-sm btn-primary" @click="createNewProfile">Create New</button>
+        </div>
+
+        <!-- Results count -->
+        <div v-if="profiles.length" class="text-xs text-base-content/60">
+          Showing {{ filteredProfiles.length }} of {{ profiles.length }} profiles
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" v-if="profiles">
-        <div v-for="profile in filteredProfiles" :key="profile.name"
-          class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
-          <ProfileCard class="click h-96" :profile="profile" />
+
+      <!-- Profiles Grid -->
+      <div v-if="profiles.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div 
+          v-for="profile in filteredProfiles" 
+          :key="profile.name"
+          class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg cursor-pointer transition-colors" 
+          @click="openEditProfile(profile)"
+        >
+          <ProfileCard class="h-96" :profile="profile" />
         </div>
+      </div>
+
+      <!-- No results state -->
+      <div v-else-if="searchQuery || selectedTools.length" class="flex flex-col items-center justify-center gap-4 py-12">
+        <i class="fa-solid fa-inbox text-4xl text-base-content/20"></i>
+        <div class="text-center">
+          <p class="font-semibold text-base-content/70">No profiles match your filters</p>
+          <p class="text-sm text-base-content/50 mt-1">Try adjusting your search or tool selection</p>
+        </div>
+        <button class="btn btn-sm btn-ghost" @click="clearFilters">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Clear filters
+        </button>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else class="flex flex-col items-center justify-center gap-4 py-12">
+        <i class="fa-solid fa-inbox text-4xl text-base-content/20"></i>
+        <div class="text-center">
+          <p class="font-semibold text-base-content/70">No profiles yet</p>
+          <p class="text-sm text-base-content/50 mt-1">Create your first profile to get started</p>
+        </div>
+        <button class="btn btn-sm btn-primary" @click="createNewProfile">
+          <i class="fa-solid fa-plus mr-1"></i> Create Profile
+        </button>
       </div>
     </div>
   </div>
@@ -41,28 +129,49 @@ export default {
   data() {
     return {
       searchQuery: '',
-      searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tools', 'tags'],
+      selectedTools: [],
+      toolDropdownValue: '',
+      searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tags'],
       loadingProfile: false,
       loadingProfiles: false
     }
   },
   computed: {
     profiles() {
-      return this.$storex.profiles.profiles
+      return this.$storex.profiles.profiles || []
     },
     selectedProfile() {
       return this.$projects.selectedProfile
     },
+    // Extract unique tools from all profiles sorted alphabetically
+    availableTools() {
+      const toolsSet = new Set()
+      this.profiles.forEach(profile => {
+        if (profile.tools && Array.isArray(profile.tools)) {
+          profile.tools.forEach(tool => toolsSet.add(tool))
+        }
+      })
+      return Array.from(toolsSet).sort()
+    },
+    // Filter profiles by search query AND all selected tools
     filteredProfiles() {
       const filter = this.searchQuery.toLowerCase()
+      
       return (this.profiles || []).filter(profile => {
         try {
-          // Safely stringify each key value, joining arrays if needed
-          const text = this.searchKeys
+          // Search filter: check if profile matches search query
+          const searchMatch = !filter || this.searchKeys
             .map(k => Array.isArray(profile[k]) ? profile[k].join(' ') : (profile[k] || ''))
             .join(' ')
             .toLowerCase()
-          return text.includes(filter)
+            .includes(filter)
+
+          // Tool filter: check if profile has ALL selected tools
+          const toolMatch = this.selectedTools.length === 0 || 
+            (profile.tools && Array.isArray(profile.tools) && 
+             this.selectedTools.every(tool => profile.tools.includes(tool)))
+
+          return searchMatch && toolMatch
         } catch(ex) {
           console.error(ex)
           return true // Don't hide profiles on error
@@ -81,6 +190,23 @@ export default {
       } finally {
         this.loadingProfiles = false
       }
+    },
+    // Count profiles that have a specific tool
+    getToolProfileCount(tool) {
+      return this.profiles.filter(profile => 
+        profile.tools && Array.isArray(profile.tools) && profile.tools.includes(tool)
+      ).length
+    },
+    // Add tool from dropdown
+    addToolFromDropdown() {
+      if (this.toolDropdownValue && !this.selectedTools.includes(this.toolDropdownValue)) {
+        this.selectedTools.push(this.toolDropdownValue)
+      }
+      this.toolDropdownValue = ''
+    },
+    // Remove specific tool from selected tools
+    removeTool(tool) {
+      this.selectedTools = this.selectedTools.filter(t => t !== tool)
     },
     openEditProfile(selectedProfile) {
       this.$projects.setSelectedProfile(selectedProfile)
@@ -102,6 +228,10 @@ export default {
           project: this.$project,
           api_settings: {}
         })
+    },
+    clearFilters() {
+      this.searchQuery = ''
+      this.selectedTools = []
     }
   }
 }

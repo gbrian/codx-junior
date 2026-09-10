@@ -1,7 +1,7 @@
 <script setup>
 import ExportImportButton from './ExportImportButton.vue'
 import Document from './document/Document.vue'
-import ProfileChatEditor from './ProfileChatEditor.vue'
+import ChatView from '@/views/ChatView.vue'
 </script>
 
 <template>
@@ -196,7 +196,7 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
         <!-- Tab content -->
         <div class="flex-1 min-h-0 flex flex-col rounded-md bg-base-200 p-3">
           
-          <!-- Content tab: unified view/edit -->
+          <!-- Content tab: unified view/edit with ChatView -->
           <div class="flex flex-col gap-2 h-full" v-if="tab === 'content'">
             <div class="flex justify-between items-center shrink-0">
               <label class="label-text font-semibold flex gap-2 items-center">
@@ -227,16 +227,19 @@ import ProfileChatEditor from './ProfileChatEditor.vue'
               />
             </div>
 
-            <!-- Edit mode: Chat editor for content editing -->
+            <!-- CHANGED: Edit mode now uses ChatView instead of ProfileChatEditor -->
             <div class="flex-1 min-h-0 overflow-hidden" v-else>
-              <ProfileChatEditor
-                :profile="editProfile"
-                :initialContent="editProfile.content"
-                @update:chatId="onChatIdChange"
-                @content-changed="onContentChanged"
-                @save-chat-id="onSaveChatId"
-                class="h-full"
+              <ChatView
+                v-if="editorChat"
+                :chat="editorChat"
+                @chat="onChatUpdated"
               />
+              <div class="flex items-center justify-center h-full text-base-content/50" v-else>
+                <div class="flex flex-col items-center gap-2">
+                  <span class="loading loading-spinner loading-sm"></span>
+                  <span class="text-sm">Loading chat editor...</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -346,11 +349,14 @@ export default {
       newProfile: '',
       tools: [],
       plugins: [],
-      savingChatId: false
+      savingChatId: false,
+      editorChat: null,
+      loadingChat: false
     }
   },
   created() {
     this.loadTools()
+    this.initializeEditorChat()
   },
   computed: {
     isProjectProfile() {
@@ -383,6 +389,13 @@ export default {
         return true
       } catch (e) {
         return false
+      }
+    }
+  },
+  watch: {
+    'editProfile.chat_id': async function(newChatId) {
+      if (newChatId && !this.editorChat?.id) {
+        await this.loadEditorChat(newChatId)
       }
     }
   },
@@ -455,57 +468,100 @@ export default {
       const plugins = await this.$storex.api.settings.global.plugins.list()
       this.tools = [...tools, ...plugins.filter(p => p.extends?.includes('profile'))]
     },
-    async onSaveChatId(chatId) {
-      if (!chatId) return
-
-      this.savingChatId = true
+    // ADDED: Initialize the editor chat on component creation
+    async initializeEditorChat() {
+      if (this.profile?.chat_id) {
+        await this.loadEditorChat(this.profile.chat_id)
+      } else {
+        await this.createEditorChat()
+      }
+    },
+    // ADDED: Load existing chat for editing
+    async loadEditorChat(chatId) {
+      this.loadingChat = true
       try {
-        this.editProfile.chat_id = chatId
-        const fullProfile = await this.project.$api.profiles.load(this.profile.id)
-        fullProfile.chat_id = chatId
-        await this.project.$api.profiles.save(fullProfile)
-        this.profile.chat_id = chatId
-        this.$ui.addNotification({
-          text: 'Chat linked to profile successfully',
-          type: 'success'
+        const chat = await this.$chats.loadChat({
+          id: chatId,
+          owner_project_id: this.$project.project_id
         })
+        if (chat) {
+          this.editorChat = chat
+          this.editProfile.chat_id = chatId
+          this.updateProfileContentFromChat()
+        }
       } catch (error) {
-        console.error('Failed to save chat_id:', error)
+        console.error('Failed to load editor chat:', error)
         this.$ui.addNotification({
-          text: 'Failed to link chat',
+          text: 'Failed to load profile chat',
           type: 'error'
         })
       } finally {
-        this.savingChatId = false
+        this.loadingChat = false
       }
     },
-    async onChatIdChange(newChatId) {
-      if (!newChatId || this.editProfile.chat_id === newChatId) return
-
-      this.savingChatId = true
+    // ADDED: Create new chat for editing profile content
+    async createEditorChat() {
+      this.loadingChat = true
       try {
-        const fullProfile = await this.project.$api.profiles.load(this.profile.id)
-        fullProfile.chat_id = newChatId
-        await this.project.$api.profiles.save(fullProfile)
-        this.editProfile.chat_id = newChatId
-        this.profile.chat_id = newChatId
-        this.$ui.addNotification({
-          text: 'Profile chat updated successfully',
-          type: 'success'
+        const { v4: uuidv4 } = await import('uuid')
+        const newChat = await this.$chats.createNewChat({
+          id: uuidv4(),
+          name: `Profile Editor - ${this.profile.name}`,
+          mode: 'task',
+          board: 'Profiles',
+          column: this.profile.name,
+          project_id: this.$project.project_id,
+          owner_project_id: this.$project.project_id,
+          messages: this.editProfile.content ? [{ role: 'assistant', content: this.editProfile.content }] : [],
+          profiles: []
         })
+        if (newChat) {
+          this.editorChat = newChat
+          this.editProfile.chat_id = newChat.id
+          await this.$chats.saveChat(newChat)
+          this.$ui.addNotification({
+            text: 'Profile chat created successfully',
+            type: 'success'
+          })
+        }
       } catch (error) {
-        console.error('Failed to update profile chat_id:', error)
+        console.error('Failed to create editor chat:', error)
         this.$ui.addNotification({
-          text: 'Failed to save profile chat',
+          text: 'Failed to create profile chat',
           type: 'error'
         })
       } finally {
-        this.savingChatId = false
+        this.loadingChat = false
       }
     },
-    onContentChanged(newContent) {
-      if (newContent) {
-        this.editProfile.content = newContent
+    // ADDED: Handle chat updates from ChatView
+    async onChatUpdated(chat) {
+      if (chat) {
+        this.editorChat = chat
+        this.updateProfileContentFromChat()
+        // Auto-save the profile with updated content
+        try {
+          this.savingChatId = true
+          const fullProfile = await this.project.$api.profiles.load(this.profile.id)
+          fullProfile.content = this.editProfile.content
+          fullProfile.chat_id = this.editorChat.id
+          await this.project.$api.profiles.save(fullProfile)
+          this.profile.chat_id = this.editorChat.id
+          this.profile.content = this.editProfile.content
+        } catch (error) {
+          console.error('Failed to save profile with chat updates:', error)
+        } finally {
+          this.savingChatId = false
+        }
+      }
+    },
+    // ADDED: Extract content from last message in chat
+    updateProfileContentFromChat() {
+      if (this.editorChat?.messages && this.editorChat.messages.length > 0) {
+        const lastMessage = this.editorChat.messages[this.editorChat.messages.length - 1]
+        if (lastMessage?.content) {
+          this.editProfile.content = lastMessage.content
+        }
       }
     }
   }

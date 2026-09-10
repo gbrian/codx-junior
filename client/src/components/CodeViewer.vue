@@ -6,6 +6,8 @@ import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
 import Document from './document/Document.vue'
+import DiffViewer from './DiffViewer.vue'
+import "@git-diff-view/vue/styles/diff-view.css"
 import { EXTENSION_LANGUAGE_MAP } from '../store'
 
 </script>
@@ -237,18 +239,21 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </div>
       </div>
 
+      <!-- CHANGED: Replaced Monaco diff editor with lightweight DiffViewer -->
       <div class="view-code grow overflow-auto">
         <div :style="{ height: `${editorHeight}px` }">
 
-          <Editor
-            :diff="true"
-            :originalCode="orgContent"
-            v-model="diffEditContent"
-            :fileName="file"
+          <!-- Lightweight diff viewer: replaces Monaco DiffEditor -->
+          <DiffViewer
+            v-if="showDiff && !editMode && orgContent"
+            :org-content="orgContent"
+            :new-content="diffEditContent"
+            :file="file"
+            :language="fileLanguage"
             class="h-full"
-            v-if="showDiff && !editMode"
           />
 
+          <!-- Monaco plain edit mode (no diff) -->
           <Editor
             v-model="editContent"
             :fileName="file"
@@ -257,7 +262,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             v-if="editMode"
           />
 
-          <!-- Document component for markdown files -->
+          <!-- Syntax-highlighted read-only view -->
           <div class="h-full" v-if="effectiveCode && !editMode && !showDiff">
             <Document
               v-if="isMarkdown"
@@ -472,7 +477,6 @@ export default {
       this.changesetErrors = []
       this.detectPatchPattern()
       this.codeUpdateCounter++
-      // CHANGED: Update codeHash only when code content actually changes
       this.codeHash = this.generateCodeHash(newCode)
       
       this.$nextTick(() => {
@@ -845,16 +849,21 @@ export default {
       const viewCode = this.$el?.querySelector('.view-code')
       if (!viewCode) return
       
-      // CHANGED: Always keep scroll at bottom during streaming, ignore user scroll input
       if (this.isStreaming) {
         viewCode.scrollTop = viewCode.scrollHeight
         return
       }
       
-      // After streaming finished, track scroll position normally
       this.prevScrollTop = viewCode.scrollTop
       const distanceFromBottom = viewCode.scrollHeight - viewCode.scrollTop - viewCode.clientHeight
       this.isAtBottom = distanceFromBottom <= 40
+    },
+
+    // ADDED: Apply patch from pattern (uses AI pattern matching)
+    applyPatchFromPattern() {
+      if (!this.patchPattern) return
+      this.applyUserChange(this.patchPattern.newContent)
+      this.triggerActionFeedback('patch')
     }
   }
 }

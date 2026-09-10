@@ -652,6 +652,16 @@
           "path": "/codx/junior/tools/project_tools.py",
           "slug": "project-tools.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/project-tools.md"
+        },
+        {
+          "path": "/codx/junior/tools/recipe_tools.py",
+          "slug": "recipe-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/recipe-tools.md"
+        },
+        {
+          "path": "/codx/junior/recipe_manager.py",
+          "slug": "recipe-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/recipe-manager.md"
         }
       ],
       "id": "utility-functions",

@@ -16,7 +16,7 @@ The CodX Junior API is organized into several core modules that work together to
 
 **File Engine** – A comprehensive core module managing all file operations with robust path traversal protection and intelligent gitignore handling. Organizes file operations into logical categories: Reading & Writing (with streaming support and atomic operations), Analysis (file metadata and comparison), Directory Operations (comprehensive file structure exploration), Search (gitignore-aware filtering with single file and directory modes), and Profile Management (file information and utilities). Features systematic path resolution and validation with security-focused relative/absolute path handling, utility methods for common operations including readme retrieval and wiki access, git operations with `.gitignore` behavior and rule cascading support, and comprehensive file comparison operations. Implements critical security measures preventing path traversal attacks through comprehensive path validation and secure resolution mechanisms. Includes GitIgnoreManager with efficient pattern matching, supporting gitignore rule cascading and smart filtering that walks the directory tree only once during initialization to optimize performance while avoiding subprocess calls. Supports special features including wiki access, README retrieval, and OCR image-to-text conversion with Tesseract integration for text extraction from images. Implements performance-focused architecture emphasizing caching strategies, early termination optimization, and pagination for efficient handling of large directory structures.
 
-**Chat Engine** – The core conversational AI component orchestrating sophisticated multi-mode chat interactions with language models. Built on workflow-centric design emphasizing clear API contracts and deterministic processing pipelines, the Chat Engine prioritizes user-facing workflow patterns over implementation complexity. Implements crash-safe architecture through multi-layered persistence ensuring data integrity across failure scenarios: early metadata persistence (safeguarding response data before streaming begins), event bridge integration for distributed consistency, stream throttling with intelligent buffering, thinking content preservation for recovery and auditing, error state persistence for failure tracking, and duplicate prevention safeguards. Processes requests through a structured 20-step deterministic pipeline ensuring reliable and predictable message handling. Supports five distinct chat modes optimized for different interaction patterns: **Task (Refine)** for document refinement and iterative task completion with focused output, **Chat** for standard conversational interactions with complete message history, **Agent** for complex workflows with configurable iteration counts and multi-step automation, **Vibe** for contextual understanding with nuanced AI-driven reasoning and sophisticated analysis, and **Search** for knowledge-driven exploration and semantic understanding. Features robust UUID-based cancellation with fine-grained token lifecycle management through dedicated `cancel_chat()` and `cancel_chat_by_token_id()` methods, comprehensive session analytics tracking timing metrics and token usage, seamless hierarchical chat structures where child conversations inherit settings and context from parent conversations while respecting explicit inheritance controls through configurable `ignore_parent_knowledge` and `ignore_parent_files` flags, and intelligent knowledge management with parent chat integration and traversal logic. Implements parent chat message inclusion when `ignore_parent_knowledge=False`, ensuring proper context propagation in hierarchical conversations. Primary entry points are `chat_with_project()` for initiating conversations and `_chat_with_project_inner()` for internal processing logic, with dedicated support for Task, Agent, and Vibe/Search mode-specific processing.
+**Chat Engine** – The core conversational AI component orchestrating sophisticated multi-mode chat interactions with language models. Built on workflow-centric design emphasizing clear API contracts and deterministic processing pipelines, the Chat Engine prioritizes user-facing workflow patterns over implementation complexity. Processes requests through a structured 20-step deterministic pipeline ensuring reliable and predictable message handling. Supports five distinct chat modes optimized for different interaction patterns: **Task (Refine)** for document refinement and iterative task completion with focused output, **Chat** for standard conversational interactions with complete message history, **Agent** for complex workflows with configurable iteration counts and multi-step automation, **Vibe** for contextual understanding with nuanced AI-driven reasoning and sophisticated analysis, and **Search** for knowledge-driven exploration and semantic understanding. Implements crash-safe architecture through multi-layered persistence ensuring data integrity across failure scenarios: early metadata persistence (safeguarding response data before streaming begins), event bridge integration for distributed consistency, stream throttling with intelligent buffering, thinking content preservation for recovery and auditing, error state persistence for failure tracking, and duplicate prevention safeguards. Features robust UUID-based cancellation with fine-grained token lifecycle management, comprehensive session analytics tracking timing metrics and token usage, seamless hierarchical chat structures where child conversations inherit settings and context from parent conversations while respecting explicit inheritance controls through configurable `ignore_parent_knowledge` and `ignore_parent_files` flags, and intelligent knowledge management with parent chat integration and traversal logic. Primary entry points are `chat_with_project()` for initiating conversations and `_chat_with_project_inner()` for internal processing logic, with dedicated support for Task, Agent, and Vibe/Search mode-specific processing.
 
 **SmolAgent** – An async-first streaming chat agent engineered for sophisticated, real-time interaction patterns with language models. Built with flow-centric architecture optimized for streaming responses, SmolAgent delivers high-performance conversational capabilities with structured agent loops, multi-turn conversation lifecycle management, intelligent tool management with sophisticated scoping systems (distinguishing between global tools and chat-scoped tools), real-time streaming with dual content streams (thinking content and final answers), and comprehensive event systems providing complete visibility into tool execution and operation flow. The agent initializes with comprehensive configuration management supporting flexible profiles and parameters with intelligent defaults. Each conversation iteration intelligently manages tools through both global and chat-specific scoping, executes sophisticated tool caching mechanisms with cached executions bypassing iteration constraints, and incorporates results before proceeding to the next cycle. Loop Guard constraints enforce maximum iteration counts protecting system stability while iteration counting precisely tracks only uncached tool executions. Implements comprehensive event emissions throughout execution including initialization events, iteration progress tracking, tool execution details, LLM interactions, and completion notifications. Tool Result Normalization ensures consistent handling of diverse tool outputs through standardized processing with priority-based resolution (user response first, then LLM response, then string conversion). Supports dual cancellation approaches: UUID-based global cancellation tokens for external triggers with checkpoint verification, and context-based cancellation for graceful degradation. Fresh loading of global system instructions on every chat invocation ensures messages always reflect current configuration without stale data. Implements hardcoded file handling rules as permanent enforcement mechanisms ensuring consistent and secure file operations. Performs pre-flight wallet verification before initiating agent execution to ensure sufficient resources are available, preventing mid-execution failures and maintaining system stability. Provides comprehensive error handling with explicit exception catching, non-empty error message enforcement, and comprehensive serialization strategies for asyncio.Future, coroutines, Pydantic models, and complex data types.
 
@@ -24,7 +24,21 @@ The CodX Junior API is organized into several core modules that work together to
 
 **Image Engine** – Manages comprehensive image operations including generation from text prompts using DALL-E models (supporting sizes from 256x256 to 1792x1024 with quality levels and style options), vision-based analysis using GPT-4 Vision, local storage and file management, OCR text extraction using Tesseract, and detailed metadata tracking. Supports complete image lifecycle management with organized directory structures, atomic metadata persistence in JSON format, and streamlined image deletion with automatic file and metadata cleanup.
 
-**Database Module** – Manages all data persistence operations with support for multiple database backends and efficient connection caching through the `PROJECT_DATABASES` cache strategy. Implements comprehensive CRUD operations (Create, Read, Update, Delete) for all data models with transactional integrity. Provides direct database access patterns for bulk operations and complex queries with structured connection management. Supports hierarchical model organization with relationships between core entities enabling complex data retrieval patterns. Includes specialized models for chat history snapshots (ChatHistoryEntry), message state tracking with reasoning content support, tool events with execution details, and lifecycle tracking. Features robust connection management preventing connection exhaustion and optimizing resource utilization through intelligent caching mechanisms. The database layer maintains structured data schemas with Pydantic-based models organized by functional domain, providing comprehensive validation and type safety for all stored entities.
+**Recipe Manager** – A sophisticated workflow automation utility module for managing recipe templates and their execution instances. Organizes recipes into templates (reusable workflow definitions) and instances (active or completed executions), with clear separation of concerns enabling workflow composition and reusability. Implements a complete recipe lifecycle from creation through completion with multiple step status states (pending, in_progress, completed, failed). Provides comprehensive step management with progress tracking, status updates, and templated step definitions. Supports four distinct step types: **instruction** for procedural steps providing guidance and documentation, **exercise** for hands-on tasks requiring active participation, **validation** for verification steps ensuring quality and correctness, and **action** for automated operations executed by the system. Integrates seamlessly with the database layer for persistent storage and with chat systems for workflow documentation and task automation. Features sophisticated metrics calculation and aggregation for comprehensive workflow analytics, enabling insights into template performance, step execution timing, and overall workflow efficiency. The system maintains clear distinction between templates (reusable workflow definitions) and instances (active or completed executions), with intelligent metrics recalculation ensuring accurate analytics across recipe hierarchies. Supports workflow composition with step-chat relationships enabling flexible automation patterns and seamless integration with conversational AI for task documentation and execution. Implements complete recipe lifecycle management with clear recipe progression from creation through completion. Recipe instances are created through deep-copy operations ensuring complete independence from template definitions, preventing accidental template modification during execution while preserving all step definitions and configuration. Step completion states progress through pending (not started, awaiting execution), in_progress (currently executing), completed (successfully finished), and failed (execution encountered an error), with status transitions tracked and timestamped for comprehensive auditing.
+
+**Database Module** – Manages all data persistence operations with support for multiple database backends and efficient connection caching through the `PROJECT_DATABASES` cache strategy. Implements comprehensive CRUD operations (Create, Read, Update, Delete) for all data models with transactional integrity. Provides direct database access patterns for bulk operations and complex queries with structured connection management. Supports hierarchical model organization with relationships between core entities enabling complex data retrieval patterns. Includes specialized models for chat history snapshots (ChatHistoryEntry), message state tracking with reasoning content support, tool events with execution details, and lifecycle tracking. Features robust connection management preventing connection exhaustion and optimizing resource utilization through intelligent caching mechanisms.
+
+The database layer maintains structured data schemas with Pydantic-based models organized by functional domain. Core data models include:
+
+| Model | Purpose |
+|-------|---------|
+| **Message** | Persists conversation messages with thinking content, task classification, user read status, and file attachments |
+| **Chat** | Stores conversation sessions with AI model tracking, status indicators, and hierarchical parent-child relationships |
+| **ChatAttachment** | Manages file attachments and references associated with chat conversations |
+| **Kanban** | Manages kanban board states and task organization with hierarchy (Kanban Board → Recipe → Step) |
+| **ChatHistoryEntry** | Tracks chat state snapshots enabling point-in-time recovery and crash-safe restoration |
+| **ToolEvent** | Records tool invocation and execution with call details, status, and error tracking |
+| **LifeCycleEvent** | Records state transitions and operational milestones with timestamps and contextual metadata |
 
 **Advanced Features** – Provides fine-grained cancellation support using a UUID-based global registry with ISO-8601 timestamp tracking and comprehensive session analytics including timing metrics, token usage tracking, tool execution tracking, and error states. Supports parent chat knowledge and file inheritance through configurable flags, enabling selective knowledge reuse and context propagation across related conversations. Implements crash-safe persistence mechanisms protecting against data loss through early metadata creation, event bridge integration, stream throttling via `maybe_persist_stream()`, hidden reasoning persistence via `event_bridge.persist_message()`, immediate error state setting on exceptions, and duplicate prevention via `_append_message_if_missing()`.
 
@@ -194,6 +208,155 @@ The API provides specific error responses:
 - `500 Internal Server Error` – Server-side operation failures
 
 All errors are logged with full context for monitoring and troubleshooting.
+
+## Recipe Tools
+
+### Overview
+
+The Recipe Tools module provides specialized functions for managing recipe templates, instances, and progress tracking within the CodX Junior workflow automation system. These tools enable programmatic recipe operations for workflow composition and execution management.
+
+### Recipe Template Functions
+
+**`list_recipes()`** (required)
+Lists all available recipe templates with optional filtering capabilities.
+
+Returns (required):
+- Array of recipe template objects with metadata
+- Each template includes name, description, step count, and configuration
+- Empty array when no templates are found
+
+Raises (required):
+- `RecipeNotFoundError` – When specified recipe template does not exist
+- `PermissionError` – When user lacks access to recipe templates
+
+Example use cases (required):
+- Display available workflow templates in the UI
+- Filter templates by category or complexity level
+- Discover new automation workflows
+- Build recipe selection interfaces for users
+
+**`get_recipe(recipe_id)`** (required)
+Retrieves detailed information about a specific recipe template.
+
+Parameters (required):
+- `recipe_id` (string, required) – Unique identifier for the recipe template
+
+Returns (required):
+- Complete recipe template object with all step definitions
+- Template includes metadata, step sequence, and configuration options
+- Returns None when template not found with appropriate error handling
+
+Raises (required):
+- `RecipeNotFoundError` – When recipe with specified ID does not exist
+- `PermissionError` – When user lacks access to view this recipe
+- `InvalidRecipeIDError` – When recipe_id format is invalid
+
+**`create_recipe(recipe_data)`** (required)
+Creates a new recipe template from provided definition.
+
+Parameters (required):
+- `recipe_data` (dict, required) – Template definition with name, description, and steps
+
+Returns (required):
+- Newly created recipe object with assigned recipe_id
+- Returns template with default configuration and empty step list if not specified
+- Includes creation timestamp and user attribution
+
+Raises (required):
+- `ValidationError` – When recipe_data format is invalid or missing required fields
+- `DuplicateRecipeError` – When recipe with same name already exists
+- `PermissionError` – When user lacks permission to create recipes
+
+### Recipe Instance Functions
+
+**`create_recipe_instance(recipe_id)`** (required)
+Creates an executable instance from a recipe template using deep-copy instantiation.
+
+Parameters (required):
+- `recipe_id` (string, required) – Identifier of recipe template to instantiate
+
+Returns (required):
+- New recipe instance with unique instance_id and independent state
+- Instance inherits all step definitions from template but maintains separate execution state
+- Includes instance creation timestamp and initial status tracking
+
+Raises (required):
+- `RecipeNotFoundError` – When recipe template does not exist
+- `PermissionError` – When user lacks permission to create instances
+- `InstantiationError` – When deep-copy process encounters errors
+
+**`get_recipe_progress(instance_id)`** (required)
+Retrieves current execution progress for an active or completed recipe instance.
+
+Parameters (required):
+- `instance_id` (string, required) – Identifier of recipe instance to track
+
+Returns (required):
+- Progress object with overall completion percentage
+- Individual step status array with completion state for each step
+- Timing information including start time and elapsed duration
+- Current execution context and next pending step
+
+Raises (required):
+- `RecipeInstanceNotFoundError` – When instance with specified ID does not exist
+- `PermissionError` – When user lacks access to view instance progress
+- `InvalidInstanceIDError` – When instance_id format is invalid
+
+**`list_recipe_instances(filters=None)`** (required)
+Lists recipe instances with optional filtering by status or template.
+
+Parameters (optional):
+- `filters` (dict, optional) – Filtering criteria (status, template_id, date_range)
+
+Returns (required):
+- Array of recipe instance objects matching filter criteria
+- Each instance includes summary status and progress metrics
+- Sorted by creation date in descending order
+
+Raises (required):
+- `FilterFormatError` – When filter parameters have invalid format
+- `PermissionError` – When user lacks access to list instances
+
+### Recipe Progress Tracking
+
+**`complete_recipe_step(instance_id, step_id, output=None)`** (required)
+Marks an individual recipe step as completed and records results.
+
+Parameters (required):
+- `instance_id` (string, required) – Recipe instance identifier
+- `step_id` (string, required) – Step identifier within instance
+
+Parameters (optional):
+- `output` (string, optional) – Step execution output or results to record
+
+Returns (required):
+- Updated step object with completed status and timestamp
+- Returns modified instance with recalculated overall progress
+- Progress percentage updates to reflect completion
+
+Raises (required):
+- `RecipeInstanceNotFoundError` – When instance does not exist
+- `StepNotFoundError` – When step does not exist in instance
+- `InvalidStateError` – When step already completed or cannot transition to completed state
+- `SkipValidationError` – When workflow integrity constraints prevent step completion
+
+**`get_recipe_metrics(recipe_id=None, instance_id=None)`** (required)
+Calculates and aggregates performance metrics for templates or instances.
+
+Parameters (at least one required):
+- `recipe_id` (string, optional) – Template identifier for template-level metrics
+- `instance_id` (string, optional) – Instance identifier for instance-level metrics
+
+Returns (required):
+- Metrics object with execution timing, step completion rates, and performance indicators
+- Template metrics aggregate across all instances
+- Instance metrics provide detailed execution analysis
+- Includes failure analysis and optimization recommendations
+
+Raises (required):
+- `RecipeNotFoundError` – When recipe template does not exist
+- `RecipeInstanceNotFoundError` – When instance does not exist
+- `PermissionError` – When user lacks access to metrics
 
 ## Chat Engine
 
@@ -376,9 +539,104 @@ Provides comprehensive analytics including:
 - **Tool usage recording** – Execution counts, timing, and cache performance
 - **Performance metrics** – Processing duration, latency measurements, and throughput analysis
 
+## Recipe Manager
+
+### Overview
+
+The Recipe Manager is a sophisticated workflow automation utility module for managing recipe templates and their execution instances. It provides comprehensive workflow composition, execution tracking, and analytics capabilities for managing complex development tasks and automations.
+
+### Core Concepts
+
+**Templates vs Instances** – The Recipe Manager maintains clear distinction between templates (reusable workflow definitions) and instances (active or completed executions). Templates define workflow structures with step definitions, while instances represent concrete executions with their own status tracking and metrics.
+
+**Recipe Types** – The system organizes recipes into four distinct types for different automation scenarios:
+- `tutorial` – Structured learning content with guided step-by-step instructions
+- `automation` – Repetitive task automation with scheduled or event-driven execution
+- `workflow` – Complex process orchestration with multiple sequential and parallel steps
+- `playbook` – Strategic runbooks for operational procedures and incident management
+
+**Recipe Lifecycle** – Recipes progress through a defined lifecycle from creation through completion. Each recipe consists of multiple steps that can be executed sequentially or in configured patterns. The system tracks overall recipe state and individual step completion status throughout the workflow.
+
+**Step Completion States** – Steps maintain clear state definitions progressing through:
+- `pending` – Not started, awaiting execution
+- `in_progress` – Currently executing
+- `completed` – Successfully finished
+- `failed` – Execution encountered an error
+
+Status transitions are tracked with timestamps for comprehensive auditing and state tracking.
+
+**Supported Step Types** – The Recipe Manager supports four distinct step types for different automation scenarios:
+- `instruction` – Procedural steps providing guidance and documentation for manual tasks
+- `exercise` – Hands-on tasks requiring active participation and skill practice
+- `validation` – Verification steps ensuring quality and correctness of completed work
+- `action` – Automated operations executed by the system for task completion
+
+**Metrics** – The Recipe Manager calculates comprehensive metrics for workflow analytics including step execution timing, completion rates, failure analysis, and performance indicators aggregated across templates and instances.
+
+**Step-Chat Relationship** – Recipe Manager integrates seamlessly with the Chat Engine, enabling steps to trigger chat operations for documentation, code generation, and AI-driven task assistance. This integration supports bidirectional communication where step execution can initiate conversations and chat results can update step state.
+
+**Deep-Copy on Instantiation** – When creating recipe instances from templates, the system performs deep-copy operations ensuring complete independence between template definitions and instance data. This prevents accidental modification of templates during instance execution while preserving all step definitions and configuration.
+
+### Key Responsibilities
+
+The Recipe Manager delivers four primary responsibilities:
+
+1. **Template Management** – Creating, organizing, and maintaining reusable recipe workflow definitions with step definitions and configuration
+2. **Instance Creation and Execution** – Instantiating recipes from templates, tracking execution state, and managing active or completed workflow executions
+3. **Step Progress Tracking** – Managing individual step execution, status updates, completion handling, and progress aggregation with skip validation
+4. **Metrics & Analytics** – Calculating and aggregating performance metrics, execution timing analysis, and workflow efficiency insights
+
+### Key Operations
+
+**Template Management**
+- Creating recipe templates with step definitions
+- Retrieving templates with `get_template()` method
+- Listing templates for discovery with flexible search capabilities
+- Adding steps to templates with type specifications (instruction, exercise, validation, action)
+- Discovering templates with multiple filtering options
+
+**Instance Creation and Execution**
+- Creating recipe instances from templates with deep-copy instantiation ensuring complete independence
+- Retrieving instance state and progress with real-time tracking
+- Listing active and completed instances
+- Tracking execution history with comprehensive audit trails
+
+**Step Progress Tracking**
+- Completing individual steps with optional output and result capture
+- Managing step status transitions with skip validation for workflow integrity
+- Retrieving step details and progress information
+- Aggregating progress across recipe steps with automatic roll-up calculations
+
+**Progress Monitoring**
+- Tracking overall recipe completion percentage with step-level aggregation
+- Monitoring step-level progress metrics with individual status tracking
+- Calculating execution duration and timing with timestamp-based analysis
+- Analyzing workflow performance with comprehensive metrics
+
+### Internal Architecture
+
+**Chat Integration** – The Recipe Manager seamlessly integrates with the Chat Engine for workflow documentation and task automation. Step execution can trigger chat operations for documentation, code generation, or AI-driven task assistance, with complete bidirectional communication and result passing.
+
+**Metrics Calculation** – Metrics are automatically recalculated ensuring accuracy across recipe hierarchies, with support for caching and incremental updates for performance optimization. Sophisticated aggregation logic rolls up individual step metrics into recipe-level analytics.
+
+**Database Integration** – The system leverages the Database Module for persistent storage of recipes, steps, and execution instances. Kanban models organize the hierarchical structure (Kanban Board → Recipe → Step) with efficient query patterns and relationship management.
+
+### Data Persistence
+
+Recipe data is persisted through the database layer with:
+- Template definitions with step structure and configuration
+- Instance tracking with execution state and timestamps
+- Step execution records with status transitions and outputs
+- Metrics snapshots for historical analysis and reporting
+- Complete audit trail for compliance and debugging
+
 ## Database and Data Storage
 
 The Database Module forms the foundation of data persistence for the CodX Junior API, managing all data storage and retrieval operations with sophisticated architecture and efficiency optimizations.
+
+### Overview
+
+The Database Module implements a comprehensive data persistence layer built on Pydantic-based models organized by functional domain. It manages core data models with support for multiple database backends through efficient connection caching strategies. The module ensures transactional integrity across all CRUD operations while supporting hierarchical model relationships enabling complex data retrieval patterns.
 
 ### Core Components
 
@@ -386,32 +644,122 @@ The Database Module forms the foundation of data persistence for the CodX Junior
 
 **Connection Caching Strategy** – The Database Module implements the `PROJECT_DATABASES` cache strategy for efficient database connection management that prevents connection exhaustion while maintaining responsiveness, optimizes resource utilization by reusing connections across requests, enables bulk operations with direct access patterns for complex queries, and supports hierarchical queries to manage relationships between core entities.
 
-**Data Models** – Implements structured Pydantic-based models for managing different entity types:
+### Data Models
+
+The database layer maintains structured data schemas with Pydantic-based models organized into the following categories:
 
 | Model | Purpose |
 |-------|---------|
-| **ChatAttachment** | Stores file attachments and references associated with chat conversations |
-| **Kanban** | Manages kanban board states and task organization within projects |
-| **Message** | Persists conversation messages with support for thinking content, task classification, and state tracking |
-| **Chat** | Stores conversation sessions with AI model tracking, visibility settings, and hierarchical parent-child relationships |
-| **ChatHistoryEntry** | Tracks chat state snapshots for point-in-time recovery and comprehensive audit trails enabling crash-safe recovery |
+| **Message** | Persists conversation messages with thinking content, task classification, user read status, file attachments, and timestamps |
+| **Chat** | Stores conversation sessions with AI model tracking, status indicators, hierarchical parent-child relationships, and timestamps |
+| **ChatAttachment** | Manages file attachments and references associated with chat conversations |
+| **Kanban** | Manages kanban board states and task organization with hierarchy (Kanban Board → Recipe → Step) |
+| **ChatHistoryEntry** | Tracks chat state snapshots enabling point-in-time recovery and crash-safe restoration |
+| **ToolEvent** | Records tool invocation and execution with call details, status, and error tracking |
+| **LifeCycleEvent** | Records state transitions and operational milestones with timestamps and contextual metadata |
 
-**Message Models** – Persist conversation messages with comprehensive field support including thinking content, task classification, user read status, file attachments, completion status, thinking mode, knowledge/file inheritance flags, and linked chat references for hierarchical conversations.
+### Model Organization
 
-**Chat Models** – Store conversation sessions with metadata including AI model tracking, status indicators, linked messages, and chat relationships supporting hierarchical parent-child structures with inherited settings and context propagation.
+**Constants** – System-wide constants managing role definitions, file size limits, and configuration boundaries:
+- `ROLE_USER` – Standard user role for regular users
+- `ROLE_ASSISTANT` – Assistant role for AI-driven operations
+- `MAX_IMAGE_SIZE_MB` – Maximum image file size in megabytes
+- `MAX_IMAGE_SIZE_BYTES` – Maximum image file size in bytes
 
-**Tool Events** – Track tool invocation and execution with detailed call information, tool identifiers, execution parameters, status tracking, and error details.
+**Enumerations** – System-wide enumerations for standardized type values:
+- `MessageTaskItem` – Message task classification enumeration
 
-**Lifecycle Events** – Record state transitions and operational milestones with timestamps and contextual metadata for comprehensive system auditing.
+### Message Models
+
+**Message** – Persists conversation messages with comprehensive field support:
+- **Core Identity**: Message identifier, chat reference, user identifier
+- **Content**: Message text, reasoning content (thinking), message status
+- **Attributes**: User read status, completion indicators, thinking mode flags
+- **Attachments & References**: File references, embedded content, message attachments
+- **Tool & Recipe Integration**: Tool execution tracking, recipe step references, kanban task links
+- **Timestamps**: Creation and update timestamps, message classification, content tracking
+
+**ChatAttachment** – Manages file attachments associated with chat sessions with validation for file types and sizes:
+- Attachment identifier and chat reference
+- File reference linking and attachment metadata
+- Type indicators for content management
+- Creation and update tracking
+
+### Chat Models
+
+**Chat** – Stores conversation sessions with metadata:
+- **Identity & Organization**: Chat identifier, user identifier, workspace reference
+- **Content & Status**: Conversation title, description, AI model used, response status
+- **Files & Attachments**: File references, attachment linking for message content
+- **Hierarchy & Context**: Parent chat references for inheritance and cascading context
+- **Visibility & Access**: Public/private visibility settings, workspace-level access control
+- **Integration**: Kanban board associations for task management, recipe references for workflow
+- **Timestamps**: Creation, update, and completion tracking
+
+### Kanban Models
+
+Organizes task management with hierarchical structure:
+- **Kanban Board** – Highest level container for organizing recipes and tasks
+- **Recipe** – Middle level workflow container organizing steps
+- **RecipeStep** – Lowest level individual task units with type categorization:
+  - `instruction` – Procedural steps providing guidance and documentation
+  - `exercise` – Hands-on tasks requiring active participation
+  - `validation` – Verification steps ensuring quality and correctness
+  - `action` – Automated operations for task completion
+
+### Supporting Models
+
+**ChatHistoryEntry** – Tracks chat state snapshots:
+- Entry identifier and chat reference
+- Complete message snapshot for point-in-time recovery
+- Timestamps for recovery timeline management
+- State metadata for crash-safe restoration
+
+**ToolEvent** – Records tool invocation and execution:
+- Event identifier and chat reference
+- Tool identifier and execution parameters
+- Call details with input/output tracking
+- **Status Values**: Operational states including `pending`, `in_progress`, `completed`, `failed` for tool execution lifecycle
+- Execution timing and performance metrics
+
+**LifeCycleEvent** – Records operational milestones:
+- Event identifier and chat reference
+- Event type classification and status tracking
+- **Status Values**: State indicators including `created`, `updated`, `deleted`, `completed` for lifecycle progression
+- Event data with contextual information
+- Timestamps for audit trail creation
 
 ### Data Relationships
 
-Supports hierarchical organization with relationships enabling complete data retrieval patterns:
+Supports hierarchical organization enabling complex data retrieval:
 
 - **Chat ↔ Messages** – One-to-many relationship for complete message history per chat
-- **Chat ↔ Tool Events** – One-to-many relationship for tool execution tracking
-- **Parent Chat ↔ Child Chats** – Hierarchical relationships for inheritance and context
-- **Messages ↔ Attachments** – Support for file and content attachments
+- **Chat ↔ ToolEvents** – One-to-many relationship for tool execution tracking
+- **Chat ↔ LifeCycleEvents** – One-to-many relationship for state transition tracking
+- **Parent Chat ↔ Child Chats** – Hierarchical relationships for knowledge and file inheritance
+- **Message ↔ ChatAttachments** – Support for file and content attachments
+- **Kanban ↔ Recipes ↔ Steps** – Hierarchical task organization
+
+### Timestamps and Metadata
+
+All models include standardized timestamp and metadata fields:
+- **Created At** – UTC timestamp of entity creation
+- **Updated At** – UTC timestamp of last modification
+- **Deleted At** – Soft-delete tracking for recovery scenarios
+- **Status** – Current state of entity (active, archived, deleted)
+- **Metadata** – Additional context and configuration data
+
+### Design Patterns
+
+The database module follows sophisticated architectural patterns:
+
+**Event Association** – Tool and lifecycle events are attached to assistant messages, not stored as standalone entities, ensuring complete traceability of message-level operations and maintaining referential integrity.
+
+**Recipe Integration** – Kanban board hierarchies organize recipes and steps, enabling task management workflows with clear organizational boundaries and status tracking throughout the hierarchy.
+
+**Parent-Child Relationships** – Hierarchical chat structures support knowledge and file inheritance through explicit parent-child links with configurable propagation controls and selective context reuse.
+
+**Knowledge Integration** – Knowledge management systems integrate with chat models through reference linking, enabling semantic search and document-grounded retrieval across conversation hierarchies.
 
 ## Security Features
 
@@ -566,8 +914,8 @@ Use the sidebar to explore specific modules and components. Each section contain
 - **Project Overview** – High-level system architecture and design principles
 - **App Module** – FastAPI application initialization, configuration, request processing pipeline, middleware implementations, session management, and lifecycle management
 - **Engine Module** – Core backend operations, endpoint organization, Git management, session handling, file upload processing with MD5 verification, access control, and comprehensive file engine operations
-- **AI and Knowledge Management** – AI and LLM model configurations with provider settings, comprehensive data models organized by functional domain, agents for specialized tasks, knowledge processing with semantic search through Pre-Search and RAG mechanisms, Chat Engine documentation with workflow-centric design emphasizing clear API contracts, main entry points with practical code examples, comprehensive 20-step message pipeline processing stages with deterministic request lifecycle management, detailed mode-specific processing for Task, Agent, and Vibe/Search modes, knowledge inheritance system with parent chat integration and `ignore_parent_knowledge` flag behavior controlling parent message inclusion, crash-safe persistence with multi-layered architecture including early metadata persistence, event bridge integration, stream throttling via `maybe_persist_stream()`, hidden reasoning persistence via `event_bridge.persist_message()`, error state management, and duplicate prevention via `_append_message_if_missing()`, SmolAgent for streaming interactions with flow-centric architecture optimized for real-time responses, tool caching and result normalization with cache statistics, sophisticated iteration management with Loop Guard constraints and cached execution bypass, comprehensive error handling with explicit exception catching and meaningful diagnostics, comprehensive serialization strategy for complex data types, pre-flight wallet verification and fresh configuration loading on every invocation, comprehensive event taxonomy, and comprehensive image operations
-- **Database and Data Storage** – Data persistence with connection caching strategy, comprehensive CRUD operations, hierarchical data model organization, message models with thinking content and file attachment support, chat models with status and linking, ChatHistoryEntry snapshots for crash-safe recovery, Tool Event tracking, and lifecycle event management
+- **AI and Knowledge Management** – AI and LLM model configurations with provider settings, comprehensive data models organized by functional domain, agents for specialized tasks, knowledge processing with semantic search through Pre-Search and RAG mechanisms, Chat Engine documentation with workflow-centric design emphasizing clear API contracts, main entry points with practical code examples, comprehensive 20-step message pipeline processing stages with deterministic request lifecycle management, detailed mode-specific processing for Task, Agent, and Vibe/Search modes, knowledge inheritance system with parent chat integration and `ignore_parent_knowledge` flag behavior controlling parent message inclusion, crash-safe persistence with multi-layered architecture including early metadata persistence, event bridge integration, stream throttling via `maybe_persist_stream()`, hidden reasoning persistence via `event_bridge.persist_message()`, error state management, and duplicate prevention via `_append_message_if_missing()`, SmolAgent for streaming interactions with flow-centric architecture optimized for real-time responses, tool caching and result normalization with cache statistics, sophisticated iteration management with Loop Guard constraints and cached execution bypass, comprehensive error handling with explicit exception catching and meaningful diagnostics, comprehensive serialization strategy for complex data types, pre-flight wallet verification and fresh configuration loading on every invocation, comprehensive event taxonomy, Recipe Manager for workflow automation with template and instance management, recipe lifecycle tracking, step status management with clear state definitions (pending, in_progress, completed, failed), supported step types (instruction, exercise, validation, action), recipe types (tutorial, automation, workflow, playbook), step-chat relationships for seamless AI integration, deep-copy instantiation for template isolation, metrics calculation with recalculation mechanisms, and comprehensive image operations
+- **Database and Data Storage** – Data persistence with connection caching strategy, comprehensive CRUD operations, hierarchical data model organization, message models with thinking content and file attachment support, chat models with status and linking, kanban board hierarchy for task organization, ChatHistoryEntry snapshots for crash-safe recovery, Tool Event tracking with status values, lifecycle event management with status indicators, supporting models for entity management, constants for role definitions and file limits, enumerations for standardized types, attachment validation rules, design patterns for event association and recipe integration, timestamps and metadata standards
 - **Security and Authentication** – Authentication mechanisms, authorization enforcement, and access control
 - **Session Management** – Session handling, session creation, Socket.IO integration through SessionChannel, and real-time communication
 - **Utility Functions** – Helper tools and scripts

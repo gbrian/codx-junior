@@ -2,152 +2,198 @@
 
 ## Overview
 
-The `db.py` module provides database management for CODXJunior using TinyDB. It handles persistence of kanban boards, columns, chats, and associated metadata with table-level caching capabilities.
+This module provides data models and storage structures for the CODX Junior system, including chat management, recipe workflows, kanban boards, and associated metadata. All models are built using Pydantic for validation and serialization.
 
-## Core Components
+## Core Models
 
-### Data Models
+### Message
 
-#### ChatAttachment
-Represents image data stored in chats or messages with file metadata.
+Represents a single chat message with support for attachments, tool events, and lifecycle tracking.
+
+**Key Fields:**
+- `doc_id`: Document identifier
+- `role`: Message author role (user/assistant)
+- `content`: Message text content
+- `think`: Optional thinking/reasoning content
+- `attachments`: List of ChatAttachment objects
+- `tool_events`: Tool execution events associated with response messages
+- `lifecycle_events`: Agent run lifecycle events
+- `created_at` / `updated_at`: Timestamps
+- `recipe_step_index`: Index when part of a recipe
+- `recipe_step_action`: Action context ('instruction', 'hint', 'validation', 'result')
+- `recipe_requires_acknowledgment`: Flag for explicit user acknowledgment
+
+### Chat
+
+Represents a chat session with messages, metadata, and kanban board associations.
+
+**Key Features:**
+- Support for standalone conversations or recipe-based chats
+- Parent-child chat relationships via `parent_id` and `message_id`
+- Linked chat references across projects
+- File management with `file_list`
+- Knowledge indexing via `knowledge_topics`
+- Auto-initialization support for AI-assisted setup
+
+**Notable Fields:**
+- `project_id`: Working project reference
+- `owner_project_id`: Project where chat was created
+- `kanban_id` / `column_id`: Board organization
+- `recipe_id`: Links to Recipe if part of a workflow
+- `ignore_parent_knowledge`: Disconnect from parent context when True
+- `ignore_parent_files`: Exclude parent file list when True
+
+### Recipe
+
+A reusable template or instance for accomplishing goals through ordered steps.
+
+**Recipe Types:**
+- `tutorial`: Interactive step-by-step learning
+- `automation`: Unattended background jobs
+- `workflow`: Multi-step manual procedures
+- `playbook`: Structured troubleshooting
+
+**Key Features:**
+- Template/Instance distinction via `is_template`
+- Version tracking with semantic versioning
+- Execution metrics and progress tracking
+- Scheduled automation support
+- Related recipe linking
 
 **Fields:**
-- `file_name` - Original file name of the image
-- `file_type` - MIME type (image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml)
-- `file_size` - File size in bytes (max 50MB)
-- `base64_data` - Base64 encoded image data
-- `uploaded_at` - Timestamp when image was uploaded
+- `steps`: Ordered list of RecipeStep objects
+- `tags`: Categorization labels
+- `metrics`: Progress tracking (instances only)
+- `auto_execute`: Enable unattended execution
+- `auto_execute_schedule`: Cron expression for automation
+- `meta_data`: Custom extensibility
+
+### RecipeStep
+
+A single step within a recipe.
+
+**Step Types:**
+- `instruction`: Read-only guidance
+- `exercise`: User performs action
+- `validation`: Check/verification
+- `action`: Automated execution
+
+**Key Fields:**
+- `step_index`: Execution order (0-based)
+- `chat_id`: Reference to associated Chat
+- `step_type`: Type of step
+- `is_required`: Must complete to advance
+- `success_criteria`: Completion requirements
+- `estimated_duration_seconds`: Time estimate
+
+## Supporting Models
+
+### ChatAttachment
+
+Represents images in chats with metadata and base64 encoding.
 
 **Validation:**
-- File size cannot exceed 50MB (52,428,800 bytes)
-- Only specified MIME types are allowed
+- Max size: 50MB (configurable via `MAX_IMAGE_SIZE_MB`)
+- Allowed types: PNG, JPEG, GIF, WebP, SVG
 
-#### KanbanColumn
-Represents a column in a Kanban board.
+### ToolEvent
 
-**Fields:**
-- `doc_id` - Optional document identifier
-- `title` - Column title
-- `color` - Optional color indicator
-- `index` - Column position
-- `chats` - List of associated chat IDs
+Tracks tool execution within agent runs.
 
-#### Kanban
-Represents a complete Kanban board with columns and metadata.
+**Status Values:**
+- `running`: Tool currently executing
+- `done`: Execution completed
+- `error`: Execution failed
 
 **Fields:**
-- `doc_id` - Optional document identifier
-- `title` - Board title
-- `description` - Optional board description
-- `index` - Board position
-- `columns` - List of KanbanColumn instances
-- `created_at` - Creation timestamp
-- `updated_at` - Last update timestamp
+- `tool`: Tool name
+- `tool_call_id`: Unique call identifier
+- `request`: Parsed arguments
+- `response`: Result preview
+- `duration_ms`: Execution time
+- `error`: Error details when applicable
 
-#### Message
-Represents a single chat message with support for tool events and lifecycle tracking.
+### LifeCycleEvent
 
-**Key Fields:**
-- `doc_id` - Document identifier
-- `role` - Message role ('user' or 'assistant')
-- `content` - Message text content
-- `think` - Optional thinking/reasoning content
-- `attachments` - List of ChatAttachment instances
-- `files` - List of associated file paths
-- `tool_events` - ToolEvent instances for tool executions
-- `lifecycle_events` - LifeCycleEvent instances for agent runs
-- `knowledge_topics` - Topics for knowledge indexing
-- `done` - Indicates if user finished writing
-- `is_thinking` - Thinking state flag
-- `disable_knowledge` - Flag to disable knowledge indexing
-- `read_by` - List of users who read the message
-- `linked_chat_ids` - References to related chats
+Tracks agent run status and metrics.
 
-**Related Events:**
-- `ToolEvent` - Tracks tool execution with status, request, response, and error information
-- `LifeCycleEvent` - Tracks agent run status, duration, and errors
-
-#### Chat
-Represents a complete chat session with messages and kanban associations.
-
-**Key Fields:**
-- `doc_id` - Document identifier
-- `project_id` - Active project context
-- `owner_project_id` - Project where chat was created
-- `parent_id` - Parent chat for threads
-- `message_id` - Parent message for threads
-- `name` - Chat name
-- `description` - Chat description
-- `messages` - List of Message instances
-- `status` - Current chat status
-- `mode` - Chat mode (default: 'chat')
-- `kanban_id` - Associated kanban board
-- `column_id` - Associated kanban column
-- `attachments` - List of ChatAttachment instances
-- `knowledge_topics` - Topics for knowledge indexing
-- `auto_initialize` - Auto-fill board/column/name on first response
-- `ignore_parent_knowledge` - Disconnect from parent knowledge
-- `ignore_parent_files` - Exclude parent file list
-- `history` - ChatHistoryEntry list for historical tracking
-- `chat_links` - References to chats in other projects
-
-#### ChatHistoryEntry
-Historical entry in a chat with summary and associated messages.
+**Status Values:**
+- `running`: Run in progress
+- `done`: Run completed
+- `error`: Run failed
 
 **Fields:**
-- `timestamp` - When entry was generated
-- `summary` - Summary content
-- `message_ids` - Associated message identifiers
+- `run_id`: Unique run identifier
+- `duration_ms`: Total execution time
+- `error`: Error details when applicable
 
-## Database Manager
+### Kanban
 
-### CODXJuniorDB
+Represents a kanban board with columns and chats.
 
-Main database manager class handling all persistence operations.
+**Fields:**
+- `title`: Board name
+- `description`: Board purpose
+- `columns`: List of KanbanColumn objects
+- `created_at` / `updated_at`: Timestamps
 
-**Initialization:**
-```python
-db = CODXJuniorDB(settings: CODXJuniorSettings)
-```
+### KanbanColumn
 
-The manager automatically:
-- Creates three TinyDB tables: kanban, column, and chat
-- Reuses existing connections via PROJECT_DATABASES cache
-- Configures JSON formatting (sort keys, indentation)
+Represents a column within a kanban board.
 
-**Key Methods:**
+**Fields:**
+- `title`: Column name
+- `color`: Visual indicator
+- `index`: Column order
+- `chats`: Associated chat IDs
 
-#### `save_kanban(kanban: Kanban) -> Kanban`
-Saves or updates a kanban board. Auto-generates doc_id and timestamps for new boards.
+### RecipeMetrics
 
-#### `get_kanban(kanban_id: str) -> Kanban`
-Retrieves a kanban by its document ID.
+Aggregated metrics for recipe execution tracking.
 
-#### `get_all_kankan() -> List[Kanban]`
-Retrieves all kanbans from the database.
+**Tracked Metrics:**
+- `total_steps`: Step count
+- `completed_steps`: Finished steps
+- `skipped_steps`: Bypassed steps
+- `failed_steps`: Failed steps
+- `completion_percent`: Progress percentage
+- `total_duration_seconds`: Total execution time
+- `last_completed_step_index`: Latest completed step
 
-#### `get_kanban_chats(kanban_id: str, column_id: str) -> List[Chat]`
-Loads all chats from a specific kanban column.
+### ChatHistoryEntry
 
-#### `save_chat(chat: Chat) -> None`
-Saves or updates a chat. Auto-generates doc_id and timestamps for new chats.
+Historical entry in a chat with summary and timestamps.
 
-#### `get_chat(chat_id: str) -> Chat`
-Retrieves a chat by its document ID.
+**Fields:**
+- `timestamp`: Entry creation time
+- `summary`: Entry summary
+- `message_ids`: Associated message identifiers
 
-#### `reset() -> None`
-Clears the database file and reinitializes the connection.
+### ChatId
+
+Reference to a chat in another project.
+
+**Fields:**
+- `chat_id`: Chat identifier
+- `project_id`: Owner project identifier
 
 ## Constants
 
-- `ROLE_USER` - "user" - User message role identifier
-- `ROLE_ASSISTANT` - "assistant" - Assistant message role identifier
-- `MAX_IMAGE_SIZE_MB` - 50 - Maximum image attachment size in megabytes
-- `MAX_IMAGE_SIZE_BYTES` - 52,428,800 - Maximum image attachment size in bytes
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ROLE_USER` | "user" | Message author is user |
+| `ROLE_ASSISTANT` | "assistant" | Message author is assistant |
+| `MAX_IMAGE_SIZE_MB` | 50 | Maximum image file size |
+| `MAX_IMAGE_SIZE_BYTES` | 52,428,800 | Maximum in bytes |
 
-## Caching
+## Enumerations
 
-The module implements connection-level caching through `PROJECT_DATABASES` dictionary to prevent multiple TinyDB connections to the same database file per project path.
+### MessageTaskItem
+
+Task item type enumeration.
+
+**Values:**
+- `SUMMARY`: Summary task
 
 ## Dependencies
 **Imports from:** codx/junior/settings.py, codx/junior/model/model.py
