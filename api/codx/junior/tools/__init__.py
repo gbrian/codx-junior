@@ -29,7 +29,14 @@ from .code_writer import code_writer
 from .code_block_generator import code_block_generator
 from .generate_tasks_tool import generate_tasks_tool
 from .apply_file_changes import apply_file_changes
+from .git_tools import get_file_last_version  # NEW IMPORT
 from .image_tools import explain_image, generate_image
+from .tutorial_tools import (
+    tutorial_definition,
+    create_chapter,
+    modify_chapter,
+    delete_chapter,
+)
 from .model import ToolResponse
 
 # Configure logging
@@ -50,6 +57,11 @@ __all__ = [
     "apply_file_changes",
     "explain_image",
     "generate_image",
+    "tutorial_definition",
+    "create_chapter",
+    "modify_chapter",
+    "delete_chapter",
+    "get_file_last_version",  # NEW
     "test_tool",
 ]
 
@@ -98,6 +110,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "scope": "chat"},
+        "tags": ["content", "web", "research", "external-data"],
         "tool_call": fetch_webpage
     },
     {
@@ -134,6 +147,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["project", "search", "navigation", "discovery"],
         "tool_call": project_search
     },
     {
@@ -166,6 +180,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["project", "file-operations", "read", "content-access"],
         "tool_call": project_read_file
     },
     {
@@ -194,6 +209,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["project", "file-operations", "write", "create", "modification"],
         "tool_call": project_write_file
     },
     {
@@ -240,6 +256,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["project", "file-operations", "edit", "modification", "advanced"],
         "tool_call": apply_file_changes
     },
     {
@@ -272,6 +289,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tags": ["project", "navigation", "structure", "overview"],
         "tool_call": project_structure
     },
     {
@@ -297,6 +315,7 @@ TOOLS = [
             "scope": "chat",
             "dual_response": True,
         },
+        "tags": ["task-management", "organization", "workflow", "planning"],
         "tool_call": generate_tasks_tool
     },
     {
@@ -318,6 +337,7 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tags": ["content", "image", "analysis", "vision"],
         "tool_call": explain_image
     },
     {
@@ -347,7 +367,182 @@ TOOLS = [
             }
         },
         "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tags": ["content", "image", "generation", "creative"],
         "tool_call": generate_image
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "code_writer",
+                "description": "Generate and write code based on requirements and context.",
+                "parameters": {
+                    "type": "object"
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "tags": ["code", "generation", "writing"],
+        "tool_call": code_writer
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "tutorial_definition",
+                "description": "Get the complete tutorial definition as JSON, including all chapters and nested content in hierarchical order.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tutorial_id": {
+                            "type": "string",
+                            "description": "ID of the root tutorial chat (mode='tutorial')"
+                        }
+                    },
+                    "required": ["tutorial_id"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": False},
+        "tags": ["tutorial", "organization", "retrieval", "structure"],
+        "tool_call": tutorial_definition
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "create_chapter",
+                "description": "Create a new chapter (child chat) within a tutorial.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tutorial_id": {
+                            "type": "string",
+                            "description": "ID of the parent tutorial or chapter"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Chapter title"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Chapter description (optional)"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Initial message content (optional)"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Tags for categorizing the chapter"
+                        }
+                    },
+                    "required": ["tutorial_id", "name"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["tutorial", "organization", "creation", "modification"],
+        "tool_call": create_chapter
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "modify_chapter",
+                "description": "Modify a chapter's content, metadata, or structure (title, description, tags, messages).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "chapter_id": {
+                            "type": "string",
+                            "description": "ID of the chapter to modify"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "New chapter title (optional)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "New chapter description (optional)"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "New tags (optional)"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Message content to append (optional)"
+                        }
+                    },
+                    "required": ["chapter_id"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["tutorial", "organization", "modification"],
+        "tool_call": modify_chapter
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "delete_chapter",
+                "description": "Delete a chapter from the tutorial. The main tutorial root (mode='tutorial' with no parent) cannot be deleted.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "chapter_id": {
+                            "type": "string",
+                            "description": "ID of the chapter to delete"
+                        }
+                    },
+                    "required": ["chapter_id"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "tags": ["tutorial", "organization", "deletion", "modification"],
+        "tool_call": delete_chapter
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "get_file_last_version",
+                "description": (
+                    "Retrieve a previous version of a file from git history using depth-based navigation. "
+                    "Navigate through commits without needing commit IDs: depth=0 gets the previous version, "
+                    "depth=1 gets version from 2 commits ago, etc. "
+                    "Useful for PR reviews, understanding changes, and forensic debugging."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to retrieve from history."
+                        },
+                        "depth": {
+                            "type": "integer",
+                            "description": (
+                                "How many commits back to navigate (0 = previous version, 1 = two commits back, etc). "
+                                "Default is 0. Must be >= 0 and <= 50."
+                            ),
+                            "default": 0,
+                            "minimum": 0,
+                            "maximum": 50
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            }
+        },
+        "settings": {"async": False, "session": True, "scope": "chat", "dual_response": True},
+        "tags": ["git", "version-control", "history", "file-operations"],
+        "tool_call": get_file_last_version
     }
 ]
 

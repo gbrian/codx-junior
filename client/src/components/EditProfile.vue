@@ -191,6 +191,9 @@ import ChatView from '@/views/ChatView.vue'
           <div role="tab" class="tab gap-1" :class="tab === 'settings' ? 'tab-active font-semibold' : ''" @click="tab = 'settings'">
             <i class="fa-solid fa-sliders text-xs"></i> Settings
           </div>
+          <div role="tab" class="tab gap-1" :class="tab === 'tools' ? 'tab-active font-semibold' : ''" @click="tab = 'tools'">
+            <i class="fa-solid fa-wrench text-xs"></i> Tools
+          </div>
         </div>
 
         <!-- Tab content -->
@@ -227,7 +230,7 @@ import ChatView from '@/views/ChatView.vue'
               />
             </div>
 
-            <!-- CHANGED: Edit mode now uses ChatView instead of ProfileChatEditor -->
+            <!-- Edit mode now uses ChatView instead of ProfileChatEditor -->
             <div class="flex-1 min-h-0 overflow-hidden" v-else>
               <ChatView
                 v-if="editorChat"
@@ -249,11 +252,6 @@ import ChatView from '@/views/ChatView.vue'
             <!-- Quick Settings -->
             <div class="flex flex-col gap-2">
               <div class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Settings</div>
-              <div class="flex items-center gap-2">
-                <i class="fa-solid fa-book text-info text-sm"></i>
-                <span class="text-xs">Use Knowledge</span>
-                <input type="checkbox" v-model="editProfile.use_knowledge" class="toggle toggle-xs checked:border-info checked:bg-info ml-auto" />
-              </div>
               <div class="flex items-center gap-2">
                 <i class="fa-solid fa-share-nodes text-warning text-sm"></i>
                 <span class="text-xs">Expose in API</span>
@@ -277,29 +275,89 @@ import ChatView from '@/views/ChatView.vue'
                 <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300 textarea-sm w-full" rows="2"></textarea>
               </div>
             </div>
+          </div>
 
-            <!-- Tools -->
-            <div v-if="tools.length" class="flex flex-col gap-2">
-              <div class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-                <i class="fa-solid fa-wrench mr-1"></i> Tools
-              </div>
-              <div class="flex flex-col gap-1">
-                <div
-                  v-for="tool in tools"
-                  :key="tool.name"
-                  class="flex items-center gap-2 p-1.5 rounded-md bg-base-100 border border-base-300"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="editProfile.tools?.includes(tool.name)"
-                    @click="toggleTool(tool)"
-                    class="toggle toggle-xs checked:border-info checked:bg-info"
-                  />
-                  <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-xs font-medium truncate">{{ tool.name }}</span>
-                    <span class="text-xs text-base-content/50 line-clamp-1">{{ tool.description }}</span>
+          <!-- Tools tab -->
+          <div class="flex flex-col gap-3 overflow-y-auto h-full" v-if="tab === 'tools'">
+            
+            <!-- Tag Filter Dropdown -->
+            <div v-if="availableTags.length" class="flex flex-col gap-2">
+              <label class="label label-text text-xs pb-1">Filter by tag</label>
+              <select 
+                v-model="selectedToolTagFilter" 
+                @change="onToolTagFilterChange"
+                class="select select-sm select-bordered w-full"
+                title="Filter tools by tag"
+              >
+                <option value="">Show all tags</option>
+                <option v-for="tag in availableTags" :key="tag" :value="tag">
+                  {{ tag }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Selected Tag Badge -->
+            <div v-if="selectedToolTagFilter" class="flex items-center gap-2">
+              <span class="badge badge-sm badge-info">
+                <i class="fa-solid fa-tag mr-1"></i>{{ selectedToolTagFilter }}
+              </span>
+              <button 
+                @click="selectedToolTagFilter = ''"
+                class="text-xs text-primary hover:underline"
+              >
+                Clear filter
+              </button>
+            </div>
+
+            <!-- Tools Grid -->
+            <div v-if="tools.length" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div
+                v-for="tool in filteredToolsList"
+                :key="tool.tool_json.function.name"
+                class="h-40 card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors"
+              >
+                <div class="card-body p-3">
+                  <!-- Tool selection checkbox and name -->
+                  <div class="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      :checked="editProfile.tools?.includes(tool.tool_json.function.name)"
+                      @click="toggleTool(tool)"
+                      class="toggle toggle-xs checked:border-info checked:bg-info mt-0.5"
+                    />
+                    <div class="flex flex-col flex-1 min-w-0">
+                      <h3 class="font-semibold text-sm truncate">{{ tool.tool_json.function.name }}</h3>
+                      <p class="text-xs text-base-content/60 line-clamp-2">{{ tool.tool_json.function.description }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Tags -->
+                  <div v-if="tool.tags?.length" class="flex gap-1 flex-wrap mt-2">
+                    <span 
+                      v-for="tag in tool.tags"
+                      :key="tag"
+                      class="badge badge-xs badge-outline"
+                    >
+                      {{ tag }}
+                    </span>
                   </div>
                 </div>
+              </div>
+
+              <!-- No tools message for selected tag filter -->
+              <div v-if="!filteredToolsList.length && selectedToolTagFilter" class="col-span-full flex items-center justify-center py-8">
+                <div class="text-center text-base-content/50">
+                  <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                  <p class="text-sm">No tools found with tag "{{ selectedToolTagFilter }}"</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- No tools state -->
+            <div v-else class="flex items-center justify-center py-8">
+              <div class="text-center text-base-content/50">
+                <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                <p class="text-sm">No tools available</p>
               </div>
             </div>
           </div>
@@ -351,7 +409,8 @@ export default {
       plugins: [],
       savingChatId: false,
       editorChat: null,
-      loadingChat: false
+      loadingChat: false,
+      selectedToolTagFilter: ''
     }
   },
   created() {
@@ -390,6 +449,23 @@ export default {
       } catch (e) {
         return false
       }
+    },
+    availableTags() {
+      const tagsSet = new Set()
+      this.tools.forEach(tool => {
+        if (tool.tags && Array.isArray(tool.tags)) {
+          tool.tags.forEach(tag => tagsSet.add(tag))
+        }
+      })
+      return Array.from(tagsSet).sort()
+    },
+    filteredToolsList() {
+      if (!this.selectedToolTagFilter) {
+        return this.tools
+      }
+      return this.tools.filter(tool => 
+        tool.tags && Array.isArray(tool.tags) && tool.tags.includes(this.selectedToolTagFilter)
+      )
     }
   },
   watch: {
@@ -458,17 +534,19 @@ export default {
       }
     },
     toggleTool(tool) {
-      const has = this.editProfile.tools?.includes(tool.name)
+      const has = this.editProfile.tools?.includes(tool.tool_json.function.name)
       this.editProfile.tools = has
-        ? this.editProfile.tools.filter(tn => tn !== tool.name)
-        : [...(this.editProfile.tools || []), tool.name]
+        ? this.editProfile.tools.filter(tn => tn !== tool.tool_json.function.name)
+        : [...(this.editProfile.tools || []), tool.tool_json.function.name]
+    },
+    onToolTagFilterChange() {
+      // Tag filter changed, tools list will update via computed property
     },
     async loadTools() {
       const tools = await this.project.$api.profiles.tools()
       const plugins = await this.$storex.api.settings.global.plugins.list()
       this.tools = [...tools, ...plugins.filter(p => p.extends?.includes('profile'))]
     },
-    // ADDED: Initialize the editor chat on component creation
     async initializeEditorChat() {
       if (this.profile?.chat_id) {
         await this.loadEditorChat(this.profile.chat_id)
@@ -476,7 +554,6 @@ export default {
         await this.createEditorChat()
       }
     },
-    // ADDED: Load existing chat for editing
     async loadEditorChat(chatId) {
       this.loadingChat = true
       try {
@@ -499,7 +576,6 @@ export default {
         this.loadingChat = false
       }
     },
-    // ADDED: Create new chat for editing profile content
     async createEditorChat() {
       this.loadingChat = true
       try {
@@ -534,12 +610,10 @@ export default {
         this.loadingChat = false
       }
     },
-    // ADDED: Handle chat updates from ChatView
     async onChatUpdated(chat) {
       if (chat) {
         this.editorChat = chat
         this.updateProfileContentFromChat()
-        // Auto-save the profile with updated content
         try {
           this.savingChatId = true
           const fullProfile = await this.project.$api.profiles.load(this.profile.id)
@@ -555,7 +629,6 @@ export default {
         }
       }
     },
-    // ADDED: Extract content from last message in chat
     updateProfileContentFromChat() {
       if (this.editorChat?.messages && this.editorChat.messages.length > 0) {
         const lastMessage = this.editorChat.messages[this.editorChat.messages.length - 1]

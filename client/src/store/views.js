@@ -464,15 +464,20 @@ export const actions = actionTree(
       
       try {
         if (!desktopApi.panels.find(p => p.id === id)) {
+          const app = params?.app
+          const initialParams = app?.initialParams || params
+          
           desktopApi.addPanel({
             id,
             title,
             component,
             position,
             renderer,
+            key: app?.key,
             params: {
               ...params,
               tabName: title,
+              initialParams
             },
             tabComponent: 'tabComponent'
           })
@@ -497,13 +502,13 @@ export const actions = actionTree(
       }
     },
 
-    syncPanelsWithApps({ state }) {
-      const desktopApi = state._desktopApi
-      if (!desktopApi) return
+    syncPanelsWithApps({ state }, desktopApi) {
+      const api = desktopApi || state._desktopApi
+      if (!api) return
 
       const { openApps } = $storex.ui
       const apps = Object.values(openApps)
-      const panelTabIds = desktopApi.panels.map(p => p.id)
+      const panelTabIds = api.panels.map(p => p.id)
       const openAppTabIds = apps.map(app => app.tabId)
 
       // Add missing app panels

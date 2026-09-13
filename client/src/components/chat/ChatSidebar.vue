@@ -8,22 +8,27 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 </script>
 
 <template>
-  <div :class="['border-r border-base-300 bg-base-100 flex flex-col h-full overflow-hidden', isCompact ? 'w-20' : 'w-64']"
+  <div :class="[
+    'border-r border-base-300 bg-base-100 flex flex-col h-full overflow-hidden',
+    'md:border-r md:border-base-300',
+    isCompact ? 'w-20 md:w-20' : 'w-64 md:w-64',
+    $ui?.isMobile && !isCompact ? 'shadow-lg' : ''
+  ]"
     @click="isCompact && $emit('toggle-compact')"
   >
     
     <!-- Root Chat Card -->
-    <div class="p-3 border-b border-base-300 shrink-0">
+    <div class="p-2 md:p-3 border-b border-base-300 shrink-0">
       <div
-        class="p-3 rounded-lg border-2 cursor-pointer transition-all hover:border-warning hover:bg-warning/5"
+        class="p-2 md:p-3 rounded-lg border-2 cursor-pointer transition-all hover:border-warning hover:bg-warning/5"
         :class="selectedChatId === rootChat.id 
           ? 'border-warning bg-warning/10' 
           : 'border-base-content/10 bg-base-200'"
         @click="selectChat(rootChat)"
       >
         <div v-if="!isCompact" class="flex items-center gap-2 mb-1">
-          <ChatIcon :mode="rootChat.mode" class="shrink-0" />
-          <span class="font-bold text-sm flex-1 truncate">{{ rootChat.name }}</span>
+          <ChatIcon :mode="rootChat.mode" class="shrink-0 text-base md:text-lg" />
+          <span class="font-bold text-xs md:text-sm flex-1 truncate">{{ rootChat.name }}</span>
           <span class="text-xs text-base-content/40 shrink-0 tabular-nums">
             {{ rootChat.messages?.length || 0 }}
           </span>
@@ -38,7 +43,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     </div>
 
     <!-- Mode Selector (Root Chat Only) -->
-    <div v-if="!isCompact" class="px-3 py-2 border-b border-base-300 shrink-0">
+    <div v-if="!isCompact" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0">
       <ChatModeSelector 
         :selected-mode="rootChat.mode"
         @mode-changed="onRootModeChanged"
@@ -46,7 +51,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     </div>
 
     <!-- Parent Content Controls (When Selected Chat is a Child Task) -->
-    <div v-if="!isCompact && isSelectedChatChild" class="px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
+    <div v-if="!isCompact && isSelectedChatChild" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
       <div class="text-xs font-semibold text-base-content/60 uppercase">Parent Content</div>
       
       <!-- Ignore Parent Knowledge -->
@@ -75,7 +80,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     </div>
 
     <!-- Quick Actions -->
-    <div v-if="!isCompact" class="px-3 py-2 border-b border-base-300 shrink-0 space-y-1">
+    <div v-if="!isCompact" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-1">
       <button 
         class="btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
         title="Create new subtask"
@@ -87,7 +92,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     </div>
 
     <!-- Hierarchy Tree -->
-    <div v-if="!isCompact" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+    <div v-if="!isCompact" class="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 min-h-0">
       <ChatSidebarNode
         v-for="child in rootChildren"
         :key="child.id"
@@ -110,7 +115,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 
     <!-- Profiles Section -->
     <div v-if="chatProfiles.length" class="border-t border-base-300 shrink-0">
-      <div v-if="!isCompact" class="px-3 py-2">
+      <div v-if="!isCompact" class="px-2 md:px-3 py-2">
         <div class="text-xs font-semibold text-base-content/60 uppercase mb-2">Profiles</div>
         <div class="overflow-y-auto space-y-2 max-h-48">
           <ProfileCard 
@@ -132,24 +137,24 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     </div>
 
     <!-- Footer: Actions -->
-    <div class="border-t border-base-300 p-3 space-y-1 shrink-0">
+    <div class="border-t border-base-300 p-2 md:p-3 space-y-1 shrink-0">
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
         @click="$emit('action', { type: 'timeline' })"
       >
         <i class="fa-solid fa-timeline"></i> Timeline
       </button>
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
         @click="$emit('action', { type: 'export' })"
       >
         <i class="fa-solid fa-download"></i> Export
       </button>
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
         @click="$emit('action', { type: 'settings' })"
       >
         <i class="fa-solid fa-gear"></i> Settings
@@ -162,7 +167,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
         @click.stop="$emit('toggle-compact')"
       >
         <i :class="isCompact ? 'fa-solid fa-arrow-right' : 'fa-solid fa-arrow-left'"></i>
-        <span v-if="!isCompact">Compact</span>
+        <span v-if="!isCompact" class="text-xs">Compact</span>
       </button>
     </div>
   </div>

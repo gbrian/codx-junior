@@ -2,259 +2,219 @@
 
 ## Overview
 
-The Recipe Manager is a utility module for managing reusable, ordered sets of steps to accomplish specific goals. It supports various use cases including tutorials, automations, workflows, playbooks, and custom implementations.
+The Recipe Manager is a utility for managing reusable, ordered sets of steps to accomplish goals within the codx-junior system. It supports multiple recipe types including tutorials, automations, workflows, playbooks, and custom use cases.
 
-## Core Concept
+## Core Concepts
 
-Recipes operate on a two-phase lifecycle:
+### Recipe Lifecycle
 
-1. **Template Phase**: An immutable template is created by an author (is_template=True)
-2. **Instance Phase**: Users instantiate templates into mutable instances (is_template=False) that track progress
+Recipes follow a four-stage lifecycle:
 
-Each template can be instantiated multiple times, with each instance maintaining independent progress metrics and step chats.
+1. **Template Creation**: An author creates an immutable recipe template (`is_template=True`)
+2. **Instantiation**: A user or system creates a live instance from the template (deep copy with `is_template=False`)
+3. **Execution**: Steps are executed and progressed, with metrics updated at each step
+4. **Tracking**: The instance tracks progress and can be resumed or archived
 
-## Recipe Types
+### Recipe Types
 
-Recipes can be categorized by type:
-- **Tutorial**: Educational content ("Learn FastAPI")
-- **Automation**: Auto-executed background processes ("Keep project docs in sync")
-- **Workflow**: Structured checklists ("Code review checklist")
-- **Playbook**: Troubleshooting guides ("Debug high memory usage")
-- **Custom**: User-defined types
+- **Tutorial**: Educational content for learning (e.g., "Learn FastAPI")
+- **Automation**: Automated tasks with auto-execution enabled (e.g., "Keep project docs in sync")
+- **Workflow**: Step-by-step checklists (e.g., "Code review checklist")
+- **Playbook**: Diagnostic and troubleshooting guides (e.g., "Debug high memory usage")
 
 ## Template Management
 
 ### Creating Templates
 
-Templates are created as immutable blueprints that define the structure and steps:
+Templates are immutable recipe blueprints created by authors.
 
 ```python
-recipe = recipe_manager.create_template(
-    name="API Integration Guide",
-    recipe_type="tutorial",
-    description="Learn to integrate with REST APIs",
-    goal="Successfully create and test API endpoints",
-    tags=["api", "integration"],
-    owner="author_id"
-)
+create_template(
+    name: str,
+    recipe_type: str = "workflow",
+    description: str = "",
+    goal: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    owner: Optional[str] = None
+) -> Recipe
 ```
 
 **Parameters:**
-- `name` (str): Recipe name
-- `recipe_type` (str): Type classification
-- `description` (str): What the recipe accomplishes
-- `goal` (str, optional): High-level success target
-- `tags` (List[str], optional): Categorization tags
-- `owner` (str, optional): Creator identifier
+- `name`: Recipe identifier
+- `recipe_type`: Classification type ('tutorial', 'automation', 'workflow', etc.)
+- `description`: What the recipe accomplishes
+- `goal`: High-level success target
+- `tags`: Categorization labels
+- `owner`: Creator identifier
 
 ### Adding Steps to Templates
 
-Steps are ordered instructions added sequentially to templates:
+Extend templates with ordered steps using `add_step_to_template()`:
 
 ```python
-recipe_manager.add_step_to_template(
-    recipe_id="template_id",
-    name="Setup Environment",
-    description="Install required dependencies",
-    step_type="action",
-    is_required=True,
-    success_criteria="All packages installed without errors",
-    estimated_duration_seconds=300
-)
+add_step_to_template(
+    recipe_id: str,
+    name: str,
+    description: str = "",
+    step_type: str = "action",
+    is_required: bool = True,
+    success_criteria: Optional[str] = None,
+    estimated_duration_seconds: Optional[int] = None,
+    meta_data: Optional[Dict[str, Any]] = None
+) -> Recipe
 ```
 
-**Step Parameters:**
-- `name` (str): Step identifier
-- `description` (str): Detailed purpose and instructions
-- `step_type` (str): One of 'instruction', 'exercise', 'validation', 'action'
-- `is_required` (bool): Must complete to proceed
-- `success_criteria` (str, optional): Defines completion condition
-- `estimated_duration_seconds` (int, optional): Expected time
-- `meta_data` (Dict, optional): Custom configuration
+**Step Types:**
+- `instruction`: Informational guidance
+- `exercise`: Practical tasks
+- `validation`: Quality checks
+- `action`: Executable operations
 
-### Listing Templates
+### Discovering Templates
 
-Filter and discover available templates:
+List available templates with optional filtering:
 
 ```python
-templates = recipe_manager.list_templates(
-    recipe_type="tutorial",
-    tags=["api", "integration"]
-)
+list_templates(
+    recipe_type: Optional[str] = None,
+    tags: Optional[List[str]] = None
+) -> List[Dict[str, Any]]
 ```
 
-**Filters:**
-- `recipe_type` (str, optional): Filter by type
-- `tags` (List[str], optional): Must have ALL specified tags
+Retrieve a specific template by ID:
+
+```python
+get_template(recipe_id: str) -> Optional[Recipe]
+```
 
 ## Instance Management
 
 ### Creating Instances
 
-Instantiate a template to create a live, executable recipe:
+Instantiate a live recipe from a template:
 
 ```python
-instance = recipe_manager.create_instance(
-    template_id="template_id",
-    user_id="user_id",
-    project_id="project_id"
-)
+create_instance(
+    template_id: str,
+    user_id: Optional[str] = None,
+    project_id: Optional[str] = None
+) -> Recipe
 ```
 
-**Actions during instantiation:**
-- Deep-copies all template data
-- Creates a dedicated Chat for each step
+The system automatically:
+- Deep-copies the template
+- Creates a dedicated Chat for each RecipeStep
 - Initializes progress metrics
-- Sets is_template=False and template_id reference
+- Sets `is_template=False` and `template_id`
 
-**Parameters:**
-- `template_id` (str): Source template ID
-- `user_id` (str, optional): Instance owner
-- `project_id` (str, optional): Associated project
+### Retrieving Instances
 
-### Listing Instances
-
-Retrieve active instances with optional filtering:
+Get a specific instance:
 
 ```python
-instances = recipe_manager.list_instances(
-    user_id="user_id",
-    template_id="template_id",
-    recipe_type="workflow"
-)
+get_instance(recipe_id: str) -> Optional[Recipe]
 ```
 
-**Available Filters:**
-- `user_id` (str, optional): Filter by owner
-- `template_id` (str, optional): Filter by source template
-- `recipe_type` (str, optional): Filter by type
+List instances with optional filtering:
 
-## Step Execution & Progress Tracking
+```python
+list_instances(
+    user_id: Optional[str] = None,
+    template_id: Optional[str] = None,
+    recipe_type: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
 
-### Step Status Lifecycle
+## Step Progress Tracking
 
-Steps transition through completion states:
+### Step Status Constants
 
-- **COMPLETION_NOT_STARTED** (None): Initial state
-- **COMPLETION_IN_PROGRESS**: Step actively being worked on
-- **COMPLETION_DONE**: Successfully completed
-- **COMPLETION_SKIPPED**: Intentionally skipped (optional steps only)
-- **COMPLETION_FAILED**: Step did not complete successfully
+- `None` (COMPLETION_NOT_STARTED): Not yet initiated
+- `"in_progress"` (COMPLETION_IN_PROGRESS): Currently executing
+- `"completed"` (COMPLETION_DONE): Successfully finished
+- `"skipped"` (COMPLETION_SKIPPED): Intentionally bypassed
+- `"failed"` (COMPLETION_FAILED): Execution error occurred
 
 ### Updating Step Status
 
-#### Start a Step
+**Mark step as in-progress:**
 ```python
-recipe_manager.start_step(recipe_id="instance_id", step_index=0)
+start_step(recipe_id: str, step_index: int) -> Recipe
 ```
 
-#### Complete a Step
+**Mark step as completed:**
 ```python
-recipe_manager.complete_step(
-    recipe_id="instance_id",
-    step_index=0,
-    notes="Setup completed successfully"
-)
+complete_step(
+    recipe_id: str,
+    step_index: int,
+    notes: Optional[str] = None
+) -> Recipe
 ```
 
-#### Skip a Step
+**Skip an optional step:**
 ```python
-recipe_manager.skip_step(
-    recipe_id="instance_id",
-    step_index=1,
-    reason="Environment already configured"
-)
+skip_step(
+    recipe_id: str,
+    step_index: int,
+    reason: Optional[str] = None
+) -> Recipe
 ```
-*Note: Only optional steps (is_required=False) can be skipped*
 
-#### Mark Step as Failed
+*Note: Required steps cannot be skipped; raises ValueError if attempted.*
+
+**Mark step as failed:**
 ```python
-recipe_manager.fail_step(
-    recipe_id="instance_id",
-    step_index=0,
-    error="Dependency installation failed"
-)
+fail_step(
+    recipe_id: str,
+    step_index: int,
+    error: Optional[str] = None
+) -> Recipe
 ```
 
-### Progress Tracking
+### Progress Monitoring
 
-Get comprehensive progress information:
+Get comprehensive progress snapshot:
 
 ```python
-progress = recipe_manager.get_progress(recipe_id="instance_id")
+get_progress(recipe_id: str) -> Dict[str, Any]
 ```
 
-**Returns:**
-- Overall completion percentage
-- Counts: completed, skipped, failed steps
-- Step-by-step details including status and message count
-- Last completed step index
-- Updated timestamp
+Returns:
+- Recipe metadata (ID, name, type, template source)
+- Aggregated metrics (completion percentage, step counts)
+- Step-by-step details (status, message count, requirements)
 
-## Metrics
+## Metrics System
 
-Recipe instances track the following metrics:
+RecipeMetrics tracks instance progress:
 
-| Metric | Description |
-|--------|-------------|
-| `total_steps` | Total number of steps |
-| `completed_steps` | Number of successfully completed steps |
-| `skipped_steps` | Number of skipped steps |
-| `failed_steps` | Number of failed steps |
-| `completion_percent` | Overall completion percentage (0-100) |
-| `last_completed_step_index` | Index of most recently completed step |
+- `total_steps`: Count of all steps
+- `completed_steps`: Successfully finished steps
+- `skipped_steps`: Intentionally bypassed steps
+- `failed_steps`: Steps with errors
+- `completion_percent`: Completion percentage (0-100)
+- `last_completed_step_index`: Most recent completed step
+- `updated_at`: Last metrics refresh timestamp
 
-Metrics are automatically updated whenever step status changes via `_update_metrics()`.
+Metrics are automatically recalculated when step statuses change via `_update_metrics()`.
 
-## Data Persistence
+## Architecture
 
-### Storage Architecture
+### Dependencies
 
-Recipes utilize a kanban board structure for organization:
+- **Settings**: CODXJuniorSettings for configuration
+- **Chat Manager**: ChatManager for step-level conversation management
+- **Database Models**: Recipe, RecipeStep, RecipeMetrics, Chat, Message
 
-| Component | Board | Column |
-|-----------|-------|--------|
-| Templates | "recipes" | "templates" |
-| Active Instances | "recipes" | "active" |
-| Archived Instances | "recipes" | "archived" |
+### Kanban Organization
 
-### Chat Integration
+Recipes use a kanban board system for organization:
 
-Each step in an instance maintains an associated Chat object:
-- Stores step-specific messages and context
-- Tracks step status independently
-- Maintains message history for auditing
-- Linked via `chat_id` on RecipeStep
+- **Board**: "recipes"
+- **Template Column**: "templates"
+- **Active Column**: "active" (running instances)
+- **Archived Column**: "archived" (completed/inactive instances)
 
-## Implementation Notes
+### Storage Integration
 
-### TODO Items
-
-The current implementation includes placeholder methods for data persistence:
-
-- `_load_all_recipes()`: Requires implementation of recipe-specific storage queries
-- `_persist_recipe()`: Requires implementation of recipe storage mechanism
-
-Production implementation should replace these with database queries (MongoDB, PostgreSQL, etc.).
-
-### Error Handling
-
-- Invalid template/recipe IDs raise `ValueError`
-- Attempting to skip required steps raises `ValueError`
-- Operations validate recipe existence before execution
-
-## Storage Relationships
-
-```
-Recipe (template=True)
-├── RecipeStep[]
-│   └── meta_data (custom config)
-└── tags[]
-
-Recipe (template=False, instance)
-├── RecipeStep[]
-│   └── Chat (step-specific conversation)
-│       └── Message[]
-├── RecipeMetrics
-└── template_id (reference to source template)
-```
+Template and instance recipes persist to database via `_persist_recipe()`. Each step maintains a reference to its associated Chat for conversation history and messaging.

@@ -4,24 +4,24 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
 
 <template>
   <div
-    class="notion-composer flex flex-col transition-all duration-200"
+    class="notion-composer flex flex-col transition-all duration-200 text-sm md:text-base"
     :class="[
       isDraggingOver
-        ? 'bg-primary/10 ring-2 ring-primary rounded-xl'
+        ? 'bg-primary/10 ring-2 ring-primary rounded-lg md:rounded-xl'
         : isFocused
-          ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-xl'
-          : 'bg-base-200/60 rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
+          ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-lg md:rounded-xl'
+          : 'bg-base-200/60 rounded-lg md:rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
     ]"
     @dragover.prevent="isDraggingOver = true"
     @dragleave.prevent="isDraggingOver = false"
     @drop.prevent="onDrop"        
   >
     <!-- Textarea — ghost style, expands naturally -->
-    <div class="relative px-3 pt-3">
+    <div class="relative px-2 md:px-3 pt-2 md:pt-3">
       <textarea
         ref="editor"
         rows="3"
-        class="w-full bg-transparent resize-none outline-none text-sm text-base-content placeholder:text-base-content/30 leading-relaxed"
+        class="w-full bg-transparent resize-none outline-none text-sm md:text-base text-base-content placeholder:text-base-content/30 leading-relaxed"
         :placeholder="isEditing ? 'Edit your message...' : 'Write something, or @ to mention a file...'"
         @keydown="$emit('keydown', $event)"
         @paste="$emit('paste', $event)"
@@ -32,7 +32,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
     </div>
 
     <!-- Divider -->
-    <div class="mx-3 border-t border-base-300/50 mt-1"></div>
+    <div class="mx-2 md:mx-3 border-t border-base-300/50 mt-1"></div>
 
     <!-- Toolbar -->
     <ChatInputToolbar

@@ -38,6 +38,7 @@ class GitEngine:
         GE --> get_commit_changes
         GE --> reset_project_file
         GE --> diff_file
+        GE --> get_file_version_at_depth
     ```
     """
 
@@ -125,8 +126,7 @@ class GitEngine:
             `git diff from_branch to_branch -- path` instead of `git diff --no-index`.
             This implementation uses --no-index for comparing working tree against provided content.
         """
-        path = self._get_git_root_for_file(file_path
-        =path)
+        path = self._get_git_root_for_file(file_path=path)
 
         # For comparing against branches, we would use different git commands
         # Currently using --no-index for comparing working file against new content
@@ -905,3 +905,5 @@ class GitEngine:
                 "depth": depth,
                 "error": error_msg,
             }
+
+# Made with ❤️ by codx-junior

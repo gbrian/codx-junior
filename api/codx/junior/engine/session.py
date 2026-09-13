@@ -37,6 +37,7 @@ from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.utils.chat_utils import ChatUtils
 from codx.junior.utils.utils import extract_json_blocks
 from codx.junior.whisper.audio_manager import AudioManager
+from codx.junior.tutorial_manager import TutorialManager
 
 from codx.junior.engine.knowledge_engine import KnowledgeEngine
 from codx.junior.engine.code_engine import CodeEngine
@@ -197,6 +198,14 @@ class CODXJuniorSession:
 
     def get_file_engine(self):
         return self._file_engine
+
+    def get_tutorial_manager(self) -> TutorialManager:
+        """
+        Get a TutorialManager instance for this project's chat manager.
+
+        :return: TutorialManager configured with the ChatManager.
+        """
+        return TutorialManager(settings=self.settings)
 
     # -------------------------------------------------------------------------
     # Chat management

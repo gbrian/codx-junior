@@ -3,35 +3,58 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
-  <div class="h-16 border border-base-300 bg-base-100 rounded-lg px-6 flex items-center gap-4">
-
-    <div class="flex flex-col">
-      <!-- Breadcrumb Navigation -->
-      <div class="flex items-center gap-2 text-xs min-w-0 flex-shrink-0 click">
+  <div class="h-auto border border-base-300 bg-base-100 rounded-lg px-3 md:px-6 py-2 md:py-2 flex flex-col overflow-hidden">
+    
+    <!-- ROW 1: Breadcrumb + Right Stats -->
+    <div class="flex items-center gap-1 md:gap-2 text-xs min-w-0 min-h-5 md:min-h-6">
+      <!-- Breadcrumb (left, truncated) -->
+      <div class="flex items-center gap-1 md:gap-2 min-w-0 overflow-hidden">
         <span 
-          class="text-primary font-bold truncate hover:underline cursor-pointer transition-colors"
+          class="text-primary font-bold truncate hover:underline cursor-pointer transition-colors whitespace-nowrap shrink-0"
           @click="$emit('select-breadcrumb', rootChat)"
+          :title="rootChat.name"
         >
           {{ rootChat.name }}
         </span>
         <template v-for="(ancestor, idx) in breadcrumb" :key="ancestor.id">
-          <i class="fa-solid fa-chevron-right text-xs opacity-50"></i>
+          <i class="fa-solid fa-chevron-right text-xs opacity-50 shrink-0"></i>
           <span 
-            class="truncate hover:underline cursor-pointer text-xs transition-colors hover:text-primary"
+            class="truncate hover:underline cursor-pointer text-xs transition-colors hover:text-primary whitespace-nowrap"
             @click="$emit('select-breadcrumb', ancestor)"
+            :title="ancestor.name"
           >
             {{ ancestor.name }}
           </span>
         </template>
       </div>
-      <!-- Title (Editable Inline) -->
-      <div class="flex gap-1 items-center min-w-0">
-          <ProjectDetailt
-            :iconify="true"
-            :modelValue="targetProject"
-            :options="{ showFolders: false, showIcon: true, showSelector: true }"
-            @update:modelValue="$emit('select-project', $event)"
-          />
+      
+      <!-- Right side stats (hidden on mobile, compact on desktop) -->
+      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
+        <!-- Message Count Badge -->
+        <div class="flex items-center gap-1 text-xs shrink-0 cursor-pointer hover:text-primary transition-colors"
+          @click="$emit('toggle-hidden')"
+        >
+          <i class="fa-solid fa-message"></i>
+          <span class="tabular-nums">{{ messageCount - hiddenCount }}</span>
+          <span v-if="hiddenCount" class="flex items-center gap-1 text-warning/60">
+            <i class="fa-solid fa-eye-slash text-xs"></i>
+            {{ hiddenCount }}
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ROW 2: Title + Project + Tags -->
+    <div class="flex items-center gap-1 md:gap-2 min-w-0 min-h-5 md:min-h-6 mt-1">
+      <!-- Project Selector + Title (left, truncated) -->
+      <div class="flex items-center gap-1 md:gap-2 min-w-0 flex-1 overflow-hidden">
+        <ProjectDetailt
+          :iconify="true"
+          :modelValue="targetProject"
+          :options="{ showFolders: false, showIcon: true, showSelector: true }"
+          @update:modelValue="$emit('select-project', $event)"
+          class="shrink-0"
+        />
 
         <input
           v-if="editingTitle"
@@ -39,57 +62,36 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           @keydown.enter="saveTitle"
           @keydown.esc="editingTitle = false"
           @blur="saveTitle"
-          class="input input-sm input-bordered w-full"
+          class="input input-sm input-bordered flex-1 min-w-0 text-sm"
           placeholder="Chat name..."
           autofocus
         />
         <span
           v-else
-          class="font-bold text-base cursor-pointer hover:text-primary transition-colors truncate block"
+          class="font-bold text-base md:text-sm cursor-pointer hover:text-primary transition-colors truncate block"
           @dblclick="editingTitle = true"
           :title="chat.name"
         >
           {{ chat.name }}
         </span>
       </div>
-    </div>
-    <!-- Divider -->
-    <div class="grow"></div>
-    
-    <div class="flex flex-col gap-1 items-end">
-
-      <!-- Message Count Badge -->
-      <div class="flex items-center gap-1 text-xs text-base-content/60 shrink-0 click"
-        @click="$emit('toggle-hidden')"
-      >
-        <i class="fa-solid fa-message"></i>
-        <span class="tabular-nums">{{ messageCount }}</span>
-        <span v-if="hiddenCount" class="flex items-center gap-1 text-warning">
-          <i class="fa-solid fa-eye-slash text-xs"></i>
-          {{ hiddenCount }}
-        </span>
-      </div>
       
-      <!-- TAGS DISPLAY -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <div 
-          v-for="tag in chat.tags" 
-          :key="tag"
-          class="badge badge-sm badge-outline gap-1 text-xs"
-        >
-          <span>{{ tag }}</span>
-          <button
-            @click.stop="removeTag(tag)"
-            class="btn btn-ghost btn-xs p-0 h-4 w-4 hover:bg-error/20 hover:text-error"
-            title="Remove tag"
+      <!-- Tags + Add button (right, truncated) -->
+      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0 overflow-hidden">
+        <div class="flex items-center gap-0.5 md:gap-1 truncate">
+          <div 
+            v-for="tag in chat.tags" 
+            :key="tag"
+            class="badge badge-xs badge-outline text-xs shrink-0"
+            :title="tag"
           >
-            <i class="fa-solid fa-xmark text-xs"></i>
-          </button>
+            {{ tag }}
+          </div>
         </div>
         
         <button
           @click.stop="$emit('show-add-tag')"
-          class="btn btn-ghost btn-xs gap-1 text-xs h-6"
+          class="btn btn-ghost btn-xs p-1 h-5 w-5 shrink-0"
           title="Add new tag"
         >
           <i class="fa-solid fa-hashtag text-xs"></i>

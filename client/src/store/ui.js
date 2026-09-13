@@ -197,21 +197,42 @@ export const mutations = mutationTree(state, {
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
+    app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
     
     if (state.viewMode !== 'vibe' && !state.isMobile) {
+      // Check if app already exists in openApps state
       const existingApp = Object.values(state.openApps).find(openApp => {
         if (app.key && openApp.key) {
           return openApp.key === app.key
         }
         return openApp.component === app.component && 
-              JSON.stringify(openApp.params) === JSON.stringify(app.params)
+              JSON.stringify(openApp.initialParams) === JSON.stringify(app.initialParams)
       })
       
       if (existingApp) {
         state.activeApp = existingApp
         $storex.views.activatePanel(existingApp.tabId)
         return
+      }
+      
+      // Check if panel already exists in Desktop API by checking component and initialParams
+      const desktopApi = $storex.views._desktopApi
+      if (desktopApi && desktopApi.panels) {
+        const existingPanel = desktopApi.panels.find(panel => {
+          if (app.key && panel.key) {
+            return panel.key === app.key
+          }
+          const panelParams = panel.params?.params || panel.params || {}
+          return panel.component === app.component && 
+                JSON.stringify(panelParams.initialParams || panelParams) === JSON.stringify(app.initialParams)
+        })
+        
+        if (existingPanel) {
+          state.activeApp = app
+          $storex.views.activatePanel(existingPanel.id)
+          return
+        }
       }
     }
     

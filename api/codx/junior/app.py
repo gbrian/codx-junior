@@ -267,7 +267,7 @@ def api_list_profile(request: Request):
 @app.get("/api/profiles/tools")
 def api_list_profile_tools(request: Request):
     from codx.junior.tools import TOOLS
-    return [t["tool_json"]["function"] for t in TOOLS]
+    return TOOLS
 
 @app.post("/api/profiles")
 async def api_create_profile(profile: Profile, request: Request):

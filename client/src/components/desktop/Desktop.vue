@@ -89,10 +89,11 @@ export default {
       this.closeViewEditor()
     },
     syncPanelsWithApps() {
-      this.$storex.views.syncPanelsWithApps()
+      this.$storex.views.syncPanelsWithApps(this.$storex.views._desktopApi)
     },
     onReady(event) {
       this.$storex.views.setDesktopApi(event.api)
+      this.syncPanelsWithApps()
       this.restoreLayout()
     },
     onPanelError(event) {

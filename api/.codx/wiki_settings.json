@@ -70,6 +70,16 @@
           "path": "/codx/junior/api/analytics_model.py",
           "slug": "analytics-model.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/analytics-model.md"
+        },
+        {
+          "path": "/codx/junior/ai/smol/tool_context.py",
+          "slug": "tool-context.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/tool-context.md"
+        },
+        {
+          "path": "/codx/junior/tools/git_tools.py",
+          "slug": "git-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-tools.md"
         }
       ],
       "id": "project-overview",
@@ -170,6 +180,11 @@
           "path": "/content.mermaid",
           "slug": "content.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/content.md"
+        },
+        {
+          "path": "/codx/junior/engine/session.py",
+          "slug": "session.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/engine-module/session.md"
         }
       ],
       "id": "engine-module",
@@ -662,6 +677,16 @@
           "path": "/codx/junior/recipe_manager.py",
           "slug": "recipe-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/recipe-manager.md"
+        },
+        {
+          "path": "/codx/junior/tutorial_manager.py",
+          "slug": "tutorial-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/tutorial-manager.md"
+        },
+        {
+          "path": "/codx/junior/tools/tutorial_tools.py",
+          "slug": "tutorial-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/utility-functions/tutorial-tools.md"
         }
       ],
       "id": "utility-functions",

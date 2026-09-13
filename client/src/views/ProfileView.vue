@@ -20,7 +20,7 @@ import ProfileCard from '@/components/ProfileCard.vue';
       
       <!-- Filters Row -->
       <div class="flex flex-col gap-3 mb-4">
-        <!-- Primary filters: Search + Tool dropdown + Actions -->
+        <!-- Primary filters: Search + Tool dropdown + Tag dropdown + Actions -->
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <div class="flex items-center gap-2 flex-1 min-w-64">
             <input 
@@ -38,6 +38,17 @@ import ProfileCard from '@/components/ProfileCard.vue';
               <option value="">+ Add Tool</option>
               <option v-for="tool in availableTools" :key="tool" :value="tool">
                 {{ tool }} ({{ getToolProfileCount(tool) }})
+              </option>
+            </select>
+            <select 
+              v-model="tagDropdownValue" 
+              @change="addTagFromDropdown"
+              class="select select-sm select-bordered"
+              title="Add tag filter"
+            >
+              <option value="">+ Add Tag</option>
+              <option v-for="tag in availableTags" :key="tag" :value="tag">
+                {{ tag }} ({{ getTagProfileCount(tag) }})
               </option>
             </select>
           </div>
@@ -75,7 +86,30 @@ import ProfileCard from '@/components/ProfileCard.vue';
             @click="selectedTools = []"
             class="text-xs text-primary hover:underline ml-2"
           >
-            Clear all
+            Clear tools
+          </button>
+        </div>
+
+        <!-- Selected Tags Display -->
+        <div v-if="selectedTags.length" class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-semibold text-base-content/70">Selected tags:</span>
+          <div class="flex gap-2 flex-wrap">
+            <span 
+              v-for="tag in selectedTags"
+              :key="tag"
+              class="badge badge-info gap-1"
+            >
+              <i class="fa-solid fa-tag"></i> {{ tag }}
+              <button @click="removeTag(tag)" class="hover:text-error">
+                <i class="fa-solid fa-x text-xs"></i>
+              </button>
+            </span>
+          </div>
+          <button 
+            @click="selectedTags = []"
+            class="text-xs text-primary hover:underline ml-2"
+          >
+            Clear tags
           </button>
         </div>
 
@@ -98,11 +132,11 @@ import ProfileCard from '@/components/ProfileCard.vue';
       </div>
 
       <!-- No results state -->
-      <div v-else-if="searchQuery || selectedTools.length" class="flex flex-col items-center justify-center gap-4 py-12">
+      <div v-else-if="searchQuery || selectedTools.length || selectedTags.length" class="flex flex-col items-center justify-center gap-4 py-12">
         <i class="fa-solid fa-inbox text-4xl text-base-content/20"></i>
         <div class="text-center">
           <p class="font-semibold text-base-content/70">No profiles match your filters</p>
-          <p class="text-sm text-base-content/50 mt-1">Try adjusting your search or tool selection</p>
+          <p class="text-sm text-base-content/50 mt-1">Try adjusting your search or filter selection</p>
         </div>
         <button class="btn btn-sm btn-ghost" @click="clearFilters">
           <i class="fa-solid fa-rotate-left mr-1"></i> Clear filters
@@ -125,15 +159,20 @@ import ProfileCard from '@/components/ProfileCard.vue';
 </template>
 
 <script>
+import toolsModel from '@/api/models/tools.js'
+
 export default {
   data() {
     return {
       searchQuery: '',
       selectedTools: [],
+      selectedTags: [],
       toolDropdownValue: '',
+      tagDropdownValue: '',
       searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tags'],
       loadingProfile: false,
-      loadingProfiles: false
+      loadingProfiles: false,
+      tools: []
     }
   },
   computed: {
@@ -153,7 +192,11 @@ export default {
       })
       return Array.from(toolsSet).sort()
     },
-    // Filter profiles by search query AND all selected tools
+    // Extract unique tags from all tools sorted alphabetically
+    availableTags() {
+      return toolsModel.extractTags(this.tools)
+    },
+    // Filter profiles by search query AND all selected tools AND all selected tags
     filteredProfiles() {
       const filter = this.searchQuery.toLowerCase()
       
@@ -171,7 +214,11 @@ export default {
             (profile.tools && Array.isArray(profile.tools) && 
              this.selectedTools.every(tool => profile.tools.includes(tool)))
 
-          return searchMatch && toolMatch
+          // Tag filter: check if profile tools have ANY of the selected tags
+          const tagMatch = this.selectedTags.length === 0 || 
+            this.profileHasTaggedTools(profile)
+
+          return searchMatch && toolMatch && tagMatch
         } catch(ex) {
           console.error(ex)
           return true // Don't hide profiles on error
@@ -181,6 +228,7 @@ export default {
   },
   created() {
     this.loadProfiles()
+    this.loadTools()
   },
   methods: {
     async loadProfiles() {
@@ -191,11 +239,35 @@ export default {
         this.loadingProfiles = false
       }
     },
+    async loadTools() {
+      try {
+        this.tools = await this.$project.$api.profiles.tools()
+      } catch (error) {
+        console.error('Failed to load tools:', error)
+      }
+    },
     // Count profiles that have a specific tool
     getToolProfileCount(tool) {
       return this.profiles.filter(profile => 
         profile.tools && Array.isArray(profile.tools) && profile.tools.includes(tool)
       ).length
+    },
+    // Count profiles with tools that have a specific tag
+    getTagProfileCount(tag) {
+      return this.profiles.filter(profile => this.profileHasTag(profile, tag)).length
+    },
+    // Check if a profile has tools with a specific tag
+    profileHasTag(profile, tag) {
+      if (!profile.tools || !Array.isArray(profile.tools)) return false
+      
+      return profile.tools.some(toolName => {
+        const tool = this.tools.find(t => t.tool_json?.function?.name === toolName)
+        return tool?.tags && Array.isArray(tool.tags) && tool.tags.includes(tag)
+      })
+    },
+    // Check if profile has tools with ANY of the selected tags
+    profileHasTaggedTools(profile) {
+      return this.selectedTags.some(tag => this.profileHasTag(profile, tag))
     },
     // Add tool from dropdown
     addToolFromDropdown() {
@@ -204,9 +276,20 @@ export default {
       }
       this.toolDropdownValue = ''
     },
+    // Add tag from dropdown
+    addTagFromDropdown() {
+      if (this.tagDropdownValue && !this.selectedTags.includes(this.tagDropdownValue)) {
+        this.selectedTags.push(this.tagDropdownValue)
+      }
+      this.tagDropdownValue = ''
+    },
     // Remove specific tool from selected tools
     removeTool(tool) {
       this.selectedTools = this.selectedTools.filter(t => t !== tool)
+    },
+    // Remove specific tag from selected tags
+    removeTag(tag) {
+      this.selectedTags = this.selectedTags.filter(t => t !== tag)
     },
     openEditProfile(selectedProfile) {
       this.$projects.setSelectedProfile(selectedProfile)
@@ -232,6 +315,7 @@ export default {
     clearFilters() {
       this.searchQuery = ''
       this.selectedTools = []
+      this.selectedTags = []
     }
   }
 }

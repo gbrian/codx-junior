@@ -1,18 +1,15 @@
 import os
 import logging
-import re
 import uuid
 from slugify import slugify
 
 from codx.junior.settings import CODXJuniorSettings
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Union, Any, Dict
+from typing import Optional, List, Any, Dict
 
 from datetime import datetime
 from enum import Enum
-
-from codx.junior.model.model import PRView
 
 logger = logging.getLogger(__name__)
 
@@ -101,158 +98,6 @@ class LifeCycleEvent(BaseModel):
     error: Optional[str] = Field(default=None, description="Error details when status is 'error'")
 
 
-class RecipeStep(BaseModel):
-    """
-    A single step within a recipe.
-    
-    A recipe is composed of ordered RecipeSteps. Each step maps to a Chat
-    that contains the actual interaction, tool calls, and results.
-    """
-    step_index: int = Field(
-        ...,
-        description="Order of execution (0-based)"
-    )
-    chat_id: Optional[str] = Field(
-        default=None,
-        description="Reference to the Chat containing step content, messages, and execution state"
-    )
-    name: str = Field(
-        ...,
-        description="Human-readable step name"
-    )
-    description: str = Field(
-        default="",
-        description="What this step does and its purpose"
-    )
-    step_type: str = Field(
-        default="action",
-        description="'instruction' (read-only guidance), 'exercise' (user does), 'validation' (check), 'action' (automated)"
-    )
-    is_required: bool = Field(
-        default=True,
-        description="Must be completed to advance. False = optional step"
-    )
-    success_criteria: Optional[str] = Field(
-        default=None,
-        description="Natural language or structured criteria to mark step as 'completed'"
-    )
-    estimated_duration_seconds: Optional[int] = Field(
-        default=None,
-        description="Hint for user: ~how long should this step take?"
-    )
-    meta_data: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Step-specific config, parameters, or context"
-    )
-
-
-class RecipeMetrics(BaseModel):
-    """Aggregated metrics for a recipe instance execution."""
-    total_steps: int = Field(default=0)
-    completed_steps: int = Field(default=0)
-    skipped_steps: int = Field(default=0)
-    failed_steps: int = Field(default=0)
-    total_duration_seconds: Optional[int] = Field(default=None)
-    created_at: str = Field(default_factory=lambda: str(datetime.now()))
-    updated_at: str = Field(default_factory=lambda: str(datetime.now()))
-    last_completed_step_index: Optional[int] = Field(default=None)
-    completion_percent: int = Field(default=0)
-
-
-class Recipe(BaseModel):
-    """
-    A reusable recipe: an ordered set of steps to accomplish a goal.
-    
-    A recipe is a template or instance depending on `is_template`:
-    
-    - **Template** (`is_template=True`): Master copy, immutable, discovered and cloned
-    - **Instance** (`is_template=False`): Live user/automation run, tracks progress
-    
-    Recipe types:
-    - 'tutorial': Interactive step-by-step learning
-    - 'automation': Unattended background job (e.g., "Keep docs updated")
-    - 'workflow': Multi-step manual procedure (e.g., "Code review checklist")
-    - 'playbook': Structured troubleshooting or investigation
-    """
-    id: Optional[str] = Field(default=None, description="Unique recipe ID")
-    name: str = Field(..., description="Recipe name")
-    description: str = Field(default="", description="What this recipe accomplishes")
-    goal: Optional[str] = Field(
-        default=None,
-        description="High-level outcome or success target"
-    )
-    recipe_type: str = Field(
-        default="workflow",
-        description="'tutorial', 'automation', 'workflow', 'playbook', custom..."
-    )
-    is_template: bool = Field(
-        default=False,
-        description="True = master template, False = live instance"
-    )
-    template_id: Optional[str] = Field(
-        default=None,
-        description="If instance, points to template recipe_id"
-    )
-    version: str = Field(
-        default="1.0.0",
-        description="Semantic versioning for templates"
-    )
-    steps: List[RecipeStep] = Field(
-        default=[],
-        description="Ordered list of recipe steps"
-    )
-    tags: List[str] = Field(
-        default=[],
-        description="Categorization: 'documentation', 'debugging', 'onboarding', etc."
-    )
-    owner: Optional[str] = Field(
-        default=None,
-        description="User who created/owns this recipe"
-    )
-    created_at: str = Field(
-        default_factory=lambda: str(datetime.now())
-    )
-    updated_at: str = Field(
-        default_factory=lambda: str(datetime.now())
-    )
-    # Storage location
-    project_id: Optional[str] = Field(
-        default=None,
-        description="Associated project, if any"
-    )
-    kanban_board: str = Field(
-        default="recipes",
-        description="Board name for recipe organization"
-    )
-    kanban_column: str = Field(
-        default="active",
-        description="Column: 'templates', 'active', 'archived', etc."
-    )
-    # Execution & progress
-    metrics: Optional[RecipeMetrics] = Field(
-        default=None,
-        description="Progress and performance metrics (only on instances)"
-    )
-    auto_execute: Optional[bool] = Field(
-        default=False,
-        description="If True and type='automation', run unattended on schedule"
-    )
-    auto_execute_schedule: Optional[str] = Field(
-        default=None,
-        description="Cron or interval for auto_execute (e.g., '0 0 * * 0' for weekly)"
-    )
-    # Linking
-    related_recipe_ids: Optional[List[str]] = Field(
-        default=[],
-        description="Other recipes this one depends on or recommends"
-    )
-    # Free-form extensibility
-    meta_data: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Custom fields: tool config, automation params, playbook branching logic, etc."
-    )
-
-
 class Message(BaseModel):
     """
     A single chat message.
@@ -294,19 +139,6 @@ class Message(BaseModel):
     read_by: List[str] = Field(default=[])
     error: Optional[str] = Field(default=None)
     linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
-    # Recipe fields
-    recipe_step_index: Optional[int] = Field(
-        default=None,
-        description="Index of the recipe step this message belongs to"
-    )
-    recipe_step_action: Optional[str] = Field(
-        default=None,
-        description="Action context for this message: 'instruction', 'hint', 'validation', 'result'"
-    )
-    recipe_requires_acknowledgment: Optional[bool] = Field(
-        default=None,
-        description="When True, user/system must explicitly acknowledge this message to proceed"
-    )
 
 
 class ChatHistoryEntry(BaseModel):
@@ -323,12 +155,7 @@ class ChatId(BaseModel):
 
 
 class Chat(BaseModel):
-    """
-    Represents a chat session with messages, metadata, and kanban board associations.
-    
-    Extended to support recipes: a chat can be either a standalone conversation
-    or part of a recipe (tutorial, automation, workflow, etc.).
-    """
+    """Represents a chat session with messages, metadata, and kanban board associations."""
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat works, see owner_project_id for the project where the chat was created")
@@ -340,7 +167,7 @@ class Chat(BaseModel):
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
-    # tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
+    tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])
@@ -383,15 +210,6 @@ class Chat(BaseModel):
     ignore_parent_files: Optional[bool] = Field(
         default=False,
         description="When True, excludes parent chat file list from the working context"
-    )
-    # Recipe integration
-    recipe_id: Optional[str] = Field(
-        default=None,
-        description="The recipe this chat belongs to (links to Recipe.id)"
-    )
-    recipe_step_index: Optional[int] = Field(
-        default=None,
-        description="Which step within the recipe (maps to Recipe.steps[n])"
     )
 
 

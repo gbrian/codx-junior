@@ -3,24 +3,24 @@ import FileActionMenu from './FileActionMenu.vue'
 </script>
 
 <template>
-  <div class="my-1 text-xs space-y-1">
+  <div class="my-1 text-xs md:text-sm space-y-1 md:space-y-1.5 px-1 md:px-0">
     <!-- Unified Files List (Chat first, then Conversation - sorted by filename length) -->
-    <div v-if="mergedFileStatuses.length > 0" class="space-y-1">
-      <div class="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold text-base-content/70 uppercase tracking-wider">
+    <div v-if="mergedFileStatuses.length > 0" class="space-y-1 md:space-y-1.5">
+      <div class="flex items-center gap-1 md:gap-1.5 px-2 md:px-2 py-0.5 text-xs font-semibold text-base-content/70 uppercase tracking-wider">
         <i class="fa-solid fa-file text-base-content/60 flex-shrink-0"></i>
-        <span>Files</span>
-        <span class="badge badge-xs badge-base-300">{{ mergedFileStatuses.length }}</span>
+        <span class="truncate">Files</span>
+        <span class="badge badge-xs badge-base-300 shrink-0">{{ mergedFileStatuses.length }}</span>
       </div>
       
-      <div class="flex flex-wrap gap-1">
+      <div class="flex flex-wrap gap-1 md:gap-1.5">
         <div
           v-for="file in mergedFileStatuses"
           :key="file.path"
-          class="group flex items-center gap-1"
+          class="group flex items-center gap-0.5 md:gap-1"
         >
           <!-- File Chip (Label + Icon) - Color coded by type -->
           <div
-            class="flex items-center gap-0.5 px-2 py-1 rounded-full cursor-pointer transition-all duration-200 flex-shrink-0"
+            class="flex items-center gap-0.5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full cursor-pointer transition-all duration-200 flex-shrink-0 text-xs md:text-sm"
             @click="$emit('preview-file', file.path)"
             :title="file.path"
             :class="[
@@ -33,15 +33,15 @@ import FileActionMenu from './FileActionMenu.vue'
             ]"
           >
             <i class="fa-solid fa-file text-xs flex-shrink-0"></i>
-            <span class="font-medium max-w-[80px] group-hover:max-w-full truncate">
+            <span class="font-medium max-w-[60px] md:max-w-[120px] truncate group-hover:max-w-full">
               {{ file.label }}
             </span>
           </div>
 
-          <!-- Action Menu -->
+          <!-- Action Menu - Hidden on mobile, shown on desktop or when hovered -->
           <FileActionMenu
             v-if="file.exists !== false"
-            class="hidden group-hover:flex transition-opacity duration-200"
+            class="hidden md:flex group-hover:flex transition-opacity duration-200"
             :file-path="file.path"
             :file-type="file.type"
             :is-notebook="isNotebook(file)"
@@ -61,7 +61,7 @@ import FileActionMenu from './FileActionMenu.vue'
     </div>
 
     <!-- Empty state -->
-    <div v-if="mergedFileStatuses.length === 0" class="text-center py-1 text-base-content/40 text-xs">
+    <div v-if="mergedFileStatuses.length === 0" class="text-center py-1 md:py-2 text-base-content/40 text-xs md:text-sm">
       <i class="fa-solid fa-paperclip block mb-0.5"></i>
       <span>No files</span>
     </div>

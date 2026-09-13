@@ -28,7 +28,7 @@ export default {
   emits: ['mode-changed'],
   data() {
     return {
-      availableModes: ['chat', 'task', 'topic', 'prview', 'browser', 'slides']
+      availableModes: ['chat', 'task', 'topic', 'prview', 'browser', 'slides', 'tutorial']
     }
   },
   methods: {

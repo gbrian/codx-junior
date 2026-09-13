@@ -7,7 +7,7 @@
   "file_match": "",
   "content": null,
   "parsed_content": null,
-  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/software_developer.profile",
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/software_developer/software_developer.profile",
   "profiles": [],
   "llm_model": "",
   "use_knowledge": true,
@@ -40,8 +40,7 @@
   "tools": [
     "project_search",
     "project_read_file",
-    "project_structure",
-    "project_write_file"
+    "project_structure"
   ],
   "tags": [],
   "api_settings": {
@@ -51,5 +50,5 @@
   },
   "chat_mode": null,
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
-  "chat_id": ""
+  "chat_id": "82074be7-909e-4ba5-9ade-594a122d21e8"
 }

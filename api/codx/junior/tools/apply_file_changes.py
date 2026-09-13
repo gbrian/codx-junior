@@ -73,7 +73,7 @@ Sequential Application Flow:
         D1 -->|Yes| D3[✅ Update Content<br/>Track Applied]
         E1 -->|Yes| E3[✅ Update Content<br/>Track Applied]
         F1 -->|Yes| F3[✅ Update Content<br/>Track Applied]
-        D3 --> G{"More<br/>Changes?"}
+        D3 --> G{"More<br/>Changes?}
         E3 --> G
         F3 --> G
         G -->|Yes| B
@@ -278,6 +278,78 @@ def _secure_path_check(settings: CODXJuniorSettings, abs_path: str) -> Tuple[boo
         return False, f"File path must belong to {settings.abs_project_path}"
 
 
+def _get_cached_file_content(
+    tool_cache: Optional[Any],
+    abs_path: str,
+) -> Optional[str]:
+    """
+    Retrieve cached file content if available.
+
+    File content is cached with key format: f"file_content:{abs_path}"
+
+    Args:
+        tool_cache: Optional tool cache instance.
+        abs_path: Absolute path to the file.
+
+    Returns:
+        Cached file content if available, None otherwise.
+    """
+    if not tool_cache:
+        return None
+
+    cache_key = f"file_content:{abs_path}"
+    try:
+        cached = tool_cache.get_raw(cache_key)
+        if cached is not None:
+            logger.debug(
+                "apply_file_changes: retrieved cached content for %s",
+                abs_path,
+            )
+            return cached
+    except (AttributeError, Exception) as e:
+        logger.debug(
+            "apply_file_changes: failed to retrieve cache for %s: %s",
+            abs_path,
+            e,
+        )
+    return None
+
+
+def _cache_file_content(
+    tool_cache: Optional[Any],
+    abs_path: str,
+    content: str,
+) -> None:
+    """
+    Store file content in cache for subsequent tool calls.
+
+    File content is cached with key format: f"file_content:{abs_path}"
+
+    Args:
+        tool_cache: Optional tool cache instance.
+        abs_path: Absolute path to the file.
+        content: The file content to cache.
+    """
+    if not tool_cache:
+        return
+
+    cache_key = f"file_content:{abs_path}"
+    try:
+        # Store as raw entry (not tool result)
+        tool_cache.set_raw(cache_key, content)
+        logger.debug(
+            "apply_file_changes: cached content for %s (%d bytes)",
+            abs_path,
+            len(content),
+        )
+    except (AttributeError, Exception) as e:
+        logger.debug(
+            "apply_file_changes: failed to cache content for %s: %s",
+            abs_path,
+            e,
+        )
+
+
 def _write_file_atomically(abs_path: str, content: str) -> Tuple[bool, Optional[str]]:
     """
     Write content to file atomically using temp file + rename.
@@ -324,6 +396,7 @@ def _write_file_atomically(abs_path: str, content: str) -> Tuple[bool, Optional[
 def apply_file_changes(
     file_path: str,
     changes: List[Dict[str, Any]],
+    tool_cache: Optional[Any] = None,
     **kwargs
 ) -> ToolResponse:
     """
@@ -331,8 +404,9 @@ def apply_file_changes(
 
     Each change is a dictionary with 'search' and 'replace' keys. Changes are
     applied sequentially in memory. If any change fails due to conflicts or
-    validation errors, NO changes are written to disk and error information
-    is returned for the LLM to handle.
+    validation errors, the error information is returned for the LLM to handle.
+    On success, returns a code block with the modified file content without
+    writing to disk.
 
     IMPORTANT: Search patterns must be exact matches. Include complete surrounding
     context to ensure uniqueness. Do NOT rely on indentation preservation—include
@@ -343,12 +417,13 @@ def apply_file_changes(
         changes: List of change dictionaries, each containing:
             - "search" (str): Exact text pattern to find (must be unique in file)
             - "replace" (str): Text to replace with (include all formatting)
+        tool_cache: Optional tool cache for file content persistence.
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
 
     Returns:
         ToolResponse: Contains:
-            - user_response: Code block showing the modified file or error.
+            - user_response: Code block showing the modified file content or error.
             - llm_response: Summary of changes applied or conflict details.
 
     Raises:
@@ -407,18 +482,23 @@ def apply_file_changes(
             llm_response=f"Apply changes failed: {error_msg}",
         )
 
-    # Read the file with explicit newline handling
-    try:
-        with open(abs_path, "r", encoding="utf-8", newline="") as f:
-            content = f.read()
-    except (IOError, OSError) as e:
-        error_msg = f"Failed to read file: {str(e)}"
-        logger.error("Error reading file %s: %s", file_path, error_msg)
-        error_block = CHANGE_ERROR_TEMPLATE % (file_path, error_msg)
-        return ToolResponse(
-            user_response=error_block,
-            llm_response=f"Apply changes failed: {error_msg}",
-        )
+    # Try to get cached content first (from previous modifications in this conversation)
+    content = _get_cached_file_content(tool_cache, abs_path)
+    if content is None:
+        # Not in cache, read from disk
+        try:
+            with open(abs_path, "r", encoding="utf-8", newline="") as f:
+                content = f.read()
+        except (IOError, OSError) as e:
+            error_msg = f"Failed to read file: {str(e)}"
+            logger.error("Error reading file %s: %s", file_path, error_msg)
+            error_block = CHANGE_ERROR_TEMPLATE % (file_path, error_msg)
+            return ToolResponse(
+                user_response=error_block,
+                llm_response=f"Apply changes failed: {error_msg}",
+            )
+    else:
+        logger.info("apply_file_changes: using cached content for %s", file_path)
 
     # Validate all changes first
     for idx, change in enumerate(changes):
@@ -467,22 +547,13 @@ def apply_file_changes(
         error_block = CHANGE_ERROR_TEMPLATE % (file_path, error_msg)
         return ToolResponse(
             user_response=error_block,
-            llm_response=f"Apply changes failed at step {failed_at_change['index']}: {failed_at_change['error']}",
+            llm_response=f"Apply changes failed at step {failed_at_change['index']}: {failed_at_change['error']}. Please review params and try again or generate the full file content with changes.",
         )
 
-    # All changes applied successfully - write to file atomically
-    success, write_error = _write_file_atomically(abs_path, content)
+    # All changes applied successfully - build response with code block
+    # Cache the modified content for subsequent tool calls in this conversation
+    _cache_file_content(tool_cache, abs_path, content)
     
-    if not success:
-        error_msg = write_error or "Unknown write error"
-        logger.error("Error writing to file %s: %s", file_path, error_msg)
-        error_block = CHANGE_ERROR_TEMPLATE % (file_path, error_msg)
-        return ToolResponse(
-            user_response=error_block,
-            llm_response=f"Apply changes failed during write: {error_msg}",
-        )
-
-    # Success - build response
     rel_path = _to_relative_path(settings=settings, abs_path=abs_path)
     extension = abs_path.split(".")[-1] if "." in abs_path else ""
 

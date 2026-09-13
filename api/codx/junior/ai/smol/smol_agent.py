@@ -19,9 +19,8 @@ Message Structure
 When tools are used in a conversation, the agent now produces a single final
 answer message that combines all tool user_response outputs (thinking content)
 with the final LLM answer. This ensures that all tool-generated user-facing
-content is preserved in the persisted message.
-The thinking content is also streamed live to the client via send_callback
-during tool rounds for real-time feedback.
+content is preserved in the persisted message. The thinking content is also streamed
+live to the client via send_callback during tool rounds for real-time feedback.
 """
 import json
 import logging
@@ -925,6 +924,18 @@ class SmolAgent:
             )
             if tool_settings.get("project_settings"):
                 params["settings"] = self.settings
+            # Pass tool cache to tools so they can share state across calls
+            # (e.g., file content modifications in apply_file_changes)
+            # Only pass tool_cache if the tool function accepts it, to avoid
+            # TypeError for tools that don't support this parameter (fixes
+            # "project_structure() got an unexpected keyword argument 'tool_cache'")
+            if tool_cache:
+                try:
+                    sig = inspect.signature(tool["tool_call"])
+                    if "tool_cache" in sig.parameters:
+                        params["tool_cache"] = tool_cache
+                except (ValueError, TypeError):
+                    pass
 
             logger.info(
                 "SmolAgent: executing tool '%s' with params %s",

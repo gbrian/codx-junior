@@ -34,23 +34,49 @@ services:
   ## Model management
   ###################################################################
 
-  ollama:
-    container_name: ollama-codx-junior
-    image: ollama/ollama
+  localai:
+    container_name: localai-codx-junior
+    image: codx-junior-localai:latest
+    build: ./localai
+    # For GPU acceleration (CUDA), use the specific GPU tag instead:
+    # image: localai/localai:latest-gpu-nvidia-cuda-12
     shm_size: "20gb"
     restart: unless-stopped
-    environment:
-      - OLLAMA_MODELS=/root/.ollama
-      - OLLAMA_CONTEXT_LENGTH=131072
-      - OLLAMA_DEBUG=1
-      - OLLAMA_FLASH_ATTENTION=1
-      - OLLAMA_KEEP_ALIVE=-1
-      - OLLAMA_KV_CACHE_TYPE=q8_0
-      - OLLAMA_NUM_THREADS=8
     volumes:
-      - ../../ollama_models:/root/.ollama
+      - localai_models:/build/models
+      - ./localai:/home/localai-config
+    env_file:
+      - .env # Load local .env file
+    environment:
+      - MODELS_PATH=/build/models
+      - CONTEXT_SIZE=4096
+      # - THREADS=8
+      # Optional: Hardcode base url if required, or rely on headers below
+      # - LOCALAI_BASE_URL=https://${CODX_JUNIOR_DOMAIN}
     labels:
-      - traefik.enable=false
+      - traefik.enable=true
+      
+      # HTTP Router (for behind other proxies)
+      - traefik.http.routers.codx-junior-localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai`)
+      - traefik.http.routers.codx-junior-localai.entrypoints=web
+      
+      # HTTPS Router (for standalone with SSL)
+      - traefik.http.routers.codx-junior-localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai`)
+      - traefik.http.routers.codx-junior-localai-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-localai-secure.tls.certresolver=sslresolver
+      
+      # Shared Load Balancer Service (LocalAI default internal port is 8080)
+      - traefik.http.routers.codx-junior-localai.service=codx-junior-localai-service
+      - traefik.http.routers.codx-junior-localai-secure.service=codx-junior-localai-service
+      - traefik.http.services.codx-junior-localai-service.loadbalancer.server.port=8080
+      
+      # Custom Headers middleware to supply LocalAI with reverse proxy subpath specs
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Prefix=/codx-localai
+      
+      # Apply header requirements and authentication middleware stacks
+      - traefik.http.routers.codx-junior-localai.middlewares=localai-headers,codx-junior-auth
+      - traefik.http.routers.codx-junior-localai-secure.middlewares=localai-headers,codx-junior-auth
 
   ###################################################################
   ## API
@@ -82,7 +108,7 @@ services:
       # Global settings folder  ##########################################################
       - codx-junior:/home/codx-junior/.codx-junior
       # Custom overrides (DEBUG)
-      - ../../.:/home/codx-junior/codx-junior
+      - ../../.:d /home/codx-junior/codx-junior
       # Docker
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik
@@ -104,7 +130,6 @@ services:
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.trustForwardHeader=true
-
 
   codx-junior-api-background:
     depends_on:
@@ -195,7 +220,7 @@ services:
 
   codx-junior-init:
     depends_on:
-      - ollama
+      - localai
     image: codxjunior/codx-junior:debian # reuse existing image
     volumes:
       - ./initial-setup.sh:/initial-setup.sh
@@ -205,10 +230,10 @@ services:
 
 volumes:
   prometheus_demo_data:
-    name: codx-junior-litellm_prometheus_data # Logs data
+    name: codx-junior-litellm_prometheus_data
   postgres_demo_data:
-    name: codx-junior-litellm_postgres_data # LITELLM: Named volume for Postgres data persistence
-  milvus_data: # MILVUS data
+    name: codx-junior-litellm_postgres_data
+  milvus_data:
     name: codx-junior-milvus_data
   localai_models:
     name: codx-junior-localai_models

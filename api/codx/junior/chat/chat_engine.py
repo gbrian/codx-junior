@@ -51,9 +51,13 @@ logger = logging.getLogger(__name__)
 # Chat mode constants
 CHAT_MODE_TASK = "task"
 CHAT_MODE_AGENT = "agent"
+CHAT_MODE_TUTORIAL = "tutorial"
 CHAT_MODE_VIBE = "vibe"
 TASK_ITEM_SEARCH = "search"
 TASK_ITEM_ANALYSIS = "analysis"
+
+def _is_refine(mode) -> bool:
+    return mode in [CHAT_MODE_TASK, CHAT_MODE_TUTORIAL] 
 
 # Prompt used to auto-initialize an auto_initialize chat's metadata
 CHAT_INIT_PROMPT = """
@@ -259,7 +263,7 @@ class ChatEngine:
                  is_search, needs_pre_search.
         """
         resolved_mode = chat_mode or chat.mode or "chat"
-        is_refine: bool = resolved_mode == CHAT_MODE_TASK
+        is_refine: bool = _is_refine(resolved_mode)
         is_agent: bool = resolved_mode == CHAT_MODE_AGENT
         is_vibe: bool = resolved_mode == CHAT_MODE_VIBE
         is_search: bool = task_item == TASK_ITEM_SEARCH
@@ -456,7 +460,7 @@ class ChatEngine:
                         profile_model.name
                     )
 
-            if next((p for p in sorted_profiles if p.chat_mode == CHAT_MODE_TASK), None):
+            if next((p for p in sorted_profiles if _is_refine(p.chat_mode)), None):
                 is_refine = True
 
         elif chat_files:
@@ -2300,7 +2304,7 @@ class ChatEngine:
                     ai_chat_fn=ai_chat_fn
                 )
 
-                if chat_mode == CHAT_MODE_TASK or is_vibe:
+                if _is_refine(chat_mode) or is_vibe:
                     self._hide_non_answer_messages(chat=chat)
 
             # ------------------------------------------------------------------
