@@ -52,7 +52,11 @@ export default {
       this.$ui.showApp({
           ...app,
           left: !app?.left,
-          ts: new Date().getTime()
+          ts: new Date().getTime(),
+          params: {
+            name: app.name,
+            path: app.path
+          }
       })
     }
   }

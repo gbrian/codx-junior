@@ -289,6 +289,7 @@ export default {
           payload_preview: cs.chat_name || '—',
         }
       })
+      .sort((a, b) => a.iso_date > b.iso_date ? -1 : 1)
     },
 
     /**

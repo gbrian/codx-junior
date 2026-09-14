@@ -11,7 +11,13 @@ import { API } from '@/api/api'
       Loading pricing data...
     </div>
 
-    <div v-for="provider in providers" :key="provider.name" class="card bg-base-200 shadow">
+    <!-- ADDED: Show only selected model or all if no selection -->
+    <div v-if="filteredProviders.length === 0" class="text-center py-8 text-base-content-ERROR-40">
+      <i class="fa-solid fa-microchip text-5xl"></i>
+      <p class="mt-2 text-sm">No pricing data available</p>
+    </div>
+
+    <div v-for="provider in filteredProviders" :key="provider.name" class="card bg-base-200 shadow">
       <div class="card-body gap-4">
 
         <!-- Provider row -->
@@ -47,9 +53,9 @@ import { API } from '@/api/api'
 
         <div class="divider my-0"></div>
 
-        <!-- Model rows -->
+        <!-- Model rows - CHANGED: Filter by initialModel if set -->
         <div
-          v-for="model in provider.models"
+          v-for="model in getFilteredModels(provider)"
           :key="model.name"
           class="flex flex-wrap items-center gap-4 pl-4"
         >
@@ -100,6 +106,14 @@ import { API } from '@/api/api'
           </button>
         </div>
 
+        <!-- ADDED: Message when model filter results in no models for provider -->
+        <div
+          v-if="initialModel && getFilteredModels(provider).length === 0"
+          class="text-xs text-base-content/50 italic pl-4"
+        >
+          Model "{{ initialModel }}" not found in {{ provider.name }}
+        </div>
+
       </div>
     </div>
 
@@ -117,6 +131,7 @@ export default {
   props: {
     initialStartDate: { type: String, default: null },
     initialEndDate:   { type: String, default: null },
+    initialModel:     { type: String, default: null }
   },
   emits: ['metrics-changed'],
   data() {
@@ -135,11 +150,22 @@ export default {
       if (this.initialStartDate === this.initialEndDate) return this.initialStartDate
       return `${this.initialStartDate} → ${this.initialEndDate}`
     },
+    // ADDED: Filter providers to only show those with models matching initialModel
+    filteredProviders() {
+      if (!this.initialModel) return this.providers
+      return this.providers.filter(p => this.getFilteredModels(p).length > 0)
+    }
   },
   async mounted() {
     await this.loadPricing()
   },
   methods: {
+    // ADDED: Filter models within a provider by initialModel
+    getFilteredModels(provider) {
+      if (!this.initialModel) return provider.models || []
+      return (provider.models || []).filter(m => m.name === this.initialModel)
+    },
+
     async loadPricing() {
       this.loading = true
       try {
@@ -159,7 +185,6 @@ export default {
           output_k_tokens_cxjcoins: provider.output_k_tokens_cxjcoins,
         })
         this.showToast(`Provider "${provider.name}" pricing saved`)
-        // Notify dashboard to reload metrics after price update
         this.$emit('metrics-changed')
       } catch (e) {
         this.showToast('Failed to save provider pricing', 'error')
@@ -176,7 +201,6 @@ export default {
           output_k_tokens_cxjcoins: model.output_k_tokens_cxjcoins,
         })
         this.showToast(`Model "${model.name}" pricing saved`)
-        // Notify dashboard to reload metrics after price update
         this.$emit('metrics-changed')
       } catch (e) {
         this.showToast('Failed to save model pricing', 'error')
@@ -198,7 +222,6 @@ export default {
           outputPrice: model.output_k_tokens_cxjcoins,
         })
         this.showToast(`Recalculated "${model.name}" for ${this.recalcDateLabel}`)
-        // Notify dashboard to reload metrics after recalculation
         this.$emit('metrics-changed')
       } catch (e) {
         this.showToast('Recalculation failed', 'error')

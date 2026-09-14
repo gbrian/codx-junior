@@ -108,7 +108,7 @@ import PriceEditor from './PriceEditor.vue'
                     type="date"
                     v-model="filters.startDate"
                     class="input input-bordered input-sm w-36"
-                    @change="loadData"
+                    @change="applyCustomDates"
                   />
                 </div>
                 <div class="flex items-center gap-1">
@@ -117,7 +117,7 @@ import PriceEditor from './PriceEditor.vue'
                     type="date"
                     v-model="filters.endDate"
                     class="input input-bordered input-sm w-36"
-                    @change="loadData"
+                    @change="applyCustomDates"
                   />
                 </div>
               </div>
@@ -560,11 +560,39 @@ import PriceEditor from './PriceEditor.vue'
               <i class="fa-solid fa-calendar-day mr-1 text-xs"></i>
               {{ priceEditorDate }}
             </span>
+            <span v-if="priceEditorModel" class="ml-2 badge badge-sm badge-secondary text-base-content border-base-300">
+              <i class="fa-solid fa-microchip mr-1 text-xs"></i>
+              {{ priceEditorModel }}
+            </span>
           </div>
           <div class="collapse-content">
+            <div class="card-body py-3 px-4 bg-base-200 rounded mb-4">
+              <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                  <label class="text-xs font-medium text-base-content/70">Filter by Model:</label>
+                  <select
+                    v-model="priceEditorModel"
+                    class="select select-bordered select-sm w-48"
+                  >
+                    <option :value="null">All models</option>
+                    <option v-for="model in availableModels" :key="model" :value="model">
+                      {{ model }}
+                    </option>
+                  </select>
+                </div>
+                <button
+                  class="btn btn-xs btn-ghost"
+                  @click="priceEditorModel = null"
+                >
+                  <i class="fa-solid fa-times text-xs"></i>
+                  Clear Selection
+                </button>
+              </div>
+            </div>
             <PriceEditor
               :initial-start-date="priceEditorDate"
               :initial-end-date="priceEditorDate"
+              :initial-model="priceEditorModel"
               @metrics-changed="loadData"
             />
           </div>
@@ -598,6 +626,7 @@ export default {
       grouping: 'day',
       priceEditorOpen: false,
       priceEditorDate: null,
+      priceEditorModel: null,
       autoRefreshInterval: null,
       autoRefreshTimer: null,
       filters: {
@@ -794,6 +823,11 @@ export default {
       this.loadData()
     },
 
+    applyCustomDates() {
+      this.activePreset = null
+      this.loadData()
+    },
+
     clearFilters() {
       const today = new Date()
       const thirtyDaysAgo = new Date()
@@ -807,6 +841,7 @@ export default {
       }
       this.activePreset = '30d'
       this.grouping = 'day'
+      this.priceEditorModel = null
       this.loadData()
     },
 
@@ -823,6 +858,7 @@ export default {
 
     openPriceEditorForDate(date) {
       this.priceEditorDate = date
+      this.priceEditorModel = null
       this.priceEditorOpen = true
       this.$nextTick(() => {
         const el = this.$el.querySelector('.collapse-open')
@@ -869,7 +905,7 @@ export default {
 
         if (this.isAdminView && this.$storex.users.isAdmin) {
           const [byUser, byProject] = await Promise.all([
-            this.$project.$api.analytics.admin.byUser(baseFilters),
+            this.$project.$api.analytics.admin.byUser(adminFilters),
             this.$project.$api.analytics.admin.byProject(adminFilters)
           ])
           this.byUserData = byUser || {}

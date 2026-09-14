@@ -66,7 +66,7 @@ import ProfileAvatar from '../profile/ProfileAvatar.vue'
               >
                 <!-- Date -->
                 <td class="font-mono text-xs text-base-content/60 whitespace-nowrap">
-                  {{ formatDate(log.iso_date) }}
+                  {{ formatDate(log.timestamp) }}
                 </td>
 
                 <!-- Chat Name / Title -->
@@ -262,13 +262,21 @@ export default {
     }
   },
   methods: {
-    formatDate(isoDate) {
-      if (!isoDate) return '—'
+    formatDate(epoch) {
+      if (!epoch) return '—'
       try {
-        return new Date(isoDate).toLocaleDateString('en-US', {
-          month: '2-digit', day: '2-digit', year: '2-digit'
-        })
-      } catch { return isoDate }
+        // Multiply by 1000 to convert seconds (with decimals) into milliseconds
+        return new Date(Number(epoch) * 1000).toLocaleString('en-US', {
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+          hour12: false
+        });
+      } catch { 
+        return epoch 
+      }
     },
     formatNumber(num) {
       if (num == null) return '0'

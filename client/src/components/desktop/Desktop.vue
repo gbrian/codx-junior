@@ -1,7 +1,6 @@
 <script setup>
 import { DockviewVue } from 'dockview-vue'
 import { ALL_COMPONENTS } from '../../config/appComponentsMap.js'
-import ViewProperties from '../main-menu/ViewProperties.vue'
 import GroupHeaderActions from './GroupHeaderActions.vue'
 </script>
 
@@ -13,15 +12,6 @@ import GroupHeaderActions from './GroupHeaderActions.vue'
       @panel-error="onPanelError"
       rightHeaderActionsComponent="groupHeaderActions"
     />
-
-    <!-- ViewProperties modal triggered by store viewEditor flag -->
-    <modal close="true" @close="closeViewEditor" v-if="viewEditor">
-      <ViewProperties
-        :view="viewEditor.view"
-        @close="closeViewEditor"
-        @confirm="onViewConfirm"
-      />
-    </modal>
 
     <!-- Error notification for failed panels -->
     <div v-if="failedPanels.length" class="alert alert-error shadow-lg fixed bottom-4 right-4 max-w-md z-50">
@@ -54,12 +44,6 @@ export default {
       const { openApps } = this.$ui
       return Object.values(openApps)
     },
-    uiReady() {
-      return this.$ui.uiReady
-    },
-    viewEditor() {
-      return this.$storex.ui.viewEditor
-    },
     failedPanelsMessage() {
       const count = this.failedPanels.length
       return count === 1
@@ -71,30 +55,16 @@ export default {
     apps() {
       this.syncPanelsWithApps()
     },
-    uiReady() {
-      this.restoreLayout()
+    $project() {
+      this.$views.onActiveProjectChanged()
     }
   },
   methods: {
-    closeViewEditor() {
-      this.$storex.ui.closeViewEditor()
-    },
-    async onViewConfirm(viewName) {
-      if (!viewName) return
-      try {
-        await this.$storex.views.saveView(viewName)
-      } catch (e) {
-        console.error('Failed to save view:', e)
-      }
-      this.closeViewEditor()
-    },
     syncPanelsWithApps() {
       this.$storex.views.syncPanelsWithApps(this.$storex.views._desktopApi)
     },
     onReady(event) {
       this.$storex.views.setDesktopApi(event.api)
-      this.syncPanelsWithApps()
-      this.restoreLayout()
     },
     onPanelError(event) {
       const panelId = event?.panelId || event?.id
@@ -132,23 +102,8 @@ export default {
       } catch (e) {
         return panelId
       }
-    },
-    async restoreLayout() {
-      if (!this.$storex.views._desktopApi || !this.uiReady) return
-      try {
-        await this.$storex.views.restoreProjectLayout(this.$storex.views._desktopApi)
-      } catch (e) {
-        console.warn('Failed to restore layout:', e)
-      }
-    },
-    getLayout() {
-      return this.$storex.views._desktopApi?.toJSON() || null
     }
   },
-  expose: [
-    'restoreLayout',
-    'getLayout'
-  ]
 }
 </script>
 
