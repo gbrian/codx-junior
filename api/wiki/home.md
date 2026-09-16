@@ -1,13 +1,25 @@
 # Welcome to the codx-junior Wiki
 
-This wiki serves as the central documentation hub for the **codx-junior** project, a high-performance FastAPI application engineered for seamless AI integration, advanced knowledge management, and secure real-time interactions. The platform leverages a dynamic, metadata-driven `codx-junior API` tool registry to empower intelligent workflows and LLM-driven automation. Below is a high-level overview of the system's core architecture and functional modules.
+This wiki serves as a concise, endpoint-centric reference for the **codx-junior** project, documenting core architecture, API endpoints, routing configuration, and middleware generation for external-facing services.
 
-## Core Architecture & Modules
+## Documentation Updates
+The wiki has been restructured for improved clarity and navigation. Key changes include:
+- Sections reordered to flow logically: Overview → Endpoints → Routing Logic → Authentication → Dynamic Configuration, with the dedicated References section removed and cross-links integrated inline.
+- API endpoints are now described in prose, with explicit authentication notes (e.g., config endpoints are internal-only with no auth, routes endpoints require appropriate roles).
+- A dedicated Authentication Middleware section confirms that every generated route enforces `codx-junior-auth` alongside route-specific middlewares.
+- Routing Logic consolidates handling of external HTTP/HTTPS URLs versus container-port apps, noting that the latter are managed by Traefik's Docker label provider.
+- Dynamic configuration building uses URL parsing and strip-prefix middleware; errors are caught and logged, returning `{ "http": {} }` to prevent Traefik polling disruptions.
+- The standalone References section has been removed; all references are embedded within section text for better flow.
+- Across modules (including `traefik.py`), documentation has been reframed from detailed implementation mechanics to concise high-level summaries, emphasizing intent and top-level behavior for improved maintainability.
+- **Traefik-specific updates**: Documentation condensed to focus on two primary endpoints (`/config` and `/routes`), explicit authentication (`codx-junior-auth` applied to all routes), and dynamic configuration using strip-prefix middleware for external sub-paths while intentionally skipping container-port apps (managed by Traefik's Docker label provider). Error handling ensures exceptions are caught, logged, and return `{ "http": {} }` to keep Traefik’s polling loop stable.
 
-- **App Module**: The application's foundation, responsible for initializing the FastAPI server, defining routing, configuring middleware, managing background tasks, and enabling real-time communication through Socket.IO.
-- **Engine Module**: Orchestrates essential backend operations, including project provisioning, session lifecycle management, and high-level business logic that drives the API's core capabilities.
-- **AI and Knowledge Management**: The intelligent core of the platform, featuring:
-  - **Agents**: Purpose-built agents (e.g., DevOps, Git Issues, Base Agent) designed to automate workflows and process complex tasks.
-  - **Models**: Configurations for AI models, user-specific data structures, and embedding systems to optimize data processing and retrieval.
-  - **Knowledge**: Comprehensive tools for code analysis, document enrichment, keyword extraction, and vector-based storage integration.
-- **Utility Functions**: A centralized `Tools Module` featuring a metadata-driven `Tool Registry` for seamless workflow integration. The registry organizes capabilities into logical domains such as Web & Content, Project Navigation, File Operations, Code & Task Management, Media, Tutorial Management, and Git & Version Control. It supports asynchronous execution, configurable scopes, dual-response mechanisms, and bulk operation optimizations, alongside essential utility functions like `test_tool` for validation.
+## Core Architecture
+- **App Module**: Initializes the FastAPI server, defines routing and middleware, manages background tasks, and integrates with Socket.IO. External apps with paths starting with `http://` or `https://` are dynamically configured with authentication and path-stripping middleware; others are handled by Traefik Docker labels.
+- **Engine Module**: Orchestrates core backend operations including project provisioning, session lifecycle management, and high-level business logic.
+- **AI and Knowledge Management**: Covers agents, models, and utilities for workflow automation, AI configurations, embeddings, code analysis, document enrichment, and vector-based storage.
+- **Utility Functions**: Provides centralized tools supporting asynchronous execution, configurable scopes, and bulk optimizations across web content, project navigation, file operations, code and task management, media, tutorial management, and Git version control.
+
+The wiki follows a focused Architecture → Endpoints → Middleware flow to improve navigation and highlight key infrastructure and access control aspects.
+
+## Navigation
+Use the sidebar to explore categorized sections such as Project Overview, App Module, Engine Module, AI and Knowledge Management, Security and Authentication, Session Management, and Utility Functions.

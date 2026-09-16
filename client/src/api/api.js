@@ -6,6 +6,7 @@ import { analyticsModule } from './modules/analytics'
 import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
+import { workspacesModule } from './modules/workspaces'
 
 /**
  * In-flight request deduplication map.
@@ -277,7 +278,7 @@ const initializeAPI = ({ project, user } = {}) => {
         const data = await API.get('/api/projects/metrics')
         return data
       },
-      workspaces: {
+    workspaces: {
         async list() {
           return API.get('/api/workspaces')
         },
@@ -328,7 +329,7 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       }
     },
-    
+
     github: {
       issues: {
         helpWanted(query) {

@@ -38,6 +38,9 @@ from codx.junior.utils.chat_utils import ChatUtils
 from codx.junior.utils.utils import extract_json_blocks
 from codx.junior.whisper.audio_manager import AudioManager
 from codx.junior.tutorial_manager import TutorialManager
+# ADDED: project-scoped workspace manager
+from codx.junior.workspaces.workspace_manager import WorkspaceManager
+from codx.junior.workspaces.model import Workspace
 
 from codx.junior.engine.knowledge_engine import KnowledgeEngine
 from codx.junior.engine.code_engine import CodeEngine
@@ -175,6 +178,11 @@ class CODXJuniorSession:
         """Return a ProfileManager for this session."""
         return ProfileManager(settings=settings or self.settings)
 
+    # ADDED: workspace manager factory
+    def get_workspace_manager(self) -> WorkspaceManager:
+        """Return a WorkspaceManager for this session."""
+        return WorkspaceManager(settings=self.settings)
+
     def get_ai(self, llm_model: str = None) -> AI:
         """Return an AI instance for this session."""
         return AI(settings=self.settings, llm_model=llm_model, user=self.user)
@@ -258,6 +266,26 @@ class CODXJuniorSession:
     def get_project_profile(self) -> Profile:
         """Return the project profile."""
         return self.get_profile_manager().read_profile("project")
+
+    # -------------------------------------------------------------------------
+    # Workspace management  # ADDED
+    # -------------------------------------------------------------------------
+
+    def list_workspaces(self) -> List[Workspace]:
+        """List all workspaces for this project."""
+        return self.get_workspace_manager().list_workspaces()
+
+    def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
+        """Return a workspace by id, or None."""
+        return self.get_workspace_manager().get_workspace(workspace_id)
+
+    def save_workspace(self, workspace: Workspace) -> Workspace:
+        """Create or update a workspace."""
+        return self.get_workspace_manager().save_workspace(workspace)
+
+    def delete_workspace(self, workspace_id: str) -> None:
+        """Delete a workspace by id."""
+        return self.get_workspace_manager().delete_workspace(workspace_id)
 
     # -------------------------------------------------------------------------
     # Mention utilities
@@ -623,15 +651,12 @@ class CODXJuniorSession:
         return self._file_engine.get_readme()
 
     def api_image_to_text(self, image_bytes: bytes) -> str:
-        """Convert image bytes to text using OCR."""
+        """Convert image bytes to OCR text."""
         return self._file_engine.api_image_to_text(image_bytes=image_bytes)
 
     # -------------------------------------------------------------------------
     # Git operations (delegated)
     # -------------------------------------------------------------------------
-
-    def get_git_engine(self):
-        return self._git_engine
 
     def get_repo_branches(self) -> list:
         """Return all git branches for the project."""
@@ -732,3 +757,7 @@ class CODXJuniorSession:
         """Return available project applications."""
         from codx.junior.globals import APPS
         return APPS
+
+    def project_metrics(self) -> dict:
+        """Return project metrics."""
+        return self._knowledge_engine.project_metrics() if hasattr(self._knowledge_engine, "project_metrics") else {}

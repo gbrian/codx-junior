@@ -59,7 +59,24 @@ import WorkspaceTemplateSelector from './WorkspaceTemplateSelector.vue'
           required
         />
         <label class="label">
-          <span class="label-text-alt">Used as the workspace identifier</span>
+          <span class="label-text-alt">Used as the workspace display name</span>
+        </label>
+      </div>
+
+      <!-- ADDED: Folder Path — was missing; required by isFormValid and API -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold">Folder Path *</span>
+        </label>
+        <input
+          v-model="form.folder_path"
+          type="text"
+          placeholder="e.g., vue-frontend-app"
+          class="input input-bordered input-lg"
+          required
+        />
+        <label class="label">
+          <span class="label-text-alt">Unique folder name under the workspaces root directory. Auto-filled from name.</span>
         </label>
       </div>
 
@@ -184,16 +201,19 @@ export default {
     templates: Object,
     allProjects: Array,
     allUsers: Array,
-    project: Object
+    project: Object  // ADDED: was declared missing, needed by WorkspaceProjectSelector
   },
   emits: ['update-form'],
   watch: {
     'form.name'(newVal) {
-      if (!this.form.folder_path || !this.form.folder_path.trim()) {
-        this.form.folder_path = newVal
+      // Auto-fill folder_path only when it hasn't been manually edited
+      if (!this.form.folder_path || this.form.folder_path === this._lastAutoPath) {
+        const auto = newVal
           .toLowerCase()
           .replace(/\s+/g, '-')
           .replace(/[^a-z0-9-]/g, '')
+        this._lastAutoPath = auto
+        this.form.folder_path = auto
       }
     }
   }

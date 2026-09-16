@@ -3,15 +3,17 @@ import ProjectSelector from './ProjectSelector.vue'
 </script>
 
 <template>
-  <ProjectSelector
-    :model-value="project"
-    :iconify="iconify"
-    :options="options"
-    :disabled="disabled"
-    :icon-size="iconSize"
-    @select="onProjectSelected"
-    @update:model-value="onProjectSelected"
-  />
+  <div class="w-full">
+    <ProjectSelector
+      :model-value="project"
+      :iconify="iconify"
+      :options="options"
+      :disabled="disabled"
+      :icon-size="iconSize"
+      @select="onProjectSelected"
+      @update:model-value="onProjectSelected"
+    />
+  </div>
 </template>
 
 <script>

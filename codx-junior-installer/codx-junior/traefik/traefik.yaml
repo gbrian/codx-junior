@@ -14,7 +14,8 @@ entrypoints:
 
 api:
   dashboard: true
-  basePath: "/traefik"
+  insecure: false # Must be false to set basePath 
+  basePath: /traefik
 
 log:
   level: DEBUG

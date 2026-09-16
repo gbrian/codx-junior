@@ -38,6 +38,7 @@ import ChatView from '@/views/ChatView.vue'
         'bg-primary': editProfile.category === 'assistant',
         'bg-secondary': editProfile.category === 'chat',
         'bg-accent': editProfile.category === 'agent',
+        'bg-sky-600': editProfile.category === 'agent-validator',
         'bg-info': editProfile.category === 'file',
         'bg-neutral': editProfile.category === 'project'
       }">
@@ -57,6 +58,7 @@ import ChatView from '@/views/ChatView.vue'
                 'badge-primary': editProfile.category === 'assistant',
                 'badge-secondary': editProfile.category === 'chat',
                 'badge-accent': editProfile.category === 'agent',
+                'bg-sky-600': editProfile.category === 'agent-validator',
                 'badge-info': editProfile.category === 'file',
                 'badge-neutral': editProfile.category === 'project'
               }">
@@ -95,6 +97,7 @@ import ChatView from '@/views/ChatView.vue'
                 <option value="chat">Chat</option>
                 <option value="file">File</option>
                 <option value="agent">Agent</option>
+                <option value="agent-validator">Agent validator</option>
               </select>
             </div>
           </template>

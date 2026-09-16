@@ -25,14 +25,15 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
       :chatSearch="chatSearch"
       :isCompact="compactSidebar"
       :chatProfiles="chatProfiles"
+      :targetProject="targetProject"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
-      @mode-changed="onChatModeChanged"
       @parent-flags-changed="onParentFlagsChanged"
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
       @remove-attachment="onSidebarRemoveAttachment"
+      @select-project="setChatProject"
     />
 
     <!-- ─────────────────────────────────────────────────────────────
@@ -48,17 +49,16 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
         :messageCount="messageCount"
         :hiddenCount="hiddenCount"
         :showHidden="showHidden"
-        :targetProject="targetProject"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
-        @select-project="setChatProject"
         @select-breadcrumb="onSelectBreadcrumbChat"
         @show-settings="showTaskSettings = true"
         @show-export="showExportChat = true"
         @confirm-delete="confirmDelete = true"
         @show-add-tag="newTag = ''"
         @remove-tag="onRemoveTag"
+        @mode-changed="onChatModeChanged"
       />
 
       <!-- CONTENT AREA: History Wall OR Chat View -->
@@ -688,9 +688,10 @@ ${this.subtaskDescription}`
         this.createTasksInstructions = ''
       }
     },
-    onChatModeChanged({ chat, mode }) {
-      chat.mode = mode
-      this.saveChatInfo(chat)
+    onChatModeChanged(newMode) {
+      if (!this.workingChat) return
+      this.workingChat.mode = newMode
+      this.saveChatInfo(this.workingChat)
     },
     onParentFlagsChanged({ chat, flag, value }) {
       this.saveChatInfo(chat)

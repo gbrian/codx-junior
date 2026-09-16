@@ -25,7 +25,8 @@ import TeamChannel from '../components/teams/TeamChannel.vue'
 import TeamDM from '../components/teams/TeamDM.vue'
 import TeamMediaLibrary from '../components/teams/TeamMediaLibrary.vue'
 import VibeCodingView from '../views/VibeCodingView.vue'
-import WorkspacesList from '../components/workspaces/WorkspacesList.vue'
+// CHANGED: Use WorkspacesManager as the app entry point instead of WorkspacesList
+import WorkspacesManager from '../components/workspaces/WorkspacesManager.vue'
 import EmptyStateWelcome from '../components/desktop/EmptyStateWelcome.vue'
 import Tab from '../components/desktop/Tab.vue'
 
@@ -56,7 +57,8 @@ export const APP_COMPONENTS_MAP = {
   'team-dm': TeamDM,
   'team-media-library': TeamMediaLibrary,
   'vibe-coding': VibeCodingView,
-  'workspaces': WorkspacesList
+  // CHANGED: WorkspacesManager replaces WorkspacesList as the registered component
+  'workspaces': WorkspacesManager
 }
 
 // Additional components not mapped to apps

@@ -20,7 +20,11 @@ import MenuDivider from '../main-menu/MenuDivider.vue'
             <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
           </div>
           <template v-else>
-            <i class="fa-solid fa-file-lines" v-if="isFileViewer"></i>
+            <img class="w-3 h-3 bg-contain" 
+              :src="imageUrl" @error="imageError = true"
+                v-if="imageUrl && !imageError"
+              />
+            <i class="fa-solid fa-file-lines" v-else-if="isFileViewer"></i>
             <i class="fa-solid fa-bars" v-else></i>
           </template>
         </div>
@@ -50,7 +54,6 @@ export default {
   props: ['app', 'iconClass', 'loading'],
   data() {
     return {
-      imageOk: false,
       imageError: false,
     }
   },
@@ -72,11 +75,6 @@ export default {
     imageUrl() {
       if (this.imageError) return null
       if (this.app.icon?.startsWith('http')) return this.app.icon
-      const path = this.app.path?.split("#")[0]
-      if (path) {
-        const sep = this.app.path?.endsWith("/") ? "" : "/"
-        return `${path}${sep}favicon.ico`
-      }
       return null
     }
   },

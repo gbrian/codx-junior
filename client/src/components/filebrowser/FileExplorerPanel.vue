@@ -7,7 +7,7 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
 <template>
   <VerticalSplitter :panels="splitterConfig">
     <template #left>
-      <FileExplorer @open="handleFileOpen" />
+      <FileExplorer :root-path="rootPath" @open="handleFileOpen" />
     </template>
 
     <template #right>
@@ -19,6 +19,7 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
 <script>
 export default {
   name: 'FileExplorerPanel',
+  props:['root-path'],
   data() {
     return {
       splitterConfig: {

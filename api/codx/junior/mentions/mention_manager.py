@@ -34,14 +34,20 @@ from codx.junior.utils.chat_utils import ChatUtils
 # Define the logger
 logger = logging.getLogger(__name__)
 
-# Initialize mention pattern strings
-SINGLE_LINE_MENTION_START = "@" + "codx:"
-MULTI_LINE_MENTION_START = "<" + "codx"
-MULTI_LINE_MENTION_END = "</" + "codx>"
+# Regex patterns for mention detection (using concatenation to avoid self-detection)
+SINGLE_LINE_MENTION_PATTERN = re.compile(
+    r"@" + r"codx:\s*(.*?)(?:\n|$)",
+    re.IGNORECASE
+)
 
-SINGLE_LINE_MENTION_START_PROGRESS = "@" + "codx-ok, please-wait...:"
-MULTI_LINE_MENTION_START_PROGRESS = "<" + "codx-ok, please-wait..."
-MULTI_LINE_MENTION_END_PROGRESS = "<" + "/codx-ok, please-wait...>"
+MULTI_LINE_MENTION_PATTERN = re.compile(
+    r"<" + r"codx\s*([^>]*)>\s*(.*?)\s*</" + r"codx>",
+    re.IGNORECASE | re.DOTALL
+)
+
+# Progress markers (still needed for in-progress notification)
+PROGRESS_MARKER = "codx-ok, please-wait..."
+ERROR_MARKER = "codx-error"
 
 
 class MentionFlags(BaseModel):
@@ -100,6 +106,31 @@ class Mention(BaseModel):
 
         return line
 
+    def extract_attributes(self, attr_string: str) -> None:
+        """
+        Extract attributes from tag opening (e.g., knowledge="true" model="gpt-4").
+        
+        Args:
+            attr_string: Attributes portion of the opening tag.
+        """
+        if not attr_string.strip():
+            return
+
+        # Parse key="value" or key='value' pairs
+        attr_pattern = re.compile(r'(\w+)=(["\'])([^"\']*)\2')
+        for match in attr_pattern.finditer(attr_string):
+            key, _, value = match.groups()
+            key = key.lower().replace('-', '_')
+            
+            if key not in vars(MentionFlags):
+                continue
+            
+            # Handle boolean attributes
+            if isinstance(getattr(self.flags, key, None), bool):
+                setattr(self.flags, key, value.lower() in ('true', '1', 'yes'))
+            else:
+                setattr(self.flags, key, value)
+
 
 def resolve_mention_model(mentions: List[Mention]) -> Optional[str]:
     """
@@ -127,6 +158,11 @@ class MentionManager:
 
     Mentions are special annotations that trigger LLM-powered transformations
     of the surrounding document content.
+
+    Supports three mention formats:
+    - Single-line: @codx: --param --param2=value
+    - Multi-line flags: <codx> ... </codx>
+    - Multi-line attributes: <codx param="value" param2="value"> ... </codx>
 
     Diagram::
 
@@ -170,10 +206,7 @@ class MentionManager:
 
     def is_processing_mentions(self, content: str) -> bool:
         """Return True if the content already contains in-progress mention markers."""
-        return (
-            MULTI_LINE_MENTION_START_PROGRESS in content
-            or SINGLE_LINE_MENTION_START_PROGRESS in content
-        )
+        return PROGRESS_MARKER in content
 
     def check_if_file_has_mentions(self, file_path: str) -> bool:
         """Return True if the file at file_path contains any codx mentions."""
@@ -183,7 +216,12 @@ class MentionManager:
 
     def extract_mentions(self, content: str) -> List[Mention]:
         """
-        Parse all codx mentions from the given content string.
+        Parse all codx mentions from the given content string using regex.
+
+        Supports formats:
+        - Single-line: @codx: --param --param2=value
+        - Multi-line flags: <codx> ... </codx>
+        - Multi-line attributes: <codx param="value"> ... </codx>
 
         Args:
             content: Full text content of a document.
@@ -194,43 +232,61 @@ class MentionManager:
         if self.is_processing_mentions(content=content):
             return []
 
-        content_lines = content.split("\n")
         mentions: List[Mention] = []
-        current_mention: Optional[Mention] = None
 
-        for ix, line in enumerate(content_lines):
-            if SINGLE_LINE_MENTION_START in line:
-                single = Mention()
-                single.start_line = ix
-                single.add_line(line.split(SINGLE_LINE_MENTION_START)[1])
-                mentions.append(single)
-            elif MULTI_LINE_MENTION_START in line:
-                _, *rest = line.split(MULTI_LINE_MENTION_START, 1)
-                current_mention = Mention()
-                current_mention.start_line = ix
-                if rest:
-                    current_mention.add_line(rest[0].strip())
-                mentions.append(current_mention)
-            elif current_mention and MULTI_LINE_MENTION_END in line:
-                current_mention.end_line = ix
-                current_mention = None
-            elif current_mention:
-                current_mention.add_line(line)
+        # Extract single-line mentions
+        for match in SINGLE_LINE_MENTION_PATTERN.finditer(content):
+            mention = Mention()
+            mention_text = match.group(1).strip()
+            mention.add_line(mention_text)
+            
+            # Calculate line numbers
+            match_start = match.start()
+            mention.start_line = content[:match_start].count('\n')
+            mention.end_line = mention.start_line
+            
+            mentions.append(mention)
+
+        # Extract multi-line mentions
+        for match in MULTI_LINE_MENTION_PATTERN.finditer(content):
+            mention = Mention()
+            mention.mention = match.group(2).strip()
+            
+            # Extract attributes from opening tag
+            attrs = match.group(1).strip()
+            if attrs:
+                mention.extract_attributes(attrs)
+            
+            # Extract flags from mention content (for backward compatibility)
+            mention.mention = mention.extract_flags(mention.mention)
+            
+            # Calculate line numbers
+            match_start = match.start()
+            match_end = match.end()
+            mention.start_line = content[:match_start].count('\n')
+            mention.end_line = content[:match_end].count('\n')
+            
+            mentions.append(mention)
 
         return mentions
 
     def notify_mentions_in_progress(self, content: str) -> str:
         """Replace mention markers with in-progress markers in the content."""
-        return (
+        # Replace @codx: with @codx-ok, please-wait...:
+        content = SINGLE_LINE_MENTION_PATTERN.sub(
+            lambda m: f"@{PROGRESS_MARKER}: {m.group(1)}",
             content
-            .replace(SINGLE_LINE_MENTION_START, SINGLE_LINE_MENTION_START_PROGRESS)
-            .replace(MULTI_LINE_MENTION_START, MULTI_LINE_MENTION_START_PROGRESS)
-            .replace(MULTI_LINE_MENTION_END, MULTI_LINE_MENTION_END_PROGRESS)
         )
+        # Replace <codx...> with <codx-ok, please-wait...>
+        content = MULTI_LINE_MENTION_PATTERN.sub(
+            lambda m: f"<{PROGRESS_MARKER}> {m.group(2)} </{PROGRESS_MARKER}>",
+            content
+        )
+        return content
 
     def notify_mentions_error(self, content: str, error: str) -> str:
         """Replace in-progress markers with an error marker in the content."""
-        return content.replace("codx-ok, please-wait...", f"codx-error: {error}")
+        return content.replace(PROGRESS_MARKER, f"{ERROR_MARKER}: {error}")
 
     def strip_mentions(self, content: str, mentions: List[Mention]) -> str:
         """

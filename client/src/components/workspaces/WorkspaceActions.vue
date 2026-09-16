@@ -52,11 +52,18 @@ export default {
       isLoading: false
     }
   },
+  computed: {
+    // ADDED: safe fallback so component works with or without project prop
+    theProject() {
+      return this.project || this.$project
+    }
+  },
   methods: {
     async start() {
       this.isLoading = true
       try {
-        await this.project.$api.workspaces.lifecycle.start(this.workspace.id)
+        // FIXED: was this.project.$api.workspaces — correct path is $api.projects.workspaces
+        await this.theProject.$api.projects.workspaces.lifecycle.start(this.workspace.id)
         this.$emit('start')
       } catch (error) {
         console.error('Failed to start workspace', error)
@@ -67,7 +74,8 @@ export default {
     async stop() {
       this.isLoading = true
       try {
-        await this.project.$api.workspaces.lifecycle.stop(this.workspace.id)
+        // FIXED: was this.project.$api.workspaces — correct path is $api.projects.workspaces
+        await this.theProject.$api.projects.workspaces.lifecycle.stop(this.workspace.id)
         this.$emit('stop')
       } catch (error) {
         console.error('Failed to stop workspace', error)

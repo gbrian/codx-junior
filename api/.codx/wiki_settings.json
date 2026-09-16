@@ -80,6 +80,41 @@
           "path": "/codx/junior/tools/git_tools.py",
           "slug": "git-tools.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-tools.md"
+        },
+        {
+          "path": "/codx/junior/api/traefik.py",
+          "slug": "traefik.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/traefik.md"
+        },
+        {
+          "path": "/codx/junior/workspaces/manager.py",
+          "slug": "manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/manager.md"
+        },
+        {
+          "path": "/codx/junior/api/workspace_models.py",
+          "slug": "workspace-models.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/workspace-models.md"
+        },
+        {
+          "path": "/codx/junior/workspaces/workspace_manager.py",
+          "slug": "workspace-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/workspace-manager.md"
+        },
+        {
+          "path": "/codx/junior/workspaces/workspace_file_generator.py",
+          "slug": "workspace-file-generator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/workspace-file-generator.md"
+        },
+        {
+          "path": "/codx/junior/workspaces/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/mentions/mention_manager.py",
+          "slug": "mention-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/mention-manager.md"
         }
       ],
       "id": "project-overview",

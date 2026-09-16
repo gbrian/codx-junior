@@ -1,10 +1,10 @@
 <script setup>
 import ChatIcon from './ChatIcon.vue'
-import ChatModeSelector from './ChatModeSelector.vue'
 import ChatSidebarNode from './ChatSidebarNode.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ProfileCard from '../ProfileCard.vue'
 import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -17,39 +17,6 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
     @click="isCompact && $emit('toggle-compact')"
   >
     
-    <!-- Root Chat Card -->
-    <div class="p-2 md:p-3 border-b border-base-300 shrink-0">
-      <div
-        class="p-2 md:p-3 rounded-lg border-2 cursor-pointer transition-all hover:border-warning hover:bg-warning/5"
-        :class="selectedChatId === rootChat.id 
-          ? 'border-warning bg-warning/10' 
-          : 'border-base-content/10 bg-base-200'"
-        @click="selectChat(rootChat)"
-      >
-        <div v-if="!isCompact" class="flex items-center gap-2 mb-1">
-          <ChatIcon :mode="rootChat.mode" class="shrink-0 text-base md:text-lg" />
-          <span class="font-bold text-xs md:text-sm flex-1 truncate">{{ rootChat.name }}</span>
-          <span class="text-xs text-base-content/40 shrink-0 tabular-nums">
-            {{ rootChat.messages?.length || 0 }}
-          </span>
-        </div>
-        <div v-else class="flex justify-center">
-          <ChatIcon :mode="rootChat.mode" class="text-lg" />
-        </div>
-        <div v-if="!isCompact && rootChat.description" class="text-xs text-base-content/60 line-clamp-2">
-          {{ rootChat.description }}
-        </div>
-      </div>
-    </div>
-
-    <!-- Mode Selector (Root Chat Only) -->
-    <div v-if="!isCompact" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0">
-      <ChatModeSelector 
-        :selected-mode="rootChat.mode"
-        @mode-changed="onRootModeChanged"
-      />
-    </div>
-
     <!-- Parent Content Controls (When Selected Chat is a Child Task) -->
     <div v-if="!isCompact && isSelectedChatChild" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
       <div class="text-xs font-semibold text-base-content/60 uppercase">Parent Content</div>
@@ -79,20 +46,47 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
       </label>
     </div>
 
-    <!-- Quick Actions -->
-    <div v-if="!isCompact" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-1">
-      <button 
-        class="btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
-        title="Create new subtask"
-        @click="$emit('add-subtask', rootChat)"
+    <!-- Root Chat Card -->
+    <div class="px-1 shrink-0">
+      <div
+        class="p-2 md:p-3 rounded-lg border-2 cursor-pointer transition-all hover:border-warning hover:bg-warning/5"
+        :class="selectedChatId === rootChat.id 
+          ? 'border-warning bg-warning/10' 
+          : 'border-base-content/10 bg-base-200'"
+        @click="selectChat(rootChat)"
       >
-        <i class="fa-solid fa-plus"></i>
-        <span>New task</span>
-      </button>
+        <!-- Project Selector -->
+        <div class="mb-2 z-50 w-full">
+          <ProjectDetailt
+            :iconify="false"
+            :modelValue="targetProject"
+            :options="{ showFolders: false, showIcon: true, showSelector: true }"
+            @update:modelValue="$emit('select-project', $event)"
+          />
+        </div>
+
+        <div v-if="!isCompact" class="flex items-center gap-2 mb-1">
+          <span class="font-bold text-xs md:text-sm flex-1 truncate">{{ rootChat.name }}</span>
+          <span class="text-xs text-base-content/40 shrink-0 tabular-nums">
+            {{ rootChat.messages?.length || 0 }}
+          </span>
+        </div>
+        <div v-if="!isCompact && rootChat.description" class="text-xs text-base-content/60 line-clamp-2">
+          {{ rootChat.description }}
+        </div>
+        <button 
+          class="mt-2 btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
+          title="Create new subtask"
+          @click="$emit('add-subtask', rootChat)"
+        >
+          <i class="fa-solid fa-plus"></i>
+          <span v-if="!isCompact">New task</span>
+        </button>
+      </div>
     </div>
 
     <!-- Hierarchy Tree -->
-    <div v-if="!isCompact" class="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 min-h-0">
+    <div v-if="!isCompact" class="pl-2 flex-1 overflow-y-auto p-2 md:p-3 space-y-2 min-h-0">
       <ChatSidebarNode
         v-for="child in rootChildren"
         :key="child.id"
@@ -183,9 +177,10 @@ export default {
     workingChatMode: { type: String, default: 'chat' },
     chatSearch: { type: String, default: null },
     isCompact: { type: Boolean, default: false },
-    chatProfiles: { type: Array, default: () => [] }
+    chatProfiles: { type: Array, default: () => [] },
+    targetProject: { type: Object, default: null }
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)
@@ -200,10 +195,6 @@ export default {
   methods: {
     selectChat(chat) {
       this.$emit('select', chat)
-    },
-    onRootModeChanged(newMode) {
-      this.rootChat.mode = newMode
-      this.$emit('mode-changed', { chat: this.rootChat, mode: newMode })
     },
     toggleIgnoreParentKnowledge() {
       if (!this.selectedChat) return

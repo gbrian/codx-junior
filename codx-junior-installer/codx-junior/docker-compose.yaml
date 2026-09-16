@@ -42,6 +42,7 @@ services:
     # image: localai/localai:latest-gpu-nvidia-cuda-12
     shm_size: "20gb"
     restart: unless-stopped
+    command: run --p2p
     volumes:
       - localai_models:/build/models
       - ./localai:/home/localai-config
@@ -108,7 +109,7 @@ services:
       # Global settings folder  ##########################################################
       - codx-junior:/home/codx-junior/.codx-junior
       # Custom overrides (DEBUG)
-      - ../../.:d /home/codx-junior/codx-junior
+      - ../../.:/home/codx-junior/codx-junior
       # Docker
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik
@@ -208,6 +209,10 @@ services:
       - TRAEFIK_ACCESSLOG_FORMAT=json
     command:
       - "--configFile=/config/traefik.yaml"
+      # HTTP provider: polls codx-junior-api for workspace external-URL routes
+      - "--providers.http.endpoint=http://${CODX_JUNIOR_DOMAIN}:19980/api/traefik/config"
+      - "--providers.http.pollInterval=10s"
+      - "--providers.http.pollTimeout=5s"
     ports:
       - "80:80"
       - "443:443"
@@ -215,8 +220,25 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - ./traefik:/config
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
+      - traefik.enable=true
+
+      # 1. REMOVE or comment out the line below. It forces a network call to a closed port.
+      # - traefik.http.services.traefik-dashboard-service.loadbalancer.server.port=8080
+
+      # HTTP router
+      - traefik.http.routers.traefik-dashboard.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/traefik`)
+      - traefik.http.routers.traefik-dashboard.entrypoints=web
+      # 2. CHANGE this to api@internal
+      - traefik.http.routers.traefik-dashboard.service=api@internal
+      - traefik.http.routers.traefik-dashboard.middlewares=codx-junior-auth
+
+      # HTTPS router
+      - traefik.http.routers.traefik-dashboard-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/traefik`)
+      - traefik.http.routers.traefik-dashboard-secure.entrypoints=websecure
+      - traefik.http.routers.traefik-dashboard-secure.tls.certresolver=sslresolver
+      # 3. CHANGE this to api@internal
+      - traefik.http.routers.traefik-dashboard-secure.service=api@internal
+      - traefik.http.routers.traefik-dashboard-secure.middlewares=codx-junior-auth
 
   codx-junior-init:
     depends_on:

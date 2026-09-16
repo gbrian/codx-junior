@@ -1,5 +1,5 @@
 <script setup>
-import ProjectDetailt from '../ProjectDetailt.vue'
+import ChatModeSelector from './ChatModeSelector.vue'
 </script>
 
 <template>
@@ -44,18 +44,18 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
     </div>
     
-    <!-- ROW 2: Title + Project + Tags -->
+    <!-- ROW 2: Mode Selector + Title + Tags -->
     <div class="flex items-center gap-1 md:gap-2 min-w-0 min-h-5 md:min-h-6 mt-1">
-      <!-- Project Selector + Title (left, truncated) -->
-      <div class="flex items-center gap-1 md:gap-2 min-w-0 flex-1 overflow-hidden">
-        <ProjectDetailt
-          :iconify="true"
-          :modelValue="targetProject"
-          :options="{ showFolders: false, showIcon: true, showSelector: true }"
-          @update:modelValue="$emit('select-project', $event)"
-          class="shrink-0"
+      <!-- Chat Mode Selector (left, compact) -->
+      <div class="shrink-0">
+        <ChatModeSelector 
+          :selected-mode="chat.mode"
+          @mode-changed="$emit('mode-changed', $event)"
         />
+      </div>
 
+      <!-- Title (left, truncated) -->
+      <div class="flex items-center gap-1 md:gap-2 min-w-0 flex-1 overflow-hidden">
         <input
           v-if="editingTitle"
           v-model="workingChatName"
@@ -110,8 +110,7 @@ export default {
     breadcrumb: { type: Array, default: () => [] },
     messageCount: { type: Number, default: 0 },
     hiddenCount: { type: Number, default: 0 },
-    showHidden: { type: Boolean, default: false },
-    targetProject: { type: Object, default: null }
+    showHidden: { type: Boolean, default: false }
   },
   emits: [
     'update-name',
@@ -123,7 +122,8 @@ export default {
     'show-export',
     'confirm-delete',
     'show-add-tag',
-    'remove-tag'
+    'remove-tag',
+    'mode-changed'
   ],
   data() {
     return {
@@ -146,9 +146,6 @@ export default {
         this.$emit('update-name', this.chat)
       }
       this.editingTitle = false
-    },
-    removeTag(tag) {
-      this.$emit('remove-tag', tag)
     }
   }
 }

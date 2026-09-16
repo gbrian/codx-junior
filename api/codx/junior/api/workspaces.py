@@ -1,13 +1,16 @@
 import logging
-from pathlib import Path
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from codx.junior.model.model import CodxUser
-from codx.junior.workspaces.model import Workspace, WorkspaceStatus
-from codx.junior.workspaces.manager import WorkspaceManager
-from codx.junior.workspaces.templates import AVAILABLE_TEMPLATES
 
+from codx.junior.api.workspace_models import (
+    Workspace,
+    WorkspaceDeleteResponse,
+    WorkspaceFileWriteRequest,
+    WorkspaceFileReadResponse,
+    WorkspaceFileWriteResponse,
+)
 from codx.junior.security.user_management import get_authenticated_user
 from codx.junior.api import require_admin
 
@@ -20,70 +23,74 @@ router = APIRouter(tags=["workspaces"])
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _manager(request: Request) -> WorkspaceManager:
-    codx_junior_session = request.state.codx_junior_session
-    return WorkspaceManager(settings=codx_junior_session.settings)
+def _get_session(request: Request):
+    """Return the project-scoped session from the request state."""
+    session = getattr(request.state, "codx_junior_session", None)
+    if not session:
+        raise HTTPException(status_code=400, detail="No project session — pass codx_path query param")
+    return session
 
 
-def _get_workspace_or_404(manager: WorkspaceManager, workspace_id: str) -> Workspace:
-    workspace = manager.get_workspace(workspace_id)
+def _get_workspace_or_404(session, workspace_id: str) -> Workspace:
+    workspace = session.get_workspace(workspace_id)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return workspace
 
 
 def _user_has_workspace_access(user: CodxUser, workspace: Workspace) -> bool:
-    """Empty user_ids means the workspace is visible to all users."""
-    if "admin" in (getattr(user, "roles", None) or []):
+    """Admins always pass; empty user_ids means public."""
+    if "admin" in (getattr(user, "roles", None) or []) or getattr(user, "role", None) == "admin":
         return True
-    # NOTE: confirm whether workspace.user_ids stores usernames or user ids
     return not workspace.user_ids or user.username in workspace.user_ids
 
 
-def _safe_workspace_file(manager: WorkspaceManager, workspace: Workspace, file_path: str) -> Path:
-    """Resolve a file path inside the workspace dir, blocking path traversal."""
-    workspace_dir = manager.engine.workspace_dir(workspace).resolve()
-    target = (workspace_dir / file_path).resolve()
-    if workspace_dir != target and workspace_dir not in target.parents:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    return target
-
-
 # ---------------------------------------------------------------------------
-# Templates (declared before /{workspace_id} to avoid route shadowing)
-# ---------------------------------------------------------------------------
-
-@router.get("/workspaces/templates")
-def list_workspace_templates(user: CodxUser = Depends(require_admin)):
-    return AVAILABLE_TEMPLATES
-
-
-# ---------------------------------------------------------------------------
-# CRUD (admin-only mutations, users can list/read what they can access)
+# CRUD
 # ---------------------------------------------------------------------------
 
 @router.get("/workspaces", response_model=list[Workspace])
 def list_workspaces(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Return all workspaces for the current project accessible to the user.
+
+    Workspaces are stored per-project under ``{codx_path}/workspaces/``,
+    mirroring how profiles and chats are stored.
+    """
+    session = _get_session(request)
     return [
-        w for w in _manager(request).list_workspaces()
+        w for w in session.list_workspaces()
         if _user_has_workspace_access(user, w)
     ]
 
 
 @router.get("/workspaces/{workspace_id}", response_model=Workspace)
 def get_workspace(workspace_id: str, request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    workspace = _get_workspace_or_404(_manager(request), workspace_id)
+    """Return a single workspace by id."""
+    session = _get_session(request)
+    workspace = _get_workspace_or_404(session, workspace_id)
     if not _user_has_workspace_access(user, workspace):
         raise HTTPException(status_code=403, detail="Access denied")
     return workspace
 
 
 @router.post("/workspaces", response_model=Workspace)
-def create_workspace(workspace: Workspace, request: Request, user: CodxUser = Depends(require_admin)):
+def create_workspace(
+    workspace: Workspace,
+    request: Request,
+    user: CodxUser = Depends(require_admin)
+):
+    """
+    Create a new workspace for the current project (admin only).
+
+    The workspace is saved as a JSON file under ``{codx_path}/workspaces/{id}.workspace``.
+    A server-side UUID is always assigned as the workspace id.
+    
+    """
+    session = _get_session(request)
+    workspace.id = ""  # Force server-side id assignment
     try:
-        return _manager(request).create_workspace(workspace)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return session.save_workspace(workspace)
     except Exception as e:
         logger.exception("Failed to create workspace '%s'", workspace.name)
         raise HTTPException(status_code=500, detail=str(e))
@@ -93,119 +100,181 @@ def create_workspace(workspace: Workspace, request: Request, user: CodxUser = De
 def update_workspace(
     workspace: Workspace,
     request: Request,
-    reprovision: bool = Query(default=False, description="Re-render template files"),
     user: CodxUser = Depends(require_admin),
 ):
-    manager = _manager(request)
-    _get_workspace_or_404(manager, workspace.id)
+    """
+    Update an existing workspace (admin only).
+
+    Send the full ``Workspace`` object. The workspace must already exist
+    (identified by its ``id``).
+    
+    """
+    session = _get_session(request)
+    _get_workspace_or_404(session, workspace.id)
     try:
-        return manager.update_workspace(workspace, reprovision=reprovision)
+        return session.save_workspace(workspace)
     except Exception as e:
         logger.exception("Failed to update workspace '%s'", workspace.id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/workspaces/{workspace_id}")
+@router.delete("/workspaces/{workspace_id}", response_model=WorkspaceDeleteResponse)
 def delete_workspace(workspace_id: str, request: Request, user: CodxUser = Depends(require_admin)):
-    manager = _manager(request)
-    _get_workspace_or_404(manager, workspace_id)
+    """Delete a workspace (admin only). Removes the workspace file and folder from disk."""
+    session = _get_session(request)
+    _get_workspace_or_404(session, workspace_id)
     try:
-        manager.delete_workspace(workspace_id)
-        return {"status": "deleted"}
+        session.delete_workspace(workspace_id)
+        return WorkspaceDeleteResponse()
     except Exception as e:
         logger.exception("Failed to delete workspace '%s'", workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------------------------
-# Lifecycle (users with workspace access can start/stop)
+# File Management
 # ---------------------------------------------------------------------------
 
-@router.post("/workspaces/{workspace_id}/start", response_model=Workspace)
-def start_workspace(workspace_id: str, request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    if not _user_has_workspace_access(user, workspace):
-        raise HTTPException(status_code=403, detail="Access denied")
-    try:
-        return manager.start_workspace(workspace_id)
-    except Exception as e:
-        logger.exception("Failed to start workspace '%s'", workspace_id)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/workspaces/{workspace_id}/stop", response_model=Workspace)
-def stop_workspace(workspace_id: str, request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    if not _user_has_workspace_access(user, workspace):
-        raise HTTPException(status_code=403, detail="Access denied")
-    try:
-        return manager.stop_workspace(workspace_id)
-    except Exception as e:
-        logger.exception("Failed to stop workspace '%s'", workspace_id)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/workspaces/{workspace_id}/status")
-def workspace_status(workspace_id: str, request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    if not _user_has_workspace_access(user, workspace):
-        raise HTTPException(status_code=403, detail="Access denied")
-    return {"status": manager.workspace_status(workspace_id)}
-
-
-@router.get("/workspaces/{workspace_id}/logs")
-def workspace_logs(
+@router.get("/workspaces/{workspace_id}/files", response_model=dict)
+def list_workspace_files(
     workspace_id: str,
-    request: Request,
-    tail: int = Query(default=200, ge=1, le=5000),
-    user: CodxUser = Depends(require_admin),
+    path: str = "",
+    request: Request = None,
+    user: CodxUser = Depends(get_authenticated_user),
 ):
-    manager = _manager(request)
-    _get_workspace_or_404(manager, workspace_id)
-    return {"logs": manager.workspace_logs(workspace_id, tail=tail)}
+    """
+    List files and folders in a workspace directory.
+    
+    Query params:
+    - path (str, optional): Relative path within workspace (default: root)
+    
+    Returns:
+        Dict with 'files' and 'folders' lists
+    """
+    session = _get_session(request)
+    workspace = _get_workspace_or_404(session, workspace_id)
+    if not _user_has_workspace_access(user, workspace):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        manager = session.get_workspace_manager()
+        return manager.list_workspace_files(workspace_id, path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Path not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to list files in workspace '%s'", workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ---------------------------------------------------------------------------
-# Workspace files (admin-only: compose file, Dockerfile, scripts, ...)
-# ---------------------------------------------------------------------------
+@router.get("/workspaces/{workspace_id}/files/{file_path:path}", response_model=WorkspaceFileReadResponse)
+def read_workspace_file(
+    workspace_id: str,
+    file_path: str,
+    request: Request = None,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Read a file from a workspace.
+    
+    Path params:
+    - workspace_id: The workspace ID
+    - file_path: Relative path to file within workspace (e.g., "docker-compose.yaml")
+    
+    Returns:
+        WorkspaceFileReadResponse with path and content
+    """
+    session = _get_session(request)
+    workspace = _get_workspace_or_404(session, workspace_id)
+    if not _user_has_workspace_access(user, workspace):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        manager = session.get_workspace_manager()
+        content = manager.read_workspace_file(workspace_id, file_path)
+        return WorkspaceFileReadResponse(path=file_path, content=content)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to read file '%s' in workspace '%s'", file_path, workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/workspaces/{workspace_id}/files")
-def list_workspace_files(workspace_id: str, request: Request, user: CodxUser = Depends(require_admin)):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    workspace_dir = manager.engine.workspace_dir(workspace)
-    if not workspace_dir.exists():
-        return []
-    return sorted(
-        str(f.relative_to(workspace_dir))
-        for f in workspace_dir.rglob("*") if f.is_file()
-    )
 
-
-@router.get("/workspaces/{workspace_id}/file")
-def read_workspace_file(workspace_id: str, path: str, request: Request, user: CodxUser = Depends(require_admin)):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    target = _safe_workspace_file(manager, workspace, path)
-    if not target.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-    return {"path": path, "content": target.read_text()}
-
-
-@router.post("/workspaces/{workspace_id}/file")
+@router.post("/workspaces/{workspace_id}/files/{file_path:path}", response_model=WorkspaceFileWriteResponse)
 def write_workspace_file(
     workspace_id: str,
-    path: str,
-    request: Request,
-    content: str = Body(..., embed=True),
+    file_path: str,
+    body: WorkspaceFileWriteRequest = Body(...),
+    request: Request = None,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Write a file to a workspace.
+    
+    Path params:
+    - workspace_id: The workspace ID
+    - file_path: Relative path to file within workspace (e.g., "docker-compose.yaml")
+    
+    Request body:
+    {
+        "content": "file content here"
+    }
+    
+    Returns:
+        WorkspaceFileWriteResponse with path and status
+    """
+    session = _get_session(request)
+    workspace = _get_workspace_or_404(session, workspace_id)
+    if not _user_has_workspace_access(user, workspace):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        manager = session.get_workspace_manager()
+        manager.write_workspace_file(workspace_id, file_path, body.content)
+        return WorkspaceFileWriteResponse(path=file_path, status="saved")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Workspace not found: {workspace_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to write file '%s' in workspace '%s'", file_path, workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspaces/{workspace_id}/generate-files")
+def regenerate_workspace_files(
+    workspace_id: str,
+    request: Request = None,
     user: CodxUser = Depends(require_admin),
 ):
-    manager = _manager(request)
-    workspace = _get_workspace_or_404(manager, workspace_id)
-    target = _safe_workspace_file(manager, workspace, path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content)
-    return {"path": path, "status": "saved"}
+    """
+    Regenerate Docker and config files for a workspace using AI.
+    
+    This endpoint allows regenerating all workspace configuration files
+    without modifying the workspace definition itself. Useful when you want
+    to update generated files after changing the workspace.
+    
+    Returns:
+        JSON with status and list of generated files
+    """
+    session = _get_session(request)
+    workspace = _get_workspace_or_404(session, workspace_id)
+    
+    try:
+        manager = session.get_workspace_manager()
+        workspace_folder = manager._workspace_folder_path(workspace_id)
+        
+        # Trigger file generation
+        manager._generate_workspace_files(workspace, workspace_folder)
+        
+        return {
+            "status": "success",
+            "message": f"Files generated for workspace '{workspace.name}'",
+            "workspace_id": workspace_id,
+        }
+    except Exception as e:
+        logger.exception("Failed to regenerate files for workspace '%s'", workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))

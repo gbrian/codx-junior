@@ -6,7 +6,6 @@
     <!-- Header toggle -->
     <div
       class="flex items-center gap-2 p-2 cursor-pointer select-none"
-      @click="isOpen = !isOpen"
     >
       <!-- Optional icon slot -->
       <slot name="icon">
@@ -27,7 +26,7 @@
       <slot name="actions"></slot>
 
       <!-- Chevron indicator -->
-      <i
+      <i @click="isOpen = !isOpen"
         class="fa-solid text-xs opacity-50"
         :class="isOpen ? 'fa-chevron-up' : 'fa-chevron-down'"
       ></i>

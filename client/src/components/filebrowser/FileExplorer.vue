@@ -199,6 +199,7 @@ import moment from 'moment'
 <script>
 export default {
   name: 'FileExplorer',
+  props: ['root-path'],
   data() {
     return {
       currentPath: '.',
@@ -319,7 +320,7 @@ export default {
   },
   computed: {
     basePath() {
-      return this.normalizePath(this.$project.abs_project_path)
+      return this.normalizePath(this.rootPath || this.$project.abs_project_path)
     },
     $api() {
       return this.$project.$api

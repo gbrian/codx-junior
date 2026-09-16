@@ -41,6 +41,7 @@ import WorkspaceCreateContent from './WorkspaceCreateContent.vue'
         :templates="templates"
         :all-projects="allProjects"
         :all-users="allUsers"
+        :project="theProject"
         @update-form="updateForm"
       />
     </div>
@@ -142,6 +143,9 @@ export default {
     }
   },
   computed: {
+    theProject() {
+      return this.project || this.$project
+    },
     canProceedToNext() {
       if (this.activeSection === 'workspace') {
         return this.form.template
@@ -163,9 +167,10 @@ export default {
   methods: {
     async loadProjects() {
       try {
-        this.allProjects = await this.project.$api.projects.list() || []
+        this.allProjects = await this.theProject.$api.projects.list() || []
       } catch (error) {
         console.error('Failed to load projects', error)
+        this.$toast.error('Failed to load projects')
       }
     },
     async loadUsers() {
@@ -174,6 +179,7 @@ export default {
         this.allUsers = this.$storex.users.users || []
       } catch (error) {
         console.error('Failed to load users', error)
+        this.$toast.error('Failed to load users')
       }
     },
     initializeFormDefaults() {
@@ -239,13 +245,15 @@ export default {
       if (!this.isFormValid) return
       this.isCreating = true
       try {
-        const workspace = await this.project.$api.projects.workspaces.create({
+        const workspace = await this.theProject.$api.projects.workspaces.create({
           ...this.form,
           status: 'stopped'
         })
+        this.$toast.success(`Workspace "${workspace.name}" created successfully`)
         this.$emit('created', workspace)
       } catch (error) {
-        alert(`Failed to create workspace: ${error.message}`)
+        this.$toast.error(`Failed to create workspace: ${error.message}`)
+        console.error(error)
       } finally {
         this.isCreating = false
       }

@@ -3,6 +3,7 @@ import Login from './components/user/Login.vue'
 import NewProject from './components/project/NewProject.vue'
 import HomeMobile from './views/HomeMobile.vue'
 import TeamView from './views/TeamView.vue'
+import Toast from './components/Toast.vue'
 </script>
 
 <template>
@@ -18,27 +19,8 @@ import TeamView from './views/TeamView.vue'
         <NewProject />
       </modal>
 
-      <!-- Project Loading Overlay -->
-      <!-- ProjectLoadingOverlay 
-        ref="loadingOverlay"
-        data-test="project-loading-overlay"
-        @retry="retryProjectLoad"
-        @cancel="cancelProjectLoad"
-      /-->
-
-      <!-- Notifications Panel -->
-      <div class="hidden absolute top-0 right-0 p-2">
-        <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
-          <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
-            <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] ERROR: {{ notification.text }}</pre>
-          </div>
-        </div>
-        <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md" v-if="infoNotifications.length">
-          <div class="click" v-for="notification in infoNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
-            <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
-          </div>
-        </div>
-      </div>
+      <!-- Toast Notifications -->
+      <Toast ref="toastComponent" />
     </div>
   </div>
   
@@ -86,6 +68,8 @@ export default {
       },
       deep: true
     }
+  },
+  mounted() {
   },
   methods: {
     retryProjectLoad() {

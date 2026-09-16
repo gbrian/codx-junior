@@ -1,127 +1,140 @@
 <script setup>
 import WorkspaceCard from './WorkspaceCard.vue'
 import WorkspaceCreate from './WorkspaceCreate.vue'
+import WorkspaceSettings from './WorkspaceSettings.vue'
 </script>
 
 <template>
   <div class="w-full h-full flex flex-col bg-base-50">
 
-    <!-- Header -->
-    <div class="navbar bg-base-100 border-b border-base-200 sticky top-0 z-40">
-      <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-white">
-            <i class="fa-solid fa-cubes text-lg"></i>
+    <!-- ── Editor View (replaces list when a workspace is being edited) ── -->
+    <WorkspaceSettings
+      v-if="editingWorkspace"
+      :workspace="editingWorkspace"
+      :available-projects="allProjects"
+      :project="theProject"
+      @close="editingWorkspace = null"
+      @save="saveWorkspaceChanges"
+      @delete="deleteWorkspaceConfirm(editingWorkspace)"
+    />
+
+    <!-- ── List View ── -->
+    <template v-else>
+
+      <!-- Header -->
+      <div class="navbar bg-base-100 border-b border-base-200 sticky top-0 z-40">
+        <div class="flex-1">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-white">
+              <i class="fa-solid fa-cubes text-lg"></i>
+            </div>
+            <div>
+              <h1 class="font-bold text-lg">Workspaces</h1>
+              <p class="text-xs text-base-content/50">{{ theProject.project_name }}</p>
+            </div>
           </div>
-          <div>
-            <h1 class="font-bold text-lg">Workspaces</h1>
-            <p class="text-xs text-base-content/50">{{ theProject.project_name }}</p>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="form-control">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search workspaces..."
+              class="input input-sm input-bordered w-48"
+            />
           </div>
-        </div>
-      </div>
-
-      <div class="flex gap-2">
-        <div class="form-control">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search workspaces..."
-            class="input input-sm input-bordered w-48"
-          />
-        </div>
-        <button class="btn btn-primary btn-sm" @click="showCreateDialog = true">
-          <i class="fa-solid fa-plus"></i> New Workspace
-        </button>
-        <button class="btn btn-ghost btn-sm" @click="refreshWorkspaces">
-          <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': isLoading }"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-4">
-      <div v-if="isLoading" class="flex items-center justify-center h-full">
-        <div class="flex flex-col items-center gap-3">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-          <p class="text-base-content/50">Loading workspaces...</p>
-        </div>
-      </div>
-
-      <div v-else-if="filteredWorkspaces.length === 0" class="flex items-center justify-center h-full">
-        <div class="text-center">
-          <i class="fa-solid fa-inbox text-6xl text-base-content/10 mb-4"></i>
-          <h3 class="font-bold text-lg mb-1">No workspaces yet</h3>
-          <p class="text-sm text-base-content/50 mb-4">Create your first workspace to get started</p>
           <button class="btn btn-primary btn-sm" @click="showCreateDialog = true">
-            <i class="fa-solid fa-plus"></i> Create Workspace
+            <i class="fa-solid fa-plus"></i> New Workspace
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="refreshWorkspaces">
+            <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': isLoading }"></i>
           </button>
         </div>
       </div>
 
-      <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <WorkspaceCard
-          v-for="workspace in filteredWorkspaces"
-          :key="workspace.id"
-          :workspace="workspace"
-          :project="theProject"
-          @select="selectedWorkspace = workspace"
-          @edit="editWorkspace(workspace)"
-          @delete="deleteWorkspaceConfirm(workspace)"
-          @start="startWorkspace(workspace)"
-          @stop="stopWorkspace(workspace)"
-        />
-      </div>
-    </div>
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto p-4">
+        <div v-if="isLoading" class="flex items-center justify-center h-full">
+          <div class="flex flex-col items-center gap-3">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-base-content/50">Loading workspaces...</p>
+          </div>
+        </div>
 
-    <!-- Create Dialog -->
-    <WorkspaceCreate
-      v-if="showCreateDialog"
-      :project="theProject"
-      @close="showCreateDialog = false"
-      @created="onWorkspaceCreated"
-    />
+        <div v-else-if="filteredWorkspaces.length === 0" class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <i class="fa-solid fa-inbox text-6xl text-base-content/10 mb-4"></i>
+            <h3 class="font-bold text-lg mb-1">No workspaces yet</h3>
+            <p class="text-sm text-base-content/50 mb-4">Create your first workspace to get started</p>
+            <button class="btn btn-primary btn-sm" @click="showCreateDialog = true">
+              <i class="fa-solid fa-plus"></i> Create Workspace
+            </button>
+          </div>
+        </div>
 
-    <!-- Edit Dialog -->
-    <div v-if="editingWorkspace" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div class="bg-base-100 rounded-xl shadow-2xl w-full max-h-screen overflow-hidden flex flex-col" style="width: 90vw; max-width: 1200px; height: 90vh">
-        <WorkspaceSettings
-          :workspace="editingWorkspace"
-          :available-projects="allProjects"
-          @close="editingWorkspace = null"
-          @save="saveWorkspaceChanges"
-          @delete="deleteWorkspaceConfirm(editingWorkspace)"
-        />
-      </div>
-    </div>
-
-    <!-- Delete Confirmation -->
-    <div v-if="deleteConfirmWorkspace" class="modal modal-open">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg">Delete Workspace?</h3>
-        <p class="py-4 text-sm">
-          Are you sure you want to delete <strong>{{ deleteConfirmWorkspace.name }}</strong>?
-          This action cannot be undone.
-        </p>
-        <div class="modal-action">
-          <button class="btn btn-ghost" @click="deleteConfirmWorkspace = null">Cancel</button>
-          <button class="btn btn-error" @click="confirmDelete">Delete</button>
+        <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <WorkspaceCard
+            v-for="workspace in filteredWorkspaces"
+            :key="workspace.id"
+            :workspace="workspace"
+            :project="theProject"
+            @select="selectedWorkspace = workspace"
+            @edit="editWorkspace(workspace)"
+            @delete="deleteWorkspaceConfirm(workspace)"
+            @start="startWorkspace(workspace)"
+            @stop="stopWorkspace(workspace)"
+          />
         </div>
       </div>
-      <form method="dialog" class="modal-backdrop" @click="deleteConfirmWorkspace = null"></form>
-    </div>
 
-    <!-- Toast notifications -->
-    <div v-if="notification" class="toast toast-top toast-end z-50">
-      <div :class="['alert', notificationClass]">
-        <span>{{ notification }}</span>
+      <!-- Create Dialog -->
+      <WorkspaceCreate
+        v-if="showCreateDialog"
+        :project="theProject"
+        @close="showCreateDialog = false"
+        @created="onWorkspaceCreated"
+      />
+
+      <!-- Delete Confirmation -->
+      <div v-if="deleteConfirmWorkspace" class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg">Delete Workspace?</h3>
+          <p class="py-4 text-sm">
+            Are you sure you want to delete <strong>{{ deleteConfirmWorkspace.name }}</strong>?
+            This action cannot be undone.
+          </p>
+          <div class="modal-action">
+            <button class="btn btn-ghost" @click="deleteConfirmWorkspace = null">Cancel</button>
+            <button class="btn btn-error" @click="confirmDelete">Delete</button>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop" @click="deleteConfirmWorkspace = null"></form>
       </div>
-    </div>
+
+      <!-- Toast notifications -->
+      <div v-if="notification" class="toast toast-top toast-end z-50">
+        <div :class="['alert', notificationClass]">
+          <span>{{ notification }}</span>
+        </div>
+      </div>
+
+    </template>
   </div>
 </template>
 
 <script>
 export default {
-  props: ['project'],
+  props: {
+    project: {
+      default: null
+    },
+    // ADDED: signal from WorkspacesManager to immediately open the create dialog
+    autoOpenCreate: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       workspaces: [],
@@ -150,6 +163,10 @@ export default {
   async mounted() {
     await this.loadWorkspaces()
     await this.loadProjects()
+    // ADDED: auto-open create dialog if requested via menu shortcut
+    if (this.autoOpenCreate) {
+      this.showCreateDialog = true
+    }
   },
   methods: {
     async loadWorkspaces() {
@@ -192,8 +209,11 @@ export default {
       this.showCreateDialog = false
       await this.loadWorkspaces()
       this.showNotification(`Workspace "${workspace.name}" created`, 'alert-success')
+      // ADDED: bubble up to parent (WorkspacesManager)
+      this.$emit('workspace-created', workspace)
     },
     deleteWorkspaceConfirm(workspace) {
+      this.editingWorkspace = null
       this.deleteConfirmWorkspace = workspace
     },
     async confirmDelete() {

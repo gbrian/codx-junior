@@ -284,7 +284,7 @@ export default {
   },
   data() {
     return {
-      limit: 8,
+      limit: 10,
       badgeColor: {
         task: 'primary',
         chat: 'accent'
@@ -322,7 +322,7 @@ export default {
       const { scrollTop, clientHeight, scrollHeight } = e.target
       if (scrollHeight - scrollTop - clientHeight < 40) {
         if (this.limit < this.sortedChats.length) {
-          this.limit += 8
+          this.limit += 10
         }
       }
     },

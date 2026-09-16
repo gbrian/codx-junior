@@ -1,5 +1,6 @@
 <script setup>
 import ChatInputToolbar from './ChatInputToolbar.vue'
+import EmojiPicker from './EmojiPicker.vue'
 </script>
 
 <template>
@@ -16,6 +17,14 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
     @dragleave.prevent="isDraggingOver = false"
     @drop.prevent="onDrop"        
   >
+    <!-- Emoji Picker Popup -->
+    <EmojiPicker
+      v-if="cursorWord.word?.startsWith(':')"
+      class="px-2 md:px-3 py-2 md:py-2 border-b border-base-300/50"
+      :emoji-name="cursorWord.word"
+      @emoji="onEmojiSelected"
+    />
+
     <!-- Textarea — ghost style, expands naturally -->
     <div class="relative px-2 md:px-3 pt-2 md:pt-3">
       <textarea
@@ -27,7 +36,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
         @paste="$emit('paste', $event)"
         @focus="isFocused = true"
         @blur="isFocused = false"
-        @input="autoResize"
+        @input="onInput"
       ></textarea>
     </div>
 
@@ -77,7 +86,8 @@ export default {
     images: { type: Array, default: () => [] },
     voiceLanguageLabel: String,
     profiles: { type: Array, default: () => [] },
-    selectedProfiles: { type: Array, default: () => [] }
+    selectedProfiles: { type: Array, default: () => [] },
+    cursorWord: { type: Object, default: () => ({}) }
   },
   emits: [
     'send', 'add-message', 'search-message', 'cancel-edit', 'model-changed',
@@ -95,6 +105,10 @@ export default {
     onDrop(event) {
       this.isDraggingOver = false
       this.$emit('drop', event)
+    },
+    onInput() {
+      this.autoResize()
+      this.updateCursorWord()
     },
     getEditorText() {
       return this.$refs.editor?.value || ''
@@ -133,6 +147,41 @@ export default {
         word: text.slice(wordStart, caretIndex),
         caretIndex
       }
+    },
+    updateCursorWord() {
+      const wordInfo = this.getCaretWordInfo()
+      this.$emit('update:cursor-word', wordInfo)
+    },
+    onEmojiSelected({ emoji }) {
+      const textarea = this.$refs.editor
+      if (!textarea) return
+
+      const text = textarea.value
+      const caretIndex = textarea.selectionStart
+      
+      // Find the start of the emoji pattern (where ":" is)
+      let emojiStart = caretIndex
+      while (emojiStart > 0 && /\S/.test(text[emojiStart - 1])) {
+        emojiStart--
+      }
+      
+      // Replace the emoji pattern with the actual emoji
+      const newText = text.slice(0, emojiStart) + emoji + text.slice(caretIndex)
+      
+      // Update textarea
+      textarea.value = newText
+      
+      // Set cursor position after the emoji
+      const newCursorPos = emojiStart + emoji.length
+      textarea.selectionStart = newCursorPos
+      textarea.selectionEnd = newCursorPos
+      
+      // Trigger resize and update cursor word tracking
+      this.autoResize()
+      this.updateCursorWord()
+      
+      // Focus editor
+      textarea.focus()
     }
   },
   expose: [

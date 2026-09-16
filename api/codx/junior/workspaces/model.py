@@ -50,6 +50,7 @@ class Workspace(BaseModel):
     use_sysbox: bool = Field(default=False, description="Run with sysbox-runc (systemd + inner Docker)")
     status: WorkspaceStatus = Field(default=WorkspaceStatus.STOPPED)
     updated_at: Optional[str] = Field(default=None)
+    generate_files: Optional[bool] = Field(description="Use AI to generate files.", default=True)
 
     @property
     def slug(self) -> str:

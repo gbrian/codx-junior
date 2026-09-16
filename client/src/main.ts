@@ -6,6 +6,7 @@ import service from "./service"
 
 import App from './App.vue'
 import Modal from './components/Modal.vue'
+import Toast from './components/Toast.vue'
 import router from './router'
 import Markdown from '@/components/Markdown.vue'
 
@@ -64,18 +65,15 @@ const globalMixin = {
     $projects () {
       return $storex.projects
     },
-    // $app reads from live store so it reacts to updateAppParams
     $app () {
       const tabId = this.$props?.params?.params?.app?.tabId
       if (!tabId) return null
       return $storex.ui.openApps[tabId]
     },
-    // $projectId derived from live $app so it updates when params change
     $projectId() {
       return this.$app?.params?.project_id ||
              this.$props?.params?.params?.app?.params?.project_id
     },
-    // $project resolves from live projectId for full reactivity
     $project () {
       return $storex.projects.allProjectsById[this.$projectId] ||
              $storex.projects.activeProject
@@ -104,6 +102,10 @@ const globalMixin = {
     $service () {
       return service
     },
+    // FIXED: restored $toast computed so this.$toast works in all components
+    $toast () {
+      return $storex.toast.toastApi
+    }
   },
   watch: {
   },
@@ -123,6 +125,7 @@ const app = createApp(App)
               .use(VueFinder)
               .component('modal', Modal)
               .component('Markdown', Markdown)
+              .component('Toast', Toast)
               .mount('#app')
 
 $storex.app = app

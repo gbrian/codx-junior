@@ -201,7 +201,7 @@ export default {
     processFiles(files) {
       files.forEach((file, idx) => {
         if (file.size > 50 * 1024 * 1024) {
-          alert(`File ${file.name} exceeds 50MB limit`)
+          this.$toast.error(`File ${file.name} exceeds 50MB limit`)
           return
         }
 
@@ -289,9 +289,12 @@ export default {
         }
 
         this.$emit('uploaded', uploaded)
+        this.$toast.success('Media uploaded successfully')
         this.pendingMedias = []
         this.mediaNames = []
         this.commonTags = ''
+      } catch (error) {
+        this.$toast.error(`Upload failed: ${error.message}`)
       } finally {
         this.uploading = false
       }

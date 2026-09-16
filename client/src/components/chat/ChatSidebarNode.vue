@@ -30,7 +30,11 @@ import ChatIcon from './ChatIcon.vue'
         <!-- Icon + Content -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <ChatIcon :mode="chat.mode" class="text-xs shrink-0" />
+            <!-- Loading indicator or Chat Icon -->
+            <div v-if="isUpdating" class="shrink-0">
+              <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
+            </div>
+            <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
             <span class="font-bold text-sm truncate">{{ chat.name }}</span>
             <span class="text-xs text-base-content/40 shrink-0 tabular-nums">
               {{ chat.messages?.length || 0 }}
@@ -42,7 +46,7 @@ import ChatIcon from './ChatIcon.vue'
         </div>
 
         <!-- Action Buttons (visible on hover) -->
-        <div class="opacity-0 group-hover/node:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
+        <div class="flex items-center gap-1 shrink-0">
           <!-- Plus: Create subtask -->
           <button
             class="btn btn-xs btn-ghost p-0 w-5 h-5"
@@ -98,6 +102,9 @@ export default {
     },
     hasChildren() {
       return this.children.length > 0
+    },
+    isUpdating() {
+      return this.$storex.chats.isChatUpdating(this.chat.id)
     }
   },
   methods: {

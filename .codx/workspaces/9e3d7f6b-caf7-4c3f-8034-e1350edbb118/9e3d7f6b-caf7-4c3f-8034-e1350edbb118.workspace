@@ -1,0 +1,37 @@
+{
+  "id": "9e3d7f6b-caf7-4c3f-8034-e1350edbb118",
+  "name": "test",
+  "description": "",
+  "template": "dev-stack",
+  "folder_path": "test",
+  "project_ids": [
+    "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+  ],
+  "user_ids": [],
+  "apps": [
+    {
+      "id": "",
+      "name": "App",
+      "description": "",
+      "icon": "fa-globe",
+      "path": "/app",
+      "port": 3000,
+      "scheme": "http",
+      "is_vnc": false,
+      "container_name": "",
+      "roles": [
+        "admin"
+      ]
+    }
+  ],
+  "env": {},
+  "resources": {
+    "cpus": "",
+    "memory": "",
+    "shm_size": "512m"
+  },
+  "use_sysbox": false,
+  "status": "stopped",
+  "updated_at": "2026-09-15T16:50:01.343240+00:00",
+  "generate_files": true
+}
