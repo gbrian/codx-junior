@@ -7,7 +7,12 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
 <template>
   <VerticalSplitter :panels="splitterConfig">
     <template #left>
-      <FileExplorer :root-path="rootPath" @open="handleFileOpen" />
+      <FileExplorer
+        ref="fileExplorer"
+        :root-path="rootPath"
+        @open="handleFileOpen"
+        @createFile="handleCreateFile"
+      />
     </template>
 
     <template #right>
@@ -19,7 +24,7 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
 <script>
 export default {
   name: 'FileExplorerPanel',
-  props:['root-path'],
+  props: ['root-path'],
   data() {
     return {
       splitterConfig: {
@@ -41,6 +46,14 @@ export default {
       this.$refs.tabManager.addTab({
         path: fileData.path,
         name: fileData.name
+      })
+    },
+    handleCreateFile(fileData) {
+      this.$refs.tabManager.addTab({
+        path: fileData.path,
+        name: fileData.name,
+        isNew: true,
+        content: ''
       })
     }
   }

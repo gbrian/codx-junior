@@ -117,7 +117,19 @@ class WorkspaceManager:
             f.write(json.dumps(workspace.model_dump(), indent=2))
 
         if workspace.generate_files:
-            self._generate_workspace_files(workspace, workspace_folder)
+            # CHANGED: use asyncio.create_task to schedule in current event loop
+            # instead of threading. This preserves async context throughout.
+            try:
+                asyncio.create_task(self._generate_workspace_files_async(workspace, workspace_folder))
+                logger.info("Scheduled async file generation for workspace '%s'", workspace.name)
+            except RuntimeError:
+                # If no running event loop (e.g., called from sync context),
+                # fall back to background thread execution
+                logger.info(
+                    "No running event loop. Starting file generation in background thread for workspace '%s'",
+                    workspace.name
+                )
+                self._generate_workspace_files_sync(workspace, workspace_folder)
 
         return workspace
 
@@ -248,9 +260,9 @@ class WorkspaceManager:
             for entry in os.listdir(target_path):
                 entry_path = os.path.join(target_path, entry)
                 if os.path.isdir(entry_path):
-                    folders.append(entry_path)
+                    folders.append(entry)
                 else:
-                    files.append(entry_path)
+                    files.append(entry)
             
             logger.info(
                 "Listed %d files, %d folders in workspace %s: %s",
@@ -265,70 +277,79 @@ class WorkspaceManager:
             raise
 
     # -------------------------------------------------------------------------
-    # AI-powered file generation (ADDED)
+    # AI-powered file generation (async-first approach)
     # -------------------------------------------------------------------------
 
-    def _generate_workspace_files(self, workspace: Workspace, workspace_folder: str) -> None:
+    async def _generate_workspace_files_async(
+        self,
+        workspace: Workspace,
+        workspace_folder: str
+    ) -> None:
         """
-        Generate Docker and config files for a workspace using AI.
-        
-        Called during workspace creation. Errors during generation do not block
-        workspace creation but are logged for debugging.
-        
+        Asynchronously generate Docker and config files for a workspace using AI.
+
+        Uses the event loop's native async/await paradigm. No threads, no
+        blocking, no nested event loops.
+
         Args:
             workspace: Workspace object with apps and config.
             workspace_folder: Target folder where files will be saved.
         """
+        # CHANGED: Full async implementation using await, no threading
+        from codx.junior.workspaces.workspace_file_generator import WorkspaceFileGenerator
+
         try:
-            # Lazy import to avoid circular dependencies
-            from codx.junior.workspaces.workspace_file_generator import WorkspaceFileGenerator
-            import asyncio
-            
             generator = WorkspaceFileGenerator(settings=self.settings)
-            
-            # Run async generation in a synchronous context
-            # Note: If this is called from an async context, wrap differently
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # Already in async context, create task for later execution
-                    logger.info(
-                        "Scheduling async workspace file generation for '%s'",
-                        workspace.name
-                    )
-                    # Schedule as a background task (don't await)
-                    asyncio.create_task(
-                        generator.generate_all_files(workspace, workspace_folder)
-                    )
-                    return
-            except RuntimeError:
-                # No event loop, create a new one
-                pass
-            
-            # Run synchronously
             logger.info(
                 "Generating workspace files for '%s' in '%s'",
                 workspace.name,
-                workspace_folder
+                workspace_folder,
             )
-            generated_files = asyncio.run(
-                generator.generate_all_files(workspace, workspace_folder)
-            )
-            
+            generated_files = await generator.generate_all_files(workspace, workspace_folder)
             logger.info(
                 "Successfully generated %d files for workspace '%s'",
                 len(generated_files),
-                workspace.name
+                workspace.name,
             )
-            
         except Exception as ex:
-            # Log but don't raise — file generation is best-effort
             logger.warning(
                 "Failed to generate workspace files for '%s': %s. "
                 "Workspace created but without Docker/config files.",
                 workspace.name,
-                ex
+                ex,
             )
+
+    def _generate_workspace_files_sync(
+        self,
+        workspace: Workspace,
+        workspace_folder: str
+    ) -> None:
+        """
+        Fallback synchronous generation for when called from non-async context.
+
+        Runs the async generator in a new event loop (background thread).
+        This preserves backward compatibility for sync callers.
+
+        Args:
+            workspace: Workspace object with apps and config.
+            workspace_folder: Target folder where files will be saved.
+        """
+        import threading
+
+        def _run_in_thread():
+            # Create a new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(
+                    self._generate_workspace_files_async(workspace, workspace_folder)
+                )
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=_run_in_thread, daemon=True)
+        thread.start()
+        logger.info("Started background file generation thread for workspace '%s'", workspace.name)
 
     # -------------------------------------------------------------------------
     # Internal

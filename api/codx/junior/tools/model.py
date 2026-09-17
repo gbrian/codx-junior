@@ -7,7 +7,8 @@ Made with ❤️ by codx-junior
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel, Field
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -41,3 +42,44 @@ class ToolResponse:
     def __str__(self) -> str:
         """Return the LLM feedback (for backward compatibility)."""
         return self.llm_response
+
+
+class ToolSettings(BaseModel):
+    """
+    Configuration settings for tool execution and visibility.
+    
+    Controls how a tool behaves in the agent runtime, including async handling,
+    parameter injection, response structure, and scope visibility.
+    
+    Attributes:
+        is_async: Whether the tool is async-capable (default: False).
+        project_settings: Inject CODXJuniorSettings parameter (default: False).
+        session: Inject session parameter (default: False).
+        scope: Tool visibility scope: 'global' (always available) or 'chat' 
+               (optional per conversation). Default: 'chat'.
+        dual_response: Tool returns ToolResponse with user_response and 
+                      llm_response (default: False).
+    """
+    
+    is_async: bool = Field(
+        default=False,
+        alias="async",
+        description="If True, the tool is async and must be awaited"
+    )
+    project_settings: bool = Field(
+        default=False,
+        description="If True, inject CODXJuniorSettings as 'settings' parameter"
+    )
+    session: bool = Field(
+        default=False,
+        description="If True, inject current session as 'session' parameter"
+    )
+    scope: str = Field(
+        default="chat",
+        description="Tool scope: 'global' (always available) or 'chat' (optional)"
+    )
+    dual_response: bool = Field(
+        default=False,
+        description="If True, tool returns ToolResponse with user_response and llm_response"
+    )
+    

@@ -1,5 +1,6 @@
 <script setup>
 import moment from 'moment'
+import ContextMenu from './ContextMenu.vue'
 </script>
 
 <template>
@@ -92,6 +93,7 @@ import moment from 'moment'
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
+      @contextmenu.prevent="onContextMenu"
       :class="isDragOverBlank && 'bg-blue-50 dark:bg-blue-900 border-blue-400'"
     >
       <div class="flex items-center justify-center h-32" v-if="loading">
@@ -119,6 +121,7 @@ import moment from 'moment'
             isDragOverFolder === entryPath(entry) && entry.is_dir && 'bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-400'
           ]"
           @click="handleEntryClick(entry, $event)"
+          @contextmenu.prevent.stop="onEntryContextMenu($event, entry)"
           @dragstart="onDragStart($event, entry)"
           @dragend="onDragEnd"
           @dragover.prevent="onDragOverEntry($event, entry)"
@@ -193,12 +196,27 @@ import moment from 'moment'
         </button>
       </div>
     </div>
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :isVisible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :hasSelection="selectedEntries.length > 0"
+      :isMultiSelect="selectedEntries.length > 1"
+      :selectionCount="selectedEntries.length"
+      @create="handleContextCreate"
+      @rename="handleContextRename"
+      @delete="handleContextDelete"
+    />
   </div>
 </template>
 
 <script>
+import ContextMenu from './ContextMenu.vue'
+
 export default {
   name: 'FileExplorer',
+  components: { ContextMenu },
   props: ['root-path'],
   data() {
     return {
@@ -223,8 +241,10 @@ export default {
       uploadProgressBytes: 0,
       uploadTotalBytes: 0,
       uploadingFileName: '',
+      contextMenuVisible: false,
+      contextMenuPosition: { x: 0, y: 0 },
+      contextMenuEntry: null,
       extensionIconMap: {
-        // Code files
         'js': 'fa-brands fa-js text-yellow-500',
         'ts': 'fa-brands fa-js text-blue-500',
         'jsx': 'fa-brands fa-react text-blue-400',
@@ -241,7 +261,6 @@ export default {
         'rs': 'fa-regular fa-file-code text-orange-600',
         'swift': 'fa-brands fa-swift text-orange-500',
         'kt': 'fa-regular fa-file-code text-purple-600',
-        // Markup & Style
         'html': 'fa-brands fa-html5 text-orange-600',
         'css': 'fa-brands fa-css3-alt text-blue-500',
         'scss': 'fa-brands fa-sass text-pink-600',
@@ -253,15 +272,12 @@ export default {
         'yml': 'fa-regular fa-file-code text-red-600',
         'toml': 'fa-regular fa-file-code text-orange-700',
         'svg': 'fa-regular fa-file-image text-orange-400',
-        // Templates
         'ejs': 'fa-regular fa-file-code text-yellow-600',
         'hbs': 'fa-regular fa-file-code text-orange-700',
         'pug': 'fa-regular fa-file-code text-brown-600',
-        // Databases
         'sql': 'fa-solid fa-database text-blue-600',
         'db': 'fa-solid fa-database text-slate-600',
         'sqlite': 'fa-solid fa-database text-blue-400',
-        // Documents
         'md': 'fa-brands fa-markdown text-slate-600',
         'txt': 'fa-regular fa-file-lines text-slate-500',
         'pdf': 'fa-solid fa-file-pdf text-red-600',
@@ -271,7 +287,6 @@ export default {
         'xlsx': 'fa-solid fa-file-excel text-green-600',
         'ppt': 'fa-solid fa-file-powerpoint text-orange-600',
         'pptx': 'fa-solid fa-file-powerpoint text-orange-600',
-        // Media
         'png': 'fa-regular fa-file-image text-pink-500',
         'jpg': 'fa-regular fa-file-image text-pink-500',
         'jpeg': 'fa-regular fa-file-image text-pink-500',
@@ -291,28 +306,23 @@ export default {
         'aac': 'fa-regular fa-file-audio text-purple-500',
         'wma': 'fa-regular fa-file-audio text-purple-500',
         'ogg': 'fa-regular fa-file-audio text-purple-500',
-        // Archives
         'zip': 'fa-regular fa-file-zipper text-slate-600',
         'rar': 'fa-regular fa-file-zipper text-slate-600',
         'tar': 'fa-regular fa-file-zipper text-slate-600',
         'gz': 'fa-regular fa-file-zipper text-slate-600',
         '7z': 'fa-regular fa-file-zipper text-slate-600',
         'bz2': 'fa-regular fa-file-zipper text-slate-600',
-        // Config
         'env': 'fa-solid fa-gear text-slate-500',
         'config': 'fa-solid fa-gear text-slate-500',
         'conf': 'fa-solid fa-gear text-slate-500',
         'ini': 'fa-solid fa-gear text-slate-500',
-        // Shell
         'sh': 'fa-solid fa-terminal text-slate-700',
         'bash': 'fa-solid fa-terminal text-slate-700',
         'zsh': 'fa-solid fa-terminal text-slate-700',
         'fish': 'fa-solid fa-terminal text-slate-700',
         'bat': 'fa-solid fa-terminal text-slate-700',
-        // Version Control
         'git': 'fa-brands fa-git-alt text-orange-600',
         'gitignore': 'fa-brands fa-git-alt text-orange-600',
-        // Other
         'lock': 'fa-solid fa-lock text-amber-600',
         'key': 'fa-solid fa-key text-yellow-600'
       }
@@ -365,6 +375,10 @@ export default {
   },
   mounted() {
     this.loadDir(this.basePath)
+    document.addEventListener('click', this.closeContextMenu)
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeContextMenu)
   },
   methods: {
     normalizePath(path) {
@@ -610,6 +624,92 @@ export default {
       const modified = moment(timestamp)
       const daysDiff = moment().diff(modified, 'days')
       return daysDiff < 5 ? modified.fromNow() : modified.format('MMM DD, YYYY')
+    },
+    onContextMenu(event) {
+      this.contextMenuPosition = {
+        x: event.clientX,
+        y: event.clientY
+      }
+      this.contextMenuEntry = null
+      this.contextMenuVisible = true
+    },
+    onEntryContextMenu(event, entry) {
+      if (!this.isEntrySelected(entry)) {
+        this.clearSelection()
+        this.addSelection(entry)
+      }
+      this.contextMenuPosition = {
+        x: event.clientX,
+        y: event.clientY
+      }
+      this.contextMenuEntry = entry
+      this.contextMenuVisible = true
+    },
+    closeContextMenu() {
+      this.contextMenuVisible = false
+    },
+    async handleContextCreate({ isDir }) {
+      this.closeContextMenu()
+      const parentPath = this.getAbsolutePath(this.currentPath)
+      const baseName = isDir ? 'new-folder' : 'new-file'
+      let newName = baseName
+      let counter = 1
+      const existingNames = this.entries.map(e => e.name)
+      while (existingNames.includes(newName)) {
+        newName = `${baseName}-${counter++}`
+      }
+      const newPath = this.normalizePath(`${parentPath}/${newName}`)
+      try {
+        await this.$api.files.create(newPath, isDir)
+        if (!isDir) {
+          this.$emit('createFile', {
+            path: newPath,
+            name: newName,
+            isNew: true
+          })
+        } else {
+          await this.refresh()
+        }
+      } catch (error) {
+        console.error('Error creating file/folder', error)
+        this.error = `Failed to create ${isDir ? 'folder' : 'file'}: ${error.message}`
+      }
+    },
+    async handleContextRename() {
+      this.closeContextMenu()
+      if (this.selectedEntries.length !== 1) return
+      const entry = this.selectedEntries[0]
+      const oldName = entry.name
+      const newName = prompt('Enter new name:', oldName)
+      if (!newName || newName === oldName) return
+      const oldPath = this.entryPath(entry)
+      const parentPath = oldPath.substring(0, oldPath.lastIndexOf('/'))
+      const newPath = this.normalizePath(`${parentPath}/${newName}`)
+      try {
+        await this.$api.files.rename(oldPath, newPath)
+        await this.refresh()
+      } catch (error) {
+        console.error('Error renaming file', error)
+        this.error = `Failed to rename file: ${error.message}`
+      }
+    },
+    async handleContextDelete() {
+      this.closeContextMenu()
+      if (this.selectedEntries.length === 0) return
+      const count = this.selectedEntries.length
+      const message = count === 1
+        ? `Delete "${this.selectedEntries[0].name}"?`
+        : `Delete ${count} items?`
+      if (!confirm(message)) return
+      try {
+        for (const entry of this.selectedEntries) {
+          await this.$api.files.delete(this.entryPath(entry))
+        }
+        await this.refresh()
+      } catch (error) {
+        console.error('Error deleting files', error)
+        this.error = `Failed to delete items: ${error.message}`
+      }
     },
     onDragStart(event, entry) {
       this.draggedEntry = entry

@@ -1,5 +1,4 @@
 <script setup>
-import ChatIcon from './ChatIcon.vue'
 import ChatSidebarNode from './ChatSidebarNode.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ProfileCard from '../ProfileCard.vue'
@@ -9,14 +8,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
 <template>
   <div :class="[
-    'border-r border-base-300 bg-base-100 flex flex-col h-full overflow-hidden',
+    'border-r border-base-300 bg-base-100 flex flex-col h-full overflow-hidden relative',
     'md:border-r md:border-base-300',
     isCompact ? 'w-20 md:w-20' : 'w-64 md:w-64',
     $ui?.isMobile && !isCompact ? 'shadow-lg' : ''
   ]"
     @click="isCompact && $emit('toggle-compact')"
   >
-    
+
     <!-- Parent Content Controls (When Selected Chat is a Child Task) -->
     <div v-if="!isCompact && isSelectedChatChild" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
       <div class="text-xs font-semibold text-base-content/60 uppercase">Parent Content</div>
@@ -56,7 +55,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         @click="selectChat(rootChat)"
       >
         <!-- Project Selector -->
-        <div class="mb-2 z-50 w-full">
+        <div v-if="!isCompact" class="mb-2 z-50 w-full">
           <ProjectDetailt
             :iconify="false"
             :modelValue="targetProject"
@@ -74,15 +73,16 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <div v-if="!isCompact && rootChat.description" class="text-xs text-base-content/60 line-clamp-2">
           {{ rootChat.description }}
         </div>
-        <button 
+      <button 
+          v-if="!isCompact"
           class="mt-2 btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
-          title="Create new subtask"
-          @click="$emit('add-subtask', rootChat)"
-        >
-          <i class="fa-solid fa-plus"></i>
-          <span v-if="!isCompact">New task</span>
-        </button>
-      </div>
+        title="Create new subtask"
+        @click="$emit('add-subtask', rootChat)"
+      >
+        <i class="fa-solid fa-plus"></i>
+        <span>New task</span>
+      </button>
+    </div>
     </div>
 
     <!-- Hierarchy Tree -->
@@ -99,7 +99,21 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         @delete-chat="$emit('delete-chat', $event)"
       />
     </div>
-    <div v-else class="grow"></div>
+    
+    <!-- Compact Mode: Collapsed Icons -->
+    <div v-else class="flex-1 overflow-y-auto p-2 space-y-2 flex flex-col items-center">
+      <ChatSidebarNode
+        v-for="child in rootChildren"
+        :key="child.id"
+        :chat="child"
+        :allChats="allChats"
+        :selectedChatId="selectedChatId"
+        :isCompact="isCompact"
+        @select="selectChat"
+        @add-subtask="$emit('add-subtask', $event)"
+        @delete-chat="$emit('delete-chat', $event)"
+      />
+    </div>
 
     <ChatAttachmentPreview
       :attachments="workingChat.attachments"
@@ -131,29 +145,37 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     </div>
 
     <!-- Footer: Actions -->
-    <div class="border-t border-base-300 p-2 md:p-3 space-y-1 shrink-0">
+    <div class="border-t border-base-300 p-3 space-y-1 shrink-0">
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
+        @click="$emit('action', { type: 'logs' })"
+        title="View AI logs"
+      >
+        <i class="fa-solid fa-file-lines"></i> AI Logs
+      </button>
+      <button 
+        v-if="!isCompact"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
         @click="$emit('action', { type: 'timeline' })"
       >
         <i class="fa-solid fa-timeline"></i> Timeline
       </button>
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
         @click="$emit('action', { type: 'export' })"
       >
         <i class="fa-solid fa-download"></i> Export
       </button>
       <button 
         v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2 text-xs"
+        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
         @click="$emit('action', { type: 'settings' })"
       >
         <i class="fa-solid fa-gear"></i> Settings
       </button>
-
+      
       <!-- Compact Toggle Button -->
       <button 
         class="btn btn-xs btn-block btn-ghost justify-center gap-2"
@@ -161,7 +183,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         @click.stop="$emit('toggle-compact')"
       >
         <i :class="isCompact ? 'fa-solid fa-arrow-right' : 'fa-solid fa-arrow-left'"></i>
-        <span v-if="!isCompact" class="text-xs">Compact</span>
+        <span v-if="!isCompact">Compact</span>
       </button>
     </div>
   </div>

@@ -9,6 +9,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 import ChatSidebar from '@/components/chat/ChatSidebar.vue'
 import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
+import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 </script>
 
 <template>
@@ -191,6 +192,11 @@ import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
       <ExportChat :chat="workingChat" @close="showExportChat = false" />
     </modal>
 
+    <!-- AI Logs Modal -->
+    <modal class="w-4/5 h-4/5" close="true" @close="showChatLogs = false" v-if="showChatLogs">
+      <ChatLogsPanel :chatId="workingChat?.id" />
+    </modal>
+
     <modal close="true" @close="showChatSelector = false" v-if="showChatSelector">
       <ChatSelector />
     </modal>
@@ -215,6 +221,7 @@ export default {
       showSubtaskModal: false,
       showSubtasksModal: false,
       showTaskSettings: false,
+      showChatLogs: false,
       subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
@@ -624,6 +631,7 @@ ${this.subtaskDescription}`
     handleSidebarAction(action) {
       const handlers = {
         'timeline': () => this.toggleHistoryWall(),
+        'logs': () => this.showChatLogs = true,
         'new-subtask': () => this.newSubChat(),
         'create-subtasks': () => this.showSubtasksModal = true,
         'link-chats': () => this.showChatSelector = true,

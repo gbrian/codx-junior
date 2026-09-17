@@ -232,7 +232,7 @@ const initializeAPI = ({ project, user } = {}) => {
       async list(withMetrics) {
         const { projects, workspaces } = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`)
         API.allProjects = projects
-        API.workspaces = workspaces
+        API.allWorkspaces = workspaces
         API.allProjects.forEach(p => {
           const projectPath = p.abs_project_path
           p.parentProject = API.allProjects
@@ -278,56 +278,12 @@ const initializeAPI = ({ project, user } = {}) => {
         const data = await API.get('/api/projects/metrics')
         return data
       },
-    workspaces: {
-        async list() {
-          return API.get('/api/workspaces')
-        },
-        async get(workspaceId) {
-          return API.get(`/api/workspaces/${workspaceId}`)
-        },
-        async create(workspace) {
-          return API.post('/api/workspaces', workspace)
-        },
-        async update(workspace, reprovision = false) {
-          return API.put(`/api/workspaces?reprovision=${reprovision ? 1 : 0}`, workspace)
-        },
-        async delete(workspaceId) {
-          return API.del(`/api/workspaces/${workspaceId}`)
-        },
-        templates: {
-          async list() {
-            return API.get('/api/workspaces/templates')
-          }
-        },
-        lifecycle: {
-          async start(workspaceId) {
-            return API.post(`/api/workspaces/${workspaceId}/start`, {})
-          },
-          async stop(workspaceId) {
-            return API.post(`/api/workspaces/${workspaceId}/stop`, {})
-          },
-          async status(workspaceId) {
-            return API.get(`/api/workspaces/${workspaceId}/status`)
-          },
-          async logs(workspaceId, tail = 200) {
-            return API.get(`/api/workspaces/${workspaceId}/logs?tail=${tail}`)
-          }
-        },
-        files: {
-          async list(workspaceId) {
-            return API.get(`/api/workspaces/${workspaceId}/files`)
-          },
-          async read(workspaceId, filePath) {
-            return API.get(`/api/workspaces/${workspaceId}/file?path=${encodeURIComponent(filePath)}`)
-          },
-          async write(workspaceId, filePath, content) {
-            return API.post(`/api/workspaces/${workspaceId}/file?path=${encodeURIComponent(filePath)}`, 
-              { content }, 
-              { embedBody: true }
-            )
-          }
+      get workspaces() {
+        if (!API._workspaceModule) {
+          API._workspaceModule = workspacesModule(API)
         }
-      }
+        return API._workspaceModule
+      },
     },
 
     github: {

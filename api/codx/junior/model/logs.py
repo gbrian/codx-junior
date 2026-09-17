@@ -7,57 +7,57 @@ These models reflect the exact schema written by
 
 Diagram:
 --------
-```mermaid
-classDiagram
-    class RawLogRecord {
-        +str log_id
-        +str timestamp
-        +str direction
-        +str status
-        +str request_id
-        +Optional[str] parent_request_id
-        +str provider
-        +str model
-        +str base_url
-        +str username
-        +str project
-        +Optional[str] session_id
-        +str tags
-        +Optional[float] duration_seconds
-        +Optional[RawLogPayload] payload
-    }
+    ```mermaid
+    classDiagram
+        class RawLogRecord {
+            +str log_id
+            +str timestamp
+            +str direction
+            +str status
+            +str request_id
+            +Optional[str] parent_request_id
+            +str provider
+            +str model
+            +str base_url
+            +str username
+            +str project
+            +Optional[str] session_id
+            +str tags
+            +Optional[float] duration_seconds
+            +Optional[RawLogPayload] payload
+        }
 
-    class RequestPayload {
-        +Dict kwargs
-        +List messages
-    }
+        class RequestPayload {
+            +Dict kwargs
+            +List messages
+        }
 
-    class ResponsePayload {
-        +str content
-        +Optional[str] finish_reason
-        +Dict tool_calls
-    }
+        class ResponsePayload {
+            +str content
+            +Optional[str] finish_reason
+            +Dict tool_calls
+        }
 
-    class ErrorPayload {
-        +str error_type
-        +str error_message
-    }
+        class ErrorPayload {
+            +str error_type
+            +str error_message
+        }
 
-    class RawLogPayload {
-        +Optional[Dict] kwargs
-        +Optional[List] messages
-        +Optional[str] content
-        +Optional[str] finish_reason
-        +Optional[Dict] tool_calls
-        +Optional[str] error_type
-        +Optional[str] error_message
-    }
+        class RawLogPayload {
+            +Optional[Dict] kwargs
+            +Optional[List] messages
+            +Optional[str] content
+            +Optional[str] finish_reason
+            +Optional[Dict] tool_calls
+            +Optional[str] error_type
+            +Optional[str] error_message
+        }
 
-    RawLogRecord --> RawLogPayload
-    RawLogPayload --|> RequestPayload : request direction
-    RawLogPayload --|> ResponsePayload : response direction
-    RawLogPayload --|> ErrorPayload : error status
-```
+        RawLogRecord --> RawLogPayload
+        RawLogPayload --|> RequestPayload : request direction
+        RawLogPayload --|> ResponsePayload : response direction
+        RawLogPayload --|> ErrorPayload : error status
+    ```
 """
 
 from typing import Any, Dict, List, Optional
@@ -307,3 +307,106 @@ class PurgeResponse(BaseModel):
 
     ok: bool
     deleted: int = Field(description="Number of log records deleted.")
+
+
+# ── Chat Log Summary Models ────────────────────────────────────────────────────
+
+class ChatLogStatusDistribution(BaseModel):
+    """Distribution of log record statuses."""
+    success: int = Field(default=0, description="Number of successful requests/responses.")
+    error: int = Field(default=0, description="Number of failed requests/responses.")
+    cancelled: int = Field(default=0, description="Number of cancelled requests/responses.")
+
+
+class ChatLogTokenStats(BaseModel):
+    """Estimated token usage statistics from log records."""
+    total_estimated_input_tokens: int = Field(
+        default=0,
+        description="Estimated total input tokens (based on message/request payload sizes)."
+    )
+    total_estimated_output_tokens: int = Field(
+        default=0,
+        description="Estimated total output tokens (based on response payload sizes)."
+    )
+    total_estimated_tokens: int = Field(
+        default=0,
+        description="Sum of estimated input and output tokens."
+    )
+
+
+class ChatLogModelUsage(BaseModel):
+    """Model and provider usage statistics."""
+    model: str = Field(description="Model name.")
+    provider: str = Field(description="Provider identifier (e.g. 'openai').")
+    request_count: int = Field(default=0, description="Number of requests using this model/provider.")
+    total_duration_seconds: float = Field(default=0.0, description="Total duration across all requests.")
+
+
+class ChatLogSummary(BaseModel):
+    """
+    Summary of all AI logs associated with a single chat.
+
+    Aggregates request/response pairs, token estimates, status distribution,
+    and model usage statistics from the raw log records.
+    """
+    chat_id: str = Field(description="The chat ID for which this summary was generated.")
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Session ID used to lookup logs (may differ from chat_id)."
+    )
+    total_log_records: int = Field(
+        default=0,
+        description="Total number of log records (requests + responses + errors)."
+    )
+    total_requests: int = Field(
+        default=0,
+        description="Number of AI request records logged."
+    )
+    total_responses: int = Field(
+        default=0,
+        description="Number of response/error records logged."
+    )
+    status_distribution: ChatLogStatusDistribution = Field(
+        default_factory=ChatLogStatusDistribution,
+        description="Breakdown of statuses across all log records."
+    )
+    token_stats: ChatLogTokenStats = Field(
+        default_factory=ChatLogTokenStats,
+        description="Estimated token usage across all logs."
+    )
+    total_duration_seconds: float = Field(
+        default=0.0,
+        description="Total wall-clock time for all AI calls."
+    )
+    average_request_duration_seconds: Optional[float] = Field(
+        default=None,
+        description="Average duration per request (only when responses exist)."
+    )
+    model_usage: List[ChatLogModelUsage] = Field(
+        default_factory=list,
+        description="Breakdown of models and providers used."
+    )
+    first_timestamp: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 timestamp of the earliest log record."
+    )
+    last_timestamp: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 timestamp of the latest log record."
+    )
+    has_errors: bool = Field(
+        default=False,
+        description="True if any error or cancelled records exist."
+    )
+    error_details: List[str] = Field(
+        default_factory=list,
+        description="List of error messages from failed/cancelled requests (first 5)."
+    )
+    fallback_used: bool = Field(
+        default=False,
+        description="True if logs were queried using fallback strategy (no session_id or date range)."
+    )
+    fallback_reason: Optional[str] = Field(
+        default=None,
+        description="Explanation of why fallback was needed (e.g. 'no session_id set')."
+    )

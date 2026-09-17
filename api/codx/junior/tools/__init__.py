@@ -27,9 +27,10 @@ from .project_tools import project_search, project_read_file, project_write_file
 from .project_structure import project_structure
 from .code_writer import code_writer
 from .code_block_generator import code_block_generator
-from .generate_tasks_tool import generate_tasks_tool
+from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
+from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
 from .apply_file_changes import apply_file_changes
-from .git_tools import get_file_last_version  # NEW IMPORT
+from .git_tools import get_file_last_version
 from .image_tools import explain_image, generate_image
 from .tutorial_tools import (
     tutorial_definition,
@@ -37,15 +38,16 @@ from .tutorial_tools import (
     modify_chapter,
     delete_chapter,
 )
-from .model import ToolResponse
+from .model import ToolResponse, ToolSettings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Export ToolResponse for external use
+# Export public API
 __all__ = [
     "TOOLS",
     "ToolResponse",
+    "ToolSettings",
     "fetch_webpage",
     "project_search",
     "project_read_file",
@@ -53,7 +55,8 @@ __all__ = [
     "project_structure",
     "code_writer",
     "code_block_generator",
-    "generate_tasks_tool",
+    "create_task",
+    "process_task",
     "apply_file_changes",
     "explain_image",
     "generate_image",
@@ -61,7 +64,7 @@ __all__ = [
     "create_chapter",
     "modify_chapter",
     "delete_chapter",
-    "get_file_last_version",  # NEW
+    "get_file_last_version",
     "test_tool",
 ]
 
@@ -109,7 +112,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "scope": "chat"},
+        "settings": ToolSettings(scope="chat").dict(),
         "tags": ["content", "web", "research", "external-data"],
         "tool_call": fetch_webpage
     },
@@ -146,7 +149,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["project", "search", "navigation", "discovery"],
         "tool_call": project_search
     },
@@ -179,7 +182,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["project", "file-operations", "read", "content-access"],
         "tool_call": project_read_file
     },
@@ -208,7 +211,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["project", "file-operations", "write", "create", "modification"],
         "tool_call": project_write_file
     },
@@ -255,7 +258,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["project", "file-operations", "edit", "modification", "advanced"],
         "tool_call": apply_file_changes
     },
@@ -288,35 +291,21 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["project", "navigation", "structure", "overview"],
         "tool_call": project_structure
     },
     {
-        "tool_json": {
-            "type": "function",
-            "function": {
-                "name": "generate_tasks_tool",
-                "description": "Generate sub-tasks from the current chat by analyzing its context and splitting it into actionable tasks. Each sub-task becomes a separate chat connected to the parent.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "instructions": {
-                            "type": "string",
-                            "description": "Optional additional instructions to guide the AI in creating sub-tasks (e.g., 'Focus on frontend tasks' or 'Split by component')."
-                        }
-                    },
-                    "required": []
-                }
-            }
-        },
-        "settings": {
-            "async": False,
-            "scope": "chat",
-            "dual_response": True,
-        },
-        "tags": ["task-management", "organization", "workflow", "planning"],
-        "tool_call": generate_tasks_tool
+        "tool_json": CREATE_TASK_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["task-management", "creation", "workflow"],
+        "tool_call": create_task
+    },
+    {
+        "tool_json": PROCESS_TASK_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["task-management", "processing", "workflow"],
+        "tool_call": process_task
     },
     {
         "tool_json": {
@@ -336,7 +325,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["content", "image", "analysis", "vision"],
         "tool_call": explain_image
     },
@@ -366,7 +355,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["content", "image", "generation", "creative"],
         "tool_call": generate_image
     },
@@ -381,7 +370,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat"},
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["code", "generation", "writing"],
         "tool_call": code_writer
     },
@@ -403,7 +392,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": False},
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["tutorial", "organization", "retrieval", "structure"],
         "tool_call": tutorial_definition
     },
@@ -442,7 +431,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["tutorial", "organization", "creation", "modification"],
         "tool_call": create_chapter
     },
@@ -481,7 +470,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["tutorial", "organization", "modification"],
         "tool_call": modify_chapter
     },
@@ -503,7 +492,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "project_settings": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["tutorial", "organization", "deletion", "modification"],
         "tool_call": delete_chapter
     },
@@ -540,7 +529,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": False, "session": True, "scope": "chat", "dual_response": True},
+        "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "history", "file-operations"],
         "tool_call": get_file_last_version
     }

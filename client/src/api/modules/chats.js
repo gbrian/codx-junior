@@ -90,6 +90,10 @@ export const chatsModule = (API) => ({
     return API.post(`/api/chat/cancel`, { token_id: cancellationTokenId })
   },
 
+  async getChatLogs({ id }) {
+    return API.get(`/api/chats/logs?chat_id=${id}`)
+  },
+
   // ── Message Archive Endpoints ──────────────────────────────────────────
 
   async getArchivedMessages(chatId, filters = {}) {

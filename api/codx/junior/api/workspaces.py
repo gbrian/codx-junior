@@ -260,6 +260,8 @@ def regenerate_workspace_files(
     Returns:
         JSON with status and list of generated files
     """
+    import asyncio
+    
     session = _get_session(request)
     workspace = _get_workspace_or_404(session, workspace_id)
     
@@ -267,12 +269,19 @@ def regenerate_workspace_files(
         manager = session.get_workspace_manager()
         workspace_folder = manager._workspace_folder_path(workspace_id)
         
-        # Trigger file generation
-        manager._generate_workspace_files(workspace, workspace_folder)
+        # CHANGED: Use asyncio.create_task for async-first file generation,
+        # with fallback to sync when no event loop is running
+        try:
+            asyncio.create_task(manager._generate_workspace_files_async(workspace, workspace_folder))
+            logger.info("Scheduled async file generation for workspace '%s'", workspace.name)
+        except RuntimeError:
+            # No running event loop; use sync fallback
+            manager._generate_workspace_files_sync(workspace, workspace_folder)
+            logger.info("Using sync file generation for workspace '%s'", workspace.name)
         
         return {
             "status": "success",
-            "message": f"Files generated for workspace '{workspace.name}'",
+            "message": f"Files generation started for workspace '{workspace.name}'",
             "workspace_id": workspace_id,
         }
     except Exception as e:

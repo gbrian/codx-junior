@@ -115,6 +115,16 @@
           "path": "/codx/junior/mentions/mention_manager.py",
           "slug": "mention-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/mention-manager.md"
+        },
+        {
+          "path": "/codx/junior/tools/process_task_tool.py",
+          "slug": "process-task-tool.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/process-task-tool.md"
+        },
+        {
+          "path": "/codx/junior/tools/create_task_tool.py",
+          "slug": "create-task-tool.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/create-task-tool.md"
         }
       ],
       "id": "project-overview",

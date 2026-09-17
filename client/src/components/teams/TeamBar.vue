@@ -4,7 +4,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
 </script>
 
 <template>
-  <div class="flex flex-col h-full shrink-0 transition-all duration-300" :class="isCollapsed ? 'w-0 overflow-hidden' : 'w-64'">
+  <div class="flex flex-col h-full overflow-hidden shrink-0 transition-all duration-300" :class="isCollapsed ? 'w-0' : 'w-64'">
     
     <!-- Header with collapse button -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-base-content/10 bg-base-200">

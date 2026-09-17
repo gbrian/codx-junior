@@ -169,7 +169,7 @@ export default {
       selectedTags: [],
       toolDropdownValue: '',
       tagDropdownValue: '',
-      searchKeys: ['name', 'description', 'category', 'file_match', 'content', 'llm_model', 'user', 'tags'],
+      searchKeys: ['name', 'description', 'llm_model', 'tools', 'content'],
       loadingProfile: false,
       loadingProfiles: false,
       tools: []
@@ -202,9 +202,15 @@ export default {
       
       return (this.profiles || []).filter(profile => {
         try {
-          // Search filter: check if profile matches search query
+          // Search filter: check if profile matches search query across specified keys
           const searchMatch = !filter || this.searchKeys
-            .map(k => Array.isArray(profile[k]) ? profile[k].join(' ') : (profile[k] || ''))
+            .map(k => {
+              const value = profile[k]
+              if (Array.isArray(value)) {
+                return value.join(' ')
+              }
+              return value || ''
+            })
             .join(' ')
             .toLowerCase()
             .includes(filter)

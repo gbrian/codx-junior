@@ -11,7 +11,8 @@ import WorkspaceStatusBadge from './WorkspaceStatusBadge.vue'
       <div class="flex items-start justify-between mb-2">
         <div class="flex-1">
           <h2 class="card-title text-base">{{ workspace.name }}</h2>
-          <p class="text-xs text-base-content/50">{{ workspace.folder_path }}</p>
+          <!-- CHANGED: show id instead of folder_path -->
+          <p class="text-xs text-base-content/40 font-mono">{{ workspace.id }}</p>
         </div>
         <WorkspaceStatusBadge :status="workspace.status" />
       </div>

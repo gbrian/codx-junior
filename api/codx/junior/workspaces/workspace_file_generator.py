@@ -176,7 +176,8 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert Docker and DevOps engineer."),
                 HumanMessage(content=prompt_content),
             ]
-            response = ai.chat(messages=messages)
+            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
+            response = await ai.a_chat(messages=messages)
             content = response[-1].content.strip()
             
             # Clean up any markdown code fences
@@ -223,7 +224,8 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert Docker and DevOps engineer."),
                 HumanMessage(content=prompt_content),
             ]
-            response = ai.chat(messages=messages)
+            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
+            response = await ai.a_chat(messages=messages)
             content = response[-1].content.strip()
             
             # Clean up any markdown code fences
@@ -270,7 +272,8 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert in Docker and environment configuration."),
                 HumanMessage(content=prompt_content),
             ]
-            response = ai.chat(messages=messages)
+            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
+            response = await ai.a_chat(messages=messages)
             content = response[-1].content.strip()
             
             # Clean up any markdown code fences
@@ -314,7 +317,8 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert in nginx configuration and web server security."),
                 HumanMessage(content=prompt_content),
             ]
-            response = ai.chat(messages=messages)
+            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
+            response = await ai.a_chat(messages=messages)
             content = response[-1].content.strip()
             
             # Clean up any markdown code fences

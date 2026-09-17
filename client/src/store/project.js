@@ -654,7 +654,7 @@ export const actions = actionTree(
           overlay?.completeStep('chats', 'Chats loaded')
 
           $storex.projects.addRecentProject(state.activeProject)
-          state.workspaces = API.workspaces
+          state.workspaces = API.allWorkspaces
           $storex.ui.saveState()
           
           overlay?.completeStep('finalize', 'Ready')

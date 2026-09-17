@@ -134,6 +134,7 @@ export default {
       selectedSession: null,
       autoRefreshTimer: null,
       sessionIdFilter: null,
+      profilesCache: {},
       filters: {
         startDate: today,
         endDate: today,
@@ -151,11 +152,8 @@ export default {
       return [...new Set(this.logs.map(s => s.llm_model).filter(Boolean))].sort()
     },
     availableProviders() {
-      // Extract provider from model name if present, or use 'unknown'
       return [...new Set(this.logs.map(s => {
         const model = s.llm_model || 'unknown'
-        // Models typically follow pattern like "claude-haiku-4-5" or "gpt-4"
-        // Extract provider from model name
         if (model.includes('claude')) return 'anthropic'
         if (model.includes('gpt')) return 'openai'
         if (model.includes('gemini')) return 'google'
@@ -171,19 +169,52 @@ export default {
   },
 
   methods: {
-    async loadProfiles() {
-      const chatprojects = [...new Set(this.logs.map(l => l.project_id))]
-                            .map(project_id => this.$projects.allProjectsById[project_id])
-      this.profiles = {}
-      chatprojects.forEach(async project => {
-        const projectProfiles = await this.$storex.profiles.loadProjectProfiles(project)
-        projectProfiles.forEach(profile => {
-          this.profiles[project.project_id] = {
-            ...this.profiles[project.project_id],
-            [profile.name]: profile
-          }
-        })
-      })
+    async loadProjectProfiles(projectId) {
+      if (!projectId) return []
+      
+      // Check cache first - only load if not already cached
+      if (this.profilesCache[projectId]) {
+        return this.profilesCache[projectId]
+      }
+
+      try {
+        const project = this.$storex.projects.allProjectsById[projectId]
+        if (!project || !project.$api) return []
+        
+        // Load profiles using store action
+        const profiles = await this.$storex.profiles.loadProjectProfiles(project)
+        this.profilesCache[projectId] = profiles || []
+        return this.profilesCache[projectId]
+      } catch (err) {
+        console.error(`Failed to load profiles for project ${projectId}:`, err)
+        this.profilesCache[projectId] = []
+        return []
+      }
+    },
+
+    async setLogProfiles(log) {
+      const projectId = log.project_id || this.$storex.projects.activeProject?.project_id
+      if (!projectId) {
+        log.profiles = []
+        return
+      }
+
+      // Load profiles for the project (cached after first load)
+      const profiles = await this.loadProjectProfiles(projectId)
+      
+      // Convert profile name strings to profile objects
+      if (log.profiles && Array.isArray(log.profiles)) {
+        log.profiles = log.profiles
+          .map(profileName => {
+            if (typeof profileName === 'string') {
+              return profiles.find(p => p.name === profileName)
+            }
+            return profileName
+          })
+          .filter(p => !!p)
+      } else {
+        log.profiles = []
+      }
     },
 
     onFilterChange() { this.page = 1; this.loadLogs() },
@@ -220,36 +251,24 @@ export default {
         username: f.username || undefined,
       }
     },
-    getLogProfiles({ project_id, profiles }) {
-      project_id = project_id || this.$project.project_id
-      const projectProfiles = this.profiles[project_id]
-      return projectProfiles ? profiles.map(name => projectProfiles[name])
-                .filter(p => !!p) : []
-    },
-    /**
-     * Transform nested chat_session response into flat table format
-     * Each response item has: { chat_session, metrics, llm_request_count, tool_call_count }
-     */
+
     async transformSessions(rawSessions) {
       if (!rawSessions || !Array.isArray(rawSessions)) return []
-      
-      await this.loadProfiles()
 
-      return rawSessions.map(item => {
+      const results = rawSessions.map(item => {
         const cs = item.chat_session || {}
         const metrics = item.metrics || {}
         
-        return {
-          // Chat session fields
+        const log = {
           chat_id: cs.chat_id,
-          id: cs.chat_id, // Alias for table compatibility
+          id: cs.chat_id,
           chat_name: cs.chat_name,
           username: cs.username,
           project_name: cs.project_name,
-          project_id: cs.project_id || this.$project.project_id,
+          project_id: cs.project_id || this.$storex.projects.activeProject?.project_id,
           mode: cs.mode,
-          profiles: this.getLogProfiles(cs),
           files: cs.files || [],
+          profiles: cs.profiles || [],
           parent_chat_id: cs.parent_chat_id,
           iteration: cs.iteration,
           max_iterations: cs.max_iterations,
@@ -265,8 +284,6 @@ export default {
           error: cs.error,
           timestamp: cs.timestamp,
           iso_date: cs.iso_date,
-          
-          // Metrics fields
           total_input_tokens: metrics.total_input_tokens,
           total_output_tokens: metrics.total_output_tokens,
           total_tokens: metrics.total_tokens,
@@ -277,24 +294,22 @@ export default {
           successful_tool_calls: metrics.successful_tool_calls,
           failed_tool_calls: metrics.failed_tool_calls,
           total_tool_duration_seconds: metrics.total_tool_duration_seconds,
-          
-          // Aggregated fields
           llm_request_count: item.llm_request_count,
           tool_call_count: item.tool_call_count,
-          
-          // For table display compatibility
           model: cs.llm_model,
           provider: this.extractProvider(cs.llm_model),
-          direction: 'response', // Chat sessions are complete interactions
+          direction: 'response',
           payload_preview: cs.chat_name || '—',
         }
+        return log
       })
       .sort((a, b) => a.iso_date > b.iso_date ? -1 : 1)
+
+      // Load and convert all profiles concurrently
+      await Promise.all(results.map(log => this.setLogProfiles(log)))
+      return results
     },
 
-    /**
-     * Extract provider from model name
-     */
     extractProvider(model) {
       if (!model) return 'unknown'
       if (model.includes('claude')) return 'anthropic'
@@ -309,12 +324,10 @@ export default {
       this.error = null
       try {
         const params = this.buildParams()
-        // Use chatSessions endpoint for both user and admin views
         const response = this.isAdminView
           ? await this.$project.$api.analytics.admin.chatSessions(params)
           : await this.$project.$api.analytics.chatSessions(params)
         
-        // Transform nested response into flat format
         const transformed = await this.transformSessions(response)
         this.logs = transformed
         this.total = transformed.length

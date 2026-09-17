@@ -4,7 +4,7 @@
  * Covers all workspace-related API operations:
  *   - CRUD (list, get, create, update, delete)
  *   - Templates
- *   - Lifecycle (start, stop, status, logs)
+ *   - Lifecycle (start, stop, status, logs, generateFiles)
  *   - Workspace files (list, read, write)
  *
  * Mirrors the backend router defined in:
@@ -144,6 +144,20 @@ export const workspacesModule = (API) => ({
     logs(workspaceId, tail = 200) {
       return API.get(`/api/workspaces/${workspaceId}/logs?tail=${tail}`)
     },
+
+    // ADDED: regenerate workspace files from template
+    /**
+     * Regenerate workspace files (docker-compose.yaml, Dockerfile, etc.)
+     * from the workspace template. An optional command string can override
+     * the default startup command defined in the template.
+     *
+     * @param {string} workspaceId
+     * @param {string} [command=''] - Optional override for the container startup command
+     * @returns {Promise<Workspace>}
+     */
+    generateFiles(workspaceId, command = '') {
+      return API.post(`/api/workspaces/${workspaceId}/generate-files`, { command })
+    },
   },
 
   // ── Workspace files ───────────────────────────────────────────────────────
@@ -171,8 +185,6 @@ export const workspacesModule = (API) => ({
      * @param {string} filePath  - Relative path, e.g. "docker-compose.yaml"
      * @returns {Promise<WorkspaceFileReadResponse>}
      */
-    // CHANGED: switched from GET /api/workspaces/{id}/file?path=... (query param)
-    //          to GET /api/workspaces/{id}/files/{file_path} (path param), matching backend route
     read(workspaceId, filePath) {
       return API.get(`/api/workspaces/${workspaceId}/files/${filePath}`)
     },
@@ -187,8 +199,6 @@ export const workspacesModule = (API) => ({
      * @param {string} content   - Full UTF-8 text content
      * @returns {Promise<WorkspaceFileWriteResponse>}
      */
-    // CHANGED: switched from POST /api/workspaces/{id}/file?path=... (query param)
-    //          to POST /api/workspaces/{id}/files/{file_path} (path param), matching backend route
     write(workspaceId, filePath, content) {
       return API.post(`/api/workspaces/${workspaceId}/files/${filePath}`, { content })
     },

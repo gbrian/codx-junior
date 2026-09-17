@@ -24,7 +24,7 @@ import TopBar from '@/components/TopBar.vue'
     />
 
     <!-- ── Main Layout: QuickBar + TeamBar + Content ──────────────────── -->
-    <div class="flex flex-1 min-w-0 overflow-hidden">
+    <div class="flex flex-1 min-w-0 h-full max-h-full overflow-hidden">
       
       <!-- ── Left: TeamQuickBar (collapsible) ──────────────────────── -->
       <TeamQuickBar

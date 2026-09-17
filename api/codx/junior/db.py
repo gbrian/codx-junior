@@ -196,6 +196,10 @@ class Chat(BaseModel):
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
     history: List[ChatHistoryEntry] = Field(default=[], description="Historical entries of this chat")
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Optional session/conversation identifier used to link chat with AI request/response logs"
+    )
     auto_initialize: Optional[bool] = Field(
         default=False,
         description=(

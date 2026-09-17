@@ -71,7 +71,7 @@ import ChatSearch from '../chat/ChatSearch.vue'
   </div>
 
   <!-- Full mode - shows detailed chat cards -->
-  <div v-else class="flex flex-col gap-1 w-full shrink-0">
+  <div v-else class="flex flex-col gap-1 w-full flex-1 overflow-hidden">
     <!-- Search mode -->
     <template v-if="isSearching">
       <ChatSearch
@@ -82,7 +82,7 @@ import ChatSearch from '../chat/ChatSearch.vue'
       />
 
       <!-- Search results -->
-      <div class="flex flex-col gap-2 scrollbar-none mt-2 max-h-96 overflow-y-auto">
+      <div class="flex flex-col gap-2 scrollbar-none mt-2 max-h-96 overflow-y-auto flex-1">
         <div v-if="searchResultsData?.results?.length > 0">
           <div
             v-for="result in searchResultsData.results"
@@ -173,7 +173,7 @@ import ChatSearch from '../chat/ChatSearch.vue'
       <div v-if="recentChats.length > 0" class="divider my-1 w-8 mx-auto opacity-40"></div>
       
       <!-- Header with search icon -->
-      <div v-if="recentChats.length > 0" class="flex items-center justify-between px-2 mb-2">
+      <div v-if="recentChats.length > 0" class="flex items-center justify-between px-2 mb-2 shrink-0">
         <div class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase">
           Recent Chats & Tasks
         </div>
@@ -188,7 +188,7 @@ import ChatSearch from '../chat/ChatSearch.vue'
 
       <!-- Scrollable container for recent chats -->
       <div
-        class="flex flex-col gap-2 scrollbar-none"
+        class="flex flex-col gap-2 scrollbar-none overflow-y-auto flex-1"
         @scroll="handleScroll"
       >
         <div

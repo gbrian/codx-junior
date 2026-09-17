@@ -210,10 +210,21 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
       </div>
     </template>
 
-    <div class="p-2 flex flex-col gap-2">
+    <div class="p-2 flex flex-col gap-2"
+      :class="{ 'border-error/40 border-l-4': isContentOutdated }"
+    >
 
       <div @click="runCommand" class="cursor-pointer" v-if="isCommand">
         <i class="fa-solid fa-terminal"></i>
+      </div>
+
+      <div v-if="isContentOutdated" class="alert alert-error alert-outline">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="text-sm">
+          <strong>Base file has changed:</strong> This content was generated {{ moment(contentCreatedAt).fromNow() }}, but the file was last modified {{ moment(last_modification).fromNow() }}. Consider refreshing the diff to ensure accuracy.
+        </span>
       </div>
 
       <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning">
@@ -347,6 +358,7 @@ export default {
       codeUpdateCounter: 0,
       codeHash: 0,
       lastCodeValue: null,
+      baseFileChanged: false,
       actionFeedback: {
         copy: false,
         save: false,
@@ -449,6 +461,17 @@ export default {
     },
     hasPatchPattern() {
       return this.patchPattern !== null
+    },
+    contentCreatedAt() {
+      return this.message?.updated_at
+    },
+    isContentOutdated() {
+      if (this.isNoChange || !this.contentCreatedAt || !this.last_modification) {
+        return false
+      }
+      const contentCreatedTime = new Date(this.contentCreatedAt).getTime()
+      const fileModifiedTime = new Date(this.last_modification).getTime()
+      return fileModifiedTime > contentCreatedTime
     }
   },
   watch: {
@@ -462,6 +485,10 @@ export default {
       if (this.chat?.mode === 'vibe') {
         this.saveToFile()
       }
+    },
+    last_modification() {
+      // Trigger reactivity for isContentOutdated computed property
+      this.$forceUpdate()
     },
     code(newCode, oldCode) {
       if (newCode === oldCode) return

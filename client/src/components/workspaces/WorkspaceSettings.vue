@@ -10,7 +10,6 @@ import WorkspaceLogs from './WorkspaceLogs.vue'
     <!-- Top Bar -->
     <div class="navbar bg-base-200 border-b border-base-300 min-h-0 px-4 py-2 shrink-0">
       <div class="flex-1 flex items-center gap-3">
-        <!-- ADDED: back button to return to the workspace list -->
         <button class="btn btn-ghost btn-sm btn-circle" @click="$emit('close')" title="Back to workspaces">
           <i class="fa-solid fa-arrow-left"></i>
         </button>
@@ -85,6 +84,48 @@ import WorkspaceLogs from './WorkspaceLogs.vue'
               <p class="text-xs text-base-content/50">Allows Docker-in-Docker and systemd inside containers</p>
             </div>
           </label>
+        </div>
+
+        <!-- ADDED: Generate Files section -->
+        <div class="divider"></div>
+
+        <div class="space-y-3">
+          <div>
+            <h4 class="font-semibold flex items-center gap-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-secondary"></i>
+              Generate Files
+            </h4>
+            <p class="text-xs text-base-content/50 mt-1">
+              Regenerate workspace files (docker-compose.yaml, Dockerfile, etc.) from the template.
+              Optionally override the container startup command.
+            </p>
+          </div>
+
+          <div class="form-control">
+            <label class="label"><span class="label-text text-sm">Startup Command <span class="text-base-content/40">(optional)</span></span></label>
+            <input
+              v-model="generateCommand"
+              type="text"
+              placeholder="e.g., npm run dev"
+              class="input input-bordered input-sm font-mono"
+            />
+            <label class="label"><span class="label-text-alt">Overrides the default command defined in the template</span></label>
+          </div>
+
+          <button
+            class="btn btn-secondary btn-sm gap-2"
+            :disabled="isGenerating"
+            @click="generateFiles"
+          >
+            <span v-if="isGenerating" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-wand-magic-sparkles"></i>
+            {{ isGenerating ? 'Generating...' : 'Generate Files' }}
+          </button>
+
+          <div v-if="generateResult" class="alert alert-sm" :class="generateResult.error ? 'alert-error' : 'alert-success'">
+            <i :class="generateResult.error ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check'"></i>
+            <span class="text-sm">{{ generateResult.message }}</span>
+          </div>
         </div>
       </div>
 
@@ -391,6 +432,10 @@ export default {
       selectedUserId: '',
       // Local copy of env as [{key, value}] array for editing
       envEntries: [],
+      // ADDED: generate files state
+      generateCommand: '',
+      isGenerating: false,
+      generateResult: null,
       tabs: [
         { id: 'basic',     label: 'Basic',     icon: 'fa-solid fa-info-circle' },
         { id: 'apps',      label: 'Apps',      icon: 'fa-solid fa-grid-2' },
@@ -456,6 +501,24 @@ export default {
     removeEnvVar(idx) {
       this.envEntries.splice(idx, 1)
       this.syncEnv()
+    },
+
+    // ── Generate Files ───────────────────────────────────────────────────────
+    async generateFiles() {
+      this.isGenerating = true
+      this.generateResult = null
+      try {
+        await this.theProject.$api.projects.workspaces.lifecycle.generateFiles(
+          this.workspace.id,
+          this.generateCommand
+        )
+        this.generateResult = { message: 'Files generated successfully', error: false }
+      } catch (error) {
+        console.error('Failed to generate workspace files', error)
+        this.generateResult = { message: `Failed to generate files: ${error.message}`, error: true }
+      } finally {
+        this.isGenerating = false
+      }
     },
 
     // ── Apps ─────────────────────────────────────────────────────────────────

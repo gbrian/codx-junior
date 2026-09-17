@@ -81,5 +81,17 @@ export const filesModule = (API) => ({
 
   reset(source) {
     return API.get(`/api/files/reset?path=${encodeURIComponent(source)}`)
+  },
+
+  create(path, isDir = false) {
+    return API.post(`/api/files/create`, { path, is_dir: isDir })
+  },
+
+  delete(path) {
+    return API.post(`/api/files/delete`, { path })
+  },
+
+  rename(oldPath, newPath) {
+    return API.post(`/api/files/rename`, { old_path: oldPath, new_path: newPath })
   }
 })

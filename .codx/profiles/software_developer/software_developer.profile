@@ -40,7 +40,9 @@
   "tools": [
     "project_search",
     "project_read_file",
-    "project_structure"
+    "project_structure",
+    "generate_tasks_tool",
+    "create_task"
   ],
   "tags": [],
   "api_settings": {

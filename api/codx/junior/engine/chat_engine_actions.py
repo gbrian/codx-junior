@@ -11,12 +11,14 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 import requests
 
 from codx.junior.chat.chat_engine import ChatEngine
 from codx.junior.db import Chat, Message, MessageTaskItem
+from codx.junior.model.logs import ChatLogSummary, ChatLogStatusDistribution, ChatLogTokenStats, ChatLogModelUsage
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.utils.utils import (
     document_to_code_block,
@@ -113,6 +115,7 @@ class ChatEngineActions:
         CEA --> init_chat_from_url
         CEA --> convert_message
         CEA --> get_chat_analysis_parents
+        CEA --> get_chat_log_summary
     ```
     """
 
@@ -552,6 +555,202 @@ class ChatEngineActions:
             gen_status.phase = "done"
             gen_status.end_time = time.time()
             push_status()
+
+    def get_chat_log_summary(self, chat_id: str) -> ChatLogSummary:
+        """
+        Find all AI logs associated with a chat and create a summary.
+
+        Given a chat_id, retrieves the chat, extracts session_id (if available),
+        queries raw AI logs using RawLogReader, and aggregates them into a
+        comprehensive summary object.
+
+        Args:
+            chat_id: The unique identifier of the chat to summarize logs for.
+
+        Returns:
+            ChatLogSummary object containing aggregated log statistics.
+
+        Raises:
+            ValueError: When chat is not found.
+        """
+        # ── Step 1: Fetch the chat ─────────────────────────────────────────
+        chat_manager = self.session.get_chat_manager()
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            raise ValueError(f"Chat not found: {chat_id}")
+        
+        logger.info(
+            "get_chat_log_summary: chat_id='%s' session_id=%s created_at=%s",
+            chat_id, chat.session_id, chat.created_at
+        )
+
+        # ── Step 2: Initialize reader and prepare queries ───────────────────
+        from codx.junior.ai.raw_log_reader import RawLogReader
+        reader = RawLogReader()
+        
+        # Attempt to get username from first non-hidden message
+        username = None
+        for msg in chat.messages:
+            if not msg.hide and msg.user:
+                username = msg.user
+                break
+        username = username or "anonymous"
+
+        # ── Step 3: Query logs (Primary: session_id, Fallback: date range) ──
+        fallback_used = False
+        fallback_reason = None
+        all_logs = []
+
+        if chat.session_id:
+            # Primary: query by session_id
+            logger.debug("Querying logs by session_id: %s", chat.session_id)
+            all_logs = reader.read_events(
+                session_id=chat.session_id,
+                project=self.session.settings.project_name,
+            )
+        else:
+            # Fallback: query by project + username + date range
+            fallback_used = True
+            fallback_reason = "Chat has no session_id set; querying by project + username + date range"
+            
+            # Parse chat.created_at to get date range
+            try:
+                created_dt = datetime.fromisoformat(str(chat.created_at).replace(" ", "T"))
+            except (ValueError, AttributeError):
+                created_dt = datetime.now()
+                logger.warning("Could not parse chat.created_at: %s", chat.created_at)
+            
+            # Extend date range to catch logs: from creation date to now
+            start_date = created_dt.strftime("%Y-%m-%d")
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            
+            logger.debug(
+                "Fallback query: project=%s username=%s date_range=[%s, %s]",
+                self.session.settings.project_name, username, start_date, end_date
+            )
+            all_logs = reader.read_events(
+                start_date=start_date,
+                end_date=end_date,
+                project=self.session.settings.project_name,
+                username=username,
+            )
+            logger.debug("Fallback query returned %d log records", len(all_logs))
+
+        # ── Step 4: Aggregate logs into summary ────────────────────────────
+        summary = ChatLogSummary(
+            chat_id=chat_id,
+            session_id=chat.session_id,
+            fallback_used=fallback_used,
+            fallback_reason=fallback_reason,
+        )
+
+        # Track models and their usage
+        model_usage_map = {}  # (model, provider) -> ChatLogModelUsage
+        error_details = []
+
+        for log in all_logs:
+            summary.total_log_records += 1
+
+            # ── Count direction (request vs response) ──────────────────────
+            direction = log.get("direction", "")
+            if direction == "request":
+                summary.total_requests += 1
+            elif direction == "response":
+                summary.total_responses += 1
+
+            # ── Count status distribution ─────────────────────────────────
+            status = log.get("status", "")
+            if status == "success":
+                summary.status_distribution.success += 1
+            elif status == "error":
+                summary.status_distribution.error += 1
+                # Collect error messages
+                payload = log.get("payload") or {}
+                error_msg = payload.get("error_message", "Unknown error")
+                if len(error_details) < 5:  # Limit to first 5
+                    error_details.append(error_msg)
+            elif status == "cancelled":
+                summary.status_distribution.cancelled += 1
+
+            # ── Aggregate duration ────────────────────────────────────────
+            duration = log.get("duration_seconds")
+            if duration is not None:
+                summary.total_duration_seconds += duration
+
+            # ── Estimate tokens from payload ──────────────────────────────
+            payload = log.get("payload") or {}
+            
+            if direction == "request":
+                # Estimate input tokens from messages length
+                messages = payload.get("messages") or []
+                message_text = json.dumps(messages, default=str)
+                # Rough estimate: ~4 chars per token
+                estimated_tokens = len(message_text) // 4
+                summary.token_stats.total_estimated_input_tokens += estimated_tokens
+            
+            elif direction == "response" and status == "success":
+                # Estimate output tokens from response content
+                content = payload.get("content", "")
+                estimated_tokens = len(content) // 4
+                summary.token_stats.total_estimated_output_tokens += estimated_tokens
+
+            # ── Track model/provider usage ────────────────────────────────
+            model = log.get("model", "unknown")
+            provider = log.get("provider", "unknown")
+            key = (model, provider)
+            
+            if key not in model_usage_map:
+                model_usage_map[key] = ChatLogModelUsage(
+                    model=model,
+                    provider=provider,
+                )
+            
+            if direction == "request":
+                model_usage_map[key].request_count += 1
+            
+            if direction == "response" and duration is not None:
+                model_usage_map[key].total_duration_seconds += duration
+
+            # ── Track timestamp range ─────────────────────────────────────
+            timestamp = log.get("timestamp", "")
+            if timestamp:
+                if not summary.first_timestamp or timestamp < summary.first_timestamp:
+                    summary.first_timestamp = timestamp
+                if not summary.last_timestamp or timestamp > summary.last_timestamp:
+                    summary.last_timestamp = timestamp
+
+        # ── Finalize model usage and error tracking ────────────────────────
+        summary.model_usage = list(model_usage_map.values())
+        summary.has_errors = (
+            summary.status_distribution.error > 0 or
+            summary.status_distribution.cancelled > 0
+        )
+        summary.error_details = error_details
+
+        # ── Calculate average request duration ──────────────────────────────
+        if summary.total_responses > 0:
+            summary.average_request_duration_seconds = (
+                summary.total_duration_seconds / summary.total_responses
+            )
+
+        # ── Calculate total estimated tokens ───────────────────────────────
+        summary.token_stats.total_estimated_tokens = (
+            summary.token_stats.total_estimated_input_tokens +
+            summary.token_stats.total_estimated_output_tokens
+        )
+
+        logger.info(
+            "get_chat_log_summary: completed for chat_id='%s' "
+            "logs=%d requests=%d responses=%d duration=%.2fs errors=%d",
+            chat_id,
+            summary.total_log_records,
+            summary.total_requests,
+            summary.total_responses,
+            summary.total_duration_seconds,
+            summary.status_distribution.error,
+        )
+
+        return summary
 
     def get_chat_analysis_parents(self, chat: Chat) -> str:
         """

@@ -53,6 +53,59 @@ async def chat_cancel(data: dict):
     return {"cancelled": False, "error": "no in-flight token found"}
 
 
+@router.get("/chats/logs")
+def api_get_chat_logs(request: Request):
+    """
+    Get AI log summary for a chat.
+
+    Query parameters:
+        - chat_id: <chat UUID> (required)
+
+    Returns:
+        ChatLogSummary object with aggregated log statistics including:
+        - total_log_records, total_requests, total_responses
+        - status_distribution (success/error/cancelled counts)
+        - token_stats (estimated input/output tokens)
+        - model_usage breakdown by model/provider
+        - timestamp range (first/last log timestamps)
+        - error details (first 5 error messages)
+        - fallback_used and fallback_reason (if applicable)
+
+    Raises HTTP 404 if chat is not found.
+    Raises HTTP 500 if log query fails.
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_id = request.query_params.get("chat_id")
+
+        if not chat_id:
+            logger.error("api_get_chat_logs: missing chat_id")
+            return {"error": "missing chat_id parameter"}
+
+        logger.info("api_get_chat_logs: fetching logs for chat_id='%s'", chat_id)
+        
+        # Delegate to ChatEngineActions via the session
+        summary = codx_junior_session._chat_engine_actions.get_chat_log_summary(chat_id=chat_id)
+
+        logger.info(
+            "api_get_chat_logs: completed for chat_id='%s' "
+            "logs=%d requests=%d responses=%d errors=%d",
+            chat_id,
+            summary.total_log_records,
+            summary.total_requests,
+            summary.total_responses,
+            summary.status_distribution.error,
+        )
+        return summary
+
+    except ValueError as ex:
+        logger.error("api_get_chat_logs: chat not found: %s", ex)
+        return {"error": str(ex), "chat_id": request.query_params.get("chat_id")}
+    except Exception as ex:
+        logger.error("api_get_chat_logs: unexpected error: %s", ex)
+        return {"error": f"Failed to retrieve chat logs: {str(ex)}"}
+
+
 @router.post("/chats/message")
 async def api_add_message(request: Request):
     """
