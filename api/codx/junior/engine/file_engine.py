@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import base64
+import shutil
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Pattern, Tuple
@@ -19,7 +20,7 @@ import pathspec
 from codx.junior.db import Chat, Message
 from codx.junior.model.model import Profile
 from codx.junior.project.project_discover import find_all_user_projects
-from codx.junior.utils.utils import write_file
+from codx.junior.utils.utils import write_file, exec_command
 
 if TYPE_CHECKING:
     from codx.junior.engine.session import CODXJuniorSession
@@ -314,6 +315,10 @@ class FileEngine:
         FE --> upload_file
         FE --> upload_files
         FE --> diff_file
+        FE --> create_file
+        FE --> delete_file
+        FE --> rename_file
+        FE --> reset_file
         FE --> process_project_file_before_saving
         FE --> apply_file_profile
         FE --> get_valid_project_file_path
@@ -870,6 +875,216 @@ class FileEngine:
             }
         except OSError as ex:
             raise OSError("Error processing file %s:\n%s" % (abs_file_path, ex)) from ex
+
+    async def create_file(self, file_path: str, is_dir: bool = False) -> dict:
+        """
+        Create a new file or directory at the specified path.
+
+        For directories: creates parent directories as needed.
+        For files: creates parent directories and an empty file.
+
+        Args:
+            file_path: Target file/directory path (relative to project root).
+            is_dir: If True, create directory; if False, create empty file.
+
+        Returns:
+            Dict with created path, absolute path, is_dir flag, and status message.
+
+        Raises:
+            FileExistsError: If path already exists.
+            ValueError: If path is invalid or outside project.
+            OSError: If creation fails.
+        """
+        try:
+            abs_path, _ = self.get_valid_project_file_path(file_path)
+        except ValueError as ex:
+            logger.error("Invalid file path: %s", ex)
+            raise
+
+        # Check if already exists
+        if os.path.exists(abs_path):
+            logger.warning("Path already exists: %s", file_path)
+            raise FileExistsError(f"Path already exists: {file_path}")
+
+        try:
+            if is_dir:
+                # Create directory and parents
+                os.makedirs(abs_path, exist_ok=True)
+                logger.info("Created directory: %s", file_path)
+                return {
+                    "file_path": file_path,
+                    "abs_path": abs_path,
+                    "is_dir": True,
+                    "message": "Directory created successfully"
+                }
+            else:
+                # Create parent directories
+                os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+                # Create empty file
+                with open(abs_path, "w", encoding="utf-8") as f:
+                    pass
+                logger.info("Created file: %s", file_path)
+                info = self.get_file_info(abs_path)
+                return {
+                    "file_path": file_path,
+                    "abs_path": abs_path,
+                    "is_dir": False,
+                    "message": "File created successfully",
+                    **info,
+                }
+        except OSError as ex:
+            logger.error("Error creating file/directory %s: %s", file_path, ex)
+            raise
+
+    async def delete_file(self, file_path: str) -> dict:
+        """
+        Delete a file or directory from the project.
+
+        For directories: recursively deletes all contents.
+        For files: deletes the single file.
+
+        Args:
+            file_path: Target file/directory path (relative to project root).
+
+        Returns:
+            Dict with deleted path and status message.
+
+        Raises:
+            FileNotFoundError: If path does not exist.
+            ValueError: If path is invalid or outside project.
+            OSError: If deletion fails.
+        """
+        try:
+            abs_path, _ = self.get_valid_project_file_path(file_path)
+        except ValueError as ex:
+            logger.error("Invalid file path: %s", ex)
+            raise
+
+        # Check if exists
+        if not os.path.exists(abs_path):
+            logger.warning("Path not found: %s", file_path)
+            raise FileNotFoundError(f"Path not found: {file_path}")
+
+        try:
+            if os.path.isdir(abs_path):
+                shutil.rmtree(abs_path)
+                logger.info("Deleted directory: %s", file_path)
+            else:
+                os.remove(abs_path)
+                logger.info("Deleted file: %s", file_path)
+
+            return {
+                "path": file_path,
+                "message": "Deleted successfully"
+            }
+        except OSError as ex:
+            logger.error("Error deleting file %s: %s", file_path, ex)
+            raise
+
+    async def rename_file(self, old_path: str, new_path: str) -> dict:
+        """
+        Rename or move a file or directory within the project.
+
+        Creates parent directories for the destination as needed.
+        Both paths must be within the project root.
+
+        Args:
+            old_path: Current file/directory path (relative to project root).
+            new_path: New file/directory path (relative to project root).
+
+        Returns:
+            Dict with old path, new path, and status message.
+
+        Raises:
+            FileNotFoundError: If source path does not exist.
+            FileExistsError: If destination path already exists.
+            ValueError: If paths are invalid or outside project.
+            OSError: If rename fails.
+        """
+        try:
+            old_abs_path, _ = self.get_valid_project_file_path(old_path)
+            new_abs_path, _ = self.get_valid_project_file_path(new_path)
+        except ValueError as ex:
+            logger.error("Invalid file path: %s", ex)
+            raise
+
+        # Check if source exists
+        if not os.path.exists(old_abs_path):
+            logger.warning("Source path not found: %s", old_path)
+            raise FileNotFoundError(f"Source path not found: {old_path}")
+
+        # Check if destination already exists
+        if os.path.exists(new_abs_path):
+            logger.warning("Destination path already exists: %s", new_path)
+            raise FileExistsError(f"Destination path already exists: {new_path}")
+
+        try:
+            # Ensure parent directory of destination exists
+            os.makedirs(os.path.dirname(new_abs_path), exist_ok=True)
+            # Rename/move file or directory
+            os.rename(old_abs_path, new_abs_path)
+            logger.info("Renamed %s to %s", old_path, new_path)
+
+            return {
+                "old_path": old_path,
+                "new_path": new_path,
+                "message": "Renamed successfully"
+            }
+        except OSError as ex:
+            logger.error("Error renaming file: %s", ex)
+            raise
+
+    async def reset_file(self, file_path: str) -> dict:
+        """
+        Reset a file to its last committed git version.
+
+        Requires the file to be tracked by git. Uses 'git checkout'
+        to restore the file to its HEAD version.
+
+        Args:
+            file_path: Target file path (relative to project root).
+
+        Returns:
+            Dict with file path and reset status message.
+
+        Raises:
+            ValueError: If path is invalid or outside project.
+            RuntimeError: If git reset fails or file is not tracked.
+        """
+        try:
+            abs_path, _ = self.get_valid_project_file_path(file_path)
+        except ValueError as ex:
+            logger.error("Invalid file path: %s", ex)
+            raise
+
+        # Check if file exists
+        if not os.path.isfile(abs_path):
+            logger.warning("File not found: %s", file_path)
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        try:
+            # Use git to reset the file to HEAD version
+            stdout, stderr = exec_command(
+                f"git checkout -- {file_path}",
+                cwd=self.settings.abs_project_path
+            )
+
+            if stderr and "error" in stderr.lower():
+                logger.warning("Git reset failed for %s: %s", file_path, stderr)
+                raise RuntimeError(
+                    f"Failed to reset file (file may not be tracked by git): {stderr}"
+                )
+
+            logger.info("Reset file to git version: %s", file_path)
+            info = self.get_file_info(abs_path)
+            return {
+                "path": file_path,
+                "message": "File reset to git HEAD version",
+                **info,
+            }
+        except Exception as ex:
+            logger.error("Error resetting file %s: %s", file_path, ex)
+            raise
 
     async def upload_file(
         self,

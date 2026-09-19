@@ -56,23 +56,262 @@ async def chat_cancel(data: dict):
 @router.get("/chats/logs")
 def api_get_chat_logs(request: Request):
     """
-    Get AI log summary for a chat.
+    Get complete AI log summary for a chat, including forensic audit trail.
 
-    Query parameters:
-        - chat_id: <chat UUID> (required)
+    This endpoint aggregates all AI interactions (LLM requests, tool calls, token usage)
+    for a single chat into a comprehensive summary with detailed metrics and complete
+    forensic audit trail for debugging and compliance.
 
-    Returns:
-        ChatLogSummary object with aggregated log statistics including:
-        - total_log_records, total_requests, total_responses
-        - status_distribution (success/error/cancelled counts)
-        - token_stats (estimated input/output tokens)
-        - model_usage breakdown by model/provider
-        - timestamp range (first/last log timestamps)
-        - error details (first 5 error messages)
-        - fallback_used and fallback_reason (if applicable)
+    ## Query Parameters
+    - **chat_id** (required): UUID of the chat to retrieve logs for
 
-    Raises HTTP 404 if chat is not found.
-    Raises HTTP 500 if log query fails.
+    ## Response Structure: ChatLogSummary
+
+    ### Summary Metrics
+    - **chat_id**: The chat identifier used in query
+    - **session_id**: Session identifier (if available from chat metadata)
+    - **total_log_records**: Total count of all logged records (requests + responses + errors)
+    - **total_requests**: Count of LLM completion requests sent
+    - **total_responses**: Count of LLM completion responses received
+    - **total_duration_seconds**: Aggregate wall-clock time for all AI calls
+    - **average_request_duration_seconds**: Mean duration per LLM request
+
+    ### Status Distribution
+    - **status_distribution.success**: Count of successful requests/responses
+    - **status_distribution.error**: Count of failed or errored requests
+    - **status_distribution.cancelled**: Count of user-cancelled requests
+
+    ### Token Usage (Estimated)
+    - **token_stats.total_estimated_input_tokens**: Sum of prompt tokens across all requests
+    - **token_stats.total_estimated_output_tokens**: Sum of completion tokens across all responses
+    - **token_stats.total_estimated_tokens**: Grand total of input + output tokens
+
+    ### Model Usage Breakdown
+    - **model_usage**: Array of model usage statistics, each with:
+      - **model**: Model name (e.g., "gpt-4o", "claude-3")
+      - **provider**: Provider identifier (e.g., "openai", "anthropic")
+      - **request_count**: Number of requests using this model/provider
+      - **total_duration_seconds**: Cumulative duration for this model/provider
+
+    ### Timestamp Range
+    - **first_timestamp**: ISO-8601 timestamp of earliest log record
+    - **last_timestamp**: ISO-8601 timestamp of latest log record
+
+    ### Error Tracking
+    - **has_errors**: Boolean indicating presence of error or cancelled records
+    - **error_details**: Array of error messages (first 5 only, for readability)
+
+    ### Fallback Status
+    - **fallback_used**: Boolean indicating whether fallback query strategy was used
+    - **fallback_reason**: Explanation if fallback was necessary (e.g., "no session_id available")
+
+    ### Forensic Audit Trail (raw_log_records)
+    **Complete forensic record of all AI interactions, suitable for audit compliance,
+    debugging, and conversation replay.**
+
+    - **raw_log_records**: Array of forensic records, sorted chronologically. Each record
+      is either a ForensicArchivedMessageRecord or ForensicToolCallRecord:
+
+    #### ForensicArchivedMessageRecord
+    Represents a complete LLM request-response cycle with all model configuration:
+    - **message_id**: Unique message identifier
+    - **request_id**: Links to token usage event for cross-reference
+    - **timestamp**: Unix timestamp of when recorded
+    - **iso_date**: ISO date string (for partitioning)
+    - **request_messages**: Complete OpenAI-format message array sent to model
+      (includes all prior messages in conversation + system prompt)
+    - **system_prompt**: The exact system message sent to the model
+    - **temperature**: LLM temperature parameter (for reproducibility)
+    - **max_tokens**: Maximum tokens limit enforced
+    - **tools**: Complete JSON schema definitions of all tools available to model
+    - **response_content**: Full text content of LLM response
+    - **input_tokens**: Number of input tokens consumed
+    - **output_tokens**: Number of output tokens generated
+    - **duration_seconds**: Wall-clock duration of request
+    - **error**: Error message if request failed (null if successful)
+    - **cancelled**: Boolean indicating if request was user-cancelled
+    - **model**: Model name used (e.g., "gpt-4o")
+    - **provider**: Provider identifier (e.g., "openai")
+    - **chat_id**: Parent chat identifier
+    - **username**: User who triggered the request
+    - **project_name**: Project context
+    - **project_id**: Project identifier
+
+    #### ForensicToolCallRecord
+    Represents a complete tool execution with all invocation details:
+    - **message_id**: Unique message identifier
+    - **tool_call_id**: Tool call ID from LLM (uniquely identifies this tool invocation)
+    - **timestamp**: Unix timestamp of when recorded
+    - **iso_date**: ISO date string (for partitioning)
+    - **tool_name**: Name of the tool function invoked
+    - **tool_definition**: Complete JSON schema definition of the tool as sent to model
+    - **request_args**: Parsed arguments sent to tool (dict with parameter values)
+    - **result**: Raw result returned by tool (may be string, dict, list, or error message)
+    - **result_sent_to_model**: Normalized result sent back to LLM (always string)
+    - **duration_seconds**: Execution time in seconds
+    - **success**: Boolean indicating if tool executed without exception
+    - **error_message**: Error details if execution failed (null if successful)
+    - **cached**: Boolean indicating if result was from in-conversation cache
+    - **chat_id**: Parent chat identifier
+    - **username**: User who triggered the tool
+    - **project_name**: Project context
+    - **project_id**: Project identifier
+
+    ## Example Response (Simplified)
+
+    ```json
+    {
+      "chat_id": "550e8400-e29b-41d4-a716-446655440000",
+      "session_id": "sess_123456",
+      "total_log_records": 12,
+      "total_requests": 3,
+      "total_responses": 3,
+      "status_distribution": {
+        "success": 11,
+        "error": 1,
+        "cancelled": 0
+      },
+      "token_stats": {
+        "total_estimated_input_tokens": 2500,
+        "total_estimated_output_tokens": 1200,
+        "total_estimated_tokens": 3700
+      },
+      "total_duration_seconds": 15.4,
+      "average_request_duration_seconds": 5.13,
+      "model_usage": [
+        {
+          "model": "gpt-4o",
+          "provider": "openai",
+          "request_count": 3,
+          "total_duration_seconds": 15.4
+        }
+      ],
+      "first_timestamp": "2024-01-15T10:30:00+00:00",
+      "last_timestamp": "2024-01-15T10:31:45+00:00",
+      "has_errors": true,
+      "error_details": [
+        "Tool 'search_documents' timed out after 10 seconds"
+      ],
+      "fallback_used": false,
+      "fallback_reason": null,
+      "raw_log_records": [
+        {
+          "message_id": "msg_001",
+          "request_id": "req_001",
+          "timestamp": 1705315800.123,
+          "iso_date": "2024-01-15",
+          "request_messages": [
+            {
+              "role": "system",
+              "content": "You are a helpful AI assistant..."
+            },
+            {
+              "role": "user",
+              "content": "Search for recent documentation"
+            }
+          ],
+          "system_prompt": "You are a helpful AI assistant...",
+          "temperature": 0.7,
+          "max_tokens": 2000,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "search_documents",
+                "description": "Search project documentation",
+                "parameters": {...}
+              }
+            }
+          ],
+          "response_content": "I'll search the documentation for you...",
+          "input_tokens": 850,
+          "output_tokens": 420,
+          "duration_seconds": 5.2,
+          "error": null,
+          "cancelled": false,
+          "model": "gpt-4o",
+          "provider": "openai",
+          "chat_id": "550e8400-e29b-41d4-a716-446655440000",
+          "username": "user@example.com",
+          "project_name": "codx-junior",
+          "project_id": "proj_789"
+        },
+        {
+          "message_id": "msg_tool_001",
+          "tool_call_id": "call_abc123",
+          "timestamp": 1705315801.450,
+          "iso_date": "2024-01-15",
+          "tool_name": "search_documents",
+          "tool_definition": {
+            "type": "function",
+            "function": {
+              "name": "search_documents",
+              "description": "Search project documentation",
+              "parameters": {...}
+            }
+          },
+          "request_args": {
+            "query": "authentication",
+            "limit": 10
+          },
+          "result": "[{\"title\": \"Auth Guide\", \"url\": \"...\"}]",
+          "result_sent_to_model": "[{\"title\": \"Auth Guide\", \"url\": \"...\"}]",
+          "duration_seconds": 0.8,
+          "success": true,
+          "error_message": null,
+          "cached": false,
+          "chat_id": "550e8400-e29b-41d4-a716-446655440000",
+          "username": "user@example.com",
+          "project_name": "codx-junior",
+          "project_id": "proj_789"
+        }
+      ]
+    }
+    ```
+
+    ## Use Cases
+
+    ### Debugging
+    Use raw_log_records to trace exact model inputs/outputs, tool definitions, and parameters.
+    Each record contains complete payload for reproducing behavior.
+
+    ### Compliance & Audit
+    Complete forensic trail with timestamps, user attribution, and all model settings
+    enables compliance with data governance and audit requirements.
+
+    ### Performance Analysis
+    Token counts and duration metrics per request/tool enable identification of
+    bottlenecks and cost optimization opportunities.
+
+    ### Conversation Replay
+    Chronologically ordered records with complete system prompts, messages, and
+    model parameters allow exact conversation replay for testing or debugging.
+
+    ### Cost Attribution
+    Token counts × provider pricing yields exact cost per conversation for
+    billing and budget tracking.
+
+    ## Error Responses
+
+    **404 - Chat Not Found**
+    ```json
+    {
+      "error": "Chat not found: <chat_id>",
+      "chat_id": "<requested chat_id>"
+    }
+    ```
+
+    **500 - Query or Processing Error**
+    ```json
+    {
+      "error": "Failed to retrieve chat logs: <error details>"
+    }
+    ```
+
+    ## HTTP Status Codes
+    - **200**: Successfully retrieved logs
+    - **404**: Chat not found
+    - **500**: Unexpected error during query or aggregation
     """
     try:
         codx_junior_session = request.state.codx_junior_session
@@ -89,12 +328,13 @@ def api_get_chat_logs(request: Request):
 
         logger.info(
             "api_get_chat_logs: completed for chat_id='%s' "
-            "logs=%d requests=%d responses=%d errors=%d",
+            "logs=%d requests=%d responses=%d errors=%d forensic_records=%d",
             chat_id,
             summary.total_log_records,
             summary.total_requests,
             summary.total_responses,
             summary.status_distribution.error,
+            len(summary.raw_log_records),
         )
         return summary
 

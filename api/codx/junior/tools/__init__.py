@@ -24,7 +24,12 @@ from typing import Optional, Dict, Union
 # Import tools
 from .fetch_webpage import fetch_webpage
 from .project_tools import project_search, project_read_file, project_write_file
-from .project_structure import project_structure
+from .project_structure import (
+    project_structure,
+    read_folder,
+    PROJECT_STRUCTURE_TOOL_JSON,
+    READ_FOLDER_TOOL_JSON,
+)
 from .code_writer import code_writer
 from .code_block_generator import code_block_generator
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
@@ -53,6 +58,7 @@ __all__ = [
     "project_read_file",
     "project_write_file",
     "project_structure",
+    "read_folder",
     "code_writer",
     "code_block_generator",
     "create_task",
@@ -263,37 +269,16 @@ TOOLS = [
         "tool_call": apply_file_changes
     },
     {
-        "tool_json": {
-            "type": "function",
-            "function": {
-                "name": "project_structure",
-                "description": "Get the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "include_details": {
-                            "type": "boolean",
-                            "description": "If true, includes additional metadata like file counts and folder statistics.",
-                            "default": False
-                        },
-                        "max_depth": {
-                            "type": "integer",
-                            "description": "Maximum folder depth to traverse. Leave null for no limit.",
-                            "default": None
-                        },
-                        "include_file_sizes": {
-                            "type": "boolean",
-                            "description": "If true, includes file sizes in bytes for each file.",
-                            "default": False
-                        }
-                    },
-                    "required": []
-                }
-            }
-        },
+        "tool_json": PROJECT_STRUCTURE_TOOL_JSON,
         "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["project", "navigation", "structure", "overview"],
         "tool_call": project_structure
+    },
+    {
+        "tool_json": READ_FOLDER_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
+        "tags": ["project", "navigation", "structure", "folder"],
+        "tool_call": read_folder
     },
     {
         "tool_json": CREATE_TASK_TOOL_JSON,

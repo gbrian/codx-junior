@@ -1,5 +1,7 @@
 # Root folder for new projects
 export CODX_JUNIOR_PROJECTS_PATH=${CODX_JUNIOR_PROJECTS_PATH:-/home/codx-junior-projects}
+# Don't show codx-junior projects: 1 or True to hide them from API
+export CODX_JUNIOR_HIDDEN=${CODX_JUNIOR_HIDDEN:-0}
 # API virtual env
 export CODX_JUNIOR_API_VENV=${CODX_JUNIOR_API_VENV:-/tmp/.venv_codx_junior_api}
 # Logs

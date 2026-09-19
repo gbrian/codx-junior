@@ -235,6 +235,12 @@ class ArchivedMessage:
     Captures the full request-response cycle for traceability and audit.
     Links to chat and optionally to a tool call within that chat.
     
+    Includes complete LLM settings (kwargs) for forensic audit trail:
+    - temperature: LLM temperature parameter
+    - max_tokens: maximum tokens in response
+    - tools: complete tool definitions sent to model
+    - system_prompt: the system message sent to model (hash for privacy)
+    
     Diagram:
     classDiagram
         class ArchivedMessage {
@@ -248,6 +254,10 @@ class ArchivedMessage:
             +int output_tokens
             +float duration_seconds
             +Optional str error
+            +Optional float temperature
+            +Optional int max_tokens
+            +Optional List tools
+            +Optional str system_prompt
             +float timestamp
             +str iso_date
         }
@@ -304,6 +314,18 @@ class ArchivedMessage:
     cancelled: bool = False
     """Whether the request was cancelled."""
     
+    temperature: Optional[float] = None
+    """LLM temperature parameter used (for reproducibility)."""
+    
+    max_tokens: Optional[int] = None
+    """Maximum tokens parameter used in request."""
+    
+    tools: Optional[List[Dict[str, Any]]] = None
+    """Complete tool definitions (JSON schemas) sent to the model."""
+    
+    system_prompt: Optional[str] = None
+    """System message sent to the model (or hash for privacy)."""
+    
     timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
     """Unix timestamp when the message was archived."""
     
@@ -328,6 +350,10 @@ class ToolCallMessage:
     Captures the tool invocation parameters, execution result, and any
     messages exchanged with the AI model regarding this tool.
     
+    Includes complete tool definition (JSON schema) sent to the model for
+    forensic audit trail:
+    - tool_definition: Complete tool definition object from the LLM request
+    
     Diagram:
     classDiagram
         class ToolCallMessage {
@@ -341,6 +367,7 @@ class ToolCallMessage:
             +bool success
             +bool cached
             +Optional str error_message
+            +Optional Dict tool_definition
             +float duration_seconds
             +float timestamp
             +str iso_date
@@ -388,6 +415,9 @@ class ToolCallMessage:
     
     cached: bool = False
     """Whether this result was served from cache."""
+    
+    tool_definition: Optional[Dict[str, Any]] = None
+    """Complete tool definition (JSON schema) sent to the model for this tool call."""
     
     timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
     """Unix timestamp when the tool was executed."""

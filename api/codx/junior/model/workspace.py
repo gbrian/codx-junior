@@ -33,6 +33,13 @@ DEFAULT_WORKSPACE = Workspace(**{
         "path": "/litellm/ui",
         "roles": ["admin"]
         },
+        {
+        "icon": "https://traefik.io/_next/image?url=%2Fimages%2Ftraefik%2Fintro%2Fproxy-gopher-right%403x.png&w=640&q=80",
+        "name": "Traefik",
+        "description": "Traefik dashboard",
+        "path": "/traefik/dashboard/",
+        "roles": ["admin"]
+        }
     ],
     "project_ids": ["*"]
 })

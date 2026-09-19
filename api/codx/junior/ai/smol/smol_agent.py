@@ -450,6 +450,7 @@ class SmolAgent:
                 run_context=run_context,
                 request_id=request_id,
                 chat_id=chat_id,
+                system_message=system_message,
             )
 
             if not tool_calls:
@@ -734,6 +735,7 @@ class SmolAgent:
         run_context: AgentRunContext,
         request_id: Optional[str] = None,
         chat_id: Optional[str] = None,
+        system_message: Optional[str] = None,
     ) -> Tuple[str, Dict[str, Dict[str, Any]], Any]:
         """
         Stream one completion, collecting content, tool calls and usage.
@@ -754,6 +756,7 @@ class SmolAgent:
             run_context:        Unified runtime context for this run.
             request_id:         Unique request identifier for traceability.
             chat_id:            Chat identifier for linking to archived messages.
+            system_message:     The system message used (for forensic audit).
 
         Returns:
             Tuple of ``(content, tool_calls, usage_info)``.
@@ -820,9 +823,17 @@ class SmolAgent:
         content = "".join(content_parts)
 
         # Archive the complete message exchange after successful streaming
+        # Captures complete forensic data: request kwargs, tool definitions, system prompt
         if request_id and (content or accumulator.tool_calls):
             try:
                 analytics = _get_analytics()
+                
+                # Extract complete LLM request kwargs for forensic audit trail
+                # These parameters are needed to reproduce the exact model behavior
+                temperature = kwargs.get("temperature")
+                max_tokens = kwargs.get("max_tokens")
+                tools = kwargs.get("tools")  # Complete tool definitions array
+                
                 analytics.record_archived_message(
                     message_id=str(uuid.uuid4()),
                     chat_id=chat_id or "",
@@ -831,12 +842,16 @@ class SmolAgent:
                     project_id=getattr(self.settings, "project_id", "") or "",
                     model=self.model,
                     provider=self.llm_settings.provider or "",
-                    request_messages=openai_messages,
-                    response_content=content,
+                    request_messages=openai_messages,  # Full conversation history
+                    response_content=content,  # Complete LLM response
                     request_id=request_id,
                     duration_seconds=0.0,
                     input_tokens=getattr(usage_info, "prompt_tokens", 0) or 0,
                     output_tokens=getattr(usage_info, "completion_tokens", 0) or 0,
+                    temperature=temperature,  # FORENSIC: Model temperature for reproducibility
+                    max_tokens=max_tokens,  # FORENSIC: Max tokens limit
+                    tools=tools,  # FORENSIC: Complete tool JSON schemas sent to model
+                    system_prompt=system_message,  # FORENSIC: The system message sent
                 )
             except OSError as ex:
                 logger.warning("SmolAgent: failed to archive message: %s", ex)
@@ -844,6 +859,25 @@ class SmolAgent:
         return content, accumulator.tool_calls, usage_info
 
     # ── Tool execution ─────────────────────────────────────────────────────────
+
+    def _get_tool_definition(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract the complete tool definition (JSON schema) for a given tool name.
+
+        Used for forensic audit trail — stores the exact tool definition that
+        was sent to the LLM model for this tool call.
+
+        Args:
+            tool_name: The name of the tool to find.
+
+        Returns:
+            The complete tool_json definition dict (with name, description, parameters),
+            or None if not found.
+        """
+        for tool in self.tools:
+            if tool["tool_json"]["function"]["name"] == tool_name:
+                return tool.get("tool_json")
+        return None
 
     async def _execute_tool(
         self,
@@ -995,12 +1029,19 @@ class SmolAgent:
                     error=error_message,
                 )
 
-            # Archive the tool call execution
+            # Archive the tool call execution with complete forensic data
             try:
                 analytics = _get_analytics()
                 # Sanitize params to remove non-serializable objects (asyncio.Future, etc.)
                 sanitized_params = self._sanitize_for_serialization(dict(params))
-                sanitized_result = self._sanitize_for_serialization(result if isinstance(result, (str, dict, list)) else str(result))
+                sanitized_result = self._sanitize_for_serialization(
+                    result if isinstance(result, (str, dict, list)) else str(result)
+                )
+                
+                # Extract complete tool definition for forensic audit trail
+                # This is the exact tool schema that was sent to the LLM model
+                tool_definition = self._get_tool_definition(func_name)
+                
                 analytics.record_tool_call_message(
                     message_id=str(uuid.uuid4()),
                     chat_id=chat_id or "",
@@ -1009,13 +1050,14 @@ class SmolAgent:
                     username=self.user.username if self.user else "anonymous",
                     project_name=self.settings.project_name or "",
                     project_id=getattr(self.settings, "project_id", "") or "",
-                    request_args=sanitized_params,
-                    result=sanitized_result,
-                    result_sent_to_model=_normalise_tool_result(result, func_name),
+                    request_args=sanitized_params,  # Complete parsed arguments
+                    result=sanitized_result,  # Complete execution result
+                    result_sent_to_model=_normalise_tool_result(result, func_name),  # What model saw
                     success=success,
                     error_message=error_message,
                     duration_seconds=duration_seconds,
                     cached=False,
+                    tool_definition=tool_definition,  # FORENSIC: Complete tool schema
                 )
             except OSError as ex:
                 logger.warning("SmolAgent: failed to archive tool call message: %s", ex)

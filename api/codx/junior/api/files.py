@@ -178,6 +178,246 @@ async def search_files_content(request: Request):
     )
 
 
+@router.post("/files/diff")
+async def diff_file(request: Request):
+    """
+    Compute diff between a file and provided content.
+
+    Query/Body params:
+    - path: File path (relative or absolute)
+    - content: Content to diff against
+    - from_branch: Optional git branch for comparison (default null)
+    - to_branch: Optional git branch for comparison (default null)
+
+    Returns:
+        Dict with 'diff' (unified diff output) and 'stats' (shortstat output)
+    """
+    codx_junior_session = request.state.codx_junior_session
+    file_engine = codx_junior_session.get_file_engine()
+
+    data = await request.json()
+    path = data.get("path")
+    content = data.get("content", "")
+    
+    if not path:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST, content="Missing 'path' parameter")
+
+    try:
+        result = file_engine.diff_file(path=path, content=content)
+        return result
+    except FileNotFoundError:
+        return Response(status_code=status.HTTP_404_NOT_FOUND, content="File not found")
+    except Exception as ex:
+        logger.error("Error computing diff for %s: %s", path, ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.post("/files/write")
+async def write_file(request: Request):
+    """
+    Write content to a project file.
+
+    Query/Body params:
+    - path: File path (relative or absolute, required)
+    - page_content: Content to write to the file
+    - metadata: Optional metadata to attach (ignored, for compatibility)
+
+    Returns:
+        Dict with 'file_path' of the written file
+    """
+    codx_junior_session = request.state.codx_junior_session
+    
+    path = request.query_params.get("path")
+    if not path:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST, content="Missing 'path' parameter")
+
+    try:
+        data = await request.json()
+        page_content = data.get("page_content", "")
+        
+        logger.info("Writing file: %s", path)
+        result = await codx_junior_session.write_project_file(
+            file_path=path,
+            content=page_content,
+            process=False
+        )
+        return result
+    except Exception as ex:
+        logger.error("Error writing file %s: %s", path, ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.get("/files/reset")
+async def reset_file(request: Request):
+    """
+    Reset a file to its git version (if tracked by git).
+
+    Query params:
+    - path: File path (relative or absolute)
+
+    Returns:
+        Status dict with reset result
+    """
+    codx_junior_session = request.state.codx_junior_session
+    file_engine = codx_junior_session.get_file_engine()
+    
+    path = request.query_params.get("path")
+    if not path:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST, content="Missing 'path' parameter")
+
+    try:
+        logger.info("Resetting file: %s", path)
+        result = await file_engine.reset_file(file_path=path)
+        return result
+    except FileNotFoundError:
+        return Response(status_code=status.HTTP_404_NOT_FOUND, content="File not found")
+    except RuntimeError as ex:
+        logger.warning("Git reset error for %s: %s", path, ex)
+        return Response(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=str(ex))
+    except Exception as ex:
+        logger.error("Error resetting file %s: %s", path, ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.post("/files/create")
+async def create_file(request: Request):
+    """
+    Create a new file or directory.
+
+    Body params:
+    - path: File/folder path (relative to project root, required)
+    - is_dir: Boolean, if true creates directory, otherwise creates empty file
+
+    Returns:
+        Dict with 'file_path' and 'is_dir' status
+    """
+    try:
+        data = await request.json()
+        path = data.get("path")
+        is_dir = data.get("is_dir", False)
+        
+        if not path:
+            return Response(status_code=status.HTTP_400_BAD_REQUEST, content="Missing 'path' parameter")
+        
+        codx_junior_session = request.state.codx_junior_session
+        file_engine = codx_junior_session.get_file_engine()
+        
+        logger.info("Creating %s: %s", "directory" if is_dir else "file", path)
+        result = await file_engine.create_file(file_path=path, is_dir=is_dir)
+        return result
+    
+    except FileExistsError as ex:
+        logger.warning("File already exists: %s", ex)
+        return Response(
+            status_code=status.HTTP_409_CONFLICT,
+            content=str(ex)
+        )
+    except ValueError as ex:
+        logger.warning("Invalid path: %s", ex)
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=str(ex)
+        )
+    except Exception as ex:
+        logger.error("Error creating file: %s", ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.post("/files/delete")
+async def delete_file(request: Request):
+    """
+    Delete a file or directory.
+
+    Body params:
+    - path: File/folder path to delete (relative to project root, required)
+
+    Returns:
+        Dict with deletion status
+    """
+    try:
+        data = await request.json()
+        path = data.get("path")
+        
+        if not path:
+            return Response(status_code=status.HTTP_400_BAD_REQUEST, content="Missing 'path' parameter")
+        
+        codx_junior_session = request.state.codx_junior_session
+        file_engine = codx_junior_session.get_file_engine()
+        
+        logger.info("Deleting file/directory: %s", path)
+        result = await file_engine.delete_file(file_path=path)
+        return result
+    
+    except FileNotFoundError as ex:
+        logger.warning("File not found: %s", ex)
+        return Response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=str(ex)
+        )
+    except ValueError as ex:
+        logger.warning("Invalid path: %s", ex)
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=str(ex)
+        )
+    except Exception as ex:
+        logger.error("Error deleting file: %s", ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.post("/files/rename")
+async def rename_file(request: Request):
+    """
+    Rename a file or directory.
+
+    Body params:
+    - old_path: Current file/folder path (relative to project root)
+    - new_path: New file/folder path (relative to project root)
+
+    Returns:
+        Dict with rename status
+    """
+    try:
+        data = await request.json()
+        old_path = data.get("old_path")
+        new_path = data.get("new_path")
+        
+        if not old_path or not new_path:
+            return Response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content="Missing 'old_path' or 'new_path' parameter"
+            )
+        
+        codx_junior_session = request.state.codx_junior_session
+        file_engine = codx_junior_session.get_file_engine()
+        
+        logger.info("Renaming file: %s to %s", old_path, new_path)
+        result = await file_engine.rename_file(old_path=old_path, new_path=new_path)
+        return result
+    
+    except FileNotFoundError as ex:
+        logger.warning("File not found: %s", ex)
+        return Response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=str(ex)
+        )
+    except FileExistsError as ex:
+        logger.warning("Destination already exists: %s", ex)
+        return Response(
+            status_code=status.HTTP_409_CONFLICT,
+            content=str(ex)
+        )
+    except ValueError as ex:
+        logger.warning("Invalid path: %s", ex)
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=str(ex)
+        )
+    except Exception as ex:
+        logger.error("Error renaming file: %s", ex)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
 @router.post("/files/upload")
 async def upload_file(
     request: Request,

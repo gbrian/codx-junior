@@ -196,6 +196,20 @@ class CodxUser(BaseModel):
         description="User's wallets"
     )
 
+    # ── GitHub OAuth admin status ─────────────────────────────────────────────
+
+    github_admin: Optional[bool] = Field(
+        default=False,
+        description="True if user was granted admin role via GitHub account (from GITHUB_ADMINS env var).",
+    )
+
+    # ── GitHub-only login mode ────────────────────────────────────────────────
+
+    github_only: Optional[bool] = Field(
+        default=False,
+        description="If True, only GitHub OAuth login is allowed. Manual password login is disabled.",
+    )
+
     # ── Token-limit policy (admin-managed, stored inline on the user) ──────────
 
     token_limit_rules: List[TokenLimitRule] = Field(

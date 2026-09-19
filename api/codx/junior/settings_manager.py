@@ -15,6 +15,7 @@ import json
 import logging
 import pathlib
 import traceback
+import tempfile
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
@@ -82,10 +83,79 @@ class GlobalSettingsManager:
         self._ensure_dirs()
 
     def _ensure_dirs(self) -> None:
-        """Create base directories if they do not exist."""
-        self.settings_dir.mkdir(parents=True, exist_ok=True)
-        self.history_dir.mkdir(parents=True, exist_ok=True)
-        logger.debug("Settings dir: %s | History dir: %s", self.settings_dir, self.history_dir)
+        """
+        Create base directories if they do not exist.
+        
+        If the primary config folder is not writable, falls back to a temp directory.
+        """
+        try:
+            # Verify parent directory exists and is writable
+            config_path = pathlib.Path(self.config_folder)
+            
+            # Create parent if it doesn't exist
+            if not config_path.exists():
+                try:
+                    config_path.mkdir(parents=True, exist_ok=True)
+                    logger.info("Created config folder: %s", config_path)
+                except PermissionError as ex:
+                    logger.warning(
+                        "Cannot create config folder %s: %s. Falling back to temp directory.",
+                        config_path, ex
+                    )
+                    self._fallback_to_temp_dir()
+                    return
+            
+            # Verify write permissions on parent directory
+            if not os.access(config_path, os.W_OK):
+                logger.warning(
+                    "Config folder %s is not writable. Falling back to temp directory.",
+                    config_path
+                )
+                self._fallback_to_temp_dir()
+                return
+            
+            # Create settings and history subdirectories
+            self.settings_dir.mkdir(parents=True, exist_ok=True)
+            self.history_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug("Settings dir: %s | History dir: %s", self.settings_dir, self.history_dir)
+            
+        except PermissionError as ex:
+            logger.error(
+                "Permission denied creating settings directories: %s. Falling back to temp directory.",
+                ex
+            )
+            self._fallback_to_temp_dir()
+        except OSError as ex:
+            logger.error(
+                "OS error creating settings directories: %s. Falling back to temp directory.",
+                ex
+            )
+            self._fallback_to_temp_dir()
+
+    def _fallback_to_temp_dir(self) -> None:
+        """
+        Fallback to a temporary directory when the primary config folder is not writable.
+        
+        This ensures the application can still function during initialization.
+        """
+        temp_base = pathlib.Path(tempfile.gettempdir()) / "codx-junior-settings"
+        self.config_folder = str(temp_base)
+        self.settings_dir = temp_base / SETTINGS_DIR_NAME
+        self.history_dir = temp_base / HISTORY_DIR_NAME
+        
+        try:
+            self.settings_dir.mkdir(parents=True, exist_ok=True)
+            self.history_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(
+                "Using fallback temp directory for settings: %s",
+                temp_base
+            )
+        except OSError as ex:
+            logger.error(
+                "Failed to create fallback temp directories: %s",
+                ex
+            )
+            raise
 
     def _section_file(self, section: str) -> pathlib.Path:
         """Return the path to the section's JSON file."""

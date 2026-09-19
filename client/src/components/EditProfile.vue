@@ -2,6 +2,8 @@
 import ExportImportButton from './ExportImportButton.vue'
 import Document from './document/Document.vue'
 import ChatView from '@/views/ChatView.vue'
+import ChatLLMModelSelector from './chat/ChatLLMModelSelector.vue'
+import ChatProfileSelector from './chat/ChatProfileSelector.vue'
 </script>
 
 <template>
@@ -117,15 +119,13 @@ import ChatView from '@/views/ChatView.vue'
           />
         </div>
 
-        <!-- LLM Model -->
+        <!-- LLM Model with ChatLLMModelSelector -->
         <div>
           <label class="label label-text text-xs pb-1">Model</label>
-          <select class="select select-bordered select-sm w-full bg-base-300" v-model="editProfile.llm_model">
-            <option value="">-- default model --</option>
-            <option v-for="model in aiModels" :key="model.name" :value="model.name">
-              {{ model.ai_provider }} — {{ model.name }}
-            </option>
-          </select>
+          <ChatLLMModelSelector 
+            :selectedModel="editProfile.llm_model"
+            @model-changed="editProfile.llm_model = $event"
+          />
           <span v-if="editProfile.llm_model" class="badge badge-xs badge-warning font-mono mt-1">
             <i class="fa-solid fa-brain mr-1"></i>{{ editProfile.llm_model }}
           </span>
@@ -163,22 +163,11 @@ import ChatView from '@/views/ChatView.vue'
             <label class="label label-text text-xs pb-1">
               <i class="fa-solid fa-link mr-1"></i> Linked Profiles
             </label>
-            <select v-model="newProfile" @change="addProfile" class="select select-xs select-bordered w-full">
-              <option value="">+ Add profile</option>
-              <option v-for="p in $projects.profiles" :key="p.id" :value="p.name">{{ p.name }}</option>
-            </select>
-            <div class="flex flex-wrap gap-1 mt-2">
-              <span
-                v-for="p in editProfile.profiles"
-                :key="p"
-                class="badge badge-sm badge-secondary gap-1"
-              >
-                {{ p }}
-                <button @click="removeProfile(p)" class="hover:text-error">
-                  <i class="fa fa-times text-xs"></i>
-                </button>
-              </span>
-            </div>
+            <ChatProfileSelector 
+              :project="project"
+              :selectedProfiles="editProfile.profiles"
+              @profiles-changed="onLinkedProfilesChanged"
+            />
           </div>
         </div>
       </div>
@@ -407,7 +396,6 @@ export default {
       deleting: false,
       tab: 'content',
       contentMode: 'view',
-      newProfile: '',
       tools: [],
       plugins: [],
       savingChatId: false,
@@ -430,11 +418,6 @@ export default {
     userAvatar() {
       return this.editProfile.avatar ||
         `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.editProfile.name}`
-    },
-    aiModels() {
-      return this.$storex.api.globalSettings?.ai_models
-        ?.filter(m => m.model_type === 'llm')
-        ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
     isInherit() {
       return !this.editProfile.path?.startsWith(this.$project.abs_project_path)
@@ -521,15 +504,6 @@ export default {
       this.editProfile = { ...this.profile }
       this.contentMode = 'view'
     },
-    addProfile() {
-      if (this.newProfile && !this.editProfile.profiles.includes(this.newProfile)) {
-        this.editProfile.profiles.push(this.newProfile)
-      }
-      this.newProfile = ''
-    },
-    removeProfile(profile) {
-      this.editProfile.profiles = this.editProfile.profiles.filter(p => p !== profile)
-    },
     switchProject() {
       if (this.$project.project_id !== this.project.project_id) {
         const project = this.$projects.allProjects.find(p => p.project_id === this.project.project_id)
@@ -544,6 +518,9 @@ export default {
     },
     onToolTagFilterChange() {
       // Tag filter changed, tools list will update via computed property
+    },
+    onLinkedProfilesChanged(selectedProfiles) {
+      this.editProfile.profiles = selectedProfiles.map(p => p.name)
     },
     async loadTools() {
       const tools = await this.project.$api.profiles.tools()

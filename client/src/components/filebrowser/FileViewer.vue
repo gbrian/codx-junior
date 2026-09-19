@@ -4,6 +4,7 @@ import hljs from 'highlight.js'
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import Editor from '../monaco/Editor.vue'
+import MarkdownViewer from '../MarkdownViewer.vue'
 import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </script>
 
@@ -41,7 +42,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
-      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo">
+      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo && !isMarkdown">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
@@ -113,6 +114,14 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           :title="displayFileName"
         ></video>
       </div>
+      <MarkdownViewer
+        v-else-if="isMarkdown"
+        class="p-2"
+        :text="fileContent"
+        :document-id="displayFilePath"
+        @add-file="handleAddFile"
+        @table-updated="handleTableUpdated"
+      />
       <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
         <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
       </div>
@@ -168,6 +177,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 <script>
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg']
 const VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'ogv', 'ts', 'mts', 'vob']
+const MARKDOWN_EXTENSIONS = ['md', 'markdown', 'mermaid']
 const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
 
 const EXTENSION_ICON_MAP = {
@@ -320,6 +330,9 @@ export default {
     },
     isVideo() {
       return VIDEO_EXTENSIONS.includes(this.fileExtension)
+    },
+    isMarkdown() {
+      return MARKDOWN_EXTENSIONS.includes(this.fileExtension)
     },
     isBinary() {
       return BINARY_EXTENSIONS.includes(this.fileExtension) || this.isVideo
@@ -489,6 +502,12 @@ export default {
     },
     onDragEnd() {
       this.isDraggingFileName = false
+    },
+    handleAddFile(filePath) {
+      this.$emit('add-file', filePath)
+    },
+    handleTableUpdated(payload) {
+      this.$emit('table-updated', payload)
     }
   }
 }

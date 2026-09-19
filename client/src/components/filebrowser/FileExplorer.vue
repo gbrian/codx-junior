@@ -1,6 +1,7 @@
 <script setup>
 import moment from 'moment'
 import ContextMenu from './ContextMenu.vue'
+import CreateFileDialog from './CreateFileDialog.vue'
 </script>
 
 <template>
@@ -208,15 +209,24 @@ import ContextMenu from './ContextMenu.vue'
       @rename="handleContextRename"
       @delete="handleContextDelete"
     />
+
+    <!-- Create File/Folder Dialog -->
+    <CreateFileDialog
+      :isVisible="showCreateDialog"
+      :isDir="createDialogIsDir"
+      @create="onCreateDialogSubmit"
+      @cancel="showCreateDialog = false"
+    />
   </div>
 </template>
 
 <script>
 import ContextMenu from './ContextMenu.vue'
+import CreateFileDialog from './CreateFileDialog.vue'
 
 export default {
   name: 'FileExplorer',
-  components: { ContextMenu },
+  components: { ContextMenu, CreateFileDialog },
   props: ['root-path'],
   data() {
     return {
@@ -244,6 +254,8 @@ export default {
       contextMenuVisible: false,
       contextMenuPosition: { x: 0, y: 0 },
       contextMenuEntry: null,
+      showCreateDialog: false,
+      createDialogIsDir: false,
       extensionIconMap: {
         'js': 'fa-brands fa-js text-yellow-500',
         'ts': 'fa-brands fa-js text-blue-500',
@@ -648,23 +660,23 @@ export default {
     closeContextMenu() {
       this.contextMenuVisible = false
     },
-    async handleContextCreate({ isDir }) {
+    handleContextCreate({ isDir }) {
       this.closeContextMenu()
+      this.createDialogIsDir = isDir
+      this.showCreateDialog = true
+    },
+    async onCreateDialogSubmit({ name }) {
+      this.showCreateDialog = false
       const parentPath = this.getAbsolutePath(this.currentPath)
-      const baseName = isDir ? 'new-folder' : 'new-file'
-      let newName = baseName
-      let counter = 1
-      const existingNames = this.entries.map(e => e.name)
-      while (existingNames.includes(newName)) {
-        newName = `${baseName}-${counter++}`
-      }
-      const newPath = this.normalizePath(`${parentPath}/${newName}`)
+      const newPath = this.normalizePath(`${parentPath}/${name}`)
+      
       try {
-        await this.$api.files.create(newPath, isDir)
-        if (!isDir) {
+        await this.$api.files.create(newPath, this.createDialogIsDir)
+        
+        if (!this.createDialogIsDir) {
           this.$emit('createFile', {
             path: newPath,
-            name: newName,
+            name: name,
             isNew: true
           })
         } else {
@@ -672,19 +684,23 @@ export default {
         }
       } catch (error) {
         console.error('Error creating file/folder', error)
-        this.error = `Failed to create ${isDir ? 'folder' : 'file'}: ${error.message}`
+        this.error = `Failed to create ${this.createDialogIsDir ? 'folder' : 'file'}: ${error.message}`
       }
     },
     async handleContextRename() {
       this.closeContextMenu()
       if (this.selectedEntries.length !== 1) return
+      
       const entry = this.selectedEntries[0]
       const oldName = entry.name
       const newName = prompt('Enter new name:', oldName)
+      
       if (!newName || newName === oldName) return
+      
       const oldPath = this.entryPath(entry)
       const parentPath = oldPath.substring(0, oldPath.lastIndexOf('/'))
       const newPath = this.normalizePath(`${parentPath}/${newName}`)
+      
       try {
         await this.$api.files.rename(oldPath, newPath)
         await this.refresh()
@@ -696,11 +712,14 @@ export default {
     async handleContextDelete() {
       this.closeContextMenu()
       if (this.selectedEntries.length === 0) return
+      
       const count = this.selectedEntries.length
       const message = count === 1
         ? `Delete "${this.selectedEntries[0].name}"?`
         : `Delete ${count} items?`
+      
       if (!confirm(message)) return
+      
       try {
         for (const entry of this.selectedEntries) {
           await this.$api.files.delete(this.entryPath(entry))
@@ -786,11 +805,7 @@ export default {
         this.uploadTotalBytes = files.reduce((sum, f) => sum + f.size, 0)
         this.uploadingFileName = files.length === 1 ? files[0].name : `${files.length} files`
         
-        await this.$api.files.upload(targetPath, files, (progress) => {
-          this.uploadProgress = progress.percent
-          this.uploadProgressBytes = progress.loaded
-          this.uploadTotalBytes = progress.total
-        })
+        await this.$api.files.uploadMultiple(files)
         
         await this.refresh()
       } catch (error) {

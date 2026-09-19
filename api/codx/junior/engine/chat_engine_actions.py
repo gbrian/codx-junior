@@ -18,7 +18,14 @@ import requests
 
 from codx.junior.chat.chat_engine import ChatEngine
 from codx.junior.db import Chat, Message, MessageTaskItem
-from codx.junior.model.logs import ChatLogSummary, ChatLogStatusDistribution, ChatLogTokenStats, ChatLogModelUsage
+from codx.junior.model.logs import (
+    ChatLogSummary, 
+    ChatLogStatusDistribution, 
+    ChatLogTokenStats, 
+    ChatLogModelUsage,
+    ForensicArchivedMessageRecord,
+    ForensicToolCallRecord,
+)
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.utils.utils import (
     document_to_code_block,
@@ -558,17 +565,24 @@ class ChatEngineActions:
 
     def get_chat_log_summary(self, chat_id: str) -> ChatLogSummary:
         """
-        Find all AI logs associated with a chat and create a summary.
+        Find all AI logs associated with a chat and create a comprehensive summary.
 
-        Given a chat_id, retrieves the chat, extracts session_id (if available),
-        queries raw AI logs using RawLogReader, and aggregates them into a
-        comprehensive summary object.
+        Given a chat_id, retrieves the chat, queries analytics storage for:
+        - TokenUsageEvent records (LLM token consumption)
+        - ArchivedMessage records (full request/response content)
+        - ToolCallMessage records (tool execution details)
+        - ToolUsageEvent records (tool performance metrics)
+
+        Aggregates all events into a comprehensive summary with metrics,
+        status distribution, token estimates, error tracking, and a complete
+        forensic audit trail with raw request/response payloads.
 
         Args:
             chat_id: The unique identifier of the chat to summarize logs for.
 
         Returns:
-            ChatLogSummary object containing aggregated log statistics.
+            ChatLogSummary object containing aggregated log statistics and
+            complete forensic audit trail (raw_log_records).
 
         Raises:
             ValueError: When chat is not found.
@@ -584,156 +598,276 @@ class ChatEngineActions:
             chat_id, chat.session_id, chat.created_at
         )
 
-        # ── Step 2: Initialize reader and prepare queries ───────────────────
-        from codx.junior.ai.raw_log_reader import RawLogReader
-        reader = RawLogReader()
+        # ── Step 2: Initialize Analytics reader ─────────────────────────────
+        from codx.junior.analytics import Analytics
+        analytics = Analytics()
         
-        # Attempt to get username from first non-hidden message
-        username = None
-        for msg in chat.messages:
-            if not msg.hide and msg.user:
-                username = msg.user
-                break
-        username = username or "anonymous"
-
-        # ── Step 3: Query logs (Primary: session_id, Fallback: date range) ──
-        fallback_used = False
-        fallback_reason = None
-        all_logs = []
-
-        if chat.session_id:
-            # Primary: query by session_id
-            logger.debug("Querying logs by session_id: %s", chat.session_id)
-            all_logs = reader.read_events(
-                session_id=chat.session_id,
-                project=self.session.settings.project_name,
-            )
-        else:
-            # Fallback: query by project + username + date range
-            fallback_used = True
-            fallback_reason = "Chat has no session_id set; querying by project + username + date range"
-            
-            # Parse chat.created_at to get date range
-            try:
-                created_dt = datetime.fromisoformat(str(chat.created_at).replace(" ", "T"))
-            except (ValueError, AttributeError):
-                created_dt = datetime.now()
-                logger.warning("Could not parse chat.created_at: %s", chat.created_at)
-            
-            # Extend date range to catch logs: from creation date to now
+        # Determine date range for queries
+        start_date = None
+        end_date = None
+        try:
+            created_dt = datetime.fromisoformat(str(chat.created_at).replace(" ", "T"))
             start_date = created_dt.strftime("%Y-%m-%d")
             end_date = datetime.now().strftime("%Y-%m-%d")
-            
-            logger.debug(
-                "Fallback query: project=%s username=%s date_range=[%s, %s]",
-                self.session.settings.project_name, username, start_date, end_date
-            )
-            all_logs = reader.read_events(
-                start_date=start_date,
-                end_date=end_date,
-                project=self.session.settings.project_name,
-                username=username,
-            )
-            logger.debug("Fallback query returned %d log records", len(all_logs))
+        except (ValueError, AttributeError) as ex:
+            logger.warning("Could not parse chat.created_at: %s, using today only", chat.created_at)
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = end_date
 
-        # ── Step 4: Aggregate logs into summary ────────────────────────────
+        logger.debug(
+            "get_chat_log_summary: querying analytics for date range [%s, %s]",
+            start_date, end_date
+        )
+
+        # ── Step 3: Query all relevant log types by chat_id ──────────────────
+        # Query token usage events
+        token_events = analytics.storage.read_events(
+            start_date=start_date,
+            end_date=end_date,
+            chat_id=chat_id,
+        )
+
+        # Query archived messages (full request/response content)
+        archived_messages = analytics.storage.read_archived_messages(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Query tool call messages (tool execution details)
+        tool_call_messages = analytics.storage.read_tool_call_messages(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Query tool usage events
+        tool_usage_events = analytics.storage.read_tool_events(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        logger.info(
+            "get_chat_log_summary: retrieved %d token events, %d archived messages, "
+            "%d tool call messages, %d tool usage events",
+            len(token_events),
+            len(archived_messages),
+            len(tool_call_messages),
+            len(tool_usage_events),
+        )
+
+        # ── Step 4: Build forensic audit trail ─────────────────────────────
+        # Combine archived messages and tool call messages, sorted by timestamp
+        forensic_records: List[tuple] = []  # (timestamp, record_dict)
+        
+        for message in archived_messages:
+            try:
+                forensic_record = ForensicArchivedMessageRecord(
+                    message_id=message.message_id,
+                    request_id=message.request_id or "",
+                    timestamp=message.timestamp,
+                    iso_date=message.iso_date,
+                    request_messages=message.request_messages,
+                    system_prompt=message.system_prompt,
+                    temperature=message.temperature,
+                    max_tokens=message.max_tokens,
+                    tools=message.tools,
+                    response_content=message.response_content,
+                    input_tokens=message.input_tokens,
+                    output_tokens=message.output_tokens,
+                    duration_seconds=message.duration_seconds,
+                    error=message.error,
+                    cancelled=message.cancelled,
+                    model=message.model,
+                    provider=message.provider,
+                    chat_id=message.chat_id,
+                    username=message.username,
+                    project_name=message.project_name,
+                    project_id=message.project_id,
+                )
+                forensic_records.append(
+                    (message.timestamp, forensic_record.dict())
+                )
+            except Exception as ex:
+                logger.warning(
+                    "get_chat_log_summary: failed to build forensic record for archived message %s: %s",
+                    message.message_id, ex
+                )
+
+        for tool_msg in tool_call_messages:
+            try:
+                forensic_record = ForensicToolCallRecord(
+                    message_id=tool_msg.message_id,
+                    tool_call_id=tool_msg.tool_call_id,
+                    timestamp=tool_msg.timestamp,
+                    iso_date=tool_msg.iso_date,
+                    tool_name=tool_msg.tool_name,
+                    tool_definition=tool_msg.tool_definition,
+                    request_args=tool_msg.request_args,
+                    result=tool_msg.result,
+                    result_sent_to_model=tool_msg.result_sent_to_model,
+                    duration_seconds=tool_msg.duration_seconds,
+                    success=tool_msg.success,
+                    error_message=tool_msg.error_message,
+                    cached=tool_msg.cached,
+                    chat_id=tool_msg.chat_id,
+                    username=tool_msg.username,
+                    project_name=tool_msg.project_name,
+                    project_id=tool_msg.project_id,
+                )
+                forensic_records.append(
+                    (tool_msg.timestamp, forensic_record.dict())
+                )
+            except Exception as ex:
+                logger.warning(
+                    "get_chat_log_summary: failed to build forensic record for tool call %s: %s",
+                    tool_msg.tool_call_id, ex
+                )
+
+        # Sort by timestamp (chronological order) and extract just the dicts
+        forensic_records.sort(key=lambda x: x[0])
+        raw_log_records = [record_dict for _, record_dict in forensic_records]
+
+        logger.info(
+            "get_chat_log_summary: built forensic audit trail with %d records",
+            len(raw_log_records)
+        )
+
+        # ── Step 5: Aggregate all events into summary ──────────────────────
         summary = ChatLogSummary(
             chat_id=chat_id,
             session_id=chat.session_id,
-            fallback_used=fallback_used,
-            fallback_reason=fallback_reason,
+            raw_log_records=raw_log_records,
         )
 
         # Track models and their usage
         model_usage_map = {}  # (model, provider) -> ChatLogModelUsage
         error_details = []
+        total_duration = 0.0
 
-        for log in all_logs:
+        # ── Process Token Usage Events ────────────────────────────────────
+        for event in token_events:
             summary.total_log_records += 1
+            summary.token_stats.total_estimated_input_tokens += event.input_tokens
+            summary.token_stats.total_estimated_output_tokens += event.output_tokens
+            total_duration += event.duration_seconds
 
-            # ── Count direction (request vs response) ──────────────────────
-            direction = log.get("direction", "")
-            if direction == "request":
-                summary.total_requests += 1
-            elif direction == "response":
-                summary.total_responses += 1
-
-            # ── Count status distribution ─────────────────────────────────
-            status = log.get("status", "")
-            if status == "success":
-                summary.status_distribution.success += 1
-            elif status == "error":
-                summary.status_distribution.error += 1
-                # Collect error messages
-                payload = log.get("payload") or {}
-                error_msg = payload.get("error_message", "Unknown error")
-                if len(error_details) < 5:  # Limit to first 5
-                    error_details.append(error_msg)
-            elif status == "cancelled":
-                summary.status_distribution.cancelled += 1
-
-            # ── Aggregate duration ────────────────────────────────────────
-            duration = log.get("duration_seconds")
-            if duration is not None:
-                summary.total_duration_seconds += duration
-
-            # ── Estimate tokens from payload ──────────────────────────────
-            payload = log.get("payload") or {}
-            
-            if direction == "request":
-                # Estimate input tokens from messages length
-                messages = payload.get("messages") or []
-                message_text = json.dumps(messages, default=str)
-                # Rough estimate: ~4 chars per token
-                estimated_tokens = len(message_text) // 4
-                summary.token_stats.total_estimated_input_tokens += estimated_tokens
-            
-            elif direction == "response" and status == "success":
-                # Estimate output tokens from response content
-                content = payload.get("content", "")
-                estimated_tokens = len(content) // 4
-                summary.token_stats.total_estimated_output_tokens += estimated_tokens
-
-            # ── Track model/provider usage ────────────────────────────────
-            model = log.get("model", "unknown")
-            provider = log.get("provider", "unknown")
-            key = (model, provider)
-            
+            # Track model usage
+            key = (event.model, event.provider)
             if key not in model_usage_map:
                 model_usage_map[key] = ChatLogModelUsage(
-                    model=model,
-                    provider=provider,
+                    model=event.model,
+                    provider=event.provider,
                 )
-            
-            if direction == "request":
-                model_usage_map[key].request_count += 1
-            
-            if direction == "response" and duration is not None:
-                model_usage_map[key].total_duration_seconds += duration
+            model_usage_map[key].request_count += 1
+            model_usage_map[key].total_duration_seconds += event.duration_seconds
 
-            # ── Track timestamp range ─────────────────────────────────────
-            timestamp = log.get("timestamp", "")
-            if timestamp:
-                if not summary.first_timestamp or timestamp < summary.first_timestamp:
-                    summary.first_timestamp = timestamp
-                if not summary.last_timestamp or timestamp > summary.last_timestamp:
-                    summary.last_timestamp = timestamp
+            # Track timestamps
+            if event.timestamp:
+                ts_iso = datetime.fromtimestamp(event.timestamp).isoformat()
+                if not summary.first_timestamp or ts_iso < summary.first_timestamp:
+                    summary.first_timestamp = ts_iso
+                if not summary.last_timestamp or ts_iso > summary.last_timestamp:
+                    summary.last_timestamp = ts_iso
 
-        # ── Finalize model usage and error tracking ────────────────────────
+        # ── Process Archived Messages ──────────────────────────────────────
+        for message in archived_messages:
+            summary.total_log_records += 1
+            summary.total_requests += 1
+            summary.status_distribution.success += 1
+            summary.token_stats.total_estimated_input_tokens += message.input_tokens
+            summary.token_stats.total_estimated_output_tokens += message.output_tokens
+            total_duration += message.duration_seconds
+
+            # Track model usage
+            key = (message.model, message.provider)
+            if key not in model_usage_map:
+                model_usage_map[key] = ChatLogModelUsage(
+                    model=message.model,
+                    provider=message.provider,
+                )
+            model_usage_map[key].request_count += 1
+            model_usage_map[key].total_duration_seconds += message.duration_seconds
+
+            # Track error if present
+            if message.error:
+                summary.status_distribution.error += 1
+                summary.status_distribution.success -= 1  # Undo success count
+                if len(error_details) < 5:
+                    error_details.append(message.error)
+
+            if message.cancelled:
+                summary.status_distribution.cancelled += 1
+                summary.status_distribution.success -= 1  # Undo success count
+
+            # Track timestamps
+            if message.timestamp:
+                ts_iso = datetime.fromtimestamp(message.timestamp).isoformat()
+                if not summary.first_timestamp or ts_iso < summary.first_timestamp:
+                    summary.first_timestamp = ts_iso
+                if not summary.last_timestamp or ts_iso > summary.last_timestamp:
+                    summary.last_timestamp = ts_iso
+
+        # ── Process Tool Call Messages ────────────────────────────────────
+        for tool_msg in tool_call_messages:
+            summary.total_log_records += 1
+
+            if tool_msg.success:
+                summary.status_distribution.success += 1
+            else:
+                summary.status_distribution.error += 1
+                if len(error_details) < 5:
+                    error_details.append(tool_msg.error_message or "Tool execution failed")
+
+            total_duration += tool_msg.duration_seconds
+
+            # Track timestamps
+            if tool_msg.timestamp:
+                ts_iso = datetime.fromtimestamp(tool_msg.timestamp).isoformat()
+                if not summary.first_timestamp or ts_iso < summary.first_timestamp:
+                    summary.first_timestamp = ts_iso
+                if not summary.last_timestamp or ts_iso > summary.last_timestamp:
+                    summary.last_timestamp = ts_iso
+
+        # ── Process Tool Usage Events ──────────────────────────────────────
+        for tool_event in tool_usage_events:
+            summary.total_log_records += 1
+
+            if tool_event.success:
+                summary.status_distribution.success += 1
+            else:
+                summary.status_distribution.error += 1
+                if len(error_details) < 5:
+                    error_details.append(tool_event.error_message or "Tool execution failed")
+
+            total_duration += tool_event.time_taken
+
+            # Track timestamps
+            if tool_event.timestamp:
+                ts_iso = datetime.fromtimestamp(tool_event.timestamp).isoformat()
+                if not summary.first_timestamp or ts_iso < summary.first_timestamp:
+                    summary.first_timestamp = ts_iso
+                if not summary.last_timestamp or ts_iso > summary.last_timestamp:
+                    summary.last_timestamp = ts_iso
+
+        # ── Finalize aggregations ──────────────────────────────────────────
         summary.model_usage = list(model_usage_map.values())
         summary.has_errors = (
             summary.status_distribution.error > 0 or
             summary.status_distribution.cancelled > 0
         )
         summary.error_details = error_details
+        summary.total_duration_seconds = total_duration
+        summary.total_responses = len(archived_messages)
 
-        # ── Calculate average request duration ──────────────────────────────
-        if summary.total_responses > 0:
+        # Calculate average request duration
+        if len(archived_messages) > 0:
             summary.average_request_duration_seconds = (
-                summary.total_duration_seconds / summary.total_responses
+                total_duration / len(archived_messages)
             )
 
-        # ── Calculate total estimated tokens ───────────────────────────────
+        # Calculate total estimated tokens
         summary.token_stats.total_estimated_tokens = (
             summary.token_stats.total_estimated_input_tokens +
             summary.token_stats.total_estimated_output_tokens
@@ -741,13 +875,15 @@ class ChatEngineActions:
 
         logger.info(
             "get_chat_log_summary: completed for chat_id='%s' "
-            "logs=%d requests=%d responses=%d duration=%.2fs errors=%d",
+            "logs=%d requests=%d responses=%d duration=%.2fs errors=%d models=%d forensic_records=%d",
             chat_id,
             summary.total_log_records,
             summary.total_requests,
             summary.total_responses,
             summary.total_duration_seconds,
             summary.status_distribution.error,
+            len(summary.model_usage),
+            len(summary.raw_log_records),
         )
 
         return summary
@@ -801,3 +937,5 @@ class ChatEngineActions:
             return HumanMessage(content=m.content)
 
         return AIMessage(content=m.content)
+
+# Made with ❤️ by codx-junior

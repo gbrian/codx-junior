@@ -211,17 +211,15 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <div class="p-2 flex flex-col gap-2"
-      :class="{ 'border-error/40 border-l-4': isContentOutdated }"
+      :class="{ 'bg-error/40 rounded': isContentOutdated, 'bg-success/20 rounded': isNoChange }"
     >
 
       <div @click="runCommand" class="cursor-pointer" v-if="isCommand">
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div v-if="isContentOutdated" class="alert alert-error alert-outline">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+      <div v-if="isContentOutdated" class="alert text-error">
+        <i class="fa-solid fa-exclamation-circle text-error"></i>
         <span class="text-sm">
           <strong>Base file has changed:</strong> This content was generated {{ moment(contentCreatedAt).fromNow() }}, but the file was last modified {{ moment(last_modification).fromNow() }}. Consider refreshing the diff to ensure accuracy.
         </span>
@@ -250,18 +248,19 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </div>
       </div>
 
-      <!-- CHANGED: Replaced Monaco diff editor with lightweight DiffViewer -->
+      <!-- Main content area with diff or code views -->
       <div class="view-code grow overflow-auto">
         <div :style="{ height: `${editorHeight}px` }">
 
-          <!-- Lightweight diff viewer: replaces Monaco DiffEditor -->
+          <!-- DiffViewer with edit mode toggle (Monaco DiffEditor when in edit mode) -->
           <DiffViewer
-            v-if="showDiff && !editMode && orgContent"
+            v-if="showDiff && orgContent"
             :org-content="orgContent"
             :new-content="diffEditContent"
             :file="file"
             :language="fileLanguage"
             class="h-full"
+            @update:newContent="onDiffViewerChange"
           />
 
           <!-- Monaco plain edit mode (no diff) -->
@@ -487,7 +486,6 @@ export default {
       }
     },
     last_modification() {
-      // Trigger reactivity for isContentOutdated computed property
       this.$forceUpdate()
     },
     code(newCode, oldCode) {
@@ -784,6 +782,14 @@ export default {
       this.hasUnsavedFileChanges = true
     },
 
+    onDiffViewerChange(newValue) {
+      // Update diffEditContent from DiffViewer changes
+      this.diffEditContent = newValue
+      // Also update localCode to persist changes
+      this.localCode = newValue
+      this.hasUnsavedFileChanges = true
+    },
+
     applyMessageChange() {
       this.$emit('message-change', { orgContent: this.effectiveCode, newContent: this.editContent })
       this.applyUserChange(this.editContent)
@@ -886,7 +892,6 @@ export default {
       this.isAtBottom = distanceFromBottom <= 40
     },
 
-    // ADDED: Apply patch from pattern (uses AI pattern matching)
     applyPatchFromPattern() {
       if (!this.patchPattern) return
       this.applyUserChange(this.patchPattern.newContent)

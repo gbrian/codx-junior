@@ -7,11 +7,16 @@ from codx.junior.engine import (
   CODXJuniorSession,
 )
 
-from codx.junior.security.user_management import UserSecurityManager, get_authenticated_user
-from codx.junior.model.model import CodxUser, CodxUserLogin, GlobalSettings
+from codx.junior.security.user_management import (
+    UserSecurityManager,
+    get_authenticated_user,
+    is_github_admin_account
+)
+from codx.junior.model.user import CodxUser, CodxUserLogin
+from codx.junior.model.model import GlobalSettings
 from codx.junior.security.github_oauth import GitHubOAuth, GITHUB_CLIENTS
 
-from codx.junior.global_settings import get_oauth_provider, get_global_settings
+from codx.junior.global_settings import get_oauth_provider, read_global_settings, write_global_settings
 from codx.junior.analytics.analytics import Analytics
 from codx.junior.globals import ANALYTICS_DATA_PATH
 
@@ -34,7 +39,7 @@ async def get_oauth_login_url(oauth_provider: str, request: Request):
     redirect_uri = request.query_params.get("redirect_uri")
     provider_info = get_oauth_provider(oauth_provider)
     if not provider_info:
-        logger.error(f"OAuth provider not found: {oauth_provider} - {global_settings.oauth_providers}")
+        logger.error(f"OAuth provider not found: {oauth_provider}")
         return {"error": f"Provider {oauth_provider} not supported"}
 
     if oauth_provider == "github":
@@ -58,6 +63,7 @@ async def oauth_login(request: Request):
         code = payload["code"]
         state = payload["state"]
         redirect_uri = payload["redirect_uri"]
+        github_only = payload.get("github_only", False)  # Flag to create GitHub-only user
         
         github_oauth = GITHUB_CLIENTS[state]
         token_data = github_oauth.get_access_token(code=code)
@@ -67,9 +73,98 @@ async def oauth_login(request: Request):
             user_info = github_oauth.get_user_info(token_data['access_token'])
             user_security = UserSecurityManager()
             codx_user = user_security.find_github_user(account=user_info["login"])
-            return user_security.login_user(
-                                user=CodxUserLogin(**codx_user.__dict__), 
-                                oauth_password=state)
+            
+            if codx_user:
+                # Check if this GitHub account is in the admin list
+                if is_github_admin_account(user_info["login"]):
+                    logger.info(
+                        "GitHub user '%s' is in GITHUB_ADMINS list, granting admin role",
+                        user_info["login"]
+                    )
+                    codx_user.role = "admin"
+                    codx_user.github_admin = True
+                else:
+                    codx_user.github_admin = False
+                
+                logged_user = user_security.login_user(
+                    user=CodxUserLogin(**codx_user.__dict__), 
+                    oauth_password=state
+                )
+                
+                # Update the user in global settings if role/github_admin changed
+                if logged_user and (logged_user.role != codx_user.role or logged_user.github_admin != codx_user.github_admin):
+                    stored_user = user_security.find_user(username=logged_user.username)
+                    if stored_user:
+                        stored_user.role = codx_user.role
+                        stored_user.github_admin = codx_user.github_admin
+                        user_security.save_settings()
+                        logger.info(
+                            "Updated user '%s' role to '%s' and github_admin to %s",
+                            logged_user.username,
+                            codx_user.role,
+                            codx_user.github_admin
+                        )
+                
+                return logged_user
+            else:
+                # New user creation with GitHub OAuth
+                logger.info(
+                    "Creating new GitHub user '%s' (github_only=%s)",
+                    user_info["login"],
+                    github_only
+                )
+                
+                # Create new user with GitHub account
+                new_user = CodxUser(
+                    username=user_info["login"],
+                    email=user_info.get("email", ""),
+                    avatar=user_info.get("avatar_url", ""),
+                    github=user_info["login"],
+                    github_only=github_only,  # Set GitHub-only flag
+                    role="admin" if is_github_admin_account(user_info["login"]) else "user",
+                    github_admin=is_github_admin_account(user_info["login"])
+                )
+                
+                # Add user to global settings
+                global_settings = read_global_settings()
+                global_settings.users.append(new_user)
+                
+                # Create user login entry without password for GitHub-only users
+                if github_only:
+                    # GitHub-only: no password, use GitHub as auth mechanism
+                    new_login = CodxUserLogin(
+                        username=new_user.username,
+                        email=new_user.email,
+                        password=""  # Empty password for GitHub-only users
+                    )
+                    logger.info(
+                        "GitHub-only user '%s' created without password",
+                        new_user.username
+                    )
+                else:
+                    # Regular GitHub user: create with oauth token as password
+                    new_login = CodxUserLogin(
+                        username=new_user.username,
+                        email=new_user.email,
+                        password=state  # Use OAuth state as temporary credential
+                    )
+                
+                global_settings.user_logins.append(new_login)
+                write_global_settings(global_settings)
+                
+                logger.info(
+                    "New user '%s' created via GitHub OAuth (github_only=%s)",
+                    new_user.username,
+                    github_only
+                )
+                
+                # Now login the user
+                logged_user = user_security.login_user(
+                    user=CodxUserLogin(**new_user.__dict__),
+                    oauth_password=state
+                )
+                
+                return logged_user
 
     logger.error(f"GitHub OAuth login failed for provider: {oauth_provider}")
     return {"error": "OAuth login failed"}

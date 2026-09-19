@@ -21,6 +21,7 @@ from codx.junior.model.model import (
     AISettings,
     AIModel,
     AIProvider,
+    OAuthProvider,
 )
 # Import from top-level settings_manager to avoid conflict with settings.py package
 from codx.junior.settings_manager import GlobalSettingsManager
@@ -318,16 +319,73 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
     )
 
 
-def get_oauth_provider(oauth_provider: str):
+def _get_oauth_provider_from_env(provider_name: str) -> Optional[OAuthProvider]:
     """
-    Retrieve an OAuth provider by name.
+    Attempt to read OAuth provider settings from environment variables.
+
+    Supports the following environment variable naming conventions:
+    - CODX_{PROVIDER_NAME}_CLIENT_ID
+    - CODX_{PROVIDER_NAME}_SECRET
+    - CODX_{PROVIDER_NAME}_TOKEN_URL
+
+    Example for GitHub:
+    - CODX_GITHUB_CLIENT_ID
+    - CODX_GITHUB_SECRET
+    - CODX_GITHUB_TOKEN_URL
 
     Args:
-        oauth_provider: Name of the OAuth provider.
+        provider_name: Name of the OAuth provider (e.g., 'github').
 
     Returns:
-        Matching OAuthProvider or None.
+        OAuthProvider instance with environment variables filled, or None if required fields are missing.
     """
+    env_prefix = f"CODX_{provider_name.upper()}"
+    client_id = os.environ.get(f"{env_prefix}_CLIENT_ID", "")
+    secret = os.environ.get(f"{env_prefix}_SECRET", "")
+    token_url = os.environ.get(f"{env_prefix}_TOKEN_URL", "")
+
+    # Only return a provider if at least client_id and secret are provided
+    if client_id and secret:
+        logger.info("Loading OAuth provider '%s' from environment variables", provider_name)
+        return OAuthProvider(
+            name=provider_name,
+            client_id=client_id,
+            secret=secret,
+            token_url=token_url,
+        )
+
+    return None
+
+
+def get_oauth_provider(oauth_provider: str) -> Optional[OAuthProvider]:
+    """
+    Retrieve an OAuth provider by name, with environment variable support.
+
+    Priority order:
+    1. Environment variables (CODX_{PROVIDER}_CLIENT_ID, CODX_{PROVIDER}_SECRET, CODX_{PROVIDER}_TOKEN_URL)
+    2. Settings file (oauth_providers list)
+
+    Args:
+        oauth_provider: Name of the OAuth provider (e.g., 'github').
+
+    Returns:
+        Matching OAuthProvider with environment variables taking precedence, or None if not found.
+
+    Example:
+        # Using environment variables:
+        export CODX_GITHUB_CLIENT_ID=your_client_id
+        export CODX_GITHUB_SECRET=your_secret
+        export CODX_GITHUB_TOKEN_URL=https://github.com/login/oauth/access_token
+
+        # Using settings file (fallback):
+        # Define in oauth_providers section of global settings
+    """
+    # First, try to load from environment variables
+    env_provider = _get_oauth_provider_from_env(oauth_provider)
+    if env_provider:
+        return env_provider
+
+    # Fall back to settings file
     current_settings = read_global_settings()
     return next(
         (p for p in current_settings.oauth_providers if p.name == oauth_provider),

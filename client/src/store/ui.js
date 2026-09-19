@@ -19,7 +19,7 @@ export const state = () => ({
     "en-US": "English",
     "es-SP": "Español"
   },
-  viewMode: 'vibe',
+  viewMode: 'expert',
   openApps: {},
   appDivided: 'horizontal',
   resolution: API.screen.display?.resolution,
@@ -197,6 +197,10 @@ export const mutations = mutationTree(state, {
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
+    // Auto-inject project_id if not present
+    if (!app.params.project_id && $storex.projects.activeProject?.project_id) {
+      app.params.project_id = $storex.projects.activeProject.project_id
+    }
     app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
     

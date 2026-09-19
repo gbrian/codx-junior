@@ -21,12 +21,6 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
           </div>
         </div>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Project" @click="openProjects">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-folder-plus"></i>
-          </div>
-        </div>
-
         <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Wiki" @click="openWiki">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-graduation-cap"></i>
@@ -42,12 +36,6 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
         <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Media Library" @click="openFileExplorer">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
             <i class="fa-solid fa-image"></i>
-          </div>
-        </div>
-
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Vibe Coding" @click="openVibeCoding">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
           </div>
         </div>
 

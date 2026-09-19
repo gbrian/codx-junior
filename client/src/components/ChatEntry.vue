@@ -75,10 +75,10 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
   >
     <!-- ── Row: Avatar + Header + Content ── -->
     <div class="flex gap-3 items-start w-full">
-
       <!-- Avatar column -->
       <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
         <template v-if="isNewSpeaker">
+          <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
           <div
             v-for="profile in messageProfiles"
             :key="profile.name"
@@ -92,7 +92,8 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
         <div
           v-if="!isNewSpeaker"
           class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
-        ></div>
+        >           
+        </div>
         <!-- Events button -->
         <button
           v-if="hasEvents"
@@ -565,10 +566,13 @@ export default {
     isChannelMessage() {
       return this.chat.mode === 'channel'
     },
+    isAssistant() {
+      return this.message.role === 'assistant'
+    },
     canEditMessage() {
       return !this.isChannelMessage ||
         this.isMyMessage ||
-        this.message.role === 'assistant'
+        this.isAssistant
     },
     thinkText() {
       return this.displayMessage.think

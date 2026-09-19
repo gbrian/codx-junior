@@ -33,6 +33,7 @@ class Analytics:
     - Chat session lifecycle recording
     - Complete message archival (request/response pairs)
     - Tool call execution history with arguments and results
+    - Forensic audit trail with complete LLM request kwargs and tool definitions
 
     Diagram:
     classDiagram
@@ -304,12 +305,17 @@ class Analytics:
         output_tokens: int = 0,
         error: Optional[str] = None,
         cancelled: bool = False,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        system_prompt: Optional[str] = None,
     ) -> ArchivedMessage:
         """
         Record a complete message exchanged with the AI provider.
 
         Captures the full request-response cycle for complete traceability
-        and audit. Links to chat and optionally to a tool call.
+        and audit, including complete LLM settings for forensic debugging.
+        Links to chat and optionally to a tool call.
 
         Args:
             message_id:       Unique identifier for this archived message.
@@ -319,7 +325,7 @@ class Analytics:
             project_id:       Project identifier.
             model:            LLM model used.
             provider:         LLM provider.
-            request_messages: Full list of messages sent to the provider.
+            request_messages: Full list of messages sent to the provider (including system prompt).
             response_content: Full response content from the provider.
             request_id:       Unique request identifier (for linking to token event).
             tool_call_id:     If triggered by a tool call, the tool_call_id.
@@ -329,6 +335,10 @@ class Analytics:
             output_tokens:    Response token count.
             error:            Error message if failed.
             cancelled:        Whether the request was cancelled.
+            temperature:      Temperature parameter used in this request (for reproducibility).
+            max_tokens:       Maximum tokens parameter used (for reproducibility).
+            tools:            Complete tool JSON schemas sent to the model (for forensic audit).
+            system_prompt:    The system message sent to the model (for forensic audit).
 
         Returns:
             The persisted ``ArchivedMessage``.
@@ -351,17 +361,24 @@ class Analytics:
             output_tokens=output_tokens,
             error=error,
             cancelled=cancelled,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            system_prompt=system_prompt,
         )
         self.storage.write_archived_message(event)
         logger.info(
             "Archived message recorded: message_id=%s chat_id=%s model=%s request_id=%s "
-            "tool_call_id=%s duration=%.2fs",
+            "tool_call_id=%s duration=%.2fs temperature=%s max_tokens=%s tools_count=%d",
             message_id,
             chat_id,
             model,
             request_id,
             tool_call_id,
             duration_seconds,
+            temperature,
+            max_tokens,
+            len(tools) if tools else 0,
         )
         return event
 
@@ -382,12 +399,14 @@ class Analytics:
         error_message: Optional[str] = None,
         duration_seconds: float = 0.0,
         cached: bool = False,
+        tool_definition: Optional[Dict[str, Any]] = None,
     ) -> ToolCallMessage:
         """
         Record a complete tool call execution with all messaging.
 
         Captures the tool invocation, execution result, and the normalised
-        result sent back to the model for complete audit trail.
+        result sent back to the model for complete audit trail, including
+        the tool's JSON schema definition for forensic audit.
 
         Args:
             message_id:           Unique identifier for this tool call record.
@@ -404,6 +423,7 @@ class Analytics:
             error_message:        Error details if execution failed.
             duration_seconds:     Tool execution duration.
             cached:               Whether this result was cached.
+            tool_definition:      Complete tool JSON schema sent to the model (for forensic audit).
 
         Returns:
             The persisted ``ToolCallMessage``.
@@ -423,11 +443,12 @@ class Analytics:
             error_message=error_message,
             duration_seconds=duration_seconds,
             cached=cached,
+            tool_definition=tool_definition,
         )
         self.storage.write_tool_call_message(event)
         logger.info(
             "Tool call message recorded: message_id=%s chat_id=%s tool_call_id=%s "
-            "tool_name=%s success=%s duration=%.3fs cached=%s",
+            "tool_name=%s success=%s duration=%.3fs cached=%s tool_def_present=%s",
             message_id,
             chat_id,
             tool_call_id,
@@ -435,10 +456,11 @@ class Analytics:
             success,
             duration_seconds,
             cached,
+            tool_definition is not None,
         )
         return event
 
-    # ── Query helpers ──────────────────────────────────────────────────────────
+    # ── Query helpers ──────────────────────────────────────────────────────
 
     @staticmethod
     def _aggregate(
@@ -542,7 +564,7 @@ class Analytics:
         else:  # default to day
             return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d")
 
-    # ── Public query API ───────────────────────────────────────────────────────
+    # ── Public query API ───────────────────────────────────────────────────
 
     def get_usage_by_user(
         self,

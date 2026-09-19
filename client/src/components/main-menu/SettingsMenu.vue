@@ -53,20 +53,6 @@ import MenubarItem from './MenubarItem.vue'
         </MenubarSub>
 
         <MenubarItem>
-            <div class="flex items-center justify-between w-full" @click.stop="">
-                <span class="flex items-center gap-2 select-none">
-                    Advanced mode
-                </span>
-                <input 
-                    type="checkbox" 
-                    class="toggle toggle-sm toggle-primary" 
-                    :checked="$storex.ui.viewMode !== 'vibe'"
-                    @change="toggleViewMode"
-                />
-            </div>
-        </MenubarItem>
-
-        <MenubarItem>
             <a class="flex gap-4 items-center gap-2 tooltip select select-sm" data-tip="Voice language">
                 <i class="fa-solid fa-microphone-lines"></i>
                 <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)" @click.stop="">

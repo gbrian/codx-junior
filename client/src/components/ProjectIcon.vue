@@ -1,8 +1,7 @@
 <script setup>
-import BarButton from './project/BarButton.vue';
 </script>
 <template>
-    <BarButton :title="theProject?.project_name">
+    <div :title="theProject?.project_name">
       <div>
           <div class="avatar indicator" :data-tip="online !== false ? '' : 'offline'">
               <span class="indicator-item badge badge-xs badge-error" v-if="online === false">!</span>
@@ -18,7 +17,7 @@ import BarButton from './project/BarButton.vue';
         <div class="text-center overflow-hidden text-nowrap font-bold truncate" v-if="!iconOnly">
             {{ theProject?.project_name }}
         </div>
-    </BarButton>
+    </div>
 </template>
 <script>
 export default {

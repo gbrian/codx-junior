@@ -16,11 +16,74 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Tool JSON definitions
+PROJECT_STRUCTURE_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "project_structure",
+        "description": "Get the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "include_details": {
+                    "type": "boolean",
+                    "description": "If true, includes additional metadata like file counts and folder statistics.",
+                    "default": False
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Maximum folder depth to traverse. Leave null for no limit.",
+                    "default": None
+                },
+                "include_file_sizes": {
+                    "type": "boolean",
+                    "description": "If true, includes file sizes in bytes for each file.",
+                    "default": False
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Optional folder path to limit results to a specific directory. Must be within the project's path or codx path."
+                }
+            },
+            "required": []
+        }
+    }
+}
+
+READ_FOLDER_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "read_folder",
+        "description": "Read and display the structure of a specific folder within the project. Provides a tree-like view of files and subdirectories at a given path.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Folder path to read. Must be within the project's path or codx path."
+                },
+                "include_details": {
+                    "type": "boolean",
+                    "description": "If true, includes additional metadata like file counts and folder statistics.",
+                    "default": False
+                },
+                "include_file_sizes": {
+                    "type": "boolean",
+                    "description": "If true, includes file sizes in bytes for each file.",
+                    "default": False
+                }
+            },
+            "required": ["path"]
+        }
+    }
+}
+
 
 def project_structure(
     include_details: bool = False,
     max_depth: Optional[int] = None,
     include_file_sizes: bool = False,
+    path: Optional[str] = None,
     settings: Optional["CODXJuniorSettings"] = None,
 ) -> str:
     """
@@ -33,13 +96,14 @@ def project_structure(
         include_details: If True, includes additional metadata like file counts per folder.
         max_depth: Maximum folder depth to traverse (None = no limit).
         include_file_sizes: If True, includes file sizes in bytes for each file.
+        path: Optional folder path to limit results to. Must be within project or codx path.
         settings: CODXJuniorSettings instance (passed by SmolAgent).
 
     Returns:
         str: Formatted project structure as a tree-like string representation.
 
     Raises:
-        ValueError: If settings is not provided.
+        ValueError: If settings is not provided or path is invalid.
         RuntimeError: If project context is unavailable.
 
     Example:
@@ -76,7 +140,8 @@ def project_structure(
             session=session,
             include_details=include_details,
             max_depth=max_depth,
-            include_file_sizes=include_file_sizes
+            include_file_sizes=include_file_sizes,
+            path=path
         )
 
         logger.info("Project structure retrieved successfully")
@@ -92,11 +157,98 @@ def project_structure(
         return error_msg
 
 
+def read_folder(
+    path: str,
+    include_details: bool = False,
+    include_file_sizes: bool = False,
+    settings: Optional["CODXJuniorSettings"] = None,
+) -> str:
+    """
+    Read and display the structure of a specific folder within the project.
+
+    This tool provides a focused view of a particular directory, making it easy
+    to explore specific areas of the project structure.
+
+    Args:
+        path: Folder path to read. Must be within project or codx path.
+        include_details: If True, includes additional metadata like file counts per folder.
+        include_file_sizes: If True, includes file sizes in bytes for each file.
+        settings: CODXJuniorSettings instance (passed by SmolAgent).
+
+    Returns:
+        str: Formatted folder structure as a tree-like string representation.
+
+    Raises:
+        ValueError: If settings is not provided or path is invalid.
+        RuntimeError: If project context is unavailable.
+
+    Example:
+        >>> result = read_folder(path="src/components", include_file_sizes=True)
+        >>> print(result)
+        # Project Structure
+        
+        📁 components/
+          📄 Button.tsx (2.5 KB)
+          📄 Card.tsx (1.8 KB)
+
+    Made with ❤️ by codx-junior
+    """
+    return project_structure(
+        include_details=include_details,
+        max_depth=None,
+        include_file_sizes=include_file_sizes,
+        path=path,
+        settings=settings,
+    )
+
+
+def _validate_path(path_str: str, project_root: str, codx_root: Optional[str] = None) -> Path:
+    """
+    Validate that a path is within project or codx boundaries.
+
+    Args:
+        path_str: Path string to validate.
+        project_root: Project root path.
+        codx_root: Optional codx root path.
+
+    Returns:
+        Path: Resolved path object.
+
+    Raises:
+        ValueError: If path is not within allowed boundaries.
+    """
+    # Resolve the path
+    resolved_path = (Path(project_root) / path_str).resolve()
+    project_root_resolved = Path(project_root).resolve()
+    
+    # Check if path is within project root
+    try:
+        resolved_path.relative_to(project_root_resolved)
+        return resolved_path
+    except ValueError:
+        pass
+    
+    # Check if path is within codx root if provided
+    if codx_root:
+        codx_root_resolved = Path(codx_root).resolve()
+        try:
+            resolved_path.relative_to(codx_root_resolved)
+            return resolved_path
+        except ValueError:
+            pass
+    
+    raise ValueError(
+        f"Path '{path_str}' is not within project root '{project_root}' "
+        f"or codx root '{codx_root or 'not provided'}'"
+    )
+
+
 def _build_structure(
     session: Any,
     include_details: bool = False,
     max_depth: Optional[int] = None,
-    include_file_sizes: bool = False
+    include_file_sizes: bool = False,
+    path: Optional[str] = None
 ) -> str:
     """
     Build the project structure representation.
@@ -109,21 +261,24 @@ def _build_structure(
         include_details: Include additional metadata.
         max_depth: Maximum recursion depth.
         include_file_sizes: Include file size information.
+        path: Optional folder path to limit results to.
 
     Returns:
         str: Formatted project structure.
 
     Raises:
         RuntimeError: If knowledge base is not available.
+        ValueError: If path is invalid.
 
     Diagram:
     flowchart TD
         A[_build_structure] --> B[Get all valid sources from Knowledge]
         B --> C[Build folder tree structure]
         C --> D[Filter by max_depth if set]
-        D --> E[Format as tree representation]
-        E --> F[Add metadata if requested]
-        F --> G[Return formatted string]
+        D --> E[Filter by path if set]
+        E --> F[Format as tree representation]
+        F --> G[Add metadata if requested]
+        G --> H[Return formatted string]
     """
     try:
         # Get knowledge base instance from session
@@ -139,6 +294,16 @@ def _build_structure(
 
         # Build folder hierarchy
         project_root = knowledge.settings.abs_project_path
+        
+        # Validate and resolve path if provided
+        target_path = None
+        if path:
+            codx_root = getattr(knowledge.settings, "abs_codx_path", None)
+            try:
+                target_path = _validate_path(path, project_root, codx_root)
+            except ValueError as ex:
+                raise ValueError(f"Invalid path parameter: {str(ex)}") from ex
+        
         structure_tree: Dict[str, Any] = {}
 
         for source in all_sources:
@@ -152,6 +317,13 @@ def _build_structure(
             if max_depth and len(relative_path.parts) > max_depth:
                 continue
 
+            # Skip if path filter is set and source is not under target path
+            if target_path:
+                try:
+                    Path(source).relative_to(target_path)
+                except ValueError:
+                    continue
+
             # Build nested dictionary structure
             _add_to_tree(structure_tree, relative_path, source, include_file_sizes)
 
@@ -164,6 +336,8 @@ def _build_structure(
 
         return formatted
 
+    except ValueError:
+        raise
     except RuntimeError:
         raise
     except Exception as ex:

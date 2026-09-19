@@ -309,6 +309,107 @@ class PurgeResponse(BaseModel):
     deleted: int = Field(description="Number of log records deleted.")
 
 
+# ── Forensic Log Record Models ─────────────────────────────────────────────────
+
+class ForensicArchivedMessageRecord(BaseModel):
+    """
+    Forensic record representing a complete LLM request-response cycle.
+    
+    Captures all data needed to audit or replay an AI interaction including:
+    - Complete request (messages, system prompt, model settings)
+    - Complete response (content, tokens, finish reason)
+    - All model configuration (temperature, max_tokens, tools available)
+    """
+    
+    message_id: str = Field(description="Unique message identifier.")
+    request_id: str = Field(description="Request ID linking to token usage event.")
+    timestamp: float = Field(description="Unix timestamp when recorded.")
+    iso_date: str = Field(description="ISO date for partitioning.")
+    
+    # Request details
+    request_messages: List[Dict[str, Any]] = Field(
+        description="Complete message list sent to model (including system prompt)."
+    )
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="The system message sent to the model."
+    )
+    
+    # Model configuration (forensic)
+    temperature: Optional[float] = Field(
+        default=None,
+        description="Temperature parameter used (for reproducibility)."
+    )
+    max_tokens: Optional[int] = Field(
+        default=None,
+        description="Max tokens parameter used."
+    )
+    tools: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Complete tool definitions (JSON schemas) sent to model."
+    )
+    
+    # Response details
+    response_content: str = Field(description="Full response content.")
+    input_tokens: int = Field(default=0, description="Input token count.")
+    output_tokens: int = Field(default=0, description="Output token count.")
+    duration_seconds: float = Field(default=0.0, description="Request duration.")
+    
+    # Status
+    error: Optional[str] = Field(default=None, description="Error message if failed.")
+    cancelled: bool = Field(default=False, description="Whether cancelled.")
+    
+    # Context
+    model: str = Field(description="Model name used.")
+    provider: str = Field(description="Provider identifier.")
+    chat_id: str = Field(description="Parent chat ID.")
+    username: str = Field(description="User who triggered request.")
+    project_name: str = Field(description="Project context.")
+    project_id: str = Field(description="Project identifier.")
+
+
+class ForensicToolCallRecord(BaseModel):
+    """
+    Forensic record of a complete tool call execution.
+    
+    Captures all data needed to audit or replay a tool interaction including:
+    - Complete tool invocation (name, arguments, definition schema)
+    - Complete execution result
+    - All tool metadata and settings
+    """
+    
+    message_id: str = Field(description="Unique message identifier.")
+    tool_call_id: str = Field(description="Tool call ID from LLM.")
+    timestamp: float = Field(description="Unix timestamp when recorded.")
+    iso_date: str = Field(description="ISO date for partitioning.")
+    
+    # Tool definition (forensic)
+    tool_name: str = Field(description="Tool function name.")
+    tool_definition: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Complete tool definition (JSON schema) sent to model."
+    )
+    
+    # Tool invocation
+    request_args: Dict[str, Any] = Field(description="Arguments sent to tool.")
+    
+    # Tool execution
+    result: Any = Field(description="Result returned by tool.")
+    result_sent_to_model: str = Field(description="Normalized result sent to LLM.")
+    duration_seconds: float = Field(default=0.0, description="Execution duration.")
+    
+    # Status
+    success: bool = Field(description="Whether execution succeeded.")
+    error_message: Optional[str] = Field(default=None, description="Error if failed.")
+    cached: bool = Field(default=False, description="Whether result was cached.")
+    
+    # Context
+    chat_id: str = Field(description="Parent chat ID.")
+    username: str = Field(description="User who triggered tool.")
+    project_name: str = Field(description="Project context.")
+    project_id: str = Field(description="Project identifier.")
+
+
 # ── Chat Log Summary Models ────────────────────────────────────────────────────
 
 class ChatLogStatusDistribution(BaseModel):
@@ -348,6 +449,9 @@ class ChatLogSummary(BaseModel):
 
     Aggregates request/response pairs, token estimates, status distribution,
     and model usage statistics from the raw log records.
+    
+    Includes optional `raw_log_records` for complete forensic audit trail
+    with all request/response payloads, model configuration, and tool definitions.
     """
     chat_id: str = Field(description="The chat ID for which this summary was generated.")
     session_id: Optional[str] = Field(
@@ -409,4 +513,13 @@ class ChatLogSummary(BaseModel):
     fallback_reason: Optional[str] = Field(
         default=None,
         description="Explanation of why fallback was needed (e.g. 'no session_id set')."
+    )
+    raw_log_records: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Complete forensic audit trail with all request/response payloads, "
+                    "model configuration, and tool definitions. Includes both "
+                    "ForensicArchivedMessageRecord and ForensicToolCallRecord data "
+                    "interleaved chronologically. Each record is a dict representation "
+                    "for flexibility (can be ForensicArchivedMessageRecord or "
+                    "ForensicToolCallRecord depending on 'record_type' field)."
     )

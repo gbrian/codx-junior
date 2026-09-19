@@ -95,8 +95,9 @@ services:
       - .env # Load local .env file
     user: "1001:1001"
     environment:
-      - DEBUG=1
+      - DEBUG=1      
       - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_HIDDEN=${CODX_JUNIOR_HIDDEN}
       - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
@@ -107,7 +108,7 @@ services:
       # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
       - /home/codx-junior-projects:/home/codx-junior-projects
       # Global settings folder  ##########################################################
-      - codx-junior:/home/codx-junior/.codx-junior
+      - codx-junior:/home/codx-junior/.codx-junior/settings
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
       # Docker
@@ -145,6 +146,7 @@ services:
     environment:
       - DEBUG=1
       - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_HIDDEN=${CODX_JUNIOR_HIDDEN}
       - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
@@ -156,7 +158,7 @@ services:
       # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
       - /home/codx-junior-projects:/home/codx-junior-projects
       # Global settings folder  ##########################################################
-      - codx-junior:/home/codx-junior/.codx-junior      
+      - codx-junior:/home/codx-junior/.codx-junior/settings  
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
       # Docker
@@ -210,7 +212,7 @@ services:
     command:
       - "--configFile=/config/traefik.yaml"
       # HTTP provider: polls codx-junior-api for workspace external-URL routes
-      - "--providers.http.endpoint=http://${CODX_JUNIOR_DOMAIN}:19980/api/traefik/config"
+      - "--providers.http.endpoint=http://codx-junior-api:19980/api/traefik/config"
       - "--providers.http.pollInterval=10s"
       - "--providers.http.pollTimeout=5s"
     ports:
@@ -221,9 +223,6 @@ services:
       - ./traefik:/config
     labels:
       - traefik.enable=true
-
-      # 1. REMOVE or comment out the line below. It forces a network call to a closed port.
-      # - traefik.http.services.traefik-dashboard-service.loadbalancer.server.port=8080
 
       # HTTP router
       - traefik.http.routers.traefik-dashboard.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/traefik`)

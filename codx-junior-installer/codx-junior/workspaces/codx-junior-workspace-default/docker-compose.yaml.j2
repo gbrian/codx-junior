@@ -1,0 +1,81 @@
+services:
+  codx-ws-{{ workspace.slug }}:
+    #####################################################################################
+    ## 
+    ## NOTE: codx-junior-auth@file
+    ## 
+    ## Use codx-junior-auth middleware to secure the workspace endpoints
+    #####################################################################################
+    image: {{ workspace.env.get('IMAGE', 'codxjunior/codx-junior-default-workspace:latest') }}
+    #build:
+    #  context: .
+    #  args:
+    #    - PUID=${USER_ID:-1001}
+    #    - PGID=${GROUP_ID:-1001}
+    container_name: codx-ws-{{ workspace.slug }}-container
+    restart: unless-stopped
+    shm_size: '{{ workspace.resources.shm_size | default('512m') }}'
+    
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - CHOWN
+      - SETUID
+      - SETGID
+      
+    # SYNTAX FIX: Changed from "seccomp:unconfined" to "seccomp=unconfined"
+    security_opt:
+      - seccomp=unconfined
+      
+    devices:
+      - /dev/ppp:/dev/ppp
+    
+    volumes:
+      - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior # TODO: remove
+      # Projects volume mapping
+{% for project in projects %}
+      - {{ project.host_path }}:{{ project.container_path }}
+{% endfor %}
+      # coder config
+      - ./coder:/coder
+      - codx-ws-{{ workspace.slug }}-config:/config
+      - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
+      # Access docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    
+    env_file:
+      - ./.workspace.env
+    
+    environment:
+      - PUID=${USER_ID:-1001}
+      - PGID=${GROUP_ID:-1001}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-9080}
+      - VNC_PW=password
+{% for key, value in workspace.env.items() %}
+{% if key not in ['IMAGE', 'COMMAND'] %}
+      - {{ key }}={{ value }}
+{% endif %}
+{% endfor %}
+    
+    labels:
+{% for app in workspace.apps %}
+{% for label in traefik_labels(workspace, app) %}
+      - {{ label }}
+{% endfor %}
+{% endfor %}
+    
+    networks:
+      - {{ workspace.network_name }}
+
+volumes:
+  codx-ws-{{ workspace.slug }}-config:
+{% if workspace.volumes %}
+{% for volume_name in workspace.volumes %}
+  codx-ws-{{ workspace.slug }}-{{ volume_name }}:
+{% endfor %}
+{% endif %}
+
+networks:
+  {{ workspace.network_name }}:
+    name: {{ workspace.network_name }}
+    external: false

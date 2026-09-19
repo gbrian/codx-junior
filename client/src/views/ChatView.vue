@@ -38,7 +38,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
     />
 
     <!-- ─────────────────────────────────────────────────────────────
-         MAIN CONTENT AREA: Header + Chat View
+         MAIN CONTENT AREA: Header + Chat View OR Logs View
          ───────────────────────────────────────────────────────────── -->
     <div class="flex-1 flex flex-col min-w-0 md:p-2 gap-2">
       
@@ -50,6 +50,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         :messageCount="messageCount"
         :hiddenCount="hiddenCount"
         :showHidden="showHidden"
+        :showLogs="showLogs"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
@@ -60,13 +61,21 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @show-add-tag="newTag = ''"
         @remove-tag="onRemoveTag"
         @mode-changed="onChatModeChanged"
+        @toggle-logs="showLogs = !showLogs"
       />
 
-      <!-- CONTENT AREA: History Wall OR Chat View -->
+      <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
       <div class="flex-1 min-h-0 rounded-lg bg-base-300">
+        <!-- Logs View (Full Screen) -->
+        <ChatLogsPanel
+          v-if="showLogs"
+          :chatId="workingChat?.id"
+          @close="showLogs = false"
+        />
+
         <!-- History Wall View (Full Screen) -->
         <ChatHistoryViewer
-          v-if="showHistoryWall"
+          v-else-if="showHistoryWall"
           :history="workingChat.history || []"
           :currentDescription="computedChatDescription"
         />
@@ -192,11 +201,6 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       <ExportChat :chat="workingChat" @close="showExportChat = false" />
     </modal>
 
-    <!-- AI Logs Modal -->
-    <modal class="w-4/5 h-4/5" close="true" @close="showChatLogs = false" v-if="showChatLogs">
-      <ChatLogsPanel :chatId="workingChat?.id" />
-    </modal>
-
     <modal close="true" @close="showChatSelector = false" v-if="showChatSelector">
       <ChatSelector />
     </modal>
@@ -221,7 +225,6 @@ export default {
       showSubtaskModal: false,
       showSubtasksModal: false,
       showTaskSettings: false,
-      showChatLogs: false,
       subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
@@ -240,6 +243,7 @@ export default {
       chatSearch: null,
       targetProject: null,
       showHistoryWall: false,
+      showLogs: false,
       compactSidebar: true,
       chatProfiles: [],
       activeChatId: null
@@ -334,6 +338,7 @@ export default {
       }
       if (!oldVal || oldVal.id !== newVal.id) {
         this.showHistoryWall = false
+        this.showLogs = false
         this.loadHierarchy()
         this.loadChatProfiles()
       }
@@ -427,7 +432,6 @@ export default {
     resetConfirmDelete() {
       this.confirmDelete = false
     },
-    // Triggered from sidebar node delete button
     onSidebarDeleteChat(chat) {
       if (!chat) return
       this.confirmDeleteSubtask = chat
@@ -443,7 +447,6 @@ export default {
 
       await this.$chats.deleteChat(chat)
 
-      // If we deleted the currently active chat, navigate to parent or root
       if (this.workingChat?.id === chat.id) {
         const parent = this.$chats.chats[chat.parent_id] || this.rootChat
         if (parent) {
@@ -631,7 +634,7 @@ ${this.subtaskDescription}`
     handleSidebarAction(action) {
       const handlers = {
         'timeline': () => this.toggleHistoryWall(),
-        'logs': () => this.showChatLogs = true,
+        'logs': () => this.showLogs = !this.showLogs,
         'new-subtask': () => this.newSubChat(),
         'create-subtasks': () => this.showSubtasksModal = true,
         'link-chats': () => this.showChatSelector = true,

@@ -125,6 +125,26 @@
           "path": "/codx/junior/tools/create_task_tool.py",
           "slug": "create-task-tool.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/create-task-tool.md"
+        },
+        {
+          "path": "/codx/junior/security/user_management.py",
+          "slug": "user-management.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/user-management.md"
+        },
+        {
+          "path": "/codx/junior/api/users.py",
+          "slug": "users.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/users.md"
+        },
+        {
+          "path": "/codx/junior/model/user.py",
+          "slug": "user.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/user.md"
+        },
+        {
+          "path": "/codx/junior/project/project_discover.py",
+          "slug": "project-discover.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/project-discover.md"
         }
       ],
       "id": "project-overview",

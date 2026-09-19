@@ -62,3 +62,6 @@ CODX_JUNIOR_DEFAULT_WORKSPACE_PATH = os.environ.get(
     "CODX_JUNIOR_DEFAULT_WORKSPACE_PATH",
     "/home/codx-junior-projects/codx-junior/workspace-templates"
 )
+
+CODX_JUNIOR_HIDDEN = \
+True if os.environ.get("CODX_JUNIOR_HIDDEN", "").lower() in ["1", "true"] else False
