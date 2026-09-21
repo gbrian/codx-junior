@@ -938,11 +938,12 @@ export default {
       // Process text content (file paths)
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
-        if (await this.processMultipleFilePaths(textContent, chatDrop)) {
+        const decodedContent = decodeURIComponent(textContent)
+        if (await this.processMultipleFilePaths(decodedContent, chatDrop)) {
           itemsAdded = true
-        } else if (this.isProjectFile(textContent) && !this.pasteWithShift) {
-          await this.processFilePath(textContent, chatDrop)
-          this.setEditorText(this.editorText.replace(textContent, ""))
+        } else if (this.isProjectFile(decodedContent) && !this.pasteWithShift) {
+          await this.processFilePath(decodedContent, chatDrop)
+          this.setEditorText(this.editorText.replace(decodedContent, ""))
           itemsAdded = true
         }
       }
@@ -985,7 +986,8 @@ export default {
       if (handled) return stop()
     },
     async processInputTextContent(textContent, chatDrop) {
-      const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
+      const decodedContent = decodeURIComponent(textContent)
+      const imgUrl = this.chatSvc.extractImageUrlFromHtml(decodedContent)
       if (imgUrl) {
         const attachment = await this.prepareAttachmentFromUrl(imgUrl)
         if (attachment) {
@@ -994,14 +996,14 @@ export default {
         }
         return false
       }
-      const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
+      const isProjectFile = this.$projects.allProjects.find(p => decodedContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         if (chatDrop) {
-          this.onAddFile(textContent)
+          this.onAddFile(decodedContent)
         } else {
-          this.addFileToMessage(textContent)
+          this.addFileToMessage(decodedContent)
         }
-        this.setEditorText(this.editorText.replace(textContent, ""))
+        this.setEditorText(this.editorText.replace(decodedContent, ""))
         return true
       }
       return false

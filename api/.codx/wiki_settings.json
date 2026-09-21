@@ -145,6 +145,16 @@
           "path": "/codx/junior/project/project_discover.py",
           "slug": "project-discover.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/project-discover.md"
+        },
+        {
+          "path": "/codx/junior/tools/docker_tools.py",
+          "slug": "docker-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/docker-tools.md"
+        },
+        {
+          "path": "/codx/junior/tools/duckduckgo_search.py",
+          "slug": "duckduckgo-search.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/duckduckgo-search.md"
         }
       ],
       "id": "project-overview",

@@ -65,6 +65,7 @@ class AgentEventType(str, Enum):
     TOOL_START = "tool_start"
     TOOL_END = "tool_end"
     TOOL_ERROR = "tool_error"
+    TOOL_LOGS = "tool_logs"
     WALLET_CHECK = "wallet_check"
 
 

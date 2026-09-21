@@ -31,6 +31,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
       @parent-flags-changed="onParentFlagsChanged"
+      @template-changed="onTemplateChanged"
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
       @remove-attachment="onSidebarRemoveAttachment"
@@ -705,6 +706,11 @@ ${this.subtaskDescription}`
       this.saveChatInfo(this.workingChat)
     },
     onParentFlagsChanged({ chat, flag, value }) {
+      this.saveChatInfo(chat)
+    },
+    onTemplateChanged({ chat, isTemplate }) {
+      if (!chat) return
+      chat.is_template = isTemplate
       this.saveChatInfo(chat)
     }
   }

@@ -8,7 +8,9 @@
   "content": null,
   "parsed_content": null,
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/software_developer/software_developer.profile",
-  "profiles": [],
+  "profiles": [
+    "biblio"
+  ],
   "llm_model": "",
   "use_knowledge": true,
   "user": {
@@ -34,6 +36,8 @@
       "updated_at": "2026-08-13T10:12:51.310161",
       "enabled": true
     },
+    "github_admin": false,
+    "github_only": false,
     "token_limit_rules": [],
     "token_limit_requests": []
   },

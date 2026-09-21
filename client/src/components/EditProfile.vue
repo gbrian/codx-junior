@@ -272,6 +272,36 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
           <!-- Tools tab -->
           <div class="flex flex-col gap-3 overflow-y-auto h-full" v-if="tab === 'tools'">
             
+            <!-- Text Filter Input -->
+            <div class="flex flex-col gap-2">
+              <label class="label label-text text-xs pb-1">
+                <i class="fa-solid fa-search mr-1"></i> Search tools
+              </label>
+              <div class="relative">
+                <input
+                  v-model="selectedToolTextFilter"
+                  @input="onToolTextFilterChange"
+                  type="text"
+                  placeholder="Search by name or description..."
+                  class="input input-sm input-bordered bg-base-300 w-full pl-8"
+                />
+                <i class="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40 text-xs"></i>
+              </div>
+            </div>
+
+            <!-- Clear text filter button -->
+            <div v-if="selectedToolTextFilter" class="flex items-center gap-2">
+              <span class="badge badge-sm badge-primary">
+                <i class="fa-solid fa-filter mr-1"></i>{{ selectedToolTextFilter }}
+              </span>
+              <button 
+                @click="selectedToolTextFilter = ''"
+                class="text-xs text-primary hover:underline"
+              >
+                Clear filter
+              </button>
+            </div>
+
             <!-- Tag Filter Dropdown -->
             <div v-if="availableTags.length" class="flex flex-col gap-2">
               <label class="label label-text text-xs pb-1">Filter by tag</label>
@@ -336,11 +366,11 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
                 </div>
               </div>
 
-              <!-- No tools message for selected tag filter -->
-              <div v-if="!filteredToolsList.length && selectedToolTagFilter" class="col-span-full flex items-center justify-center py-8">
+              <!-- No tools message for selected filters -->
+              <div v-if="!filteredToolsList.length && (selectedToolTagFilter || selectedToolTextFilter)" class="col-span-full flex items-center justify-center py-8">
                 <div class="text-center text-base-content/50">
                   <i class="fa-solid fa-inbox text-2xl mb-2"></i>
-                  <p class="text-sm">No tools found with tag "{{ selectedToolTagFilter }}"</p>
+                  <p class="text-sm">No tools found matching your filters</p>
                 </div>
               </div>
             </div>
@@ -401,7 +431,8 @@ export default {
       savingChatId: false,
       editorChat: null,
       loadingChat: false,
-      selectedToolTagFilter: ''
+      selectedToolTagFilter: '',
+      selectedToolTextFilter: ''
     }
   },
   created() {
@@ -446,12 +477,25 @@ export default {
       return Array.from(tagsSet).sort()
     },
     filteredToolsList() {
-      if (!this.selectedToolTagFilter) {
-        return this.tools
+      let filtered = this.tools
+
+      // Apply text filter
+      if (this.selectedToolTextFilter) {
+        const searchTerm = this.selectedToolTextFilter.toLowerCase()
+        filtered = filtered.filter(tool =>
+          tool.tool_json.function.name.toLowerCase().includes(searchTerm) ||
+          tool.tool_json.function.description?.toLowerCase().includes(searchTerm)
+        )
       }
-      return this.tools.filter(tool => 
-        tool.tags && Array.isArray(tool.tags) && tool.tags.includes(this.selectedToolTagFilter)
-      )
+
+      // Apply tag filter
+      if (this.selectedToolTagFilter) {
+        filtered = filtered.filter(tool =>
+          tool.tags && Array.isArray(tool.tags) && tool.tags.includes(this.selectedToolTagFilter)
+        )
+      }
+
+      return filtered
     }
   },
   watch: {
@@ -518,6 +562,9 @@ export default {
     },
     onToolTagFilterChange() {
       // Tag filter changed, tools list will update via computed property
+    },
+    onToolTextFilterChange() {
+      // Text filter changed, tools list will update via computed property
     },
     onLinkedProfilesChanged(selectedProfiles) {
       this.editProfile.profiles = selectedProfiles.map(p => p.name)

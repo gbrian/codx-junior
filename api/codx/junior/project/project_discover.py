@@ -17,10 +17,9 @@ logger = logging.getLogger(__name__)
 _ALL_PROJECTS: Optional[Dict[str, CODXJuniorSettings]] = None
 _ALL_PROJECTS_PROC: Optional[Thread] = None
 
-def is_visible(settings: CODXJuniorSettings) -> bool:
+def is_project_visible(settings: CODXJuniorSettings) -> bool:
     project_is_visible = not CODX_JUNIOR_HIDDEN or \
         "/codx-junior/" not in settings.codx_path
-    
     return project_is_visible
 
 def get_projects_root_path() -> str:
@@ -312,7 +311,7 @@ def _update_all_projects() -> None:
         Duplicates that live outside the configured root are rejected in favour
         of the canonical copy inside the root.
         """
-        if not candidate or not candidate.project_name or not is_visible(candidate):
+        if not candidate or not candidate.project_name:
             return False
 
         existing_project = all_projects.get(candidate.project_id)

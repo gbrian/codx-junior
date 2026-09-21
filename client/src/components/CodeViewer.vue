@@ -162,6 +162,15 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <span class="hidden sm:inline">Reset</span>
         </button>
 
+        <!-- Rollback Button -->
+        <button class="btn btn-sm btn-error btn-outline"
+          @click.stop="confirmRollback"
+          v-if="!editMode && finished && file && !isNewFile"
+          title="Rollback file to previous state">
+          <i class="fa-solid fa-history"></i>
+          <span class="hidden sm:inline">Rollback</span>
+        </button>
+
         <!-- Copy Button -->
         <button class="btn btn-sm btn-outline"
           @click.stop="onCopy"
@@ -316,6 +325,21 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <i class="fa-solid fa-xmark"></i> Cancel
         </button>
     </modal>
+
+    <modal v-if="showRollbackModal">
+        <h3 class="font-bold text-lg">Rollback File?</h3>
+        <p class="text-warning">This will restore <strong>{{ fileName }}</strong> to its previous state. This action cannot be undone.</p>
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost" @click="cancelRollback">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </button>
+          <button class="btn btn-error" @click="executeRollback" :disabled="isRollingBack">
+            <span v-if="isRollingBack" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-history"></i>
+            {{ isRollingBack ? 'Rolling back...' : 'Rollback' }}
+          </button>
+        </div>
+    </modal>
   </Collapsible>
 </template>
 
@@ -351,6 +375,8 @@ export default {
       isNewFile: true,
       localCode: null,
       showConfirmModal: false,
+      showRollbackModal: false,
+      isRollingBack: false,
       pendingViewSwitch: null,
       changesetErrors: [],
       patchPattern: null,
@@ -747,6 +773,7 @@ export default {
         this.showCode = true
         
         if (this.file) {
+          await this.loadDiffInfo()
     
           if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
             this.showDiff = true
@@ -805,8 +832,9 @@ export default {
       this.localCode = this.diffEditContent
       this.diffBaseContent = this.diffEditContent
       this.showConfirmModal = false
+      const shouldToggle = this.pendingViewSwitch === 'toggle'
       this.pendingViewSwitch = null
-      if (this.pendingViewSwitch === 'toggle') {
+      if (shouldToggle) {
         this.showDiff = !this.showDiff
       }
     },
@@ -824,6 +852,31 @@ export default {
     cancelConfirm() {
       this.showConfirmModal = false
       this.pendingViewSwitch = null
+    },
+
+    confirmRollback() {
+      this.showRollbackModal = true
+    },
+
+    cancelRollback() {
+      this.showRollbackModal = false
+    },
+
+    async executeRollback() {
+      try {
+        this.isRollingBack = true
+        await this.$api.files.rollback(this.file)
+        this.$ui.notify({ type: 'success', message: `${this.fileName} rolled back to previous state` })
+        this.showRollbackModal = false
+        this.localCode = null
+        await this.loadDiffInfo()
+        this.showDiff = true
+      } catch (error) {
+        console.error('Rollback failed:', error)
+        this.$ui.notify({ type: 'error', message: `Rollback failed: ${error.message}` })
+      } finally {
+        this.isRollingBack = false
+      }
     },
 
     async saveToFile() {

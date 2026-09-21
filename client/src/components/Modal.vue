@@ -13,7 +13,7 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-base-300">
-        <slot name="title">
+        <slot name="header">
           <span class="text-lg font-semibold text-base-content"></span>
         </slot>
         <button

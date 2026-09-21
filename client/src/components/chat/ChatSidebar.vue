@@ -45,44 +45,45 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </label>
     </div>
 
-    <!-- Root Chat Card -->
-    <div class="px-1 shrink-0">
-      <div
-        class="p-2 md:p-3 rounded-lg border-2 cursor-pointer transition-all hover:border-warning hover:bg-warning/5"
-        :class="selectedChatId === rootChat.id 
-          ? 'border-warning bg-warning/10' 
-          : 'border-base-content/10 bg-base-200'"
-        @click="selectChat(rootChat)"
-      >
-        <!-- Project Selector -->
-        <div class="mb-2 z-50 w-full">
-          <ProjectDetailt
-            :iconify="false"
-            :modelValue="targetProject"
-            :options="{ showFolders: false, showIcon: true, showSelector: true }"
-            @update:modelValue="$emit('select-project', $event)"
-          />
-        </div>
-
-        <div v-if="!isCompact" class="flex items-center gap-2 mb-1">
-          <span class="font-bold text-xs md:text-sm flex-1 truncate">{{ rootChat.name }}</span>
-          <span class="text-xs text-base-content/40 shrink-0 tabular-nums">
-            {{ rootChat.messages?.length || 0 }}
-          </span>
-        </div>
-        <div v-if="!isCompact && rootChat.description" class="text-xs text-base-content/60 line-clamp-2">
-          {{ rootChat.description }}
-        </div>
-      <button 
-          v-if="!isCompact"
-          class="mt-2 btn btn-sm btn-block btn-primary justify-center gap-2 text-xs"
-        title="Create new subtask"
-        @click="$emit('add-subtask', rootChat)"
-      >
-        <i class="fa-solid fa-plus"></i>
-        <span>New task</span>
-      </button>
+    <!-- Template Setting (Available for all chats) -->
+    <div v-if="!isCompact && selectedChat?.id" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
+      <div class="text-xs font-semibold text-base-content/60 uppercase">Chat Settings</div>
+      
+      <!-- Save as Template -->
+      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
+        <input 
+          type="checkbox" 
+          class="checkbox checkbox-sm"
+          :checked="selectedChat?.is_template"
+          @change="toggleTemplate"
+        />
+        <span class="text-xs flex-1">Save as template</span>
+        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Mark this chat as a template for quick creation"></i>
+      </label>
     </div>
+
+    <!-- Root Chat Node with Project Selector -->
+    <div class="px-1 shrink-0 space-y-2">
+      <!-- Project Selector -->
+      <div v-if="!isCompact" class="px-2 md:px-3 z-50 w-full">
+        <ProjectDetailt
+          :iconify="false"
+          :modelValue="targetProject"
+          :options="{ showFolders: false, showIcon: true, showSelector: true }"
+          @update:modelValue="$emit('select-project', $event)"
+        />
+      </div>
+
+      <!-- Root Chat Node -->
+      <ChatSidebarNode
+        :chat="rootChat"
+        :allChats="allChats"
+        :selectedChatId="selectedChatId"
+        :isCompact="isCompact"
+        @select="selectChat"
+        @add-subtask="$emit('add-subtask', $event)"
+        @delete-chat="$emit('delete-chat', $event)"
+      />
     </div>
 
     <!-- Hierarchy Tree -->
@@ -200,9 +201,8 @@ export default {
     chatSearch: { type: String, default: null },
     isCompact: { type: Boolean, default: false },
     chatProfiles: { type: Array, default: () => [] },
-    targetProject: { type: Object, default: null }
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project', 'template-changed'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)
@@ -212,6 +212,9 @@ export default {
     },
     isSelectedChatChild() {
       return this.selectedChat && this.selectedChat.parent_id && this.selectedChat.id !== this.rootChat.id
+    },
+    targetProject() {
+      return this.$chats.getChatWorkingProject(this.selectedChat)
     }
   },
   methods: {
@@ -234,6 +237,14 @@ export default {
         chat: this.selectedChat,
         flag: 'ignore_parent_files',
         value: this.selectedChat.ignore_parent_files
+      })
+    },
+    toggleTemplate() {
+      if (!this.selectedChat) return
+      this.selectedChat.is_template = !this.selectedChat.is_template
+      this.$emit('template-changed', {
+        chat: this.selectedChat,
+        isTemplate: this.selectedChat.is_template
       })
     }
   }

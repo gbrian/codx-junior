@@ -1,6 +1,6 @@
 <script setup>
 import MainMenu from '@/components/main-menu/MainMenu.vue'
-import ProjectSelector from '@/components/ProjectSelector.vue'
+import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
 </script>
 
 <template>
@@ -14,12 +14,8 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
             <i class="fa-solid fa-home"></i>
           </div>
         </div>
-
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="onQuickChatEvent">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-comments"></i>
-          </div>
-        </div>
+        
+        <QuickChatCreator />
 
         <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Wiki" @click="openWiki">
           <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
@@ -89,13 +85,6 @@ import ProjectSelector from '@/components/ProjectSelector.vue'
       <MainMenu />
     </div>
 
-    <!-- Project Selector Modal -->
-    <ProjectSelector
-      v-if="showProjectSelector"
-      :modal="true"
-      @select="onProjectSelected"
-      @close="showProjectSelector = false"
-    />
   </div>
 </template>
 
@@ -123,28 +112,14 @@ export default {
     'select-team',
     'create-team',
     'toggle-collapse',
-    'expand-team-bar'
+    'expand-team-bar',
+    'toggle-team-bar'
   ],
   data() {
     return {
-      showProjectSelector: false
     }
   },
   methods: {
-    onQuickChatEvent(ev) {
-      if (ev.ctrlKey) {
-        this.showProjectSelector = true
-      } else {
-        this.openQuickChat()    
-      }
-    },
-    openQuickChat() {
-      this.$service.chat.newQuickChat()
-    },
-    onProjectSelected(project) {
-      this.showProjectSelector = false
-      this.$service.chat.newQuickChat(project)
-    },
     openHome() {
       this.$storex.ui.openHome()
     },

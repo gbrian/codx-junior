@@ -1,8 +1,6 @@
 <script setup>
 import Login from './components/user/Login.vue'
 import NewProject from './components/project/NewProject.vue'
-import HomeMobile from './views/HomeMobile.vue'
-import TeamView from './views/TeamView.vue'
 import Toast from './components/Toast.vue'
 </script>
 
@@ -11,8 +9,8 @@ import Toast from './components/Toast.vue'
     <Login v-if="isLogin" />
     
     <div class="h-full w-full" v-else>
-      <HomeMobile v-if="$ui.isMobile" />
-      <TeamView />
+      <!-- All views are now managed by the router -->
+      <RouterView />
 
       <modal class="w-fit h-2/3" 
         close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">

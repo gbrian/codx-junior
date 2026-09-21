@@ -18,7 +18,7 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
         <ProjectIcon
           :icon-only="true"
           :width="3"
-          :project="$chats.getChatProject({ owner_project_id: chat.project_id || chat.owner_project_id })" />
+          :project="$chats.getChatWorkingProject(chat)" />
         <div v-if="isUpdating" class="shrink-0">
           <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
         </div>

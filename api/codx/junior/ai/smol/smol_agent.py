@@ -10,10 +10,10 @@ Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
     * keeps streaming, callbacks, cancellation and analytics.
     * caches tool results per conversation to avoid re-execution.
 
-Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR``) carry the
+Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
-messages in real time.
+messages in real time. Tool logs are emitted for forensic audit trail.
 
 Message Structure
 When tools are used in a conversation, the agent now produces a single final
@@ -201,7 +201,7 @@ class SmolAgent:
             H -->|HIT| H2[Emit TOOL_END with cached=true]
             H -->|HIT - ToolResponse| H3[Surface user_response to thinking_content]
             H -->|MISS| I[LoopGuard.check - depth & breadth & stuck]
-            I -->|ok| J[Execute tool - TOOL_START/END/ERROR]
+            I -->|ok| J[Execute tool - TOOL_START/END/ERROR/LOGS]
             H1 --> K{Dual-response tool?}
             J --> K
             K -->|yes| K1[Append user_response to thinking_content]
@@ -540,6 +540,15 @@ class SmolAgent:
                     ),
                     cached=True,
                 )
+
+                # Emit tool logs if ToolResponse has any
+                if isinstance(result, ToolResponse) and result.logs:
+                    run_context.emit(
+                        AgentEventType.TOOL_LOGS,
+                        tool=func_name,
+                        tool_call_id=tool_id,
+                        logs=result.logs,
+                    )
 
                 # FIX Issue 1: cached ToolResponse must surface user_response
                 # into thinking_content exactly like the uncached path does.
@@ -890,14 +899,14 @@ class SmolAgent:
         """
         Execute a single tool call and return its output.
 
-        Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` events on the
-        run context. Event payloads carry the ``tool_call_id``, the parsed
-        JSON request args (``args``) and a truncated ``result`` preview so
-        listeners can render tool executions as chat messages. Errors never
-        propagate to the caller: ALL exceptions are caught and returned as
-        error strings so the model can react to failed tool invocations and
-        never receives an empty tool message that would cause it to repeat
-        the same call.
+        Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS`` 
+        events on the run context. Event payloads carry the ``tool_call_id``,
+        the parsed JSON request args (``args``) and a truncated ``result`` 
+        preview so listeners can render tool executions as chat messages. 
+        Tool logs are emitted for forensic audit trail. Errors never propagate 
+        to the caller: ALL exceptions are caught and returned as error strings 
+        so the model can react to failed tool invocations and never receives 
+        an empty tool message that would cause it to repeat the same call.
 
         Results are cached by tool name + parameters hash for reuse within
         the conversation.
@@ -905,7 +914,8 @@ class SmolAgent:
         Tools can return either:
             - str: Traditional single-response (used for LLM context only)
             - ToolResponse: Dual-response; user_response goes to the thinking
-              message, llm_response goes to the model only.
+              message, llm_response goes to the model only. ToolResponse can
+              include logs for forensic audit trail.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -1020,6 +1030,15 @@ class SmolAgent:
                     duration_ms=duration_ms,
                     result=result_preview,
                 )
+                
+                # Emit tool logs if ToolResponse has any
+                if isinstance(result, ToolResponse) and result.logs:
+                    run_context.emit(
+                        AgentEventType.TOOL_LOGS,
+                        tool=func_name,
+                        tool_call_id=tool_call_id,
+                        logs=result.logs,
+                    )
             else:
                 run_context.emit(
                     AgentEventType.TOOL_ERROR,
@@ -1042,6 +1061,11 @@ class SmolAgent:
                 # This is the exact tool schema that was sent to the LLM model
                 tool_definition = self._get_tool_definition(func_name)
                 
+                # Extract logs from ToolResponse if present
+                tool_logs = []
+                if isinstance(result, ToolResponse) and result.logs:
+                    tool_logs = result.logs
+                
                 analytics.record_tool_call_message(
                     message_id=str(uuid.uuid4()),
                     chat_id=chat_id or "",
@@ -1058,6 +1082,7 @@ class SmolAgent:
                     duration_seconds=duration_seconds,
                     cached=False,
                     tool_definition=tool_definition,  # FORENSIC: Complete tool schema
+                    tool_logs=tool_logs,  # FORENSIC: Tool execution logs
                 )
             except OSError as ex:
                 logger.warning("SmolAgent: failed to archive tool call message: %s", ex)

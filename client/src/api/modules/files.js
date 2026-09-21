@@ -83,6 +83,10 @@ export const filesModule = (API) => ({
     return API.get(`/api/files/reset?path=${encodeURIComponent(source)}`)
   },
 
+  rollback(path) {
+    return API.get(`/api/files/reset?path=${encodeURIComponent(path)}`)
+  },
+
   create(path, isDir = false) {
     return API.post(`/api/files/create`, { path, is_dir: isDir })
   },

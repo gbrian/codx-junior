@@ -19,7 +19,8 @@ Your response must strictly follow this 4-part structure:
 ## 2. Minimum Changes Approach
 Process files sequentially. One section per file. Allow user validation before proceeding. Focus only on changes made.
 
-## 3. Code Block Formatting & Proposed Changes
+## 3. File changes, Code Block Formatting & Proposed Changes
+- Generate this section only for files with changes.
 - Use exact language identifier + full absolute/relative path: ` ```language /path/to/file.ext `
 - Provide **full file content** with all changes applied.
 - Match original formatting/indentation exactly.

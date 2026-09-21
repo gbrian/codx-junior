@@ -50,6 +50,7 @@ export const getters = getterTree(state, {
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
+  allTemplates: state => Object.values(state.chats || {}).filter(c => c.is_template),
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0 ||
       state.chats[chatId]?.status === ENTITY_STATUS.LOADING
@@ -69,7 +70,8 @@ export const getters = getterTree(state, {
   },
   rootChat: state => (chatId) => getRootChat(state, chatId),
   searchResults: state => state.searchResults,
-  getChatProject: state => getChatProject
+  getChatProject: () => getChatProject,
+  getChatWorkingProject: () => getChatWorkingProject,
 })
 
 export const mutations = mutationTree(state, {
@@ -476,6 +478,28 @@ export const actions = actionTree(
         owner_project_id: project?.project_id || $storex.projects.activeProject.project_id
       }
       return await $storex.chats.createNewChat(chatData)
+    },
+    async createChatFromTemplate({ state }, { template, project }) {
+      if (!template?.id) {
+        console.error('[chats store] Cannot create chat from invalid template')
+        return null
+      }
+
+      const newMessages = (template.messages || []).map(msg => ({
+        ...msg,
+        doc_id: null,
+        id: null
+      }))
+
+      const newChat = {
+        ...template,
+        is_template: false,
+        id: null,
+        messages: newMessages,
+        owner_project_id: project?.project_id || $storex.projects.activeProject.project_id
+      }
+
+      return await $storex.chats.createNewChat(newChat)
     },
     async createNewChatFromUrl({ state }, chat) {
       chat = {

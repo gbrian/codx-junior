@@ -8,7 +8,6 @@ integration with language models and the API.
 Tool Scope Levels:
     - "global": Tools always included in conversations (e.g., code_block_generator)
     - "chat": Tools available based on conversation context and selection
-    - "profile": Tools available based on user profile or role
 
 Tool Response Types:
     - str: Traditional single-string response (used for LLM context)
@@ -43,6 +42,39 @@ from .tutorial_tools import (
     modify_chapter,
     delete_chapter,
 )
+from .docker_tools import (
+    docker_ps,
+    docker_logs,
+    docker_stats,
+    docker_inspect,
+    docker_images,
+    docker_run,
+    docker_start,
+    docker_stop,
+    docker_restart,
+    docker_compose_run,
+    docker_compose_start,
+    docker_compose_stop,
+    docker_compose_restart,
+    docker_container,
+    docker_compose_service,
+    DOCKER_PS_TOOL_JSON,
+    DOCKER_LOGS_TOOL_JSON,
+    DOCKER_STATS_TOOL_JSON,
+    DOCKER_INSPECT_TOOL_JSON,
+    DOCKER_IMAGES_TOOL_JSON,
+    DOCKER_RUN_TOOL_JSON,
+    DOCKER_START_TOOL_JSON,
+    DOCKER_STOP_TOOL_JSON,
+    DOCKER_RESTART_TOOL_JSON,
+    DOCKER_COMPOSE_RUN_TOOL_JSON,
+    DOCKER_COMPOSE_START_TOOL_JSON,
+    DOCKER_COMPOSE_STOP_TOOL_JSON,
+    DOCKER_COMPOSE_RESTART_TOOL_JSON,
+    DOCKER_CONTAINER_TOOL_JSON,
+    DOCKER_COMPOSE_SERVICE_TOOL_JSON,
+)
+from .duckduckgo_search import duckduckgo_search, DUCKDUCKGO_SEARCH_TOOL_JSON
 from .model import ToolResponse, ToolSettings
 
 # Configure logging
@@ -71,6 +103,22 @@ __all__ = [
     "modify_chapter",
     "delete_chapter",
     "get_file_last_version",
+    "docker_ps",
+    "docker_logs",
+    "docker_stats",
+    "docker_inspect",
+    "docker_images",
+    "docker_run",
+    "docker_start",
+    "docker_stop",
+    "docker_restart",
+    "docker_compose_run",
+    "docker_compose_start",
+    "docker_compose_stop",
+    "docker_compose_restart",
+    "docker_container",
+    "docker_compose_service",
+    "duckduckgo_search",
     "test_tool",
 ]
 
@@ -517,7 +565,103 @@ TOOLS = [
         "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "history", "file-operations"],
         "tool_call": get_file_last_version
-    }
+    },
+    {
+        "tool_json": DOCKER_PS_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "devops", "infrastructure"],
+        "tool_call": docker_ps
+    },
+    {
+        "tool_json": DOCKER_LOGS_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "logs", "debugging", "devops"],
+        "tool_call": docker_logs
+    },
+    {
+        "tool_json": DOCKER_STATS_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "monitoring", "performance", "devops"],
+        "tool_call": docker_stats
+    },
+    {
+        "tool_json": DOCKER_INSPECT_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "inspection", "configuration", "devops"],
+        "tool_call": docker_inspect
+    },
+    {
+        "tool_json": DOCKER_IMAGES_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "images", "management", "devops"],
+        "tool_call": docker_images
+    },
+    {
+        "tool_json": DOCKER_RUN_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "execution", "devops"],
+        "tool_call": docker_run
+    },
+    {
+        "tool_json": DOCKER_START_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "lifecycle", "devops"],
+        "tool_call": docker_start
+    },
+    {
+        "tool_json": DOCKER_STOP_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "lifecycle", "devops"],
+        "tool_call": docker_stop
+    },
+    {
+        "tool_json": DOCKER_RESTART_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "lifecycle", "devops"],
+        "tool_call": docker_restart
+    },
+    {
+        "tool_json": DOCKER_COMPOSE_RUN_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "compose", "services", "devops"],
+        "tool_call": docker_compose_run
+    },
+    {
+        "tool_json": DOCKER_COMPOSE_START_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "compose", "services", "lifecycle", "devops"],
+        "tool_call": docker_compose_start
+    },
+    {
+        "tool_json": DOCKER_COMPOSE_STOP_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "compose", "services", "lifecycle", "devops"],
+        "tool_call": docker_compose_stop
+    },
+    {
+        "tool_json": DOCKER_COMPOSE_RESTART_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "compose", "services", "lifecycle", "devops"],
+        "tool_call": docker_compose_restart
+    },
+    {
+        "tool_json": DOCKER_CONTAINER_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "unified", "devops", "optimization"],
+        "tool_call": docker_container
+    },
+    {
+        "tool_json": DOCKER_COMPOSE_SERVICE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "compose", "services", "unified", "devops", "optimization"],
+        "tool_call": docker_compose_service
+    },
+    {
+        "tool_json": DUCKDUCKGO_SEARCH_TOOL_JSON,
+        "settings": ToolSettings(scope="chat", dual_response=True).dict(),
+        "tags": ["web", "search", "external-data", "research"],
+        "tool_call": duckduckgo_search
+    },
 ]
 
 # Made with ❤️ by codx-junior

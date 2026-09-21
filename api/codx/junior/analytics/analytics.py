@@ -33,6 +33,7 @@ class Analytics:
     - Chat session lifecycle recording
     - Complete message archival (request/response pairs)
     - Tool call execution history with arguments and results
+    - Tool execution logs for forensic audit trail
     - Forensic audit trail with complete LLM request kwargs and tool definitions
 
     Diagram:
@@ -400,13 +401,14 @@ class Analytics:
         duration_seconds: float = 0.0,
         cached: bool = False,
         tool_definition: Optional[Dict[str, Any]] = None,
+        tool_logs: Optional[List[str]] = None,
     ) -> ToolCallMessage:
         """
         Record a complete tool call execution with all messaging.
 
-        Captures the tool invocation, execution result, and the normalised
-        result sent back to the model for complete audit trail, including
-        the tool's JSON schema definition for forensic audit.
+        Captures the tool invocation, execution result, and any messages exchanged
+        with the AI model regarding this tool. Includes tool logs for forensic
+        audit trail.
 
         Args:
             message_id:           Unique identifier for this tool call record.
@@ -424,6 +426,7 @@ class Analytics:
             duration_seconds:     Tool execution duration.
             cached:               Whether this result was cached.
             tool_definition:      Complete tool JSON schema sent to the model (for forensic audit).
+            tool_logs:            Formatted log entries from tool execution for forensic audit.
 
         Returns:
             The persisted ``ToolCallMessage``.
@@ -444,11 +447,12 @@ class Analytics:
             duration_seconds=duration_seconds,
             cached=cached,
             tool_definition=tool_definition,
+            tool_logs=tool_logs or [],
         )
         self.storage.write_tool_call_message(event)
         logger.info(
             "Tool call message recorded: message_id=%s chat_id=%s tool_call_id=%s "
-            "tool_name=%s success=%s duration=%.3fs cached=%s tool_def_present=%s",
+            "tool_name=%s success=%s duration=%.3fs cached=%s tool_def_present=%s tool_logs_count=%d",
             message_id,
             chat_id,
             tool_call_id,
@@ -457,6 +461,7 @@ class Analytics:
             duration_seconds,
             cached,
             tool_definition is not None,
+            len(tool_logs or []),
         )
         return event
 
@@ -864,8 +869,8 @@ class Analytics:
         """
         Get all tool call messages for a specific chat.
 
-        Provides complete tool execution history with arguments, results, and
-        normalized responses sent back to the model.
+        Provides complete tool execution history with arguments, results,
+        normalized responses sent back to the model, and forensic logs.
 
         Args:
             chat_id:      The chat identifier.
@@ -894,7 +899,7 @@ class Analytics:
 
         Provides the most comprehensive view of a chat for audit and debugging,
         combining session metadata, token usage, archived messages, and tool
-        execution history.
+        execution history with forensic logs.
 
         Args:
             chat_id:    The chat identifier.
@@ -908,7 +913,7 @@ class Analytics:
                 - llm_requests: List of TokenUsageEvent
                 - llm_requests_messages: List of ArchivedMessage (the actual content)
                 - tool_calls: List of ToolUsageEvent
-                - tool_call_messages: List of ToolCallMessage (with args/results)
+                - tool_call_messages: List of ToolCallMessage (with args/results/logs)
                 - tool_metrics: Aggregated tool execution metrics by tool name
         """
         chat_sessions = self.storage.read_chat_sessions(chat_id=chat_id)

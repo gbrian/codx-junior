@@ -174,6 +174,7 @@ class Chat(BaseModel):
     users: List[str] = Field(default=[])
     name: str = Field(default='')
     pinned: Optional[bool] = Field(default=False)
+    is_template: Optional[bool] = Field(default=False, description="Chat will be used as temlate")
     description: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default_factory=lambda: str(datetime.now()))

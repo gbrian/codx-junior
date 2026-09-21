@@ -68,7 +68,8 @@ export const mutations = mutationTree(state, {
       })
     }
 
-    $storex.views.autoLoadLastLayout()
+    // Do NOT call autoLoadLastLayout here - project may not be ready yet
+    // It will be triggered by onActiveProjectChanged or onApiReady in Desktop.vue
   },
   setFullscreenPanel(state, panelId) {
     state.fullscreenPanelId = panelId
@@ -107,32 +108,8 @@ function extractAppsFromLayout(layout) {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init() {
-      await $storex.views.restoreLastProject()
-    },
-
-    async restoreLastProject() {
-      try {
-        const lastProjectId = localStorage.getItem('lastActiveProject')
-        if (lastProjectId) {
-          const project = $storex.projects.allProjects?.find(p => p.project_id === lastProjectId)
-          if (project) {
-            await $storex.projects.activeProjectChanged(project)
-            return
-          }
-        }
-
-        const defaultProject = $storex.projects.allProjects?.find(p => p.project_name === 'codx-junior')
-        if (defaultProject) {
-          await $storex.projects.activeProjectChanged(defaultProject)
-        }
-      } catch (error) {
-        console.error('Failed to restore last project:', error)
-      }
-    },
-
     async unloadCurrentLayout({ state }) {
-      state.loadedView = null
+      state.loadedView = false
       try {
         const desktopApi = $storex.views._desktopApi
         if (desktopApi) {
@@ -167,8 +144,9 @@ export const actions = actionTree(
         const savedData = localStorage.getItem(key)
         if (savedData) {
           const layout = JSON.parse(savedData)
-          desktopApi.fromJSON(layout)
+          // Mark as loaded BEFORE fromJSON so layout change events are saved
           state.loadedView = key
+          desktopApi.fromJSON(layout)
           await $storex.views.syncAppsFromLayout(layout)
         } else {
           await $storex.views.createEmptyLayout()
@@ -179,12 +157,15 @@ export const actions = actionTree(
       }
     },
 
-    async createEmptyLayout() {
+    async createEmptyLayout({ state }) {
       try {
         const desktopApi = $storex.views._desktopApi
         if (!desktopApi) return
 
         desktopApi.clear()
+        // Mark layout as ready so subsequent changes are persisted
+        const key = getProjectStorageKey()
+        state.loadedView = key || true
         $storex.ui.openTasks()
       } catch (error) {
         console.error('Failed to create empty layout:', error)
@@ -198,7 +179,7 @@ export const actions = actionTree(
           $storex.ui.showApp(app)
         }
         const panels = $storex.views._desktopApi.panels
-        panels.map(panel => panel.isActive && $storex.views.onPanelActive(panel) )
+        panels.map(panel => panel.isActive && $storex.views.onPanelActive(panel))
         if (!panels.length) {
           $storex.ui.openTasks()
         }
@@ -220,18 +201,18 @@ export const actions = actionTree(
     },
 
     async onLayoutChanged({ state }) {
+      // Only save if a layout has been loaded/initialized for this session
       if (!state.loadedView) {
-        // If "uloading view" ignore this events
         return
       }
       try {
         const desktopApi = state._desktopApi
         if (!desktopApi) return
 
-        const layout = desktopApi.toJSON()
         const key = getProjectStorageKey()
         if (!key) return
 
+        const layout = desktopApi.toJSON()
         localStorage.setItem(key, JSON.stringify(layout))
       } catch (error) {
         console.error('Error saving layout:', error)

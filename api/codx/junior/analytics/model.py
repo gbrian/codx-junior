@@ -351,8 +351,9 @@ class ToolCallMessage:
     messages exchanged with the AI model regarding this tool.
     
     Includes complete tool definition (JSON schema) sent to the model for
-    forensic audit trail:
+    forensic audit trail, and tool logs for forensic debugging:
     - tool_definition: Complete tool definition object from the LLM request
+    - tool_logs: Formatted log entries from the tool execution
     
     Diagram:
     classDiagram
@@ -368,6 +369,7 @@ class ToolCallMessage:
             +bool cached
             +Optional str error_message
             +Optional Dict tool_definition
+            +List tool_logs
             +float duration_seconds
             +float timestamp
             +str iso_date
@@ -418,6 +420,9 @@ class ToolCallMessage:
     
     tool_definition: Optional[Dict[str, Any]] = None
     """Complete tool definition (JSON schema) sent to the model for this tool call."""
+    
+    tool_logs: List[str] = field(default_factory=list)
+    """Formatted log entries from tool execution for forensic audit trail."""
     
     timestamp: float = field(default_factory=lambda: datetime.utcnow().timestamp())
     """Unix timestamp when the tool was executed."""

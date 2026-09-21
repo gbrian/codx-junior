@@ -55,7 +55,10 @@ export default {
     apps() {
       this.syncPanelsWithApps()
     },
-    $project() {
+    '$storex.api.user'() {
+      this.onApiReady()
+    },
+    '$storex.projects.activeProject'() {
       this.$views.onActiveProjectChanged()
     }
   },
@@ -65,6 +68,12 @@ export default {
     },
     onReady(event) {
       this.$storex.views.setDesktopApi(event.api)
+      this.onApiReady()
+    },
+    onApiReady() {
+      if (this.$storex.api.user) {
+        this.$views.onActiveProjectChanged()
+      }
     },
     onPanelError(event) {
       const panelId = event?.panelId || event?.id

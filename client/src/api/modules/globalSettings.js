@@ -37,8 +37,7 @@ export const globalSettingsModule = (API) => ({
    * @returns {Promise<any>} Updated section data
    */
   async saveSection(sectionName, data) {
-    await API.put(`/api/global/settings/section/${sectionName}`, data)
-    return API.globalSettings.section(sectionName)
+    return await API.put(`/api/global/settings/section/${sectionName}`, data)
   },
 
   /**

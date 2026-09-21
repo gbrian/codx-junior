@@ -30,6 +30,8 @@ import ChatModeSelector from './ChatModeSelector.vue'
       
       <!-- Right side stats (hidden on mobile, compact on desktop) -->
       <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
+        <!-- Template badge -->
+        <span class="badge badge-warning badge-sm" v-if="chat.is_template">Template</span>
         <!-- Message Count Badge -->
         <div class="flex items-center gap-1 text-xs shrink-0 cursor-pointer hover:text-primary transition-colors"
           @click="$emit('toggle-hidden')"

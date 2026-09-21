@@ -317,7 +317,26 @@ export class ChatService extends Service {
       auto_initialize: true
     }
     const quickChat = await this.$chats.createNewChatWithProject({ project, chat })
-    this.$storex.ui.openChat(quickChat)
+    if (quickChat) {
+      this.$storex.ui.openChat(quickChat)
+    }
+    return quickChat
+  }
+
+  async createChatFromTemplate({ template, project }) {
+    if (!template?.id) {
+      console.error('[chat service] Cannot create chat from invalid template')
+      return null
+    }
+
+    const newChat = await this.$chats.createChatFromTemplate({
+        template: { ...template, auto_initialize: true }, 
+        project
+    })
+    if (newChat) {
+      this.$storex.ui.openChat(newChat)
+    }
+    return newChat
   }
 
   async createChat({
@@ -362,7 +381,6 @@ export class ChatService extends Service {
     return chat
   }
 
-  // Get chat project from chat object or fallback to current project
   getChatProject(chat) {
     const projectId = chat?.project_id || chat?.owner_project_id
     if (projectId) {
@@ -371,7 +389,6 @@ export class ChatService extends Service {
     return this.$project
   }
 
-  // Update chat branch metadata
   updateChatBranches({ chat, currentBranch, compareBranch }) {
     if (!chat) return
     chat.meta_data = {
@@ -429,7 +446,6 @@ export class ChatService extends Service {
     return found || null
   }
   
-  // Add these methods to the ChatService class
   extractCodeBlocksFromMessage(message) {
     return extractCodeBlocks(message?.content || '')
   }

@@ -91,6 +91,7 @@ from codx.junior.engine import (
 from codx.junior.project.project_discover import (
     find_all_projects,
     find_all_user_projects,  
+    is_project_visible
 )
 
 from codx.junior.project.project_manager import (
@@ -294,7 +295,7 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    projects = list(find_all_user_projects(user))
+    projects = [p for p in list(find_all_user_projects(user)) if is_project_visible(p)]
     workspaces = read_global_settings().workspaces
 
     user_role = user.role
