@@ -43,8 +43,12 @@ CHANGED — persist hot-path:
 
 NEW — chat search:
     The :meth:`ChatManager.search_chats` method provides full-text search
-    across all chat data with optional time-frame filtering and pagination,
-    delegating to :class:`codx.junior.chat_searcher.ChatSearcher`.
+    across all chat data with optional time-frame filtering, user filtering,
+    and pagination, delegating to :class:`codx.junior.chat_searcher.ChatSearcher`.
+
+NEW — chat filtering:
+    The :meth:`ChatManager.get_recent_chats` method now supports filtering by
+    user_id, board, column, and chat_type (task or chat).
 """
 import logging
 import pathlib
@@ -105,8 +109,8 @@ class ChatManager:
     message operations (``add_message``, ``update_message``, ``remove_message``)
     that are safe to call while an AI turn is in progress.
 
-    Also provides full-text search via ``search_chats`` with time-frame filtering
-    and pagination support.
+    Also provides full-text search via ``search_chats`` with user filtering,
+    time-frame filtering and pagination support.
 
     Contract relied upon by :class:`codx.junior.chat.chat_event_bridge.ChatEventBridge`:
         * ``add_message`` inserts (idempotent: skips in-memory duplicate by ``doc_id``).
@@ -188,6 +192,134 @@ class ChatManager:
     # Chat listing
     # -------------------------------------------------------------------------
 
+    def get_recent_chats(
+        self,
+        user_id: Optional[str] = None,
+        board: Optional[str] = None,
+        column: Optional[str] = None,
+        chat_type: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        Get recent chats with optional filtering and pagination.
+
+        Loads all chats and filters by user, board, column, and/or chat type
+        (if provided), then sorts by recency and paginates.
+
+        :param user_id: Optional user ID to filter chats (only chats where
+            user created or participated). If None, returns all recent chats.
+        :param board: Optional board name filter.
+        :param column: Optional column name filter.
+        :param chat_type: Optional chat type filter ('task' or 'chat').
+        :param page: Page number (1-indexed).
+        :param page_size: Number of results per page.
+        :return: Dict with paginated results and metadata.
+        """
+        all_chats = self.list_chats()
+
+        # Apply filters
+        filtered_chats = all_chats
+        
+        if user_id:
+            filtered_chats = [
+                chat for chat in filtered_chats
+                if self._user_involved_in_chat(chat, user_id)
+            ]
+        
+        if board:
+            filtered_chats = [
+                chat for chat in filtered_chats
+                if chat.board and chat.board.lower() == board.lower()
+            ]
+        
+        if column:
+            filtered_chats = [
+                chat for chat in filtered_chats
+                if chat.column and chat.column.lower() == column.lower()
+            ]
+        
+        if chat_type:
+            filtered_chats = [
+                chat for chat in filtered_chats
+                if self._matches_chat_type(chat, chat_type)
+            ]
+
+        # Sort by recency (updated_at descending)
+        sorted_chats = sorted(
+            filtered_chats,
+            key=lambda c: _parse_timestamp(c.updated_at),
+            reverse=True,
+        )
+
+        # Calculate pagination
+        total = len(sorted_chats)
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+
+        paginated_chats = sorted_chats[start_idx:end_idx]
+
+        return {
+            "chats": paginated_chats,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1,
+        }
+
+    @staticmethod
+    def _user_involved_in_chat(chat: Chat, user_id: str) -> bool:
+        """
+        Check if a user is involved in a chat (created, participated, or mentioned).
+
+        :param chat: The chat to check.
+        :param user_id: The user ID to look for.
+        :return: True if user is involved in chat.
+        """
+        if not chat or not user_id:
+            return False
+
+        # Check if user created the chat
+        if chat.created_by == user_id:
+            return True
+
+        # Check if user is in profiles
+        if chat.profiles and isinstance(chat.profiles, list):
+            if any(p and (p.get("id") == user_id or p.get("user_id") == user_id) for p in chat.profiles):
+                return True
+
+        # Check if user has messages in chat
+        if chat.messages and isinstance(chat.messages, list):
+            if any(m and (m.created_by == user_id or m.user_id == user_id) for m in chat.messages):
+                return True
+
+        return False
+
+    @staticmethod
+    def _matches_chat_type(chat: Chat, chat_type: str) -> bool:
+        """
+        Check if a chat matches the specified type.
+
+        :param chat: The chat to check.
+        :param chat_type: The type to match ('task' or 'chat').
+        :return: True if chat matches the type.
+        """
+        if not chat or not chat_type:
+            return True
+        
+        chat_type = chat_type.lower()
+        
+        # Determine chat type based on attributes
+        if chat_type == 'task':
+            return bool(chat.board or chat.column)
+        elif chat_type == 'chat':
+            return not (chat.board or chat.column)
+        
+        return True
+
     def list_chats(self, from_date: Optional[str] = None) -> List[Chat]:
         """
         Return a sorted list of all chats (metadata only, no messages).
@@ -217,18 +349,23 @@ class ChatManager:
     def search_chats(
         self,
         query: str,
+        user_id: Optional[str] = None,
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> Dict[str, Any]:
         """
-        Search chats with full-text search and pagination.
+        Search chats with full-text search, user filtering, and pagination.
 
         Delegates to :class:`codx.junior.chat_searcher.ChatSearcher` to search
         across chat name, description, messages, files, model, history, and more.
+        Results can be filtered by user_id to only include chats where the user
+        created or participated.
 
         :param query: Search query string (case-insensitive substring matching).
+        :param user_id: Optional user ID to filter search results to only chats
+            where this user created or participated. If None, searches all chats.
         :param from_date: ISO-format date string; only include chats updated
             after this date (inclusive).
         :param to_date: ISO-format date string; only include chats updated
@@ -240,6 +377,14 @@ class ChatManager:
         from codx.junior.chat_searcher import ChatSearcher
 
         all_chats = self.list_chats()
+        
+        # Apply user_id filter before search
+        if user_id:
+            all_chats = [
+                chat for chat in all_chats
+                if self._user_involved_in_chat(chat, user_id)
+            ]
+        
         searcher = ChatSearcher()
         return searcher.search(
             chats=all_chats,

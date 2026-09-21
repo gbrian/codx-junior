@@ -100,6 +100,10 @@ export default {
     initialQuery: {
       type: String,
       default: null
+    },
+    userId: {
+      type: String,
+      default: null
     }
   },
   data() {
@@ -203,9 +207,9 @@ export default {
       try {
         const { from_date, to_date } = this.dateRange
         
-        // CHANGED: Create ChatSearchRequest instance
         const searchRequest = new ChatSearchRequest({
           query: this.localQuery,
+          user_id: this.userId,
           from_date,
           to_date,
           page: this.currentPage,
@@ -257,9 +261,9 @@ export default {
       try {
         const { from_date, to_date } = this.dateRange
         
-        // CHANGED: Create ChatSearchRequest instance for pagination
         const searchRequest = new ChatSearchRequest({
           query: this.localQuery,
+          user_id: this.userId,
           from_date,
           to_date,
           page,

@@ -1,14 +1,13 @@
 <script setup>
-import moment from 'moment'
 import ChatSearch from '../chat/ChatSearch.vue'
 import ChatCard from '../chat/ChatCard.vue'
 </script>
 
 <template>
   <!-- Icon mode - shows chat count badges -->
-  <div v-if="collapsed" class="flex flex-col gap-3 w-full items-center">
+  <div v-if="collapsed" class="flex flex-col gap-3 w-full h-full items-center">
     <div v-if="recentChats.length > 0 || isSearching" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-1 text-center">
-      {{ isSearching ? 'Search' : 'Chats' }}
+      {{ isSearching ? 'Search' : 'Recent Chats' }}
     </div>
     
     <!-- Chat icons with counters in collapsed mode -->
@@ -64,80 +63,123 @@ import ChatCard from '../chat/ChatCard.vue'
         </div>
 
         <!-- Show more indicator if chats exceed limit -->
-        <div v-if="recentChats.length > 5" class="text-[9px] text-base-content-ERROR-40 mt-2">
-          +{{ recentChats.length - 5 }}
+        <div v-if="totalChats > 5" class="text-[9px] text-base-content-ERROR-40 mt-2">
+          +{{ totalChats - 5 }}
         </div>
       </template>
     </div>
   </div>
 
-  <!-- Full mode - shows detailed chat cards -->
-  <div v-else class="flex flex-col gap-1 w-full flex-1 overflow-hidden">
-    <!-- Search mode -->
-    <template v-if="isSearching">
-      <ChatSearch
-        @search="onSearchResults"
-        @clear="closeSearch"
-        @error="onSearchError"
-        @no-results="onNoResults"
-      />
+  <!-- Full mode - shows detailed chat cards with scrollable list -->
+  <div v-else class="flex flex-col w-full h-full gap-0 overflow-hidden">
+    <!-- Always visible header with controls -->
+    <div class="flex-shrink-0 border-b border-base-300">
+      <!-- Title and filter/search buttons row -->
+      <div class="flex items-center justify-between px-2 py-2 gap-2">
+        <div class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase flex-1">
+          {{ isSearching ? 'Search Results' : 'Recent Chats' }}
+        </div>
 
-      <!-- Search results -->
-      <div class="flex flex-col gap-2 scrollbar-none mt-2 max-h-96 overflow-y-auto flex-1">
-        <div v-if="searchResultsData?.results?.length > 0">
-          <ChatCard
-            v-for="result in searchResultsData.results"
-            :key="result.chat?.id || result.id"
-            :chat="result.chat"
-            :isActive="isActive(result.chat)"
-            :badgeColor="badgeColor"
-            :snippet="result.snippet || getLastMessageSnippet(result.chat)"
-            @select="selectChat(result.chat)"
-          />
+        <!-- Action buttons -->
+        <div class="flex gap-1 flex-shrink-0">
+          <!-- Search button -->
+          <button
+            @click="toggleSearchMode"
+            class="btn btn-xs btn-ghost"
+            :class="isSearching ? 'btn-active' : ''"
+            title="Search chats"
+          >
+            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search input (visible only when searching) -->
+      <div v-if="isSearching" class="px-2 py-2 border-t border-base-300">
+        <!-- Chat search input with userId -->
+        <ChatSearch
+          :userId="currentUser?.id"
+          @search="onSearchResults"
+          @clear="closeSearch"
+          @error="onSearchError"
+          @no-results="onNoResults"
+        />
+      </div>
+    </div>
+
+    <!-- Content area - scrollable -->
+    <div
+      class="flex-1 overflow-y-auto min-h-0"
+      ref="scrollContainer"
+      @scroll="handleScroll"
+    >
+      <!-- Search results mode -->
+      <template v-if="isSearching">
+        <div class="flex flex-col gap-2 p-2">
+          <div v-if="searchResults && searchResults.length > 0">
+            <ChatCard
+              v-for="result in searchResults"
+              :key="result.chat?.id || result.id"
+              :chat="result.chat || result"
+              :isActive="isActive(result.chat || result)"
+              :badgeColor="badgeColor"
+              :snippet="result.snippet || getLastMessageSnippet(result.chat || result)"
+              @select="selectChat(result.chat || result)"
+            />
+          </div>
+
+          <!-- No results state -->
+          <div v-else-if="searchPerformed" class="text-center py-8 text-base-content/50">
+            <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
+            <p class="text-sm">No chats found</p>
+          </div>
+
+          <!-- Initial state (before search) -->
+          <div v-else class="text-center py-8 text-base-content/50">
+            <i class="fa-solid fa-magnifying-glass text-3xl mb-2 block"></i>
+            <p class="text-sm">Enter a search query</p>
+          </div>
         </div>
 
         <!-- Pagination info -->
-        <div v-if="searchResultsData" class="text-xs text-base-content/50 text-center py-2">
-          {{ searchResultsData.results?.length || 0 }} / {{ searchResultsData.total || 0 }} results
+        <div v-if="searchPerformed && searchData" class="sticky bottom-0 text-xs text-base-content/50 text-center py-2 bg-base-100 border-t border-base-300">
+          {{ searchResults.length || 0 }} / {{ searchData.total || 0 }} results
         </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- Recent chats mode -->
-    <template v-else>
-      <div v-if="recentChats.length > 0" class="divider my-1 w-8 mx-auto opacity-40"></div>
-      
-      <!-- Header with search icon -->
-      <div v-if="recentChats.length > 0" class="flex items-center justify-between px-2 mb-2 shrink-0">
-        <div class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase">
-          Recent Chats & Tasks
+      <!-- Recent chats mode -->
+      <template v-else>
+        <!-- Empty state -->
+        <div v-if="recentChats.length === 0" class="flex flex-col items-center justify-center h-full text-base-content/50">
+          <i class="fa-solid fa-inbox text-3xl mb-2"></i>
+          <p class="text-sm">No recent chats</p>
         </div>
-        <button
-          @click="toggleSearchMode"
-          class="btn btn-xs btn-ghost"
-          title="Search chats"
-        >
-          <i class="fa-solid fa-magnifying-glass text-sm"></i>
-        </button>
-      </div>
 
-      <!-- Scrollable container for recent chats -->
-      <div
-        class="flex flex-col gap-2 scrollbar-none overflow-y-auto flex-1"
-        @scroll="handleScroll"
-      >
-        <ChatCard
-          v-for="chat in recentChats"
-          :key="chat.id"
-          :chat="chat"
-          :isActive="isActive(chat)"
-          :chatProject="getChatProject(chat)"
-          :badgeColor="badgeColor"
-          :snippet="getLastMessageSnippet(chat)"
-          @select="selectChat(chat)"
-        />
-      </div>
-    </template>
+        <!-- Chat cards list -->
+        <div v-else class="flex flex-col gap-2 p-2">
+          <ChatCard
+            v-for="chat in recentChats"
+            :key="chat.id"
+            :chat="chat"
+            :isActive="isActive(chat)"
+            :chatProject="getChatProject(chat)"
+            :badgeColor="badgeColor"
+            :snippet="getLastMessageSnippet(chat)"
+            @select="selectChat(chat)"
+          />
+
+          <!-- Loading indicator for pagination -->
+          <div v-if="isLoadingMore" class="flex justify-center py-4">
+            <span class="loading loading-spinner loading-sm"></span>
+          </div>
+
+          <!-- End of list indicator -->
+          <div v-if="!hasMoreChats && recentChats.length > 0" class="text-center text-xs text-base-content/40 py-4">
+            No more chats
+          </div>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -155,46 +197,73 @@ export default {
   },
   data() {
     return {
-      limit: 10,
+      pageSize: 10,
+      currentPage: 1,
+      totalChats: 0,
       badgeColor: {
         task: 'primary',
         chat: 'accent'
       },
       isSearching: false,
-      searchResultsData: null
+      searchData: null,
+      searchResults: [],
+      recentChats: [],
+      isLoadingMore: false,
+      hasMoreChats: true,
+      initialSearchPerformed: false,
+      searchPerformed: false
     }
   },
   computed: {
-    sortedChats() {
-      const activeProjectId = this.$storex?.projects?.activeProject?.project_id
-      const chats = this.$storex?.chats?.allChats || []
-      
-      return [...chats]
-        .filter(chat => chat && chat.id && (chat.project_id === activeProjectId || chat.owner_project_id === activeProjectId))
-        .sort((a, b) => {
-          const getChatTime = (c) => {
-            if (c.updated_at) return new Date(c.updated_at).getTime()
-            if (c.messages && c.messages.length > 0) {
-              const lastMsg = c.messages[c.messages.length - 1]
-              const t = lastMsg.updated_at || lastMsg.created_at
-              if (t) return new Date(t).getTime()
-            }
-            return 0
-          }
-          return getChatTime(b) - getChatTime(a)
-        })
-    },
-    recentChats() {
-      return this.sortedChats.slice(0, this.limit)
+    currentUser() {
+      return this.$storex?.users?.user || this.$user
     }
   },
+  mounted() {
+    this.loadRecentChats()
+  },
   methods: {
+    async loadRecentChats(append = false) {
+      try {
+        this.isLoadingMore = true
+        const currentUserId = this.currentUser?.id
+
+        const response = await this.$project.$api.chats.getRecentChats({
+          filters: {
+            user_id: currentUserId
+          },
+          page: this.currentPage,
+          pageSize: this.pageSize
+        })
+
+        if (response.error) {
+          console.error('Error loading recent chats:', response.error)
+          this.isLoadingMore = false
+          return
+        }
+
+        this.totalChats = response.total
+
+        if (append) {
+          this.recentChats.push(...response.chats)
+        } else {
+          this.recentChats = response.chats
+        }
+
+        this.hasMoreChats = response.has_next
+        this.isLoadingMore = false
+      } catch (error) {
+        console.error('Error loading recent chats:', error)
+        this.isLoadingMore = false
+      }
+    },
     handleScroll(e) {
       const { scrollTop, clientHeight, scrollHeight } = e.target
-      if (scrollHeight - scrollTop - clientHeight < 40) {
-        if (this.limit < this.sortedChats.length) {
-          this.limit += 10
-        }
+      // Trigger load when user scrolls near bottom (100px threshold)
+      // Only load if: not already loading, has more pages, and user isn't searching
+      if (scrollHeight - scrollTop - clientHeight < 100 && this.hasMoreChats && !this.isLoadingMore && !this.isSearching) {
+        this.currentPage += 1
+        this.loadRecentChats(true)
       }
     },
     getInitials(name) {
@@ -233,21 +302,32 @@ export default {
     toggleSearchMode() {
       this.isSearching = !this.isSearching
       if (!this.isSearching) {
-        this.searchResultsData = null
+        this.searchResults = []
+        this.searchData = null
+        this.searchPerformed = false
+      } else {
+        this.searchPerformed = false
       }
     },
     closeSearch() {
       this.isSearching = false
-      this.searchResultsData = null
+      this.searchResults = []
+      this.searchData = null
+      this.searchPerformed = false
     },
     onSearchResults(searchData) {
-      this.searchResultsData = searchData.results
+      this.searchData = searchData.results
+      this.searchResults = searchData.results.results || []
+      this.searchPerformed = true
     },
     onSearchError(error) {
       console.error('Search error:', error)
+      this.searchPerformed = true
     },
     onNoResults() {
-      this.searchResultsData = { results: [], total: 0 }
+      this.searchResults = []
+      this.searchData = { results: [], total: 0 }
+      this.searchPerformed = true
     }
   }
 }

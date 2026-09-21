@@ -27,7 +27,15 @@ export class ChatSearchResponse {
    * Get chat from result
    */
   getChatFromResult(index) {
-    return this.getResult(index)?.chat || null
+    const result = this.getResult(index)
+    return result?.chat || result || null
+  }
+
+  /**
+   * Extract chats from results
+   */
+  getChats() {
+    return this.results.map(result => result.chat || result)
   }
 
   /**
@@ -76,6 +84,52 @@ export class ChatSearchResponse {
       pageSize: this.page_size,
       totalPages: this.total_pages
     }
+  }
+
+  /**
+   * Check if results are empty
+   */
+  isEmpty() {
+    return this.results.length === 0
+  }
+
+  /**
+   * Get relevance score for a result
+   */
+  getRelevanceScore(index) {
+    const result = this.getResult(index)
+    return result?.relevance_score || 0
+  }
+
+  /**
+   * Get matched fields for a result
+   */
+  getMatchedFields(index) {
+    const result = this.getResult(index)
+    return result?.matched_fields || []
+  }
+
+  /**
+   * Create from API response
+   */
+  static fromJSON(json) {
+    return new ChatSearchResponse(json)
+  }
+
+  /**
+   * Clone this response
+   */
+  clone() {
+    return new ChatSearchResponse({
+      results: [...this.results],
+      total: this.total,
+      page: this.page,
+      page_size: this.page_size,
+      total_pages: this.total_pages,
+      has_next: this.has_next,
+      has_prev: this.has_prev,
+      error: this.error
+    })
   }
 }
 

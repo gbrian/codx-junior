@@ -4,21 +4,53 @@ import ChatMessageList from '@/components/chat/ChatMessageList.vue'
 import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatIntelliSense from '@/components/chat/ChatIntelliSense.vue'
 import ChatAttachmentPreview from '@/components/chat/ChatAttachmentPreview.vue'
+import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 </script>
 
 <template>
-  <div class="flex h-full w-full bg-[#111111] overflow-hidden" data-theme="dark">
+  <div
+    class="flex h-full w-full bg-[#111111] overflow-hidden"
+    :class="isMobile ? 'flex-col' : 'flex-row'"
+    data-theme="dark"
+  >
 
-    <!-- ── Sidebar ── -->
+    <!-- ── Sidebar (desktop only — renders as bottom nav on mobile) ── -->
     <QuickChatSidebar
       :user-name="$user?.username || 'User'"
+      :show-mobile-chats="showMobileChats"
       @new-chat="startNewChat"
-      @project-selected="onProjectSelected"
+      @toggle-mobile-chats="showMobileChats = !showMobileChats"
     />
 
+    <!-- ── Mobile chats drawer ── -->
+    <transition name="slide-up">
+      <div
+        v-if="isMobile && showMobileChats"
+        class="fixed inset-0 z-40 flex flex-col bg-[#1a1a1a]"
+      >
+        <!-- Drawer header -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+          <span class="text-sm font-semibold text-white/80">Recent Chats</span>
+          <button
+            class="p-2 text-white/40 hover:text-white transition-colors"
+            @click="showMobileChats = false"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <!-- Reuse RecentChatsQuickAccess inside drawer -->
+        <div class="flex-1 min-h-0 px-3 py-3 flex flex-col overflow-hidden">
+          <RecentChatsQuickAccess :collapsed="false" @select="showMobileChats = false" />
+        </div>
+      </div>
+    </transition>
+
     <!-- ── Main area ── -->
-    <main class="flex-1 flex flex-col min-w-0 h-full relative">
+    <main
+      class="flex-1 flex flex-col min-w-0 h-full relative"
+      :class="isMobile ? 'pb-16' : ''"
+    >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
       <transition name="fade">
@@ -33,13 +65,16 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
           ></div>
 
           <!-- Greeting -->
-          <h1 class="text-4xl font-semibold text-white tracking-tight relative z-10 text-center px-4">
+          <h1
+            class="text-white tracking-tight relative z-10 text-center px-4 font-semibold"
+            :class="isMobile ? 'text-2xl' : 'text-4xl'"
+          >
             What's next,
-            <span class="text-primary">{{ firstName }}</span>?
+            <span class="text-codx-primary">{{ firstName }}</span>?
           </h1>
 
           <!-- Floating input bar using ChatInputBox -->
-          <div class="relative z-10 w-full max-w-2xl px-4">
+          <div class="relative z-10 w-full px-4" :class="isMobile ? 'max-w-full' : 'max-w-2xl'">
             <!-- IntelliSense popup for home input -->
             <ChatIntelliSense
               v-if="intelliSenseSuggestions.length"
@@ -66,7 +101,27 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
               @add-message="onHomeSubmit"
               @keydown="onHomeKeyDown"
               @paste="onPaste"
+              @drop="onHomeDropImages"
               @profiles-selected="selectedProfiles = $event"
+            >
+              <!-- Project selector injected above the textarea -->
+              <template #before-textarea>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-white/30 shrink-0">Project:</span>
+                  <ProjectDetailt
+                    :model-value="selectedProject"
+                    :options="{ showIcon: true, showFolders: false, showSelector: true }"
+                    @select="onProjectSelected"
+                  />
+                </div>
+              </template>
+            </ChatInputBox>
+
+            <!-- Attachment preview for home state -->
+            <ChatAttachmentPreview
+              v-if="homeAttachments.length"
+              :attachments="homeAttachments"
+              @remove-attachment="removeHomeAttachment"
             />
 
             <!-- Suggestion chips -->
@@ -89,7 +144,15 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         <div v-if="activeChat" class="absolute inset-0 flex flex-col">
 
           <!-- Chat header -->
-          <div class="shrink-0 flex items-center gap-3 px-6 py-3 border-b border-white/5 bg-[#111111]/80 backdrop-blur-sm">
+          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[#111111]/80 backdrop-blur-sm">
+            <!-- Mobile back button -->
+            <button
+              v-if="isMobile"
+              class="p-1.5 text-white/40 hover:text-white transition-colors mr-1"
+              @click="startNewChat"
+            >
+              <i class="fa-solid fa-arrow-left text-sm"></i>
+            </button>
             <div class="flex-1 min-w-0">
               <h2 class="text-sm font-medium text-white/80 truncate">{{ activeChat.name || 'Chat' }}</h2>
             </div>
@@ -104,86 +167,116 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
             </div>
           </div>
 
-          <!-- Message list -->
+          <!-- Message list — Notion-like centered content on wide screens -->
           <div class="flex-1 min-h-0 overflow-hidden">
-            <div class="h-full overflow-y-auto px-4 md:px-8 lg:px-16 xl:px-32 py-4" ref="messagesContainer">
-              <!-- Loading skeleton -->
-              <div v-if="isChatLoading" class="flex flex-col gap-6 py-6">
-                <div v-for="i in 3" :key="i" class="flex flex-col gap-2">
-                  <div class="skeleton h-4 w-1/4 bg-white/8 rounded"></div>
-                  <div class="skeleton h-16 w-3/4 bg-white/8 rounded-xl"></div>
+            <div
+              class="h-full overflow-y-auto py-4"
+              :class="isMobile ? 'px-3' : 'px-4'"
+              ref="messagesContainer"
+            >
+              <div class="w-full mx-auto" :class="isMobile ? '' : 'max-w-3xl'">
+                <!-- Loading skeleton -->
+                <div v-if="isChatLoading" class="flex flex-col gap-6 py-6">
+                  <div v-for="i in 3" :key="i" class="flex flex-col gap-2">
+                    <div class="skeleton h-4 w-1/4 bg-white/8 rounded"></div>
+                    <div class="skeleton h-16 w-3/4 bg-white/8 rounded-xl"></div>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Messages rendered via ChatMessageList (wraps ChatEntry) -->
-              <ChatMessageList
-                v-else-if="messages.length"
-                ref="messageList"
-                class="w-full"
-                :chat="activeChat"
-                :messages="messages"
-                :read-only="false"
-                :users-list="usersList"
-                @remove="removeMessage"
-                @copy="onCopy"
-                @message-changed="onMessageChanged"
-                @edited="onMessageEdited"
-              />
+                <!-- Messages -->
+                <ChatMessageList
+                  v-else-if="messages.length"
+                  ref="messageList"
+                  class="w-full"
+                  :chat="activeChat"
+                  :messages="messages"
+                  :read-only="false"
+                  :users-list="usersList"
+                  @remove="removeMessage"
+                  @copy="onCopy"
+                  @message-changed="onMessageChanged"
+                  @edited="onMessageEdited"
+                  @hide="onHideMessage"
+                  @answer="onAnswerMessage"
+                  @thread="onThread"
+                  @sub-task="onSubTask"
+                  @run-agents="onRunAgents"
+                  @enhance="onEnhance"
+                  @add-file-to-chat="onAddFileToChat"
+                  @add-file="onAddFile"
+                  @open-file="onOpenFile"
+                  @save-file="onSaveFile"
+                  @reload-file="onReloadFile"
+                  @generate-code="onGenerateCode"
+                  @image="onImage"
+                  @remove-file="onRemoveFile"
+                  @edit-message="onEditMessage"
+                  @run-edit="onRunEdit"
+                  @preview-file="onPreviewFile"
+                  @search-files="onSearchFiles"
+                />
 
-              <!-- Empty chat placeholder -->
-              <div v-else class="flex flex-col items-center justify-center h-full gap-3 text-white/20 py-20">
-                <i class="fa-regular fa-comment-lines text-4xl"></i>
-                <span class="text-sm">Send a message to begin</span>
+                <!-- Empty chat placeholder -->
+                <div v-else class="flex flex-col items-center justify-center h-full gap-3 text-white/20 py-20">
+                  <i class="fa-regular fa-comment-lines text-4xl"></i>
+                  <span class="text-sm">Send a message to begin</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- ── Pinned input bar ── -->
-          <div class="shrink-0 px-4 md:px-8 lg:px-16 xl:px-32 pb-4 pt-2">
-            <div class="relative">
-              <!-- IntelliSense popup -->
-              <ChatIntelliSense
-                v-if="intelliSenseSuggestions.length"
-                ref="intelliSense"
-                :suggestions="intelliSenseSuggestions"
-                :active-index="intelliSenseIndex"
-                :query="intelliSenseQuery"
-                :search-controller="searchController"
-                :progress="intelliSenseProgress"
-                @select="onIntelliSenseSelect"
-                @hover="intelliSenseIndex = $event"
-                @accept-multi="onIntelliSenseAcceptMulti"
-                @cancel="cancelIntelliSense"
-              />
+          <!-- ── Pinned input bar — Notion-like centered on wide screens ── -->
+          <div
+            class="shrink-0 pb-4 pt-2"
+            :class="isMobile ? 'px-3' : 'px-4'"
+          >
+            <div class="w-full mx-auto" :class="isMobile ? '' : 'max-w-3xl'">
+              <div class="relative">
+                <!-- IntelliSense popup -->
+                <ChatIntelliSense
+                  v-if="intelliSenseSuggestions.length"
+                  ref="intelliSense"
+                  :suggestions="intelliSenseSuggestions"
+                  :active-index="intelliSenseIndex"
+                  :query="intelliSenseQuery"
+                  :search-controller="searchController"
+                  :progress="intelliSenseProgress"
+                  @select="onIntelliSenseSelect"
+                  @hover="intelliSenseIndex = $event"
+                  @accept-multi="onIntelliSenseAcceptMulti"
+                  @cancel="cancelIntelliSense"
+                />
 
-              <!-- Input box -->
-              <ChatInputBox
-                ref="inputBox"
-                :waiting="waiting"
-                :selected-model="activeChat.llm_model"
-                :ai-models="aiModels"
-                :cursor-word="cursorWord"
-                :profiles="profiles"
-                :selected-profiles="selectedProfiles"
-                @send="sendMessage"
-                @add-message="sendMessage"
-                @keydown="onKeyDown"
-                @paste="onPaste"
-                @profiles-selected="selectedProfiles = $event"
-              />
+                <!-- Input box -->
+                <ChatInputBox
+                  ref="inputBox"
+                  :waiting="waiting"
+                  :selected-model="activeChat.llm_model"
+                  :ai-models="aiModels"
+                  :cursor-word="cursorWord"
+                  :profiles="profiles"
+                  :selected-profiles="selectedProfiles"
+                  @send="sendMessage"
+                  @add-message="sendMessage"
+                  @keydown="onKeyDown"
+                  @paste="onPaste"
+                  @drop="onDropImages"
+                  @profiles-selected="selectedProfiles = $event"
+                />
 
-              <!-- Attachment preview -->
-              <ChatAttachmentPreview
-                v-if="attachments.length"
-                :attachments="attachments"
-                @remove-attachment="removeAttachment"
-              />
+                <!-- Attachment preview -->
+                <ChatAttachmentPreview
+                  v-if="attachments.length"
+                  :attachments="attachments"
+                  @remove-attachment="removeAttachment"
+                />
+              </div>
+
+              <!-- Disclaimer -->
+              <p class="text-center text-xs text-white/15 mt-2 select-none">
+                codx-junior can make mistakes. Consider checking important info.
+              </p>
             </div>
-
-            <!-- Disclaimer -->
-            <p class="text-center text-xs text-white/15 mt-2 select-none">
-              codx-junior can make mistakes. Consider checking important info.
-            </p>
           </div>
         </div>
       </transition>
@@ -195,12 +288,17 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 <script>
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 import { ENTITY_STATUS } from '@/store/entityStatuses'
+import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
 
 export default {
+  components: {
+    RecentChatsQuickAccess
+  },
   data() {
     return {
       waiting: false,
       attachments: [],
+      homeAttachments: [],
       cursorWord: {},
       intelliSenseSuggestions: [],
       intelliSenseIndex: 0,
@@ -214,6 +312,9 @@ export default {
       editorText: '',
       profiles: [],
       selectedProfiles: [],
+      selectedProject: null,
+      showMobileChats: false,
+      MAX_IMAGE_SIZE_MB: 50,
       suggestionChips: [
         'Explain this code',
         'Write a unit test',
@@ -234,6 +335,9 @@ export default {
     this.cancelIntelliSense()
   },
   computed: {
+    isMobile() {
+      return this.$ui.isMobile
+    },
     activeChat() {
       return this.$chats.activeChat
     },
@@ -245,6 +349,7 @@ export default {
     },
     chatProject() {
       return this.$projects.allProjectsById[this.activeChat?.project_id || this.activeChat?.owner_project_id]
+        || this.selectedProject
         || this.$project
     },
     aiModels() {
@@ -259,12 +364,16 @@ export default {
     }
   },
   watch: {
-    editorText(val) {
+    editorText() {
       this.updateCursorWord()
       this.scheduleIntelliSense()
     },
     activeChat(chat) {
       if (chat) {
+        // Close mobile chats drawer when a chat is selected
+        this.showMobileChats = false
+        // Load profiles for the chat's project to ensure they're available for ChatEntry
+        this.loadProfilesForChat()
         this.$nextTick(() => this.scrollToBottom())
       }
     },
@@ -286,8 +395,28 @@ export default {
       }
     },
 
-    // ── Project selection ──────────────────────────────────
+    async loadProfilesForChat() {
+      try {
+        const project = this.chatProject
+        if (project?.$api) {
+          const list = await project.$api.profiles.list()
+          const sortedProfiles = (list || []).sort((a, b) => a.name > b.name ? 1 : -1)
+          // Update both local profiles and the global $projects.profiles for ChatEntry to use
+          this.profiles = sortedProfiles
+          // Store in projects for ChatEntry to access via this.$projects.profiles
+          if (!this.$projects.profiles) {
+            this.$projects.profiles = []
+          }
+          this.$projects.profiles = sortedProfiles
+        }
+      } catch (err) {
+        console.error('[QuickChat] loadProfilesForChat error', err)
+      }
+    },
+
+    // ── Project selection (from input box slot) ────────────
     async onProjectSelected(project) {
+      this.selectedProject = project
       await this.$storex.projects.setActiveProject(project)
       await this.$storex.chats.loadChats()
       await this.loadProfiles()
@@ -297,15 +426,18 @@ export default {
     async startNewChat() {
       this.$chats.clearActiveChat()
       this.attachments = []
+      this.homeAttachments = []
+      this.showMobileChats = false
     },
     async createChat(initialMessage) {
       const shortTitle = initialMessage.slice(0, 50) + (initialMessage.length > 50 ? '…' : '')
+      const ownerProject = this.selectedProject || this.$project
       const chat = await this.$chats.createNewChat({
         name: shortTitle,
         mode: 'chat',
         board: 'quick-chat',
         messages: [],
-        owner_project_id: this.$project?.project_id
+        owner_project_id: ownerProject?.project_id
       })
       return chat
     },
@@ -330,6 +462,60 @@ export default {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
         this.onHomeSubmit()
+      }
+    },
+
+    // ── Image handling ─────────────────────────────────────
+    validateImageSize(file) {
+      const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
+      if (file.size > maxSizeBytes) {
+        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
+        return false
+      }
+      return true
+    },
+    async prepareAttachmentFromFile(file) {
+      if (!this.validateImageSize(file)) return null
+      try {
+        const attachment = await ChatAttachment.fromFile(file)
+        return attachment
+      } catch (error) {
+        console.error('[QuickChat] Error preparing attachment:', error)
+        this.$ui?.addNotification?.({ text: 'Failed to process image', type: 'error' })
+        return null
+      }
+    },
+    async processMultipleImages(imageFiles, isHomeState) {
+      const validImageFiles = imageFiles.filter(f => this.validateImageSize(f))
+      if (validImageFiles.length === 0) return false
+      for (const imageFile of validImageFiles) {
+        const attachment = await this.prepareAttachmentFromFile(imageFile)
+        if (attachment) {
+          if (isHomeState) {
+            this.homeAttachments.push(attachment)
+          } else {
+            this.attachments.push(attachment)
+          }
+        }
+      }
+      return validImageFiles.length > 0
+    },
+    removeAttachment(idx) {
+      this.attachments = this.attachments.filter((_, i) => i !== idx)
+    },
+    removeHomeAttachment(idx) {
+      this.homeAttachments = this.homeAttachments.filter((_, i) => i !== idx)
+    },
+    onHomeDropImages(event) {
+      this.onDropImages(event, true)
+    },
+    async onDropImages(event, isHomeState = false) {
+      if (event.dataTransfer.files?.length) {
+        const imageFiles = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'))
+        if (imageFiles.length > 0) {
+          await this.processMultipleImages(imageFiles, isHomeState)
+        }
       }
     },
 
@@ -374,6 +560,85 @@ export default {
     onCopy(message) {
       navigator.clipboard.writeText(message.content).catch(console.error)
     },
+    onHideMessage(message) {
+      this.$service.chat.toggleHide({ chat: this.activeChat, doc_id: message.doc_id })
+    },
+    onAnswerMessage(message) {
+      this.$service.chat.toggleAnswer({ chat: this.activeChat, doc_id: message.doc_id })
+    },
+    onThread(message) {
+      // Open the thread chat for this message
+      const threadChat = this.$projects.allChats.find(c => c.message_id === message.doc_id)
+      if (threadChat) {
+        this.$chats.setActiveChat(threadChat)
+      }
+    },
+    onSubTask({ content, title, file }) {
+      // Create a new sub-task chat
+      const name = title || (file ? file.split('/').reverse()[0] : 'Sub-task')
+      this.$chats.createNewChat({
+        name,
+        mode: 'task',
+        board: 'quick-chat',
+        messages: [{ role: 'user', content: content || '', done: true, user: this.$user?.username }],
+        owner_project_id: this.chatProject?.project_id
+      })
+    },
+    onRunAgents(message) {
+      // Run agents on the message via project service
+      this.$storex.projects.runAgents({ chat: this.activeChat, message })
+    },
+    onEnhance(message) {
+      // Re-send with enhance flag — add a new user prompt to improve the message
+      console.info('[QuickChat] enhance not fully implemented in quick-chat context', message)
+    },
+    onAddFileToChat(file) {
+      if (!this.activeChat) return
+      this.$service.chat.addFileToChat({ chat: this.activeChat, file })
+    },
+    onAddFile(file) {
+      if (!this.activeChat) return
+      this.$service.chat.addFileToChat({ chat: this.activeChat, file })
+    },
+    onOpenFile(file) {
+      this.chatProject?.$api?.coder?.openFile(file)
+    },
+    async onSaveFile({ file, content }) {
+      try {
+        await this.$storex.chats.writeFile({ chat: this.activeChat, file, content })
+      } catch (err) {
+        console.error('[QuickChat] onSaveFile error', err)
+      }
+    },
+    async onReloadFile({ file, message }) {
+      // Reload a file's content into the chat context
+      console.info('[QuickChat] onReloadFile', file, message)
+    },
+    onGenerateCode(codeBlockInfo) {
+      this.$projects.generateCode({ chat: this.activeChat, codeBlockInfo })
+    },
+    onImage(imageData) {
+      // Show image preview — store for display
+      console.info('[QuickChat] onImage', imageData)
+    },
+    onRemoveFile({ message, file }) {
+      if (!message || !file) return
+      this.$service.chat.removeFileFromMessage({ message, file })
+    },
+    onEditMessage(message) {
+      // In quick-chat context we don't have an edit message flow, log for now
+      console.info('[QuickChat] onEditMessage', message)
+    },
+    onRunEdit(codeSnippet) {
+      console.info('[QuickChat] onRunEdit', codeSnippet)
+    },
+    onPreviewFile(filePath) {
+      this.chatProject?.$api?.coder?.openFile(filePath)
+    },
+    onSearchFiles({ query }) {
+      // Emit upward or handle inline — for quick-chat we log
+      console.info('[QuickChat] onSearchFiles', query)
+    },
 
     // ── Keyboard ───────────────────────────────────────────
     onKeyDown(event) {
@@ -408,14 +673,17 @@ export default {
         e.preventDefault()
         try {
           const attachment = await ChatAttachment.fromFile(imageFile)
-          if (attachment) this.attachments.push(attachment)
+          if (attachment) {
+            if (this.activeChat) {
+              this.attachments.push(attachment)
+            } else {
+              this.homeAttachments.push(attachment)
+            }
+          }
         } catch (err) {
           console.error('[QuickChat] paste image error', err)
         }
       }
-    },
-    removeAttachment(idx) {
-      this.attachments = this.attachments.filter((_, i) => i !== idx)
     },
 
     // ── Scroll ─────────────────────────────────────────────
@@ -427,7 +695,6 @@ export default {
 
     // ── Editor sync ────────────────────────────────────────
     syncEditorText() {
-      // Sync from whichever input is currently visible
       const activeRef = this.activeChat ? this.$refs.inputBox : this.$refs.homeInputBox
       const text = activeRef?.getEditorText() ?? ''
       if (text !== this.editorText) this.editorText = text
@@ -517,6 +784,13 @@ export default {
   transition: opacity 0.25s ease;
 }
 .fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+.slide-up-enter-active, .slide-up-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.slide-up-enter-from, .slide-up-leave-to {
+  transform: translateY(100%);
   opacity: 0;
 }
 </style>

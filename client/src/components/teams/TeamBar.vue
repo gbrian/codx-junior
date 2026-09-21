@@ -57,7 +57,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
       </div>
 
       <!-- Recent Chats -->
-      <div class="px-2 pb-4 w-full">
+      <div class="grow px-2 pb-4 w-full overflow-hidden">
         <RecentChatsQuickAccess :collapsed="false" />
       </div>
 

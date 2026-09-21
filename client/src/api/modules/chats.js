@@ -23,6 +23,22 @@ export const chatsModule = (API) => ({
     return API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`)
   },
 
+  async getRecentChats({ filters, page = 1, pageSize = 10 }) {
+    const params = new URLSearchParams({
+      page,
+      page_size: pageSize,
+    })
+
+    if (filters) {
+      if (filters.userId) params.append('user_id', filters.userId)
+      if (filters.board) params.append('board', filters.board)
+      if (filters.column) params.append('column', filters.column)
+      if (filters.chatType) params.append('chat_type', filters.chatType)
+    }
+
+    return API.get(`/api/chats/recent?${params.toString()}`)
+  },
+
   async search(searchRequest) {
     // Accept ChatSearchRequest object or plain object
     const payload = searchRequest.toJSON ? searchRequest.toJSON() : searchRequest

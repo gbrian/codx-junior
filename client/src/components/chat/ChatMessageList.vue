@@ -119,8 +119,13 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
               <div
                 :ref="el => setMessageRef(el, ix)"
                 :class="[
-                  'group/block relative',
+                  'group/block relative rounded-lg transition-all duration-150',
                   isNewSpeaker(message, ix) ? 'mt-6' : 'mt-0.5',
+                  editMessage
+                    ? editMessage.doc_id === message.doc_id
+                      ? 'ring-2 ring-warning bg-warning/5'
+                      : 'opacity-40'
+                    : '',
                 ]"
               >
                 <ChatEntry
@@ -145,7 +150,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   @open-file="$emit('open-file', $event)"
                   @save-file="$emit('save-file', $event)"
                   @add-file="$emit('add-file', $event)"
-                  @edit-message="$emit('edit-message', $event)"
+                  @edit-message="$emit('edit-message', message)"
                   @code-file-shown.stop="$emit('code-file-shown', $event)"
                   @thread="$emit('thread', $event)"
                   @sub-task="$emit('sub-task', $event)"

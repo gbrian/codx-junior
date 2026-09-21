@@ -5,12 +5,22 @@
 }
 
 
-.codx-primary {
+.codx-primary,
+.text-codx-primary {
   color: #cc0099;
 }
 
-.codx-secondary {
+.codx-secondary,
+.text-codx-secondary {
   color: #8f008f;
+}
+
+.bg-codx-primary {
+  background-color: #cc0099;
+}
+
+.bg-codx-secondary {
+  background-color: #8f008f;
 }
 
 div[data-reka-popper-content-wrapper] {

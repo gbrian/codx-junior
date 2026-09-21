@@ -7,6 +7,7 @@
 export class ChatSearchRequest {
   constructor(options = {}) {
     this.query = options.query || ''
+    this.user_id = options.user_id || null
     this.from_date = options.from_date || null
     this.to_date = options.to_date || null
     this.page = Math.max(1, options.page || 1)
@@ -133,6 +134,7 @@ export class ChatSearchRequest {
   toJSON() {
     return {
       query: this.query,
+      user_id: this.user_id || undefined,
       from_date: this.from_date || undefined,
       to_date: this.to_date || undefined,
       page: this.page,

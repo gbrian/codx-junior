@@ -7,7 +7,6 @@ import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatIntelliSense from './ChatIntelliSense.vue'
 import ChatFilePreview from './ChatFilePreview.vue'
-import ChatMessageEditor from './ChatMessageEditor.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
 import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
 import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
@@ -97,128 +96,125 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       <!-- Main Chat View -->
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
 
-        <!-- Message Editor Mode -->
-        <div class="w-full h-full" v-if="editMessage">
-          <ChatMessageEditor
-            :message="editMessage"
-            @save="onMessageEdited"
-            @discard="onEditorDiscard"
-          />
+        <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
+
+          <!-- ── Unified scroll container: messages + composer ── -->
+          <ChatMessageList
+            ref="messageList"
+            class="w-full h-full"
+            :chat="chat"
+            :messages="messages"
+            :edit-message="editMessage"
+            :mention-list="mentionList"
+            :read-only="readOnly"
+            :users-list="usersList"
+            :children-chats="childrenChats"
+            @edited="onMessageEdited"
+            @remove="removeMessage"
+            @remove-file="removeFileFromMessage($event.message, $event.file)"
+            @hide="toggleHide"
+            @answer="toggleAnswer"
+            @run-edit="runEdit"
+            @copy="onCopy"
+            @add-file-to-chat="onAddFile"
+            @image="onMessageImagePreview"
+            @generate-code="onGenerateCode"
+            @reload-file="onReloadMessageFile"
+            @open-file="onOpenFile"
+            @save-file="onSaveFile"
+            @add-file="onAddFile"
+            @edit-message="onEditMessage"
+            @thread="onNewThread"
+            @sub-task="onChatEntryCreateSubtask"
+            @set-active-chat="$chats.setActiveChat($event)"
+            @message-changed="onMessageChanged"
+            @run-agents="onMessageRunAgents"
+            @preview-file="handleFilePreview"
+            @search-files="onSelectionSearchFiles"
+          >
+            <!-- IntelliSense slot — floats above the composer -->
+            <template #intellisense>
+              <ChatIntelliSense
+                ref="intelliSense"
+                :suggestions="intelliSenseSuggestions"
+                :active-index="intelliSenseIndex"
+                :query="intelliSenseQuery"
+                :search-controller="searchController"
+                :progress="intelliSenseProgress"
+                @select="onIntelliSenseSelect"
+                @hover="intelliSenseIndex = $event"
+                @accept-multi="onIntelliSenseAcceptMulti"
+                @cancel="cancelIntelliSense"
+              />
+            </template>
+
+            <!-- Input box slot -->
+            <template #input>
+              <!-- Edit mode banner -->
+              <div v-if="editMessage" class="flex items-center gap-2 px-3 py-1.5 mb-1 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Editing message from <strong>{{ editMessage.user }}</strong></span>
+                <button class="ml-auto btn btn-xs btn-ghost text-warning" @click="onResetEdit">
+                  <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+              </div>
+              <ChatInputBox
+                ref="inputBox"
+                :waiting="waiting"
+                :is-editing="!!editMessage"
+                :is-voice-session="isVoiceSession"
+                :searching="searchingInKnowledge"
+                :read-only="readOnly"
+                :selected-model="chat.llm_model"
+                :ai-models="aiModels"
+                :profiles="profiles"
+                :selected-profiles="selectedProfiles"
+                :cursor-word="cursorWord"
+                :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                @send="sendMessage"
+                @add-message="addNewMessage()"
+                @search-message="addSearchMessage"
+                @cancel-edit="onResetEdit"
+                @paste="onContentPaste"
+                @keydown="onChatInputKeyDown"
+                @drop.stop="onDropInputBox"
+                @model-changed="onLLMModelChanged"
+                @profiles-selected="onProfilesSelected"
+                @toggle-voice="toggleVoiceSession"
+              />
+              <ChatAttachmentPreview
+                :attachments="attachments"
+                @remove-attachment="removeAttachment"
+                v-if="attachments?.length"
+              />
+            </template>
+
+            <!-- Per-message files slot (files attached to the current message being composed) -->
+            <template #files>
+              <ChatFileList
+                :files="files"
+                :message-files="[]"
+                :chat-project="chatProject"
+                @remove-file="removeFileFromFiles"
+                @add-file="addFileContentAsMessage"
+                @preview-file="handleFilePreview"
+                v-if="files?.length"
+              />
+            </template>
+          </ChatMessageList>
+
         </div>
 
-        <!-- Normal Chat Mode -->
-        <template v-else>
-          <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
-
-            <!-- ── Unified scroll container: messages + composer ── -->
-            <ChatMessageList
-              ref="messageList"
-              class="w-full h-full"
-              :chat="chat"
-              :messages="messages"
-              :mention-list="mentionList"
-              :read-only="readOnly"
-              :users-list="usersList"
-              :children-chats="childrenChats"
-              @edited="onMessageEdited"
-              @remove="removeMessage"
-              @remove-file="removeFileFromMessage($event.message, $event.file)"
-              @hide="toggleHide"
-              @answer="toggleAnswer"
-              @run-edit="runEdit"
-              @copy="onCopy"
-              @add-file-to-chat="onAddFile"
-              @image="onMessageImagePreview"
-              @generate-code="onGenerateCode"
-              @reload-file="onReloadMessageFile"
-              @open-file="onOpenFile"
-              @save-file="onSaveFile"
-              @add-file="onAddFile"
-              @edit-message="onEditMessage"
-              @thread="onNewThread"
-              @sub-task="onChatEntryCreateSubtask"
-              @set-active-chat="$chats.setActiveChat($event)"
-              @message-changed="onMessageChanged"
-              @run-agents="onMessageRunAgents"
-              @preview-file="handleFilePreview"
-              @search-files="onSelectionSearchFiles"
-            >
-              <!-- IntelliSense slot — floats above the composer -->
-              <template #intellisense>
-                <ChatIntelliSense
-                  ref="intelliSense"
-                  :suggestions="intelliSenseSuggestions"
-                  :active-index="intelliSenseIndex"
-                  :query="intelliSenseQuery"
-                  :search-controller="searchController"
-                  :progress="intelliSenseProgress"
-                  @select="onIntelliSenseSelect"
-                  @hover="intelliSenseIndex = $event"
-                  @accept-multi="onIntelliSenseAcceptMulti"
-                  @cancel="cancelIntelliSense"
-                />
-              </template>
-
-              <!-- Input box slot -->
-              <template #input>
-                <ChatInputBox
-                  ref="inputBox"
-                  :waiting="waiting"
-                  :is-editing="!!editMessage"
-                  :is-voice-session="isVoiceSession"
-                  :searching="searchingInKnowledge"
-                  :read-only="readOnly"
-                  :selected-model="chat.llm_model"
-                  :ai-models="aiModels"
-                  :profiles="profiles"
-                  :selected-profiles="selectedProfiles"
-                  :cursor-word="cursorWord"
-                  :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-                  @send="sendMessage"
-                  @add-message="addNewMessage()"
-                  @search-message="addSearchMessage"
-                  @cancel-edit="onResetEdit"
-                  @paste="onContentPaste"
-                  @keydown="onChatInputKeyDown"
-                  @drop.stop="onDropInputBox"
-                  @model-changed="onLLMModelChanged"
-                  @profiles-selected="onProfilesSelected"
-                  @toggle-voice="toggleVoiceSession"
-                />
-                <ChatAttachmentPreview
-                  :attachments="attachments"
-                  @remove-attachment="removeAttachment"
-                  v-if="attachments?.length"
-                />
-              </template>
-
-              <!-- Per-message files slot (files attached to the current message being composed) -->
-              <template #files>
-                <ChatFileList
-                  :files="files"
-                  :message-files="[]"
-                  :chat-project="chatProject"
-                  @remove-file="removeFileFromFiles"
-                  @add-file="addFileContentAsMessage"
-                  @preview-file="handleFilePreview"
-                  v-if="files?.length"
-                />
-              </template>
-            </ChatMessageList>
-
-          </div>
-
-          <!-- File Preview Panel -->
-          <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
-            <ChatFilePreview
-              class="h-full"
-              :file-path="previewFile"
-              :chat-project="chatProject"
-              @close="closeFilePreview"
-              @saved="onPreviewFileSaved"
-            />
-          </div>
-        </template>
+        <!-- File Preview Panel -->
+        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
+          <ChatFilePreview
+            class="h-full"
+            :file-path="previewFile"
+            :chat-project="chatProject"
+            @close="closeFilePreview"
+            @saved="onPreviewFileSaved"
+          />
+        </div>
 
       </div>
 
@@ -580,9 +576,6 @@ export default {
     onMessageImagePreview(imageFile) {
       this.imagePreview = imageFile
     },
-    async onExtractTextImage(image) {
-      image.alt = await this.chatSvc.extractTextFromImage(image)
-    },
     async processMultipleImages(imageFiles, isMessage) {
       const validImageFiles = imageFiles.filter(f => this.validateImageSize(f))
       if (validImageFiles.length === 0) return false
@@ -639,10 +632,6 @@ export default {
     async uploadLocalFiles(fileList, chatDrop) {
       const uploadPath = this.chatProject?.upload_path || '/upload'
       this.showUploadConfirmation(fileList, uploadPath, { chatDrop })
-    },
-    onEditorDiscard() {
-      this.editMessage = null
-      this.onResetEdit()
     },
     handleFilePreview(filePath) {
       if (this.$ui.isVibeMode) {
@@ -787,7 +776,51 @@ export default {
       this.$refs.inputBox?.setEditorText(text)
     },
     onEditMessage(message) {
+      // Toggle off if already editing this message
+      if (this.editMessage?.doc_id === message.doc_id) {
+        this.onResetEdit()
+        return
+      }
       this.editMessage = message
+      // Populate input box with message content
+      this.setEditorText(message.content || '')
+      // Populate profiles from the message
+      this.selectorProfileNames = [...(message.profiles || [])]
+      // Populate files from the message
+      this.files = [...(message.files || [])]
+      // Populate attachments from the message (parse if stored as JSON strings)
+      this.attachments = (message.attachments || []).map(a => {
+        try { return typeof a === 'string' ? JSON.parse(a) : a } catch { return a }
+      }).filter(Boolean)
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+    },
+    onResetEdit() {
+      this.editMessage = null
+      this.editMessageId = null
+      this.setEditorText('')
+      this.files = []
+      this.attachments = []
+      this.selectorProfileNames = []
+      this.textProfileNames = []
+      this.previousEditorText = ''
+    },
+    async updateMessage() {
+      const content = this.$refs.inputBox?.getEditorText() ?? ''
+      const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
+      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      // Update message in-place — do NOT call chatWihProject
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat,
+        doc_id: this.editMessage.doc_id,
+        update: {
+          content,
+          profiles,
+          files,
+          attachments: this.attachments.map(a => a.toJSON?.() || a),
+          updated_at: new Date().toISOString()
+        }
+      })
+      this.onResetEdit()
     },
     toggleHide({ doc_id, hide }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
@@ -856,7 +889,11 @@ export default {
     },
     async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
-      if (this.editMessage !== null) { this.updateMessage(); return false }
+      // If in edit mode, save the edited message instead
+      if (this.editMessage !== null) {
+        await this.updateMessage()
+        return false
+      }
       const message = this.editorText
       if (message) await this.postMyMessage({ message, task_item })
       return true
@@ -865,6 +902,11 @@ export default {
       return this.addNewMessage({ task_item: 'search' })
     },
     async sendMessage() {
+      // If in edit mode, save the edited message — do NOT send to AI
+      if (this.editMessage !== null) {
+        await this.updateMessage()
+        return
+      }
       if (await this.addNewMessage()) {
         if (!this.isChannel || this.lastMessage?.profiles.length) {
           await this.sendChatMessage(this.chat)
@@ -879,23 +921,6 @@ export default {
       } finally {
         this.waiting = false
       }
-    },
-    async updateMessage() {
-      const innerText = this.$refs.inputBox?.getEditorText() ?? ''
-      this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
-      this.editMessage.attachments = this.attachments.map(a => a.toJSON())
-      this.editMessage.content = innerText
-      this.editMessage.updated_at = new Date().toISOString()
-      this.onResetEdit()
-    },
-    onResetEdit() {
-      this.editMessage = null
-      this.setEditorText("")
-      this.editMessageId = null
-      this.attachments = []
-      this.textProfileNames = []
-      this.previousEditorText = ''
     },
     removeMessage(message) {
       this.chatSvc.removeMessage({ chat: this.chat, message })

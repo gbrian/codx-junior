@@ -53,6 +53,91 @@ async def chat_cancel(data: dict):
     return {"cancelled": False, "error": "no in-flight token found"}
 
 
+@router.get("/chats/recent")
+def api_get_recent_chats(request: Request):
+    """
+    Get recent chats with optional filtering and pagination.
+
+    Query parameters:
+        - user_id: Filter chats by user who created or participated (optional)
+        - board: Filter chats by board name (optional)
+        - column: Filter chats by column name (optional)
+        - chat_type: Filter chats by type 'task' or 'chat' (optional)
+        - page: Page number (1-indexed, default: 1)
+        - page_size: Results per page (default: 10, max: 100)
+
+    Returns:
+        {
+            "chats": [Chat objects],
+            "total": total count,
+            "page": current page,
+            "page_size": page size,
+            "total_pages": calculated total pages,
+            "has_next": boolean,
+            "has_prev": boolean
+        }
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+
+        user_id = request.query_params.get("user_id")
+        board = request.query_params.get("board")
+        column = request.query_params.get("column")
+        chat_type = request.query_params.get("chat_type")
+
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+            page_size = max(1, min(100, int(request.query_params.get("page_size", 10))))
+        except (TypeError, ValueError) as ex:
+            logger.error("api_get_recent_chats: invalid pagination params: %s", ex)
+            return {
+                "error": "Invalid page or page_size parameters",
+                "chats": [],
+                "total": 0,
+                "page": 1,
+                "page_size": 10,
+                "total_pages": 0,
+                "has_next": False,
+                "has_prev": False,
+            }
+
+        results = chat_manager.get_recent_chats(
+            user_id=user_id,
+            board=board,
+            column=column,
+            chat_type=chat_type,
+            page=page,
+            page_size=page_size,
+        )
+
+        logger.info(
+            "api_get_recent_chats: user_id=%s board=%s column=%s chat_type=%s "
+            "returned %d chats, page %d of %d",
+            user_id or "all",
+            board or "all",
+            column or "all",
+            chat_type or "all",
+            results["total"],
+            results["page"],
+            results["total_pages"],
+        )
+        return results
+
+    except Exception as ex:
+        logger.error("api_get_recent_chats: unexpected error: %s", ex)
+        return {
+            "error": f"Failed to retrieve recent chats: {str(ex)}",
+            "chats": [],
+            "total": 0,
+            "page": 1,
+            "page_size": 10,
+            "total_pages": 0,
+            "has_next": False,
+            "has_prev": False,
+        }
+
+
 @router.get("/chats/logs")
 def api_get_chat_logs(request: Request):
     """
@@ -578,11 +663,12 @@ def api_list_chats(request: Request):
 @router.post("/chats/search")
 async def api_search_chats(request: Request):
     """
-    Search chats with full-text search, field-level filtering, and pagination.
+    Search chats with full-text search, field-level filtering, user filtering, and pagination.
 
     Expected JSON payload:
         {
             "query": "<search query string>",
+            "user_id": "<optional user ID to filter by>",
             "from_date": "<ISO-format date, optional>",
             "to_date": "<ISO-format date, optional>",
             "page": 1,
@@ -599,6 +685,7 @@ async def api_search_chats(request: Request):
         chat_manager = codx_junior_session.get_chat_manager()
 
         query = data.get("query", "")
+        user_id = data.get("user_id")
         from_date = data.get("from_date")
         to_date = data.get("to_date")
         page = data.get("page", 1)
@@ -635,9 +722,10 @@ async def api_search_chats(request: Request):
                 "has_prev": False,
             }
 
-        # Delegate search to chat_manager
+        # Delegate search to chat_manager with user_id filter
         results = chat_manager.search_chats(
             query=query,
+            user_id=user_id,
             from_date=from_date,
             to_date=to_date,
             page=page,
@@ -645,8 +733,9 @@ async def api_search_chats(request: Request):
         )
 
         logger.info(
-            "api_search_chats: query='%s' returned %d results, page %d of %d",
+            "api_search_chats: query='%s' user_id=%s returned %d results, page %d of %d",
             query,
+            user_id or "all",
             results["total"],
             results["page"],
             results["total_pages"],

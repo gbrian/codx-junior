@@ -17,6 +17,11 @@ import EmojiPicker from './EmojiPicker.vue'
     @dragleave.prevent="isDraggingOver = false"
     @drop.prevent="onDrop"        
   >
+    <!-- Slot: extra content above the textarea (e.g. project selector) -->
+    <div v-if="$slots['before-textarea']" class="px-2 md:px-3 pt-2 md:pt-3 pb-1">
+      <slot name="before-textarea" />
+    </div>
+
     <!-- Emoji Picker Popup -->
     <EmojiPicker
       v-if="cursorWord.word?.startsWith(':')"
@@ -159,28 +164,20 @@ export default {
       const text = textarea.value
       const caretIndex = textarea.selectionStart
       
-      // Find the start of the emoji pattern (where ":" is)
       let emojiStart = caretIndex
       while (emojiStart > 0 && /\S/.test(text[emojiStart - 1])) {
         emojiStart--
       }
       
-      // Replace the emoji pattern with the actual emoji
       const newText = text.slice(0, emojiStart) + emoji + text.slice(caretIndex)
-      
-      // Update textarea
       textarea.value = newText
       
-      // Set cursor position after the emoji
       const newCursorPos = emojiStart + emoji.length
       textarea.selectionStart = newCursorPos
       textarea.selectionEnd = newCursorPos
       
-      // Trigger resize and update cursor word tracking
       this.autoResize()
       this.updateCursorWord()
-      
-      // Focus editor
       textarea.focus()
     }
   },
