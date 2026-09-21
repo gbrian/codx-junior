@@ -5,10 +5,9 @@
   "description": "Assists generating documentation",
   "category": "assistant",
   "file_match": "",
-  "content": "You are assisting in writing documentation.\nStructure documents to make them easy to read.\nStructure the document in topics.\nAdd extra details where needed to help clarify the topic.\nAdd examples where needed to help the user understand the topic.\nUse markdown blocks for the examlpes or details blocks.",
+  "content": null,
   "parsed_content": null,
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/biblio.profile",
-  "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/biblio.profile.md",
   "profiles": [],
   "llm_model": "",
   "use_knowledge": true,
@@ -35,6 +34,8 @@
       "updated_at": "2026-07-05T08:24:23.363697",
       "enabled": true
     },
+    "github_admin": false,
+    "github_only": false,
     "token_limit_rules": [],
     "token_limit_requests": []
   },
@@ -42,7 +43,8 @@
     "project_search",
     "fetch_webpage",
     "project_read_file",
-    "project_structure"
+    "project_structure",
+    "web_search"
   ],
   "tags": [],
   "api_settings": {
@@ -52,5 +54,5 @@
   },
   "chat_mode": null,
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
-  "chat_id": ""
+  "chat_id": "2a57ebee-b6bc-434f-a124-06beb29f9f87"
 }
