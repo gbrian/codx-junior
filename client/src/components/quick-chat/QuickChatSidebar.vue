@@ -12,13 +12,24 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
   >
     <!-- Primary Nav -->
     <nav class="px-2 pt-3 flex flex-col gap-0.5 shrink-0">
+      <!-- Collapse toggle button -->
+      <button
+        class="flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/60 hover:bg-white/8 hover:text-white transition-colors w-full"
+        :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        @click="toggleCollapse"
+      >
+        <i :class="isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="w-5 text-center shrink-0"></i>
+        <span v-if="!isCollapsed" class="text-xs">Collapse</span>
+      </button>
+
+      <!-- New chat button -->
       <button
         class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
         :class="isCollapsed ? 'justify-center' : ''"
         :title="isCollapsed ? 'New chat' : ''"
         @click="$emit('new-chat')"
       >
-        <i class="fa-regular fa-pen-to-square w-5 text-center shrink-0"></i>
+        <i class="fas fa-pen-to-square w-5 text-center shrink-0"></i>
         <span v-if="!isCollapsed">New chat</span>
       </button>
     </nav>
@@ -35,7 +46,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
         :class="isCollapsed ? 'justify-center' : ''"
       >
         <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-user text-primary text-xs"></i>
+          <i class="fas fa-user text-primary text-xs"></i>
         </div>
         <template v-if="!isCollapsed">
           <div class="flex-1 min-w-0">
@@ -47,10 +58,20 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
             title="Settings"
             @click="$emit('settings')"
           >
-            <i class="fa-regular fa-gear text-sm"></i>
+            <i class="fas fa-gear text-sm"></i>
           </button>
         </template>
       </div>
+
+      <!-- Settings button (visible when collapsed) -->
+      <button
+        v-if="isCollapsed"
+        class="flex items-center justify-center px-3 py-2.5 rounded-xl text-white/30 hover:text-white/80 transition-colors"
+        title="Settings"
+        @click="$emit('settings')"
+      >
+        <i class="fas fa-gear text-sm"></i>
+      </button>
     </div>
   </aside>
 
@@ -63,7 +84,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
       class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
       @click="$emit('new-chat')"
     >
-      <i class="fa-regular fa-pen-to-square text-lg"></i>
+      <i class="fas fa-pen-to-square text-lg"></i>
       <span class="text-[10px]">New</span>
     </button>
 
@@ -72,16 +93,18 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
       :class="showMobileChats ? 'text-primary' : 'text-white/50 hover:text-white'"
       @click="$emit('toggle-mobile-chats')"
     >
-      <i class="fa-regular fa-comments text-lg"></i>
+      <i class="fas fa-comments text-lg"></i>
       <span class="text-[10px]">Chats</span>
     </button>
 
     <button
       class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
-      @click="$emit('settings')"
+      @click="$emit('account-settings')"
     >
-      <i class="fa-regular fa-gear text-lg"></i>
-      <span class="text-[10px]">Settings</span>
+      <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
+        <i class="fas fa-user text-xs text-primary"></i>
+      </div>
+      <span class="text-[10px]">Account</span>
     </button>
   </nav>
 </template>
@@ -92,10 +115,11 @@ export default {
     userName: { type: String, default: 'User' },
     showMobileChats: { type: Boolean, default: false }
   },
-  emits: ['new-chat', 'settings', 'toggle-mobile-chats'],
+  emits: ['new-chat', 'settings', 'toggle-mobile-chats', 'account-settings'],
   data() {
     return {
       isCollapsed: false,
+      userCollapsed: false,
       resizeObserver: null
     }
   },
@@ -114,15 +138,19 @@ export default {
     setupResizeObserver() {
       const el = this.$refs.sidebarEl
       if (!el) return
-      // Observe the parent container width to decide when to collapse
       const parent = el.parentElement
       if (!parent) return
       this.resizeObserver = new ResizeObserver(([entry]) => {
         const width = entry.contentRect.width
-        // Collapse sidebar when container is narrower than 600px
-        this.isCollapsed = width < 600
+        if (!this.userCollapsed) {
+          this.isCollapsed = width < 600
+        }
       })
       this.resizeObserver.observe(parent)
+    },
+    toggleCollapse() {
+      this.userCollapsed = !this.userCollapsed
+      this.isCollapsed = this.userCollapsed
     }
   }
 }

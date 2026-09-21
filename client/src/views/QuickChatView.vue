@@ -6,6 +6,7 @@ import ChatIntelliSense from '@/components/chat/ChatIntelliSense.vue'
 import ChatAttachmentPreview from '@/components/chat/ChatAttachmentPreview.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
+import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
 </script>
 
 <template>
@@ -21,13 +22,14 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       :show-mobile-chats="showMobileChats"
       @new-chat="startNewChat"
       @toggle-mobile-chats="showMobileChats = !showMobileChats"
+      @account-settings="openAccountSettings"
     />
 
-    <!-- ── Mobile chats drawer ── -->
-    <transition name="slide-up">
+    <!-- ── Mobile chats sidebar drawer ── -->
+    <transition name="slide-left">
       <div
         v-if="isMobile && showMobileChats"
-        class="fixed inset-0 z-40 flex flex-col bg-[#1a1a1a]"
+        class="fixed inset-0 z-40 flex flex-col bg-[#1a1a1a] safe-area"
       >
         <!-- Drawer header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
@@ -36,12 +38,12 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
             class="p-2 text-white/40 hover:text-white transition-colors"
             @click="showMobileChats = false"
           >
-            <i class="fa-solid fa-xmark"></i>
+            <i class="fas fa-xmark"></i>
           </button>
         </div>
-        <!-- Reuse RecentChatsQuickAccess inside drawer -->
+        <!-- Chats list -->
         <div class="flex-1 min-h-0 px-3 py-3 flex flex-col overflow-hidden">
-          <RecentChatsQuickAccess :collapsed="false" @select="showMobileChats = false" />
+          <RecentChatsQuickAccess :collapsed="false" />
         </div>
       </div>
     </transition>
@@ -151,7 +153,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
               class="p-1.5 text-white/40 hover:text-white transition-colors mr-1"
               @click="startNewChat"
             >
-              <i class="fa-solid fa-arrow-left text-sm"></i>
+              <i class="fas fa-arrow-left text-sm"></i>
             </button>
             <div class="flex-1 min-w-0">
               <h2 class="text-sm font-medium text-white/80 truncate">{{ activeChat.name || 'Chat' }}</h2>
@@ -162,7 +164,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
                 title="Start new chat"
                 @click="startNewChat"
               >
-                <i class="fa-regular fa-pen-to-square"></i>
+                <i class="fas fa-pen-to-square"></i>
               </button>
             </div>
           </div>
@@ -218,7 +220,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
                 <!-- Empty chat placeholder -->
                 <div v-else class="flex flex-col items-center justify-center h-full gap-3 text-white/20 py-20">
-                  <i class="fa-regular fa-comment-lines text-4xl"></i>
+                  <i class="fas fa-comment-lines text-4xl"></i>
                   <span class="text-sm">Send a message to begin</span>
                 </div>
               </div>
@@ -370,9 +372,7 @@ export default {
     },
     activeChat(chat) {
       if (chat) {
-        // Close mobile chats drawer when a chat is selected
         this.showMobileChats = false
-        // Load profiles for the chat's project to ensure they're available for ChatEntry
         this.loadProfilesForChat()
         this.$nextTick(() => this.scrollToBottom())
       }
@@ -382,6 +382,11 @@ export default {
     }
   },
   methods: {
+    // ── Account / Settings ─────────────────────────────────
+    openAccountSettings() {
+      this.$emit('settings')
+    },
+
     // ── Profiles ───────────────────────────────────────────
     async loadProfiles() {
       try {
@@ -401,9 +406,7 @@ export default {
         if (project?.$api) {
           const list = await project.$api.profiles.list()
           const sortedProfiles = (list || []).sort((a, b) => a.name > b.name ? 1 : -1)
-          // Update both local profiles and the global $projects.profiles for ChatEntry to use
           this.profiles = sortedProfiles
-          // Store in projects for ChatEntry to access via this.$projects.profiles
           if (!this.$projects.profiles) {
             this.$projects.profiles = []
           }
@@ -567,14 +570,12 @@ export default {
       this.$service.chat.toggleAnswer({ chat: this.activeChat, doc_id: message.doc_id })
     },
     onThread(message) {
-      // Open the thread chat for this message
       const threadChat = this.$projects.allChats.find(c => c.message_id === message.doc_id)
       if (threadChat) {
         this.$chats.setActiveChat(threadChat)
       }
     },
     onSubTask({ content, title, file }) {
-      // Create a new sub-task chat
       const name = title || (file ? file.split('/').reverse()[0] : 'Sub-task')
       this.$chats.createNewChat({
         name,
@@ -585,11 +586,9 @@ export default {
       })
     },
     onRunAgents(message) {
-      // Run agents on the message via project service
       this.$storex.projects.runAgents({ chat: this.activeChat, message })
     },
     onEnhance(message) {
-      // Re-send with enhance flag — add a new user prompt to improve the message
       console.info('[QuickChat] enhance not fully implemented in quick-chat context', message)
     },
     onAddFileToChat(file) {
@@ -611,14 +610,12 @@ export default {
       }
     },
     async onReloadFile({ file, message }) {
-      // Reload a file's content into the chat context
       console.info('[QuickChat] onReloadFile', file, message)
     },
     onGenerateCode(codeBlockInfo) {
       this.$projects.generateCode({ chat: this.activeChat, codeBlockInfo })
     },
     onImage(imageData) {
-      // Show image preview — store for display
       console.info('[QuickChat] onImage', imageData)
     },
     onRemoveFile({ message, file }) {
@@ -626,7 +623,6 @@ export default {
       this.$service.chat.removeFileFromMessage({ message, file })
     },
     onEditMessage(message) {
-      // In quick-chat context we don't have an edit message flow, log for now
       console.info('[QuickChat] onEditMessage', message)
     },
     onRunEdit(codeSnippet) {
@@ -636,7 +632,6 @@ export default {
       this.chatProject?.$api?.coder?.openFile(filePath)
     },
     onSearchFiles({ query }) {
-      // Emit upward or handle inline — for quick-chat we log
       console.info('[QuickChat] onSearchFiles', query)
     },
 
@@ -786,11 +781,11 @@ export default {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
-.slide-up-enter-active, .slide-up-leave-active {
+.slide-left-enter-active, .slide-left-leave-active {
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
-.slide-up-enter-from, .slide-up-leave-to {
-  transform: translateY(100%);
+.slide-left-enter-from, .slide-left-leave-to {
+  transform: translateX(-100%);
   opacity: 0;
 }
 </style>
