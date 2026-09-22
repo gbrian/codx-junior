@@ -1,5 +1,6 @@
 <script setup>
 import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
+import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
 </script>
 
 <template>
@@ -34,9 +35,24 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
       </button>
     </nav>
 
+    <!-- Workspace App Selector -->
+    <div v-if="true || workspaceApps.length > 0" class="shrink-0 border-t border-white/5 py-2">
+      <WorkspaceAppSelector
+        :is-collapsed="isCollapsed"
+        :selected-app="selectedWorkspaceApp"
+        :workspace-apps="workspaceApps"
+        @select-app="$emit('select-workspace-app', $event)"
+        class="ml-2"
+        v-if="activeChat"
+      />
+    </div>
+
     <!-- Chats list -->
     <div class="grow overflow-hidden">
-      <RecentChatsQuickAccess :collapsed="isCollapsed" />
+      <RecentChatsQuickAccess 
+        :collapsed="isCollapsed"
+        @select="$emit('open-chat', $event)"
+      />
     </div>
 
     <!-- Footer -->
@@ -113,9 +129,12 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
 export default {
   props: {
     userName: { type: String, default: 'User' },
-    showMobileChats: { type: Boolean, default: false }
+    showMobileChats: { type: Boolean, default: false },
+    workspaceApps: { type: Array, default: () => [] },
+    selectedWorkspaceApp: { type: Object, default: null },
+    activeChat: { type: Object, default: null }
   },
-  emits: ['new-chat', 'settings', 'toggle-mobile-chats', 'account-settings'],
+  emits: ['new-chat', 'settings', 'toggle-mobile-chats', 'account-settings', 'select-workspace-app', 'open-chat'],
   data() {
     return {
       isCollapsed: false,

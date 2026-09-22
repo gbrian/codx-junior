@@ -5,73 +5,24 @@ import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
-import ChatEntryMobile from './ChatEntryMobile.vue'
 import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
+import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue' 
 </script>
 
 <template>
-  <!-- Mobile rendering -->
-  <ChatEntryMobile
-    v-if="$ui.isMobile"
-    :chat="chat"
-    :message="message"
-    :mentionList="mentionList"
-    :usersList="usersList"
-    :displayMessage="displayMessage"
-    :messageProfiles="messageProfiles"
-    :chatFiles="chatFiles"
-    :chatProject="chatProject"
-    :messageContent="messageContent"
-    :isDone="isDone"
-    :srcView="srcView"
-    :showDiff="showDiff"
-    :timeTaken="timeTaken"
-    :thinkText="thinkText"
-    :cancellationTokenId="cancellationTokenId"
-    :cancellationTime="cancellationTime"
-    :threadChat="threadChat"
-    :isTopic="isTopic"
-    :isWord="isWord"
-    :isCollapsed="isCollapsed"
-    :images="images"
-    :code_patches="code_patches"
-    :menuLess="menuLess"
-    @thread="$emit('thread', $event)"
-    @hide="$emit('hide', $event)"
-    @remove="onRemove"
-    @confirm-remove="confirmRemove"
-    @toggle-src-view="toggleSrcView"
-    @toggle-show-diff="toggleShowDiff"
-    @cancel-message="cancelMessage"
-    @copy-message="copyMessageToClipboard"
-    @generate-code="onGenerateCode"
-    @reload-file="$emit('reload-file', $event)"
-    @open-file="$emit('open-file', $event)"
-    @save-file="$emit('save-file', $event)"
-    @add-file="$emit('add-file', $event)"
-    @sub-task="$emit('sub-task', $event)"
-    @open-thread="openThread"
-    @add-file-to-chat="$emit('add-file-to-chat', $event)"
-    @remove-file="$emit('remove-file', $event)"
-    @message-copy="onMessageCopy"
-    @answer="$emit('answer', $event)"
-    @run-agents="runAgents"
-    @apply-patch="applyPatch"
-    @image="$emit('image', $event)"
-  />
-
   <!-- =============================================
        NOTION-STYLE DESKTOP BLOCK RENDERING
        ============================================= -->
   <div
-    v-else
     class="notion-entry group/entry relative w-full"
     :class="[
       displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
     ]"
+    @click="markMessageAsSeen"
+    @scroll.passive="markMessageAsSeen"
   >
     <!-- ── Row: Avatar + Header + Content ── -->
     <div class="flex gap-3 items-start w-full">
@@ -94,10 +45,10 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
         >           
         </div>
-        <!-- Events button -->
+        <!-- Events button — desktop only -->
         <button
           v-if="hasEvents"
-          class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+          class="hidden md:flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
           :class="eventsOpen && 'btn-active text-warning'"
           data-tip="Events & Tools"
           @click.stop="toggleEventsPanel"
@@ -108,7 +59,7 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 
         <button
           v-if="hasAttachments"
-          class="mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+          class="hidden md:flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
           :class="eventsOpen && 'btn-active text-warning'"
           data-tip="Attachments"
           @click.stop="toggleEventsPanel"
@@ -123,7 +74,8 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
       <div class="flex-1 min-w-0 pb-0.5">
 
         <!-- Header row: only shown on first message of a speaker group -->
-        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none">
+        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none flex-wrap">
+          
           <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
           <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
           <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
@@ -141,6 +93,83 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
           <span v-if="displayMessage.hide" class="text-[11px] text-warning/50">
             <i class="fa-solid fa-box-archive"></i> Archived
           </span>
+
+          <!-- ── Mobile-only indicators in header ── -->
+          <div class="flex md:hidden items-center gap-1 ml-auto">
+            <!-- Mobile profile avatars -->
+            <div
+              v-for="profile in messageProfiles"
+              :key="profile.name"
+              class="flex items-center"
+            >
+              <ProfileAvatar :profile="profile" width="4" />
+            </div>
+
+            <!-- Mobile events indicator -->
+            <button
+              v-if="hasEvents"
+              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
+              :class="eventsOpen && 'btn-active text-warning'"
+              @click.stop="toggleEventsPanel"
+            >
+              <i class="fa-solid fa-wrench text-warning/70 text-[10px]"></i>
+              <span class="text-[10px]">{{ eventCount }}</span>
+            </button>
+
+            <!-- Mobile attachments indicator -->
+            <button
+              v-if="hasAttachments"
+              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
+              :class="eventsOpen && 'btn-active text-warning'"
+              @click.stop="toggleEventsPanel"
+            >
+              <i class="fa-solid fa-paperclip text-info text-[10px]"></i>
+              <span class="text-[10px]">{{ attachmentCount }}</span>
+            </button>
+
+            <!-- Mobile floating menu button -->
+            <div class="dropdown dropdown-end md:hidden">
+              <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
+                <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
+              </button>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-300">
+                <li><a @click.stop="$emit('hide', message)" :class="!isDone && 'disabled'">
+                  <i class="fa-solid fa-box-archive text-warning/70"></i>
+                  {{ displayMessage.hide ? 'Unarchive' : 'Archive' }}
+                </a></li>
+                <li><a @click.stop="$emit('thread', message)">
+                  <i class="fa-solid fa-comment-dots"></i> Thread
+                </a></li>
+                <li><a @click.stop="$emit('answer', message)">
+                  <i class="fa-solid fa-check-double text-success/70"></i> Mark as answer
+                </a></li>
+                <li><a @click.stop="copyMessageToClipboard">
+                  <i class="fa-solid fa-copy"></i> Copy
+                </a></li>
+                <li v-if="displayMessage.diffMessage"><a @click.stop="toggleShowDiff">
+                  <i class="fa-regular fa-file-lines"></i> Diff
+                </a></li>
+                <li v-if="hasCodeBlocksOrFiles"><a @click.stop="toggleFileView">
+                  <i class="fa-solid fa-file-code"></i> Files
+                </a></li>
+                <li v-if="hasPRViewBlocks"><a @click.stop="togglePRView">
+                  <i class="fa-solid fa-code-branch"></i> Review
+                </a></li>
+                <li><a @click.stop="runAgents">
+                  <i class="fa-solid fa-people-group"></i> Run agents
+                </a></li>
+                <li v-if="isDone"><a @click.stop="toggleSrcView()">
+                  <i class="fa-solid fa-code"></i> View source
+                </a></li>
+                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)">
+                  <i class="fa-solid fa-pen"></i> Edit
+                </a></li>
+                <li><a @click.stop="confirmRemove" class="text-error">
+                  <i class="fa-solid fa-trash-can"></i> Delete
+                </a></li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
@@ -475,6 +504,12 @@ import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
               </div>
             </div>
           </div>
+
+          <!-- Images -->
+          <ChatAttachmentPreview
+            v-if="displayMessage.attachments?.length"
+            :attachments="displayMessage.attachments"
+          />
         </div>
 
         <!-- ── Collapsed toggle (for archived messages) ── -->
@@ -534,7 +569,9 @@ export default {
       selectedText: '',
       selectionPosition: { top: 0, left: 0 },
       collapsed: false,
-      eventsOpen: false
+      eventsOpen: false,
+      seenTimer: null,
+      hasSeen: false
     }
   },
   created() {
@@ -677,6 +714,7 @@ export default {
   watch: {
     message() {
       this.loadThreadChat()
+      this.resetSeenTracking()
     },
     'message.content': function() {
       this.extractImprovementData()
@@ -906,11 +944,46 @@ export default {
     },
     replaceBlockInContent(fullContent, originalBlock, newBlock) {
       return fullContent.replace(originalBlock, newBlock)
+    },
+    markMessageAsSeen() {
+      if (this.hasSeen) return
+      if (this.seenTimer) clearTimeout(this.seenTimer)
+      this.seenTimer = setTimeout(() => {
+        this.submitMessageSeen()
+      }, 500)
+    },
+    async submitMessageSeen() {
+      try {
+        const currentUsername = this.$user?.username
+        if (!currentUsername) return
+        const readByList = this.message.read_by || []
+        if (readByList.includes(currentUsername)) {
+          this.hasSeen = true
+          return
+        }
+        await this.$storex.api.chats.markMessageAsSeen({
+          chat_id: this.chat?.doc_id,
+          message_id: this.message?.doc_id,
+          username: currentUsername
+        })
+        this.hasSeen = true
+        this.message.read_by = [...(this.message.read_by || []), currentUsername]
+      } catch (ex) {
+        console.error('Failed to mark message as seen', ex)
+      }
+    },
+    resetSeenTracking() {
+      this.hasSeen = false
+      if (this.seenTimer) clearTimeout(this.seenTimer)
     }
   },
   mounted() {
     this.collapsed = this.isCollapsed || this.displayMessage.hide
     this.extractImprovementData()
+    this.resetSeenTracking()
+  },
+  beforeUnmount() {
+    if (this.seenTimer) clearTimeout(this.seenTimer)
   }
 }
 </script>

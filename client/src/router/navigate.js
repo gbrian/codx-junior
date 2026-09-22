@@ -16,13 +16,27 @@ export default function Navigate({ $router, $storex }) {
   }
 
   // Routes that opt-out of the mobile/desktop redirect
-  const STANDALONE_ROUTES = ['quick-chat', 'mobile']
+  const STANDALONE_ROUTES = ['quick-chat', 'mobile', 'home', 'messenger']
+
+  let historyRegistered = false
 
   const $navigator = {
     get activeProject() {
       return $storex.projects.activeProject
     },
+    init() {
+      // 1. Check if this is the first page in the tab's session history
+      if (window.history.length === 1) {
+        
+        // 2. Replace the current history entry with the root URL
+        window.history.replaceState(null, '', '/');
+        
+        // 3. Push the current page on top of the root URL
+        window.history.pushState(null, '', window.location.href);
+      }
+    },
     async onRouteChanged({ from, to }) {
+
       // ── OAuth callback ──────────────────────────────────────────────
       if (to.path.startsWith('/auth')) {
         const { code, state } = to.query
@@ -42,7 +56,7 @@ export default function Navigate({ $router, $storex }) {
         }
       }
 
-      // ── Standalone routes (quick-chat, mobile, etc.) ────────────────
+      // ── Standalone routes (opt-out of mobile/desktop redirect) ─────
       if (STANDALONE_ROUTES.includes(to.name)) {
         return true
       }
@@ -52,9 +66,9 @@ export default function Navigate({ $router, $storex }) {
         return { name: 'mobile', replace: true }
       }
 
-      // ── Desktop: redirect /mobile → / ──────────────────────────────
+      // ── Desktop: redirect /mobile → home ───────────────────────────
       if (!$storex.ui.isMobile && to.name === 'mobile') {
-        return { name: 'codx-junior-split', params: { pathMatch: [] }, replace: true }
+        return { name: 'home', replace: true }
       }
 
       return true

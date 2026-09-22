@@ -347,6 +347,9 @@ export default {
     isVibe() {
       return this.chat.mode === 'vibe'
     },
+    isGroup() {
+      return this.chat.mode === 'group'
+    },
     visibleMessages() {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
@@ -413,6 +416,13 @@ export default {
     selectedProfiles() {
       const allSelectedNames = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       return this.profiles.filter(p => allSelectedNames.includes(p.name))
+    },
+    // For group chats: check if the current message mentions any profile
+    groupMessageHasProfileMention() {
+      if (!this.isGroup) return false
+      const allProfileNames = this.profiles.map(p => p.name)
+      const mentionedNames = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(m => m[1])
+      return mentionedNames.some(name => allProfileNames.includes(name))
     }
   },
   watch: {
@@ -908,6 +918,15 @@ export default {
         return
       }
       if (await this.addNewMessage()) {
+        // For group chats: only call AI if a profile is mentioned in the message
+        if (this.isGroup) {
+          if (this.lastMessage?.profiles?.length) {
+            await this.sendChatMessage(this.chat)
+            this.$emit('send-message', this.lastMessage)
+          }
+          return
+        }
+        // For topic/channel chats: only call AI if profiles are set on the last message
         if (!this.isChannel || this.lastMessage?.profiles.length) {
           await this.sendChatMessage(this.chat)
           this.$emit('send-message', this.lastMessage)

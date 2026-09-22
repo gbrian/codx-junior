@@ -15,12 +15,16 @@ from langchain.messages import AIMessage, HumanMessage
 logger = logging.getLogger(__name__)
 
 
-def to_openai_message(message: Union[AIMessage, HumanMessage]) -> Dict[str, Any]:
+def to_openai_message(message: Union[AIMessage, HumanMessage, Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Convert a single LangChain message to an OpenAI message dict.
+    Convert a single LangChain message or dict to an OpenAI message dict.
+
+    Handles both LangChain message objects (AIMessage, HumanMessage) and
+    dict-formatted messages (e.g., image messages from convert_message).
 
     Args:
-        message: A LangChain :class:`AIMessage` or :class:`HumanMessage`.
+        message: A LangChain :class:`AIMessage`, :class:`HumanMessage`,
+                or a dict with 'type' and 'content' keys.
 
     Returns:
         A dict with ``role`` and ``content`` keys suitable for the OpenAI API.
@@ -28,6 +32,18 @@ def to_openai_message(message: Union[AIMessage, HumanMessage]) -> Dict[str, Any]
     Raises:
         json.JSONDecodeError: If an image message contains invalid JSON.
     """
+    # Handle dict-formatted messages (e.g., {"type": "image", "content": "..."})
+    if isinstance(message, dict):
+        msg_type = message.get("type", "")
+        if msg_type == "image":
+            return {"role": "user", "content": json.loads(message.get("content", "[]"))}
+        # Fallback for other dict formats (shouldn't happen in normal flow)
+        return {
+            "role": message.get("role", "user"),
+            "content": message.get("content", ""),
+        }
+    
+    # Handle LangChain message objects
     if message.type == "image":
         return {"role": "user", "content": json.loads(message.content)}
     return {
@@ -37,7 +53,7 @@ def to_openai_message(message: Union[AIMessage, HumanMessage]) -> Dict[str, Any]
 
 
 def to_openai_messages(
-    messages: List[Union[AIMessage, HumanMessage]],
+    messages: List[Union[AIMessage, HumanMessage, Dict[str, Any]]],
     system: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -45,7 +61,7 @@ def to_openai_messages(
     system prompt when provided.
 
     Args:
-        messages: Conversation history as LangChain messages.
+        messages: Conversation history as LangChain messages or dicts.
         system:   Optional system prompt content.
 
     Returns:

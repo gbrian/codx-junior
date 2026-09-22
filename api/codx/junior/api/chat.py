@@ -663,18 +663,23 @@ def api_list_chats(request: Request):
 @router.post("/chats/search")
 async def api_search_chats(request: Request):
     """
-    Search chats with full-text search, field-level filtering, user filtering, and pagination.
+    Search chats with full-text search, field-level filtering, user filtering,
+    project filtering, and pagination.
 
     Expected JSON payload:
         {
             "query": "<search query string>",
             "user_id": "<optional user ID to filter by>",
+            "project_ids": [<optional project ID list>],
             "from_date": "<ISO-format date, optional>",
             "to_date": "<ISO-format date, optional>",
             "page": 1,
             "page_size": 20,
             "filters": { ... }
         }
+
+    When no query is provided and project_ids is specified, returns latest
+    chats from those projects (sorted by recency).
 
     Returns:
         Paginated search results with relevance scores.
@@ -686,6 +691,7 @@ async def api_search_chats(request: Request):
 
         query = data.get("query", "")
         user_id = data.get("user_id")
+        project_ids = data.get("project_ids")
         from_date = data.get("from_date")
         to_date = data.get("to_date")
         page = data.get("page", 1)
@@ -709,36 +715,29 @@ async def api_search_chats(request: Request):
                 "has_prev": False,
             }
 
-        if not query:
-            logger.warning("api_search_chats: empty query")
-            return {
-                "error": "Query parameter cannot be empty",
-                "results": [],
-                "total": 0,
-                "page": 1,
-                "page_size": page_size,
-                "total_pages": 0,
-                "has_next": False,
-                "has_prev": False,
-            }
+        # Get user from session for permission-based project loading
+        user = getattr(request.state, 'user', None)
 
-        # Delegate search to chat_manager with user_id filter
+        # Delegate search to chat_manager with project_ids and user context
         results = chat_manager.search_chats(
             query=query,
             user_id=user_id,
             from_date=from_date,
             to_date=to_date,
+            project_ids=project_ids,
             page=page,
             page_size=page_size,
+            user=user,
         )
 
         logger.info(
-            "api_search_chats: query='%s' user_id=%s returned %d results, page %d of %d",
-            query,
+            "api_search_chats: query='%s' user_id=%s project_ids=%s returned %d results, page %d of %d",
+            query or "(no query)",
             user_id or "all",
-            results["total"],
-            results["page"],
-            results["total_pages"],
+            project_ids or "all",
+            results.get("total", 0),
+            results.get("page", 1),
+            results.get("total_pages", 0),
         )
         return results
 

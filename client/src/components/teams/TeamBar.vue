@@ -58,7 +58,7 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
 
       <!-- Recent Chats -->
       <div class="grow px-2 pb-4 w-full overflow-hidden">
-        <RecentChatsQuickAccess :collapsed="false" />
+        <RecentChatsQuickAccess @select="$ui.openChat($event)" :collapsed="false" />
       </div>
 
     </div>

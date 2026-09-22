@@ -21,6 +21,11 @@ answer message that combines all tool user_response outputs (thinking content)
 with the final LLM answer. This ensures that all tool-generated user-facing
 content is preserved in the persisted message. The thinking content is also streamed
 live to the client via send_callback during tool rounds for real-time feedback.
+
+Vision API Support
+Binary files (PDFs, images) are passed as vision content when models support it.
+The content is merged into the final user message to enable vision-capable models
+to process images and documents alongside text.
 """
 import json
 import logging
@@ -320,8 +325,9 @@ class SmolAgent:
             config:   Optional dict with keys: ``tools``, ``chat_id``,
                       ``cancellation_token``, ``headers``, ``callbacks``,
                       ``run_context`` (an :class:`AgentRunContext`),
-                      ``event_listeners`` (list of event callables) and
-                      ``current_chat`` (the Chat object for context).
+                      ``event_listeners`` (list of event callables),
+                      ``current_chat`` (the Chat object for context), and
+                      ``vision_content`` (optional vision API content blocks).
 
         Returns:
             Updated *messages* list with the final assistant reply appended.
@@ -437,6 +443,9 @@ class SmolAgent:
         thinking_content: str = ""
         final_answer_content: str = ""
 
+        # Extract vision content from config (optional)
+        vision_content: Optional[List[Dict[str, Any]]] = config.get("vision_content")
+
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
         while True:
@@ -451,6 +460,7 @@ class SmolAgent:
                 request_id=request_id,
                 chat_id=chat_id,
                 system_message=system_message,
+                vision_content=vision_content,
             )
 
             if not tool_calls:
@@ -745,6 +755,7 @@ class SmolAgent:
         request_id: Optional[str] = None,
         chat_id: Optional[str] = None,
         system_message: Optional[str] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[str, Dict[str, Dict[str, Any]], Any]:
         """
         Stream one completion, collecting content, tool calls and usage.
@@ -753,6 +764,9 @@ class SmolAgent:
         checks cancellation on every chunk and emits throttled ``LLM_CHUNK``
         events for live UI progress. Provider usage is emitted as
         ``LLM_USAGE`` so run analytics aggregate tokens automatically.
+
+        ADDED: vision_content (images, PDFs) can be merged into the final
+        user message for models that support vision APIs.
 
         Args:
             kwargs:             Base OpenAI request kwargs.
@@ -766,6 +780,8 @@ class SmolAgent:
             request_id:         Unique request identifier for traceability.
             chat_id:            Chat identifier for linking to archived messages.
             system_message:     The system message used (for forensic audit).
+            vision_content:     Optional list of vision content blocks (image_url, file types)
+                               to merge into the final user message.
 
         Returns:
             Tuple of ``(content, tool_calls, usage_info)``.
@@ -773,6 +789,27 @@ class SmolAgent:
         Raises:
             AgentCancelled: If cancellation is requested mid-stream.
         """
+        # ADDED: Merge vision content into the last user message if provided
+        if vision_content and openai_messages:
+            # Find the last user message (iterate backwards)
+            for msg in reversed(openai_messages):
+                if msg.get("role") == "user":
+                    current_content = msg.get("content")
+                    if isinstance(current_content, str):
+                        # Convert to list format to add vision content
+                        msg["content"] = [
+                            {"type": "text", "text": current_content},
+                            *vision_content
+                        ]
+                    elif isinstance(current_content, list):
+                        # Append vision content to existing list
+                        msg["content"].extend(vision_content)
+                    logger.info(
+                        "Added %d vision content block(s) to user message",
+                        len(vision_content)
+                    )
+                    break
+
         run_context.emit(
             AgentEventType.LLM_REQUEST,
             model=self.model,

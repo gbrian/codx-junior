@@ -99,6 +99,31 @@ class AI:
         if self.settings.get_log_ai():
             self.ai_logger.info(message, *args)
 
+    @staticmethod
+    def _extract_message_content(message: Any) -> str:
+        """
+        Extract content string from a message object or dict.
+
+        Handles:
+        - LangChain message objects with .content attribute
+        - Dict objects with 'content' key (from convert_message for images)
+        - Fallback to string representation
+
+        :param message: Message object or dict to extract content from.
+        :return: String content, or empty string if no content found.
+        """
+        # Handle LangChain message objects
+        if hasattr(message, 'content'):
+            return str(message.content)
+        
+        # Handle dict objects (e.g. image messages from convert_message)
+        if isinstance(message, dict):
+            content = message.get('content', '')
+            return str(content) if content else ''
+        
+        # Fallback
+        return str(message)
+
     @profile_function
     def chat(
         self,
@@ -113,6 +138,7 @@ class AI:
         chat_id: Optional[str] = None,
         run_context: Optional[AgentRunContext] = None,
         current_chat: Optional[Any] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Message]:
         """
         Synchronous wrapper around asynchronous chat functionality.
@@ -135,6 +161,8 @@ class AI:
         :param run_context: Optional shared AgentRunContext carrying event
                             listeners (e.g. ChatEventBridge) and cancellation.
         :param current_chat: Optional current chat object for tool context.
+        :param vision_content: Optional list of vision content blocks (images, PDFs)
+                               to pass to vision-capable models.
         :return: A list of processed messages including the AI reply.
         :raises CancelledError: If the request is cancelled.
         :raises RuntimeError: If AI processing fails.
@@ -161,6 +189,7 @@ class AI:
                         chat_id=chat_id,
                         run_context=run_context,
                         current_chat=current_chat,
+                        vision_content=vision_content,
                     )
                 )
             finally:
@@ -179,6 +208,7 @@ class AI:
                     chat_id=chat_id,
                     run_context=run_context,
                     current_chat=current_chat,
+                    vision_content=vision_content,
                 )
             )
 
@@ -196,6 +226,7 @@ class AI:
         chat_id: Optional[str] = None,
         run_context: Optional[AgentRunContext] = None,
         current_chat: Optional[Any] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Message]:
         """
         Asynchronous chat functionality that processes user inputs and returns AI responses.
@@ -204,7 +235,8 @@ class AI:
         the ``use_smol_agent`` settings flag. The ``chat_id`` and
         ``run_context`` are forwarded in the provider config so tool and
         lifecycle events can be traced back to the chat and surfaced to any
-        registered listeners in real time.
+        registered listeners in real time. Vision content is also forwarded
+        for models that support image and PDF processing.
 
         :param messages: History of messages.
         :param prompt: Prompt to append as a human message.
@@ -217,6 +249,8 @@ class AI:
         :param run_context: Optional shared AgentRunContext carrying event
                             listeners (e.g. ChatEventBridge) and cancellation.
         :param current_chat: Optional current chat object for tool context.
+        :param vision_content: Optional list of vision content blocks (image_url, file types)
+                               to pass to vision-capable models for multi-modal processing.
         :return: A list of processed messages including the AI reply.
         :raises CancelledError: If the request is cancelled.
         :raises RuntimeError: If AI processing fails.
@@ -231,10 +265,13 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
+        # Safely extract content from messages that may be LangChain objects or dicts
+        total_words = len("".join([self._extract_message_content(m) for m in messages]))
+
         self.log(
             "Creating a new a_chat completion. Messages: %d, words: %d, provider: %s",
             len(messages),
-            len("".join([str(m.content) for m in messages])),
+            total_words,
             "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
         )
 
@@ -249,6 +286,7 @@ class AI:
                 "chat_id": chat_id,
                 "run_context": run_context,
                 "current_chat": current_chat,
+                "vision_content": vision_content,
             },
         )
 

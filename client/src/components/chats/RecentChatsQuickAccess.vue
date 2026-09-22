@@ -279,7 +279,7 @@ export default {
       return this.$storex?.chats?.activeChat?.id === chat.id
     },
     async selectChat(chat) {
-      await this.$storex.chats.setActiveChat(chat)
+      this.$emit('select', chat)
     },
     getChatProject(chat) {
       const projects = this.$storex?.projects?.allProjects || this.$projects?.allProjects || []

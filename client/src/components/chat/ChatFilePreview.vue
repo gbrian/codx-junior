@@ -19,17 +19,38 @@ import CodeViewer from '../CodeViewer.vue'
     </div>
 
     <!-- File editor -->
-    <div class="grow min-h-0 overflow-hidden" v-else>
+    <div class="grow min-h-0 overflow-hidden flex flex-col" v-else>
+      <!-- Header with action buttons -->
+      <div class="flex items-center justify-between px-4 py-2 border-b border-base-300 bg-base-300/30 shrink-0">
+        <span class="text-xs font-semibold text-base-content/70">{{ fileName }}</span>
+        <div class="flex gap-2">
+          <button
+            v-if="isSelectMode"
+            class="btn btn-xs btn-primary gap-1"
+            @click="$emit('select', filePath)"
+          >
+            <i class="fa-solid fa-check"></i>
+            Select
+          </button>
+          <button
+            class="btn btn-xs btn-ghost"
+            @click="$emit('close')"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Code viewer -->
       <CodeViewer 
         class="h-full overflow-auto"
-        :close="true"
+        :close="false"
         :code="content"
         :file="filePath"
         :language="fileLanguage"
         :diff-option="true"
         :finished="loaded"
         :show-code-opened="true"
-        @close="$emit('close')"
         @save-file="onSaveFile"
         @message-change="onMessageChange"
       />
@@ -41,9 +62,10 @@ import CodeViewer from '../CodeViewer.vue'
 export default {
   props: {
     filePath: { type: String, default: null },
-    chatProject: { type: Object, default: null }
+    chatProject: { type: Object, default: null },
+    isSelectMode: { type: Boolean, default: false }
   },
-  emits: ['close', 'saved'],
+  emits: ['close', 'saved', 'select'],
   data() {
     return {
       content: '',

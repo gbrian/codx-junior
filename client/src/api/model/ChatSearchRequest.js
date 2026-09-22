@@ -7,11 +7,12 @@
 export class ChatSearchRequest {
   constructor(options = {}) {
     this.query = options.query || ''
-    this.user_id = options.user_id || null
     this.from_date = options.from_date || null
     this.to_date = options.to_date || null
     this.page = Math.max(1, options.page || 1)
     this.page_size = Math.max(1, Math.min(100, options.page_size || 20))
+    this.user_id = options.user_id || null
+    this.project_ids = options.project_ids || null
     
     // Search field filters - all default to true
     this.filters = {
@@ -129,12 +130,29 @@ export class ChatSearchRequest {
   }
 
   /**
+   * Set project IDs to filter by
+   */
+  setProjectIds(projectIds) {
+    this.project_ids = projectIds
+    return this
+  }
+
+  /**
+   * Set user ID to filter by
+   */
+  setUserId(userId) {
+    this.user_id = userId
+    return this
+  }
+
+  /**
    * Serialize to JSON for API request
    */
   toJSON() {
     return {
-      query: this.query,
+      query: this.query || undefined,
       user_id: this.user_id || undefined,
+      project_ids: this.project_ids || undefined,
       from_date: this.from_date || undefined,
       to_date: this.to_date || undefined,
       page: this.page,

@@ -1,6 +1,7 @@
 <script setup>
 import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
+import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
 </script>
 
 <template>
@@ -49,12 +50,6 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
 
         <!-- Normal mode buttons -->
         <template v-else>
-          <button class="btn btn-sm btn-circle tooltip" data-tip="Search" @click="$emit('search-message')">
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </button>     
-          <button class="btn btn-sm btn-circle tooltip" data-tip="Add message" @click="$emit('add-message')">
-            <i class="fa-solid fa-plus"></i>
-          </button>
           <button
             class="btn btn-sm btn-circle tooltip"
             data-tip="Ask codx-junior"
@@ -72,7 +67,7 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </div>
           <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
-            <li class="btn btn-sm tooltip" data-tip="Attach files" @click="$emit('attach-files')">
+            <li class="btn btn-sm tooltip" data-tip="Attach files" @click="openFileModal">
               <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
             </li>
             <li
@@ -93,6 +88,18 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
       </div>
     </div>
   </div>
+
+  <!-- File Explorer Modal -->
+  <modal v-if="showFileModal" close="true" @close="closeFileModal" class="w-5/6 h-5/6">
+    <h2 class="font-bold text-lg mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-folder-open text-primary"></i>
+      Select Files to Attach
+    </h2>
+    <FileExplorerPanel
+      :root-path="projectRootPath"
+      @open="onFileSelected"
+    />
+  </modal>
 </template>
 
 <script>
@@ -102,7 +109,8 @@ export default {
   components: {
     ChatImageCarousel,
     ChatLLMModelSelector,
-    ChatProfileSelector
+    ChatProfileSelector,
+    FileExplorerPanel
   },
   props: {
     waiting: Boolean,
@@ -118,9 +126,31 @@ export default {
     selectedProfiles: { type: Array, default: () => [] }
   },
   emits: [
-    'send', 'add-message', 'search-message', 'cancel-edit', 'model-changed',
-    'toggle-search', 'hide-all', 'attach-files', 'test-project',
-    'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected'
-  ]
+    'send', 'cancel-edit', 'model-changed',
+    'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected',
+    'file-selected'
+  ],
+  data() {
+    return {
+      showFileModal: false
+    }
+  },
+  computed: {
+    projectRootPath() {
+      return this.$project?.abs_project_path || '/'
+    }
+  },
+  methods: {
+    openFileModal() {
+      this.showFileModal = true
+    },
+    closeFileModal() {
+      this.showFileModal = false
+    },
+    onFileSelected(fileData) {
+      this.$emit('file-selected', fileData.path)
+      this.closeFileModal()
+    }
+  }
 }
 </script>

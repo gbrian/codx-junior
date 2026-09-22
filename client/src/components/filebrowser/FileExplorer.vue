@@ -805,7 +805,8 @@ export default {
         this.uploadTotalBytes = files.reduce((sum, f) => sum + f.size, 0)
         this.uploadingFileName = files.length === 1 ? files[0].name : `${files.length} files`
         
-        await this.$api.files.uploadMultiple(files)
+        await Promise.all(
+          files.map(file => this.$api.files.upload(file, targetPath)))
         
         await this.refresh()
       } catch (error) {

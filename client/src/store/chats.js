@@ -424,6 +424,49 @@ export const actions = actionTree(
         throw error
       }
     },
+    async markMessageAsSeen({ state }, { chat_id, message_id, username }) {
+      if (!chat_id || !message_id || !username) {
+        console.warn('[chats store] markMessageAsSeen called with missing parameters:', { chat_id, message_id, username })
+        return null
+      }
+
+      const chat = state.chats[chat_id]
+      if (!chat) {
+        console.warn('[chats store] Chat not found for markMessageAsSeen:', chat_id)
+        return null
+      }
+
+      const project = getChatProject(chat)
+      
+      try {
+        const response = await project.$api.chats.markMessageAsSeen({
+          chat_id,
+          message_id,
+          username
+        })
+        
+        // ADDED: Update local message state with merge-safe read_by list
+        if (response && chat.messages) {
+          const messageIndex = chat.messages.findIndex(m => m.doc_id === message_id)
+          if (messageIndex !== -1) {
+            const message = chat.messages[messageIndex]
+            // Ensure read_by is always an array
+            if (!Array.isArray(message.read_by)) {
+              message.read_by = []
+            }
+            // Add username only if not already present (idempotent)
+            if (!message.read_by.includes(username)) {
+              message.read_by = [...message.read_by, username]
+            }
+          }
+        }
+        
+        return response
+      } catch (error) {
+        console.error('[chats store] Failed to mark message as seen:', error)
+        return null
+      }
+    },
     async deleteChat({ state, getters }, chat) {
       if (!chat?.id) return
 

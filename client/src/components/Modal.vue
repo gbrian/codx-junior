@@ -2,14 +2,14 @@
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center">
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0">
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="close && $emit('close')"></div>
 
     <!-- Modal Box -->
     <div
       v-bind="$attrs"
-      class="relative z-10 bg-base-100 rounded-2xl shadow-2xl border border-base-300 max-h-[90vh] flex flex-col mx-4 animate-fade-in"
+      class="relative z-10 bg-base-100 rounded-2xl shadow-2xl border border-base-300 max-h-[90vh] flex flex-col mx-0 md:mx-4 w-full md:w-auto md:max-w-2xl animate-fade-in"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-base-300">

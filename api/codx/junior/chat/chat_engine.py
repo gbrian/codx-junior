@@ -4,6 +4,7 @@ import os
 import re
 import time
 import uuid
+import base64
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from json import JSONDecodeError
@@ -23,7 +24,7 @@ from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCE
 from codx.junior.chat_manager import ChatManager
 from codx.junior.chat.chat_event_bridge import ChatEventBridge
 from codx.junior.context import AICodeGenerator
-from codx.junior.db import Chat, Message, ChatHistoryEntry
+from codx.junior.db import Chat, Message, ChatHistoryEntry, ChatAttachment
 from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -527,24 +528,55 @@ class ChatEngine:
         return False
 
     # -------------------------------------------------------------------------
+    # Helper: detect if a file is binary
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _is_binary_file(file_path: str) -> bool:
+        """
+        Determine if a file is binary based on its extension.
+
+        :param file_path: Path to the file.
+        :return: True if file appears to be binary, False otherwise.
+        """
+        _, ext = os.path.splitext(file_path)
+        ext = ext.lstrip(".").lower()
+        
+        binary_extensions = {
+            "pdf", "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg",
+            "ico", "tiff", "zip", "tar", "gz", "7z", "rar", "exe",
+            "dll", "so", "pyc", "o", "a", "lib"
+        }
+        
+        return ext in binary_extensions
+
+    # -------------------------------------------------------------------------
     # Helper: load content for explicitly attached chat files
     # -------------------------------------------------------------------------
     def _load_chat_files_content(
         self,
         chat_files: List[str],
         already_in_messages: Set[str]
-    ) -> str:
+    ) -> Tuple[str, List[Dict[str, str]]]:
         """
         Read and format the content of files explicitly attached to the chat.
+
+        Separates text and binary files:
+        - Text files: returned as formatted code blocks in the content string
+        - Binary files (PDFs, images): returned as separate list for vision API
 
         Files already embedded as code blocks in the message history are skipped
         to avoid duplication.
 
+        CHANGED: Now returns a tuple of (text_content, binary_files_list).
+        Binary files are detected and separated for potential vision API processing.
+
         :param chat_files: List of file paths to load.
         :param already_in_messages: Set of file paths already present in message bodies.
-        :return: Concatenated formatted file content string.
+        :return: Tuple of (formatted_text_content_string, binary_files_list).
         """
         chat_files_content = ""
+        binary_files = []
+        
         for chat_file in chat_files:
             if chat_file in already_in_messages:
                 continue
@@ -554,6 +586,18 @@ class ChatEngine:
                 continue
 
             try:
+                # Check if binary BEFORE attempting to read as text
+                if self._is_binary_file(chat_file_full_path):
+                    logger.info(
+                        "Binary file detected (will pass to LLM separately): '%s'",
+                        chat_file_full_path
+                    )
+                    binary_files.append({
+                        "path": chat_file,
+                        "full_path": chat_file_full_path
+                    })
+                    continue
+                
                 with open(chat_file_full_path, "r", encoding="utf-8") as fh:
                     source = chat_file_full_path.replace(
                         self.settings.abs_project_path + "/", ""
@@ -570,10 +614,19 @@ class ChatEngine:
                         )
                     )
                     chat_files_content += doc_context + "\n"
+            except UnicodeDecodeError:
+                logger.warning(
+                    "Failed to decode '%s' as UTF-8; treating as binary",
+                    chat_file_full_path
+                )
+                binary_files.append({
+                    "path": chat_file,
+                    "full_path": chat_file_full_path
+                })
             except OSError as ex:
                 logger.error("Error adding context file to chat: %s", ex)
 
-        return chat_files_content
+        return chat_files_content, binary_files
 
     def _document_to_context(self, doc: Document) -> str:
         """
@@ -621,6 +674,88 @@ class ChatEngine:
         normalized = chat_file.lstrip("/")
         full_path = os.path.join(self.settings.abs_project_path, normalized)
         return full_path
+
+    # -------------------------------------------------------------------------
+    # Helper: convert binary files to vision API format
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _prepare_vision_content(
+        binary_files: List[Dict[str, str]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Convert binary files to OpenAI vision API format.
+
+        Supports both file paths and inline base64 data URIs.
+        Infers MIME type from file extension.
+
+        Format returned matches OpenAI Chat Completions API vision support:
+        https://platform.openai.com/docs/guides/vision
+
+        CHANGED: Simplified to only handle binary files from chat_files.
+        No longer processes message attachments (they change between interactions).
+
+        :param binary_files: List of {'path', 'full_path'} dicts from chat files.
+        :return: List of content blocks (image_url or file types).
+        """
+        vision_content = []
+
+        for binary_file in binary_files:
+            full_path = binary_file["full_path"]
+            mime_type = ChatEngine._get_mime_type_for_file(full_path)
+            
+            try:
+                with open(full_path, "rb") as f:
+                    file_bytes = f.read()
+                base64_data = base64.b64encode(file_bytes).decode("utf-8")
+                
+                # Format as data URI (supported by most vision models)
+                data_uri = f"data:{mime_type};base64,{base64_data}"
+                
+                if mime_type.startswith("image/"):
+                    vision_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": data_uri}
+                    })
+                elif mime_type == "application/pdf":
+                    # GPT-4o supports PDF via file type
+                    vision_content.append({
+                        "type": "file",
+                        "file": {
+                            "filename": os.path.basename(full_path),
+                            "file_data": data_uri
+                        }
+                    })
+                else:
+                    logger.debug(
+                        "Skipping binary file (unsupported MIME type): %s -> %s",
+                        full_path, mime_type
+                    )
+            except OSError as ex:
+                logger.warning("Failed to read binary file %s: %s", full_path, ex)
+
+        return vision_content
+
+    @staticmethod
+    def _get_mime_type_for_file(file_path: str) -> str:
+        """
+        Determine MIME type from file extension.
+
+        :param file_path: File path.
+        :return: MIME type string.
+        """
+        _, ext = os.path.splitext(file_path)
+        ext = ext.lstrip(".").lower()
+        
+        mime_map = {
+            "pdf": "application/pdf",
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "gif": "image/gif",
+            "webp": "image/webp",
+        }
+        
+        return mime_map.get(ext, "application/octet-stream")
 
     # -------------------------------------------------------------------------
     # Helper: pre-search (vibe / search modes)
@@ -1042,6 +1177,7 @@ class ChatEngine:
         cancellation_token: Optional[CancellationToken] = None,
         run_context: Optional[AgentRunContext] = None,
         event_bridge: Optional[ChatEventBridge] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[Optional[str], str, List[str], Any]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
@@ -1056,6 +1192,9 @@ class ChatEngine:
         runs are persisted the moment they are appended (via
         ``event_bridge.persist_message``) instead of waiting for the
         end-of-turn chat save.
+
+        ADDED: vision_content (images, PDFs) can now be passed and will be
+        merged into the final user message for models that support vision APIs.
 
         FIX Issue 3: The ``is_thinking`` / ``think_content`` detection block
         has been removed. ``message_parts`` is always a single-element list so
@@ -1072,6 +1211,7 @@ class ChatEngine:
             C -->|hidden reasoning| F4[persist_message - immediate]
             C -->|tool events| F2[Events persisted on response_message]
             C -->|error| F3[response_message.error persisted immediately]
+            C -->|vision| F5[Merge vision_content into user message]
             D --> F[Return think, content, files]
             E --> F
 
@@ -1094,6 +1234,8 @@ class ChatEngine:
         :param event_bridge: Optional bridge used to persist the response
                              message immediately on error and to persist
                              hidden reasoning messages as they are produced.
+        :param vision_content: Optional list of vision content blocks (image_url, file types)
+                               to merge into the final user message.
         :return: Tuple of (think_content, main_content, extra_file_list, ai_chat_fn).
         """
         # FIX Issue 3: think_content is NOT derived here — it is set on
@@ -1103,8 +1245,8 @@ class ChatEngine:
         main_content = ""
         extra_files: List[str] = []
 
-        async def ai_chat(messages=None, prompt="", tags="", callback=None, run_context=None):
-            """Invoke the AI with the assembled messages and optional prompt."""
+        async def ai_chat(messages=None, prompt="", tags="", callback=None, run_context=None, vision_content=None):
+            """Invoke the AI with the assembled messages, optional prompt, and vision content."""
             if messages is None:
                 messages = []
             headers = ai_headers
@@ -1120,6 +1262,7 @@ class ChatEngine:
                 chat_id=chat.id,
                 run_context=run_context,
                 current_chat=chat,
+                vision_content=vision_content,
             )
 
         try:
@@ -1148,6 +1291,7 @@ class ChatEngine:
                     messages=messages,
                     callback=callback,
                     run_context=run_context,
+                    vision_content=vision_content,
                 )
                 new_message_count = len(response_messages) - input_messages_count
 
@@ -1655,6 +1799,9 @@ class ChatEngine:
         history when `ignore_parent_knowledge` flag is False, enabling proper
         context inheritance across chat hierarchy.
 
+        ADDED: Binary chat files (PDFs, images) are now detected and passed
+        to the vision API if supported by the model.
+
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
           - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
@@ -1684,20 +1831,22 @@ class ChatEngine:
             L --> O[Record Chat Session START]
             M --> O
             N --> O
-            O --> P[AI Chat]
-            P -->|stream flush| P4[Throttled persist of partial content]
-            P -->|hidden reasoning| P5[persist_message - immediate]
-            P -->|tool events| P2[Events persisted + streamed]
-            P -->|BadRequestError| P6[Catch param error + inform user]
-            P --> Q{Cancelled or Error?}
-            Q -->|Yes| R[bridge.publish - state persisted immediately]
-            R --> S[Record Chat Session END]
-            Q -->|No| T[Parse response + bridge.publish final state]
-            T --> U{Agent done?}
-            U -->|No, iterations left| V[Recurse]
-            U -->|Yes| S[Record Chat Session END success]
-            S --> W[Unregister CancellationToken]
-            W --> X[Return chat + docs]
+            O --> P[Load chat files + detect binary]
+            P --> Q[Prepare vision content]
+            Q --> R[AI Chat with vision_content]
+            R -->|stream flush| R4[Throttled persist of partial content]
+            R -->|hidden reasoning| R5[persist_message - immediate]
+            R -->|tool events| R2[Events persisted + streamed]
+            R -->|BadRequestError| R6[Catch param error + inform user]
+            R --> S{Cancelled or Error?}
+            S -->|Yes| T[bridge.publish - state persisted immediately]
+            T --> U[Record Chat Session END]
+            S -->|No| V[Parse response + bridge.publish final state]
+            V --> W{Agent done?}
+            W -->|No, iterations left| X[Recurse]
+            W -->|Yes| U[Record Chat Session END success]
+            U --> Y[Unregister CancellationToken]
+            Y --> Z[Return chat + docs]
 
         :param chat: The Chat object containing messages and metadata.
         :param disable_knowledge: If True, skip knowledge base search.
@@ -2020,9 +2169,9 @@ class ChatEngine:
                 ignore_documents.append(f"/{chat.name}")
 
             # ------------------------------------------------------------------
-            # 13. Load explicitly attached chat files
+            # 13. Load explicitly attached chat files (CHANGED: returns binary_files too)
             # ------------------------------------------------------------------
-            chat_files_content = self._load_chat_files_content(
+            chat_files_content, binary_files = self._load_chat_files_content(
                 chat_files=chat_files,
                 already_in_messages=all_messages_content_code_block_file_paths
             )
@@ -2180,6 +2329,18 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
+            # 20.5 ADDED: Prepare vision content from binary files
+            # ------------------------------------------------------------------
+            vision_content: Optional[List[Dict[str, Any]]] = None
+            if binary_files:
+                vision_content = self._prepare_vision_content(binary_files)
+                if vision_content:
+                    logger.info(
+                        "Prepared %d vision content block(s) for AI request",
+                        len(vision_content)
+                    )
+
+            # ------------------------------------------------------------------
             # 21. Execute AI / search response
             # ------------------------------------------------------------------
             try:
@@ -2198,6 +2359,7 @@ class ChatEngine:
                         cancellation_token=cancellation_token,
                         run_context=run_context,
                         event_bridge=event_bridge,
+                        vision_content=vision_content,
                     )
                 )
             except CancelledError as cancel_exc:
@@ -2543,12 +2705,28 @@ class ChatEngine:
         :param message: The Message object to convert.
         :return: A LangChain HumanMessage, AIMessage, or image dict.
         """
-        def parse_image(image: str) -> dict:
-            """Parse an image string into a dict with src and alt fields."""
-            try:
-                return json.loads(image)
-            except JSONDecodeError:
-                return {"src": image, "alt": ""}
+        def parse_image(image) -> dict:
+            """
+            Parse an image into a dict with src and alt fields.
+            
+            Handles both ChatAttachment objects (new format) and legacy JSON strings.
+            """
+            # Handle ChatAttachment objects (new format)
+            if isinstance(image, ChatAttachment):
+                return {
+                    "src": f"data:{image.file_type};base64,{image.base64_data}",
+                    "alt": image.file_name
+                }
+            
+            # Handle legacy JSON string format
+            if isinstance(image, str):
+                try:
+                    return json.loads(image)
+                except (json.JSONDecodeError, TypeError):
+                    return {"src": image, "alt": ""}
+            
+            # Fallback for other types
+            return {"src": str(image), "alt": ""}
 
         if message.attachments:
             images = [parse_image(image) for image in message.attachments]

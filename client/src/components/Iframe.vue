@@ -1,5 +1,5 @@
 <template>
-  <iframe ref="iframe" :src="url" class="bg-base-300" 
+  <iframe ref="iframe" :src="url" class="bg-base-300 w-full h-full" 
     @load="onIframeLoaded"
     title="coder" allow="camera *;microphone *;clipboard-read; clipboard-write;">
   </iframe>

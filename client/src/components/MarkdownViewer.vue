@@ -6,7 +6,7 @@ import InteractiveTable from './InteractiveTable.vue'
 </script>
 
 <template>
-  <div class="text-wrap overflow-y-auto prose max-w-full">
+  <div class="text-wrap overflow-y-auto prose-xs xl:prose max-w-full">
     <!-- Render markdown content with mixed elements -->
     <div class="space-y-4">
       <div 

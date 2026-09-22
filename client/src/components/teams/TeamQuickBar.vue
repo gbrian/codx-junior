@@ -5,86 +5,88 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
 
 <template>
   <div class="h-full relative">
-    <div class="flex flex-col items-center gap-2 p-3 bg-base-200 border-r border-base-content/10 shrink-0 overflow-y-auto overflow-x-hidden h-full">
+    <div class="flex flex-col items-center gap-2 p-3 bg-[#1a1a1a] border-r border-white/5 shrink-0 overflow-y-auto overflow-x-hidden h-full">
       
       <!-- Quick Actions - Always visible and stacked -->
       <div class="flex flex-col items-center gap-2 w-full">
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Home" @click="openHome">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-home"></i>
-          </div>
-        </div>
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          title="Home"
+          @click="openHome"
+        >
+          <i class="fas fa-home"></i>
+        </button>
         
         <QuickChatCreator />
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Wiki" @click="openWiki">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-graduation-cap"></i>
-          </div>
-        </div>
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          title="Wiki"
+          @click="openWiki"
+        >
+          <i class="fas fa-graduation-cap"></i>
+        </button>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Tasks" @click="openTasks">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-brands fa-trello"></i>
-          </div>
-        </div>
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          title="Tasks"
+          @click="openTasks"
+        >
+          <i class="fas fa-tasks"></i>
+        </button>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="Media Library" @click="openFileExplorer">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-image"></i>
-          </div>
-        </div>
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          title="Media Library"
+          @click="openFileExplorer"
+        >
+          <i class="fas fa-image"></i>
+        </button>
 
-        <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="More..." 
-          @click="$emit('toggle-team-bar')">
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10">
-            <i class="fa-solid fa-ellipsis"></i>
-          </div>
-        </div>
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          title="More"
+          @click="$emit('toggle-team-bar')"
+        >
+          <i class="fas fa-ellipsis"></i>
+        </button>
       </div>
 
       <!-- Divider -->
-      <div class="divider my-0 w-8 mx-auto"></div>
+      <div class="w-8 h-px bg-white/5 my-1"></div>
       
       <!-- Team icons -->
       <div class="flex flex-col items-center gap-2 w-full">
-        <div
+        <button
           v-for="team in teams"
           :key="team.id"
-          class="tooltip tooltip-right cursor-pointer shrink-0"
-          :data-tip="team.name"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-all duration-200 overflow-hidden shrink-0"
+          :class="activeTeam?.id === team.id
+            ? 'ring-2 ring-primary rounded-lg'
+            : 'hover:opacity-90'"
+          :title="team.name"
+          :style="{ backgroundColor: team.color || '#6366f1' }"
           @click="selectTeam(team)"
         >
-          <div
-            class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold transition-all duration-200 hover:rounded-xl overflow-hidden"
-            :class="activeTeam?.id === team.id
-              ? 'ring-2 ring-primary rounded-xl'
-              : 'hover:opacity-90'"
-            :style="{ backgroundColor: team.color || '#6366f1' }"
-          >
-            <img v-if="team.icon" :src="team.icon" class="w-full h-full object-cover" />
-            <span v-else class="text-white font-bold">{{ team.name?.[0]?.toUpperCase() }}</span>
-          </div>
-        </div>
+          <img v-if="team.icon" :src="team.icon" class="w-full h-full object-cover" />
+          <span v-else class="text-white font-bold">{{ team.name?.[0]?.toUpperCase() }}</span>
+        </button>
 
-        <div class="divider my-0 w-8 mx-auto"></div>
+        <div class="w-8 h-px bg-white/5 my-1"></div>
 
         <!-- Add team -->
-        <div
-          class="tooltip tooltip-right cursor-pointer shrink-0"
-          data-tip="Create Team"
+        <button
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-success bg-white/8 hover:bg-white/15 hover:text-primary transition-all duration-200 shrink-0"
+          title="Create Team"
           @click="$emit('create-team')"
         >
-          <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-success bg-base-300 hover:bg-success/20 hover:rounded-xl transition-all duration-200">
-            <i class="fa-solid fa-plus"></i>
-          </div>
-        </div>
+          <i class="fas fa-plus"></i>
+        </button>
       </div>
 
       <div class="grow"></div>
       <MainMenu />
     </div>
-
   </div>
 </template>
 

@@ -82,6 +82,10 @@ export const chatsModule = (API) => ({
     return API.post('/api/chats/metadata', { chat_id: chatId, metadata })
   },
 
+  async markMessageAsSeen({ chat_id, message_id, username }) {
+    return API.post('/api/chats/mark-seen', { chat_id, message_id, username })
+  },
+
   async fromUrl(chat) {
     return API.post('/api/chats/from-url', chat)
   },

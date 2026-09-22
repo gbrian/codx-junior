@@ -7,22 +7,28 @@ import ChatAttachmentPreview from '@/components/chat/ChatAttachmentPreview.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
+import WorkspaceAppLoader from '@/components/quick-chat/WorkspaceAppLoader.vue'
 </script>
 
 <template>
   <div
     class="flex h-full w-full bg-[#111111] overflow-hidden"
     :class="isMobile ? 'flex-col' : 'flex-row'"
-    data-theme="dark"
   >
 
     <!-- ── Sidebar (desktop only — renders as bottom nav on mobile) ── -->
     <QuickChatSidebar
       :user-name="$user?.username || 'User'"
       :show-mobile-chats="showMobileChats"
+      :workspace-apps="workspaceApps"
+      :selected-workspace-app="selectedWorkspaceApp"
+      :active-chat="activeChat"
       @new-chat="startNewChat"
       @toggle-mobile-chats="showMobileChats = !showMobileChats"
       @account-settings="openAccountSettings"
+      @select-workspace-app="selectWorkspaceApp"
+      @open-chat="openChat"
     />
 
     <!-- ── Mobile chats sidebar drawer ── -->
@@ -43,13 +49,182 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
         </div>
         <!-- Chats list -->
         <div class="flex-1 min-h-0 px-3 py-3 flex flex-col overflow-hidden">
-          <RecentChatsQuickAccess :collapsed="false" />
+          <RecentChatsQuickAccess 
+            @select="openChat"
+            :collapsed="false" />
         </div>
       </div>
     </transition>
 
-    <!-- ── Main area ── -->
+    <!-- ── Main area with VerticalSplitter (desktop only) ── -->
+    <VerticalSplitter
+      v-if="!isMobile && activeChat"
+      class="flex-1 min-w-0 h-full"
+      :panels="splitterPanels"
+    >
+      <!-- Left panel: Chat content -->
+      <template #left>
+        <main class="flex-1 flex flex-col min-w-0 h-full relative">
+          <!-- Chat header -->
+          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[#111111]/80 backdrop-blur-sm">
+            <div class="flex-1 min-w-0">
+              <h2 class="text-sm font-medium text-white/80 truncate">{{ activeChat.name || 'Chat' }}</h2>
+            </div>
+            <div class="flex items-center gap-1">
+              <!-- Hidden messages toggle -->
+              <button
+                class="btn btn-ghost btn-xs rounded-lg flex items-center gap-1"
+                :class="showHidden ? 'text-warning' : 'text-white/30 hover:text-white/70'"
+                :title="showHidden ? 'Hide hidden messages' : 'Show hidden messages'"
+                @click="showHidden = !showHidden"
+              >
+                <i :class="showHidden ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+                <span v-if="hiddenCount" class="text-xs tabular-nums">{{ hiddenCount }}</span>
+              </button>
+              <button
+                class="btn btn-ghost btn-xs text-white/30 hover:text-white/70 rounded-lg"
+                title="Start new chat"
+                @click="startNewChat"
+              >
+                <i class="fas fa-pen-to-square"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Message list — Notion-like centered content on wide screens -->
+          <div class="flex-1 min-h-0 overflow-hidden">
+            <div
+              class="h-full overflow-y-auto py-4 px-4"
+              ref="messagesContainer"
+            >
+              <div class="w-full mx-auto max-w-3xl">
+                <!-- Loading skeleton -->
+                <div v-if="isChatLoading" class="flex flex-col gap-6 py-6">
+                  <div v-for="i in 3" :key="i" class="flex flex-col gap-2">
+                    <div class="skeleton h-4 w-1/4 bg-white/8 rounded"></div>
+                    <div class="skeleton h-16 w-3/4 bg-white/8 rounded-xl"></div>
+                  </div>
+                </div>
+
+                <!-- Messages -->
+                <ChatMessageList
+                  v-else-if="messages.length"
+                  ref="messageList"
+                  class="w-full"
+                  :chat="activeChat"
+                  :messages="messages"
+                  :read-only="false"
+                  :users-list="usersList"
+                  @remove="removeMessage"
+                  @copy="onCopy"
+                  @message-changed="onMessageChanged"
+                  @edited="onMessageEdited"
+                  @hide="onHideMessage"
+                  @answer="onAnswerMessage"
+                  @thread="onThread"
+                  @sub-task="onSubTask"
+                  @run-agents="onRunAgents"
+                  @enhance="onEnhance"
+                  @add-file-to-chat="onAddFileToChat"
+                  @add-file="onAddFile"
+                  @open-file="onOpenFile"
+                  @save-file="onSaveFile"
+                  @reload-file="onReloadFile"
+                  @generate-code="onGenerateCode"
+                  @image="onImage"
+                  @remove-file="onRemoveFile"
+                  @edit-message="onEditMessage"
+                  @run-edit="onRunEdit"
+                  @preview-file="onPreviewFile"
+                  @search-files="onSearchFiles"
+                />
+
+                <!-- Empty chat placeholder -->
+                <div v-else class="flex flex-col items-center justify-center h-full gap-3 text-white/20 py-20">
+                  <i class="fas fa-comment-lines text-4xl"></i>
+                  <span class="text-sm">Send a message to begin</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Pinned input bar — Notion-like centered on wide screens ── -->
+          <div class="shrink-0 pb-4 pt-2 px-4">
+            <div class="w-full mx-auto max-w-3xl">
+              <div class="relative">
+                <!-- IntelliSense popup -->
+                <ChatIntelliSense
+                  v-if="intelliSenseSuggestions.length"
+                  ref="intelliSense"
+                  :suggestions="intelliSenseSuggestions"
+                  :active-index="intelliSenseIndex"
+                  :query="intelliSenseQuery"
+                  :search-controller="searchController"
+                  :progress="intelliSenseProgress"
+                  @select="onIntelliSenseSelect"
+                  @hover="intelliSenseIndex = $event"
+                  @accept-multi="onIntelliSenseAcceptMulti"
+                  @cancel="cancelIntelliSense"
+                />
+
+                <!-- Input box -->
+                <ChatInputBox
+                  ref="inputBox"
+                  :waiting="waiting"
+                  :selected-model="activeChat.llm_model"
+                  :ai-models="aiModels"
+                  :cursor-word="cursorWord"
+                  :profiles="profiles"
+                  :selected-profiles="selectedProfiles"
+                  @send="sendMessage"
+                  @add-message="sendMessage"
+                  @keydown="onKeyDown"
+                  @paste="onPaste"
+                  @drop="onDropImages"
+                  @profiles-selected="selectedProfiles = $event"
+                />
+
+                <!-- Attachment preview -->
+                <ChatAttachmentPreview
+                  v-if="attachments.length"
+                  :attachments="attachments"
+                  @remove-attachment="removeAttachment"
+                />
+              </div>
+
+              <!-- Disclaimer -->
+              <p class="text-center text-xs text-white/15 mt-2 select-none">
+                codx-junior can make mistakes. Consider checking important info.
+              </p>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Right panel: Workspace App Loader -->
+      <template #right v-if="selectedWorkspaceApp">
+        <div class="h-full flex flex-col relative">
+          <!-- Close button overlay (for better UX when panel is small) -->
+          <div class="absolute top-2 right-2 z-10">
+            <button
+              class="btn btn-ghost btn-xs btn-circle text-white/50 hover:text-white"
+              title="Close workspace app"
+              @click="closeWorkspaceApp"
+            >
+              <i class="fas fa-xmark"></i>
+            </button>
+          </div>
+          <WorkspaceAppLoader
+            :app="selectedWorkspaceApp"
+            @close="closeWorkspaceApp"
+            />
+          </div>
+      </template>
+    </VerticalSplitter>
+
+    <!-- ── Main area (mobile view or desktop home) ── -->
     <main
+      v-if="isMobile || !activeChat"
       class="flex-1 flex flex-col min-w-0 h-full relative"
       :class="isMobile ? 'pb-16' : ''"
     >
@@ -141,11 +316,11 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
         </div>
       </transition>
 
-      <!-- ══ ACTIVE CHAT VIEW ══ -->
+      <!-- ══ ACTIVE CHAT VIEW (mobile only) ══ -->
       <transition name="fade">
-        <div v-if="activeChat" class="absolute inset-0 flex flex-col">
+        <div v-if="activeChat && isMobile" class="absolute inset-0 flex flex-col">
 
-          <!-- Chat header -->
+          <!-- Chat header with loading indicator -->
           <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[#111111]/80 backdrop-blur-sm">
             <!-- Mobile back button -->
             <button
@@ -156,9 +331,23 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
               <i class="fas fa-arrow-left text-sm"></i>
             </button>
             <div class="flex-1 min-w-0">
-              <h2 class="text-sm font-medium text-white/80 truncate">{{ activeChat.name || 'Chat' }}</h2>
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-medium text-white/80 truncate">{{ activeChat.name || 'Chat' }}</h2>
+                <!-- Loading indicator -->
+                <span v-if="isChatLoading" class="loading loading-spinner loading-xs text-primary"></span>
+              </div>
             </div>
             <div class="flex items-center gap-1">
+              <!-- Hidden messages toggle -->
+              <button
+                class="btn btn-ghost btn-xs rounded-lg flex items-center gap-1"
+                :class="showHidden ? 'text-warning' : 'text-white/30 hover:text-white/70'"
+                :title="showHidden ? 'Hide hidden messages' : 'Show hidden messages'"
+                @click="showHidden = !showHidden"
+              >
+                <i :class="showHidden ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+                <span v-if="hiddenCount" class="text-xs tabular-nums">{{ hiddenCount }}</span>
+              </button>
               <button
                 class="btn btn-ghost btn-xs text-white/30 hover:text-white/70 rounded-lg"
                 title="Start new chat"
@@ -289,7 +478,6 @@ import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vu
 
 <script>
 import ChatAttachment from '@/api/model/ChatAttachment.js'
-import { ENTITY_STATUS } from '@/store/entityStatuses'
 import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
 
 export default {
@@ -298,6 +486,7 @@ export default {
   },
   data() {
     return {
+      activeChatId: null,
       waiting: false,
       attachments: [],
       homeAttachments: [],
@@ -316,18 +505,25 @@ export default {
       selectedProfiles: [],
       selectedProject: null,
       showMobileChats: false,
+      selectedWorkspaceApp: null,
+      showHidden: false,
       MAX_IMAGE_SIZE_MB: 50,
       suggestionChips: [
         'Explain this code',
         'Write a unit test',
         'Refactor for readability',
         'Find bugs in my code'
-      ]
+      ],
+      isChatLoading: false
     }
   },
-  created() {
-    this.$storex.chats.loadChats()
+  async created() {
     this.loadProfiles()
+    // Open chat from query param if present — loadChat is called inside openChat
+    const chatId = this.$route?.query?.chatId
+    if (chatId) {
+      await this.openChat({ id: chatId })
+    }
   },
   mounted() {
     this.syncInterval = setInterval(() => this.syncEditorText(), 100)
@@ -341,13 +537,17 @@ export default {
       return this.$ui.isMobile
     },
     activeChat() {
-      return this.$chats.activeChat
+      if (!this.activeChatId) return null
+      return this.$storex.chats.chats[this.activeChatId] || null
     },
-    isChatLoading() {
-      return this.activeChat?.status === ENTITY_STATUS.LOADING
+    hiddenCount() {
+      return this.activeChat?.messages?.filter(m => m.hide)?.length || 0
     },
     messages() {
-      return this.activeChat?.messages?.filter(m => !m.hide) || []
+      if (!this.activeChat?.messages) return []
+      return this.showHidden
+        ? this.activeChat.messages
+        : this.activeChat.messages.filter(m => !m.hide)
     },
     chatProject() {
       return this.$projects.allProjectsById[this.activeChat?.project_id || this.activeChat?.owner_project_id]
@@ -363,6 +563,24 @@ export default {
     firstName() {
       const name = this.$user?.username || 'there'
       return name.split(' ')[0]
+    },
+    workspaceApps() {
+      return this.$storex.projects.projectApps
+    },
+    // Build the panels config for VerticalSplitter based on whether a workspace app is open
+    splitterPanels() {
+      return {
+        left: {
+          defaultSize: this.selectedWorkspaceApp ? 60 : 100,
+          minSize: 30,
+          collapsible: false
+        },
+        right: {
+          defaultSize: this.selectedWorkspaceApp ? 40 : 0,
+          minSize: 0,
+          collapsible: true
+        }
+      }
     }
   },
   watch: {
@@ -370,21 +588,26 @@ export default {
       this.updateCursorWord()
       this.scheduleIntelliSense()
     },
-    activeChat(chat) {
-      if (chat) {
-        this.showMobileChats = false
-        this.loadProfilesForChat()
-        this.$nextTick(() => this.scrollToBottom())
-      }
-    },
     '$project'() {
       this.loadProfiles()
+    },
+    // Reset showHidden when switching chats
+    activeChatId() {
+      this.showHidden = false
     }
   },
   methods: {
     // ── Account / Settings ─────────────────────────────────
     openAccountSettings() {
       this.$emit('settings')
+    },
+
+    // ── Workspace Apps ────────────────────────────────────
+    selectWorkspaceApp(app) {
+      this.selectedWorkspaceApp = app
+    },
+    closeWorkspaceApp() {
+      this.selectedWorkspaceApp = null
     },
 
     // ── Profiles ───────────────────────────────────────────
@@ -405,12 +628,7 @@ export default {
         const project = this.chatProject
         if (project?.$api) {
           const list = await project.$api.profiles.list()
-          const sortedProfiles = (list || []).sort((a, b) => a.name > b.name ? 1 : -1)
-          this.profiles = sortedProfiles
-          if (!this.$projects.profiles) {
-            this.$projects.profiles = []
-          }
-          this.$projects.profiles = sortedProfiles
+          this.profiles = (list || []).sort((a, b) => a.name > b.name ? 1 : -1)
         }
       } catch (err) {
         console.error('[QuickChat] loadProfilesForChat error', err)
@@ -421,17 +639,18 @@ export default {
     async onProjectSelected(project) {
       this.selectedProject = project
       await this.$storex.projects.setActiveProject(project)
-      await this.$storex.chats.loadChats()
       await this.loadProfiles()
     },
 
     // ── Chat management ────────────────────────────────────
     async startNewChat() {
-      this.$chats.clearActiveChat()
+      this.activeChatId = null
       this.attachments = []
       this.homeAttachments = []
       this.showMobileChats = false
+      this.selectedWorkspaceApp = null
     },
+
     async createChat(initialMessage) {
       const shortTitle = initialMessage.slice(0, 50) + (initialMessage.length > 50 ? '…' : '')
       const ownerProject = this.selectedProject || this.$project
@@ -445,6 +664,24 @@ export default {
       return chat
     },
 
+    async openChat(chat) {
+      if (!chat) return
+      try {
+        this.isChatLoading = true
+        // loadChat fetches full chat data including messages from the server
+        const loaded = await this.$chats.loadChat(chat)
+        this.activeChatId = loaded?.id || chat.id
+        this.showMobileChats = false
+        this.selectedWorkspaceApp = null
+        this.loadProfilesForChat()
+        this.$nextTick(() => this.scrollToBottom())
+      } catch (err) {
+        console.error('[QuickChat] openChat error', err)
+      } finally {
+        this.isChatLoading = false
+      }
+    },
+
     // ── Home state submit ──────────────────────────────────
     async onHomeSubmit() {
       const text = this.$refs.homeInputBox?.getEditorText()?.trim()
@@ -452,9 +689,10 @@ export default {
       this.$refs.homeInputBox?.setEditorText('')
       const chat = await this.createChat(text)
       if (!chat) return
-      await this.$chats.setActiveChat(chat)
+      this.activeChatId = chat.id
       await this.postAndSend(text)
     },
+
     setHomeChip(chip) {
       this.$refs.homeInputBox?.setEditorText(chip)
       this.$nextTick(() => this.$refs.homeInputBox?.focusEditor())
@@ -529,8 +767,11 @@ export default {
       this.$refs.inputBox?.setEditorText('')
       await this.postAndSend(text)
     },
+
     async postAndSend(text) {
-      if (!this.activeChat) return
+      const chat = this.activeChat
+      if (!chat) return
+
       const message = this.$service.chat.getUserMessage({
         message: text,
         files: [],
@@ -539,11 +780,13 @@ export default {
         user: this.$user?.username
       })
       this.attachments = []
-      await this.$service.chat.addMessage({ chat: this.activeChat, message })
+
+      this.$storex.chats.addMessageToChat({ chatId: chat.id, message })
+
       this.scrollToBottom()
       this.waiting = true
       try {
-        await this.$storex.projects.chatWihProject(this.activeChat)
+        await this.$storex.projects.chatWihProject(chat)
       } finally {
         this.waiting = false
         this.$nextTick(() => this.scrollToBottom())

@@ -3,7 +3,7 @@ import Iframe from '../Iframe.vue'
 </script>
 
 <template>
-  <div class="w-full h-full" :class="loaded ? '' : 'opacity-10'">
+  <div class="w-full h-full" :class="loaded ? '' : 'opacity-0'">
     <Iframe
       ref="iframe"
       class="w-full h-full"
@@ -44,6 +44,7 @@ export default {
       this.loaded = true
       // Read the actual current URL and title from the iframe after load
       this.readIframeUrl()
+      this.$emit('loaded')
     },
     // Read URL and title directly from iframe contentWindow after navigation
     readIframeUrl() {

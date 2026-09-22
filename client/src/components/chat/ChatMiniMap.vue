@@ -23,7 +23,7 @@
     <div
       v-for="(mark, ix) in marks"
       :key="mark.id"
-      class="absolute left-0.5 right-0.5 rounded-sm mb-0.5 opacity-30 hover:opacity-60 transition-all duration-150"
+      class="absolute left-0.5 right-0.5 rounded-sm mb-0.5 opacity-30 hover:opacity-60 transition-all duration-150 flex items-center justify-center"
       :class="markClass(mark)"
       :style="{
         top: mark.top + 'px',
@@ -31,7 +31,8 @@
       }"
       :title="markTitle(mark, ix)"
       @click.stop="scrollToMark(mark)"
-    ></div>
+    >
+    </div>
   </div>
 </template>
 
@@ -117,6 +118,8 @@ export default {
 
       // Build marks
       const newMarks = []
+      const currentUsername = this.$user?.username
+      
       for (let i = 0; i < this.messageRefs.length; i++) {
         const el = this.messageRefs[i]
         const msg = this.messages[i]
@@ -128,6 +131,9 @@ export default {
         const markTop = topInScroll * scale
         const markHeight = Math.max(elRect.height * scale, 3)
 
+        // Check if current user has read this message
+        const hasSeen = msg.read_by && msg.read_by.includes(currentUsername)
+
         newMarks.push({
           id: msg.doc_id || msg.id || i,
           top: markTop,
@@ -137,6 +143,7 @@ export default {
           isHidden: msg.hide,
           hasDone: msg.done,
           hasTools: (msg.tool_events?.length || 0) > 0,
+          hasSeen: hasSeen,
           user: msg.user,
           scrollTop: topInScroll,
         })
@@ -152,19 +159,27 @@ export default {
       }
     },
     markClass(mark) {
-      if (mark.isHidden) return 'bg-warning'
-      if (mark.isAnswer) return 'bg-success'
-      if (mark.role === 'assistant') {
-        return mark.hasTools ? 'bg-warning' : 'bg-info'
+      function baseClass() {
+        if (mark.isHidden) return 'bg-warning'
+        if (mark.isAnswer) return 'bg-success'
+        if (mark.role === 'assistant') {
+          return mark.hasTools ? 'bg-warning' : 'bg-info'
+        }
+        // user message
+        return 'bg-primary'
       }
-      // user message
-      return 'bg-primary'
+      return [
+        baseClass(),
+        'border-l-6',
+        mark.hasSeen ? 'border-success' : 'border-error'
+      ].join(" ")
     },
     markTitle(mark, ix) {
       const role = mark.role === 'assistant' ? '🤖 Assistant' : `👤 ${mark.user || 'User'}`
       const status = mark.isHidden ? ' [archived]' : ''
       const tools = mark.hasTools ? ' [has tools]' : ''
-      return `#${ix + 1} ${role}${tools}${status}`
+      const readStatus = mark.role === 'assistant' ? (mark.hasSeen ? ' [seen]' : ' [unseen]') : ''
+      return `#${ix + 1} ${role}${tools}${status}${readStatus}`
     },
     scrollToMark(mark) {
       const container = this.scrollContainer
