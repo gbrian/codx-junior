@@ -114,17 +114,37 @@ def to_openai_messages(
 
 
 class ToolCallAccumulator:
-    """Accumulates and manages tool calls from streamed chunks."""
+    """Accumulates and manages tool calls from streamed chunks.
+
+    OpenAI streams tool calls across multiple chunks. The protocol is:
+    - First chunk for a tool call: contains ``id``, ``type``, and possibly
+      an empty ``function.arguments`` string.
+    - Subsequent chunks: ``id`` is ``None``; ``index`` identifies which tool
+      call the chunk belongs to; ``function.arguments`` contains the next
+      fragment of the JSON arguments string.
+
+    The accumulator uses ``index`` as the primary correlation key and maps it
+    to the ``call_id`` seen on the first chunk, so argument fragments arriving
+    on ``id=None`` chunks are correctly appended to the right tool call.
+    """
 
     def __init__(self) -> None:
-        """Initialize the accumulator with empty tool calls dict."""
+        """Initialize the accumulator with empty state."""
+        # Primary store: call_id → accumulated tool call dict
         self.tool_calls: Dict[str, Dict[str, Any]] = {}
+        # Secondary index: chunk index → call_id (for id=None argument chunks)
+        self._index_to_call_id: Dict[int, str] = {}
 
     def add(self, deltas: List) -> None:
         """
         Accumulate tool call deltas from streaming chunks.
-        
+
         Handles both dict and Pydantic model formats by converting to dict.
+
+        KEY FIX: OpenAI only sets ``id`` on the FIRST chunk of each tool call.
+        All subsequent chunks carrying ``function.arguments`` fragments have
+        ``id=None``. The ``index`` field is always present and stable, so we
+        use it to map back to the original ``call_id``.
         """
         if not deltas:
             return
@@ -132,48 +152,64 @@ class ToolCallAccumulator:
         for delta in deltas:
             # Convert Pydantic model to dict if needed
             if hasattr(delta, 'model_dump'):
-                # Pydantic v2
-                delta_dict = delta.model_dump(exclude_unset=True)
+                # Pydantic v2 — exclude_none=False so that explicit None id
+                # fields are preserved and we can detect "no id on this chunk"
+                delta_dict = delta.model_dump()
             elif hasattr(delta, 'dict'):
                 # Pydantic v1
-                delta_dict = delta.dict(exclude_unset=True)
+                delta_dict = delta.dict()
             elif isinstance(delta, dict):
                 delta_dict = delta
             else:
                 # Fallback: try to extract as dict
                 delta_dict = {
+                    'index': getattr(delta, 'index', 0),
                     'id': getattr(delta, 'id', None),
                     'type': getattr(delta, 'type', 'function'),
                     'function': getattr(delta, 'function', None),
                 }
-            
-            call_id = delta_dict.get("id")
-            call_type = delta_dict.get("type", "function")
+
+            chunk_index: int = delta_dict.get("index", 0)
+            call_id: Optional[str] = delta_dict.get("id")  # None on non-first chunks
+            call_type: str = delta_dict.get("type") or "function"
             func_info = delta_dict.get("function")
-            
-            if not call_id:
-                continue
-            
-            if call_id not in self.tool_calls:
-                self.tool_calls[call_id] = {
-                    "id": call_id,
-                    "type": call_type,
-                    "function": "",
-                    "arguments": ""
-                }
-            
+
+            if call_id:
+                # First chunk for this tool call: register the index → call_id mapping
+                # and initialise the accumulator entry.
+                self._index_to_call_id[chunk_index] = call_id
+                if call_id not in self.tool_calls:
+                    self.tool_calls[call_id] = {
+                        "id": call_id,
+                        "type": call_type,
+                        "function": "",
+                        "arguments": "",
+                    }
+            else:
+                # Subsequent chunk: resolve call_id via index
+                call_id = self._index_to_call_id.get(chunk_index)
+                if not call_id:
+                    logger.warning(
+                        "ToolCallAccumulator: received chunk with index=%d but no "
+                        "matching call_id registered — dropping chunk",
+                        chunk_index,
+                    )
+                    continue
+
             if func_info:
                 if isinstance(func_info, dict):
-                    if "name" in func_info:
+                    if func_info.get("name"):
                         self.tool_calls[call_id]["function"] += func_info["name"]
-                    if "arguments" in func_info:
+                    if func_info.get("arguments") is not None:
                         self.tool_calls[call_id]["arguments"] += func_info["arguments"]
                 else:
-                    # Handle as object
-                    if hasattr(func_info, 'name') and func_info.name:
-                        self.tool_calls[call_id]["function"] += func_info.name
-                    if hasattr(func_info, 'arguments') and func_info.arguments:
-                        self.tool_calls[call_id]["arguments"] += func_info.arguments
+                    # Handle as object (Pydantic not fully converted)
+                    func_name = getattr(func_info, 'name', None)
+                    func_args = getattr(func_info, 'arguments', None)
+                    if func_name:
+                        self.tool_calls[call_id]["function"] += func_name
+                    if func_args is not None:
+                        self.tool_calls[call_id]["arguments"] += func_args
 
     def get_tool_calls(self) -> Dict[str, Dict[str, Any]]:
         """

@@ -531,7 +531,7 @@ class SmolAgent:
             for tool_id, tool_call in tool_calls.items():
                 func_name = tool_call["function"]
                 params = self._parse_tool_arguments(
-                    tool_call.get("arguments", "{}"), func_name
+                    tool_call.get("arguments"), func_name
                 )
                 cached_result = tool_cache.get(func_name, params)
 
@@ -1053,7 +1053,7 @@ class SmolAgent:
             except OSError as ex:
                 logger.warning("SmolAgent: failed to archive message: %s", ex)
 
-        return content, accumulator.tool_calls, usage_info
+        return content, accumulator.get_tool_calls(), usage_info
 
     # ── Tool execution ─────────────────────────────────────────────────────────
 
@@ -1124,7 +1124,7 @@ class SmolAgent:
 
         func_name: str = tool_call["function"]
         tool_call_id: Optional[str] = tool_call.get("id")
-        params = self._parse_tool_arguments(tool_call.get("arguments", "{}"), func_name)
+        params = self._parse_tool_arguments(tool_call.get("arguments"), func_name)
         tool = next(
             (t for t in self.tools if t["tool_json"]["function"]["name"] == func_name),
             None,
@@ -1289,22 +1289,75 @@ class SmolAgent:
         """
         Parse tool arguments that may arrive as a JSON string or a dict.
 
+        Handles all edge cases from streaming delta accumulation:
+        - ``dict``   → returned as-is (already parsed)
+        - ``str``    → JSON-decoded; empty string treated as ``{}``
+        - ``None``   → treated as ``{}`` (key present but value is None)
+        - anything else → logged and treated as ``{}``
+
         Args:
-            raw_arguments: The raw arguments payload.
+            raw_arguments: The raw arguments payload (may be None from streaming).
             func_name:     Tool name (for logging).
 
         Returns:
-            A dict of parsed arguments (empty on parse failure).
+            A dict of parsed arguments (empty on parse failure or missing args).
         """
+        # Already a dict — return as-is
         if isinstance(raw_arguments, dict):
             return raw_arguments
+
+        # None means the streaming accumulator never received an arguments chunk
+        if raw_arguments is None:
+            logger.warning(
+                "SmolAgent: tool '%s' received None arguments – treating as {}",
+                func_name,
+            )
+            return {}
+
         if isinstance(raw_arguments, str):
+            # Empty or whitespace-only string: no arguments provided
+            stripped = raw_arguments.strip()
+            if not stripped:
+                logger.warning(
+                    "SmolAgent: tool '%s' received empty arguments string – treating as {}",
+                    func_name,
+                )
+                return {}
             try:
-                return json.loads(raw_arguments)
+                parsed = json.loads(stripped)
+                if not isinstance(parsed, dict):
+                    logger.error(
+                        "SmolAgent: tool '%s' arguments parsed to non-dict type %s "
+                        "(raw=%r) – treating as {}",
+                        func_name,
+                        type(parsed).__name__,
+                        stripped[:200],
+                    )
+                    return {}
+                logger.debug(
+                    "SmolAgent: tool '%s' arguments parsed successfully: keys=%s",
+                    func_name,
+                    list(parsed.keys()),
+                )
+                return parsed
             except json.JSONDecodeError as ex:
                 logger.error(
-                    "SmolAgent: cannot parse arguments for tool '%s': %s", func_name, ex
+                    "SmolAgent: cannot parse arguments for tool '%s': %s "
+                    "(raw=%r)",
+                    func_name,
+                    ex,
+                    stripped[:200],
                 )
+                return {}
+
+        # Unexpected type — log and return empty
+        logger.error(
+            "SmolAgent: tool '%s' received unexpected arguments type %s "
+            "(value=%r) – treating as {}",
+            func_name,
+            type(raw_arguments).__name__,
+            str(raw_arguments)[:200],
+        )
         return {}
 
     @staticmethod
