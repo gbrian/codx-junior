@@ -499,14 +499,16 @@ export const actions = actionTree(
       $storex.chats.setActiveChatId(id)
 
       // Push route to chat view
-      const chatName = name || `chat-${id}`
-      $storex.$router.push({
-        name: 'chat',
-        params: {
-          id,
-          name: chatName
-        }
-      })
+      if (!$storex.ui.isDesktopMode) {
+        const chatName = name || `chat-${id}`
+        $storex.$router.push({
+          name: 'chat',
+          params: {
+            id,
+            name: chatName
+          }
+        })
+      }
 
       if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
         $storex.ui.openChat($storex.chats.activeChat)

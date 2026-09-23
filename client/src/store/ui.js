@@ -66,7 +66,7 @@ export const getters = getterTree(state, {
   activeApps: () => Object.values($storex.ui.openApps),
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
-  isDektopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
+  isDesktopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
 })
 
 export const mutations = mutationTree(state, {
@@ -285,7 +285,7 @@ export const mutations = mutationTree(state, {
     state.appShowMode = mode
   },
   openChat(_, chat) {
-    if (!$storex.chats.isDektopMode) {
+    if (!$storex.ui.isDesktopMode) {
       $storex.$router.push({
         name: 'chat',
         params: {

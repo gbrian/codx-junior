@@ -685,17 +685,20 @@ class ChatEngine:
         """
         Convert binary files to OpenAI vision API format.
 
-        Supports both file paths and inline base64 data URIs.
-        Infers MIME type from file extension.
+        Supports image files only. Image files are converted to base64-encoded
+        data URIs in the image_url format supported by OpenAI's vision API.
+
+        PDF support is not included as OpenAI's API does not accept PDFs in the
+        image_url or file format via data URIs.
 
         Format returned matches OpenAI Chat Completions API vision support:
         https://platform.openai.com/docs/guides/vision
 
-        CHANGED: Simplified to only handle binary files from chat_files.
-        No longer processes message attachments (they change between interactions).
+        CHANGED: Simplified to only handle image files. PDFs are skipped with
+        a debug log. No longer processes message attachments.
 
         :param binary_files: List of {'path', 'full_path'} dicts from chat files.
-        :return: List of content blocks (image_url or file types).
+        :return: List of content blocks (image_url type only).
         """
         vision_content = []
 
@@ -703,33 +706,30 @@ class ChatEngine:
             full_path = binary_file["full_path"]
             mime_type = ChatEngine._get_mime_type_for_file(full_path)
             
+            # Only process image files; skip PDFs and unsupported types
+            if not mime_type.startswith("image/"):
+                logger.debug(
+                    "Skipping non-image file for vision API: %s (mime_type=%s)",
+                    full_path, mime_type
+                )
+                continue
+            
             try:
                 with open(full_path, "rb") as f:
                     file_bytes = f.read()
                 base64_data = base64.b64encode(file_bytes).decode("utf-8")
                 
-                # Format as data URI (supported by most vision models)
+                # Format as data URI (supported by vision models)
                 data_uri = f"data:{mime_type};base64,{base64_data}"
                 
-                if mime_type.startswith("image/"):
-                    vision_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": data_uri}
-                    })
-                elif mime_type == "application/pdf":
-                    # GPT-4o supports PDF via file type
-                    vision_content.append({
-                        "type": "file",
-                        "file": {
-                            "filename": os.path.basename(full_path),
-                            "file_data": data_uri
-                        }
-                    })
-                else:
-                    logger.debug(
-                        "Skipping binary file (unsupported MIME type): %s -> %s",
-                        full_path, mime_type
-                    )
+                vision_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": data_uri}
+                })
+                logger.info(
+                    "Added image file to vision content: %s",
+                    full_path
+                )
             except OSError as ex:
                 logger.warning("Failed to read binary file %s: %s", full_path, ex)
 
@@ -911,6 +911,38 @@ class ChatEngine:
         :param iterations_left: Remaining agent iterations.
         :return: Mutated messages list ready for AI invocation.
         """
+        def _get_msg_content(msg) -> str:
+            """Safely extract content string from a LangChain message or dict."""
+            if isinstance(msg, dict):
+                raw = msg.get("content", "")
+                # content may be a JSON-encoded list (image message)
+                if isinstance(raw, list):
+                    # Extract text parts only
+                    return " ".join(
+                        part.get("text", "") for part in raw
+                        if isinstance(part, dict) and part.get("type") == "text"
+                    )
+                return str(raw) if raw else ""
+            return str(msg.content) if hasattr(msg, "content") else str(msg)
+
+        def _set_msg_content(msg, value: str) -> None:
+            """Safely set content on a LangChain message or dict."""
+            if isinstance(msg, dict):
+                # Preserve existing list structure (image + text blocks)
+                existing = msg.get("content", "")
+                if isinstance(existing, list):
+                    # Update the text block in the list
+                    for part in existing:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            part["text"] = value
+                            return
+                    # No text block found — prepend one
+                    existing.insert(0, {"type": "text", "text": value})
+                else:
+                    msg["content"] = value
+            else:
+                msg.content = value
+
         if context:
             messages.append(
                 self.convert_message(
@@ -939,12 +971,15 @@ class ChatEngine:
             messages.append(self.convert_message(user_message))
 
         if chat_files_content:
-            messages[-1].content = (
+            last_msg = messages[-1]
+            current_content = _get_msg_content(last_msg)
+            new_content = (
                 f"\n## Working Files:\n"
                 f"{chat_files_content}\n"
                 f"\n## User request\n"
-                f"{messages[-1].content}"
+                f"{current_content}"
             )
+            _set_msg_content(last_msg, new_content)
 
         return messages
 
@@ -2702,8 +2737,13 @@ class ChatEngine:
 
         Handles text-only messages, image messages, and role-based conversion.
 
+        FIXED: Always returns a proper LangChain message type (HumanMessage or
+        AIMessage), never a bare dict. This ensures consistent role-based filtering
+        in message history building and prevents type confusion that can cause
+        repeated tool calls when attachments are present.
+
         :param message: The Message object to convert.
-        :return: A LangChain HumanMessage, AIMessage, or image dict.
+        :return: A LangChain HumanMessage or AIMessage (never a dict).
         """
         def parse_image(image) -> dict:
             """
@@ -2728,26 +2768,31 @@ class ChatEngine:
             # Fallback for other types
             return {"src": str(image), "alt": ""}
 
+        # FIXED: Build proper LangChain content structure
         if message.attachments:
             images = [parse_image(image) for image in message.attachments]
-            text_content = {
-                "type": "text",
-                "text": message.content
-            }
-            content = [text_content] + [
+            content = [
+                {
+                    "type": "text",
+                    "text": message.content
+                }
+            ] + [
                 {
                     "type": "image_url",
                     "image_url": {"url": image["src"]}
                 }
                 for image in images
             ]
-            msg = {"type": "image", "content": json.dumps(content)}
+            # FIXED: Return proper LangChain message type, not bare dict
+            # This preserves role-based filtering in message history
+            if message.role == "user":
+                return HumanMessage(content=content)
+            else:
+                return AIMessage(content=content)
         elif message.role == "user":
-            msg = HumanMessage(content=message.content)
+            return HumanMessage(content=message.content)
         else:
-            msg = AIMessage(content=message.content)
-
-        return msg
+            return AIMessage(content=message.content)
 
     def get_all_search_projects(self) -> List[CODXJuniorSettings]:
         """

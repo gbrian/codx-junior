@@ -5,7 +5,6 @@ import QuickChatView from '@/views/QuickChatView.vue'
 import MessengerView from '@/views/MessengerView.vue'
 import HomeMobile from '@/views/HomeMobile.vue'
 import TeamView from '@/views/TeamView.vue'
-import AppHomeView from '@/views/AppHomeView.vue'
 import KanbanView from '@/views/KanbanView.vue'
 
 const router = createRouter({
@@ -15,7 +14,7 @@ const router = createRouter({
       // Teams-like launcher home page
       path: '/',
       name: 'home',
-      component: AppHomeView
+      component: QuickChatView
     },
     {
       path: '/quick-chat',

@@ -139,7 +139,7 @@ class ProfileManager:
             if os.path.isfile(markdown_content_path):
                 with open(markdown_content_path, 'r') as f:
                     profile.content = f.read()
-                logger.info(f"Loaded profile content from: {markdown_content_path}")
+                # logger.info(f"Loaded profile content from: {markdown_content_path}")
             
             if not profile.avatar:
                 profile.avatar = f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={profile.name}"

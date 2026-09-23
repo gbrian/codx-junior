@@ -144,11 +144,17 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
     or missing content causes it to re-issue the exact same tool call,
     producing an infinite loop that only terminates via LoopGuard.
 
+    ENHANCED: Now handles more edge cases where tools might return falsy values:
+    - Empty lists/dicts
+    - Zero (which is falsy but valid)
+    - False boolean (which is falsy but valid)
+
     Conversion rules (in priority order):
-        1. ``None``        → sentinel ``_TOOL_NO_OUTPUT``
-        2. ``str``         → returned as-is (empty str → sentinel)
-        3. ``dict``/``list`` → JSON-serialised for readability
-        4. Anything else   → ``str()`` fallback
+        1. ``None``             → sentinel ``_TOOL_NO_OUTPUT``
+        2. ``str``              → returned as-is (empty str → sentinel)
+        3. ``dict``/``list``    → JSON-serialised for readability
+        4. ``0`` or ``False``   → serialised as string (not sentinel!)
+        5. Anything else        → ``str()`` fallback
 
     Args:
         result:    Raw value returned by the tool callable.
@@ -157,6 +163,7 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
     Returns:
         A non-empty string representation of the result.
     """
+    # Handle None explicitly (common case)
     if result is None:
         logger.debug(
             "SmolAgent: tool '%s' returned None – using sentinel '%s'",
@@ -165,6 +172,7 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
         )
         return _TOOL_NO_OUTPUT
 
+    # Handle strings (including empty)
     if isinstance(result, str):
         if not result.strip():
             logger.debug(
@@ -174,10 +182,44 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
             return _TOOL_NO_OUTPUT
         return result
 
+    # Handle empty lists/dicts (valid return values, not "no output")
+    if isinstance(result, (list, dict)):
+        if not result:  # Empty list or dict
+            logger.debug(
+                "SmolAgent: tool '%s' returned empty %s – serialising as JSON",
+                func_name,
+                type(result).__name__,
+            )
+            return json.dumps(result, ensure_ascii=False)
+        try:
+            return json.dumps(result, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return str(result)
+
+    # Handle falsy but valid values (0, False, etc.)
+    # These SHOULD be serialised, not replaced with sentinel
+    if result == 0 or result is False:
+        logger.debug(
+            "SmolAgent: tool '%s' returned %r (falsy but valid)",
+            func_name,
+            result,
+        )
+        return str(result)
+
+    # Fallback: serialize any other type
     try:
         return json.dumps(result, ensure_ascii=False)
     except (TypeError, ValueError):
-        return str(result)
+        serialized = str(result)
+        # Guard against empty string from str() fallback
+        if not serialized.strip():
+            logger.warning(
+                "SmolAgent: tool '%s' returned %r which str() converted to empty string",
+                func_name,
+                result,
+            )
+            return _TOOL_NO_OUTPUT
+        return serialized
 
 
 class SmolAgent:
@@ -667,6 +709,28 @@ class SmolAgent:
                     len(openai_messages),
                 )
 
+            # FIX 1: INCREMENT LOOP GUARD AFTER PROCESSING ALL TOOLS
+            # This is CRITICAL for preventing infinite loops when:
+            # 1. All tool calls are cached (normally bypass loop guard checks)
+            # 2. Model requests same tool repeatedly with identical args
+            # 3. Vision content or attachments trigger repeated tool calls
+            #
+            # Incrementing here ensures:
+            # - loop_guard.rounds increases every iteration (even all-cached)
+            # - Stuck loop detection works for cached tool repetition
+            # - max_iterations limit is enforced regardless of cache hits
+            if tool_calls:
+                loop_guard.rounds += 1
+                logger.info(
+                    "SmolAgent: round %d complete (cached=%d, uncached=%d, "
+                    "iterations_left=%d/%d)",
+                    loop_guard.rounds,
+                    cached_count,
+                    len(uncached_calls),
+                    loop_guard.max_iterations - loop_guard.rounds if loop_guard.max_iterations else "unlimited",
+                    loop_guard.max_iterations if loop_guard.max_iterations else "unlimited",
+                )
+
         duration_seconds = time.monotonic() - request_start
         self._record_usage(
             openai_messages=openai_messages,
@@ -744,6 +808,69 @@ class SmolAgent:
 
     # ── Streaming ──────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _validate_vision_content(
+        vision_content: List[Dict[str, Any]]
+    ) -> bool:
+        """
+        Validate that vision content blocks are in valid OpenAI format.
+
+        Each block must be JSON-serializable and have a valid structure:
+        - image_url blocks must have image_url with url
+        - Other types must have type and appropriate fields
+
+        Args:
+            vision_content: List of vision content blocks to validate.
+
+        Returns:
+            True if all blocks are valid, False otherwise.
+        """
+        if not vision_content:
+            return True
+
+        for i, block in enumerate(vision_content):
+            if not isinstance(block, dict):
+                logger.error(
+                    "SmolAgent: vision block %d is not a dict: %s",
+                    i, type(block)
+                )
+                return False
+
+            block_type = block.get("type", "")
+            
+            if block_type == "image_url":
+                image_url = block.get("image_url", {})
+                if not isinstance(image_url, dict) or "url" not in image_url:
+                    logger.error(
+                        "SmolAgent: vision block %d (type='image_url') missing image_url.url",
+                        i
+                    )
+                    return False
+            elif block_type == "text":
+                if "text" not in block:
+                    logger.error(
+                        "SmolAgent: vision block %d (type='text') missing text field",
+                        i
+                    )
+                    return False
+            else:
+                logger.warning(
+                    "SmolAgent: vision block %d has unsupported type '%s'",
+                    i, block_type
+                )
+
+            # Ensure the block is JSON-serializable
+            try:
+                json.dumps(block)
+            except (TypeError, ValueError) as ex:
+                logger.error(
+                    "SmolAgent: vision block %d is not JSON-serializable: %s",
+                    i, ex
+                )
+                return False
+
+        return True
+
     async def _stream_completion(
         self,
         kwargs: Dict[str, Any],
@@ -789,7 +916,15 @@ class SmolAgent:
         Raises:
             AgentCancelled: If cancellation is requested mid-stream.
         """
-        # ADDED: Merge vision content into the last user message if provided
+        # ADDED: Validate vision content before merging
+        if vision_content:
+            if not self._validate_vision_content(vision_content):
+                logger.error(
+                    "SmolAgent: invalid vision content structure detected, skipping"
+                )
+                vision_content = None
+
+        # ADDED: Merge vision content into the last user message if provided and valid
         if vision_content and openai_messages:
             # Find the last user message (iterate backwards)
             for msg in reversed(openai_messages):
@@ -804,10 +939,26 @@ class SmolAgent:
                     elif isinstance(current_content, list):
                         # Append vision content to existing list
                         msg["content"].extend(vision_content)
-                    logger.info(
-                        "Added %d vision content block(s) to user message",
-                        len(vision_content)
-                    )
+                    
+                    # Validate the merged message is JSON-serializable
+                    try:
+                        json.dumps(msg)
+                        logger.info(
+                            "Added %d vision content block(s) to user message",
+                            len(vision_content)
+                        )
+                    except (TypeError, ValueError) as ex:
+                        logger.error(
+                            "SmolAgent: merged message not JSON-serializable: %s, "
+                            "reverting vision content",
+                            ex
+                        )
+                        # Revert to original content
+                        if isinstance(current_content, str):
+                            msg["content"] = current_content
+                        else:
+                            # Remove the vision content we just added
+                            msg["content"] = msg["content"][:-len(vision_content)]
                     break
 
         run_context.emit(
