@@ -11,258 +11,320 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
 
 <template>
   <div class="kanban h-full relative" v-if="kanban">
+
+    <!-- Background image -->
     <div class="absolute top-0 left-0 right-0 bottom-0 bg-cover opacity-20 rounded-lg z-0"
       :style="{ backgroundImage: `url(${activeKanbanBoard?.background}` }"
       v-if="activeKanbanBoard?.background"
     />
-    <div class="absolute bottom-0 left-0 right-0 z-20 text-xs @xl:text-md" v-if="loadingChats">
-      Loading...
+
+    <!-- Loading bar -->
+    <div class="absolute bottom-0 left-0 right-0 z-20 text-xs" v-if="loadingChats">
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>
 
-    <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
-      <!-- Activity panel -->
-      <div class="h-full overflow-auto relative" v-if="showActivity">
-        <div class="flex gap-2 sticky top-0 bg-base-300 z-10 p-2 rounded-md">
-          <button class="btn btn-warning btn-sm" @click="showActivity = false">
-            <i class="fa-solid fa-clock-rotate-left"></i>
+    <!-- ── Activity panel (full-screen slide-in drawer) ── -->
+    <transition name="slide-up">
+      <div class="absolute inset-0 z-30 flex flex-col bg-base-100" v-if="showActivity">
+        <div class="flex gap-2 items-center shrink-0 bg-base-300 z-10 p-2 border-b border-base-200">
+          <button class="btn btn-sm btn-ghost" @click="showActivity = false">
+            <i class="fa-solid fa-arrow-left"></i>
           </button>
-          <div class="text-2xl">
-            Recent activity <span v-if="project">: {{ project.project_name }}</span>
+          <div class="text-lg font-semibold truncate">
+            Activity<span v-if="project" class="text-base-content/50 font-normal"> · {{ project.project_name }}</span>
           </div>
         </div>
-        <ChatHistory :projects="historyProjects" />
+        <div class="flex-1 min-h-0 overflow-auto">
+          <ChatHistory :projects="historyProjects" />
+        </div>
       </div>
+    </transition>
 
-      <!-- Main kanban layout -->
-      <div class="flex flex-col h-full p-2" v-if="!showActivity">
-        <!-- Top toolbar - Mobile Responsive -->
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center w-full">
-          
-          <!-- Left section: Board navigation & title -->
-          <div class="flex gap-2 items-center min-w-0 flex-shrink-0">
-            <!-- Back button -->
-            <div class="flex gap-2 items-center" @click="$projects.setActiveBoard()">
-              <button class="btn btn-ghost btn-sm md:btn-md">
-                <i class="fa-solid fa-circle-arrow-left text-lg"></i>
-              </button>
-            </div>
-            
-            <!-- Breadcrumb: Parent board (hidden on mobile) -->
-            <div class="hidden sm:flex gap-1 items-center text-sm truncate">
-              <div @click.stop="selectBoard(parentBoard?.title)" 
-                v-if="parentBoard?.title"
-                class="cursor-pointer hover:text-primary truncate">
-                {{ parentBoard?.title }} /
-              </div>
-            </div>
-            
-            <!-- Board title with bookmark (responsive text) -->
-            <div class="flex gap-1 items-center text-xs sm:text-sm md:text-xl truncate flex-1 sm:flex-none">
-              <i
-                class="fa-solid fa-bookmark flex-shrink-0 text-base cursor-pointer"
-                :class="{ 'text-warning': activeKanbanBoard?.bookmark }"
-                @click="toggleBookmark"
-              ></i>
-              <span class="truncate">{{ board }}</span>
-            </div>
+    <!-- ── Main kanban layout ── -->
+    <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1 flex flex-col"
+      :class="isMobile ? 'pb-14' : ''">
+
+      <!-- ── Top toolbar ── -->
+      <div class="flex items-center gap-2 px-2 pt-2 pb-1 shrink-0 min-w-0">
+
+        <!-- Back button -->
+        <button class="btn btn-ghost btn-sm shrink-0" @click="$projects.setActiveBoard()">
+          <i class="fa-solid fa-circle-arrow-left text-lg"></i>
+        </button>
+
+        <!-- Board title + breadcrumb -->
+        <div class="flex flex-col min-w-0 flex-1">
+          <div v-if="parentBoard?.title" class="hidden sm:block text-xs text-base-content/50 truncate leading-none mb-0.5">
+            {{ parentBoard.title }} /
           </div>
-
-          <!-- Center/Right section: Controls (responsive stacking) -->
-          <div class="flex gap-2 items-center w-full sm:w-auto sm:ml-auto justify-between sm:justify-end flex-wrap">
-            
-            <!-- Search input - Responsive visibility -->
-            <div class="grow sm:grow-0 input input-sm input-bordered flex items-center gap-2 tooltip tooltip-bottom min-w-0"
-              data-tip="Find in tasks"
-            >
-              <input 
-                type="text" 
-                :class="{ hidden: !searchVisible }" 
-                v-model="filter" 
-                class="grow" 
-                placeholder="Search..." 
-              />
-              <span class="cursor-pointer flex-shrink-0" v-if="filter" @click.stop="[filter = '', searchVisible = false]">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </span>
-              <span v-else class="flex-shrink-0">
-                <i class="fa-solid fa-filter cursor-pointer" @click="searchVisible = !searchVisible"></i>
-              </span>
-            </div>
-
-            <!-- View toggle: Board / Files (visible on all sizes) -->
-            <div class="join tooltip tooltip-bottom" data-tip="Switch view">
-              <button
-                class="btn btn-sm join-item"
-                :class="activeView === 'board' && 'btn-active'"
-                @click="activeView = 'board'"
-              >
-                <i class="fa-solid fa-table-columns text-base"></i>
-                <span class="hidden sm:inline text-xs">Board</span>
-              </button>
-              <button
-                class="btn btn-sm join-item"
-                :class="activeView === 'files' && 'btn-active'"
-                @click="activeView = 'files'"
-              >
-                <i class="fa-solid fa-file-code text-base"></i>
-                <span class="hidden sm:inline text-xs">Files</span>
-              </button>
-            </div>
-
-            <!-- Secondary controls dropdown (mobile-optimized) -->
-            <div class="dropdown dropdown-left">
-              <button class="btn btn-sm md:btn-md tooltip tooltip-bottom" data-tip="More options">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-              </button>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
-                <!-- Show child boards toggle -->
-                <li class="text-xs sm:text-sm">
-                  <a @click="showChildrenBoards = !showChildrenBoards"
-                    :class="{ 'text-warning': showChildrenBoards }">
-                    <i class="fa-brands fa-trello"></i>
-                    Child boards
-                  </a>
-                </li>
-                <!-- Show activity toggle -->
-                <li class="text-xs sm:text-sm">
-                  <a @click="showActivity = !showActivity">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    Activity
-                  </a>
-                </li>
-                <li class="divider my-1"></li>
-                <!-- Add column -->
-                <li class="text-xs sm:text-sm">
-                  <a @click="openAddColumnModal">
-                    <i class="fa-solid fa-plus"></i> Column
-                  </a>
-                </li>
-                <!-- Add board -->
-                <li class="text-xs sm:text-sm">
-                  <a @click="openNewBoardModal">
-                    <i class="fa-solid fa-plus"></i> Board
-                  </a>
-                </li>
-                <!-- Board settings -->
-                <li class="text-xs sm:text-sm">
-                  <a @click="openEditBoardModal">
-                    <i class="fas fa-cogs"></i> Settings
-                  </a>
-                </li>
-              </ul>
-            </div>
+          <div class="flex items-center gap-1.5 min-w-0">
+            <i
+              class="fa-solid fa-bookmark text-sm cursor-pointer shrink-0"
+              :class="activeKanbanBoard?.bookmark ? 'text-warning' : 'text-base-content/30'"
+              @click="toggleBookmark"
+            ></i>
+            <span class="font-semibold text-sm sm:text-base truncate">{{ board }}</span>
           </div>
         </div>
 
-        <!-- Child boards collapsible -->
-        <Collapsible
-          v-if="showChildrenBoards"
-          v-model="childBoardsOpen"
-          class="mt-2"
+        <!-- Search (desktop) -->
+        <div
+          class="hidden sm:flex input input-sm input-bordered items-center gap-2 tooltip tooltip-bottom"
+          data-tip="Find in tasks"
         >
-          <template #icon>
-            <i class="fa-brands fa-trello text-xs opacity-60"></i>
-          </template>
-          <template #title>
-            Child boards
-            <span class="badge badge-sm ml-1">{{ childBoards.length }}</span>
-          </template>
-          <div class="p-2 overflow-auto">
-            <KanbanList
-              :boards="childBoards"
-              :project="project"
-              @new-board="openNewBoardModal"
-              @toogle-history="showActivity = !showActivity"
-              @select="$emit('select-board', $event)"
-            />
-          </div>
-        </Collapsible>
-
-        <div class="mt-3 grow relative flex flex-col gap-2 min-h-0">
-          <!-- Board (grid) view -->
-          <KanbanGridView
-            v-if="activeView === 'board'"
-            class="min-h-[50vw]"
-            :columns="viewColumns"
-            :lastUpdatedTaskId="lastUpdatedTask.id"
-            @open-task="openChat"
-            @new-task="newTask"
-            @new-column="openAddColumnModal"
-            @edit-column="openEditColumnModal"
-            @move-task="onMoveTask"
+          <input
+            type="text"
+            :class="{ hidden: !searchVisible }"
+            v-model="filter"
+            class="grow"
+            placeholder="Search..."
           />
+          <span class="cursor-pointer" v-if="filter" @click.stop="[filter = '', searchVisible = false]">
+            <i class="fa-regular fa-circle-xmark text-sm"></i>
+          </span>
+          <i class="fa-solid fa-filter cursor-pointer text-sm" v-else @click="searchVisible = !searchVisible"></i>
+        </div>
 
-          <!-- Files view -->
-          <KanbanFilesView
-            v-if="activeView === 'files'"
-            class="h-full bg-base-300/70"
-            :columns="viewColumns"
-            @open-task="openChat"
-          />
+        <!-- View toggle (desktop) -->
+        <div class="hidden sm:flex join tooltip tooltip-bottom" data-tip="Switch view">
+          <button
+            class="btn btn-sm join-item"
+            :class="activeView === 'board' && 'btn-active'"
+            @click="activeView = 'board'"
+          >
+            <i class="fa-solid fa-table-columns"></i>
+            <span class="hidden md:inline text-xs ml-1">Board</span>
+          </button>
+          <button
+            class="btn btn-sm join-item"
+            :class="activeView === 'files' && 'btn-active'"
+            @click="activeView = 'files'"
+          >
+            <i class="fa-solid fa-file-code"></i>
+            <span class="hidden md:inline text-xs ml-1">Files</span>
+          </button>
+        </div>
+
+        <!-- More options dropdown (desktop) -->
+        <div class="hidden sm:block dropdown dropdown-left">
+          <button class="btn btn-sm tooltip tooltip-bottom" data-tip="More options">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
+            <li>
+              <a @click="showChildrenBoards = !showChildrenBoards"
+                :class="{ 'text-warning': showChildrenBoards }">
+                <i class="fa-brands fa-trello"></i> Child boards
+              </a>
+            </li>
+            <li>
+              <a @click="showActivity = !showActivity">
+                <i class="fa-solid fa-clock-rotate-left"></i> Activity
+              </a>
+            </li>
+            <li class="divider my-1"></li>
+            <li><a @click="openAddColumnModal"><i class="fa-solid fa-plus"></i> Column</a></li>
+            <li><a @click="openNewBoardModal"><i class="fa-solid fa-plus"></i> Board</a></li>
+            <li><a @click="openEditBoardModal"><i class="fas fa-cogs"></i> Settings</a></li>
+          </ul>
         </div>
       </div>
 
-      <!-- Board modal (new/edit/delete) -->
-      <modal close="true" @close="showBoardModal = false" v-if="showBoardModal">
-        <KanbanBoardModal 
-          :board="editingBoard"
-          :boards="parentBoardOptions"
-          :currentBoardId="board"
-          :project="project"
-          @save="onBoardSave"
-          @delete="onBoardDelete"
-          @cancel="showBoardModal = false"
-        />
-      </modal>
+      <!-- Child boards collapsible -->
+      <Collapsible
+        v-if="showChildrenBoards"
+        v-model="childBoardsOpen"
+        class="mx-2 mt-1"
+      >
+        <template #icon>
+          <i class="fa-brands fa-trello text-xs opacity-60"></i>
+        </template>
+        <template #title>
+          Child boards
+          <span class="badge badge-sm ml-1">{{ childBoards.length }}</span>
+        </template>
+        <div class="p-2 overflow-auto">
+          <KanbanList
+            :boards="childBoards"
+            :project="project"
+            @new-board="openNewBoardModal"
+            @toogle-history="showActivity = !showActivity"
+            @select="$emit('select-board', $event)"
+          />
+        </div>
+      </Collapsible>
 
-      <!-- Add/Edit Column modal -->
-      <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
-        <h2 class="font-bold text-lg">{{ selectedColumn ? 'Edit Column' : 'Add Column' }}</h2>
-        <div class="flex gap-1 items-center">
-          <input type="text" v-model="columnTitle" placeholder="Enter column name" class="grow input input-bordered w-full" />
-        </div>
-        <ProjectDetailt
-          v-model="columnProject"
-          :options="{ showFolders: false, showIcon: true, showSelector: true }"
+      <!-- ── Board / Files views ── -->
+      <div class="grow relative flex flex-col gap-2 min-h-0 px-2 pt-1">
+        <KanbanGridView
+          v-if="activeView === 'board'"
+          class="h-full"
+          :columns="viewColumns"
+          :lastUpdatedTaskId="lastUpdatedTask.id"
+          @open-task="openChat"
+          @new-task="newTask"
+          @new-column="openAddColumnModal"
+          @edit-column="openEditColumnModal"
+          @move-task="onMoveTask"
         />
-        <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-        <div class="modal-action flex flex-col">
-          <div class="flex gap-2 w-full">
-            <button class="btn btn-error" @click="deleteColumn" v-if="selectedColumn">
-              <span v-if="confirmDeleteColumn">Confirm delete?</span>
-              <span v-else>Delete</span>
-            </button>
-            <div class="grow"></div>
-            <button class="btn" @click="addOrUpdateColumn">Save</button>
-          </div>
-          <div class="text-error text-xs p-2" v-if="confirmDeleteColumn">
-            Are you sure you want to delete this column? All tasks will be removed.
-          </div>
-        </div>
-        <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
-      </modal>
-
-      <!-- Import Task modal -->
-      <modal v-if="showImportModalForColumn">
-        <h2 class="font-bold text-lg">Import Task</h2>
-        <div class="form-control">
-          <label class="label cursor-pointer">
-            <span class="label-text">Import from clipboard</span>
-            <input type="radio" name="importOptions" value="clipboard" v-model="importOption" class="radio" />
-          </label>
-          <label class="label cursor-pointer">
-            <span class="label-text">Import from URL</span>
-            <input type="radio" name="importOptions" value="url" v-model="importOption" class="radio" />
-          </label>
-          <input v-if="importOption === 'url'" type="text" v-model="importUrl" placeholder="Paste URL here" class="input input-bordered w-full mt-2" />
-        </div>
-        <div class="modal-action">
-          <button class="btn" @click="confirmImportTask">Import</button>
-          <button class="btn" @click="showImportModalForColumn = null">Cancel</button>
-        </div>
-      </modal>
+        <KanbanFilesView
+          v-if="activeView === 'files'"
+          class="h-full bg-base-300/70"
+          :columns="viewColumns"
+          @open-task="openChat"
+        />
+      </div>
     </div>
+
+    <!-- ── Mobile bottom navigation bar ── -->
+    <transition name="slide-up-bar">
+      <div
+        v-if="isMobile"
+        class="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-around gap-1 px-2 py-1 bg-base-200/95 backdrop-blur border-t border-base-300 safe-area-bottom"
+      >
+        <!-- Search toggle -->
+        <button
+          class="btn btn-ghost btn-sm flex-1 flex flex-col items-center gap-0 h-auto py-1"
+          :class="searchVisible ? 'text-primary' : ''"
+          @click="searchVisible = !searchVisible"
+        >
+          <i class="fa-solid fa-filter text-base"></i>
+          <span class="text-xs leading-none">Filter</span>
+        </button>
+
+        <!-- Board view -->
+        <button
+          class="btn btn-ghost btn-sm flex-1 flex flex-col items-center gap-0 h-auto py-1"
+          :class="activeView === 'board' ? 'text-primary' : ''"
+          @click="activeView = 'board'"
+        >
+          <i class="fa-solid fa-table-columns text-base"></i>
+          <span class="text-xs leading-none">Board</span>
+        </button>
+
+        <!-- Files view -->
+        <button
+          class="btn btn-ghost btn-sm flex-1 flex flex-col items-center gap-0 h-auto py-1"
+          :class="activeView === 'files' ? 'text-primary' : ''"
+          @click="activeView = 'files'"
+        >
+          <i class="fa-solid fa-file-code text-base"></i>
+          <span class="text-xs leading-none">Files</span>
+        </button>
+
+        <!-- Activity -->
+        <button
+          class="btn btn-ghost btn-sm flex-1 flex flex-col items-center gap-0 h-auto py-1"
+          @click="showActivity = true"
+        >
+          <i class="fa-solid fa-clock-rotate-left text-base"></i>
+          <span class="text-xs leading-none">Activity</span>
+        </button>
+
+        <!-- More (add column/board/settings) -->
+        <div class="dropdown dropdown-top dropdown-end flex-1">
+          <button tabindex="0" class="btn btn-ghost btn-sm w-full flex flex-col items-center gap-0 h-auto py-1">
+            <i class="fa-solid fa-ellipsis-vertical text-base"></i>
+            <span class="text-xs leading-none">More</span>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow mb-1">
+            <li>
+              <a @click="showChildrenBoards = !showChildrenBoards"
+                :class="{ 'text-warning': showChildrenBoards }">
+                <i class="fa-brands fa-trello"></i> Child boards
+              </a>
+            </li>
+            <li class="divider my-1"></li>
+            <li><a @click="openAddColumnModal"><i class="fa-solid fa-plus"></i> Column</a></li>
+            <li><a @click="openNewBoardModal"><i class="fa-solid fa-plus"></i> Board</a></li>
+            <li><a @click="openEditBoardModal"><i class="fas fa-cogs"></i> Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── Mobile search bar (slide-down when active) ── -->
+    <transition name="slide-down-search">
+      <div
+        v-if="isMobile && searchVisible"
+        class="absolute top-12 left-0 right-0 z-20 px-3 py-2 bg-base-200/95 backdrop-blur border-b border-base-300"
+      >
+        <div class="input input-sm input-bordered flex items-center gap-2 w-full">
+          <i class="fa-solid fa-magnifying-glass opacity-50 text-sm"></i>
+          <input
+            type="text"
+            v-model="filter"
+            class="grow bg-transparent outline-none"
+            placeholder="Search tasks..."
+            autofocus
+          />
+          <span v-if="filter" class="cursor-pointer" @click="filter = ''">
+            <i class="fa-regular fa-circle-xmark text-sm"></i>
+          </span>
+          <span class="cursor-pointer text-xs font-medium" @click="searchVisible = false">Done</span>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── Board modal (new/edit/delete) ── -->
+    <modal close="true" @close="showBoardModal = false" v-if="showBoardModal">
+      <KanbanBoardModal
+        :board="editingBoard"
+        :boards="parentBoardOptions"
+        :currentBoardId="board"
+        :project="project"
+        @save="onBoardSave"
+        @delete="onBoardDelete"
+        @cancel="showBoardModal = false"
+      />
+    </modal>
+
+    <!-- ── Add/Edit Column modal ── -->
+    <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
+      <h2 class="font-bold text-lg">{{ selectedColumn ? 'Edit Column' : 'Add Column' }}</h2>
+      <div class="flex gap-1 items-center mt-2">
+        <input type="text" v-model="columnTitle" placeholder="Enter column name" class="grow input input-bordered w-full" />
+      </div>
+      <ProjectDetailt
+        v-model="columnProject"
+        :options="{ showFolders: false, showIcon: true, showSelector: true }"
+        class="mt-2"
+      />
+      <span v-if="editColumnError" class="text-error text-sm mt-1 block">{{ editColumnError }}</span>
+      <div class="modal-action flex flex-col gap-2 mt-4">
+        <div class="flex gap-2 w-full">
+          <button class="btn btn-error" @click="deleteColumn" v-if="selectedColumn">
+            <span v-if="confirmDeleteColumn">Confirm delete?</span>
+            <span v-else>Delete</span>
+          </button>
+          <div class="grow"></div>
+          <button class="btn" @click="addOrUpdateColumn">Save</button>
+        </div>
+        <div class="text-error text-xs p-2" v-if="confirmDeleteColumn">
+          Are you sure you want to delete this column? All tasks will be removed.
+        </div>
+      </div>
+    </modal>
+
+    <!-- ── Import Task modal ── -->
+    <modal v-if="showImportModalForColumn">
+      <h2 class="font-bold text-lg">Import Task</h2>
+      <div class="form-control mt-2">
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from clipboard</span>
+          <input type="radio" name="importOptions" value="clipboard" v-model="importOption" class="radio" />
+        </label>
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from URL</span>
+          <input type="radio" name="importOptions" value="url" v-model="importOption" class="radio" />
+        </label>
+        <input v-if="importOption === 'url'" type="text" v-model="importUrl" placeholder="Paste URL here" class="input input-bordered w-full mt-2" />
+      </div>
+      <div class="modal-action">
+        <button class="btn btn-primary" @click="confirmImportTask">Import</button>
+        <button class="btn btn-ghost" @click="showImportModalForColumn = null">Cancel</button>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -303,6 +365,9 @@ export default {
     this.projectChanged()
   },
   computed: {
+    isMobile() {
+      return this.$ui.isMobile
+    },
     filteredBoards() {
       if (!this.boardFilter) return this.parentBoards
       return Object.values(this.rawBoards).filter(board =>
@@ -748,7 +813,7 @@ export default {
       await this.saveKanban()
       this.showBoardModal = false
       this.editingBoard = null
-      
+
       if (this.board === boardTitle) {
         const parentTitle = board.parent_id || Object.keys(this.kanban.boards)[0]
         await this.selectBoard(parentTitle)
@@ -778,3 +843,34 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.slide-up-bar-enter-active,
+.slide-up-bar-leave-active {
+  transition: transform 0.2s ease;
+}
+.slide-up-bar-enter-from,
+.slide-up-bar-leave-to {
+  transform: translateY(100%);
+}
+
+.slide-down-search-enter-active,
+.slide-down-search-leave-active {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.slide-down-search-enter-from,
+.slide-down-search-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+</style>

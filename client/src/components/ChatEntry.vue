@@ -9,7 +9,8 @@ import DocumentSummary from './document/DocumentSummary.vue'
 import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
-import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue' 
+import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
+import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
@@ -47,27 +48,13 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
         </div>
         <!-- Events button — desktop only -->
         <button
-          v-if="hasEvents"
-          class="hidden md:flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+          class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
           :class="eventsOpen && 'btn-active text-warning'"
           data-tip="Events & Tools"
           @click.stop="toggleEventsPanel"
         >
-          <i class="fa-solid fa-wrench text-warning/70"></i>
-          <span class="text-[10px]">{{ eventCount }}</span>
+          <i class="fa-solid fa-stream text-info"></i>
         </button>
-
-        <button
-          v-if="hasAttachments"
-          class="hidden md:flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
-          :class="eventsOpen && 'btn-active text-warning'"
-          data-tip="Attachments"
-          @click.stop="toggleEventsPanel"
-        >
-            <i class="fa-solid fa-paperclip text-info"></i>
-            <span class="text-[10px]">{{ attachmentCount }}</span>
-        </button>
-
       </div>
 
       <!-- Main block column -->
@@ -112,7 +99,7 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
               :class="eventsOpen && 'btn-active text-warning'"
               @click.stop="toggleEventsPanel"
             >
-              <i class="fa-solid fa-wrench text-warning/70 text-[10px]"></i>
+              <i class="fa-solid fa-stream text-info text-[10px]"></i>
               <span class="text-[10px]">{{ eventCount }}</span>
             </button>
 
@@ -133,12 +120,12 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
                 <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
               </button>
               <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-300">
+                <li><a @click.stop="$emit('thread', message)">
+                  <i class="fa-solid fa-comment-dots"></i> Thread
+                </a></li>
                 <li><a @click.stop="$emit('hide', message)" :class="!isDone && 'disabled'">
                   <i class="fa-solid fa-box-archive text-warning/70"></i>
                   {{ displayMessage.hide ? 'Unarchive' : 'Archive' }}
-                </a></li>
-                <li><a @click.stop="$emit('thread', message)">
-                  <i class="fa-solid fa-comment-dots"></i> Thread
                 </a></li>
                 <li><a @click.stop="$emit('answer', message)">
                   <i class="fa-solid fa-check-double text-success/70"></i> Mark as answer
@@ -523,6 +510,15 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
       </div>
     </div>
   </div>
+
+  <!-- ── Events/Tools Drawer ── -->
+  <ChatEntryDrawer
+    :isOpen="eventsOpen"
+    :lifecycleEvents="message?.lifecycle_events || []"
+    :toolEvents="message?.tool_events || []"
+    :metadata="message?.meta_data"
+    @close="eventsOpen = false"
+  />
 </template>
 
 <script>

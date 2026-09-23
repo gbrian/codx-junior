@@ -487,7 +487,7 @@ export const actions = actionTree(
       }
     },
     async setActiveChat({ state }, activeChat) {
-      const { id, project_id, owner_project_id } = activeChat || {}
+      const { id, project_id, owner_project_id, name } = activeChat || {}
 
       if (!id) {
         $storex.chats.clearActiveChat()
@@ -497,6 +497,16 @@ export const actions = actionTree(
       await $storex.chats.reloadChat({ id, project_id, owner_project_id })
 
       $storex.chats.setActiveChatId(id)
+
+      // Push route to chat view
+      const chatName = name || `chat-${id}`
+      $storex.$router.push({
+        name: 'chat',
+        params: {
+          id,
+          name: chatName
+        }
+      })
 
       if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
         $storex.ui.openChat($storex.chats.activeChat)

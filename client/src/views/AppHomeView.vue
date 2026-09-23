@@ -183,6 +183,12 @@ export default {
           icon: 'fas fa-comment-lines'
         },
         {
+          route: '/kanban',
+          label: 'Task Manager',
+          description: 'Manage tasks',
+          icon: 'fas fa-list-check'
+        },
+        {
           route: '/desktop',
           label: 'Desktop',
           description: 'Full workspace',
@@ -205,12 +211,6 @@ export default {
           label: 'Wiki',
           description: 'Knowledge base',
           icon: 'fas fa-graduation-cap'
-        },
-        {
-          route: '/desktop/tasks',
-          label: 'Task Manager',
-          description: 'Manage tasks',
-          icon: 'fas fa-list-check'
         }
       ]
     }

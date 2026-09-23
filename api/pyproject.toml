@@ -38,6 +38,7 @@ dependencies = [
   'torch>=2.4.0', 
   'pathspec>=1.1.1',
   'ddgs>=9.16.0',
+  'PyMuPDF>=1.23.0',
 ]
 
 classifiers = [

@@ -86,36 +86,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       />
     </div>
 
-    <!-- Hierarchy Tree -->
-    <div v-if="!isCompact" class="pl-2 flex-1 overflow-y-auto p-2 md:p-3 space-y-2 min-h-0">
-      <ChatSidebarNode
-        v-for="child in rootChildren"
-        :key="child.id"
-        :chat="child"
-        :allChats="allChats"
-        :selectedChatId="selectedChatId"
-        :isCompact="isCompact"
-        @select="selectChat"
-        @add-subtask="$emit('add-subtask', $event)"
-        @delete-chat="$emit('delete-chat', $event)"
-      />
-    </div>
-    
-    <!-- Compact Mode: Collapsed Icons -->
-    <div v-else class="flex-1 overflow-y-auto p-2 space-y-2 flex flex-col items-center">
-      <ChatSidebarNode
-        v-for="child in rootChildren"
-        :key="child.id"
-        :chat="child"
-        :allChats="allChats"
-        :selectedChatId="selectedChatId"
-        :isCompact="isCompact"
-        @select="selectChat"
-        @add-subtask="$emit('add-subtask', $event)"
-        @delete-chat="$emit('delete-chat', $event)"
-      />
-    </div>
-
+    <div class="grow"></div>
     <ChatAttachmentPreview
       :attachments="workingChat.attachments"
       @remove-attachment="$emit('remove-attachment', $event)"

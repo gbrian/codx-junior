@@ -6,6 +6,7 @@ import MessengerView from '@/views/MessengerView.vue'
 import HomeMobile from '@/views/HomeMobile.vue'
 import TeamView from '@/views/TeamView.vue'
 import AppHomeView from '@/views/AppHomeView.vue'
+import KanbanView from '@/views/KanbanView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +21,16 @@ const router = createRouter({
       path: '/quick-chat',
       name: 'quick-chat',
       component: QuickChatView
+    },
+    {
+      path: '/chat/:chatId/:chatName',
+      name: 'chat',
+      component: QuickChatView
+    },
+    {
+      path: '/kanban',
+      name: 'kanban',
+      component: KanbanView
     },
     {
       path: '/messenger',
@@ -51,6 +62,6 @@ router.beforeEach((to, from) => {
   return router.$navigate.onRouteChanged({ from, to })
 })
 
-window.$router = router
+$storex.$router = router
 
 export default router

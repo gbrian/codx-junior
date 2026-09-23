@@ -15,9 +15,6 @@ export default function Navigate({ $router, $storex }) {
     }
   }
 
-  // Routes that opt-out of the mobile/desktop redirect
-  const STANDALONE_ROUTES = ['quick-chat', 'mobile', 'home', 'messenger']
-
   let historyRegistered = false
 
   const $navigator = {
@@ -56,8 +53,8 @@ export default function Navigate({ $router, $storex }) {
         }
       }
 
-      // ── Standalone routes (opt-out of mobile/desktop redirect) ─────
-      if (STANDALONE_ROUTES.includes(to.name)) {
+      // ── Standalone routes has name (opt-out of mobile/desktop redirect) ─────
+      if (!!to.name) {
         return true
       }
 

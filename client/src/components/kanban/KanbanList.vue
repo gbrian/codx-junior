@@ -3,117 +3,177 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="kanban-list w-full flex flex-col gap-2">
-    <div class="sticky top-0 z-1 flex flex-col gap-1">
-      <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">
-        <div class="flex-1 flex gap-2">
-          <input 
-            type="text" 
-            v-model="boardFilter" 
-            class="input input-sm flex-1" 
-            placeholder="Search boards, columns, and chats..." 
+  <div class="kanban-list w-full flex flex-col gap-3">
+
+    <!-- ── Sticky header bar ── -->
+    <div class="sticky top-0 z-10 flex flex-col gap-2 bg-base-100 pb-2 pt-1">
+      <div class="flex gap-2 items-center">
+        <!-- Search input -->
+        <div class="input input-sm input-bordered flex items-center gap-2 flex-1 min-w-0">
+          <i class="fa-solid fa-magnifying-glass opacity-40 text-sm shrink-0"></i>
+          <input
+            type="text"
+            v-model="boardFilter"
+            class="grow bg-transparent outline-none text-sm"
+            placeholder="Search boards..."
           />
-          <button 
-            v-if="boardFilter" 
-            @click="boardFilter = ''" 
-            class="btn btn-sm btn-ghost"
-            title="Clear search"
+          <button
+            v-if="boardFilter"
+            @click="boardFilter = ''"
+            class="btn btn-ghost btn-xs btn-circle shrink-0"
           >
-            <i class="fa-solid fa-times"></i>
+            <i class="fa-solid fa-times text-xs"></i>
           </button>
         </div>
-        <button class="btn btn-sm btn-warning btn-outline" @click="$emit('new-board')">
-          <i class="fa-solid fa-plus"></i> Board
-          <span class="hidden @md:block">New kanban</span>
+
+        <!-- New board button -->
+        <button class="btn btn-sm btn-warning btn-outline shrink-0" @click="$emit('new-board')">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden sm:inline">Board</span>
         </button>
-        <button class="btn btn-sm" @click="$emit('toogle-history')">
+
+        <!-- History button -->
+        <button class="btn btn-sm btn-ghost shrink-0" @click="$emit('toogle-history')">
           <i class="fa-solid fa-clock-rotate-left"></i>
-          <span class="hidden @md:block">History</span>
+          <span class="hidden sm:inline">History</span>
         </button>
-      </h1>
-      <div v-if="boardFilter && filteredBoards.length === 0" class="text-sm text-gray-500 px-2">
-        No results found for "{{ boardFilter }}"
+      </div>
+
+      <!-- No results hint -->
+      <div v-if="boardFilter && filteredBoards.length === 0" class="text-sm text-base-content/40 px-1">
+        No boards found for "<span class="font-medium">{{ boardFilter }}</span>"
       </div>
     </div>
 
-    <div class="grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3 gap-4">
-      <div
-        v-for="board in bookmarks"
-        :key="board.title"
-        @click="selectBoard(board)"
-        class="p-2 card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative border-warning h-32"
-      >
-        <div 
-          class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
-          :style="`background-image: url(${board.background})`" 
-          v-if="board.background"
-        ></div>
-        <h2 class="card-title flex tooltip group" :data-tip="board.title">
-          <span class="flex items-center">
-            <i
-              :class="['fa-solid', 'fa-bookmark', board.bookmark ? 'text-warning' : 'text-gray-400']"
-              @click.stop="toggleBookmark(board)"
-              class="cursor-pointer mr-2"
-            ></i>
-            <div class="overflow-hidden">{{ board.title }}</div>
-          </span>
-        </h2>
+    <!-- ── Bookmarked boards (horizontal scroll on mobile) ── -->
+    <div v-if="bookmarks.length">
+      <div class="text-xs font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-2">
+        <i class="fa-solid fa-bookmark text-warning mr-1"></i> Bookmarks
       </div>
-    </div>
-
-    <div class="grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3 gap-4">
-      <div
-        v-for="board in sortedBoards"
-        :key="board.title"
-        @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative h-60"
-      >
-        <div 
-          class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
-          :style="`background-image: url(${board.background})`" 
-          v-if="board.background"
-        ></div>
-        <div class="card-body flex flex-col">
-          <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
-          <span class="text-xs" v-if="board.parent_id">
-            [{{ board.parent_id }}]
-          </span>
-          <h2 class="card-title flex tooltip group" :data-tip="board.title">
-            <span class="flex items-center bg-base-100/80 pl-1 w-full rounded-md text-nowrap">
-              <div class="overflow-hidden">{{ board.title }}</div>
-            </span>
-          </h2>
-          <p class="text-sm">{{ board.description }}</p>
-          <div class="grow"></div>
-          
-          <!-- Display matching columns and chats if search is active -->
-          <div v-if="boardFilter && getMatchingContent(board).columns.length > 0" class="text-xs mb-2 p-1 bg-base-200 rounded">
-            <div v-if="getMatchingContent(board).columns.length" class="text-gray-600">
-              Columns: {{ getMatchingContent(board).columns.join(', ') }}
+      <div class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+        <div
+          v-for="board in bookmarks"
+          :key="board.title"
+          @click="selectBoard(board)"
+          class="snap-start shrink-0 w-48 h-28 p-3 card card-bordered bg-base-100 shadow rounded-xl cursor-pointer border-warning relative overflow-hidden active:scale-95 transition-transform"
+        >
+          <div
+            class="absolute inset-0 opacity-30 rounded-xl bg-cover bg-center"
+            :style="`background-image: url(${board.background})`"
+            v-if="board.background"
+          ></div>
+          <div class="relative flex flex-col h-full gap-1">
+            <div class="flex items-center gap-1">
+              <i
+                class="fa-solid fa-bookmark text-warning cursor-pointer"
+                @click.stop="toggleBookmark(board)"
+              ></i>
+              <span class="text-sm font-semibold truncate">{{ board.title }}</span>
             </div>
-            <div v-if="getMatchingContent(board).chatCount" class="text-gray-600">
-              Matching chats: {{ getMatchingContent(board).chatCount }}
-            </div>
-          </div>
-          
-          <div class="flex justify-between items-center gap-1">
-            <div class="flex gap-2 items-center text-xl">
-              <i class="fas fa-columns text-gray-600"></i>
-              <span class="-mt-1">{{ board.columns?.length || 0 }}</span>
-              <i class="fa-brands fa-trello text-gray-600"></i>
-              <span class="-mt-1">{{ board.tasks?.length || 0 }}</span>
-            </div>
-          </div>
-          <div 
-            class="text-xs underline overflow-hidden click"
-            :title="board.remote_url"
-            @click.stop="openRemoteBoard(board)"
-            v-if="board.remote_url"
-          >
-            {{ board.remote_url }}
+            <p class="text-xs text-base-content/50 line-clamp-2">{{ board.description }}</p>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ── All boards grid ── -->
+    <div v-if="sortedBoards.length">
+      <div class="text-xs font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-2">
+        Boards
+      </div>
+      <!-- Single column on mobile, 2 on sm, 3 on xl -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 @xl:grid-cols-3 gap-3">
+        <div
+          v-for="board in sortedBoards"
+          :key="board.title"
+          @click="selectBoard(board)"
+          class="card card-bordered bg-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
+        >
+          <!-- Background image -->
+          <div
+            class="absolute inset-0 opacity-20 bg-cover bg-center"
+            :style="`background-image: url(${board.background})`"
+            v-if="board.background"
+          ></div>
+
+          <div class="card-body p-3 flex flex-col gap-1 relative">
+            <!-- Timestamp -->
+            <span class="text-xs text-base-content/40" v-if="board.last_update">
+              {{ moment(board.last_update).fromNow() }}
+            </span>
+
+            <!-- Parent label -->
+            <span class="text-xs text-base-content/40" v-if="board.parent_id">
+              <i class="fa-solid fa-sitemap text-xs"></i> {{ board.parent_id }}
+            </span>
+
+            <!-- Title row -->
+            <div class="flex items-start gap-2">
+              <i
+                class="fa-solid fa-bookmark mt-0.5 shrink-0 cursor-pointer"
+                :class="board.bookmark ? 'text-warning' : 'text-base-content/20'"
+                @click.stop="toggleBookmark(board)"
+              ></i>
+              <h2 class="font-bold text-sm leading-tight truncate flex-1" :title="board.title">
+                {{ board.title }}
+              </h2>
+            </div>
+
+            <!-- Description -->
+            <p class="text-xs text-base-content/60 line-clamp-2" v-if="board.description">
+              {{ board.description }}
+            </p>
+
+            <!-- Search match info -->
+            <div
+              v-if="boardFilter && getMatchingContent(board).columns.length > 0"
+              class="text-xs p-1.5 bg-base-200 rounded-lg mt-1"
+            >
+              <div class="text-base-content/50 truncate">
+                <i class="fa-solid fa-table-columns text-xs mr-1"></i>
+                {{ getMatchingContent(board).columns.join(', ') }}
+              </div>
+              <div v-if="getMatchingContent(board).chatCount" class="text-base-content/50 mt-0.5">
+                <i class="fa-solid fa-message text-xs mr-1"></i>
+                {{ getMatchingContent(board).chatCount }} chats
+              </div>
+            </div>
+
+            <div class="grow"></div>
+
+            <!-- Footer stats -->
+            <div class="flex items-center gap-3 text-base-content/40 text-xs mt-1">
+              <span class="flex items-center gap-1">
+                <i class="fas fa-columns"></i>
+                {{ board.columns?.length || 0 }}
+              </span>
+              <span class="flex items-center gap-1">
+                <i class="fa-brands fa-trello"></i>
+                {{ board.tasks?.length || 0 }}
+              </span>
+              <!-- Remote URL -->
+              <a
+                v-if="board.remote_url"
+                class="ml-auto text-xs underline text-primary truncate max-w-[120px]"
+                :title="board.remote_url"
+                @click.stop="openRemoteBoard(board)"
+              >
+                <i class="fa-solid fa-link text-xs mr-0.5"></i>
+                {{ board.remote_url }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div v-if="!bookmarks.length && !sortedBoards.length" class="flex flex-col items-center justify-center py-16 text-base-content/30 gap-3">
+      <i class="fa-brands fa-trello text-5xl"></i>
+      <span class="text-sm">No boards yet</span>
+      <button class="btn btn-sm btn-warning btn-outline" @click="$emit('new-board')">
+        <i class="fa-solid fa-plus"></i> Create a board
+      </button>
     </div>
   </div>
 </template>
@@ -168,8 +228,8 @@ export default {
     sortedBoards() {
       return this.filteredBoards
         .filter(b => !b.bookmark)
-        .sort((a, b) => 
-          a.last_update && b.last_update ? 
+        .sort((a, b) =>
+          a.last_update && b.last_update ?
             a.last_update > b.last_update ? -1 : 1 :
               a.last_update ? -1 : 1
         )
@@ -189,13 +249,13 @@ export default {
   methods: {
     matchesFilter(board) {
       const filterLower = this.boardFilter.toLowerCase()
-      
+
       if (board.title && board.title.toLowerCase().includes(filterLower)) {
         return true
       }
 
       if (board.columns && Array.isArray(board.columns)) {
-        if (board.columns.some(col => 
+        if (board.columns.some(col =>
           col.title && col.title.toLowerCase().includes(filterLower)
         )) {
           return true
@@ -224,12 +284,14 @@ export default {
         return true
       }
 
-      if (chat.file_list?.some(f => f.toLowerCase().includes(filterLower)))
+      if (chat.file_list?.some(f => f.toLowerCase().includes(filterLower))) {
+        return true
+      }
 
       if (chat.messages && Array.isArray(chat.messages)) {
-        return chat.messages.some(msg => 
+        return chat.messages.some(msg =>
           (msg.content && msg.content.toLowerCase().includes(filterLower)) ||
-          (msg.think && msg.think.toLowerCase().includes(filterLower))||
+          (msg.think && msg.think.toLowerCase().includes(filterLower)) ||
           (msg.files && msg.files.some(f => f.toLowerCase().includes(filterLower)))
         )
       }

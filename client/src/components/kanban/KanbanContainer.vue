@@ -6,30 +6,45 @@ import ChatView from '@/views/ChatView.vue'
 </script>
 
 <template>
-  <div class="@container w-full h-full flex flex-col gap-1 overflow-auto md:p-2">
-    <!-- ChatView -->
-    <ChatView :chat="activeChat" 
-      @chats="$chats.setActiveChat(null)"
-      v-if="activeChat" />
+  <div class="@container w-full h-full flex flex-col overflow-hidden">
+    <!-- ChatView (mobile: full screen overlay) -->
+    <transition name="slide-up">
+      <div v-if="activeChat" class="absolute inset-0 z-50 bg-base-100">
+        <ChatView :chat="activeChat"
+          @chats="$chats.setActiveChat(null)" />
+      </div>
+    </transition>
 
-    <!-- Kanban list -->
-    <KanbanList
-      :boards="boards"
-      :project="project"
-      @select="selectBoard"
-      @new-board="showNewBoardModal"
-      @bookmark="toggleBookmark"
-      @delete="onDeleteBoard"
-      v-if="showKanbanList"
-    />
+    <!-- Main content area -->
+    <div class="w-full h-full flex flex-col overflow-hidden" :class="isMobile ? '' : 'p-2'">
 
-    <!-- Kanban board view -->
-    <Kanban
-      :project="project"
-      @edit-board="onEditBoard"
-      @select-board="selectBoard"
-      v-if="showKanban"
-    />
+      <!-- Kanban list -->
+      <transition name="slide-left">
+        <KanbanList
+          v-if="showKanbanList"
+          :boards="boards"
+          :project="project"
+          @select="selectBoard"
+          @new-board="showNewBoardModal"
+          @bookmark="toggleBookmark"
+          @delete="onDeleteBoard"
+          class="w-full h-full overflow-auto"
+          :class="isMobile ? 'px-3 pt-2 pb-20' : 'p-2'"
+        />
+      </transition>
+
+      <!-- Kanban board view -->
+      <transition name="slide-right">
+        <Kanban
+          v-if="showKanban"
+          :project="project"
+          @edit-board="onEditBoard"
+          @select-board="selectBoard"
+          class="w-full h-full"
+        />
+      </transition>
+
+    </div>
 
     <!-- New/Edit Board modal -->
     <modal close="true" @close="closeBoardModal" v-if="showBoardModal">
@@ -40,7 +55,6 @@ import ChatView from '@/views/ChatView.vue'
         @close="closeBoardModal"
       />
     </modal>
-
   </div>
 </template>
 
@@ -63,6 +77,9 @@ export default {
     }
   },
   computed: {
+    isMobile() {
+      return this.$ui.isMobile
+    },
     project() {
       return this.$project
     },
@@ -152,3 +169,35 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.slide-left-enter-from,
+.slide-left-leave-to {
+  transform: translateX(-20px);
+  opacity: 0;
+}
+
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
+</style>

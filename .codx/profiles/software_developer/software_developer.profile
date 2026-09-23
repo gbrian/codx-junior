@@ -46,7 +46,8 @@
     "project_read_file",
     "project_structure",
     "generate_tasks_tool",
-    "create_task"
+    "create_task",
+    "get_file_last_version"
   ],
   "tags": [],
   "api_settings": {

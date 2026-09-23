@@ -131,6 +131,19 @@ export default {
       return this.toolCount + this.lifecycleCount
     }
   },
+  watch: {
+    lifecycleEvents() {
+      this.expandedId = null
+    },
+    toolEvents() {
+      this.expandedId = null
+    },
+    isOpen(newVal) {
+      if (newVal) {
+        this.expandedId = null
+      }
+    }
+  },
   methods: {
     close() {
       this.$emit('close')
@@ -142,13 +155,6 @@ export default {
       if (!seconds) return '0s'
       const baseMoment = moment({ h: 0, m: 0, s: 0, ms: 0 })
       return baseMoment.add(Math.floor(seconds), 'seconds').format('mm:ss')
-    }
-  },
-  watch: {
-    isOpen(newVal) {
-      if (newVal) {
-        this.expandedId = null
-      }
     }
   }
 }

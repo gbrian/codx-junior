@@ -66,6 +66,7 @@ export const getters = getterTree(state, {
   activeApps: () => Object.values($storex.ui.openApps),
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
+  isDektopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
 })
 
 export const mutations = mutationTree(state, {
@@ -284,18 +285,28 @@ export const mutations = mutationTree(state, {
     state.appShowMode = mode
   },
   openChat(_, chat) {
-    $storex.ui.showApp({
-      tabId: chat.id,
-      name: chat.name,
-      component: 'chat',
-      params: {
-        chat: {
-          id: chat.id,
-          name: chat.name,
-          owner_project_id: chat.owner_project_id
+    if (!$storex.chats.isDektopMode) {
+      $storex.$router.push({
+        name: 'chat',
+        params: {
+          chatId: chat.id,
+          chatName: chat.name
         }
-      }
-    })
+      })
+    } else {
+      $storex.ui.showApp({
+        tabId: chat.id,
+        name: chat.name,
+        component: 'chat',
+        params: {
+          chat: {
+            id: chat.id,
+            name: chat.name,
+            owner_project_id: chat.owner_project_id
+          }
+        }
+      })
+    }
   },
   openFileInViewer(_, filePath) {
     const fileName = filePath.split('/').pop()
