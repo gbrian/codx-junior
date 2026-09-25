@@ -47,14 +47,21 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         >           
         </div>
         <!-- Events button — desktop only -->
-        <button
-          class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
-          :class="eventsOpen && 'btn-active text-warning'"
-          data-tip="Events & Tools"
-          @click.stop="toggleEventsPanel"
-        >
-          <i class="fa-solid fa-stream text-info"></i>
-        </button>
+        <div class="flex flex-col gap-1 click"
+          @click.stop="toggleEventsPanel">
+          <button
+            v-if="!isMyMessage"
+            class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Events & Tools"
+          >
+            <i class="fa-solid fa-stream text-info"></i>
+          </button>
+          <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
+            <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
+            <i class="fa-solid fa-wrench"></i>
+          </div>
+        </div>
       </div>
 
       <!-- Main block column -->

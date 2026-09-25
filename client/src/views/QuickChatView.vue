@@ -1,5 +1,4 @@
 <script setup>
-import QuickChatSidebar from '@/components/quick-chat/QuickChatSidebar.vue'
 import ChatMessageList from '@/components/chat/ChatMessageList.vue'
 import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatIntelliSense from '@/components/chat/ChatIntelliSense.vue'
@@ -9,7 +8,6 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 import RecentChatsQuickAccess from '@/components/chats/RecentChatsQuickAccess.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import WorkspaceAppLoader from '@/components/quick-chat/WorkspaceAppLoader.vue'
-import UserInfo from '@/components/UserInfo.vue'
 </script>
 
 <template>
@@ -17,171 +15,6 @@ import UserInfo from '@/components/UserInfo.vue'
     class="flex h-full w-full bg-[#111111] overflow-hidden"
     :class="isMobile ? 'flex-col' : 'flex-row'"
   >
-
-    <!-- ── Top Bar (show only on home) ── -->
-    <div
-      v-if="isHomePage"
-      class="shrink-0 flex items-center justify-between px-5 py-3 border-b border-white/8 bg-black/20 fixed top-0 left-0 right-0 z-20"
-    >
-      <!-- Logo -->
-      <div class="flex items-center gap-3">
-        <img src="/only_icon.png" class="w-8 h-8 rounded-lg" alt="codx-junior" />
-        <span class="text-white/90 font-semibold text-base tracking-tight">codx-junior</span>
-      </div>
-
-      <!-- Right side actions -->
-      <div class="flex items-center gap-2">
-
-        <!-- Bell / Recent Activity button -->
-        <div class="relative" ref="bellWrapper">
-          <button
-            class="btn btn-ghost btn-sm btn-circle relative"
-            :class="showActivityPanel ? 'text-primary' : 'text-white/50 hover:text-white'"
-            title="Recent activity"
-            @click="toggleActivityPanel"
-          >
-            <i class="fas fa-bell text-base"></i>
-            <!-- Unread dot -->
-            <span
-              v-if="recentChatsCount > 0"
-              class="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary"
-            ></span>
-          </button>
-
-          <!-- Floating recent chats panel -->
-          <transition name="fade-drop">
-            <div
-              v-if="showActivityPanel"
-              class="absolute right-0 top-full mt-2 w-80 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col"
-              style="max-height: 480px;"
-            >
-              <!-- Panel header -->
-              <div class="flex items-center justify-between px-4 py-3 border-b border-white/8 shrink-0">
-                <span class="text-sm font-semibold text-white/80">Recent Chats</span>
-                <button
-                  class="btn btn-ghost btn-xs btn-circle text-white/40 hover:text-white"
-                  @click="showActivityPanel = false"
-                >
-                  <i class="fas fa-xmark text-xs"></i>
-                </button>
-              </div>
-
-              <!-- Chat list -->
-              <div class="flex-1 overflow-hidden min-h-0">
-                <RecentChatsQuickAccess
-                  :collapsed="false"
-                  @select="onRecentChatSelect"
-                />
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <!-- User avatar -->
-        <UserInfo>
-          <template #trigger="{ togglePanel, dailyLimitStatus }">
-            <button
-              class="btn btn-xs btn-ghost p-1 w-8 h-8 min-h-0"
-              @click="togglePanel"
-              :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-            >
-              <div class="avatar tooltip" :data-tip="$user?.username">
-                <div class="w-8 rounded-full">
-                  <img :src="$user?.avatar">
-                </div>
-              </div>
-            </button>
-          </template>
-        </UserInfo>
-      </div>
-    </div>
-
-    <!-- ── Left Sidebar (hidden on home) ── -->
-    <QuickChatSidebar
-      v-if="!isHomePage"
-      :user-name="$user?.username || 'User'"
-      :show-mobile-chats="showMobileChats"
-      :workspace-apps="workspaceApps"
-      :selected-workspace-app="selectedWorkspaceApp"
-      :active-chat="activeChat"
-      @new-chat="startNewChat"
-      @toggle-mobile-chats="showMobileChats = !showMobileChats"
-      @account-settings="openAccountSettings"
-      @select-workspace-app="selectWorkspaceApp"
-      @open-chat="openChat"
-    />
-
-    <!-- ── Right Sidebar with Bookmarks ── -->
-    <aside
-      v-if="!isMobile && !isHomePage"
-      class="flex flex-col h-full shrink-0 bg-[#1a1a1a] border-l border-white/5 transition-all duration-200"
-      :class="rightSidebarCollapsed ? 'w-16' : 'w-64'"
-    >
-      <!-- Collapse toggle button -->
-      <button
-        class="flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/60 hover:bg-white/8 hover:text-white transition-colors w-full m-2"
-        :title="rightSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        @click="toggleRightSidebar"
-      >
-        <i :class="rightSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'" class="w-5 text-center shrink-0"></i>
-        <span v-if="!rightSidebarCollapsed" class="text-xs">Workspaces</span>
-      </button>
-
-      <!-- Bookmarks/Apps grid or list (only when expanded) -->
-      <div v-if="!rightSidebarCollapsed" class="flex-1 overflow-y-auto px-2 py-2">
-        <div class="flex flex-col gap-1.5">
-          <button
-            v-for="item in bookmarks"
-            :key="item.route"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
-            :title="item.label"
-            @click="navigateToBookmark(item)"
-          >
-            <i :class="[item.icon, 'w-5 text-center shrink-0 text-white/60']"></i>
-            <span>{{ item.label }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Icons only (when collapsed) -->
-      <div v-else class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1.5">
-        <button
-          v-for="item in bookmarks"
-          :key="item.route"
-          class="flex items-center justify-center p-3 rounded-xl text-white/60 hover:text-white hover:bg-white/8 transition-colors"
-          :title="item.label"
-          @click="navigateToBookmark(item)"
-        >
-          <i :class="[item.icon, 'text-lg']"></i>
-        </button>
-      </div>
-    </aside>
-
-    <!-- ── Mobile chats sidebar drawer ── -->
-    <transition name="slide-left">
-      <div
-        v-if="isMobile && showMobileChats && !isHomePage"
-        class="fixed inset-0 z-40 flex flex-col bg-[#1a1a1a] safe-area"
-      >
-        <!-- Drawer header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
-          <span class="text-sm font-semibold text-white/80">Recent Chats</span>
-          <button
-            class="p-2 text-white/40 hover:text-white transition-colors"
-            @click="showMobileChats = false"
-          >
-            <i class="fas fa-xmark"></i>
-          </button>
-        </div>
-        <!-- Chats list -->
-        <div class="flex-1 min-h-0 px-3 py-3 flex flex-col overflow-hidden">
-          <RecentChatsQuickAccess 
-            @select="openChat"
-            :collapsed="false" />
-        </div>
-      </div>
-    </transition>
-
     <!-- ── Main area with VerticalSplitter (desktop only) ── -->
     <VerticalSplitter
       v-if="!isMobile && activeChat && !isHomePage"
@@ -352,7 +185,7 @@ import UserInfo from '@/components/UserInfo.vue'
     <main
       v-if="isMobile || !activeChat"
       class="flex-1 flex flex-col min-w-0 h-full relative"
-      :class="[isMobile ? 'pb-16' : '', isHomePage ? 'pt-16' : '']"
+      :class="[isMobile ? 'pb-16' : '']"
     >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
@@ -360,7 +193,6 @@ import UserInfo from '@/components/UserInfo.vue'
         <div
           v-if="!activeChat"
           class="absolute inset-0 flex flex-col items-center justify-center gap-8 z-10"
-          :class="isHomePage ? 'pt-16' : ''"
         >
           <!-- Radial gradient glow -->
           <div
@@ -428,15 +260,15 @@ import UserInfo from '@/components/UserInfo.vue'
               @remove-attachment="removeHomeAttachment"
             />
 
-            <!-- Suggestion chips using bookmarks -->
+            <!-- Suggestion chips (removed bookmarks as they're now in global sidebar) -->
             <div class="flex flex-wrap gap-2 mt-3 justify-center">
               <button
-                v-for="bookmark in bookmarks"
-                :key="bookmark.route"
+                v-for="app in workspaceApps"
+                :key="app.route"
                 class="px-3 py-1.5 rounded-full bg-white/5 border border-white/8 text-white/50 text-xs hover:bg-white/10 hover:text-white/80 transition-colors"
-                @click="navigateToBookmark(bookmark)"
+                @click="selectWorkspaceApp(app)"
               >
-                {{ bookmark.label }}
+                {{ app.label }}
               </button>
             </div>
           </div>
@@ -635,7 +467,6 @@ export default {
       selectedWorkspaceApp: null,
       showHidden: false,
       rightSidebarCollapsed: false,
-      showActivityPanel: false,
       recentChatsCount: 0,
       MAX_IMAGE_SIZE_MB: 50,
       isChatLoading: false
@@ -643,11 +474,7 @@ export default {
   },
   async created() {
     this.loadProfiles()
-    // Open chat from query param if present — loadChat is called inside openChat
-    const chatId = this.$route?.query?.chatId
-    if (chatId) {
-      await this.openChat({ id: chatId })
-    }
+    this.openChat()
   },
   mounted() {
     this.syncInterval = setInterval(() => this.syncEditorText(), 100)
@@ -657,6 +484,9 @@ export default {
     this.cancelIntelliSense()
   },
   computed: {
+    chatId() {
+      return this.$route.params.chatId
+    },
     isMobile() {
       return this.$ui.isMobile
     },
@@ -694,46 +524,6 @@ export default {
     workspaceApps() {
       return this.$storex.projects.projectApps
     },
-    bookmarks() {
-      return [
-        {
-          route: '/quick-chat',
-          label: 'Quick Chat',
-          description: 'AI-powered chat',
-          icon: 'fas fa-comment-lines'
-        },
-        {
-          route: '/kanban',
-          label: 'Task Manager',
-          description: 'Manage tasks',
-          icon: 'fas fa-list-check'
-        },
-        {
-          route: '/desktop',
-          label: 'Desktop',
-          description: 'Full workspace',
-          icon: 'fas fa-table-columns'
-        },
-        {
-          route: '/messenger',
-          label: 'Messenger',
-          description: 'Team channels',
-          icon: 'fas fa-messages'
-        },
-        {
-          route: '/desktop/files',
-          label: 'File Explorer',
-          description: 'Browse files',
-          icon: 'fas fa-folder-open'
-        },
-        {
-          route: '/desktop/wiki',
-          label: 'Wiki',
-          description: 'Knowledge base',
-          icon: 'fas fa-graduation-cap'
-        }
-      ]
-    },
     splitterPanels() {
       return {
         left: {
@@ -759,34 +549,35 @@ export default {
     },
     activeChatId() {
       this.showHidden = false
+    },
+    chatId() {
+      this.openChat()
     }
   },
   methods: {
-    openAccountSettings() {
-      this.$emit('settings')
-    },
     selectWorkspaceApp(app) {
-      this.selectedWorkspaceApp = app
+      if (this.activeChat) {
+        this.$storex.$router.$navigation.chats.openWithWorkspace(
+          this.activeChat.id,
+          this.activeChat.name,
+          app.id,
+          app.label
+        )
+      } else {
+        this.$storex.$router.$navigation.workspaces.open(app.id, app.label)
+      }
     },
     closeWorkspaceApp() {
       this.selectedWorkspaceApp = null
+      if (this.activeChat) {
+        this.$storex.$router.$navigation.chats.open(
+          this.activeChat.id,
+          this.activeChat.name
+        )
+      }
     },
     toggleRightSidebar() {
       this.rightSidebarCollapsed = !this.rightSidebarCollapsed
-    },
-    toggleActivityPanel() {
-      this.showActivityPanel = !this.showActivityPanel
-    },
-    navigateToBookmark(item) {
-      this.$router.push(item.route)
-    },
-    onRecentChatSelect(chat) {
-      this.showActivityPanel = false
-      if (chat.mode === 'group') {
-        this.$router.push({ path: '/messenger', query: { chatId: chat.id } })
-      } else {
-        this.$router.push({ path: '/quick-chat', query: { chatId: chat.id } })
-      }
     },
     async loadProfiles() {
       try {
@@ -816,11 +607,7 @@ export default {
       await this.loadProfiles()
     },
     async startNewChat() {
-      this.activeChatId = null
-      this.attachments = []
-      this.homeAttachments = []
-      this.showMobileChats = false
-      this.selectedWorkspaceApp = null
+      this.$storex.$router.$navigation.apps.openHome()
     },
     async createChat(initialMessage) {
       const shortTitle = initialMessage.slice(0, 50) + (initialMessage.length > 50 ? '…' : '')
@@ -834,16 +621,19 @@ export default {
       })
       return chat
     },
-    async openChat(chat) {
-      if (!chat) return
+    async openChat() {
+      const chat = { id: this.chatId }
       try {
         this.isChatLoading = true
-        const loaded = await this.$chats.loadChat(chat)
-        this.activeChatId = loaded?.id || chat.id
+        this.activeChatId = this.chatId
+        if (this.chatId) {
+          const loaded = await this.$chats.loadChat(chat)
+          this.activeChatId = loaded?.id || chat.id
+          this.loadProfilesForChat()
+          this.$nextTick(() => this.scrollToBottom())
+        }
         this.showMobileChats = false
         this.selectedWorkspaceApp = null
-        this.loadProfilesForChat()
-        this.$nextTick(() => this.scrollToBottom())
       } catch (err) {
         console.error('[QuickChat] openChat error', err)
       } finally {

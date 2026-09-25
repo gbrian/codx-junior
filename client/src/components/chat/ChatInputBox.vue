@@ -21,17 +21,17 @@ import FindReplaceBox from './FindReplaceBox.vue'
   >
     <!-- ── Mobile collapsed pill ── -->
     <div
-      v-if="isMobile && isMobileCollapsed"
+      v-if="isMobile && collapsed"
       class="flex items-center gap-3 px-4 py-3 cursor-pointer"
-      @click="expandMobile"
+      @click="$emit('toggle-collapsed')"
     >
       <i class="fa-solid fa-pen text-base-content/40 text-sm shrink-0"></i>
       <span class="text-base-content/40 text-sm flex-1 truncate">Write a message...</span>
       <i class="fa-solid fa-chevron-up text-base-content/30 text-xs"></i>
     </div>
 
-    <!-- ── Full input (desktop always visible; mobile only when expanded) ── -->
-    <template v-if="!isMobile || !isMobileCollapsed">
+    <!-- ── Full input (desktop always visible; mobile only when not collapsed) ── -->
+    <template v-if="!isMobile || !collapsed">
       <!-- Slot: extra content above the textarea (e.g. project selector) -->
       <div v-if="$slots['before-textarea']" class="px-2 md:px-3 pt-2 md:pt-3 pb-1">
         <slot name="before-textarea" />
@@ -110,18 +110,18 @@ export default {
     voiceLanguageLabel: String,
     profiles: { type: Array, default: () => [] },
     selectedProfiles: { type: Array, default: () => [] },
-    cursorWord: { type: Object, default: () => ({}) }
+    cursorWord: { type: Object, default: () => ({}) },
+    collapsed: { type: Boolean, default: false }
   },
   emits: [
     'send', 'add-message', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
-    'drop', 'profiles-selected', 'focus', 'blur'
+    'drop', 'profiles-selected', 'focus', 'blur', 'toggle-collapsed'
   ],
   data() {
     return {
       isFocused: false,
       isDraggingOver: false,
-      isMobileCollapsed: true,
       showFindReplace: false
     }
   },
@@ -131,24 +131,10 @@ export default {
     }
   },
   watch: {
-    isMobile(val) {
-      if (!val) this.isMobileCollapsed = false
-    },
-    waiting(val) {
-      if (!val && this.isMobile) {
-        this.isMobileCollapsed = true
-      }
-    }
+    // Watcher removed for isMobile collapse logic
+    // Watcher removed for waiting collapse logic
   },
   methods: {
-    expandMobile() {
-      this.isMobileCollapsed = false
-      this.$nextTick(() => this.$refs.editor?.focus())
-    },
-    collapseMobile() {
-      this.isMobileCollapsed = true
-      this.$refs.editor?.blur()
-    },
     onFocus() {
       this.isFocused = true
       this.$emit('focus')
@@ -160,9 +146,6 @@ export default {
       if (!relatedTarget || !inputContainer?.contains(relatedTarget)) {
         this.isFocused = false
         this.$emit('blur')
-        if (this.isMobile) {
-          this.collapseMobile()
-        }
       }
     },
     onKeyDown(event) {
@@ -189,9 +172,6 @@ export default {
     },
     onSend() {
       this.$emit('send')
-      if (this.isMobile) {
-        this.$nextTick(() => this.collapseMobile())
-      }
     },
     onDrop(event) {
       this.isDraggingOver = false
@@ -217,10 +197,6 @@ export default {
       }
     },
     focusEditor() {
-      if (this.isMobile && this.isMobileCollapsed) {
-        this.expandMobile()
-        return
-      }
       this.$refs.editor?.focus()
     },
     autoResize() {
@@ -304,10 +280,7 @@ export default {
     'setEditorText',
     'appendEditorText',
     'focusEditor',
-    'getCaretWordInfo',
-    'collapseMobile',
-    'expandMobile',
-    'showFindReplace'
+    'getCaretWordInfo'
   ]
 }
 </script>

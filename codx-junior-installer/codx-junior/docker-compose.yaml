@@ -58,11 +58,11 @@ services:
       - traefik.enable=true
       
       # HTTP Router (for behind other proxies)
-      - traefik.http.routers.codx-junior-localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai`)
+      - traefik.http.routers.codx-junior-localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai/app`)
       - traefik.http.routers.codx-junior-localai.entrypoints=web
       
       # HTTPS Router (for standalone with SSL)
-      - traefik.http.routers.codx-junior-localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai`)
+      - traefik.http.routers.codx-junior-localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai/app`)
       - traefik.http.routers.codx-junior-localai-secure.entrypoints=websecure
       - traefik.http.routers.codx-junior-localai-secure.tls.certresolver=sslresolver
       
@@ -73,7 +73,7 @@ services:
       
       # Custom Headers middleware to supply LocalAI with reverse proxy subpath specs
       - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Proto=https
-      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Prefix=/codx-localai
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Prefix=/codx-localai/app
       
       # Apply header requirements and authentication middleware stacks
       - traefik.http.routers.codx-junior-localai.middlewares=localai-headers,codx-junior-auth

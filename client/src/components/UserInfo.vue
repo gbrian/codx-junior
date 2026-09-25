@@ -59,7 +59,7 @@ import MetricRow from './MetricRow.vue'
     <!-- Detailed panel overlay -->
     <div
       v-if="showPanel"
-      class="absolute right-0 top-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
+      class="absolute left-0 bottom-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
     >
       <!-- Header: user info + close button -->
       <div class="flex items-center gap-3">

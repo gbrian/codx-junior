@@ -40,9 +40,6 @@ export class ChatSearchRequest {
    */
   getValidationErrors() {
     const errors = []
-    if (!this.query || this.query.trim().length === 0) {
-      errors.push('Query cannot be empty')
-    }
     if (this.page < 1) {
       errors.push('Page must be at least 1')
     }

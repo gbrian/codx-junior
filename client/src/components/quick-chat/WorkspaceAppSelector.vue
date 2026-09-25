@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div v-if="hasWorkspaceApps" class="flex flex-col gap-1.5">
+  <div v-if="hasWorkspaceApps" class="flex flex-col gap-1.5 px-2">
     <!-- Dropdown (when collapsed) -->
     <div class="dropdown dropdown-bottom dropdown-right w-full">
       <button

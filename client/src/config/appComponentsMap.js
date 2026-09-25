@@ -19,7 +19,7 @@ import ProjectOverview from '../components/project/ProjectOverview.vue'
 import Wall from '../components/wall/Wall.vue'
 import ChatView from '../views/ChatView.vue'
 import ViewProperties from '../components/main-menu/ViewProperties.vue'
-import AnalyticsDashboard from '../components/analytics/index.vue'
+import MetricsDashboard from '../components/analytics/MetricsDashboard.vue'
 import LogsAnalyzerDashboard from '../components/logs/LogsAnalyzerDashboard.vue'
 import TeamChannel from '../components/teams/TeamChannel.vue'
 import TeamDM from '../components/teams/TeamDM.vue'
@@ -51,7 +51,7 @@ export const APP_COMPONENTS_MAP = {
   'projects': ProjectOverview,
   'activity': Wall,
   'chat': ChatView,
-  'analytics': AnalyticsDashboard,
+  'analytics': MetricsDashboard,
   'chat-logs': LogsAnalyzerDashboard,
   'team-channel': TeamChannel,
   'team-dm': TeamDM,

@@ -9,8 +9,7 @@ export default {
     props: ['chat', 'width', 'icon-only'],
     computed: {
       project() {
-        const { project_id, owner_project_id } = this.chat
-        return this.$projects.allProjects.find(p => p.project_id === (project_id || owner_project_id))
+        return this.$chats.getChatWorkingProject(this.chat)
       }
     }
 }

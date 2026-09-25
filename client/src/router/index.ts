@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { $storex } from '../store'
 import Navigate from './navigate'
 import QuickChatView from '@/views/QuickChatView.vue'
+import WorkspaceView from '@/views/WorkspaceView.vue'
 import MessengerView from '@/views/MessengerView.vue'
 import HomeMobile from '@/views/HomeMobile.vue'
 import TeamView from '@/views/TeamView.vue'
@@ -17,14 +18,31 @@ const router = createRouter({
       component: QuickChatView
     },
     {
-      path: '/quick-chat',
-      name: 'quick-chat',
+      // Chat routes: router mode
+      path: '/chats',
+      name: 'chats',
       component: QuickChatView
     },
     {
-      path: '/chat/:chatId/:chatName',
+      path: '/chats/:chatId/:chatName',
       name: 'chat',
       component: QuickChatView
+    },
+    {
+      path: '/chats/:chatId/:chatName/workspace/:workspaceId/:workspaceName',
+      name: 'chat-workspace',
+      component: QuickChatView
+    },
+    {
+      // Workspace routes: router mode
+      path: '/workspaces',
+      name: 'workspaces',
+      component: WorkspaceView
+    },
+    {
+      path: '/workspaces/:workspaceId/:workspaceName',
+      name: 'workspace',
+      component: WorkspaceView
     },
     {
       path: '/kanban',
@@ -55,10 +73,12 @@ const router = createRouter({
   ]
 })
 
-router.$navigate = Navigate({ $storex, $router: router })
-router.$navigate.init()
+// Initialize navigation API with both $router and $storex
+router.$navigation = Navigate({ $router: router, $storex })
+router.$navigation.init()
+
 router.beforeEach((to, from) => {
-  return router.$navigate.onRouteChanged({ from, to })
+  return router.$navigation.onRouteChanged({ from, to })
 })
 
 $storex.$router = router

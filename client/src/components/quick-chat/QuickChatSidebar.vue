@@ -90,39 +90,6 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
       </button>
     </div>
   </aside>
-
-  <!-- ── Mobile bottom navigation bar ── -->
-  <nav
-    v-else
-    class="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-[#1a1a1a] border-t border-white/10 px-2 py-2 safe-area-bottom"
-  >
-    <button
-      class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
-      @click="$emit('new-chat')"
-    >
-      <i class="fas fa-pen-to-square text-lg"></i>
-      <span class="text-[10px]">New</span>
-    </button>
-
-    <button
-      class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-      :class="showMobileChats ? 'text-primary' : 'text-white/50 hover:text-white'"
-      @click="$emit('toggle-mobile-chats')"
-    >
-      <i class="fas fa-comments text-lg"></i>
-      <span class="text-[10px]">Chats</span>
-    </button>
-
-    <button
-      class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
-      @click="$emit('account-settings')"
-    >
-      <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
-        <i class="fas fa-user text-xs text-primary"></i>
-      </div>
-      <span class="text-[10px]">Account</span>
-    </button>
-  </nav>
 </template>
 
 <script>

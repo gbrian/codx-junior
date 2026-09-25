@@ -411,7 +411,6 @@ export const actions = actionTree(
       const project = getChatProject(chat)
 
       try {
-        // Update only metadata/info, not messages
         const updatedChat = await project.$api.chats.updateMetadata(chat.id, updates)
         
         if (updatedChat && state.chats[chat.id]) {
@@ -445,16 +444,13 @@ export const actions = actionTree(
           username
         })
         
-        // ADDED: Update local message state with merge-safe read_by list
         if (response && chat.messages) {
           const messageIndex = chat.messages.findIndex(m => m.doc_id === message_id)
           if (messageIndex !== -1) {
             const message = chat.messages[messageIndex]
-            // Ensure read_by is always an array
             if (!Array.isArray(message.read_by)) {
               message.read_by = []
             }
-            // Add username only if not already present (idempotent)
             if (!message.read_by.includes(username)) {
               message.read_by = [...message.read_by, username]
             }
@@ -495,19 +491,12 @@ export const actions = actionTree(
       }
 
       await $storex.chats.reloadChat({ id, project_id, owner_project_id })
-
       $storex.chats.setActiveChatId(id)
 
-      // Push route to chat view
+      // Use navigation API to route to chat
       if (!$storex.ui.isDesktopMode) {
         const chatName = name || `chat-${id}`
-        $storex.$router.push({
-          name: 'chat',
-          params: {
-            id,
-            name: chatName
-          }
-        })
+        $storex.$router.$navigation.chats.open(id, chatName)
       }
 
       if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
@@ -683,7 +672,6 @@ export const actions = actionTree(
       const project = $storex.projects.allProjectsById[projectId]
       if (!project) return []
       
-      // Load profiles if not already loaded for this project
       if (!$storex.profiles.profilesByProject[projectId]) {
         await $storex.profiles.loadProjectProfiles(project)
       }

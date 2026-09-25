@@ -65,10 +65,6 @@ export default {
       type: Boolean,
       default: false
     },
-    chatProject: {
-      type: Object,
-      default: null
-    },
     badgeColor: {
       type: Object,
       default: () => ({ task: 'primary', chat: 'accent' })
@@ -79,6 +75,11 @@ export default {
     }
   },
   emits: ['select'],
+  computed: {
+    chatProject() {
+      return this.$chats.getChatWorkingProject(this.chat)
+    }
+  },
   methods: {
     formatTime(date) {
       if (!date) return ''
