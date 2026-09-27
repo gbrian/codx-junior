@@ -914,7 +914,7 @@ class ChatManager:
                 )
         
         if chat_only:
-            chat.messages = []
+            chat.messages = [chat.messages[-1]] if len(chat.messages) else []
         chat.owner_project_id = self.settings.project_id
         return chat
 

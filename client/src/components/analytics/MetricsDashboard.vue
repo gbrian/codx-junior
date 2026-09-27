@@ -5,607 +5,580 @@ import PriceEditor from './PriceEditor.vue'
 </script>
 
 <template>
-  <div class="metrics-dashboard bg-base-200 p-4 h-full overflow-auto">
-    <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-      <div class="flex items-center gap-3">
-        <i class="fa-solid fa-chart-bar text-primary text-3xl"></i>
-        <h1 class="text-2xl font-bold text-base-content">Analytics Dashboard</h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Grouping selector -->
+  <div class="metrics-dashboard bg-[#111111] h-full flex flex-col overflow-auto">
+    <!-- Fixed Header -->
+    <div class="sticky top-0 z-40 border-b border-white/5 bg-[#111111]/95 backdrop-blur-sm">
+      <!-- Title Bar -->
+      <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-chart-bar text-white text-sm"></i>
+          </div>
+          <h1 class="text-lg font-bold text-white">Analytics</h1>
+        </div>
+
+        <!-- Quick Actions -->
         <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-base-content/70">Group by:</label>
+          <!-- Grouping selector -->
           <select
             v-model="grouping"
-            class="select select-bordered select-sm"
+            class="px-2 py-1.5 bg-transparent border border-white/10 hover:border-white/20 rounded-lg text-xs text-white font-medium outline-none focus:border-primary/50 transition-colors cursor-pointer"
             @change="loadData"
           >
-            <option value="minute">Minute</option>
-            <option value="hour">Hour</option>
-            <option value="day">Day</option>
+            <option value="minute" class="bg-[#1a1a1a]">Min</option>
+            <option value="hour" class="bg-[#1a1a1a]">Hour</option>
+            <option value="day" class="bg-[#1a1a1a]">Day</option>
           </select>
-        </div>
 
-        <button
-          class="btn btn-sm btn-outline"
-          :class="{ 'btn-active': isAdminView }"
-          v-if="$storex.users.isAdmin"
-          @click="toggleAdminView"
-        >
-          <i class="fa-solid fa-shield-halved text-sm"></i>
-          Admin View
-        </button>
-        <button class="btn btn-sm btn-primary" @click="loadData" :disabled="loading">
-          <i class="fa-solid fa-rotate-right text-sm" :class="{ 'animate-spin': loading }"></i>
-          Refresh
-        </button>
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="card bg-base-100 shadow mb-6">
-      <Collapsible>
-        <template #icon>
-          <i class="fa-solid fa-filter text-xs opacity-60"></i>
-        </template>
-        <template #title>Filters</template>
-        <template #summary>
-          <span
-            v-for="chip in activeFilterChips"
-            :key="chip.key"
-            class="badge badge-sm badge-primary gap-1"
+          <!-- Admin toggle -->
+          <button
+            v-if="$storex.users.isAdmin"
+            @click="toggleAdminView"
+            class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+            :class="isAdminView ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10'"
+            title="Switch view mode"
           >
-            {{ chip.label }}
-          </span>
-        </template>
+            <i class="fa-solid fa-shield-halved text-xs"></i>
+          </button>
 
-        <template #actions>
-          <div class="flex flex-wrap items-center gap-1 mr-1" @click.stop>
-            <button
-              v-for="preset in datePresets"
-              :key="preset.label"
-              class="btn btn-xs"
-              :class="activePreset === preset.label ? 'btn-primary' : 'btn-ghost'"
-              @click="applyPreset(preset)"
+          <!-- Refresh button -->
+          <button
+            @click="loadData"
+            :disabled="loading"
+            class="px-2.5 py-1.5 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
+            title="Refresh data"
+          >
+            <i :class="['fa-solid fa-rotate-right', { 'animate-spin': loading }]" class="text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Bar (Compact) -->
+      <div class="border-t border-white/5 bg-white/[0.02]">
+        <div class="max-w-7xl mx-auto px-6 py-2 space-y-2">
+          <!-- Row 1: Date Presets + Model + Auto-refresh -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Date presets -->
+            <div class="flex items-center gap-1">
+              <button
+                v-for="preset in datePresets"
+                :key="preset.label"
+                @click="applyPreset(preset)"
+                class="px-2 py-1 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
+                :class="activePreset === preset.label
+                  ? 'bg-primary text-white'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/10'
+                "
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+
+            <!-- Model filter -->
+            <div class="w-px h-4 bg-white/10"></div>
+            <select
+              v-model="filters.model"
+              class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-white/20"
+              @change="loadData"
+              title="Filter by model"
             >
-              {{ preset.label }}
+              <option value="" class="bg-[#1a1a1a]">All models</option>
+              <option v-for="model in availableModels" :key="model" :value="model" class="bg-[#1a1a1a]">
+                {{ model }}
+              </option>
+            </select>
+
+            <!-- Auto-refresh -->
+            <div class="w-px h-4 bg-white/10"></div>
+            <select
+              v-model="autoRefreshInterval"
+              class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white font-medium outline-none cursor-pointer hover:border-white/20 transition-colors"
+              @change="setupAutoRefresh"
+              title="Auto-refresh interval"
+            >
+              <option :value="null" class="bg-[#1a1a1a]">Off</option>
+              <option :value="30" class="bg-[#1a1a1a]">30s</option>
+              <option :value="60" class="bg-[#1a1a1a]">1m</option>
+              <option :value="300" class="bg-[#1a1a1a]">5m</option>
+              <option :value="900" class="bg-[#1a1a1a]">15m</option>
+            </select>
+
+            <div class="flex-1"></div>
+
+            <!-- Advanced filters toggle -->
+            <button
+              @click="showAdvancedFilters = !showAdvancedFilters"
+              class="px-2 py-1 text-xs font-medium rounded-lg text-white/50 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+              title="Toggle advanced filters"
+            >
+              <i :class="['fa-solid fa-sliders', showAdvancedFilters ? 'text-primary' : '']" class="text-xs"></i>
             </button>
 
-            <div class="w-px h-4 bg-base-300 mx-1"></div>
-
-            <div class="flex items-center gap-1">
-              <i
-                class="fa-solid fa-clock text-xs"
-                :class="autoRefreshInterval ? 'text-success animate-pulse' : 'text-base-content-ERROR-40'"
-              ></i>
-              <select
-                v-model="autoRefreshInterval"
-                class="select select-bordered select-xs w-24"
-                @change="setupAutoRefresh"
-              >
-                <option :value="null">Off</option>
-                <option :value="30">30s</option>
-                <option :value="60">1 min</option>
-                <option :value="300">5 min</option>
-                <option :value="900">15 min</option>
-              </select>
-            </div>
+            <!-- Clear filters -->
+            <button
+              @click="clearFilters"
+              class="px-2 py-1 text-xs font-medium rounded-lg text-white/50 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+              title="Clear all filters"
+            >
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
           </div>
-        </template>
 
-        <template #default>
-          <div class="card-body py-3 px-4">
-            <div class="flex flex-wrap items-center gap-4">
-              <div class="flex items-center gap-2">
-                <i class="fa-regular fa-calendar-days text-base-content/60 text-sm"></i>
-                <span class="text-sm font-medium text-base-content/70">Date Range</span>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <div class="flex items-center gap-1">
-                  <label class="text-xs text-base-content/60">From</label>
-                  <input
-                    type="date"
-                    v-model="filters.startDate"
-                    class="input input-bordered input-sm w-36"
-                    @change="applyCustomDates"
-                  />
-                </div>
-                <div class="flex items-center gap-1">
-                  <label class="text-xs text-base-content/60">To</label>
-                  <input
-                    type="date"
-                    v-model="filters.endDate"
-                    class="input input-bordered input-sm w-36"
-                    @change="applyCustomDates"
-                  />
-                </div>
-              </div>
+          <!-- Advanced Filters (Collapsible) -->
+          <div v-if="showAdvancedFilters" class="pt-2 border-t border-white/5 space-y-2">
+            <!-- Date Range -->
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="text-xs text-white/40 font-medium">Date:</span>
+              <input
+                type="date"
+                v-model="filters.startDate"
+                class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                @change="applyCustomDates"
+              />
+              <span class="text-white/30 text-xs">→</span>
+              <input
+                type="date"
+                v-model="filters.endDate"
+                class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                @change="applyCustomDates"
+              />
+            </div>
 
-              <template v-if="isAdminView">
-                <div class="flex items-center gap-1">
-                  <label class="text-xs text-base-content/60">User</label>
-                  <input
-                    type="text"
-                    v-model="filters.username"
-                    placeholder="All users"
-                    class="input input-bordered input-sm w-32"
-                    @change="loadData"
-                  />
-                </div>
-              </template>
-
-              <div class="flex items-center gap-1">
-                <label class="text-xs text-base-content/60">Model</label>
-                <select
-                  v-model="filters.model"
-                  class="select select-bordered select-sm w-40"
+            <!-- Admin Filters -->
+            <template v-if="isAdminView">
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="text-xs text-white/40 font-medium">User:</span>
+                <input
+                  type="text"
+                  v-model="filters.username"
+                  placeholder="Search username..."
+                  class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
                   @change="loadData"
-                >
-                  <option value="">All models</option>
-                  <option v-for="model in availableModels" :key="model" :value="model">
-                    {{ model }}
-                  </option>
-                </select>
+                />
+                <span class="text-xs text-white/40 font-medium">Project:</span>
+                <input
+                  type="text"
+                  v-model="filters.projectName"
+                  placeholder="Search project..."
+                  class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                  @change="loadData"
+                />
               </div>
-
-              <button class="btn btn-xs btn-ghost" @click="clearFilters">
-                <i class="fa-solid fa-filter-circle-xmark text-xs"></i>
-                Clear
-              </button>
-            </div>
-          </div>
-        </template>
-      </Collapsible>
-    </div>
-
-    <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-4">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div v-for="i in 7" :key="i" class="card bg-base-100 shadow">
-          <div class="card-body p-4 animate-pulse">
-            <div class="h-4 bg-base-300 rounded w-1/2 mb-3"></div>
-            <div class="h-8 bg-base-300 rounded w-3/4"></div>
+            </template>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Dashboard content -->
-    <template v-else>
-      <!-- KPI Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
-        <div
-          v-for="kpi in kpiCards"
-          :key="kpi.label"
-          class="card bg-base-100 shadow hover:shadow-lg transition-shadow"
-        >
-          <div class="card-body p-4">
-            <div class="flex items-start justify-between">
-              <div>
-                <p class="text-xs font-medium text-base-content/60 uppercase tracking-wider">
-                  {{ kpi.label }}
-                </p>
-                <p class="text-2xl font-bold mt-1" :class="kpi.color">
+    <!-- Scrollable Content -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        <!-- Loading State -->
+        <template v-if="loading">
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            <div v-for="i in 7" :key="i" class="h-16 rounded-lg bg-white/5 border border-white/5 animate-pulse"></div>
+          </div>
+        </template>
+
+        <!-- Dashboard Content -->
+        <template v-else>
+          <!-- KPI Cards Grid (Simplified) -->
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            <div
+              v-for="kpi in kpiCards"
+              :key="kpi.label"
+              class="group relative border border-white/10 rounded-lg p-3 hover:border-white/20 transition-all duration-200 cursor-help"
+              :title="kpi.label + ': ' + kpi.sub"
+            >
+              <div class="flex flex-col items-center text-center gap-1.5">
+                <div class="w-6 h-6 rounded flex items-center justify-center flex-shrink-0" :style="{ background: `${kpi.accentColor}15` }">
+                  <i :class="[kpi.faIcon, 'text-xs']" :style="{ color: kpi.accentColor }"></i>
+                </div>
+                <p class="text-sm font-bold text-white leading-tight">
                   {{ kpi.value }}
                 </p>
-                <p v-if="kpi.sub" class="text-xs text-base-content/50 mt-1">{{ kpi.sub }}</p>
-              </div>
-              <div class="p-2 rounded-lg" :class="kpi.bgColor">
-                <i :class="[kpi.faIcon, kpi.color]"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 h-96">
-        <!-- Period Usage Chart -->
-        <div class="card bg-base-100 shadow h-full overflow-hidden">
-          <div class="card-body p-4 h-full flex flex-col">
-            <h2 class="card-title text-base mb-4 flex items-center gap-2 flex-shrink-0">
-              <i class="fa-solid fa-chart-line text-primary"></i>
-              {{ groupingLabel }} Token Usage
-            </h2>
-            <div v-if="dailyData.length === 0" class="flex items-center justify-center flex-1 text-base-content-ERROR-40">
-              <div class="text-center">
-                <i class="fa-solid fa-chart-line text-5xl"></i>
-                <p class="mt-2 text-sm">No data available</p>
-              </div>
-            </div>
-            <div v-else class="flex-1 w-full min-h-0">
-              <DailyChart :data="dailyData" :grouping="grouping" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Model Breakdown -->
-        <div class="card bg-base-100 shadow h-full overflow-hidden">
-          <div class="card-body p-4 h-full flex flex-col">
-            <h2 class="card-title text-base mb-4 flex items-center gap-2 flex-shrink-0">
-              <i class="fa-solid fa-microchip text-secondary"></i>
-              Usage by Model
-            </h2>
-            <div v-if="Object.keys(byModelData).length === 0" class="flex items-center justify-center flex-1 text-base-content-ERROR-40">
-              <div class="text-center">
-                <i class="fa-solid fa-robot text-5xl"></i>
-                <p class="mt-2 text-sm">No model data available</p>
-              </div>
-            </div>
-            <div v-else class="space-y-3 overflow-y-auto flex-1">
-              <div
-                v-for="[model, stats] in byModelDataSorted"
-                :key="model"
-                class="flex items-center gap-3"
-              >
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-medium truncate" :title="model">{{ model }}</span>
-                    <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">
-                      {{ formatCoins(stats.total_cxjcoins) }}
-                    </span>
-                    
-                  </div>
-                  <div class="w-full bg-base-200 rounded-full h-2">
-                    <div
-                      class="h-2 rounded-full bg-primary transition-all duration-500"
-                      :style="{ width: getModelPercentage(stats.total_tokens) + '%' }"
-                    ></div>
-                  </div>
-                  <div class="flex gap-2 mt-1 flex-wrap">
-                    <span class="text-xs text-success">↑ {{ formatTokens(stats.input_tokens) }}</span>
-                    <span class="text-xs text-warning">↓ {{ formatTokens(stats.output_tokens) }}</span>
-                    <span class="text-xs text-base-content/60 ml-2">
-                      {{ formatTokens(stats.total_tokens) }}
-                      <span class="tooltip tooltip-left" :data-tip="stats.tokens_from_provider ? 'By provider': 'Stimated'" 
-                        :class="stats.tokens_from_provider ? 'text-info' : 'text-slate-500'">
-                        <i class="fa-solid fa-certificate"></i>
-                      </span>
-                    </span>
-                    <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin-only rows -->
-      <template v-if="isAdminView">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <!-- By User -->
-          <div class="card bg-base-100 shadow">
-            <div class="card-body p-4">
-              <h2 class="card-title text-base mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-users text-accent"></i>
-                Usage by User
-              </h2>
-              <div v-if="Object.keys(byUserData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
-                <div class="text-center">
-                  <i class="fa-regular fa-user text-5xl"></i>
-                  <p class="mt-2 text-sm">No user data available</p>
-                </div>
-              </div>
-              <div v-else class="space-y-3 overflow-y-auto max-h-48">
-                <div
-                  v-for="(stats, username) in byUserData"
-                  :key="username"
-                  class="flex items-center gap-3"
-                >
-                  <div class="avatar placeholder">
-                    <div class="bg-neutral text-neutral-content rounded-full w-7">
-                      <span class="text-xs">{{ username.charAt(0).toUpperCase() }}</span>
-                    </div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-medium truncate">{{ username }}</span>
-                      <span class="text-xs text-base-content/60">
-                        {{ formatTokens(stats.total_tokens) }}
-                      </span>
-                    </div>
-                    <div class="w-full bg-base-200 rounded-full h-2">
-                      <div
-                        class="h-2 rounded-full bg-accent transition-all duration-500"
-                        :style="{ width: getUserPercentage(stats.total_tokens) + '%' }"
-                      ></div>
-                    </div>
-                    <div class="flex gap-2 mt-1 flex-wrap">
-                      <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                      <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
-                        🪙 {{ formatCoins(stats.total_cxjcoins) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
 
-          <!-- By Project -->
-          <div class="card bg-base-100 shadow">
-            <div class="card-body p-4">
-              <h2 class="card-title text-base mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-folder-open text-info"></i>
-                Usage by Project
-              </h2>
-              <div v-if="Object.keys(byProjectData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
-                <div class="text-center">
-                  <i class="fa-regular fa-folder text-5xl"></i>
-                  <p class="mt-2 text-sm">No project data available</p>
-                </div>
+          <!-- Charts Section -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Token Usage Chart -->
+            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-primary text-sm"></i>
+                <h2 class="text-sm font-bold text-white">{{ groupingLabel }} Token Usage</h2>
               </div>
-              <div v-else class="space-y-3 overflow-y-auto max-h-48">
-                <div
-                  v-for="(stats, projectName) in byProjectData"
-                  :key="projectName"
-                  class="flex items-center gap-3"
-                >
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-medium truncate" :title="projectName">
-                        {{ projectName }}
-                      </span>
-                      <span class="text-xs text-base-content/60">
-                        {{ formatTokens(stats.total_tokens) }}
-                      </span>
-                    </div>
-                    <div class="w-full bg-base-200 rounded-full h-2">
-                      <div
-                        class="h-2 rounded-full bg-info transition-all duration-500"
-                        :style="{ width: getProjectPercentage(stats.total_tokens) + '%' }"
-                      ></div>
-                    </div>
-                    <div class="flex gap-2 mt-1 flex-wrap">
-                      <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                      <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
-                        🪙 {{ formatCoins(stats.total_cxjcoins) }}
-                      </span>
-                    </div>
-                  </div>
+              <div class="p-4">
+                <div v-if="dailyData.length === 0" class="flex flex-col items-center justify-center h-72 text-white/30">
+                  <i class="fa-solid fa-chart-line text-4xl mb-2"></i>
+                  <p class="text-xs font-medium">No data available</p>
+                </div>
+                <div v-else class="h-72">
+                  <DailyChart :data="dailyData" :grouping="grouping" />
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Model Performance Table -->
-        <div class="card bg-base-100 shadow mb-6">
-          <div class="card-body p-4">
-            <h2 class="card-title text-base mb-4 flex items-center gap-2">
-              <i class="fa-solid fa-gauge-high text-warning"></i>
-              Model Performance
-            </h2>
-            <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-base-content-ERROR-40">
-              <i class="fa-solid fa-robot text-5xl"></i>
-              <p class="mt-2 text-sm">No model performance data available</p>
-            </div>
-            <div v-else class="overflow-x-auto">
-              <table class="table table-sm w-full">
-                <thead>
-                  <tr class="text-xs">
-                    <th>Model</th>
-                    <th class="text-right">Calls</th>
-                    <th class="text-right">Total Tokens</th>
-                    <th class="text-right">Avg Duration</th>
-                    <th class="text-right">Tokens / sec</th>
-                    <th class="text-right">Cost (🪙)</th>
-                    <th>Speed Rating</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(stats, model) in modelPerformanceRows"
+            <!-- Model Usage Breakdown -->
+            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                <i class="fa-solid fa-microchip text-secondary text-sm"></i>
+                <h2 class="text-sm font-bold text-white">Usage by Model</h2>
+              </div>
+              <div class="p-4">
+                <div v-if="Object.keys(byModelData).length === 0" class="flex flex-col items-center justify-center h-72 text-white/30">
+                  <i class="fa-solid fa-robot text-4xl mb-2"></i>
+                  <p class="text-xs font-medium">No model data available</p>
+                </div>
+                <div v-else class="space-y-3 max-h-72 overflow-y-auto pr-2">
+                  <div
+                    v-for="[model, stats] in byModelDataSorted"
                     :key="model"
-                    class="hover text-sm"
+                    class="group"
                   >
-                    <td class="font-medium text-xs truncate max-w-32" :title="model">{{ model }}</td>
-                    <td class="text-right text-base-content/60">{{ stats.calls }}</td>
-                    <td class="text-right">{{ formatTokens(stats.total_tokens) }}</td>
-                    <td class="text-right">
-                      <span class="font-mono text-xs">
-                        {{ stats.total_duration_seconds > 0 ? stats.total_duration_seconds.toFixed(2) + 's' : 'N/A' }}
+                    <div class="flex items-center justify-between mb-1.5">
+                      <span class="text-xs font-semibold text-white truncate" :title="model">{{ model }}</span>
+                      <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
+                        :style="{ width: getModelPercentage(stats.total_tokens) + '%' }"
+                      ></div>
+                    </div>
+                    <div class="flex gap-2 mt-1 flex-wrap text-xs">
+                      <span class="text-success">
+                        <i class="fa-solid fa-arrow-up text-xs mr-0.5"></i>{{ formatTokens(stats.input_tokens) }}
                       </span>
-                    </td>
-                    <td class="text-right">
-                      <span
-                        class="font-mono text-xs font-semibold"
-                        :class="getTokensPerSecColor(stats.tokens_per_second)"
-                      >
-                        {{ stats.tokens_per_second > 0 ? formatTokens(stats.tokens_per_second) + '/s' : 'N/A' }}
+                      <span class="text-warning">
+                        <i class="fa-solid fa-arrow-down text-xs mr-0.5"></i>{{ formatTokens(stats.output_tokens) }}
                       </span>
-                    </td>
-                    <td class="text-right">
-                      <span class="text-xs font-semibold text-fuchsia-400">
-                        {{ stats.total_cxjcoins != null ? formatCoins(stats.total_cxjcoins) : '-' }}
+                      <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400 ml-auto">
+                        🪙 {{ formatCoins(stats.total_cxjcoins) }}
                       </span>
-                    </td>
-                    <td class="min-w-28">
-                      <div class="flex items-center gap-2">
-                        <div class="flex-1 bg-base-200 rounded-full h-2">
-                          <div
-                            class="h-2 rounded-full transition-all duration-500"
-                            :class="getSpeedBarColor(stats.tokens_per_second)"
-                            :style="{ width: getSpeedPercentage(stats.tokens_per_second) + '%' }"
-                          ></div>
-                        </div>
-                        <span class="text-xs text-base-content-ERROR-40 w-8 text-right">
-                          {{ getSpeedPercentage(stats.tokens_per_second) }}%
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </template>
 
-      <!-- Daily Data Table -->
-      <div class="card bg-base-100 shadow mb-6">
-        <div class="card-body p-4">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="card-title text-base flex items-center gap-2">
-              <i class="fa-solid fa-table text-primary"></i>
-              Period Breakdown
-            </h2>
-            <div class="flex items-center gap-2">
+          <!-- Admin Section -->
+          <template v-if="isAdminView">
+            <!-- User & Project Stats -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <!-- By User -->
+              <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+                <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                  <i class="fa-solid fa-users text-accent text-sm"></i>
+                  <h2 class="text-sm font-bold text-white">Usage by User</h2>
+                </div>
+                <div class="p-4">
+                  <div v-if="Object.keys(byUserData).length === 0" class="flex flex-col items-center justify-center h-56 text-white/30">
+                    <i class="fa-regular fa-user text-3xl mb-2"></i>
+                    <p class="text-xs font-medium">No user data available</p>
+                  </div>
+                  <div v-else class="space-y-2 max-h-56 overflow-y-auto pr-2">
+                    <div
+                      v-for="(stats, username) in byUserData"
+                      :key="username"
+                      class="group"
+                    >
+                      <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">
+                          {{ username.charAt(0).toUpperCase() }}
+                        </div>
+                        <span class="text-xs font-semibold text-white flex-1 truncate">{{ username }}</span>
+                        <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden ml-8">
+                        <div
+                          class="h-full bg-gradient-to-r from-accent to-accent/60 transition-all duration-500"
+                          :style="{ width: getUserPercentage(stats.total_tokens) + '%' }"
+                        ></div>
+                      </div>
+                      <div class="flex gap-1.5 mt-1 ml-8 text-xs flex-wrap">
+                        <span class="text-white/50">{{ stats.calls }} calls</span>
+                        <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">🪙 {{ formatCoins(stats.total_cxjcoins) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- By Project -->
+              <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+                <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                  <i class="fa-solid fa-folder-open text-info text-sm"></i>
+                  <h2 class="text-sm font-bold text-white">Usage by Project</h2>
+                </div>
+                <div class="p-4">
+                  <div v-if="Object.keys(byProjectData).length === 0" class="flex flex-col items-center justify-center h-56 text-white/30">
+                    <i class="fa-regular fa-folder text-3xl mb-2"></i>
+                    <p class="text-xs font-medium">No project data available</p>
+                  </div>
+                  <div v-else class="space-y-2 max-h-56 overflow-y-auto pr-2">
+                    <div
+                      v-for="(stats, projectName) in byProjectData"
+                      :key="projectName"
+                      class="group"
+                    >
+                      <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-semibold text-white truncate" :title="projectName">{{ projectName }}</span>
+                        <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          class="h-full bg-gradient-to-r from-info to-info/60 transition-all duration-500"
+                          :style="{ width: getProjectPercentage(stats.total_tokens) + '%' }"
+                        ></div>
+                      </div>
+                      <div class="flex gap-1.5 mt-1 text-xs flex-wrap">
+                        <span class="text-white/50">{{ stats.calls }} calls</span>
+                        <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">🪙 {{ formatCoins(stats.total_cxjcoins) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Model Performance Table -->
+            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                <i class="fa-solid fa-gauge-high text-warning text-sm"></i>
+                <h2 class="text-sm font-bold text-white">Model Performance</h2>
+              </div>
+              <div class="p-4">
+                <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-white/30">
+                  <i class="fa-solid fa-robot text-3xl mb-2"></i>
+                  <p class="text-xs font-medium">No model performance data available</p>
+                </div>
+                <div v-else class="overflow-x-auto">
+                  <table class="w-full text-xs">
+                    <thead>
+                      <tr class="border-b border-white/10">
+                        <th class="text-left px-3 py-2 text-white/70 font-semibold">Model</th>
+                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Calls</th>
+                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Total Tokens</th>
+                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Avg Duration</th>
+                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Tokens / sec</th>
+                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Cost (🪙)</th>
+                        <th class="text-left px-3 py-2 text-white/70 font-semibold">Speed</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/10">
+                      <tr
+                        v-for="(stats, model) in modelPerformanceRows"
+                        :key="model"
+                        class="hover:bg-white/5 transition-colors"
+                      >
+                        <td class="px-3 py-2 font-medium text-white truncate max-w-24" :title="model">{{ model }}</td>
+                        <td class="px-3 py-2 text-right text-white/50">{{ stats.calls }}</td>
+                        <td class="px-3 py-2 text-right text-white font-medium">{{ formatTokens(stats.total_tokens) }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-white/70">
+                          {{ stats.total_duration_seconds > 0 ? stats.total_duration_seconds.toFixed(2) + 's' : 'N/A' }}
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold" :class="getTokensPerSecColor(stats.tokens_per_second)">
+                          {{ stats.tokens_per_second > 0 ? formatTokens(stats.tokens_per_second) + '/s' : 'N/A' }}
+                        </td>
+                        <td class="px-3 py-2 text-right text-fuchsia-400 font-semibold">
+                          {{ stats.total_cxjcoins != null ? formatCoins(stats.total_cxjcoins) : '-' }}
+                        </td>
+                        <td class="px-3 py-2">
+                          <div class="flex items-center gap-2">
+                            <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden min-w-16">
+                              <div
+                                class="h-full rounded-full transition-all duration-500"
+                                :class="getSpeedBarColor(stats.tokens_per_second)"
+                                :style="{ width: getSpeedPercentage(stats.tokens_per_second) + '%' }"
+                              ></div>
+                            </div>
+                            <span class="text-xs text-white/50 w-6 text-right">
+                              {{ getSpeedPercentage(stats.tokens_per_second) }}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Data Table -->
+          <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-table text-primary text-sm"></i>
+                <h2 class="text-sm font-bold text-white">Period Breakdown</h2>
+              </div>
               <button
-                class="btn btn-xs btn-ghost"
                 @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+                class="px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 text-xs font-medium transition-all flex items-center gap-1"
               >
                 <i :class="sortOrder === 'asc' ? 'fa-solid fa-arrow-up-wide-short' : 'fa-solid fa-arrow-down-wide-short'" class="text-xs"></i>
-                {{ sortOrder === 'asc' ? 'Oldest first' : 'Newest first' }}
               </button>
             </div>
-          </div>
-
-          <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-base-content-ERROR-40">
-            <i class="fa-solid fa-database text-5xl"></i>
-            <p class="mt-2 text-sm">No data available for the selected period</p>
-          </div>
-
-          <div v-else class="overflow-x-auto">
-            <table class="table table-sm w-full">
-              <thead>
-                <tr class="text-xs">
-                  <th>{{ grouping === 'minute' ? 'Time' : grouping === 'hour' ? 'Hour' : 'Date' }}</th>
-                  <th class="text-right">Input Tokens</th>
-                  <th class="text-right">Output Tokens</th>
-                  <th class="text-right">Total Tokens</th>
-                  <th class="text-right">Calls</th>
-                  <th class="text-right">Avg Duration</th>
-                  <th class="text-right">Cost (🪙)</th>
-                  <th>Distribution</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in sortedDailyData"
-                  :key="row.period || row.date"
-                  class="hover text-sm"
-                >
-                  <td class="font-medium">{{ row.period || row.date }}</td>
-                  <td class="text-right text-success">{{ formatTokens(row.input_tokens) }}</td>
-                  <td class="text-right text-warning">{{ formatTokens(row.output_tokens) }}</td>
-                  <td class="text-right font-semibold">{{ formatTokens(row.total_tokens) }}</td>
-                  <td class="text-right text-base-content/60">{{ row.calls }}</td>
-                  <td class="text-right text-base-content/60 font-mono text-xs">
-                    {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
-                  </td>
-                  <td class="text-right">
-                    <div class="flex items-center justify-end gap-1 group">
-                      <span class="text-xs font-semibold text-fuchsia-400">
-                        {{ row.total_cxjcoins != null ? formatCoins(row.total_cxjcoins) : '-' }}
-                      </span>
-                      <button
-                        v-if="isAdminView"
-                        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-0 min-h-0 h-auto"
-                        title="Edit prices for this period"
-                        @click="openPriceEditorForDate(row.period || row.date)"
-                      >
-                        <i class="fa-solid fa-pen-to-square text-fuchsia-400 text-xs"></i>
-                      </button>
-                    </div>
-                  </td>
-                  <td class="min-w-24">
-                    <div class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24">
-                      <div
-                        class="bg-success"
-                        :style="{ width: (row.input_tokens / row.total_tokens * 100) + '%' }"
-                      ></div>
-                      <div
-                        class="bg-warning"
-                        :style="{ width: (row.output_tokens / row.total_tokens * 100) + '%' }"
-                      ></div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr class="font-bold text-sm border-t-2 border-base-300">
-                  <td>Total</td>
-                  <td class="text-right text-success">{{ formatTokens(totalStats.input_tokens) }}</td>
-                  <td class="text-right text-warning">{{ formatTokens(totalStats.output_tokens) }}</td>
-                  <td class="text-right">{{ formatTokens(totalStats.total_tokens) }}</td>
-                  <td class="text-right text-base-content/60">{{ totalStats.calls }}</td>
-                  <td class="text-right text-base-content/60 font-mono text-xs">
-                    {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
-                  </td>
-                  <td class="text-right text-fuchsia-400">
-                    {{ totalStats.total_cxjcoins != null ? formatCoins(totalStats.total_cxjcoins) : '-' }}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Price Management (admin only) -->
-      <template v-if="isAdminView">
-        <div
-          class="collapse collapse-arrow bg-base-100 shadow border border-base-300 mb-6"
-          :class="{ 'collapse-open': priceEditorOpen }"
-        >
-          <input type="checkbox" v-model="priceEditorOpen" />
-          <div class="collapse-title font-bold text-base">
-            <i class="fa-solid fa-tags text-primary mr-2"></i>
-            Price Management
-            <span v-if="priceEditorDate" class="ml-2 badge badge-sm badge-fuchsia-400 text-fuchsia-400 border-fuchsia-400">
-              <i class="fa-solid fa-calendar-day mr-1 text-xs"></i>
-              {{ priceEditorDate }}
-            </span>
-            <span v-if="priceEditorModel" class="ml-2 badge badge-sm badge-secondary text-base-content border-base-300">
-              <i class="fa-solid fa-microchip mr-1 text-xs"></i>
-              {{ priceEditorModel }}
-            </span>
-          </div>
-          <div class="collapse-content">
-            <div class="card-body py-3 px-4 bg-base-200 rounded mb-4">
-              <div class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center gap-2">
-                  <label class="text-xs font-medium text-base-content/70">Filter by Model:</label>
-                  <select
-                    v-model="priceEditorModel"
-                    class="select select-bordered select-sm w-48"
-                  >
-                    <option :value="null">All models</option>
-                    <option v-for="model in availableModels" :key="model" :value="model">
-                      {{ model }}
-                    </option>
-                  </select>
-                </div>
-                <button
-                  class="btn btn-xs btn-ghost"
-                  @click="priceEditorModel = null"
-                >
-                  <i class="fa-solid fa-times text-xs"></i>
-                  Clear Selection
-                </button>
+            <div class="p-4">
+              <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-white/30">
+                <i class="fa-solid fa-database text-3xl mb-2"></i>
+                <p class="text-xs font-medium">No data available for the selected period</p>
+              </div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="border-b border-white/10">
+                      <th class="text-left px-3 py-2 text-white/70 font-semibold">
+                        {{ grouping === 'minute' ? 'Time' : grouping === 'hour' ? 'Hour' : 'Date' }}
+                      </th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Input</th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Output</th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Total</th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Calls</th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Avg Duration</th>
+                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Cost</th>
+                      <th class="text-left px-3 py-2 text-white/70 font-semibold">Distribution</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-white/10">
+                    <tr
+                      v-for="row in sortedDailyData"
+                      :key="row.period || row.date"
+                      class="hover:bg-white/5 transition-colors group"
+                    >
+                      <td class="px-3 py-2 font-semibold text-white">{{ row.period || row.date }}</td>
+                      <td class="px-3 py-2 text-right text-success">{{ formatTokens(row.input_tokens) }}</td>
+                      <td class="px-3 py-2 text-right text-warning">{{ formatTokens(row.output_tokens) }}</td>
+                      <td class="px-3 py-2 text-right font-semibold text-white">{{ formatTokens(row.total_tokens) }}</td>
+                      <td class="px-3 py-2 text-right text-white/50">{{ row.calls }}</td>
+                      <td class="px-3 py-2 text-right font-mono text-white/50">
+                        {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                      </td>
+                      <td class="px-3 py-2 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <span class="text-xs font-semibold text-fuchsia-400">
+                            {{ row.total_cxjcoins != null ? formatCoins(row.total_cxjcoins) : '-' }}
+                          </span>
+                          <button
+                            v-if="isAdminView"
+                            @click="openPriceEditorForDate(row.period || row.date)"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 text-fuchsia-400 hover:bg-fuchsia-400/10 rounded text-xs"
+                            title="Edit prices"
+                          >
+                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                          </button>
+                        </div>
+                      </td>
+                      <td class="px-3 py-2">
+                        <div class="flex h-1.5 rounded-full overflow-hidden bg-white/10 w-24">
+                          <div
+                            class="bg-success"
+                            :style="{ width: (row.input_tokens / row.total_tokens * 100) + '%' }"
+                          ></div>
+                          <div
+                            class="bg-warning"
+                            :style="{ width: (row.output_tokens / row.total_tokens * 100) + '%' }"
+                          ></div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t-2 border-white/20 font-bold text-white bg-white/5">
+                      <td class="px-3 py-2">Total</td>
+                      <td class="px-3 py-2 text-right text-success">{{ formatTokens(totalStats.input_tokens) }}</td>
+                      <td class="px-3 py-2 text-right text-warning">{{ formatTokens(totalStats.output_tokens) }}</td>
+                      <td class="px-3 py-2 text-right">{{ formatTokens(totalStats.total_tokens) }}</td>
+                      <td class="px-3 py-2 text-right text-white/50">{{ totalStats.calls }}</td>
+                      <td class="px-3 py-2 text-right font-mono text-white/50">
+                        {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                      </td>
+                      <td class="px-3 py-2 text-right text-fuchsia-400">
+                        {{ totalStats.total_cxjcoins != null ? formatCoins(totalStats.total_cxjcoins) : '-' }}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
-            <PriceEditor
-              :initial-start-date="priceEditorDate"
-              :initial-end-date="priceEditorDate"
-              :initial-model="priceEditorModel"
-              @metrics-changed="loadData"
-            />
           </div>
-        </div>
-      </template>
 
-      <!-- Error state -->
-      <div v-if="error" class="alert alert-error mt-4">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span>{{ error }}</span>
-        <button class="btn btn-sm btn-ghost" @click="error = null">Dismiss</button>
+          <!-- Price Management (admin only) -->
+          <template v-if="isAdminView">
+            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+              <button
+                @click="priceEditorOpen = !priceEditorOpen"
+                class="w-full px-4 py-3 border-b border-white/5 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+              >
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-tags text-primary text-sm"></i>
+                  <span class="font-semibold text-white text-sm">Price Management</span>
+                  <span v-if="priceEditorDate" class="ml-2 px-2 py-1 bg-primary/20 border border-primary/30 text-primary text-xs font-medium rounded-lg">
+                    <i class="fa-solid fa-calendar-day mr-1 text-xs"></i>
+                    {{ priceEditorDate }}
+                  </span>
+                  <span v-if="priceEditorModel" class="ml-2 px-2 py-1 bg-secondary/20 border border-secondary/30 text-secondary text-xs font-medium rounded-lg">
+                    <i class="fa-solid fa-microchip mr-1 text-xs"></i>
+                    {{ priceEditorModel }}
+                  </span>
+                </div>
+                <i :class="['fa-solid fa-chevron-down', priceEditorOpen ? 'rotate-180' : '']" class="text-white/40 transition-transform text-sm"></i>
+              </button>
+              <div v-if="priceEditorOpen" class="p-4 space-y-4 border-t border-white/5">
+                <div class="flex flex-col sm:flex-row gap-3">
+                  <div class="flex-1 space-y-1.5">
+                    <label class="text-xs font-semibold text-white/70">Filter by Model</label>
+                    <select
+                      v-model="priceEditorModel"
+                      class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-white/20"
+                    >
+                      <option :value="null" class="bg-[#1a1a1a]">All models</option>
+                      <option v-for="model in availableModels" :key="model" :value="model" class="bg-[#1a1a1a]">
+                        {{ model }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="flex items-end">
+                    <button
+                      @click="priceEditorModel = null"
+                      class="px-2.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 text-xs font-medium transition-all"
+                    >
+                      <i class="fa-solid fa-times text-xs mr-1"></i>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <PriceEditor
+                  :initial-start-date="priceEditorDate"
+                  :initial-end-date="priceEditorDate"
+                  :initial-model="priceEditorModel"
+                  @metrics-changed="loadData"
+                />
+              </div>
+            </div>
+          </template>
+
+          <!-- Error State -->
+          <div v-if="error" class="border border-error/30 rounded-lg p-3 flex items-start gap-3">
+            <i class="fa-solid fa-circle-exclamation text-error text-base flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-xs font-semibold text-error mb-1">Error loading analytics</p>
+              <p class="text-xs text-error/80">{{ error }}</p>
+            </div>
+            <button
+              @click="error = null"
+              class="flex-shrink-0 px-2 py-1 bg-error/10 hover:bg-error/20 text-error rounded-lg text-xs font-medium transition-all"
+            >
+              Dismiss
+            </button>
+          </div>
+        </template>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -624,6 +597,7 @@ export default {
       sortOrder: 'desc',
       activePreset: '30d',
       grouping: 'day',
+      showAdvancedFilters: false,
       priceEditorOpen: false,
       priceEditorDate: null,
       priceEditorModel: null,
@@ -653,8 +627,8 @@ export default {
         { label: '7d', days: 7 },
         { label: '30d', days: 30 },
         { label: '90d', days: 90 },
-        { label: 'This month', type: 'thisMonth' },
-        { label: 'All time', type: 'allTime' }
+        { label: 'Month', type: 'thisMonth' },
+        { label: 'All', type: 'allTime' }
       ]
     }
   },
@@ -663,15 +637,6 @@ export default {
       const models = new Set()
       Object.keys(this.byModelData).forEach(m => models.add(m))
       return Array.from(models).sort()
-    },
-
-    activeFilterChips() {
-      const chips = []
-      chips.push({ key: 'date', label: `${this.filters.startDate} → ${this.filters.endDate}` })
-      if (this.filters.model) chips.push({ key: 'model', label: `Model: ${this.filters.model}` })
-      if (this.filters.username) chips.push({ key: 'user', label: `User: ${this.filters.username}` })
-      if (this.filters.projectName) chips.push({ key: 'project', label: `Project: ${this.filters.projectName}` })
-      return chips
     },
 
     groupingLabel() {
@@ -698,56 +663,49 @@ export default {
           value: this.formatTokens(this.totalStats.total_tokens),
           sub: 'across selected period',
           faIcon: 'fa-solid fa-hashtag',
-          color: 'text-primary',
-          bgColor: 'bg-primary/10'
+          accentColor: '#6366f1'
         },
         {
           label: 'Total Calls',
           value: this.formatNumber(this.totalStats.calls),
           sub: `avg ${this.formatTokens(avgTokensPerCall)} tokens/call`,
           faIcon: 'fa-solid fa-plug',
-          color: 'text-secondary',
-          bgColor: 'bg-secondary/10'
+          accentColor: '#ec4899'
         },
         {
           label: 'Input Tokens',
           value: this.formatTokens(this.totalStats.input_tokens),
           sub: `${((this.totalStats.input_tokens / Math.max(this.totalStats.total_tokens, 1)) * 100).toFixed(1)}% of total`,
           faIcon: 'fa-solid fa-circle-arrow-up',
-          color: 'text-success',
-          bgColor: 'bg-success/10'
+          accentColor: '#10b981'
         },
         {
           label: 'Output Tokens',
           value: this.formatTokens(this.totalStats.output_tokens),
           sub: `${ratio}% of total`,
           faIcon: 'fa-solid fa-circle-arrow-down',
-          color: 'text-warning',
-          bgColor: 'bg-warning/10'
+          accentColor: '#f59e0b'
         },
         {
           label: 'Avg Duration',
           value: avgDur > 0 ? avgDur.toFixed(2) + 's' : 'N/A',
           sub: 'per LLM call',
           faIcon: 'fa-solid fa-stopwatch',
-          color: 'text-info',
-          bgColor: 'bg-info/10'
+          accentColor: '#3b82f6'
         },
         {
           label: 'Tokens / sec',
           value: tokPerSec > 0 ? this.formatTokens(tokPerSec) + '/s' : 'N/A',
           sub: 'generation speed',
           faIcon: 'fa-solid fa-bolt',
-          color: 'text-error',
-          bgColor: 'bg-error/10'
+          accentColor: '#ef4444'
         },
         {
           label: 'Total Cost',
           value: this.totalStats.total_cxjcoins != null ? this.formatCoins(this.totalStats.total_cxjcoins) : 'N/A',
           sub: 'cxjcoins spent',
           faIcon: 'fa-solid fa-coins',
-          color: 'text-fuchsia-400',
-          bgColor: 'bg-fuchsia-400/10'
+          accentColor: '#a855f7'
         }
       ]
     },
@@ -842,6 +800,7 @@ export default {
       this.activePreset = '30d'
       this.grouping = 'day'
       this.priceEditorModel = null
+      this.showAdvancedFilters = false
       this.loadData()
     },
 
@@ -861,7 +820,7 @@ export default {
       this.priceEditorModel = null
       this.priceEditorOpen = true
       this.$nextTick(() => {
-        const el = this.$el.querySelector('.collapse-open')
+        const el = this.$el.querySelector('.border-white\\/10')
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     },
@@ -954,20 +913,19 @@ export default {
       return Math.round((tokensPerSecond / this.maxTokensPerSecond) * 100)
     },
     getTokensPerSecColor(tps) {
-      if (!tps || tps <= 0) return 'text-base-content-ERROR-40'
+      if (!tps || tps <= 0) return 'text-white/50'
       const pct = tps / this.maxTokensPerSecond
       if (pct >= 0.7) return 'text-success'
       if (pct >= 0.35) return 'text-warning'
       return 'text-error'
     },
     getSpeedBarColor(tps) {
-      if (!tps || tps <= 0) return 'bg-base-300'
+      if (!tps || tps <= 0) return 'bg-white/20'
       const pct = tps / this.maxTokensPerSecond
       if (pct >= 0.7) return 'bg-success'
       if (pct >= 0.35) return 'bg-warning'
       return 'bg-error'
     }
-
   },
 
   mounted() {

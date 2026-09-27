@@ -23,18 +23,18 @@ import ViewsMenu from './ViewsMenu.vue'
           class="click text-xl select-none font-bold leading-none flex items-center justify-between gap-2 tooltip"
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
         >
-
-          <div class="p-2 relative click select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 indicator">
-            <span class="absolute left-6 -top-2 text-error animate-pulse tooltip" 
-              title="API disconnected!"
-              v-if="!$storex.session.connected">
-              <i class="fa-solid fa-circle-exclamation"></i>
-            </span>
-            <div class="avatar">
-              <img class="w-6 rpounded-full" src="/only_icon.png" />
+          <slot>
+            <div class="p-2 relative click select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 indicator">
+              <span class="absolute left-6 -top-2 text-error animate-pulse tooltip" 
+                title="API disconnected!"
+                v-if="!$storex.session.connected">
+                <i class="fa-solid fa-circle-exclamation"></i>
+              </span>
+              <div class="avatar">
+                <img class="w-6 rpounded-full" src="/only_icon.png" />
+              </div>
             </div>
-          </div>
-          
+          </slot>
         </MenubarTrigger>
         <MenubarPortal>
           <MenubarContent

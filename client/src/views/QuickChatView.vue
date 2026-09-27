@@ -185,7 +185,7 @@ import WorkspaceAppLoader from '@/components/quick-chat/WorkspaceAppLoader.vue'
     <main
       v-if="isMobile || !activeChat"
       class="flex-1 flex flex-col min-w-0 h-full relative"
-      :class="[isMobile ? 'pb-16' : '']"
+      :class="[isMobile ? 'pb-20' : '']"
     >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
@@ -260,17 +260,6 @@ import WorkspaceAppLoader from '@/components/quick-chat/WorkspaceAppLoader.vue'
               @remove-attachment="removeHomeAttachment"
             />
 
-            <!-- Suggestion chips (removed bookmarks as they're now in global sidebar) -->
-            <div class="flex flex-wrap gap-2 mt-3 justify-center">
-              <button
-                v-for="app in workspaceApps"
-                :key="app.route"
-                class="px-3 py-1.5 rounded-full bg-white/5 border border-white/8 text-white/50 text-xs hover:bg-white/10 hover:text-white/80 transition-colors"
-                @click="selectWorkspaceApp(app)"
-              >
-                {{ app.label }}
-              </button>
-            </div>
           </div>
         </div>
       </transition>
@@ -521,9 +510,6 @@ export default {
       const name = this.$user?.username || 'there'
       return name.split(' ')[0]
     },
-    workspaceApps() {
-      return this.$storex.projects.projectApps
-    },
     splitterPanels() {
       return {
         left: {
@@ -643,11 +629,12 @@ export default {
     async onHomeSubmit() {
       const text = this.$refs.homeInputBox?.getEditorText()?.trim()
       if (!text || this.waiting) return
-      this.$refs.homeInputBox?.setEditorText('')
       const chat = await this.createChat(text)
       if (!chat) return
       this.activeChatId = chat.id
+      await this.$nextTick()
       await this.postAndSend(text)
+      this.$refs.homeInputBox?.setEditorText('')
     },
     onHomeKeyDown(event) {
       if (event.key === 'Enter' && !event.shiftKey) {

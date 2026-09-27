@@ -24,11 +24,12 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #title>
-      <div class="flex gap-2 items-center">
-        <div class="flex gap-2 items-center flex-1">
-          <div class="underline text-link flex gap-2 items-center cursor-pointer" v-if="fileName">
+      <div class="flex flex-col gap-2 w-full md:gap-0">
+        <!-- Main header row: filename and quick actions -->
+        <div class="flex gap-2 items-center flex-1 min-w-0">
+          <div class="underline text-link flex gap-2 items-center cursor-pointer flex-1 min-w-0" v-if="fileName">
             <div 
-              class="hover:text-info tooltip" 
+              class="hover:text-info tooltip truncate" 
               :data-tip="file" 
               @click.stop="handleFileNameClick($event)"
               :title="file"
@@ -36,11 +37,12 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               {{ fileName }}
             </div>
           </div>
-          <span class="text-sm font-medium opacity-60" v-else>Code</span>
+          <span class="text-sm font-medium opacity-60 shrink-0" v-else>Code</span>
 
-          <div class="flex gap-2" v-if="finished">
+          <!-- Quick icons (always visible on desktop, mobile shows less) -->
+          <div class="flex gap-1 shrink-0" v-if="finished">
             <div
-              class="hover:text-info cursor-pointer"
+              class="hover:text-info cursor-pointer text-sm"
               :class="editMode && 'text-warning'"
               @click.stop="onEdit"
               title="Edit code"
@@ -49,7 +51,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
             </div>
 
             <div
-              class="hover:text-info cursor-pointer"
+              class="hover:text-info cursor-pointer text-sm"
               :class="associatedChat && 'text-success'"
               @click.stop="onTaskClick"
               :title="associatedChat ? 'Open associated chat' : 'Create sub-task'"
@@ -57,42 +59,46 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               <i :class="associatedChat ? 'fa-solid fa-comments' : 'fa-brands fa-trello'"></i>
             </div>
 
-            <div class="hover:text-info cursor-pointer" @click.stop="showDiffInfo" title="Refresh diff stats">
+            <div class="hover:text-info cursor-pointer text-sm" @click.stop="showDiffInfo" title="Refresh diff stats">
               <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
             </div>
+          </div>
+        </div>
 
-            <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
-              <span v-if="loadingStats">Loading...</span>
-              <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats && !isMarkdown">
-                <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
-                <i class="fa-solid fa-code-compare" v-else></i>
-                {{ stats }}
-              </span>
-
-              <span v-if="last_modification" class="text-xs opacity-75">
-                {{ moment(last_modification).fromNow() }}
-              </span>
-              <span v-if="size">
-                {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
-              </span>
+        <!-- Stats row (wrap on mobile) -->
+        <div class="flex gap-2 items-center flex-wrap text-xs" v-if="finished && (stats || last_modification || size)">
+          <span class="text-info flex gap-2 items-center" @click.stop="">
+            <span v-if="loadingStats">Loading...</span>
+            <span @click.stop="toggleView" class="cursor-pointer hover:underline" v-if="stats && !isMarkdown">
+              <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
+              <i class="fa-solid fa-code-compare" v-else></i>
+              {{ stats }}
             </span>
 
-            <div class="font-mono text-xs truncate trl" v-if="!finished">
-              {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
-            </div>
-
-            <span
-              v-if="hasLocalChanges"
-              class="badge badge-warning badge-xs gap-1"
-              title="You have unsaved local edits"
-            >
-              <i class="fa-solid fa-pen-nib"></i> edited
+            <span v-if="last_modification" class="text-xs opacity-75 shrink-0">
+              {{ moment(last_modification).fromNow() }}
             </span>
+            <span v-if="size" class="shrink-0">
+              {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
+            </span>
+          </span>
+
+          <div class="font-mono text-xs truncate" v-if="!finished">
+            {{ lastLine }}<span class="ml-1 animate-pulse text-info">_</span>
           </div>
 
-          <div v-if="stats && !editMode && !isNoChange && !isMarkdown" class="flex items-center gap-2 ml-2">
+          <span
+            v-if="hasLocalChanges"
+            class="badge badge-warning badge-xs gap-1 shrink-0"
+            title="You have unsaved local edits"
+          >
+            <i class="fa-solid fa-pen-nib"></i> edited
+          </span>
+
+          <!-- Change stats bar (wrap on mobile) -->
+          <div v-if="stats && !editMode && !isNoChange && !isMarkdown" class="flex items-center gap-2">
             <div
-              class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
+              class="flex h-2 rounded-full overflow-hidden bg-base-200 w-16 md:w-24 relative transition-all duration-300"
               :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
             >
               <div
@@ -106,11 +112,11 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
                 :title="`Additions: ${additionCount} lines`"
               ></div>
             </div>
-            <span class="text-xs font-medium text-base-content/60 w-20 text-right">
+            <span class="text-xs font-medium text-base-content/60 w-12 md:w-20 text-right shrink-0">
               {{ deletionCount }} / {{ additionCount }}
             </span>
             <div v-if="isDangerousChange" class="tooltip tooltip-left" data-tip="Heavy modification detected! Review carefully.">
-              <i class="fa-solid fa-triangle-exclamation text-error animate-pulse"></i>
+              <i class="fa-solid fa-triangle-exclamation text-error animate-pulse shrink-0"></i>
             </div>
           </div>
         </div>
@@ -118,9 +124,10 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
     </template>
 
     <template #actions>
-      <div class="flex gap-1" click.stop="">
+      <!-- Action buttons wrapper with horizontal scroll on mobile -->
+      <div class="flex gap-1 overflow-x-auto pb-1 snap-x md:overflow-visible shrink-0">
         <!-- Save Button -->
-        <button class="btn btn-sm btn-success btn-outline"
+        <button class="btn btn-sm btn-success btn-outline snap-start shrink-0"
           @click.stop="saveToFile"
           v-if="!isNoChange && file && finished && (showCode || showDiff)"
           :class="{ 'blink-save': actionFeedback.save }"
@@ -131,10 +138,10 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- No Changes Text -->
-        <span class="text-success font-console text-xs" v-if="isNoChange">No changes</span>
+        <span class="text-success font-console text-xs py-2" v-if="isNoChange">No changes</span>
 
         <!-- Patch Button (AI Pattern) -->
-        <button class="btn btn-sm btn-info btn-outline"
+        <button class="btn btn-sm btn-info btn-outline snap-start shrink-0"
           @click.stop="applyPatchFromPattern"
           v-if="hasPatchPattern && !editMode && !showDiff"
           :class="{ 'blink-save': actionFeedback.patch }"
@@ -145,7 +152,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Discard Diff Button -->
-        <button class="btn btn-sm btn-error btn-outline"
+        <button class="btn btn-sm btn-error btn-outline snap-start shrink-0"
           @click.stop="discardDiffChanges"
           v-if="showDiff && hasDiffEdits"
           title="Discard changes">
@@ -154,7 +161,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Reset Button -->
-        <button class="btn btn-sm btn-ghost btn-outline"
+        <button class="btn btn-sm btn-ghost btn-outline snap-start shrink-0"
           @click.stop="resetLocalChanges"
           v-if="hasLocalChanges"
           title="Reset to original AI-generated code">
@@ -163,7 +170,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Rollback Button -->
-        <button class="btn btn-sm btn-error btn-outline"
+        <button class="btn btn-sm btn-error btn-outline snap-start shrink-0"
           @click.stop="confirmRollback"
           v-if="!editMode && finished && file && !isNewFile"
           title="Rollback file to previous state">
@@ -172,7 +179,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Copy Button -->
-        <button class="btn btn-sm btn-outline"
+        <button class="btn btn-sm btn-outline snap-start shrink-0"
           @click.stop="onCopy"
           v-if="!editMode && finished"
           :class="{ 'blink-save': actionFeedback.copy }"
@@ -183,7 +190,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Apply Patch Button (for diff language) -->
-        <button class="btn btn-sm btn-success btn-outline"
+        <button class="btn btn-sm btn-success btn-outline snap-start shrink-0"
           @click.stop="applyPatch"
           v-if="isPatch && !editMode && finished"
           title="Apply patch">
@@ -192,7 +199,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Cancel Edit Button -->
-        <button class="btn btn-sm btn-outline"
+        <button class="btn btn-sm btn-outline snap-start shrink-0"
           @click="cancelEdit"
           v-if="editMode"
           title="Cancel edit">
@@ -201,7 +208,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Apply Edit Button -->
-        <button class="btn btn-sm btn-warning"
+        <button class="btn btn-sm btn-warning snap-start shrink-0"
           @click="applyMessageChange"
           v-if="editMode"
           title="Apply changes">
@@ -210,7 +217,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         </button>
 
         <!-- Close Button -->
-        <button class="btn btn-sm btn-error btn-outline"
+        <button class="btn btn-sm btn-error btn-outline snap-start shrink-0"
           @click.stop="$emit('close')"
           v-if="close"
           title="Close">
@@ -227,29 +234,29 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div v-if="isContentOutdated" class="alert text-error">
+      <div v-if="isContentOutdated" class="alert alert-sm text-error">
         <i class="fa-solid fa-exclamation-circle text-error"></i>
-        <span class="text-sm">
+        <span class="text-xs md:text-sm">
           <strong>Base file has changed:</strong> This content was generated {{ moment(contentCreatedAt).fromNow() }}, but the file was last modified {{ moment(last_modification).fromNow() }}. Consider refreshing the diff to ensure accuracy.
         </span>
       </div>
 
-      <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+      <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning alert-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
         </svg>
-        <span class="text-sm">
+        <span class="text-xs md:text-sm">
           <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
         </span>
       </div>
 
-      <div v-if="changesetErrors.length" class="alert alert-error">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+      <div v-if="changesetErrors.length" class="alert alert-error alert-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
         </svg>
         <div class="flex flex-col gap-1">
-          <span class="font-bold">Changeset Errors:</span>
-          <div class="text-sm space-y-1">
+          <span class="font-bold text-xs">Changeset Errors:</span>
+          <div class="text-xs space-y-1">
             <div v-for="(error, idx) in changesetErrors" :key="idx" class="text-xs">
               • {{ error }}
             </div>

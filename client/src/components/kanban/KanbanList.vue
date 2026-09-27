@@ -3,7 +3,7 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="kanban-list w-full flex flex-col gap-3">
+  <div class="kanban-list w-full h-full flex flex-col gap-3">
 
     <!-- ── Sticky header bar ── -->
     <div class="sticky top-0 z-10 flex flex-col gap-2 bg-base-100 pb-2 pt-1">

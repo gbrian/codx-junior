@@ -554,7 +554,8 @@ export default {
     'run-edit',
     'code-file-shown',
     'message-changed',
-    'show-events'
+    'show-events',
+    'preview-file'
   ],
   data() {
     return {

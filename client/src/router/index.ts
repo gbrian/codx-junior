@@ -4,9 +4,9 @@ import Navigate from './navigate'
 import QuickChatView from '@/views/QuickChatView.vue'
 import WorkspaceView from '@/views/WorkspaceView.vue'
 import MessengerView from '@/views/MessengerView.vue'
-import HomeMobile from '@/views/HomeMobile.vue'
 import TeamView from '@/views/TeamView.vue'
 import KanbanView from '@/views/KanbanView.vue'
+import MetricsDashboard from '@/components/analytics/MetricsDashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -55,15 +55,15 @@ const router = createRouter({
       component: MessengerView
     },
     {
-      path: '/mobile',
-      name: 'mobile',
-      component: HomeMobile
-    },
-    {
       // Desktop / team view (previously the catch-all)
       path: '/desktop/:pathMatch(.*)*',
       name: 'codx-junior-split',
       component: TeamView
+    },
+    {
+      path: '/analytics',
+      name: 'analytics',
+      component: MetricsDashboard
     },
     {
       // Catch-all: redirect everything else to home

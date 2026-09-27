@@ -1,5 +1,4 @@
 <script setup>
-import UserInfo from '../UserInfo.vue'
 </script>
 
 <template>

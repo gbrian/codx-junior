@@ -2,6 +2,7 @@
 import ChatIcon from './ChatIcon.vue'
 import ProjectIcon from '../ProjectIcon.vue'
 import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
+import moment from 'moment'
 </script>
 
 <template>
@@ -28,6 +29,9 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
       </div>
       <div v-if="chat.description" class="text-xs text-base-content/50 line-clamp-1 mt-1 pl-5">
         {{ chat.description }}
+      </div>
+      <div class="text-xs mt-1 pl-5">
+        [{{ lastMessageTime }}]
       </div>
 
       <!-- Action buttons (visible on hover) -->
@@ -95,6 +99,22 @@ export default {
     },
     isUpdating() {
       return this.$storex.chats.isChatUpdating(this.chat.id)
+    },
+    lastMessageTime() {
+      const lastMessage = [...this.chat.messages].sort((a, b) => a.updated_at > b.updated_at ? -1: 1)[0] 
+      const timestamp = lastMessage?.updated_at || this.chat.updated_at
+      if (!timestamp) return ''
+      
+      const momentTime = moment(timestamp)
+      const threeDaysAgo = moment().subtract(3, 'days')
+      
+      // Use fromNow for recent changes (within 3 days)
+      if (momentTime.isAfter(threeDaysAgo)) {
+        return momentTime.fromNow()
+      }
+      
+      // Use formatted date/time for older messages
+      return momentTime.format('MMM DD, YYYY')
     }
   }
 }

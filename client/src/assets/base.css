@@ -3,29 +3,3 @@
 @plugin "daisyui" {
   themes: all;
 }
-
-
-.codx-primary,
-.text-codx-primary {
-  color: #cc0099;
-}
-
-.codx-secondary,
-.text-codx-secondary {
-  color: #8f008f;
-}
-
-.bg-codx-primary {
-  background-color: #cc0099;
-}
-
-.bg-codx-secondary {
-  background-color: #8f008f;
-}
-
-div[data-reka-popper-content-wrapper] {
-  z-index: 2 !important;
-}
-
-/* Import codx-junior themes */
-/* @import "./daisy-override.css"; */

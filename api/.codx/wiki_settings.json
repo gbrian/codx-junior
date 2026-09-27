@@ -170,6 +170,11 @@
           "path": "/codx/junior/knowledge/knowledge_code_splitter.py",
           "slug": "knowledge-code-splitter.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/knowledge-code-splitter.md"
+        },
+        {
+          "path": "/codx/junior/metrics/codx_junior_metrics.py",
+          "slug": "codx-junior-metrics.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-metrics.md"
         }
       ],
       "id": "project-overview",

@@ -46,7 +46,7 @@ import ChatModeSelector from './ChatModeSelector.vue'
       </div>
     </div>
     
-    <!-- ROW 2: Mode Selector + Title + Tags -->
+    <!-- ROW 2: Mode Selector + Title + Tags + Settings Toggles -->
     <div class="flex items-center gap-1 md:gap-2 min-w-0 min-h-5 md:min-h-6 mt-1">
       <!-- Chat Mode Selector (left, compact) -->
       <div class="shrink-0">
@@ -78,8 +78,8 @@ import ChatModeSelector from './ChatModeSelector.vue'
         </span>
       </div>
       
-      <!-- Tags + Add button (right, truncated) -->
-      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0 overflow-hidden">
+      <!-- Tags (center-right) -->
+      <div class="flex items-center gap-1 md:gap-2 shrink-0 overflow-hidden">
         <div class="flex items-center gap-0.5 md:gap-1 truncate">
           <div 
             v-for="tag in chat.tags" 
@@ -99,6 +99,54 @@ import ChatModeSelector from './ChatModeSelector.vue'
           <i class="fa-solid fa-hashtag text-xs"></i>
         </button>
       </div>
+
+      <!-- Settings Toggles (right) -->
+      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
+        <!-- Template Toggle -->
+        <label 
+          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          data-tip="Mark as template"
+          :class="{ 'opacity-50': !isSelectedChatChild }"
+        >
+          <input 
+            type="checkbox" 
+            class="checkbox checkbox-xs"
+            :checked="chat.is_template"
+            @change="toggleTemplate"
+          />
+          <i class="fa-solid fa-star text-xs"></i>
+        </label>
+
+        <!-- Ignore Parent Knowledge Toggle (only for child chats) -->
+        <label 
+          v-if="isSelectedChatChild"
+          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          data-tip="Ignore parent knowledge"
+        >
+          <input 
+            type="checkbox" 
+            class="checkbox checkbox-xs"
+            :checked="chat.ignore_parent_knowledge"
+            @change="toggleIgnoreParentKnowledge"
+          />
+          <i class="fa-solid fa-book-slash text-xs"></i>
+        </label>
+
+        <!-- Ignore Parent Files Toggle (only for child chats) -->
+        <label 
+          v-if="isSelectedChatChild"
+          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          data-tip="Ignore parent files"
+        >
+          <input 
+            type="checkbox" 
+            class="checkbox checkbox-xs"
+            :checked="chat.ignore_parent_files"
+            @change="toggleIgnoreParentFiles"
+          />
+          <i class="fa-solid fa-file-slash text-xs"></i>
+        </label>
+      </div>
     </div>
 
   </div>
@@ -112,7 +160,8 @@ export default {
     breadcrumb: { type: Array, default: () => [] },
     messageCount: { type: Number, default: 0 },
     hiddenCount: { type: Number, default: 0 },
-    showHidden: { type: Boolean, default: false }
+    showHidden: { type: Boolean, default: false },
+    isSelectedChatChild: { type: Boolean, default: false }
   },
   emits: [
     'update-name',
@@ -125,7 +174,10 @@ export default {
     'confirm-delete',
     'show-add-tag',
     'remove-tag',
-    'mode-changed'
+    'mode-changed',
+    'toggle-template',
+    'toggle-ignore-parent-knowledge',
+    'toggle-ignore-parent-files'
   ],
   data() {
     return {
@@ -148,6 +200,15 @@ export default {
         this.$emit('update-name', this.chat)
       }
       this.editingTitle = false
+    },
+    toggleTemplate() {
+      this.$emit('toggle-template', !this.chat.is_template)
+    },
+    toggleIgnoreParentKnowledge() {
+      this.$emit('toggle-ignore-parent-knowledge', !this.chat.ignore_parent_knowledge)
+    },
+    toggleIgnoreParentFiles() {
+      this.$emit('toggle-ignore-parent-files', !this.chat.ignore_parent_files)
     }
   }
 }

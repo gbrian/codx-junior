@@ -356,7 +356,6 @@ export const actions = actionTree(
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to remove message:', error)
-        throw error
       }
     },
     async updateMessage({ state }, { chat, message }) {
@@ -420,7 +419,6 @@ export const actions = actionTree(
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to update chat info:', error)
-        throw error
       }
     },
     async markMessageAsSeen({ state }, { chat_id, message_id, username }) {
@@ -467,18 +465,37 @@ export const actions = actionTree(
       if (!chat?.id) return
 
       const descendants = getters.chatDescendants(chat.id) || []
+      const chatIds = [chat.id, ...(descendants || []).map(c => c.id)]
 
       if (!chat.temp) {
         const project = getChatProject(chat)
         await project.$api.chats.delete(chat)
       }
 
-      const ids = new Set([chat.id, ...(descendants || []).map(c => c.id)])
-      ids.forEach(id => {
+      // Remove associated panels from Desktop before clearing chat data
+      chatIds.forEach(id => {
+        try {
+          $storex.views.removePanelFromDesktop(id)
+        } catch (error) {
+          console.warn(`[chats store] Could not remove panel for chat ${id}:`, error)
+        }
+      })
+
+      // Close associated open apps
+      chatIds.forEach(id => {
+        const app = Object.values($storex.ui.openApps).find(app => app.tabId === id)
+        if (app) {
+          $storex.ui.closeApp(app)
+        }
+      })
+
+      // Remove from store
+      chatIds.forEach(id => {
         delete state.chats[id]
       })
 
-      if (ids.has(state.activeChatId)) {
+      // Clear active chat if it was deleted
+      if (chatIds.includes(state.activeChatId)) {
         $storex.chats.clearActiveChat()
       }
     },

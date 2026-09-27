@@ -37,8 +37,8 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
         @settings="openAccountSettings"
       />
 
-      <!-- Main Content with Router -->
-      <div class="grow">
+      <!-- Main Content with Router (Flex context for scrollable children) -->
+      <div class="grow flex flex-col min-h-0 min-w-0">
         <RouterView />
       </div>
 

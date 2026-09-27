@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div v-if="moreExpanded && !isCollapsed && !isMobileExpanded" class="px-2 py-2 shrink-0 border-b border-white/5">
+  <div v-if="moreExpanded && !isCollapsed" class="px-2 py-2 shrink-0 border-b border-white/5">
     <div class="flex flex-col gap-1 pl-6">
       <button
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
@@ -88,7 +88,6 @@ export default {
   props: {
     moreExpanded: { type: Boolean, default: false },
     isCollapsed: { type: Boolean, default: false },
-    isMobileExpanded: { type: Boolean, default: false },
     isProjectAdmin: { type: Boolean, default: false }
   },
   emits: ['close'],

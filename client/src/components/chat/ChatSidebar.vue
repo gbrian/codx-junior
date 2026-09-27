@@ -16,52 +16,6 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     @click="isCompact && $emit('toggle-compact')"
   >
 
-    <!-- Parent Content Controls (When Selected Chat is a Child Task) -->
-    <div v-if="!isCompact && isSelectedChatChild" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
-      <div class="text-xs font-semibold text-base-content/60 uppercase">Parent Content</div>
-      
-      <!-- Ignore Parent Knowledge -->
-      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
-        <input 
-          type="checkbox" 
-          class="checkbox checkbox-sm"
-          :checked="selectedChat?.ignore_parent_knowledge"
-          @change="toggleIgnoreParentKnowledge"
-        />
-        <span class="text-xs flex-1">Ignore parent knowledge</span>
-        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Don't use parent chat context"></i>
-      </label>
-
-      <!-- Ignore Parent Files -->
-      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
-        <input 
-          type="checkbox" 
-          class="checkbox checkbox-sm"
-          :checked="selectedChat?.ignore_parent_files"
-          @change="toggleIgnoreParentFiles"
-        />
-        <span class="text-xs flex-1">Ignore parent files</span>
-        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Don't inherit parent file list"></i>
-      </label>
-    </div>
-
-    <!-- Template Setting (Available for all chats) -->
-    <div v-if="!isCompact && selectedChat?.id" class="px-2 md:px-3 py-2 border-b border-base-300 shrink-0 space-y-2">
-      <div class="text-xs font-semibold text-base-content/60 uppercase">Chat Settings</div>
-      
-      <!-- Save as Template -->
-      <label class="flex items-center gap-2 cursor-pointer hover:bg-base-200/50 px-2 py-1 rounded transition-colors">
-        <input 
-          type="checkbox" 
-          class="checkbox checkbox-sm"
-          :checked="selectedChat?.is_template"
-          @change="toggleTemplate"
-        />
-        <span class="text-xs flex-1">Save as template</span>
-        <i class="fa-solid fa-circle-question text-xs text-base-content/40 tooltip" data-tip="Mark this chat as a template for quick creation"></i>
-      </label>
-    </div>
-
     <!-- Root Chat Node with Project Selector -->
     <div class="px-1 shrink-0 space-y-2">
       <!-- Project Selector -->
@@ -173,16 +127,13 @@ export default {
     isCompact: { type: Boolean, default: false },
     chatProfiles: { type: Array, default: () => [] },
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'parent-flags-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project', 'template-changed'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)
     },
     selectedChat() {
       return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat
-    },
-    isSelectedChatChild() {
-      return this.selectedChat && this.selectedChat.parent_id && this.selectedChat.id !== this.rootChat.id
     },
     targetProject() {
       return this.$chats.getChatWorkingProject(this.selectedChat)
@@ -191,32 +142,6 @@ export default {
   methods: {
     selectChat(chat) {
       this.$emit('select', chat)
-    },
-    toggleIgnoreParentKnowledge() {
-      if (!this.selectedChat) return
-      this.selectedChat.ignore_parent_knowledge = !this.selectedChat.ignore_parent_knowledge
-      this.$emit('parent-flags-changed', {
-        chat: this.selectedChat,
-        flag: 'ignore_parent_knowledge',
-        value: this.selectedChat.ignore_parent_knowledge
-      })
-    },
-    toggleIgnoreParentFiles() {
-      if (!this.selectedChat) return
-      this.selectedChat.ignore_parent_files = !this.selectedChat.ignore_parent_files
-      this.$emit('parent-flags-changed', {
-        chat: this.selectedChat,
-        flag: 'ignore_parent_files',
-        value: this.selectedChat.ignore_parent_files
-      })
-    },
-    toggleTemplate() {
-      if (!this.selectedChat) return
-      this.selectedChat.is_template = !this.selectedChat.is_template
-      this.$emit('template-changed', {
-        chat: this.selectedChat,
-        isTemplate: this.selectedChat.is_template
-      })
     }
   }
 }

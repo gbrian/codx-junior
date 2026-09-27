@@ -1,25 +1,35 @@
 <script setup>
 import RecentsSection from './RecentsSection.vue'
 import AppsSection from './AppsSection.vue'
-import MoreSection from './MoreSection.vue'
 import WorkspacesSection from './WorkspacesSection.vue'
 import UserInfo from '../UserInfo.vue'
 import Notifications from '../Notifications.vue'
 import ViewModeToggle from './ViewModeToggle.vue'
+import MainMenu from '../main-menu/MainMenu.vue'
 </script>
 
 <template>
-  <aside
-    ref="sidebarEl"
-    class="flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 transition-all duration-200"
-    :class="[
-      isMobile && isMobileExpanded ? 'fixed left-0 top-0 bottom-0 z-50 w-64 animate-slide-in-left' : isMobile && !isMobileExpanded ? 'hidden' : isCollapsed ? 'w-20' : 'w-64'
-    ]"
-  >
-    <!-- Header Section -->
-    <div class="px-3 py-4 shrink-0 border-b border-white/5">
-      <div class="flex items-center justify-between gap-2">
-        <div v-if="!isCollapsed && isMobileExpanded" class="flex items-center gap-2 flex-1">
+  <!-- Mobile Overlay & Sidebar Container -->
+  <div v-if="isMobile" class="pointer-events-none">
+    <!-- Mobile Overlay -->
+    <div
+      v-if="!isCollapsed"
+      class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in pointer-events-auto"
+      @click="handleClose"
+    ></div>
+
+    <!-- Mobile Sidebar -->
+    <aside
+      ref="sidebarEl"
+      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 pointer-events-auto"
+      :style="{
+        transform: isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
+        transition: 'transform 0.3s ease-out'
+      }"
+    >
+      <!-- Header Section -->
+      <div class="px-3 py-4 shrink-0 border-b border-white/5">
+        <div class="flex items-center justify-between gap-2">
           <button
             class="click w-6 h-6 rounded border border-white/20 flex items-center justify-center hover:bg-white/5 transition-colors"
             @click="handleClose"
@@ -32,7 +42,89 @@ import ViewModeToggle from './ViewModeToggle.vue'
             <span class="text-codx-secondary">junior</span>
           </span>
         </div>
-        <div v-else-if="!isCollapsed && !isMobile" class="flex items-center shrink-0 gap-2 flex-1">
+      </div>
+
+      <!-- Scrollable Content Area -->
+      <div class="flex-1 overflow-y-auto flex flex-col">
+        <!-- Apps Section -->
+        <AppsSection
+          :is-collapsed="false"
+          :more-expanded="moreExpanded"
+          @update:moreExpanded="moreExpanded = $event"
+          @close="handleClose"
+          @toggle-collapse="toggleCollapse"
+        />
+        
+        <!-- Workspaces Section -->
+        <WorkspacesSection
+          :workspace-apps="workspaceApps"
+          :is-collapsed="false"
+          :current-workspace-id="currentWorkspaceId"
+          @close="handleClose"
+        />
+
+        <!-- Recents Section -->
+        <RecentsSection
+          :chats="recentChats"
+          :is-collapsed="false"
+          :is-loading="isLoadingChats"
+          :active-chat-id="activeChattId"
+          :is-mobile="true"
+          @select-chat="handleSelectChat"
+          @scroll-end="loadMoreChats"
+        />
+      </div>
+
+      <!-- Footer -->
+      <div class="shrink-0 border-t border-white/5 px-2 py-3">
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+          <div class="grow flex items-center gap-3 flex-1">
+            <MainMenu
+              :is-project-admin="isProjectAdmin"
+              @close="handleClose"
+            >
+              <UserInfo>
+                <template #trigger="{ togglePanel }">
+                  <button
+                    class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
+                    @click="togglePanel"
+                    :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+                  >
+                    <div class="avatar tooltip" :data-tip="$user.username">
+                      <div class="w-8">
+                        <img :src="$user.avatar">
+                      </div>
+                    </div>
+                  </button>
+                </template>
+              </UserInfo>
+              <div class="flex justify-between">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm text-white truncate">{{ userName }}</div>
+                  <div class="text-xs text-white/40">{{ userSubtitle }}</div>
+                </div>
+                <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
+                  <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+              </div>
+            </MainMenu>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Desktop Sidebar -->
+  <aside
+    v-else
+    ref="sidebarEl"
+    class="flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 transition-all duration-200"
+    :class="[isCollapsed ? 'w-20' : 'w-64']"
+  >
+    <!-- Header Section -->
+    <div class="px-3 py-4 shrink-0 border-b border-white/5">
+      <div class="flex items-center justify-between gap-2">
+        <div v-if="!isCollapsed" class="flex items-center shrink-0 gap-2 flex-1">
           <button
             class="click w-6 h-6 rounded border border-white/20 flex items-center justify-center hover:bg-white/5 transition-colors"
             @click="toggleCollapse"
@@ -48,15 +140,14 @@ import ViewModeToggle from './ViewModeToggle.vue'
         <div v-else class="flex justify-center w-full">
           <button
             class="click w-6 h-6 flex items-center justify-center hover:bg-white/5 transition-colors"
-            :title="isMobileExpanded ? 'Close' : 'Expand sidebar'"
-            @click="isMobileExpanded ? handleClose() : toggleCollapse()"
+            title="Expand sidebar"
+            @click="toggleCollapse()"
           >
-            <img v-if="isCollapsed && !isMobileExpanded" class="w-full" src="/only_icon.png" />
-            <i v-else-if="isMobileExpanded" class="fa-solid fa-close text-white/40 text-sm"></i>
+            <img class="w-full" src="/only_icon.png" />
           </button>
         </div>
 
-        <div v-if="!isCollapsed && !isMobile" class="flex items-center gap-2">
+        <div v-if="!isCollapsed" class="flex items-center gap-2">
           <Notifications />
         </div>        
       </div>
@@ -67,83 +158,65 @@ import ViewModeToggle from './ViewModeToggle.vue'
       <!-- Apps Section -->
       <AppsSection
         :is-collapsed="isCollapsed"
-        :is-mobile-expanded="isMobileExpanded"
         :more-expanded="moreExpanded"
         @update:moreExpanded="moreExpanded = $event"
         @close="handleClose"
         @toggle-collapse="toggleCollapse"
       />
-
-      <!-- More Section -->
-      <MoreSection
-        :more-expanded="moreExpanded"
-        :is-collapsed="isCollapsed"
-        :is-mobile-expanded="isMobileExpanded"
-        :is-project-admin="isProjectAdmin"
-        @close="handleClose"
-      />
-
+      
       <!-- Workspaces Section -->
       <WorkspacesSection
         :workspace-apps="workspaceApps"
         :is-collapsed="isCollapsed"
-        :is-mobile-expanded="isMobileExpanded"
         :current-workspace-id="currentWorkspaceId"
         @close="handleClose"
       />
 
       <!-- Recents Section -->
-      <div class="flex-1 flex flex-col border-b border-white/5 overflow-hidden">
-        <button
-          v-if="!isCollapsed && !isMobileExpanded"
-          class="flex items-center justify-between px-5 py-3 text-xs font-semibold text-white/60 hover:text-white/80 transition-colors shrink-0"
-          @click="recentsExpanded = !recentsExpanded"
-          title="Toggle Recents"
-        >
-          <span>RECENTS</span>
-          <i :class="recentsExpanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" class="text-xs"></i>
-        </button>
-        <div v-if="recentsExpanded || isCollapsed || isMobileExpanded" class="flex-1 overflow-hidden flex flex-col h-96">
-          <RecentsSection
-            :chats="recentChats"
-            :is-collapsed="isCollapsed && !isMobileExpanded"
-            :is-loading="isLoadingChats"
-            :active-chat-id="activeChattId"
-            @select-chat="handleSelectChat"
-            @scroll-end="loadMoreChats"
-          />
-        </div>
-      </div>
+      <RecentsSection
+        :chats="recentChats"
+        :is-collapsed="isCollapsed"
+        :is-loading="isLoadingChats"
+        :active-chat-id="activeChattId"
+        :is-mobile="false"
+        @select-chat="handleSelectChat"
+        @scroll-end="loadMoreChats"
+      />
     </div>
 
     <!-- Footer -->
     <div class="shrink-0 border-t border-white/5 px-2 py-3">
       <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
         <div class="grow flex items-center gap-3 flex-1">
-          <UserInfo>
-            <template #trigger="{ togglePanel }">
-              <button
-                class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-                @click="togglePanel"
-                :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-              >
-                <div class="avatar tooltip" :data-tip="$user.username">
-                  <div class="w-8">
-                    <img :src="$user.avatar">
+          <MainMenu
+            :is-project-admin="isProjectAdmin"
+            @close="handleClose"
+          >
+            <UserInfo>
+              <template #trigger="{ togglePanel }">
+                <button
+                  class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
+                  @click="togglePanel"
+                  :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+                >
+                  <div class="avatar tooltip" :data-tip="$user.username">
+                    <div class="w-8">
+                      <img :src="$user.avatar">
+                    </div>
                   </div>
-                </div>
+                </button>
+              </template>
+            </UserInfo>
+            <div v-if="!isCollapsed" class="flex justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-white truncate">{{ userName }}</div>
+                <div class="text-xs text-white/40">{{ userSubtitle }}</div>
+              </div>
+              <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
+                <i class="fas fa-chevron-down text-xs"></i>
               </button>
-            </template>
-          </UserInfo>
-          <div v-if="!isCollapsed && !isMobileExpanded" class="flex justify-between">
-            <div class="flex-1 min-w-0">
-              <div class="text-sm text-white truncate">{{ userName }}</div>
-              <div class="text-xs text-white/40">{{ userSubtitle }}</div>
             </div>
-            <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
-              <i class="fas fa-chevron-down text-xs"></i>
-            </button>
-          </div>
+          </MainMenu>
         </div>
         <!-- View Mode Toggle -->
         <ViewModeToggle v-if="!isCollapsed" />
@@ -163,10 +236,8 @@ export default {
   emits: ['settings', 'close'],
   data() {
     return {
-      isCollapsed: false,
+      isCollapsed: true,
       userCollapsed: false,
-      moreExpanded: false,
-      recentsExpanded: true,
       resizeObserver: null,
       recentChats: [],
       isLoadingChats: false,
@@ -177,7 +248,8 @@ export default {
       activeChattId: null,
       isInitialLoad: true,
       dailyLimitStatus: 'normal',
-      selectedWorkspaceApp: null
+      selectedWorkspaceApp: null,
+      moreExpanded: false
     }
   },
   computed: {
@@ -200,12 +272,21 @@ export default {
       return this.$storex.$router.$navigation.isDesktopMode
     }
   },
+  watch: {
+    isMobileExpanded(val) {
+      if (this.isMobile) {
+        this.isCollapsed = !val
+      }
+    }
+  },
   mounted() {
     if (!this.isMobile) {
+      this.isCollapsed = false
       this.$nextTick(() => this.setupResizeObserver())
+    } else {
+      this.isCollapsed = !this.isMobileExpanded
     }
     this.loadRecentChats()
-    this.loadWorkspaceApps()
   },
   beforeUnmount() {
     this.resizeObserver?.disconnect()
@@ -229,6 +310,9 @@ export default {
       this.isCollapsed = this.userCollapsed
     },
     handleClose() {
+      if (this.isMobile) {
+        this.isCollapsed = true
+      }
       this.$emit('close')
     },
     async loadRecentChats(append = false) {
@@ -272,29 +356,21 @@ export default {
     },
     handleSelectChat(chat) {
       this.$chats.setActiveChat(chat)
-      if (this.isMobileExpanded) {
+      if (this.isMobile) {
         this.handleClose()
       }
-    },
-    loadWorkspaceApps() {
-      this.workspaceApps = this.$projects.projectApps || []
-      this.selectedWorkspaceApp = this.workspaceApps[0] || null
     }
   }
 }
 </script>
 
 <style scoped>
-@keyframes slideInLeft {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.animate-slide-in-left {
-  animation: slideInLeft 0.3s ease-out forwards;
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
 }
 </style>

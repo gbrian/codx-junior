@@ -4,98 +4,118 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
 </script>
 
 <template>
-  <div class="grow overflow-hidden flex flex-col border-t border-white/5"
+  <div class="flex flex-col border-b border-white/5 overflow-hidden flex-1"
     :class="isCollapsed && 'items-center'"
   >
-    <!-- Collapsed mode: Chat icons -->
-    <div v-if="isCollapsed" class="flex flex-col gap-2 px-2 py-2 overflow-y-auto flex-1">
-      <div
-        v-for="chat in chats.slice(0, 5)"
-        :key="chat.id"
-        @click="handleSelectChat(chat)"
-        class="relative cursor-pointer group"
-        :title="chat.name"
+    <!-- Toggle button (always visible when not collapsed) -->
+    <button
+      v-if="!isCollapsed || isMobile"
+      class="flex items-center justify-between px-5 py-3 text-xs font-semibold text-white/60 hover:text-white/80 transition-colors shrink-0 w-full"
+      @click.stop="recentsExpanded = !recentsExpanded"
+      @touchend.stop.prevent="recentsExpanded = !recentsExpanded"
+      title="Toggle Recents"
+    >
+      <span>RECENTS</span>
+      <i :class="recentsExpanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" class="text-xs"></i>
+    </button>
+
+    <!-- Content area (scrollable) -->
+    <div v-if="recentsExpanded || isMobile" class="flex-1 overflow-hidden flex flex-col">
+      <div class="grow overflow-hidden flex flex-col"
+        :class="isCollapsed && 'items-center'"
       >
-        <div
-          class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
-          :class="isActivChat(chat)
-            ? 'bg-codx-primary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
-            : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30'"
-        >
-          {{ getInitials(chat.name) }}
-        </div>
-
-        <!-- Unread badge -->
-        <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-[#1a1a1a]">
-          {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
-        </div>
-
-        <!-- Tooltip -->
-        <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/20">
-          {{ chat.name }}
-        </div>
-      </div>
-
-      <!-- Loading spinner -->
-      <div v-if="isLoading" class="flex justify-center py-2">
-        <span class="loading loading-spinner loading-xs"></span>
-      </div>
-
-      <!-- Show more indicator -->
-      <div v-if="chats.length > 5" class="text-[9px] text-white/30 text-center">
-        +{{ chats.length - 5 }}
-      </div>
-    </div>
-
-    <!-- Expanded mode: Chat cards list -->
-    <div v-else class="overflow-y-auto flex-1 px-2 py-2" @scroll="handleScroll">
-      <!-- Empty state -->
-      <div v-if="displayedChats.length === 0 && !isLoading && !isSearching" class="text-center py-8 text-white/30 text-xs">
-        <i class="fas fa-inbox text-2xl mb-2 block"></i>
-        <p>No recent chats</p>
-      </div>
-
-      <!-- Chat cards -->
-      <div v-else class="flex flex-col gap-2 overflow-x-hidden">
-        <div
-          v-for="chat in displayedChats"
-          :key="chat.id"
-          @click="handleSelectChat(chat)"
-          class="card card-compact bg-white/5 border border-white/10 hover:border-codx-primary/50 hover:bg-white/10 cursor-pointer transition-all duration-200 p-2 gap-1"
-          :class="isActivChat(chat) ? 'border-codx-primary bg-codx-primary/10' : ''"
-        >
-          <!-- Name and timestamp -->
-          <div class="flex items-center gap-2 min-w-0 tooltip"
-            :data-tip="chat.name"
+        <!-- Collapsed mode: Chat icons -->
+        <div v-if="isCollapsed" class="flex flex-col gap-2 px-2 py-2 overflow-y-auto flex-1">
+          <div
+            v-for="chat in chats.slice(0, 5)"
+            :key="chat.id"
+            @click="handleSelectChat(chat)"
+            class="relative cursor-pointer group"
+            :title="chat.name"
           >
-            <ChatProjectIcon :icon-only="true" :width="5" :chat="chat" />
-            <h3 class="font-semibold text-xs truncate text-white">{{ chat.name || 'Untitled' }}</h3>
-            <div v-if="chat.unread_count > 0" class="badge badge-xs badge-error shrink-0">{{ chat.unread_count }}</div>
+            <div
+              class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
+              :class="isActivChat(chat)
+                ? 'bg-codx-primary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
+                : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30'"
+            >
+              {{ getInitials(chat.name) }}
+            </div>
+
+            <!-- Unread badge -->
+            <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-[#1a1a1a]">
+              {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+            </div>
+
+            <!-- Tooltip -->
+            <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/20">
+              {{ chat.name }}
+            </div>
           </div>
 
-          <!-- Message snippet -->
-          <div v-if="getLastMessageSnippet(chat)" class="text-xs text-white/50 line-clamp-1 leading-relaxed">
-            {{ getLastMessageSnippet(chat) }}
+          <!-- Loading spinner -->
+          <div v-if="isLoading" class="flex justify-center py-2">
+            <span class="loading loading-spinner loading-xs"></span>
+          </div>
+
+          <!-- Show more indicator -->
+          <div v-if="chats.length > 5" class="text-[9px] text-white/30 text-center">
+            +{{ chats.length - 5 }}
           </div>
         </div>
 
-        <!-- Loading indicator -->
-        <div v-if="isLoading" class="flex justify-center py-2">
-          <span class="loading loading-spinner loading-xs"></span>
+        <!-- Expanded mode: Chat cards list -->
+        <div v-else class="overflow-y-auto flex-1 px-2 py-2" @scroll="handleScroll">
+          <!-- Empty state -->
+          <div v-if="displayedChats.length === 0 && !isLoading && !isSearching" class="text-center py-8 text-white/30 text-xs">
+            <i class="fas fa-inbox text-2xl mb-2 block"></i>
+            <p>No recent chats</p>
+          </div>
+
+          <!-- Chat cards -->
+          <div v-else class="flex flex-col gap-2 overflow-x-hidden">
+            <div
+              v-for="chat in displayedChats"
+              :key="chat.id"
+              @click="handleSelectChat(chat)"
+              class="card card-compact bg-white/5 border border-white/10 hover:border-codx-primary/50 hover:bg-white/10 cursor-pointer transition-all duration-200 p-2 gap-1"
+              :class="isActivChat(chat) ? 'border-codx-primary bg-codx-primary/10' : ''"
+            >
+              <!-- Name and timestamp -->
+              <div class="flex items-center gap-2 min-w-0 tooltip"
+                :data-tip="chat.name"
+              >
+                <ChatProjectIcon :icon-only="true" :width="5" :chat="chat" />
+                <h3 class="font-semibold text-xs truncate text-white">{{ chat.name || 'Untitled' }}</h3>
+                <div v-if="chat.unread_count > 0" class="badge badge-xs badge-error shrink-0">{{ chat.unread_count }}</div>
+              </div>
+
+              <!-- Message snippet -->
+              <div v-if="getLastMessageSnippet(chat)" class="text-xs text-white/50 line-clamp-1 leading-relaxed">
+                {{ getLastMessageSnippet(chat) }}
+              </div>
+            </div>
+
+            <!-- Loading indicator -->
+            <div v-if="isLoading" class="flex justify-center py-2">
+              <span class="loading loading-spinner loading-xs"></span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Recents Footer -->
-    <div v-if="!isCollapsed" class="px-3 py-3 shrink-0 flex items-center justify-between border-t border-white/5">
-      <span class="text-xs font-semibold text-white/40 uppercase tracking-wide">Search Chats...</span>
-      <button
-        @click="openSearchModal"
-        class="p-1.5 text-white/40 hover:text-white/80 transition-colors"
-        title="Search chats"
-      >
-        <i class="fas fa-magnifying-glass text-sm"></i>
-      </button>
+      <!-- Recents Footer -->
+      <div v-if="!isCollapsed" class="px-3 py-3 shrink-0 flex items-center justify-between border-t border-white/5">
+        <span class="text-xs font-semibold text-white/40 uppercase tracking-wide">Search Chats...</span>
+        <button
+          @click.stop="openSearchModal"
+          @touchend.stop.prevent="openSearchModal"
+          class="p-1.5 text-white/40 hover:text-white/80 transition-colors"
+          title="Search chats"
+        >
+          <i class="fas fa-magnifying-glass text-sm"></i>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -201,11 +221,13 @@ export default {
     chats: { type: Array, default: () => [] },
     isCollapsed: { type: Boolean, default: false },
     isLoading: { type: Boolean, default: false },
-    activeChatId: { type: String, default: null }
+    activeChatId: { type: String, default: null },
+    isMobile: { type: Boolean, default: false }
   },
   emits: ['select-chat', 'scroll-end'],
   data() {
     return {
+      recentsExpanded: true,
       isSearchModalOpen: false,
       searchResults: [],
       searchMeta: null,
@@ -220,6 +242,18 @@ export default {
     },
     displayedChats() {
       return this.chats || []
+    }
+  },
+  watch: {
+    chats(newChats, oldChats) {
+      if (!this.searchPerformed && newChats && oldChats && newChats.length > oldChats.length) {
+        console.log('New chats detected, updating recents list')
+      }
+    },
+    searchPerformed(newVal) {
+      if (!newVal) {
+        console.log('Search cleared, recents list will update with new chats')
+      }
     }
   },
   methods: {
