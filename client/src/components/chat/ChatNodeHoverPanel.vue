@@ -4,7 +4,7 @@ import ProjectIcon from '../ProjectIcon.vue'
 </script>
 
 <template>
-  <div class="bg-base-100 border-2 border-base-content/10 rounded-lg shadow-2xl p-4 w-72">
+  <div class="border-2 border-base-content/10 rounded-lg shadow-2xl p-4 w-72">
     <div class="space-y-3">
       <!-- Header -->
       <div class="flex items-center gap-3 pb-3 border-b border-base-200">
@@ -28,7 +28,7 @@ import ProjectIcon from '../ProjectIcon.vue'
       </div>
 
       <!-- Mode Info -->
-      <div class="bg-base-200/50 rounded px-3 py-2 border border-base-300">
+      <div class="rounded px-3 py-2 border border-base-300">
         <div class="text-xs text-base-content/70">
           <span class="font-semibold">Mode:</span>
           <span class="capitalize ml-1">{{ chat.mode }}</span>

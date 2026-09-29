@@ -613,12 +613,11 @@ export default {
       selectionPosition: { top: 0, left: 0 },
       collapsed: false,
       eventsOpen: false,
-      seenTimer: null,
       hasSeen: false,
       unseenToggling: false,
       isFocused: false,
       seenProgressValue: 0,
-      seenDuration: 4000,
+      seenDuration: 2500,
       progressInterval: null,
       intersectionObserver: null
     }
@@ -1043,7 +1042,6 @@ export default {
     },
     startSeenTracking() {
       if (this.hasSeen || this.isMessageSeen || !this.isDone) return
-      this.cancelSeenTimer()
       this.seenProgressValue = 0
       
       const startTime = Date.now()
@@ -1064,12 +1062,6 @@ export default {
         this.progressInterval = null
       }
       this.seenProgressValue = 0
-    },
-    cancelSeenTimer() {
-      if (this.seenTimer) {
-        clearTimeout(this.seenTimer)
-        this.seenTimer = null
-      }
     },
     async submitMessageSeen() {
       try {
@@ -1104,7 +1096,6 @@ export default {
     resetSeenTracking() {
       this.hasSeen = false
       this.isFocused = false
-      this.cancelSeenTimer()
       this.stopProgressTracking()
     },
     async toggleUnseenStatus() {
@@ -1153,7 +1144,6 @@ export default {
     this.setupIntersectionObserver()
   },
   beforeUnmount() {
-    this.cancelSeenTimer()
     this.stopProgressTracking()
     if (this.intersectionObserver) {
       this.intersectionObserver.disconnect()

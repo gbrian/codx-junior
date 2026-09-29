@@ -7,7 +7,7 @@ import Modal from './Modal.vue'
     <!-- Trigger Button showing selected project -->
     <button
       @click="isModalOpen = true"
-      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/15 rounded-lg text-white/70 hover:text-white text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
+      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/15 rounded-lg text-white/70 hover:text-white text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
     >
       <img 
         v-if="project?.project_icon" 
@@ -15,9 +15,8 @@ import Modal from './Modal.vue'
         :alt="project.project_name" 
         class="w-5 h-5 rounded-md" 
       />
-      <i v-else class="fa-solid fa-folder text-primary"></i>
       <span class="truncate">{{ project?.project_name || 'Select Project' }}</span>
-      <i class="fa-solid fa-chevron-down text-xs ml-auto"></i>
+      <i class="fa-solid fa-right-left text-xs ml-auto"></i>
     </button>
 
     <!-- Modal: Recent Projects with Search & More -->
@@ -25,7 +24,7 @@ import Modal from './Modal.vue'
       <template #header>
         <div class="flex items-center justify-between w-full gap-4">
           <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-folder-open text-primary"></i>
+            <i class="fa-solid fa-cube"></i>
             Projects
           </h2>
           <div class="flex-1 max-w-xs">
@@ -64,11 +63,11 @@ import Modal from './Modal.vue'
               :alt="project.project_name"
               class="w-6 h-6 rounded-md flex-shrink-0 mt-0.5"
             />
-            <i v-else class="fa-solid fa-folder text-primary/60 text-base flex-shrink-0 mt-1"></i>
+            <i v-else class="fa-solid fa-folder text-base flex-shrink-0 mt-1"></i>
 
             <!-- Info -->
             <div class="flex-1 min-w-0">
-              <div class="font-medium text-white group-hover:text-primary transition-colors truncate">
+              <div class="font-medium text-white transition-colors truncate">
                 {{ project.project_name }}
               </div>
               <div class="text-xs text-white/40 truncate">{{ project.abs_project_path }}</div>
@@ -97,7 +96,7 @@ import Modal from './Modal.vue'
         <button
           v-if="showLoadMoreButton"
           @click="showAllProjects = true"
-          class="px-3 py-2 text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          class="px-3 py-2 text-sm font-medium border border-primary/20 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
         >
           <i class="fa-solid fa-ellipsis"></i>
           More Projects ({{ totalProjectsCount - displayLimit }})

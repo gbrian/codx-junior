@@ -1,6 +1,6 @@
 <script setup>
 import ChatSearch from '../chat/ChatSearch.vue'
-import ChatSidebarNodeExtended from '../chat/ChatSidebarNodeExtended.vue'
+import ChatListRenderer from '../chat/ChatListRenderer.vue'
 </script>
 
 <template>
@@ -26,73 +26,18 @@ import ChatSidebarNodeExtended from '../chat/ChatSidebarNodeExtended.vue'
         class="grow overflow-hidden flex flex-col"
         :class="isCollapsed && 'items-center'"
       >
-        <!-- Collapsed mode: Chat icons -->
-        <div v-if="isCollapsed" class="flex flex-col gap-2 px-2 py-2 overflow-y-auto flex-1">
-          <div
-            v-for="chat in displayedChatsCollapsed"
-            :key="chat.id"
-            @click="handleSelectChat(chat)"
-            class="relative cursor-pointer group"
-            :title="chat.name"
-          >
-            <div
-              class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
-              :class="[
-                activeChatId === chat.id
-                  ? 'bg-codx-primary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
-                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30',
-                isVisibleChat(chat) && 'ring-2 ring-warning/50'
-              ]"
-            >
-              {{ getInitials(chat.name) }}
-            </div>
-
-            <!-- Unread badge -->
-            <div v-if="getUnreadCount(chat) > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-[#1a1a1a]">
-              {{ getUnreadCount(chat) > 9 ? '9+' : getUnreadCount(chat) }}
-            </div>
-
-            <!-- Tooltip -->
-            <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/20">
-              {{ chat.name }}
-            </div>
-          </div>
-
-          <!-- Loading spinner -->
-          <div v-if="isLoading" class="flex justify-center py-2">
-            <span class="loading loading-spinner loading-xs"></span>
-          </div>
-
-          <!-- Show more indicator -->
-          <div v-if="recentChats.length > 5" class="text-[9px] text-white/30 text-center">
-            +{{ recentChats.length - 5 }}
-          </div>
-        </div>
-
-        <!-- Expanded mode: Chat cards list -->
-        <div v-else class="overflow-y-auto flex-1 px-2 py-2" @scroll="handleScroll">
-          <!-- Empty state -->
-          <div v-if="recentChats.length === 0 && !isLoading" class="text-center py-8 text-white/30 text-xs">
-            <i class="fas fa-inbox text-2xl mb-2 block"></i>
-            <p>No recent chats</p>
-          </div>
-
-          <!-- Chat items -->
-          <div v-else class="flex flex-col gap-2 overflow-x-hidden">
-            <ChatSidebarNodeExtended
-              v-for="chat in recentChats"
-              :key="chat.id"
-              :chatId="chat.id"
-              :selected-chat-id="activeChatId"
-              @select="handleSelectChat"
-            />
-
-            <!-- Loading indicator -->
-            <div v-if="isLoading" class="flex justify-center py-2">
-              <span class="loading loading-spinner loading-xs"></span>
-            </div>
-          </div>
-        </div>
+        <!-- Chat List Renderer Component -->
+        <ChatListRenderer
+          :chatList="recentChats"
+          :selectedChatId="activeChatId"
+          :isCompact="isCollapsed"
+          :isLoading="isLoading"
+          :useExtended="true"
+          :visibleChatIds="visibleChatIds"
+          :unreadCountCache="unreadCountCache"
+          @select="handleSelectChat"
+          @load-more="loadMoreChats"
+        />
       </div>
 
       <!-- Recents Footer -->
@@ -229,7 +174,7 @@ export default {
       isSearching: false,
       searchStatus: null,
       visibleChatIds: new Set(),
-      unreadCountCache: {},
+      unreadCountCache: {}
     }
   },
   computed: {
@@ -244,9 +189,6 @@ export default {
     },
     hasMoreChats() {
       return this.$storex.chats.recentChatsHasMore
-    },
-    displayedChatsCollapsed() {
-      return this.recentChats.slice(0, 5)
     }
   },
   mounted() {
@@ -285,9 +227,6 @@ export default {
         this.unreadCountCache[chat.id] = count
       })
     },
-    getUnreadCount(chat) {
-      return this.unreadCountCache[chat.id] || 0
-    },
     updateVisibleChats() {
       this.visibleChatIds.clear()
 
@@ -307,20 +246,8 @@ export default {
         console.log('Could not get chat ID from router')
       }
     },
-    isVisibleChat(chat) {
-      return this.visibleChatIds.has(chat.id)
-    },
     handleSelectChat(chat) {
       this.$emit('select-chat', chat)
-    },
-    getInitials(name) {
-      if (!name) return 'CH'
-      const cleanName = name.replace(/[^\w\s-]/g, '').trim()
-      const words = cleanName.split(/\s+/)
-      if (words.length >= 2) {
-        return (words[0][0] + words[1][0]).toUpperCase()
-      }
-      return name.substring(0, 2).toUpperCase()
     },
     handleScroll(e) {
       const { scrollTop, clientHeight, scrollHeight } = e.target

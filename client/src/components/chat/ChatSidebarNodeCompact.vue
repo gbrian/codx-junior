@@ -1,19 +1,29 @@
 <script setup>
 import ChatIcon from './ChatIcon.vue'
 import ProjectIcon from '../ProjectIcon.vue'
-import ChatSidebarNodeExtended from './ChatSidebarNodeExtended.vue'
 import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
 </script>
 
 <template>
   <div class="w-full relative group">
     <div
-      class="p-1 rounded-lg border-2 cursor-pointer transition-all flex justify-center relative"
-      :class="selectedChatId === chat.id
-        ? 'border-warning bg-warning/10'
-        : 'border-base-content/10 bg-base-100 hover:bg-base-200'"
+      class="p-1 rounded-lg border-l-4 cursor-pointer transition-all flex justify-center relative"
+      :class="[
+        $chats.statusBorderColor(chat.status),
+        selectedChatId === chat.id
+          ? 'bg-primary/10'
+          : 'bg-base-100 hover:bg-base-200'
+      ]"
       @click="$emit('select', chat)"
     >
+      <!-- Unread badge -->
+      <div
+        v-if="unreadCount > 0"
+        class="absolute -top-1 -right-1 z-10 min-w-4 h-4 px-1 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-base-100"
+      >
+        {{ unreadCount > 9 ? '9+' : unreadCount }}
+      </div>
+
       <!-- Icon Only -->
       <div class="flex flex-col items-center gap-1">
         <ProjectIcon
@@ -24,11 +34,6 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
           <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
         </div>
         <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
-        
-        <!-- Unread badge for assistant messages from others -->
-        <div v-if="unreadCount > 0" class="indicator">
-          <span class="indicator-item badge badge-error badge-xs">{{ unreadCount }}</span>
-        </div>
       </div>
     </div>
 
@@ -68,7 +73,6 @@ export default {
       const currentUsername = this.$user?.username
       if (!currentUsername) return 0
       
-      // Count unread assistant messages from other users
       return (this.chat.messages || []).filter(msg => {
         const isAssistantMsg = msg.role === 'assistant'
         const isOtherUser = msg.user !== currentUsername

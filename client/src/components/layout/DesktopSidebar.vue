@@ -4,7 +4,6 @@ import AppsSection from './AppsSection.vue'
 import WorkspacesSection from './WorkspacesSection.vue'
 import UserInfo from '../UserInfo.vue'
 import Notifications from '../Notifications.vue'
-import ViewModeToggle from './ViewModeToggle.vue'
 import MainMenu from '../main-menu/MainMenu.vue'
 </script>
 
@@ -204,7 +203,6 @@ import MainMenu from '../main-menu/MainMenu.vue'
           </template>
         </UserInfo>
         <div class="flex items-center gap-2 shrink-0">
-          <ViewModeToggle />
           <MainMenu
             :is-project-admin="isProjectAdmin"
             @close="handleClose"

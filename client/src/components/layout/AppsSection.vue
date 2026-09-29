@@ -1,11 +1,13 @@
 <script setup>
 import NavItem from './NavItem.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
+import ViewModeToggle from './ViewModeToggle.vue';
 </script>
 
 <template>
   <div class="px-2 py-3 shrink-0 border-b border-white/5">
-    <div class="px-2 pb-1">  
+    <div class="flex gap-2 pb-1">  
+      
       <!-- Project selector -->
       <ProjectDetailt 
         v-if="!isCollapsed"
@@ -13,6 +15,8 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         :options="{ folders: true, showIcon: true }"
         @select="$storex.projects.activeProjectChanged($event)"
       />
+      <ViewModeToggle />
+          
     </div>
     <button
       v-if="!isCollapsed"

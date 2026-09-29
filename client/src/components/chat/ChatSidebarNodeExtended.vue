@@ -2,7 +2,7 @@
 import ChatIcon from './ChatIcon.vue'
 import ProjectIcon from '../ProjectIcon.vue'
 import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
-import ChatStatusSelector from './ChatStatusSelector.vue'
+import Modal from '../Modal.vue'
 import moment from 'moment'
 </script>
 
@@ -10,47 +10,46 @@ import moment from 'moment'
   <div class="w-full">
     <!-- Node Row -->
     <div
-      class="relative group p-2 rounded-lg border-2 cursor-pointer transition-all"
+      class="relative group p-2 rounded-lg border-l-4 cursor-pointer transition-all"
       :class="[
+        $chats.statusBorderColor(chat.status),
         selectedChatId === chat.id
-          ? 'border-warning bg-warning/10'
-          : 'border-base-content/10 hover:bg-base-200',
-        isVisibleChat && 'border-warning'
+          ? 'bg-warning/10'
+          : 'hover:bg-base-200',
+        isVisibleChat && 'ring-1 ring-warning/40'
       ]"
       @click="$emit('select', chat)"
     >
-      <div class="flex items-center gap-2">
-        <ProjectIcon
-          :icon-only="true"
-          :width="3"
-          :project="$chats.getChatWorkingProject(chat)" />
-        <div v-if="isUpdating" class="shrink-0">
-          <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
+      <div class="flex gap-2">
+        <!-- Left Icon Column -->
+        <div class="flex flex-col items-center gap-1 shrink-0">
+          <ProjectIcon
+            :icon-only="true"
+            :width="3"
+            :project="$chats.getChatWorkingProject(chat)" />
+          <div v-if="isUpdating">
+            <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
+          </div>
+          <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
+          <div :class="unreadCountReactive ? 'text-warning/60' : 'text-success/60'">
+            <i class="fa-solid fa-check-double text-xs"></i>
+          </div>
         </div>
-        <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
-        <span class="text-xs font-medium flex-1 truncate">{{ chat.name }}</span>
-        
-        <!-- Status Badge with Icon -->
-        <div class="shrink-0">
-          <span :class="['text-xs', getStatusColor(chat.status)]">
-            <i :class="getStatusIcon(chat.status)"></i>
-          </span>
+
+        <!-- Content Area -->
+        <div class="flex-1 min-w-0">
+          <span class="text-xs font-medium truncate block">{{ chat.name }}</span>
+          <div v-if="chat.description" class="text-xs text-base-content/50 line-clamp-1 mt-1">
+            {{ chat.description }}
+          </div>
+          <div class="text-xs mt-1 text-base-content/40">
+            [{{ lastMessageTime }}]
+          </div>
         </div>
-        
-        <!-- Unread badge for assistant messages from others -->
-        <div :class="unreadCountReactive ? 'text-warning/60' : 'text-success/60'">
-          <i class="fa-solid fa-check-double"></i>
-        </div>
-      </div>
-      <div v-if="chat.description" class="text-xs text-base-content/50 line-clamp-1 mt-1 pl-5">
-        {{ chat.description }}
-      </div>
-      <div class="text-xs mt-1 pl-5">
-        [{{ lastMessageTime }}]
       </div>
 
       <!-- Action buttons (visible on hover) -->
-      <div class="absolute right-1 top-1 hidden group-hover:flex gap-1 bg-base-100/90 rounded p-0.5">
+      <div class="absolute right-1 top-1 hidden group-hover:flex gap-1 rounded p-0.5 bg-base-100">
         <button
           class="btn btn-xs btn-ghost p-1 h-auto min-h-0"
           title="Add subtask"
@@ -61,7 +60,7 @@ import moment from 'moment'
         <button
           class="btn btn-xs btn-ghost p-1 h-auto min-h-0 text-error"
           title="Delete"
-          @click.stop="$emit('delete-chat', chat)"
+          @click.stop="showDeleteConfirm = true"
         >
           <i class="fa-solid fa-trash text-xs"></i>
         </button>
@@ -75,10 +74,44 @@ import moment from 'moment'
           :chat="chat"
           :allChats="allChats"
           @add-subtask="$emit('add-subtask', $event)"
-          @delete-chat="$emit('delete-chat', $event)"
+          @delete-chat="showDeleteConfirm = true"
         />
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <Modal v-if="showDeleteConfirm" :close="true" @close="showDeleteConfirm = false">
+      <template #header>
+        <span class="text-base font-semibold text-white">Delete Chat</span>
+      </template>
+
+      <div class="space-y-4">
+        <p class="text-sm text-white/70">
+          Are you sure you want to delete <strong class="text-white">{{ chat.name }}</strong>?
+        </p>
+        <p class="text-xs text-white/50">
+          This action cannot be undone. All messages and child chats will be permanently deleted.
+        </p>
+      </div>
+
+      <template #footer>
+        <button
+          class="btn btn-sm btn-ghost"
+          @click="showDeleteConfirm = false"
+          :disabled="isDeleting"
+        >
+          Cancel
+        </button>
+        <button
+          class="btn btn-sm btn-error"
+          @click="confirmDelete"
+          :disabled="isDeleting"
+          :class="isDeleting && 'loading'"
+        >
+          <span v-if="!isDeleting">Delete Chat</span>
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -94,7 +127,9 @@ export default {
   data() {
     return {
       unreadCountCache: 0,
-      visibleChatIds: new Set()
+      visibleChatIds: new Set(),
+      showDeleteConfirm: false,
+      isDeleting: false
     }
   },
   computed: {
@@ -177,25 +212,21 @@ export default {
         console.log('Could not get chat ID from router')
       }
     },
-    getStatusIcon(status) {
-      const statusIcons = {
-        'todo': 'fa-solid fa-circle-exclamation',
-        'doing': 'fa-solid fa-spinner',
-        'onhold': 'fa-solid fa-pause-circle',
-        'done': 'fa-solid fa-check-circle',
-        'rejected': 'fa-solid fa-times-circle'
+    async confirmDelete() {
+      this.isDeleting = true
+      try {
+        await this.$storex.chats.deleteChat(this.chat)
+        this.showDeleteConfirm = false
+        this.$emit('delete-chat', this.chat)
+      } catch (error) {
+        console.error('Failed to delete chat:', error)
+        this.$storex.ui.addNotification({
+          text: 'Failed to delete chat',
+          type: 'error'
+        })
+      } finally {
+        this.isDeleting = false
       }
-      return statusIcons[status] || 'fa-solid fa-circle-exclamation'
-    },
-    getStatusColor(status) {
-      const statusColors = {
-        'todo': 'text-info',
-        'doing': 'text-primary',
-        'onhold': 'text-warning',
-        'done': 'text-success',
-        'rejected': 'text-error'
-      }
-      return statusColors[status] || 'text-info'
     }
   }
 }

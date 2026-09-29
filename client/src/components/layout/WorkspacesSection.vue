@@ -39,7 +39,6 @@ export default {
     isCollapsed: { type: Boolean, default: false },
     currentWorkspaceId: { type: String, default: null }
   },
-  emits: ['close'],
   data() {
     return {
       workspacesExpanded: false
@@ -55,8 +54,7 @@ export default {
   },
   methods: {
     handleSelectWorkspaceApp(app) {
-      this.navigation.workspaces.open(app.id, app.name)
-      this.$emit('close')
+      this.$ui.openWorkspace(app)
     },
     isWorkspaceSelected(workspaceId) {
       return this.navigation.getWorkspaceId() === workspaceId

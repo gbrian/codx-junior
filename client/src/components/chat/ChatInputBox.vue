@@ -12,8 +12,8 @@ import FindReplaceBox from './FindReplaceBox.vue'
       isDraggingOver
         ? 'bg-primary/10 ring-2 ring-primary rounded-lg md:rounded-xl'
         : isFocused
-          ? 'bg-base-100 ring-1 ring-base-300 shadow-md rounded-lg md:rounded-xl'
-          : 'bg-base-200/60 rounded-lg md:rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
+          ? 'ring-1 ring-base-300 shadow-md rounded-lg md:rounded-xl'
+          : 'border border-white/50 rounded-lg md:rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
     ]"
     @dragover.prevent="isDraggingOver = true"
     @dragleave.prevent="isDraggingOver = false"
@@ -116,7 +116,7 @@ export default {
   emits: [
     'send', 'add-message', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
-    'drop', 'profiles-selected', 'focus', 'blur', 'toggle-collapsed'
+    'drop', 'profiles-selected', 'focus', 'blur', 'toggle-collapsed', 'update:cursor-word'
   ],
   data() {
     return {

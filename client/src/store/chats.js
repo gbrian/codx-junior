@@ -5,6 +5,17 @@ import { ENTITY_STATUS } from './entityStatuses'
 
 export const namespaced = true
 
+// ─── Status Configuration (single source of truth) ───────────────────────────
+export const CHAT_STATUS_CONFIG = {
+  todo:     { value: 'todo',     label: 'To Do',    icon: 'fa-solid fa-circle-dot',   textColor: 'text-info/60',    borderColor: 'border-l-info',    btnClass: 'btn-info btn-outline' },
+  doing:    { value: 'doing',    label: 'Doing',    icon: 'fa-solid fa-circle-play',   textColor: 'text-primary/60', borderColor: 'border-l-primary', btnClass: 'btn-primary btn-outline' },
+  onhold:   { value: 'onhold',   label: 'On Hold',  icon: 'fa-solid fa-circle-pause',  textColor: 'text-warning/60', borderColor: 'border-l-warning', btnClass: 'btn-warning btn-outline' },
+  done:     { value: 'done',     label: 'Done',     icon: 'fa-solid fa-circle-check',  textColor: 'text-success/60', borderColor: 'border-l-success', btnClass: 'btn-success btn-outline' },
+  rejected: { value: 'rejected', label: 'Rejected', icon: 'fa-solid fa-circle-xmark',  textColor: 'text-error/60',   borderColor: 'border-l-error',   btnClass: 'btn-error btn-outline' },
+}
+
+const DEFAULT_STATUS = 'todo'
+
 export const state = () => ({
   chats: {},
   activeChatId: null,
@@ -82,6 +93,15 @@ export const getters = getterTree(state, {
   recentChats: state => state.recentChatIds.map(id => state.chats[id]).filter(Boolean),
   recentChatsHasMore: state => state.recentChatsHasMore,
   recentChatsLoading: state => state.recentChatsLoading,
+
+  // ─── Status helpers ────────────────────────────────────────────────────────
+  statusList: () => Object.values(CHAT_STATUS_CONFIG),
+  statusConfig: () => (status) => CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS],
+  statusIcon: () => (status) => (CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS]).icon,
+  statusLabel: () => (status) => (CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS]).label,
+  statusTextColor: () => (status) => (CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS]).textColor,
+  statusBorderColor: () => (status) => (CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS]).borderColor,
+  statusBtnClass: () => (status) => (CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS]).btnClass,
 })
 
 export const mutations = mutationTree(state, {
@@ -608,7 +628,7 @@ export const actions = actionTree(
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
         ...chat
       }
-      registerChat(state, chat)
+      
       $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
       if (!chat.temp) {
         return await $storex.chats.saveChat(chat)

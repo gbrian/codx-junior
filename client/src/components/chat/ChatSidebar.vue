@@ -1,5 +1,6 @@
 <script setup>
 import ChatSidebarNode from './ChatSidebarNode.vue'
+import ChatListRenderer from './ChatListRenderer.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ProfileCard from '../ProfileCard.vue'
 import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
@@ -16,7 +17,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
   >
 
     <!-- HEADER: Fixed - Project Selector & Root Chat Node -->
-    <div class="shrink-0 border-b border-base-300 bg-base-100">
+    <div class="shrink-0 border-b border-base-300">
       <!-- Project Selector -->
       <div v-if="!isCompact" class="px-2 md:px-3 py-3 border-b border-base-300">
         <ProjectDetailt
@@ -28,18 +29,42 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         />
       </div>
 
-      <!-- Root Chat Node -->
-      <div class="px-2 md:px-3 py-2">
+      <!-- Root Chat Node - Expanded Mode -->
+      <div v-if="!isCompact" class="px-2 md:px-3 py-2">
         <ChatSidebarNode
           :chat="rootChat"
           :allChats="allChats"
           :selectedChatId="selectedChatId"
-          :isCompact="isCompact"
+          :isCompact="false"
           @select="selectChat"
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
           @click.stop=""
         />
+      </div>
+
+      <!-- Root Chat Node - Compact Mode -->
+      <div v-else class="flex flex-col items-center gap-2 p-2">
+        <div
+          @click="selectChat(rootChat)"
+          class="relative cursor-pointer group"
+          :title="rootChat?.name"
+        >
+          <div
+            class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
+            :class="[
+              selectedChatId === rootChat?.id
+                ? 'bg-codx-secondary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
+                : 'text-white border-white/20 hover:bg-white/20 hover:border-white/30'
+            ]"
+          >
+            {{ getInitials(rootChat?.name) }}
+          </div>
+          <!-- Tooltip -->
+          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/20">
+            {{ rootChat?.name }}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -82,21 +107,20 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <!-- Chat Children (Subtasks) Section -->
-      <div v-if="sortedRootChildren.length > 0" class="px-2 md:px-3 py-2 space-y-1">
-        <div v-if="!isCompact" class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2 px-1">
+      <div v-if="sortedRootChildren.length > 0" class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0">
+        <div v-if="!isCompact" class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2 px-1 shrink-0">
           <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
         </div>
-        <ChatSidebarNode
-          v-for="chat in sortedRootChildren"
-          :key="chat.id"
-          :chat="chat"
-          :allChats="allChats"
+        <ChatListRenderer
+          :class="!isCompact && 'p-1'"
+          :chatList="sortedRootChildren"
           :selectedChatId="selectedChatId"
           :isCompact="isCompact"
+          :allChats="allChats"
+          :useExtended="false"
           @select="selectChat"
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
-          @click.stop=""
         />
       </div>
       <div v-else class="px-3 py-8 text-center">
@@ -105,7 +129,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     </div>
 
     <!-- FOOTER: Fixed - Icon Toolbar -->
-    <div class="shrink-0 border-t border-base-300 bg-base-100 px-2 py-2">
+    <div class="shrink-0 border-t border-base-300 px-2 py-2">
       <div class="flex items-center gap-1"
         :class="isCompact && 'flex-col gap-3'" 
       >
@@ -192,6 +216,15 @@ export default {
   methods: {
     selectChat(chat) {
       this.$emit('select', chat)
+    },
+    getInitials(name) {
+      if (!name) return 'CH'
+      const cleanName = name.replace(/[^\w\s-]/g, '').trim()
+      const words = cleanName.split(/\s+/)
+      if (words.length >= 2) {
+        return (words[0][0] + words[1][0]).toUpperCase()
+      }
+      return name.substring(0, 2).toUpperCase()
     }
   }
 }

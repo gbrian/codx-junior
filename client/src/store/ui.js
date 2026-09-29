@@ -284,6 +284,13 @@ export const mutations = mutationTree(state, {
   setAppShowMode(state, mode) {
     state.appShowMode = mode
   },
+  openWorkspace(_, workspace) {
+    if (!$storex.ui.isDesktopMode) {
+      $storex.$router.$navigation.workspaces.open(workspace.key, workspace.name)
+    } else {
+      $storex.ui.showApp(workspace)
+    }  
+  },
   openChat(_, chat) {
     if (!$storex.ui.isDesktopMode) {
       $storex.$router.push({

@@ -12,6 +12,7 @@ import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
 import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 import { ENTITY_STATUS } from '@/store/entityStatuses'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
+import Collapsible from '../Collapsible.vue'
 </script>
 
 <template>
@@ -57,6 +58,35 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
     <!-- Normal Chat Content -->
     <template v-else>
+
+
+      <Collapsible :defaultOpen="false" class="w-full">
+        <!-- Icon -->
+        <template #icon>
+          <span></span>
+        </template>
+
+        <!-- Title -->
+        <template #title>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
+            <i class="fa-solid fa-file"></i>
+            Files: {{ allfiles.length }} +  
+          </div>
+        </template>
+
+        <!-- Actions -->
+        <template #actions>
+                  <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+          <ChatProfileSelector
+            :project="chatProject"
+            :selected-profiles="chat.profiles"
+            :use-modal="true"
+            @profiles-changed="onProfilesChanged"
+          />
+          <CheckLists :chat="chat" :readOnly="readOnly" />
+        </div>
+
+        </template>
       <!-- File list + profile selector header -->
       <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
         <div class="w-full" v-if="chatFiles.length || messageFiles.length">
@@ -73,16 +103,8 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
             v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
           />
         </div>
-        <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
-          <ChatProfileSelector
-            :project="chatProject"
-            :selected-profiles="chat.profiles"
-            :use-modal="true"
-            @profiles-changed="onProfilesChanged"
-          />
-          <CheckLists :chat="chat" :readOnly="readOnly" />
-        </div>
       </div>
+      </Collapsible>
 
       <!-- PR View Section -->
       <div class="grow overflow-auto" v-show="isPRView">
@@ -342,6 +364,9 @@ export default {
         }
       })
       return Array.from(allMsgFiles)
+    },
+    allfiles() {
+      return [...this.chatFiles || [], ...this.messageFiles || []]
     },
     isPRView() {
       return this.chat.mode === 'prview'

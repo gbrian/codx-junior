@@ -12,7 +12,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 </script>
 
 <template>
-  <div class="flex h-full bg-base-300/80 overflow-hidden" v-if="theChat">
+  <div class="flex h-full overflow-hidden" v-if="theChat">
     <!-- ─────────────────────────────────────────────────────────────
          SIDEBAR: Persistent left navigation with hierarchy
          ───────────────────────────────────────────────────────────── -->
@@ -66,7 +66,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       />
 
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
-      <div class="flex-1 min-h-0 rounded-lg bg-base-300">
+      <div class="flex-1 min-h-0 rounded-lg">
         <!-- Logs View (Full Screen) -->
         <ChatLogsPanel
           v-if="showLogs"

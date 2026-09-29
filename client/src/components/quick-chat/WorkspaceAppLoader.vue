@@ -3,9 +3,9 @@ import AppWindow from '../windowManager/AppWindow.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full bg-base-100 relative">
+  <div class="flex flex-col h-full w-full relative">
     <!-- Header with app info and close button -->
-    <div class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-base-300/50 bg-base-100">
+    <div v-if="showHeader" class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-base-300/50">
       <div class="flex items-center gap-2 min-w-0">
         <i
           v-if="appIcon"
@@ -37,7 +37,7 @@ import AppWindow from '../windowManager/AppWindow.vue'
     </div>
 
     <!-- Loading state overlay -->
-    <div v-if="isLoading" class="absolute z-10 inset-0 flex items-center justify-center bg-base-100/50">
+    <div v-if="isLoading" class="absolute z-10 inset-0 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3">
         <span class="loading loading-spinner loading-md text-primary"></span>
         <span class="text-sm text-base-content/60">Loading {{ appName }}...</span>
@@ -45,7 +45,7 @@ import AppWindow from '../windowManager/AppWindow.vue'
     </div>
 
     <!-- Error state -->
-    <div v-if="error" class="absolute z-10 inset-0 flex items-center justify-center bg-base-100/50">
+    <div v-if="error" class="absolute z-10 inset-0 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3 text-center px-4">
         <i class="fas fa-circle-exclamation text-lg text-error"></i>
         <span class="text-sm text-base-content/60">{{ error }}</span>
@@ -66,6 +66,10 @@ export default {
     app: {
       type: Object,
       required: true
+    },
+    showHeader: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['close', 'loaded'],
