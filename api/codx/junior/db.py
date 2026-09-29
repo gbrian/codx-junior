@@ -114,6 +114,40 @@ class Message(BaseModel):
 
     Both lists are streamed in real time together with the message and are
     persisted with the chat.
+    
+    **Message Read Tracking (`read_by` field)**
+    
+    The `read_by` field tracks which users have viewed a message in collaborative chats.
+    
+    **Usage Context:**
+    - Primarily for assistant messages (role='assistant') in multi-user chat environments
+    - Indicates message delivery and read status to other users
+    - User's own messages are excluded from tracking (message.user !== current_username)
+    
+    **Automatic Tracking:**
+    - When a user scrolls past and views an assistant message from another user,
+      their username is automatically added to the `read_by` list
+    - Tracked via ChatEntry.vue which monitors viewport visibility
+    - After 500ms idle time, calls `/api/chats/markMessageAsSeen` endpoint
+    - Endpoint signature: POST /api/chats/markMessageAsSeen
+      - Params: (chat_id, message_id, username)
+      - Effect: Adds username to message.read_by list if not already present
+    
+    **Display Indicators:**
+    - ChatMiniMap: Double-check marks
+      - Gray checks (✓) = message unread by current user
+      - Green checks (✓✓) = message read by current user
+      - Only shown for assistant messages from other users
+    - ChatSidebarNodeCompact/Extended: Unread badge
+      - Shows count of unread assistant messages from others
+      - Triggers awareness of new messages in the chat
+    - Message Headers: Optional read status indicators
+    
+    **Initialization & Lifecycle:**
+    - Always initialized as empty list [] when message is created
+    - Populated over time as different users view the message
+    - Never decreases (read state is permanent per user)
+    - Cleared only if message is deleted
     """
     doc_id: Optional[str] = Field(default=None)
     role: str = Field(default='')
@@ -136,7 +170,7 @@ class Message(BaseModel):
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
     disable_knowledge: Optional[bool] = Field(default=False)
-    read_by: List[str] = Field(default=[])
+    read_by: List[str] = Field(default=[], description="List of usernames who have viewed this assistant message; automatically populated when users view the message")
     error: Optional[str] = Field(default=None)
     linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
 

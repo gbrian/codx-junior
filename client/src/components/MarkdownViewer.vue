@@ -3,6 +3,7 @@ import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
 import highlight from 'markdown-it-highlightjs'
 import InteractiveTable from './InteractiveTable.vue'
+import Modal from './Modal.vue'
 </script>
 
 <template>
@@ -82,6 +83,25 @@ import InteractiveTable from './InteractiveTable.vue'
         </div>
       </div>
     </div>
+
+    <!-- Image Preview Modal -->
+    <Modal
+      v-if="showImageModal"
+      :close="true"
+      @close="closeImageModal"
+    >
+      <template #header>
+        <span class="text-base font-semibold text-white">Image Preview</span>
+      </template>
+
+      <div class="flex items-center justify-center">
+        <img
+          :src="selectedImage"
+          :alt="selectedImageAlt"
+          class="max-w-full max-h-[70vh] rounded-lg"
+        />
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -90,6 +110,7 @@ import MarkdownIt from 'markdown-it'
 import { full as emoji } from 'markdown-it-emoji'
 import highlight from 'markdown-it-highlightjs'
 import InteractiveTable from './InteractiveTable.vue'
+import Modal from './Modal.vue'
 
 function createMd(documentId) {
   const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
@@ -215,11 +236,15 @@ export default {
   },
   emits: ['add-file', 'table-updated', 'copy-chapter', 'create-task'],
   components: {
-    InteractiveTable
+    InteractiveTable,
+    Modal
   },
   data() {
     return {
-      renderedElements: []
+      renderedElements: [],
+      showImageModal: false,
+      selectedImage: '',
+      selectedImageAlt: ''
     }
   },
   computed: {
@@ -322,6 +347,36 @@ export default {
         type: 'markdown', 
         content: addFileUploadIcons(html) 
       }]
+
+      // Attach image click handlers after DOM update
+      this.$nextTick(() => {
+        this.attachImageListeners()
+      })
+    },
+    attachImageListeners() {
+      const images = this.$el.querySelectorAll('img')
+      images.forEach(img => {
+        // Only attach if not already attached
+        if (!img.dataset.imageListenerAttached) {
+          img.style.cursor = 'pointer'
+          img.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            this.openImageModal(img.src, img.alt)
+          })
+          img.dataset.imageListenerAttached = 'true'
+        }
+      })
+    },
+    openImageModal(src, alt) {
+      this.selectedImage = src
+      this.selectedImageAlt = alt || 'Image preview'
+      this.showImageModal = true
+    },
+    closeImageModal() {
+      this.showImageModal = false
+      this.selectedImage = ''
+      this.selectedImageAlt = ''
     },
     toggleTableMode(idx, mode) {
       if (this.renderedElements[idx] && this.renderedElements[idx].type === 'table') {

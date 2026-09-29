@@ -38,7 +38,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
             <i class="fa-solid fa-angle-left text-white/40 text-xs"></i>
           </button>
           <span class="text-lg font-semibold">
-            <span class="text-codx-primary">codx-</span>
+            <span class="text-codx-secondary">codx-</span>
             <span class="text-codx-secondary">junior</span>
           </span>
         </div>
@@ -65,13 +65,9 @@ import MainMenu from '../main-menu/MainMenu.vue'
 
         <!-- Recents Section -->
         <RecentsSection
-          :chats="recentChats"
           :is-collapsed="false"
-          :is-loading="isLoadingChats"
-          :active-chat-id="activeChattId"
           :is-mobile="true"
           @select-chat="handleSelectChat"
-          @scroll-end="loadMoreChats"
         />
       </div>
 
@@ -79,34 +75,35 @@ import MainMenu from '../main-menu/MainMenu.vue'
       <div class="shrink-0 border-t border-white/5 px-2 py-3">
         <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
           <div class="grow flex items-center gap-3 flex-1">
+            <UserInfo>
+              <template #trigger="{ togglePanel }">
+                <button
+                  class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
+                  @click="togglePanel"
+                  :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+                >
+                  <div class="avatar tooltip" :data-tip="$user.username">
+                    <div class="w-8">
+                      <img :src="$user.avatar">
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </UserInfo>
+            <div class="flex justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-white truncate">{{ userName }}</div>
+                <div class="text-xs text-white/40">{{ userSubtitle }}</div>
+              </div>
+              <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
+                <i class="fas fa-chevron-down text-xs"></i>
+              </button>
+            </div>
             <MainMenu
               :is-project-admin="isProjectAdmin"
               @close="handleClose"
             >
-              <UserInfo>
-                <template #trigger="{ togglePanel }">
-                  <button
-                    class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-                    @click="togglePanel"
-                    :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-                  >
-                    <div class="avatar tooltip" :data-tip="$user.username">
-                      <div class="w-8">
-                        <img :src="$user.avatar">
-                      </div>
-                    </div>
-                  </button>
-                </template>
-              </UserInfo>
-              <div class="flex justify-between">
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm text-white truncate">{{ userName }}</div>
-                  <div class="text-xs text-white/40">{{ userSubtitle }}</div>
-                </div>
-                <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
-                  <i class="fas fa-chevron-down text-xs"></i>
-                </button>
-              </div>
+              <i class="fa-solid fa-ellipsis-vertical"></i>
             </MainMenu>
           </div>
         </div>
@@ -133,7 +130,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
             <i class="fa-solid fa-angle-left text-white/40 text-xs"></i>
           </button>
           <span class="text-lg font-semibold">
-            <span class="text-codx-primary">codx-</span>
+            <span class="text-codx-secondary">codx-</span>
             <span class="text-codx-secondary">junior</span>
           </span>
         </div>
@@ -174,52 +171,72 @@ import MainMenu from '../main-menu/MainMenu.vue'
 
       <!-- Recents Section -->
       <RecentsSection
-        :chats="recentChats"
         :is-collapsed="isCollapsed"
-        :is-loading="isLoadingChats"
-        :active-chat-id="activeChattId"
         :is-mobile="false"
         @select-chat="handleSelectChat"
-        @scroll-end="loadMoreChats"
       />
     </div>
 
     <!-- Footer -->
     <div class="shrink-0 border-t border-white/5 px-2 py-3">
-      <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
-        <div class="grow flex items-center gap-3 flex-1">
+      <div v-if="!isCollapsed" class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+        <UserInfo>
+          <template #trigger="{ togglePanel }">
+            <div class="flex gap-3 items-center flex-1 min-w-0">
+              <button
+                class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0 shrink-0"
+                @click="togglePanel"
+                :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+              >
+                <div class="avatar tooltip" :data-tip="$user.username">
+                  <div class="w-8">
+                    <img :src="$user.avatar">
+                  </div>
+                </div>
+              </button>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-white truncate">{{ userName }}</div>
+                <div class="text-xs"
+                  :class="connected ? 'text-success/60': 'text-error'"
+                >{{ connected ? 'online': 'offline' }}</div>
+              </div>
+            </div>
+          </template>
+        </UserInfo>
+        <div class="flex items-center gap-2 shrink-0">
+          <ViewModeToggle />
           <MainMenu
             :is-project-admin="isProjectAdmin"
             @close="handleClose"
           >
-            <UserInfo>
-              <template #trigger="{ togglePanel }">
-                <button
-                  class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-                  @click="togglePanel"
-                  :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-                >
-                  <div class="avatar tooltip" :data-tip="$user.username">
-                    <div class="w-8">
-                      <img :src="$user.avatar">
-                    </div>
-                  </div>
-                </button>
-              </template>
-            </UserInfo>
-            <div v-if="!isCollapsed" class="flex justify-between">
-              <div class="flex-1 min-w-0">
-                <div class="text-sm text-white truncate">{{ userName }}</div>
-                <div class="text-xs text-white/40">{{ userSubtitle }}</div>
-              </div>
-              <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
-                <i class="fas fa-chevron-down text-xs"></i>
-              </button>
-            </div>
+            <i class="fa-solid fa-ellipsis-vertical"></i>
           </MainMenu>
         </div>
-        <!-- View Mode Toggle -->
-        <ViewModeToggle v-if="!isCollapsed" />
+      </div>
+
+      <!-- Collapsed Footer - Icon Only -->
+      <div v-else class="flex items-center justify-center gap-3 py-2">
+        <UserInfo>
+          <template #trigger="{ togglePanel }">
+            <button
+              class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
+              @click="togglePanel"
+              :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+            >
+              <div class="avatar tooltip tooltip-right" :data-tip="$user.username">
+                <div class="w-8">
+                  <img :src="$user.avatar">
+                </div>
+              </div>
+            </button>
+          </template>
+        </UserInfo>
+        <MainMenu
+          :is-project-admin="isProjectAdmin"
+          @close="handleClose"
+        >
+          <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+        </MainMenu>
       </div>
     </div>
   </aside>
@@ -228,8 +245,6 @@ import MainMenu from '../main-menu/MainMenu.vue'
 <script>
 export default {
   props: {
-    userName: { type: String, default: 'User' },
-    userSubtitle: { type: String, default: 'Pro' },
     isMobile: { type: Boolean, default: false },
     isMobileExpanded: { type: Boolean, default: false }
   },
@@ -239,16 +254,7 @@ export default {
       isCollapsed: true,
       userCollapsed: false,
       resizeObserver: null,
-      recentChats: [],
-      isLoadingChats: false,
-      currentPage: 1,
-      initialPageSize: 20,
-      subsequentPageSize: 10,
-      hasMoreChats: true,
-      activeChattId: null,
-      isInitialLoad: true,
       dailyLimitStatus: 'normal',
-      selectedWorkspaceApp: null,
       moreExpanded: false
     }
   },
@@ -270,6 +276,16 @@ export default {
     },
     isDesktopMode() {
       return this.$storex.$router.$navigation.isDesktopMode
+    },
+    userName() { 
+      return this.$users.user?.username 
+    },
+    userSubtitle() {
+      const email = this.$users.user?.email
+      return email && email.length > 20 ? email.substring(0, 20) + '...' : email
+    },
+    connected() {
+      return this.$session.connected
     }
   },
   watch: {
@@ -286,7 +302,6 @@ export default {
     } else {
       this.isCollapsed = !this.isMobileExpanded
     }
-    this.loadRecentChats()
   },
   beforeUnmount() {
     this.resizeObserver?.disconnect()
@@ -314,45 +329,6 @@ export default {
         this.isCollapsed = true
       }
       this.$emit('close')
-    },
-    async loadRecentChats(append = false) {
-      try {
-        this.isLoadingChats = true
-        const currentUserId = this.currentUser?.id
-        const pageSize = this.isInitialLoad ? this.initialPageSize : this.subsequentPageSize
-
-        const response = await this.$project.$api.chats.getRecentChats({
-          filters: { user_id: currentUserId },
-          page: this.currentPage,
-          pageSize: pageSize
-        })
-
-        if (response.error) {
-          console.error('Error loading recent chats:', response.error)
-          this.isLoadingChats = false
-          return
-        }
-
-        if (append) {
-          this.recentChats.push(...response.chats)
-        } else {
-          this.recentChats = response.chats
-        }
-
-        this.hasMoreChats = response.has_next
-        this.activeChattId = this.$storex?.chats?.activeChat?.id || null
-        this.isLoadingChats = false
-        this.isInitialLoad = false
-      } catch (error) {
-        console.error('Error loading recent chats:', error)
-        this.isLoadingChats = false
-      }
-    },
-    loadMoreChats() {
-      if (this.hasMoreChats && !this.isLoadingChats) {
-        this.currentPage += 1
-        this.loadRecentChats(true)
-      }
     },
     handleSelectChat(chat) {
       this.$chats.setActiveChat(chat)

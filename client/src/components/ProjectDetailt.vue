@@ -100,7 +100,7 @@ import Modal from './Modal.vue'
           class="px-3 py-2 text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
         >
           <i class="fa-solid fa-ellipsis"></i>
-          More Projects ({{ totalRecentProjects - displayLimit }})
+          More Projects ({{ totalProjectsCount - displayLimit }})
         </button>
 
         <button
@@ -147,25 +147,27 @@ export default {
       return this.$projects?.allProjects || []
     },
 
-    // Total count of recent projects
-    totalRecentProjects() {
+    // Total count of all projects
+    totalProjectsCount() {
       return this.allProjects.length
     },
 
-    // Base list to filter from (Recent or All Recent)
+    // When filtering: use all projects, otherwise use paginated recent
     baseProjects() {
+      if (this.searchQuery) {
+        // When searching, filter ALL projects
+        return this.allProjects.filter(p => this.matchesSearch(p))
+      }
+      // When not searching, show paginated recent projects
       if (this.showAllProjects) {
         return this.allProjects
       }
       return this.allProjects.slice(0, this.displayLimit)
     },
 
-    // Filter base list by search query
+    // Display projects (baseProjects is already filtered if searching)
     displayedProjects() {
-      if (!this.searchQuery) {
-        return this.baseProjects
-      }
-      return this.baseProjects.filter(p => this.matchesSearch(p))
+      return this.baseProjects
     },
 
     // Section label based on current state
@@ -181,12 +183,12 @@ export default {
       return 'No recent projects'
     },
 
-    // Show "Load More" button: only when on Recent view and more projects exist
+    // Show "Load More" button: only when not searching and on Recent view and more projects exist
     showLoadMoreButton() {
-      return !this.searchQuery && !this.showAllProjects && this.totalRecentProjects > this.displayLimit
+      return !this.searchQuery && !this.showAllProjects && this.totalProjectsCount > this.displayLimit
     },
 
-    // Show "Back to Recent" button: only when expanded to All Recent
+    // Show "Back to Recent" button: only when expanded to All Recent and not searching
     showBackButton() {
       return !this.searchQuery && this.showAllProjects
     }

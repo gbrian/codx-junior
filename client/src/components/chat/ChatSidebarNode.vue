@@ -15,7 +15,7 @@ import ChatSidebarNodeExtended from './ChatSidebarNodeExtended.vue'
   />
   <ChatSidebarNodeExtended
     v-else
-    :chat="chat"
+    :chatId="chat.id"
     :allChats="allChats"
     :selectedChatId="selectedChatId"
     @select="$emit('select', $event)"

@@ -2,6 +2,7 @@
 import ChatIcon from './ChatIcon.vue'
 import ProjectIcon from '../ProjectIcon.vue'
 import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
+import ChatStatusSelector from './ChatStatusSelector.vue'
 import moment from 'moment'
 </script>
 
@@ -10,9 +11,12 @@ import moment from 'moment'
     <!-- Node Row -->
     <div
       class="relative group p-2 rounded-lg border-2 cursor-pointer transition-all"
-      :class="selectedChatId === chat.id
-        ? 'border-warning bg-warning/10'
-        : 'border-base-content/10 bg-base-100 hover:bg-base-200'"
+      :class="[
+        selectedChatId === chat.id
+          ? 'border-warning bg-warning/10'
+          : 'border-base-content/10 hover:bg-base-200',
+        isVisibleChat && 'border-warning'
+      ]"
       @click="$emit('select', chat)"
     >
       <div class="flex items-center gap-2">
@@ -25,7 +29,18 @@ import moment from 'moment'
         </div>
         <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
         <span class="text-xs font-medium flex-1 truncate">{{ chat.name }}</span>
-        <span class="text-xs text-base-content/40 tabular-nums shrink-0">{{ chat.messages?.length || 0 }}</span>
+        
+        <!-- Status Badge with Icon -->
+        <div class="shrink-0">
+          <span :class="['text-xs', getStatusColor(chat.status)]">
+            <i :class="getStatusIcon(chat.status)"></i>
+          </span>
+        </div>
+        
+        <!-- Unread badge for assistant messages from others -->
+        <div :class="unreadCountReactive ? 'text-warning/60' : 'text-success/60'">
+          <i class="fa-solid fa-check-double"></i>
+        </div>
       </div>
       <div v-if="chat.description" class="text-xs text-base-content/50 line-clamp-1 mt-1 pl-5">
         {{ chat.description }}
@@ -64,20 +79,6 @@ import moment from 'moment'
         />
       </div>
     </div>
-
-    <!-- Children -->
-    <div v-if="hasChildren" class="ml-3 mt-1 space-y-1 border-l border-base-300 pl-2">
-      <ChatSidebarNodeExtended
-        v-for="child in children"
-        :key="child.id"
-        :chat="child"
-        :allChats="allChats"
-        :selectedChatId="selectedChatId"
-        @select="$emit('select', $event)"
-        @add-subtask="$emit('add-subtask', $event)"
-        @delete-chat="$emit('delete-chat', $event)"
-      />
-    </div>
   </div>
 </template>
 
@@ -85,12 +86,21 @@ import moment from 'moment'
 export default {
   name: 'ChatSidebarNodeExtended',
   props: {
-    chat: { type: Object, required: true },
+    chatId: { type: String, required: true },
     allChats: { type: Array, default: () => [] },
     selectedChatId: { type: String, default: null }
   },
   emits: ['select', 'add-subtask', 'delete-chat'],
+  data() {
+    return {
+      unreadCountCache: 0,
+      visibleChatIds: new Set()
+    }
+  },
   computed: {
+    chat() {
+      return this.$chats.chats[this.chatId]
+    },
     children() {
       return this.allChats.filter(c => c.parent_id === this.chat.id)
     },
@@ -100,21 +110,92 @@ export default {
     isUpdating() {
       return this.$storex.chats.isChatUpdating(this.chat.id)
     },
+    unreadCountReactive() {
+      return this.calculateUnreadCount()
+    },
+    isVisibleChat() {
+      return this.visibleChatIds.has(this.chat.id)
+    },
     lastMessageTime() {
       const lastMessage = [...this.chat.messages].sort((a, b) => a.updated_at > b.updated_at ? -1: 1)[0] 
       const timestamp = lastMessage?.updated_at || this.chat.updated_at
       if (!timestamp) return ''
       
       const momentTime = moment(timestamp)
-      const threeDaysAgo = moment().subtract(3, 'days')
+      const threeDaysAgo = moment().subtract(1, 'days')
       
-      // Use fromNow for recent changes (within 3 days)
       if (momentTime.isAfter(threeDaysAgo)) {
-        return momentTime.fromNow()
+        return momentTime.format('hh:mm:ss')
       }
       
-      // Use formatted date/time for older messages
       return momentTime.format('MMM DD, YYYY')
+    }
+  },
+  watch: {
+    'chat.messages': {
+      handler() {
+        this.updateUnreadCount()
+      },
+      deep: true
+    }
+  },
+  mounted() {
+    this.updateVisibleChats()
+    this.updateUnreadCount()
+  },
+  methods: {
+    calculateUnreadCount() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return 0
+      
+      return (this.chat.messages || []).filter(msg => {
+        const isAssistantMsg = msg.role === 'assistant'
+        const isOtherUser = msg.user !== currentUsername
+        const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
+        return isAssistantMsg && isOtherUser && isUnread && !msg.hide
+      }).length
+    },
+    updateUnreadCount() {
+      this.unreadCountCache = this.calculateUnreadCount()
+    },
+    updateVisibleChats() {
+      this.visibleChatIds.clear()
+      
+      const openApps = this.$storex?.ui?.openApps || {}
+      Object.values(openApps).forEach(app => {
+        if (app.tabId) {
+          this.visibleChatIds.add(app.tabId)
+        }
+      })
+
+      try {
+        const chatId = this.$storex?.$router?.$navigation?.getChatId?.()
+        if (chatId) {
+          this.visibleChatIds.add(chatId)
+        }
+      } catch (error) {
+        console.log('Could not get chat ID from router')
+      }
+    },
+    getStatusIcon(status) {
+      const statusIcons = {
+        'todo': 'fa-solid fa-circle-exclamation',
+        'doing': 'fa-solid fa-spinner',
+        'onhold': 'fa-solid fa-pause-circle',
+        'done': 'fa-solid fa-check-circle',
+        'rejected': 'fa-solid fa-times-circle'
+      }
+      return statusIcons[status] || 'fa-solid fa-circle-exclamation'
+    },
+    getStatusColor(status) {
+      const statusColors = {
+        'todo': 'text-info',
+        'doing': 'text-primary',
+        'onhold': 'text-warning',
+        'done': 'text-success',
+        'rejected': 'text-error'
+      }
+      return statusColors[status] || 'text-info'
     }
   }
 }

@@ -41,7 +41,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       />
 
       <NavItem
-        icon="fas fa-messages"
+        icon="fa-regular fa-comments"
         label="Messenger"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToMessenger"
@@ -79,7 +79,11 @@ export default {
   },
   methods: {
     handleNavigateToNewChat() {
-      this.$storex.$router.$navigation.apps.openHome()
+      if (this.$router.$navigation.isDesktopMode) {
+        this.$service.chat.newQuickChat()
+      } else {
+        this.$storex.$router.$navigation.apps.openHome()
+      }
       this.$emit('close')
     },
     handleNavigateToKanban() {

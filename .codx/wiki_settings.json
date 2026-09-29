@@ -27,6 +27,11 @@
           "path": "/scripts/run_api.sh",
           "slug": "run-api.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/run-api.md"
+        },
+        {
+          "path": "/upload/webtop_automation_guide.md",
+          "slug": "webtop-automation-guide.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/webtop-automation-guide.md"
         }
       ],
       "id": "project-overview",

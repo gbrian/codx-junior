@@ -8,19 +8,19 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
 <template>
   <div :class="[
-    'border-r border-base-300 bg-base-100 flex flex-col h-full overflow-hidden relative',
+    'border-r border-base-300 flex flex-col h-full overflow-hidden relative transition-all duration-200',
     'md:border-r md:border-base-300',
-    isCompact ? 'w-20 md:w-20' : 'w-64 md:w-64',
-    $ui?.isMobile && !isCompact ? 'shadow-lg' : ''
+    isCompact ? 'w-16 md:w-16' : 'w-64 md:w-64',
+    $ui?.isMobile && !isCompact ? 'shadow-lg z-40' : ''
   ]"
-    @click="isCompact && $emit('toggle-compact')"
   >
 
-    <!-- Root Chat Node with Project Selector -->
-    <div class="px-1 shrink-0 space-y-2">
+    <!-- HEADER: Fixed - Project Selector & Root Chat Node -->
+    <div class="shrink-0 border-b border-base-300 bg-base-100">
       <!-- Project Selector -->
-      <div v-if="!isCompact" class="px-2 md:px-3 z-50 w-full">
+      <div v-if="!isCompact" class="px-2 md:px-3 py-3 border-b border-base-300">
         <ProjectDetailt
+          @click.stop=""
           :iconify="false"
           :modelValue="targetProject"
           :options="{ showFolders: false, showIcon: true, showSelector: true }"
@@ -29,88 +29,131 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <!-- Root Chat Node -->
-      <ChatSidebarNode
-        :chat="rootChat"
-        :allChats="allChats"
-        :selectedChatId="selectedChatId"
-        :isCompact="isCompact"
-        @select="selectChat"
-        @add-subtask="$emit('add-subtask', $event)"
-        @delete-chat="$emit('delete-chat', $event)"
-      />
-    </div>
-
-    <div class="grow"></div>
-    <ChatAttachmentPreview
-      :attachments="workingChat.attachments"
-      @remove-attachment="$emit('remove-attachment', $event)"
-      v-if="workingChat.attachments?.length"
-    />
-
-    <!-- Profiles Section -->
-    <div v-if="chatProfiles.length" class="border-t border-base-300 shrink-0">
-      <div v-if="!isCompact" class="px-1 py-2">
-        <div class="text-xs font-semibold text-base-content/60 uppercase mb-2">Profiles</div>
-        <div class="overflow-y-auto space-y-2 max-h-48">
-          <ProfileCard 
-            v-for="profile in chatProfiles"
-            :key="profile.name"
-            :profile="profile"
-            :mini="true"
-          />
-        </div>
-      </div>
-      <div v-else class="p-2 overflow-y-auto space-y-2 max-h-48 flex flex-col items-center">
-        <ProfileAvatar 
-          v-for="profile in chatProfiles"
-          :key="profile.name"
-          :profile="profile"
-          :width="10"
+      <div class="px-2 md:px-3 py-2">
+        <ChatSidebarNode
+          :chat="rootChat"
+          :allChats="allChats"
+          :selectedChatId="selectedChatId"
+          :isCompact="isCompact"
+          @select="selectChat"
+          @add-subtask="$emit('add-subtask', $event)"
+          @delete-chat="$emit('delete-chat', $event)"
+          @click.stop=""
         />
       </div>
     </div>
 
-    <!-- Footer: Actions -->
-    <div class="border-t border-base-300 p-3 space-y-1 shrink-0">
-      <button 
-        v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
-        @click="$emit('action', { type: 'logs' })"
-        title="View AI logs"
+    <!-- CENTER: Scrollable Content Area -->
+    <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
+      <!-- Attachments Section -->
+      <div v-if="workingChat.attachments?.length" class="border-b border-base-300 shrink-0">
+        <ChatAttachmentPreview
+          :attachments="workingChat.attachments"
+          @remove-attachment="$emit('remove-attachment', $event)"
+        />
+      </div>
+
+      <!-- Profiles Section -->
+      <div v-if="chatProfiles.length" class="border-b border-base-300 shrink-0">
+        <div v-if="!isCompact" class="px-3 py-3">
+          <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3 px-1">
+            <i class="fa-solid fa-circle-user text-xs mr-2 opacity-60"></i>Profiles
+          </div>
+          <div class="space-y-2">
+            <ProfileCard 
+              v-for="profile in chatProfiles"
+              :key="profile.name"
+              :profile="profile"
+              :mini="true"
+            />
+          </div>
+        </div>
+        <div v-else class="p-2 flex flex-col items-center gap-2">
+          <div class="text-xs font-semibold text-base-content/50 text-center">P</div>
+          <div class="space-y-1.5 flex flex-col items-center">
+            <ProfileAvatar 
+              v-for="profile in chatProfiles"
+              :key="profile.name"
+              :profile="profile"
+              :width="10"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Children (Subtasks) Section -->
+      <div v-if="sortedRootChildren.length > 0" class="px-2 md:px-3 py-2 space-y-1">
+        <div v-if="!isCompact" class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2 px-1">
+          <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
+        </div>
+        <ChatSidebarNode
+          v-for="chat in sortedRootChildren"
+          :key="chat.id"
+          :chat="chat"
+          :allChats="allChats"
+          :selectedChatId="selectedChatId"
+          :isCompact="isCompact"
+          @select="selectChat"
+          @add-subtask="$emit('add-subtask', $event)"
+          @delete-chat="$emit('delete-chat', $event)"
+          @click.stop=""
+        />
+      </div>
+      <div v-else class="px-3 py-8 text-center">
+        <p class="text-xs text-base-content/40">No subtasks yet</p>
+      </div>
+    </div>
+
+    <!-- FOOTER: Fixed - Icon Toolbar -->
+    <div class="shrink-0 border-t border-base-300 bg-base-100 px-2 py-2">
+      <div class="flex items-center gap-1"
+        :class="isCompact && 'flex-col gap-3'" 
       >
-        <i class="fa-solid fa-file-lines"></i> AI Logs
-      </button>
-      <button 
-        v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
-        @click="$emit('action', { type: 'timeline' })"
-      >
-        <i class="fa-solid fa-timeline"></i> Timeline
-      </button>
-      <button 
-        v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
-        @click="$emit('action', { type: 'export' })"
-      >
-        <i class="fa-solid fa-download"></i> Export
-      </button>
-      <button 
-        v-if="!isCompact"
-        class="btn btn-xs btn-block btn-ghost justify-start gap-2"
-        @click="$emit('action', { type: 'settings' })"
-      >
-        <i class="fa-solid fa-gear"></i> Settings
-      </button>
-      
-      <!-- Compact Toggle Button -->
-      <button 
-        class="btn btn-xs btn-block btn-ghost justify-center gap-2"
-        :title="isCompact ? 'Expand sidebar' : 'Compact sidebar'"
-        @click.stop="$emit('toggle-compact')"
-      >
-        <i :class="isCompact ? 'fa-solid fa-arrow-right' : 'fa-solid fa-arrow-left'"></i>
-        <span v-if="!isCompact">Compact</span>
-      </button>
+        <!-- Logs Button -->
+        <button 
+          @click.stop="$emit('action', { type: 'logs' })"
+          :title="'View AI logs'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i class="fa-solid fa-file-lines text-sm"></i>
+        </button>
+
+        <!-- Timeline Button -->
+        <button 
+          @click.stop="$emit('action', { type: 'timeline' })"
+          :title="'View timeline'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i class="fa-solid fa-timeline text-sm"></i>
+        </button>
+
+        <!-- Export Button -->
+        <button 
+          @click.stop="$emit('action', { type: 'export' })"
+          :title="'Export chat'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i class="fa-solid fa-download text-sm"></i>
+        </button>
+
+        <!-- Settings Button -->
+        <button 
+          @click.stop="$emit('action', { type: 'settings' })"
+          :title="'Open settings'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i class="fa-solid fa-gear text-sm"></i>
+        </button>
+
+        <!-- Compact Toggle Button -->
+        <button 
+          @click.stop="$emit('toggle-compact')"
+          :title="isCompact ? 'Expand sidebar' : 'Collapse sidebar'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i :class="isCompact ? 'fa-solid fa-angle-right' : 'fa-solid fa-angle-left'"></i>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -125,12 +168,19 @@ export default {
     workingChatMode: { type: String, default: 'chat' },
     chatSearch: { type: String, default: null },
     isCompact: { type: Boolean, default: false },
-    chatProfiles: { type: Array, default: () => [] },
+    chatProfiles: { type: Array, default: () => [] }
   },
   emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project'],
   computed: {
     rootChildren() {
       return this.allChats.filter(c => c.parent_id === this.rootChat.id)
+    },
+    sortedRootChildren() {
+      return [...this.rootChildren].sort((a, b) => {
+        const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
+        const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
+        return timeB - timeA
+      })
     },
     selectedChat() {
       return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat

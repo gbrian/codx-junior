@@ -56,7 +56,7 @@ import Collapsible from '../Collapsible.vue'
             Columns
             <span v-if="columnFilter.length" class="badge badge-sm">{{ columnFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableColumns" :key="opt">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -77,7 +77,7 @@ import Collapsible from '../Collapsible.vue'
             Profiles
             <span v-if="profileFilter.length" class="badge badge-sm">{{ profileFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableProfiles" :key="opt">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -98,7 +98,7 @@ import Collapsible from '../Collapsible.vue'
             Types
             <span v-if="modeFilter.length" class="badge badge-sm">{{ modeFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableModes" :key="opt.value">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -174,7 +174,7 @@ import Collapsible from '../Collapsible.vue'
       <div v-if="groupBy !== 'none'" class="flex flex-col gap-4">
         <div v-for="(group, groupKey) in groupedTasks" :key="groupKey">
           <!-- Group header -->
-          <div class="flex items-center gap-2 mb-2 sticky top-0 bg-base-100 z-10 py-1">
+          <div class="flex items-center gap-2 mb-2 sticky top-0 z-10 py-1 bg-base-200 rounded-xl">
             <div class="badge badge-primary badge-outline"> <i class="fa-solid fa-folder"></i> {{ groupKey }}</div>
             <div class="text-xs opacity-50">{{ group.length }} tasks</div>
             <div class="grow border-b border-base-300"></div>
@@ -191,7 +191,7 @@ import Collapsible from '../Collapsible.vue'
                 >
                   <i class="fa-solid fa-plus text-xs"></i> Task
                 </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-44 p-2 shadow">
+                <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-44 p-2 shadow">
                   <li @click="emitNewTaskForColumn(groupKey, 'chat')">
                     <a><ChatIcon mode="chat" /> Chat</a>
                   </li>
@@ -247,7 +247,7 @@ import Collapsible from '../Collapsible.vue'
 
               <TaskCard
                 :task="task"
-                class="pl-5 cursor-pointer bg-base-200 overflow-hidden h-full flex flex-col transition-all"
+                class="pl-5 cursor-pointer border overflow-hidden h-full flex flex-col transition-all"
                 :class="[
                   task.pinned && 'border-warning border',
                   lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',
@@ -310,7 +310,7 @@ import Collapsible from '../Collapsible.vue'
 
           <TaskCard
             :task="task"
-            class="cursor-pointer bg-base-200 overflow-hidden h-full flex flex-col transition-all"
+            class="cursor-pointer border overflow-hidden h-full flex flex-col transition-all"
             :class="[
               task.pinned && 'border-warning border',
               lastUpdatedTaskId === task.id ? 'border border-primary border-dashed' : '',

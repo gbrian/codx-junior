@@ -1,10 +1,9 @@
 <script setup>
-// imports only
 </script>
 
 <template>
   <div
-    class="relative w-5 h-full flex-shrink-0 flex flex-col bg-base-200/30 border-l border-base-300/50 cursor-pointer select-none overflow-hidden"
+    class="relative w-3 h-full flex-shrink-0 flex flex-col bg-base-200/30 border-l border-base-300/50 cursor-pointer select-none overflow-hidden"
     ref="trackEl"
     @click="onTrackClick"
     title="Mini-map — click to navigate"
@@ -23,13 +22,12 @@
     <div
       v-for="(mark, ix) in marks"
       :key="mark.id"
-      class="absolute left-0.5 right-0.5 rounded-sm mb-0.5 opacity-30 hover:opacity-60 transition-all duration-150 flex items-center justify-center"
+      class="absolute left-0.5 right-0.5 rounded-sm mb-0.5 opacity-30 hover:opacity-60 transition-all duration-150 flex items-center justify-center text-[8px] font-bold"
       :class="markClass(mark)"
       :style="{
         top: mark.top + 'px',
         height: Math.max(mark.height, 3) + 'px',
       }"
-      :title="markTitle(mark, ix)"
       @click.stop="scrollToMark(mark)"
     >
     </div>
@@ -132,7 +130,10 @@ export default {
         const markHeight = Math.max(elRect.height * scale, 3)
 
         // Check if current user has read this message
-        const hasSeen = msg.read_by && msg.read_by.includes(currentUsername)
+        // Only track assistant messages from other users
+        const isAssistantMsg = msg.role === 'assistant'
+        const isUserOwned = msg.user === currentUsername
+        const hasSeen = isAssistantMsg && !isUserOwned && msg.read_by && msg.read_by.includes(currentUsername)
 
         newMarks.push({
           id: msg.doc_id || msg.id || i,
@@ -144,6 +145,7 @@ export default {
           hasDone: msg.done,
           hasTools: (msg.tool_events?.length || 0) > 0,
           hasSeen: hasSeen,
+          isUserOwned: isUserOwned,
           user: msg.user,
           scrollTop: topInScroll,
         })
@@ -160,26 +162,24 @@ export default {
     },
     markClass(mark) {
       function baseClass() {
-        if (mark.isHidden) return 'bg-warning'
-        if (mark.isAnswer) return 'bg-success'
-        if (mark.role === 'assistant') {
-          return mark.hasTools ? 'bg-warning' : 'bg-info'
+        if (mark.isUserOwned || mark.hasSeen) {
+          if (mark.isHidden) return 'bg-warning'
+          if (mark.isAnswer) return 'bg-success'
+          if (mark.role === 'assistant') {
+            return mark.hasTools ? 'bg-warning' : 'bg-info'
+          }
+          // user message
+          return 'bg-primary'
         }
-        // user message
-        return 'bg-primary'
+        return ''
       }
+      
+      const seenClass = mark.isUserOwned || mark.hasSeen ? '' : 'border-l-2 border-dotted'
+      
       return [
         baseClass(),
-        'border-l-6',
-        mark.hasSeen ? 'border-success' : 'border-error'
+        seenClass
       ].join(" ")
-    },
-    markTitle(mark, ix) {
-      const role = mark.role === 'assistant' ? '🤖 Assistant' : `👤 ${mark.user || 'User'}`
-      const status = mark.isHidden ? ' [archived]' : ''
-      const tools = mark.hasTools ? ' [has tools]' : ''
-      const readStatus = mark.role === 'assistant' ? (mark.hasSeen ? ' [seen]' : ' [unseen]') : ''
-      return `#${ix + 1} ${role}${tools}${status}${readStatus}`
     },
     scrollToMark(mark) {
       const container = this.scrollContainer

@@ -1,54 +1,62 @@
 <script setup>
 import ChatModeSelector from './ChatModeSelector.vue'
+import ChatStatusSelector from './ChatStatusSelector.vue'
 </script>
 
 <template>
-  <div class="h-auto border border-base-300 bg-base-100 rounded-lg px-3 md:px-6 py-2 md:py-2 flex flex-col overflow-hidden">
+  <div class="h-auto border border-base-100 rounded-xl px-6 py-3 flex flex-col gap-3 shadow-sm">
     
-    <!-- ROW 1: Breadcrumb + Right Stats -->
-    <div class="flex items-center gap-1 md:gap-2 text-xs min-w-0 min-h-5 md:min-h-6">
-      <!-- Breadcrumb (left, truncated) -->
-      <div class="flex items-center gap-1 md:gap-2 min-w-0 overflow-hidden">
-        <span 
-          class="text-primary font-bold truncate hover:underline cursor-pointer transition-colors whitespace-nowrap shrink-0"
+    <!-- ROW 1: Breadcrumb + Stats (Left + Right) -->
+    <div class="flex items-center gap-3 text-xs min-w-0">
+      <!-- Breadcrumb Navigation (Left, Truncated) -->
+      <div class="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+        <button
           @click="$emit('select-breadcrumb', rootChat)"
           :title="rootChat.name"
+          class="text-sm font-semibold text-primary truncate hover:text-primary/80 focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 transition-colors duration-150 outline-none whitespace-nowrap shrink-0"
         >
           {{ rootChat.name }}
-        </span>
+        </button>
+        
         <template v-for="(ancestor, idx) in breadcrumb" :key="ancestor.id">
-          <i class="fa-solid fa-chevron-right text-xs opacity-50 shrink-0"></i>
-          <span 
-            class="truncate hover:underline cursor-pointer text-xs transition-colors hover:text-primary whitespace-nowrap"
+          <i class="fa-solid fa-chevron-right text-xs opacity-40 shrink-0"></i>
+          <button
             @click="$emit('select-breadcrumb', ancestor)"
             :title="ancestor.name"
+            class="text-xs text-base-content/70 truncate hover:text-primary focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 transition-colors duration-150 outline-none whitespace-nowrap"
           >
             {{ ancestor.name }}
-          </span>
+          </button>
         </template>
       </div>
       
-      <!-- Right side stats (hidden on mobile, compact on desktop) -->
-      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
-        <!-- Template badge -->
-        <span class="badge badge-warning badge-sm" v-if="chat.is_template">Template</span>
-        <!-- Message Count Badge -->
-        <div class="flex items-center gap-1 text-xs shrink-0 cursor-pointer hover:text-primary transition-colors"
+      <!-- Right Stats (Compact) -->
+      <div class="flex items-center gap-2 ml-auto shrink-0">
+        <!-- Template Badge -->
+        <div v-if="chat.is_template" class="badge badge-warning badge-sm text-xs" title="This is a template">
+          <i class="fa-solid fa-star text-xs mr-1"></i>
+          Template
+        </div>
+        
+        <!-- Message Count -->
+        <button
           @click="$emit('toggle-hidden')"
+          :title="`${messageCount - hiddenCount} visible${hiddenCount ? `, ${hiddenCount} hidden` : ''}`"
+          class="flex items-center gap-1.5 text-xs text-base-content/60 hover:text-base-content/90 focus:ring-2 focus:ring-primary/50 rounded px-2 py-1 transition-colors duration-150 outline-none"
         >
-          <i class="fa-solid fa-message"></i>
-          <span class="tabular-nums">{{ messageCount - hiddenCount }}</span>
-          <span v-if="hiddenCount" class="flex items-center gap-1 text-warning/60">
+          <i class="fa-solid fa-message text-xs"></i>
+          <span class="tabular-nums font-medium">{{ messageCount - hiddenCount }}</span>
+          <span v-if="hiddenCount" class="flex items-center gap-1 text-warning/70">
             <i class="fa-solid fa-eye-slash text-xs"></i>
             {{ hiddenCount }}
           </span>
-        </div>
+        </button>
       </div>
     </div>
     
-    <!-- ROW 2: Mode Selector + Title + Tags + Settings Toggles -->
-    <div class="flex items-center gap-1 md:gap-2 min-w-0 min-h-5 md:min-h-6 mt-1">
-      <!-- Chat Mode Selector (left, compact) -->
+    <!-- ROW 2: Mode + Title + Tags + Status + Settings -->
+    <div class="flex items-center gap-3 min-w-0 flex-wrap">
+      <!-- Chat Mode Selector (Fixed Width) -->
       <div class="shrink-0">
         <ChatModeSelector 
           :selected-mode="chat.mode"
@@ -56,35 +64,38 @@ import ChatModeSelector from './ChatModeSelector.vue'
         />
       </div>
 
-      <!-- Title (left, truncated) -->
-      <div class="flex items-center gap-1 md:gap-2 min-w-0 flex-1 overflow-hidden">
+      <!-- Divider -->
+      <div class="w-px h-5 bg-base-300 shrink-0 hidden sm:block"></div>
+
+      <!-- Title (Editable) -->
+      <div class="flex-1 min-w-0">
         <input
           v-if="editingTitle"
           v-model="workingChatName"
           @keydown.enter="saveTitle"
           @keydown.esc="editingTitle = false"
           @blur="saveTitle"
-          class="input input-sm input-bordered flex-1 min-w-0 text-sm"
+          class="input input-sm input-bordered w-full text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
           placeholder="Chat name..."
           autofocus
         />
-        <span
+        <button
           v-else
-          class="font-bold text-base md:text-sm cursor-pointer hover:text-primary transition-colors truncate block"
           @dblclick="editingTitle = true"
           :title="chat.name"
+          class="text-sm font-semibold text-base-content truncate hover:text-primary focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 transition-colors duration-150 outline-none block w-full text-left"
         >
-          {{ chat.name }}
-        </span>
+          <span v-if="chat.auto_initialize">*</span>{{ chat.name }}
+        </button>
       </div>
       
-      <!-- Tags (center-right) -->
-      <div class="flex items-center gap-1 md:gap-2 shrink-0 overflow-hidden">
-        <div class="flex items-center gap-0.5 md:gap-1 truncate">
+      <!-- Tags Section -->
+      <div class="flex items-center gap-2 shrink-0 overflow-x-auto">
+        <div class="flex items-center gap-1">
           <div 
             v-for="tag in chat.tags" 
             :key="tag"
-            class="badge badge-xs badge-outline text-xs shrink-0"
+            class="badge badge-outline badge-sm text-xs whitespace-nowrap"
             :title="tag"
           >
             {{ tag }}
@@ -93,58 +104,63 @@ import ChatModeSelector from './ChatModeSelector.vue'
         
         <button
           @click.stop="$emit('show-add-tag')"
-          class="btn btn-ghost btn-xs p-1 h-5 w-5 shrink-0"
-          title="Add new tag"
+          :title="chat.tags?.length ? 'Add another tag' : 'Add first tag'"
+          class="btn btn-ghost btn-xs p-1 h-6 w-6 shrink-0 focus:ring-2 focus:ring-primary/50"
         >
           <i class="fa-solid fa-hashtag text-xs"></i>
         </button>
       </div>
 
-      <!-- Settings Toggles (right) -->
-      <div class="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
-        <!-- Template Toggle -->
+      <!-- Status Selector -->
+      <div class="shrink-0 relative">
+        <ChatStatusSelector
+          :status="chat.status"
+          @status-changed="onStatusChanged"
+        />
+      </div>
+
+      <!-- Settings Toggles (Right) -->
+      <div class="flex items-center gap-1.5 ml-auto shrink-0">
+        
+        <!-- Template Toggle (Available for All) -->
         <label 
-          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          class="tooltip tooltip-bottom"
           data-tip="Mark as template"
-          :class="{ 'opacity-50': !isSelectedChatChild }"
         >
           <input 
             type="checkbox" 
-            class="checkbox checkbox-xs"
+            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
             :checked="chat.is_template"
             @change="toggleTemplate"
           />
-          <i class="fa-solid fa-star text-xs"></i>
         </label>
 
-        <!-- Ignore Parent Knowledge Toggle (only for child chats) -->
+        <!-- Ignore Parent Knowledge (Child Only) -->
         <label 
           v-if="isSelectedChatChild"
-          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          class="tooltip tooltip-bottom"
           data-tip="Ignore parent knowledge"
         >
           <input 
             type="checkbox" 
-            class="checkbox checkbox-xs"
+            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
             :checked="chat.ignore_parent_knowledge"
             @change="toggleIgnoreParentKnowledge"
           />
-          <i class="fa-solid fa-book-slash text-xs"></i>
         </label>
 
-        <!-- Ignore Parent Files Toggle (only for child chats) -->
+        <!-- Ignore Parent Files (Child Only) -->
         <label 
           v-if="isSelectedChatChild"
-          class="flex items-center gap-1 cursor-pointer tooltip tooltip-left"
+          class="tooltip tooltip-bottom"
           data-tip="Ignore parent files"
         >
           <input 
             type="checkbox" 
-            class="checkbox checkbox-xs"
+            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
             :checked="chat.ignore_parent_files"
             @change="toggleIgnoreParentFiles"
           />
-          <i class="fa-solid fa-file-slash text-xs"></i>
         </label>
       </div>
     </div>
@@ -177,7 +193,8 @@ export default {
     'mode-changed',
     'toggle-template',
     'toggle-ignore-parent-knowledge',
-    'toggle-ignore-parent-files'
+    'toggle-ignore-parent-files',
+    'status-changed'
   ],
   data() {
     return {
@@ -209,6 +226,9 @@ export default {
     },
     toggleIgnoreParentFiles() {
       this.$emit('toggle-ignore-parent-files', !this.chat.ignore_parent_files)
+    },
+    onStatusChanged(newStatus) {
+      this.$emit('status-changed', newStatus)
     }
   }
 }

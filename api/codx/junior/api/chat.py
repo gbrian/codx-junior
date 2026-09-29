@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, Depends
 import logging
 
 from codx.junior.ai.cancellation import CANCELLATION_REGISTRY
 from codx.junior.chat_searcher import SearchFilters
+from codx.junior.model.model import CodxUser
+from codx.junior.security.user_management import get_authenticated_user
 
 logger = logging.getLogger(__name__)
 
@@ -928,5 +930,178 @@ def api_delete_kanban(request: Request):
     except Exception as ex:
         logger.error("api_delete_kanban: unexpected error: %s", ex)
         return {"error": f"Failed to delete kanban: {str(ex)}"}
+
+@router.put("/chats/mark-seen/{chat_id}/{message_id}")
+async def api_mark_message_as_seen(
+    request: Request, 
+    chat_id: str, 
+    message_id: str,
+    user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Mark a message as seen by the current user.
+    
+    Called when a message receives focus and the user is not already in read_by list.
+    
+    Path parameters:
+        - chat_id: UUID of the chat
+        - message_id: UUID of the message
+    
+    Returns:
+        { "success": true, "read_by": [...usernames] }
+        { "error": "...", "success": false }
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        if not user or not user.username:
+            logger.error("api_mark_message_as_seen: no user in request")
+            return {"error": "user not found", "success": False}
+        
+        username = user.username
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_mark_message_as_seen: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found", "success": False}
+        
+        message = next((m for m in chat.messages if m.doc_id == message_id), None)
+        if not message:
+            logger.error("api_mark_message_as_seen: message not found: %s in chat %s", message_id, chat_id)
+            return {"error": f"message '{message_id}' not found", "success": False}
+        
+        read_by = chat_manager.mark_message_as_seen(
+            chat=chat,
+            message=message,
+            username=username
+        )
+        
+        logger.info(
+            "api_mark_message_as_seen: chat='%s' message='%s' user='%s' read_by=%s",
+            chat_id,
+            message_id,
+            username,
+            read_by,
+        )
+        return {"success": True, "read_by": read_by}
+    
+    except Exception as ex:
+        logger.error("api_mark_message_as_seen: unexpected error: %s", ex)
+        return {"error": f"Failed to mark message as seen: {str(ex)}", "success": False}
+
+@router.put("/chats/mark-seen/{chat_id}/{message_id}")
+async def api_mark_message_as_seen(
+    request: Request, 
+    chat_id: str, 
+    message_id: str,
+    user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Mark a message as seen by the current user.
+    
+    Called when a message receives focus and the user is not already in read_by list.
+    
+    Path parameters:
+        - chat_id: UUID of the chat
+        - message_id: UUID of the message
+    
+    Returns:
+        { "success": true, "read_by": [...usernames] }
+        { "error": "...", "success": false }
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        if not user or not user.username:
+            logger.error("api_mark_message_as_seen: no user in request")
+            return {"error": "user not found", "success": False}
+        
+        username = user.username
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_mark_message_as_seen: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found", "success": False}
+        
+        message = next((m for m in chat.messages if m.doc_id == message_id), None)
+        if not message:
+            logger.error("api_mark_message_as_seen: message not found: %s in chat %s", message_id, chat_id)
+            return {"error": f"message '{message_id}' not found", "success": False}
+        
+        read_by = chat_manager.mark_message_as_seen(
+            chat=chat,
+            message=message,
+            username=username
+        )
+        
+        logger.info(
+            "api_mark_message_as_seen: chat='%s' message='%s' user='%s' read_by=%s",
+            chat_id,
+            message_id,
+            username,
+            read_by,
+        )
+        return {"success": True, "read_by": read_by}
+    
+    except Exception as ex:
+        logger.error("api_mark_message_as_seen: unexpected error: %s", ex)
+        return {"error": f"Failed to mark message as seen: {str(ex)}", "success": False}
+
+@router.put("/chats/unmark-seen/{chat_id}/{message_id}")
+async def api_unmark_message_as_seen(
+    request: Request, 
+    chat_id: str, 
+    message_id: str,
+    user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Remove current user from message's read_by list (mark as un-seen).
+    
+    Path parameters:
+        - chat_id: UUID of the chat
+        - message_id: UUID of the message
+    
+    Returns:
+        { "success": true, "read_by": [...usernames] }
+        { "error": "...", "success": false }
+    """
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        chat_manager = codx_junior_session.get_chat_manager()
+        
+        if not user or not user.username:
+            logger.error("api_unmark_message_as_seen: no user in request")
+            return {"error": "user not found", "success": False}
+        
+        username = user.username
+        
+        chat = chat_manager.find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error("api_unmark_message_as_seen: chat not found: %s", chat_id)
+            return {"error": f"chat '{chat_id}' not found", "success": False}
+        
+        message = next((m for m in chat.messages if m.doc_id == message_id), None)
+        if not message:
+            logger.error("api_unmark_message_as_seen: message not found: %s in chat %s", message_id, chat_id)
+            return {"error": f"message '{message_id}' not found", "success": False}
+        
+        read_by = chat_manager.unmark_message_as_seen(
+            chat=chat,
+            message=message,
+            username=username
+        )
+        
+        logger.info(
+            "api_unmark_message_as_seen: chat='%s' message='%s' user='%s' read_by=%s",
+            chat_id,
+            message_id,
+            username,
+            read_by,
+        )
+        return {"success": True, "read_by": read_by}
+    
+    except Exception as ex:
+        logger.error("api_unmark_message_as_seen: unexpected error: %s", ex)
+        return {"error": f"Failed to unmark message as seen: {str(ex)}", "success": False}
+
 
 # Made with ❤️ by codx-junior

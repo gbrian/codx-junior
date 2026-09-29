@@ -62,6 +62,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @toggle-template="onTemplateChanged"
         @toggle-ignore-parent-knowledge="onIgnoreParentKnowledgeChanged"
         @toggle-ignore-parent-files="onIgnoreParentFilesChanged"
+        @status-changed="onStatusChanged"
       />
 
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
@@ -498,6 +499,7 @@ export default {
         file_list: [],
         profiles: [],
         activateChat: false,
+        auto_initialize: true,
         child_index: this.childrenChats?.length,
         column: parentChat.column,
         ignore_parent_knowledge: true,
@@ -623,7 +625,7 @@ export default {
         messages: description ? [{ role: 'user', content: description }] : [],
         file_list,
         child_index,
-        auto_initialize,
+        auto_initialize: auto_initialize ?? true,
         ignore_parent_knowledge,
         ignore_parent_files,
       })
@@ -664,6 +666,11 @@ export default {
     onIgnoreParentFilesChanged(shouldIgnore) {
       if (!this.theChat) return
       this.theChat.ignore_parent_files = shouldIgnore
+      this.saveChatInfo(this.theChat)
+    },
+    onStatusChanged(newStatus) {
+      if (!this.theChat) return
+      this.theChat.status = newStatus
       this.saveChatInfo(this.theChat)
     }
   }

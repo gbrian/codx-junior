@@ -251,12 +251,22 @@ export default {
       return this.chat.mode === 'vibe'
     }
   },
+  watch: {
+    'chat.id': function() {
+      this.scrollToTop()
+    }
+  },
   mounted() {
     this.scrollContainerEl = this.$refs.scrollContainer
   },
   methods: {
     scrollToBottom() {
       setTimeout(() => this.$refs.anchor?.scrollIntoView({ behavior: 'smooth' }), 200)
+    },
+    scrollToTop() {
+      if (this.scrollContainerEl) {
+        this.scrollContainerEl.scrollTop = 0
+      }
     },
     isNewSpeaker(message, ix) {
       if (ix === 0) return true

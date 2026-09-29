@@ -1,10 +1,11 @@
 <script setup>
 import ChatSearch from '../chat/ChatSearch.vue'
-import ChatProjectIcon from '../ChatProjectIcon.vue';
+import ChatSidebarNodeExtended from '../chat/ChatSidebarNodeExtended.vue'
 </script>
 
 <template>
-  <div class="flex flex-col border-b border-white/5 overflow-hidden flex-1"
+  <div
+    class="flex flex-col border-b border-white/5 overflow-hidden flex-1"
     :class="isCollapsed && 'items-center'"
   >
     <!-- Toggle button (always visible when not collapsed) -->
@@ -21,13 +22,14 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
 
     <!-- Content area (scrollable) -->
     <div v-if="recentsExpanded || isMobile" class="flex-1 overflow-hidden flex flex-col">
-      <div class="grow overflow-hidden flex flex-col"
+      <div
+        class="grow overflow-hidden flex flex-col"
         :class="isCollapsed && 'items-center'"
       >
         <!-- Collapsed mode: Chat icons -->
         <div v-if="isCollapsed" class="flex flex-col gap-2 px-2 py-2 overflow-y-auto flex-1">
           <div
-            v-for="chat in chats.slice(0, 5)"
+            v-for="chat in displayedChatsCollapsed"
             :key="chat.id"
             @click="handleSelectChat(chat)"
             class="relative cursor-pointer group"
@@ -35,16 +37,19 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
           >
             <div
               class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
-              :class="isActivChat(chat)
-                ? 'bg-codx-primary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
-                : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30'"
+              :class="[
+                activeChatId === chat.id
+                  ? 'bg-codx-primary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
+                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30',
+                isVisibleChat(chat) && 'ring-2 ring-warning/50'
+              ]"
             >
               {{ getInitials(chat.name) }}
             </div>
 
             <!-- Unread badge -->
-            <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-[#1a1a1a]">
-              {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+            <div v-if="getUnreadCount(chat) > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-[#1a1a1a]">
+              {{ getUnreadCount(chat) > 9 ? '9+' : getUnreadCount(chat) }}
             </div>
 
             <!-- Tooltip -->
@@ -59,42 +64,28 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
           </div>
 
           <!-- Show more indicator -->
-          <div v-if="chats.length > 5" class="text-[9px] text-white/30 text-center">
-            +{{ chats.length - 5 }}
+          <div v-if="recentChats.length > 5" class="text-[9px] text-white/30 text-center">
+            +{{ recentChats.length - 5 }}
           </div>
         </div>
 
         <!-- Expanded mode: Chat cards list -->
         <div v-else class="overflow-y-auto flex-1 px-2 py-2" @scroll="handleScroll">
           <!-- Empty state -->
-          <div v-if="displayedChats.length === 0 && !isLoading && !isSearching" class="text-center py-8 text-white/30 text-xs">
+          <div v-if="recentChats.length === 0 && !isLoading" class="text-center py-8 text-white/30 text-xs">
             <i class="fas fa-inbox text-2xl mb-2 block"></i>
             <p>No recent chats</p>
           </div>
 
-          <!-- Chat cards -->
+          <!-- Chat items -->
           <div v-else class="flex flex-col gap-2 overflow-x-hidden">
-            <div
-              v-for="chat in displayedChats"
+            <ChatSidebarNodeExtended
+              v-for="chat in recentChats"
               :key="chat.id"
-              @click="handleSelectChat(chat)"
-              class="card card-compact bg-white/5 border border-white/10 hover:border-codx-primary/50 hover:bg-white/10 cursor-pointer transition-all duration-200 p-2 gap-1"
-              :class="isActivChat(chat) ? 'border-codx-primary bg-codx-primary/10' : ''"
-            >
-              <!-- Name and timestamp -->
-              <div class="flex items-center gap-2 min-w-0 tooltip"
-                :data-tip="chat.name"
-              >
-                <ChatProjectIcon :icon-only="true" :width="5" :chat="chat" />
-                <h3 class="font-semibold text-xs truncate text-white">{{ chat.name || 'Untitled' }}</h3>
-                <div v-if="chat.unread_count > 0" class="badge badge-xs badge-error shrink-0">{{ chat.unread_count }}</div>
-              </div>
-
-              <!-- Message snippet -->
-              <div v-if="getLastMessageSnippet(chat)" class="text-xs text-white/50 line-clamp-1 leading-relaxed">
-                {{ getLastMessageSnippet(chat) }}
-              </div>
-            </div>
+              :chatId="chat.id"
+              :selected-chat-id="activeChatId"
+              @select="handleSelectChat"
+            />
 
             <!-- Loading indicator -->
             <div v-if="isLoading" class="flex justify-center py-2">
@@ -148,7 +139,7 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
             @search="executeSearch"
             @clear="clearSearch"
           />
-          
+
           <!-- Loading overlay animation -->
           <transition name="fade">
             <div v-if="isSearching" class="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
@@ -204,12 +195,12 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
 <style scoped>
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease
 }
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
+  opacity: 0
 }
 </style>
 
@@ -217,46 +208,126 @@ import ChatProjectIcon from '../ChatProjectIcon.vue';
 import { ChatSearchRequest } from '@/api/model/ChatSearchRequest'
 
 export default {
+  name: 'RecentsSection',
   props: {
-    chats: { type: Array, default: () => [] },
     isCollapsed: { type: Boolean, default: false },
-    isLoading: { type: Boolean, default: false },
-    activeChatId: { type: String, default: null },
     isMobile: { type: Boolean, default: false }
   },
-  emits: ['select-chat', 'scroll-end'],
+  emits: ['select-chat'],
   data() {
     return {
+      activeChatId: null,
+      currentPage: 1,
+      initialPageSize: 20,
+      subsequentPageSize: 10,
+      isInitialLoad: true,
       recentsExpanded: true,
       isSearchModalOpen: false,
       searchResults: [],
       searchMeta: null,
       searchPerformed: false,
       isSearching: false,
-      searchStatus: null
+      searchStatus: null,
+      visibleChatIds: new Set(),
+      unreadCountCache: {},
     }
   },
   computed: {
     currentUser() {
       return this.$storex?.users?.user || this.$user
     },
-    displayedChats() {
-      return this.chats || []
+    recentChats() {
+      return this.$storex.chats.recentChats
+    },
+    isLoading() {
+      return this.$storex.chats.recentChatsLoading
+    },
+    hasMoreChats() {
+      return this.$storex.chats.recentChatsHasMore
+    },
+    displayedChatsCollapsed() {
+      return this.recentChats.slice(0, 5)
     }
   },
-  watch: {
-    chats(newChats, oldChats) {
-      if (!this.searchPerformed && newChats && oldChats && newChats.length > oldChats.length) {
-        console.log('New chats detected, updating recents list')
-      }
-    },
-    searchPerformed(newVal) {
-      if (!newVal) {
-        console.log('Search cleared, recents list will update with new chats')
-      }
-    }
+  mounted() {
+    this.loadRecentChats()
+    this.updateVisibleChats()
   },
   methods: {
+    async loadRecentChats(append = false) {
+      const pageSize = this.isInitialLoad ? this.initialPageSize : this.subsequentPageSize
+      await this.$storex.chats.loadRecentChats({
+        userId: this.currentUser?.id,
+        page: this.currentPage,
+        pageSize,
+        append
+      })
+      this.activeChatId = this.$storex?.chats?.activeChat?.id || null
+      this.isInitialLoad = false
+    },
+    loadMoreChats() {
+      if (this.hasMoreChats && !this.isLoading) {
+        this.currentPage += 1
+        this.loadRecentChats(true)
+      }
+    },
+    updateUnreadCountCache() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return
+
+      this.recentChats.forEach(chat => {
+        const count = (chat.messages || []).filter(msg => {
+          const isAssistantMsg = msg.role === 'assistant'
+          const isOtherUser = msg.user !== currentUsername
+          const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
+          return isAssistantMsg && isOtherUser && isUnread && !msg.hide
+        }).length
+        this.unreadCountCache[chat.id] = count
+      })
+    },
+    getUnreadCount(chat) {
+      return this.unreadCountCache[chat.id] || 0
+    },
+    updateVisibleChats() {
+      this.visibleChatIds.clear()
+
+      const openApps = this.$storex?.ui?.openApps || {}
+      Object.values(openApps).forEach(app => {
+        if (app.tabId) {
+          this.visibleChatIds.add(app.tabId)
+        }
+      })
+
+      try {
+        const chatId = this.$storex?.$router?.$navigation?.getChatId?.()
+        if (chatId) {
+          this.visibleChatIds.add(chatId)
+        }
+      } catch (error) {
+        console.log('Could not get chat ID from router')
+      }
+    },
+    isVisibleChat(chat) {
+      return this.visibleChatIds.has(chat.id)
+    },
+    handleSelectChat(chat) {
+      this.$emit('select-chat', chat)
+    },
+    getInitials(name) {
+      if (!name) return 'CH'
+      const cleanName = name.replace(/[^\w\s-]/g, '').trim()
+      const words = cleanName.split(/\s+/)
+      if (words.length >= 2) {
+        return (words[0][0] + words[1][0]).toUpperCase()
+      }
+      return name.substring(0, 2).toUpperCase()
+    },
+    handleScroll(e) {
+      const { scrollTop, clientHeight, scrollHeight } = e.target
+      if (scrollHeight - scrollTop - clientHeight < 100) {
+        this.loadMoreChats()
+      }
+    },
     openSearchModal() {
       this.isSearchModalOpen = true
     },
@@ -281,11 +352,7 @@ export default {
           filters: searchData.filters || {}
         })
 
-        console.log('Executing search with:', searchRequest)
-
         const results = await this.$storex.chats.searchChats(searchRequest)
-
-        console.log('Search results:', results)
 
         if (!results) {
           this.searchStatus = 'No response from server'
@@ -332,41 +399,6 @@ export default {
         this.$storex.chats.clearChatSearch?.()
       } catch (e) {
         console.log('Clear search called')
-      }
-    },
-    handleSelectChat(chat) {
-      this.$emit('select-chat', chat)
-    },
-    getInitials(name) {
-      if (!name) return 'CH'
-      const cleanName = name.replace(/[^\w\s-]/g, '').trim()
-      const words = cleanName.split(/\s+/)
-      if (words.length >= 2) {
-        return (words[0][0] + words[1][0]).toUpperCase()
-      }
-      return name.substring(0, 2).toUpperCase()
-    },
-    isActivChat(chat) {
-      return this.activeChatId === chat.id
-    },
-    getLastMessageSnippet(chat) {
-      if (!chat.messages || chat.messages.length === 0) {
-        return ''
-      }
-      const messagesWithContent = [...chat.messages]
-        .reverse()
-        .filter(m => m.content || m.think)
-      if (messagesWithContent.length === 0) {
-        return ''
-      }
-      const lastMsg = messagesWithContent[0]
-      const snippet = lastMsg.content || lastMsg.think || ''
-      return snippet.length > 50 ? snippet.substring(0, 50).trim() + '...' : snippet
-    },
-    handleScroll(e) {
-      const { scrollTop, clientHeight, scrollHeight } = e.target
-      if (scrollHeight - scrollTop - clientHeight < 100) {
-        this.$emit('scroll-end')
       }
     }
   }

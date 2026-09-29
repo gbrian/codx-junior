@@ -2,7 +2,7 @@
 import AppIcon from '../apps/AppIcon.vue'
 </script>
 <template>
-  <div class="flex gap-1 items-center justify-between px-3 py-1 bg-base-100 hover:bg-base-300 rounded-xl w-40 text-md">
+  <div class="flex gap-1 items-center justify-between px-3 py-1 border-t-1 border-r-1 rounded w-40 text-md">
     <div class="w-4/5 flex gap-1 items-center truncate overflow-hidden">
       <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
       <AppIcon :app="app" :loading="isUpdating" />

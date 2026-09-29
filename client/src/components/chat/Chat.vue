@@ -16,7 +16,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
 <template>
   <div class="h-full flex flex-col gap-1 overflow-hidden"
-    @dragover.prevent="draggingOver = true"
+    @dragover.prevent="onDragOver"
     @dragleave.prevent="handleDragLeave"
     @drop.prevent="onDropChat"
     :class="draggingOver && 'ring-2 ring-primary ring-inset rounded-lg'"
@@ -269,6 +269,7 @@ export default {
       attachments: [],
       draggingOver: false,
       onDraggingOverInput: false,
+      dragoverTimeout: null,
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
@@ -315,6 +316,7 @@ export default {
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
+    clearTimeout(this.dragoverTimeout)
     this.cancelIntelliSense()
   },
   computed: {
@@ -417,7 +419,6 @@ export default {
       const allSelectedNames = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       return this.profiles.filter(p => allSelectedNames.includes(p.name))
     },
-    // For group chats: check if the current message mentions any profile
     groupMessageHasProfileMention() {
       if (!this.isGroup) return false
       const allProfileNames = this.profiles.map(p => p.name)
@@ -786,19 +787,14 @@ export default {
       this.$refs.inputBox?.setEditorText(text)
     },
     onEditMessage(message) {
-      // Toggle off if already editing this message
       if (this.editMessage?.doc_id === message.doc_id) {
         this.onResetEdit()
         return
       }
       this.editMessage = message
-      // Populate input box with message content
       this.setEditorText(message.content || '')
-      // Populate profiles from the message
       this.selectorProfileNames = [...(message.profiles || [])]
-      // Populate files from the message
       this.files = [...(message.files || [])]
-      // Populate attachments from the message (parse if stored as JSON strings)
       this.attachments = (message.attachments || []).map(a => {
         try { return typeof a === 'string' ? JSON.parse(a) : a } catch { return a }
       }).filter(Boolean)
@@ -818,7 +814,6 @@ export default {
       const content = this.$refs.inputBox?.getEditorText() ?? ''
       const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      // Update message in-place — do NOT call chatWihProject
       this.chatSvc.updateExistingMessage({
         chat: this.chat,
         doc_id: this.editMessage.doc_id,
@@ -899,7 +894,6 @@ export default {
     },
     async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
-      // If in edit mode, save the edited message instead
       if (this.editMessage !== null) {
         await this.updateMessage()
         return false
@@ -912,13 +906,11 @@ export default {
       return this.addNewMessage({ task_item: 'search' })
     },
     async sendMessage() {
-      // If in edit mode, save the edited message — do NOT send to AI
       if (this.editMessage !== null) {
         await this.updateMessage()
         return
       }
       if (await this.addNewMessage()) {
-        // For group chats: only call AI if a profile is mentioned in the message
         if (this.isGroup) {
           if (this.lastMessage?.profiles?.length) {
             await this.sendChatMessage(this.chat)
@@ -926,7 +918,6 @@ export default {
           }
           return
         }
-        // For topic/channel chats: only call AI if profiles are set on the last message
         if (!this.isChannel || this.lastMessage?.profiles.length) {
           await this.sendChatMessage(this.chat)
           this.$emit('send-message', this.lastMessage)
@@ -948,10 +939,20 @@ export default {
       const text = this.$refs.inputBox?.getEditorText() ?? ''
       if (text !== this.editorText) this.editorText = text
     },
+    onDragOver() {
+      this.draggingOver = true
+      this.dragCounter++
+      clearTimeout(this.dragoverTimeout)
+      this.dragoverTimeout = setTimeout(() => {
+        this.draggingOver = false
+        this.dragCounter = 0
+      }, 500)
+    },
     handleDragLeave(e) {
       this.dragCounter--
       if (this.dragCounter === 0) {
         this.draggingOver = false
+        clearTimeout(this.dragoverTimeout)
       }
     },
     onDropInputBox(e) {
@@ -960,12 +961,12 @@ export default {
     onDropChat(e) {
       this.draggingOver = false
       this.dragCounter = 0
+      clearTimeout(this.dragoverTimeout)
       this.onDrop(e, true)
     },
     async onDrop(e, chatDrop) {
       let itemsAdded = false
 
-      // Process files from drag-and-drop
       if (e.dataTransfer.files?.length) {
         const imageFiles = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))
         if (imageFiles.length > 0) {
@@ -979,7 +980,6 @@ export default {
         }
       }
 
-      // Process text content (file paths)
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
         const decodedContent = decodeURIComponent(textContent)
@@ -992,11 +992,9 @@ export default {
         }
       }
 
-      // Process JSON file list
       const jsonData = e.dataTransfer.getData('application/x-file-list-json')
       if (jsonData && !itemsAdded && await this.processJsonFileList(jsonData, chatDrop)) itemsAdded = true
 
-      // Process resource URLs
       this.processDropUrls(e.dataTransfer, chatDrop)
       if (e.dataTransfer.getData("resourceurls")) itemsAdded = true
 
@@ -1195,7 +1193,7 @@ export default {
         files: file ? [file] : []
       })
     },
-    async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id }) {
+    async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id, auto_initialize }) {
       const payload = this.chatSvc.buildSubTaskPayload({
         title, description, files, profiles,
         mode: mode || this.chat.mode,
@@ -1204,7 +1202,8 @@ export default {
         metadata,
         projectId: project_id || this.chatProject.project_id,
         parentId: parent_id || this.chat.id,
-        user: this.$user.username
+        user: this.$user.username,
+        auto_initialize: auto_initialize ?? true
       })
       await this.$chats.createNewChat(payload)
     },

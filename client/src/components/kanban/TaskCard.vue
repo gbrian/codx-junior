@@ -6,7 +6,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
 </script>
 
 <template>
-  <div class="rounded-2xl bg-base-100/80 backdrop-blur border border-white/10 shadow hover:shadow-lg transition-all duration-200 group">
+  <div class="rounded-2xl backdrop-blur border border-white/60 hover:border-white/90 shadow hover:shadow-lg transition-all duration-200 group">
 
     <!-- Cover image with gradient overlay -->
     <div v-if="image" class="relative h-28 rounded-t-2xl overflow-hidden">

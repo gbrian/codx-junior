@@ -268,7 +268,7 @@ class ChatEngine:
         is_agent: bool = resolved_mode == CHAT_MODE_AGENT
         is_vibe: bool = resolved_mode == CHAT_MODE_VIBE
         is_search: bool = task_item == TASK_ITEM_SEARCH
-        needs_pre_search: bool = is_vibe or is_search
+        needs_pre_search: bool = False # Deprecatred, use tools
 
         logger.info(
             "Resolved chat mode flags: mode=%s is_refine=%s is_agent=%s "

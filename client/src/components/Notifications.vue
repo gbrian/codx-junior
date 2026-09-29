@@ -7,7 +7,7 @@ import { ref } from 'vue'
     <!-- Bell Icon Button -->
     <button
       class="p-1.5 text-white/40 hover:text-white/80 transition-colors relative"
-      :class="hasNotifications ? 'text-codx-primary' : ''"
+      :class="hasNotifications ? 'text-white' : ''"
       @click="showCard = !showCard"
       title="Show events and notifications"
     >

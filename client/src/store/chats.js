@@ -9,7 +9,12 @@ export const state = () => ({
   chats: {},
   activeChatId: null,
   chatEvents: {},
+  chatLoadingStatus: {}, // { [chatId]: ENTITY_STATUS }
   searchResults: null,
+  recentChatIds: [],
+  recentChatsPage: 1,
+  recentChatsHasMore: true,
+  recentChatsLoading: false,
 })
 
 function registerChat(state, chat) {
@@ -20,8 +25,7 @@ function registerChat(state, chat) {
   const existingChat = state.chats[chat.id] || {}
   state.chats[chat.id] = {
     ...existingChat,
-    ...chat,
-    status: chat.status || ENTITY_STATUS.UNINITIALIZED
+    ...chat
   }
 }
 
@@ -53,7 +57,10 @@ export const getters = getterTree(state, {
   allTemplates: state => Object.values(state.chats || {}).filter(c => c.is_template),
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0 ||
-      state.chats[chatId]?.status === ENTITY_STATUS.LOADING
+      state.chatLoadingStatus[chatId] === ENTITY_STATUS.LOADING
+  },
+  chatLoadingStatus: state => (chatId) => {
+    return state.chatLoadingStatus[chatId] || ENTITY_STATUS.UNINITIALIZED
   },
   activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
   chatProject: state => ({ project_id, owner_project_id }) => {
@@ -72,6 +79,9 @@ export const getters = getterTree(state, {
   searchResults: state => state.searchResults,
   getChatProject: () => getChatProject,
   getChatWorkingProject: () => getChatWorkingProject,
+  recentChats: state => state.recentChatIds.map(id => state.chats[id]).filter(Boolean),
+  recentChatsHasMore: state => state.recentChatsHasMore,
+  recentChatsLoading: state => state.recentChatsLoading,
 })
 
 export const mutations = mutationTree(state, {
@@ -89,6 +99,35 @@ export const mutations = mutationTree(state, {
 
   clearSearchResults(state) {
     state.searchResults = null
+  },
+
+  setRecentChatIds(state, ids) {
+    state.recentChatIds = ids
+  },
+
+  appendRecentChatIds(state, ids) {
+    const existing = new Set(state.recentChatIds)
+    ids.forEach(id => existing.add(id))
+    state.recentChatIds = Array.from(existing)
+  },
+
+  setRecentChatsPage(state, page) {
+    state.recentChatsPage = page
+  },
+
+  setRecentChatsHasMore(state, hasMore) {
+    state.recentChatsHasMore = hasMore
+  },
+
+  setRecentChatsLoading(state, loading) {
+    state.recentChatsLoading = loading
+  },
+
+  setChatLoadingStatus(state, { chatId, status }) {
+    state.chatLoadingStatus = {
+      ...state.chatLoadingStatus,
+      [chatId]: status
+    }
   },
 
   setChatUpdating(state, { chatId, updating }) {
@@ -126,18 +165,10 @@ export const mutations = mutationTree(state, {
     }
   },
 
-  setChatStatus(state, { chatId, status }) {
-    const chat = state.chats[chatId]
-    if (!chat) return
-    state.chats[chatId] = {
-      ...chat,
-      status
-    }
-  },
-
   clearChats(state) {
     state.chats = {}
     state.activeChatId = null
+    state.chatLoadingStatus = {}
   }
 })
 
@@ -153,9 +184,52 @@ export const actions = actionTree(
       const chats = await activeProject.$api.chats.list()
       chats.forEach(chat => {
         if (chat.id && !state.chats[chat.id]) {
-          registerChat(state, { ...chat, status: ENTITY_STATUS.UNINITIALIZED })
+          registerChat(state, chat)
+          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
         }
       })
+    },
+    async loadRecentChats({ state }, { userId, page, pageSize, append = false } = {}) {
+      if (state.recentChatsLoading) return
+
+      $storex.chats.setRecentChatsLoading(true)
+
+      try {
+        const activeProject = $storex.projects.activeProject
+        if (!activeProject?.$api) return
+
+        const response = await activeProject.$api.chats.getRecentChats({
+          filters: { user_id: userId },
+          page,
+          pageSize
+        })
+
+        if (response.error) {
+          console.error('[chats store] Error loading recent chats:', response.error)
+          return
+        }
+
+        // Register every chat so they are available in state.chats
+        response.chats.forEach(chat => {
+          registerChat(state, chat)
+          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
+        })
+
+        const ids = response.chats.map(c => c.id)
+
+        if (append) {
+          $storex.chats.appendRecentChatIds(ids)
+        } else {
+          $storex.chats.setRecentChatIds(ids)
+        }
+
+        $storex.chats.setRecentChatsHasMore(response.has_next)
+        $storex.chats.setRecentChatsPage(page)
+      } catch (error) {
+        console.error('[chats store] Error loading recent chats:', error)
+      } finally {
+        $storex.chats.setRecentChatsLoading(false)
+      }
     },
     async searchChats({ state }, options = {}) {
       let searchRequest
@@ -240,15 +314,17 @@ export const actions = actionTree(
       const storedChat = state.chats[chat.id]
       if (!storedChat) return null
 
-      if (storedChat.status === ENTITY_STATUS.LOADED) {
+      const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
+
+      if (status === ENTITY_STATUS.LOADED) {
         return storedChat
       }
 
-      if (storedChat.status === ENTITY_STATUS.LOADING) {
+      if (status === ENTITY_STATUS.LOADING) {
         return storedChat
       }
 
-      if (storedChat.status === ENTITY_STATUS.UNINITIALIZED) {
+      if (status === ENTITY_STATUS.UNINITIALIZED) {
         return await $storex.chats.loadChat(chat)
       }
 
@@ -265,17 +341,18 @@ export const actions = actionTree(
     async saveChatInfo({ state }, chat) {
       const isNew = !chat.id
       if (!isNew) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
+        $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.SAVING })
       }
       try {
         const project = getChatProject(chat)
         const updatedChat = await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
-        registerChat(state, { ...updatedChat, status: ENTITY_STATUS.LOADED })
+        registerChat(state, updatedChat)
+        $storex.chats.setChatLoadingStatus({ chatId: updatedChat.id, status: ENTITY_STATUS.LOADED })
         return state.chats[updatedChat.id]
       } catch (error) {
         console.error('[chats store] Failed to save chat info:', error)
         if (!isNew && chat.id) {
-          $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
+          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
         }
       }
       return null
@@ -296,17 +373,20 @@ export const actions = actionTree(
       }
 
       const existingChat = state.chats[chat.id]
-      if (existingChat && existingChat.status === ENTITY_STATUS.LOADED) {
+      const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
+      
+      if (existingChat && status === ENTITY_STATUS.LOADED) {
         return existingChat
       }
 
       const project = getChatProject(chat)
-      $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
+      $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADING })
       try {
         const loadedChat = await project.$api.chats.loadChat(chat)
-        registerChat(state, { ...loadedChat, status: ENTITY_STATUS.LOADED })
+        registerChat(state, loadedChat)
+        $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       } catch (error) {
-        $storex.chats.setChatStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
+        $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
       }
 
       return state.chats[chat.id]
@@ -315,10 +395,11 @@ export const actions = actionTree(
       const project = getChatProject(chat)
       const freshChat = await project.$api.chats.loadChat(chat)
       if (freshChat && state.chats[chat.id]) {
-        Object.assign(state.chats[chat.id], { ...freshChat, status: ENTITY_STATUS.LOADED })
+        Object.assign(state.chats[chat.id], freshChat)
       } else {
-        registerChat(state, { ...freshChat, status: ENTITY_STATUS.LOADED })
+        registerChat(state, freshChat)
       }
+      $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       return state.chats[chat.id]
     },
     async addMessage({ state }, { chat, message }) {
@@ -369,7 +450,8 @@ export const actions = actionTree(
 
       try {
         const updatedChat = await project.$api.chats.updateMessage(chat.id, message)
-        registerChat(state, { ...updatedChat, status: ENTITY_STATUS.LOADED })
+        registerChat(state, updatedChat)
+        $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
         
         return updatedChat
       } catch (error) {
@@ -472,7 +554,6 @@ export const actions = actionTree(
         await project.$api.chats.delete(chat)
       }
 
-      // Remove associated panels from Desktop before clearing chat data
       chatIds.forEach(id => {
         try {
           $storex.views.removePanelFromDesktop(id)
@@ -481,7 +562,6 @@ export const actions = actionTree(
         }
       })
 
-      // Close associated open apps
       chatIds.forEach(id => {
         const app = Object.values($storex.ui.openApps).find(app => app.tabId === id)
         if (app) {
@@ -489,12 +569,11 @@ export const actions = actionTree(
         }
       })
 
-      // Remove from store
       chatIds.forEach(id => {
         delete state.chats[id]
+        delete state.chatLoadingStatus[id]
       })
 
-      // Clear active chat if it was deleted
       if (chatIds.includes(state.activeChatId)) {
         $storex.chats.clearActiveChat()
       }
@@ -510,7 +589,6 @@ export const actions = actionTree(
       await $storex.chats.reloadChat({ id, project_id, owner_project_id })
       $storex.chats.setActiveChatId(id)
 
-      // Use navigation API to route to chat
       if (!$storex.ui.isDesktopMode) {
         const chatName = name || `chat-${id}`
         $storex.$router.$navigation.chats.open(id, chatName)
@@ -528,10 +606,14 @@ export const actions = actionTree(
         messages: [],
         auto_initialize: !chat.name,
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
-        status: ENTITY_STATUS.UNINITIALIZED,
         ...chat
       }
-      return await $storex.chats.saveChat(chat)
+      registerChat(state, chat)
+      $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
+      if (!chat.temp) {
+        return await $storex.chats.saveChat(chat)
+      }
+      return state.chats[chat.id]
     },
     async createNewChatWithProject({ state }, { project, chat = {} }) {
       const chatData = {
@@ -567,12 +649,12 @@ export const actions = actionTree(
         mode: 'chat',
         profiles: [],
         chat_index: 0,
-        status: ENTITY_STATUS.UNINITIALIZED,
         ...chat
       }
       const project = getChatProject(chat)
       const savedChat = await project.$api.chats.fromUrl(chat)
-      registerChat(state, { ...savedChat, status: ENTITY_STATUS.LOADED })
+      registerChat(state, savedChat)
+      $storex.chats.setChatLoadingStatus({ chatId: savedChat.id, status: ENTITY_STATUS.LOADED })
       if (!chat.temp) {
         await $storex.chats.setActiveChat(savedChat)
       }
@@ -694,6 +776,23 @@ export const actions = actionTree(
       }
       
       return $storex.profiles.profilesByProject[projectId] || []
+    },
+    async updateChatStatus({ state }, { chat, status }) {
+      if (!chat?.id) return
+
+      const project = getChatProject(chat)
+
+      try {
+        const updatedChat = await project.$api.chats.updateMetadata(chat.id, { status })
+        
+        if (updatedChat && state.chats[chat.id]) {
+          state.chats[chat.id].status = updatedChat.status
+        }
+        
+        return updatedChat
+      } catch (error) {
+        console.error('[chats store] Failed to update chat status:', error)
+      }
     }
   }
 )

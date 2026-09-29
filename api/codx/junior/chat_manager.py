@@ -1109,4 +1109,58 @@ class ChatManager:
         chat_exporter = ChatExport(chat=chat, content=content, export_format=export_format)
         return chat_exporter.export_chat()
 
+    def mark_message_as_seen(self, chat: Chat, message: Message, username: str) -> List[str]:
+        """
+        Add username to message's read_by list if not already present.
+        
+        Persists the updated message immediately (merge-safe).
+        
+        :param chat: The chat containing the message.
+        :param message: The message to mark as seen.
+        :param username: Username of the reader.
+        :return: Updated read_by list.
+        """
+        if not message.read_by:
+            message.read_by = []
+        
+        if username not in message.read_by:
+            message.read_by.append(username)
+            message.updated_at = datetime.now().isoformat()
+            self.update_message(chat=chat, message=message)
+            logger.info(
+                "mark_message_as_seen: chat='%s' message='%s' user='%s'",
+                chat.id,
+                message.doc_id,
+                username,
+            )
+        
+        return message.read_by
+
+    def unmark_message_as_seen(self, chat: Chat, message: Message, username: str) -> List[str]:
+        """
+        Remove username from message's read_by list.
+        
+        Persists the updated message immediately (merge-safe).
+        
+        :param chat: The chat containing the message.
+        :param message: The message to mark as un-seen.
+        :param username: Username of the reader to remove.
+        :return: Updated read_by list.
+        """
+        if not message.read_by:
+            message.read_by = []
+        
+        if username in message.read_by:
+            message.read_by.remove(username)
+            message.updated_at = datetime.now().isoformat()
+            self.update_message(chat=chat, message=message)
+            logger.info(
+                "unmark_message_as_seen: chat='%s' message='%s' user='%s'",
+                chat.id,
+                message.doc_id,
+                username,
+            )
+        
+        return message.read_by
+
 # Made with ❤️ by codx-junior

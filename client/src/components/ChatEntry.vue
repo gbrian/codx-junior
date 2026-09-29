@@ -22,13 +22,13 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     :class="[
       displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
     ]"
-    @click="markMessageAsSeen"
-    @scroll.passive="markMessageAsSeen"
+    tabindex="0"
   >
     <!-- ── Row: Avatar + Header + Content ── -->
     <div class="flex gap-3 items-start w-full">
       <!-- Avatar column -->
       <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+        
         <template v-if="isNewSpeaker">
           <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
           <div
@@ -46,6 +46,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
         >           
         </div>
+        
         <!-- Events button — desktop only -->
         <div class="flex flex-col gap-1 click"
           @click.stop="toggleEventsPanel">
@@ -70,6 +71,18 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
         <!-- Header row: only shown on first message of a speaker group -->
         <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none flex-wrap">
           
+          <!-- Check mark for seen status (only for other users' messages, at top) -->
+          <button
+            v-if="!isMyMessage && isDone"
+            class="h-5 w-5 min-h-0 tooltip tooltip-bottom flex items-center justify-center transition-all"
+            :class="isMessageSeen ? 'text-success hover:text-success/80' : 'text-base-content/30 hover:text-base-content/50'"
+            :data-tip="isMessageSeen ? 'Mark un-seen' : 'Mark seen'"
+            @click.stop="toggleUnseenStatus"
+          >
+            <i class="fa-solid fa-check-double text-sm"></i>
+          </button>
+
+
           <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
           <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
           <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
@@ -139,6 +152,9 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
                 </a></li>
                 <li><a @click.stop="copyMessageToClipboard">
                   <i class="fa-solid fa-copy"></i> Copy
+                </a></li>
+                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'">
+                  <i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}
                 </a></li>
                 <li v-if="displayMessage.diffMessage"><a @click.stop="toggleShowDiff">
                   <i class="fa-regular fa-file-lines"></i> Diff
@@ -257,6 +273,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
               <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
               <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
               <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
+              <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
               <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
             </ul>
           </div>
@@ -506,6 +523,28 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           />
         </div>
 
+        <!-- ── Seen timeout progress bar ── -->
+        <div
+          ref="seenProgressBar"
+          class="mt-2 transition-opacity duration-200 min-h-2 bg-base-200"
+          :class="isFocused && !isMessageSeen ? 'opacity-100' : 'opacity-0'"
+          tabindex="0"
+          @focus="onMessageFocus"
+          @blur="onMessageBlur"
+        >
+          <div class="flex gap-2 items-center h-full"
+            v-if="!isMyMessage && isDone"
+            :class="isFocused && !isMessageSeen ? 'opacity-100' : 'opacity-0'"
+          >
+            <progress
+              class="progress progress-xs flex-1 bg-success/20"
+              :value="seenProgressValue"
+              max="100"
+            ></progress>
+            <i class="fa-solid fa-check-double text-sm text-success"></i>
+          </div>
+        </div>
+
         <!-- ── Collapsed toggle (for archived messages) ── -->
         <div
           v-if="isCollapsed && displayMessage.hide"
@@ -575,7 +614,13 @@ export default {
       collapsed: false,
       eventsOpen: false,
       seenTimer: null,
-      hasSeen: false
+      hasSeen: false,
+      unseenToggling: false,
+      isFocused: false,
+      seenProgressValue: 0,
+      seenDuration: 4000,
+      progressInterval: null,
+      intersectionObserver: null
     }
   },
   created() {
@@ -713,6 +758,11 @@ export default {
     },
     eventCount() {
       return this.toolEventCount + this.attachmentCount
+    },
+    isMessageSeen() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return false
+      return (this.message.read_by || []).includes(currentUsername)
     }
   },
   watch: {
@@ -722,6 +772,13 @@ export default {
     },
     'message.content': function() {
       this.extractImprovementData()
+    },
+    isDone() {
+      if (this.isDone && !this.isMyMessage && this.isFocused && !this.isMessageSeen) {
+        this.startSeenTracking()
+      } else if (!this.isDone) {
+        this.stopProgressTracking()
+      }
     }
   },
   methods: {
@@ -949,25 +1006,93 @@ export default {
     replaceBlockInContent(fullContent, originalBlock, newBlock) {
       return fullContent.replace(originalBlock, newBlock)
     },
-    markMessageAsSeen() {
-      if (this.hasSeen) return
-      if (this.seenTimer) clearTimeout(this.seenTimer)
-      this.seenTimer = setTimeout(() => {
-        this.submitMessageSeen()
-      }, 500)
+    setupIntersectionObserver() {
+      if (!this.$refs.seenProgressBar || this.intersectionObserver) return
+
+      const options = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.5
+      }
+
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            this.onMessageFocus()
+          } else {
+            this.onMessageBlur()
+          }
+        })
+      }, options)
+
+      this.intersectionObserver.observe(this.$refs.seenProgressBar)
+    },
+    onMessageFocus() {
+      if (!this.isMyMessage && this.isDone) {
+        this.isFocused = true
+        if (this.isDone && !this.isMyMessage && !this.isMessageSeen) {
+          this.startSeenTracking()
+        }
+      }
+    },
+    onMessageBlur() {
+      if (!this.isMyMessage && this.isDone) {
+        this.isFocused = false
+        this.stopProgressTracking()
+      }
+    },
+    startSeenTracking() {
+      if (this.hasSeen || this.isMessageSeen || !this.isDone) return
+      this.cancelSeenTimer()
+      this.seenProgressValue = 0
+      
+      const startTime = Date.now()
+      
+      this.progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime
+        this.seenProgressValue = (elapsed / this.seenDuration) * 100
+        
+        if (elapsed >= this.seenDuration) {
+          this.stopProgressTracking()
+          this.submitMessageSeen()
+        }
+      }, 30)
+    },
+    stopProgressTracking() {
+      if (this.progressInterval) {
+        clearInterval(this.progressInterval)
+        this.progressInterval = null
+      }
+      this.seenProgressValue = 0
+    },
+    cancelSeenTimer() {
+      if (this.seenTimer) {
+        clearTimeout(this.seenTimer)
+        this.seenTimer = null
+      }
     },
     async submitMessageSeen() {
       try {
         const currentUsername = this.$user?.username
         if (!currentUsername) return
+        
+        const chatId = this.chat?.doc_id || this.chat?.id
+        const messageId = this.message?.doc_id || this.message?.id
+        
+        if (!chatId || !messageId) {
+          console.error('Missing chat_id or message_id', { chatId, messageId })
+          return
+        }
+        
         const readByList = this.message.read_by || []
         if (readByList.includes(currentUsername)) {
           this.hasSeen = true
           return
         }
+        
         await this.$storex.api.chats.markMessageAsSeen({
-          chat_id: this.chat?.doc_id,
-          message_id: this.message?.doc_id,
+          chat_id: chatId,
+          message_id: messageId,
           username: currentUsername
         })
         this.hasSeen = true
@@ -978,16 +1103,61 @@ export default {
     },
     resetSeenTracking() {
       this.hasSeen = false
-      if (this.seenTimer) clearTimeout(this.seenTimer)
+      this.isFocused = false
+      this.cancelSeenTimer()
+      this.stopProgressTracking()
+    },
+    async toggleUnseenStatus() {
+      if (this.unseenToggling) return
+      this.unseenToggling = true
+      
+      try {
+        const chatId = this.chat?.doc_id || this.chat?.id
+        const messageId = this.message?.doc_id || this.message?.id
+        const currentUsername = this.$user?.username
+        
+        if (!chatId || !messageId || !currentUsername) {
+          console.error('Missing required IDs', { chatId, messageId, currentUsername })
+          return
+        }
+        
+        if (this.isMessageSeen) {
+          await this.$storex.api.chats.unmarkMessageAsSeen({
+            chat_id: chatId,
+            message_id: messageId,
+            username: currentUsername
+          })
+          this.message.read_by = this.message.read_by.filter(u => u !== currentUsername)
+          this.hasSeen = false
+          this.stopProgressTracking()
+        } else {
+          await this.$storex.api.chats.markMessageAsSeen({
+            chat_id: chatId,
+            message_id: messageId,
+            username: currentUsername
+          })
+          this.message.read_by = [...(this.message.read_by || []), currentUsername]
+          this.hasSeen = true
+        }
+      } catch (ex) {
+        console.error('Failed to toggle message seen status', ex)
+      } finally {
+        this.unseenToggling = false
+      }
     }
   },
   mounted() {
     this.collapsed = this.isCollapsed || this.displayMessage.hide
     this.extractImprovementData()
     this.resetSeenTracking()
+    this.setupIntersectionObserver()
   },
   beforeUnmount() {
-    if (this.seenTimer) clearTimeout(this.seenTimer)
+    this.cancelSeenTimer()
+    this.stopProgressTracking()
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect()
+    }
   }
 }
 </script>

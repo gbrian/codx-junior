@@ -6,7 +6,7 @@ import moment from 'moment'
   <div class="kanban-list w-full h-full flex flex-col gap-3">
 
     <!-- ── Sticky header bar ── -->
-    <div class="sticky top-0 z-10 flex flex-col gap-2 bg-base-100 pb-2 pt-1">
+    <div class="sticky top-0 z-10 flex flex-col gap-2 pb-2 pt-1">
       <div class="flex gap-2 items-center">
         <!-- Search input -->
         <div class="input input-sm input-bordered flex items-center gap-2 flex-1 min-w-0">
@@ -55,7 +55,7 @@ import moment from 'moment'
           v-for="board in bookmarks"
           :key="board.title"
           @click="selectBoard(board)"
-          class="snap-start shrink-0 w-48 h-28 p-3 card card-bordered bg-base-100 shadow rounded-xl cursor-pointer border-warning relative overflow-hidden active:scale-95 transition-transform"
+          class="snap-start shrink-0 w-48 h-28 p-3 card card-bordered shadow rounded-xl cursor-pointer border-warning relative overflow-hidden active:scale-95 transition-transform"
         >
           <div
             class="absolute inset-0 opacity-30 rounded-xl bg-cover bg-center"
@@ -87,7 +87,7 @@ import moment from 'moment'
           v-for="board in sortedBoards"
           :key="board.title"
           @click="selectBoard(board)"
-          class="card card-bordered bg-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
+          class="card card-bordered border border-base-100/80 hover:border-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
         >
           <!-- Background image -->
           <div

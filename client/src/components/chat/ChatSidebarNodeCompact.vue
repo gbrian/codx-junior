@@ -8,7 +8,7 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
 <template>
   <div class="w-full relative group">
     <div
-      class="p-1 rounded-lg border-2 cursor-pointer transition-all flex justify-center"
+      class="p-1 rounded-lg border-2 cursor-pointer transition-all flex justify-center relative"
       :class="selectedChatId === chat.id
         ? 'border-warning bg-warning/10'
         : 'border-base-content/10 bg-base-100 hover:bg-base-200'"
@@ -24,6 +24,11 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
           <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
         </div>
         <ChatIcon v-else :mode="chat.mode" class="text-xs shrink-0" />
+        
+        <!-- Unread badge for assistant messages from others -->
+        <div v-if="unreadCount > 0" class="indicator">
+          <span class="indicator-item badge badge-error badge-xs">{{ unreadCount }}</span>
+        </div>
       </div>
     </div>
 
@@ -37,23 +42,6 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
         @add-subtask="$emit('add-subtask', $event)"
         @delete-chat="$emit('delete-chat', $event)"
       />
-
-      <!-- Children list inside hover panel -->
-      <div v-if="hasChildren" class="mt-2 bg-base-100 border-2 border-base-content/10 rounded-lg shadow-2xl p-3 w-72">
-        <div class="text-xs font-semibold text-base-content/60 uppercase tracking-wider mb-2">Subtasks</div>
-        <div class="space-y-1 max-h-48 overflow-y-auto">
-          <ChatSidebarNodeExtended
-            v-for="child in children"
-            :key="child.id"
-            :chat="child"
-            :allChats="allChats"
-            :selectedChatId="selectedChatId"
-            @select="$emit('select', $event)"
-            @add-subtask="$emit('add-subtask', $event)"
-            @delete-chat="$emit('delete-chat', $event)"
-          />
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -75,6 +63,18 @@ export default {
     },
     isUpdating() {
       return this.$storex.chats.isChatUpdating(this.chat.id)
+    },
+    unreadCount() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return 0
+      
+      // Count unread assistant messages from other users
+      return (this.chat.messages || []).filter(msg => {
+        const isAssistantMsg = msg.role === 'assistant'
+        const isOtherUser = msg.user !== currentUsername
+        const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
+        return isAssistantMsg && isOtherUser && isUnread && !msg.hide
+      }).length
     }
   }
 }
