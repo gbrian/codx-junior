@@ -39,7 +39,7 @@
     </div>
 
     <!-- Badge with info -->
-    <div v-if="showInfo" class="absolute bottom-1 left-1 text-xs text-white bg-black/60 px-2 py-1 rounded">
+    <div v-if="showInfo" class="absolute bottom-1 left-1 text-xs  bg-base-100/60 px-2 py-1 rounded">
       {{ formatFileSize(media.size) }}
     </div>
   </div>

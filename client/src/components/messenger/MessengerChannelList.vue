@@ -6,18 +6,18 @@ import moment from 'moment'
   <div class="flex flex-col h-full" :class="isCollapsed ? 'w-16' : 'w-72'" style="transition: width 0.2s">
 
     <!-- ── Header ── -->
-    <div class="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-white/5">
+    <div class="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-base-content/5">
       <button
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors shrink-0"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors shrink-0"
         :title="isCollapsed ? 'Expand' : 'Collapse'"
         @click="$emit('toggle-collapse')"
       >
         <i :class="isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="text-xs"></i>
       </button>
       <template v-if="!isCollapsed">
-        <span class="text-sm font-semibold text-white/80 flex-1">Channels</span>
+        <span class="text-sm font-semibold text-base-content/80 flex-1">Channels</span>
         <button
-          class="flex items-center justify-center w-8 h-8 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors"
+          class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
           title="New group channel"
           @click="$emit('new-group')"
         >
@@ -26,7 +26,7 @@ import moment from 'moment'
       </template>
       <button
         v-else
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
         title="New group channel"
         @click="$emit('new-group')"
       >
@@ -35,16 +35,16 @@ import moment from 'moment'
     </div>
 
     <!-- ── Search (expanded only) ── -->
-    <div v-if="!isCollapsed" class="shrink-0 px-3 py-2 border-b border-white/5">
+    <div v-if="!isCollapsed" class="shrink-0 px-3 py-2 border-b border-base-content/5">
       <div class="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-        <i class="fas fa-magnifying-glass text-white/30 text-xs shrink-0"></i>
+        <i class="fas fa-magnifying-glass text-base-content/30 text-xs shrink-0"></i>
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search channels..."
-          class="bg-transparent text-xs text-white/70 placeholder:text-white/25 outline-none flex-1 min-w-0"
+          class="bg-transparent text-xs text-base-content/70 placeholder:text-base-content/25 outline-none flex-1 min-w-0"
         />
-        <button v-if="searchQuery" class="text-white/30 hover:text-white/70 transition-colors" @click="searchQuery = ''">
+        <button v-if="searchQuery" class="text-base-content/30 hover:text-base-content/70 transition-colors" @click="searchQuery = ''">
           <i class="fas fa-xmark text-xs"></i>
         </button>
       </div>
@@ -55,11 +55,11 @@ import moment from 'moment'
 
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-6">
-        <span class="loading loading-spinner loading-sm text-white/30"></span>
+        <span class="loading loading-spinner loading-sm text-base-content/30"></span>
       </div>
 
       <!-- Empty state -->
-      <div v-else-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 px-4 gap-3 text-white/20">
+      <div v-else-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 px-4 gap-3 text-base-content/20">
         <i class="fas fa-hashtag text-3xl"></i>
         <span v-if="!isCollapsed" class="text-xs text-center">
           {{ searchQuery ? 'No channels match your search' : 'No group channels yet.\nClick + to create one.' }}
@@ -76,14 +76,14 @@ import moment from 'moment'
             class="relative flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all duration-200"
             :class="activeChat?.id === chat.id
               ? 'bg-primary text-primary-content shadow-md ring-2 ring-primary/30'
-              : 'bg-white/8 text-white/60 hover:bg-white/15 hover:text-white'"
+              : 'bg-white/8 text-base-content/60 hover:bg-white/15 hover:'"
             :title="chat.name"
             @click="$emit('select', chat)"
           >
             <span>{{ getInitials(chat.name) }}</span>
             <span
               v-if="chat.unread_count > 0"
-              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold text-white flex items-center justify-center px-1"
+              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold  flex items-center justify-center px-1"
             >{{ chat.unread_count > 9 ? '9+' : chat.unread_count }}</span>
           </button>
         </div>
@@ -95,14 +95,14 @@ import moment from 'moment'
             :key="chat.id"
             class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full transition-all duration-200 group"
             :class="activeChat?.id === chat.id
-              ? 'bg-primary/20 text-white'
-              : 'text-white/50 hover:bg-white/6 hover:text-white/80'"
+              ? 'bg-primary/20 '
+              : 'text-base-content/50 hover:bg-white/6 hover:text-base-content/80'"
             @click="$emit('select', chat)"
           >
             <!-- Hash icon or avatar -->
             <div
               class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-              :class="activeChat?.id === chat.id ? 'bg-primary/40 text-primary-content' : 'bg-white/8 text-white/50'"
+              :class="activeChat?.id === chat.id ? 'bg-primary/40 text-primary-content' : 'bg-white/8 text-base-content/50'"
             >
               {{ getInitials(chat.name) }}
             </div>
@@ -110,9 +110,9 @@ import moment from 'moment'
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-sm font-medium truncate">{{ chat.name }}</span>
-                <span class="text-[10px] text-white/25 shrink-0">{{ formatTime(chat.updated_at) }}</span>
+                <span class="text-[10px] text-base-content/25 shrink-0">{{ formatTime(chat.updated_at) }}</span>
               </div>
-              <div class="text-[11px] text-white/30 truncate mt-0.5">
+              <div class="text-[11px] text-base-content/30 truncate mt-0.5">
                 {{ getSnippet(chat) }}
               </div>
             </div>
@@ -120,7 +120,7 @@ import moment from 'moment'
             <!-- Unread badge -->
             <span
               v-if="chat.unread_count > 0"
-              class="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold text-white flex items-center justify-center px-1"
+              class="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold  flex items-center justify-center px-1"
             >{{ chat.unread_count > 9 ? '9+' : chat.unread_count }}</span>
           </button>
         </div>
@@ -128,18 +128,18 @@ import moment from 'moment'
     </div>
 
     <!-- ── Footer (user info) ── -->
-    <div class="shrink-0 border-t border-white/5 px-3 py-3">
+    <div class="shrink-0 border-t border-base-content/5 px-3 py-3">
       <div class="flex items-center gap-3" :class="isCollapsed ? 'justify-center' : ''">
         <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
           <i class="fas fa-user text-primary text-xs"></i>
         </div>
         <div v-if="!isCollapsed" class="flex-1 min-w-0">
-          <div class="text-xs text-white/70 font-medium truncate">{{ userName }}</div>
-          <div class="text-[10px] text-white/25">Messenger</div>
+          <div class="text-xs text-base-content/70 font-medium truncate">{{ userName }}</div>
+          <div class="text-[10px] text-base-content/25">Messenger</div>
         </div>
         <button
           v-if="!isCollapsed"
-          class="p-1.5 text-white/25 hover:text-white/70 transition-colors"
+          class="p-1.5 text-base-content/25 hover:text-base-content/70 transition-colors"
           title="Settings"
           @click="$emit('settings')"
         >

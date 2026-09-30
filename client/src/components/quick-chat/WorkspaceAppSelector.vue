@@ -8,7 +8,7 @@
       <button
         tabindex="0"
         role="button"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-base-content/80 hover:bg-white/8 hover: transition-colors text-left w-full"
         :class="isCollapsed ? 'justify-center' : ''"
         :title="isCollapsed ? 'Workspaces' : ''"
       >

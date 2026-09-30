@@ -12,7 +12,7 @@ import ColorPicker from '../ui/ColorPicker.vue'
     <!-- Avatar preview + color picker -->
     <div class="flex items-center gap-3">
       <div
-        class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0"
+        class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold  shrink-0"
         :style="{ backgroundColor: draft.color }"
       >
         <img v-if="draft.icon" :src="draft.icon" class="w-full h-full object-cover rounded-2xl" />

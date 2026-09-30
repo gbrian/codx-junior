@@ -140,7 +140,7 @@ import moment from 'moment'
     <div class="card bg-base-200 flex-1 overflow-hidden flex flex-col">
 
       <!-- Tab Header Row -->
-      <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-base-300">
+      <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-base-100">
         <div class="flex items-center gap-2 font-semibold">
           <i :class="tabIcon" class="text-warning"></i>
           <span>{{ tabLabel }}</span>

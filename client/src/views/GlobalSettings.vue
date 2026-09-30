@@ -16,8 +16,8 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
   <div class="w-full h-full container" v-if="settings">
     <div class="w-full h-full flex gap-0">
       <!-- Desktop Sidebar -->
-      <aside class="hidden @md:flex w-64 bg-base-200 border-r border-base-300 flex-col">
-        <div class="p-6 border-b border-base-300">
+      <aside class="hidden @md:flex w-64 bg-base-200 border-r border-base-100 flex-col">
+        <div class="p-6 border-b border-base-100">
           <h1 class="text-lg font-bold text-base-content">Global Settings</h1>
           <p class="text-xs text-base-content/60 mt-1">Manage your workspace</p>
         </div>
@@ -41,7 +41,7 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
         </nav>
 
         <!-- Desktop Footer Actions -->
-        <div class="p-4 border-t border-base-300 space-y-2">
+        <div class="p-4 border-t border-base-100 space-y-2">
           <button
             @click="reloadSettings"
             class="w-full btn btn-sm btn-ghost justify-start gap-2"
@@ -67,7 +67,7 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
         <input id="settings-drawer" type="checkbox" class="drawer-toggle" v-model="drawerOpen" />
         <div class="drawer-content flex flex-col w-full h-full overflow-auto">
           <!-- Mobile Header with Menu Button -->
-          <div class="border-b border-base-300 px-4 py-4 bg-base-100 flex items-center justify-between">
+          <div class="border-b border-base-100 px-4 py-4 bg-base-100 flex items-center justify-between">
             <label for="settings-drawer" class="btn btn-ghost btn-sm btn-circle">
               <i class="fa-solid fa-bars text-lg"></i>
             </label>
@@ -91,7 +91,7 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
           </div>
 
           <!-- Mobile Footer Actions -->
-          <div class="border-t border-base-300 px-4 py-3 bg-base-100 flex gap-2">
+          <div class="border-t border-base-100 px-4 py-3 bg-base-100 flex gap-2">
             <button
               @click="reloadSettings"
               class="btn btn-sm btn-ghost btn-circle"
@@ -115,8 +115,8 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
         <!-- Mobile Drawer Sidebar -->
         <div class="drawer-side z-40">
           <label for="settings-drawer" class="drawer-overlay"></label>
-          <aside class="w-64 bg-base-200 border-r border-base-300 flex flex-col h-full">
-            <div class="p-6 border-b border-base-300">
+          <aside class="w-64 bg-base-200 border-r border-base-100 flex flex-col h-full">
+            <div class="p-6 border-b border-base-100">
               <h1 class="text-lg font-bold text-base-content">Settings</h1>
               <p class="text-xs text-base-content/60 mt-1">Navigate</p>
             </div>
@@ -144,7 +144,7 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
 
       <!-- Desktop Main Content -->
       <main class="hidden @md:flex flex-1 flex-col overflow-hidden">
-        <div class="border-b border-base-300 px-8 py-4 bg-base-100">
+        <div class="border-b border-base-100 px-8 py-4 bg-base-100">
           <h2 class="text-2xl font-bold text-base-content">
             {{ getActiveLabel() }}
           </h2>

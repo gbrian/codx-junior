@@ -62,3 +62,40 @@ button,
   line-height: 19px !important;
   letter-spacing: 0px !important;
 }
+
+/** Desktop **/
+
+.dv-dockview,
+.dv-groupview {
+    background-color: var(--base-color-300) !important;
+}
+
+.dv-tabs-and-actions-container {
+    background-color: var(--color-base-200) !important;
+    color: inherit !important;
+}
+
+.dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.dv-tab {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
+.dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab {
+    background-color: inherit !important;
+    color: inherit !important;
+}
+
+.dv-tab.dv-inactive-tab {
+  opacity: 0.3;
+}
+
+.dv-tab.dv-active-tab {
+  opacity: 1;
+}
+
+.dv-tab.dv-active-tab .codx-tab {
+  opacity: 1;
+  color: var(--color-primary);
+}

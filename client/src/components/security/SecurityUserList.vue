@@ -42,7 +42,7 @@ import UserSecuritySettings from './UserSecuritySettings.vue'
         <div
           v-for="(user, index) in users"
           :key="user.username"
-          class="card bg-base-100 border border-base-300 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
+          class="card bg-base-100 border border-base-100 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
           @click="openUserDetail(user)"
         >
           <div class="card-body p-4 gap-3">
@@ -109,7 +109,7 @@ import UserSecuritySettings from './UserSecuritySettings.vue'
 
         <!-- Add New Card -->
         <div
-          class="card border-2 border-dashed border-base-300 hover:border-primary/50 cursor-pointer transition-colors group"
+          class="card border-2 border-dashed border-base-100 hover:border-primary/50 cursor-pointer transition-colors group"
           @click="addNewUser"
         >
           <div class="card-body p-4 items-center justify-center gap-2 text-base-content/30 group-hover:text-primary transition-colors">

@@ -12,11 +12,11 @@ import ChatEntryMetadata from './ChatEntryMetadata.vue'
   >
     <!-- Drawer panel -->
     <div 
-      class="fixed left-0 top-0 h-full w-96 bg-base-100 border-r border-base-300 shadow-xl flex flex-col animate-slide-in-left z-50 overflow-hidden"
+      class="fixed left-0 top-0 h-full w-96 bg-base-100 border-r border-base-100 shadow-xl flex flex-col animate-slide-in-left z-50 overflow-hidden"
       @click.stop
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-base-300 flex-shrink-0">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-base-100 flex-shrink-0">
         <h3 class="font-semibold text-sm flex items-center gap-2">
           <i class="fa-solid fa-stream text-info"></i>
           Processing Details
@@ -32,7 +32,7 @@ import ChatEntryMetadata from './ChatEntryMetadata.vue'
       <!-- Single scrollable content area -->
       <div class="flex-1 overflow-y-auto">
         <!-- Summary section -->
-        <div class="px-4 py-3 border-b border-base-300 flex-shrink-0">
+        <div class="px-4 py-3 border-b border-base-100 flex-shrink-0">
           <h4 class="text-xs font-semibold text-base-content/70 mb-3 flex items-center gap-2">
             <i class="fa-solid fa-chart-line"></i> Summary
           </h4>
@@ -44,7 +44,7 @@ import ChatEntryMetadata from './ChatEntryMetadata.vue'
         </div>
 
         <!-- Tools section -->
-        <div v-if="toolEvents.length > 0" class="px-4 py-3 border-b border-base-300">
+        <div v-if="toolEvents.length > 0" class="px-4 py-3 border-b border-base-100">
           <h4 class="text-xs font-semibold text-base-content/70 mb-2 flex items-center gap-2">
             <i class="fa-solid fa-wrench text-warning"></i> Tools ({{ toolCount }})
           </h4>
@@ -83,7 +83,7 @@ import ChatEntryMetadata from './ChatEntryMetadata.vue'
       </div>
 
       <!-- Footer stats -->
-      <div class="border-t border-base-300 px-4 py-2 text-xs text-base-content/60 flex-shrink-0">
+      <div class="border-t border-base-100 px-4 py-2 text-xs text-base-content/60 flex-shrink-0">
         <div class="flex justify-between items-center">
           <span>{{ totalEvents }} event{{ totalEvents !== 1 ? 's' : '' }}</span>
           <span v-if="metadata?.time_taken" class="text-success">
@@ -94,7 +94,7 @@ import ChatEntryMetadata from './ChatEntryMetadata.vue'
     </div>
 
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/20" @click="close"></div>
+    <div class="absolute inset-0 bg-base-100/20" @click="close"></div>
   </div>
 </template>
 

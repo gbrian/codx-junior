@@ -40,7 +40,7 @@ import moment from 'moment'
       </div>
     </div>    
     <div class="toast toast-end">
-      <div class="bg-error text-white overflow-auto rounded-md max-w-96 max-h-60 text-xs"
+      <div class="bg-error  overflow-auto rounded-md max-w-96 max-h-60 text-xs"
         v-if="lastError" @click="clearLastError">
         <pre><code>ERROR: {{ lastError }}</code></pre>
       </div>

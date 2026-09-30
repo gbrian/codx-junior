@@ -5,16 +5,16 @@ import PriceEditor from './PriceEditor.vue'
 </script>
 
 <template>
-  <div class="metrics-dashboard bg-[#111111] h-full flex flex-col overflow-auto">
+  <div class="metrics-dashboard bg-base-300 h-full flex flex-col overflow-auto">
     <!-- Fixed Header -->
-    <div class="sticky top-0 z-40 border-b border-white/5 bg-[#111111]/95 backdrop-blur-sm">
+    <div class="sticky top-0 z-40 border-b border-base-content/5 bg-base-300/95 backdrop-blur-sm">
       <!-- Title Bar -->
       <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center flex-shrink-0">
-            <i class="fa-solid fa-chart-bar text-white text-sm"></i>
+            <i class="fa-solid fa-chart-bar  text-sm"></i>
           </div>
-          <h1 class="text-lg font-bold text-white">Analytics</h1>
+          <h1 class="text-lg font-bold ">Analytics</h1>
         </div>
 
         <!-- Quick Actions -->
@@ -22,12 +22,12 @@ import PriceEditor from './PriceEditor.vue'
           <!-- Grouping selector -->
           <select
             v-model="grouping"
-            class="px-2 py-1.5 bg-transparent border border-white/10 hover:border-white/20 rounded-lg text-xs text-white font-medium outline-none focus:border-primary/50 transition-colors cursor-pointer"
+            class="px-2 py-1.5 bg-transparent border border-base-content/10 hover:border-base-content/20 rounded-lg text-xs  font-medium outline-none focus:border-primary/50 transition-colors cursor-pointer"
             @change="loadData"
           >
-            <option value="minute" class="bg-[#1a1a1a]">Min</option>
-            <option value="hour" class="bg-[#1a1a1a]">Hour</option>
-            <option value="day" class="bg-[#1a1a1a]">Day</option>
+            <option value="minute" class="bg-base-300">Min</option>
+            <option value="hour" class="bg-base-300">Hour</option>
+            <option value="day" class="bg-base-300">Day</option>
           </select>
 
           <!-- Admin toggle -->
@@ -35,7 +35,7 @@ import PriceEditor from './PriceEditor.vue'
             v-if="$storex.users.isAdmin"
             @click="toggleAdminView"
             class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-            :class="isAdminView ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10'"
+            :class="isAdminView ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30' : 'bg-white/5 text-base-content/70 border border-base-content/10 hover:bg-white/10'"
             title="Switch view mode"
           >
             <i class="fa-solid fa-shield-halved text-xs"></i>
@@ -45,7 +45,7 @@ import PriceEditor from './PriceEditor.vue'
           <button
             @click="loadData"
             :disabled="loading"
-            class="px-2.5 py-1.5 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
+            class="px-2.5 py-1.5 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed  rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
             title="Refresh data"
           >
             <i :class="['fa-solid fa-rotate-right', { 'animate-spin': loading }]" class="text-xs"></i>
@@ -54,7 +54,7 @@ import PriceEditor from './PriceEditor.vue'
       </div>
 
       <!-- Filter Bar (Compact) -->
-      <div class="border-t border-white/5 bg-white/[0.02]">
+      <div class="border-t border-base-content/5 bg-white/[0.02]">
         <div class="max-w-7xl mx-auto px-6 py-2 space-y-2">
           <!-- Row 1: Date Presets + Model + Auto-refresh -->
           <div class="flex items-center gap-2 flex-wrap">
@@ -66,8 +66,8 @@ import PriceEditor from './PriceEditor.vue'
                 @click="applyPreset(preset)"
                 class="px-2 py-1 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
                 :class="activePreset === preset.label
-                  ? 'bg-primary text-white'
-                  : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/10'
+                  ? 'bg-primary '
+                  : 'bg-white/5 text-base-content/70 hover:bg-white/10 border border-base-content/10'
                 "
               >
                 {{ preset.label }}
@@ -78,12 +78,12 @@ import PriceEditor from './PriceEditor.vue'
             <div class="w-px h-4 bg-white/10"></div>
             <select
               v-model="filters.model"
-              class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-white/20"
+              class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg  text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-base-content/20"
               @change="loadData"
               title="Filter by model"
             >
-              <option value="" class="bg-[#1a1a1a]">All models</option>
-              <option v-for="model in availableModels" :key="model" :value="model" class="bg-[#1a1a1a]">
+              <option value="" class="bg-base-300">All models</option>
+              <option v-for="model in availableModels" :key="model" :value="model" class="bg-base-300">
                 {{ model }}
               </option>
             </select>
@@ -92,15 +92,15 @@ import PriceEditor from './PriceEditor.vue'
             <div class="w-px h-4 bg-white/10"></div>
             <select
               v-model="autoRefreshInterval"
-              class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white font-medium outline-none cursor-pointer hover:border-white/20 transition-colors"
+              class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg text-xs  font-medium outline-none cursor-pointer hover:border-base-content/20 transition-colors"
               @change="setupAutoRefresh"
               title="Auto-refresh interval"
             >
-              <option :value="null" class="bg-[#1a1a1a]">Off</option>
-              <option :value="30" class="bg-[#1a1a1a]">30s</option>
-              <option :value="60" class="bg-[#1a1a1a]">1m</option>
-              <option :value="300" class="bg-[#1a1a1a]">5m</option>
-              <option :value="900" class="bg-[#1a1a1a]">15m</option>
+              <option :value="null" class="bg-base-300">Off</option>
+              <option :value="30" class="bg-base-300">30s</option>
+              <option :value="60" class="bg-base-300">1m</option>
+              <option :value="300" class="bg-base-300">5m</option>
+              <option :value="900" class="bg-base-300">15m</option>
             </select>
 
             <div class="flex-1"></div>
@@ -108,7 +108,7 @@ import PriceEditor from './PriceEditor.vue'
             <!-- Advanced filters toggle -->
             <button
               @click="showAdvancedFilters = !showAdvancedFilters"
-              class="px-2 py-1 text-xs font-medium rounded-lg text-white/50 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+              class="px-2 py-1 text-xs font-medium rounded-lg text-base-content/50 hover: hover:bg-white/5 border border-transparent hover:border-base-content/10 transition-all"
               title="Toggle advanced filters"
             >
               <i :class="['fa-solid fa-sliders', showAdvancedFilters ? 'text-primary' : '']" class="text-xs"></i>
@@ -117,7 +117,7 @@ import PriceEditor from './PriceEditor.vue'
             <!-- Clear filters -->
             <button
               @click="clearFilters"
-              class="px-2 py-1 text-xs font-medium rounded-lg text-white/50 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all"
+              class="px-2 py-1 text-xs font-medium rounded-lg text-base-content/50 hover: hover:bg-white/5 border border-transparent hover:border-base-content/10 transition-all"
               title="Clear all filters"
             >
               <i class="fa-solid fa-xmark text-xs"></i>
@@ -125,21 +125,21 @@ import PriceEditor from './PriceEditor.vue'
           </div>
 
           <!-- Advanced Filters (Collapsible) -->
-          <div v-if="showAdvancedFilters" class="pt-2 border-t border-white/5 space-y-2">
+          <div v-if="showAdvancedFilters" class="pt-2 border-t border-base-content/5 space-y-2">
             <!-- Date Range -->
             <div class="flex items-center gap-3 flex-wrap">
-              <span class="text-xs text-white/40 font-medium">Date:</span>
+              <span class="text-xs text-base-content/40 font-medium">Date:</span>
               <input
                 type="date"
                 v-model="filters.startDate"
-                class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg  text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
                 @change="applyCustomDates"
               />
-              <span class="text-white/30 text-xs">→</span>
+              <span class="text-base-content/30 text-xs">→</span>
               <input
                 type="date"
                 v-model="filters.endDate"
-                class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg  text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
                 @change="applyCustomDates"
               />
             </div>
@@ -147,20 +147,20 @@ import PriceEditor from './PriceEditor.vue'
             <!-- Admin Filters -->
             <template v-if="isAdminView">
               <div class="flex items-center gap-3 flex-wrap">
-                <span class="text-xs text-white/40 font-medium">User:</span>
+                <span class="text-xs text-base-content/40 font-medium">User:</span>
                 <input
                   type="text"
                   v-model="filters.username"
                   placeholder="Search username..."
-                  class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                  class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg  text-xs placeholder:text-base-content/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
                   @change="loadData"
                 />
-                <span class="text-xs text-white/40 font-medium">Project:</span>
+                <span class="text-xs text-base-content/40 font-medium">Project:</span>
                 <input
                   type="text"
                   v-model="filters.projectName"
                   placeholder="Search project..."
-                  class="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
+                  class="px-2 py-1 bg-white/5 border border-base-content/10 rounded-lg  text-xs placeholder:text-base-content/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
                   @change="loadData"
                 />
               </div>
@@ -176,7 +176,7 @@ import PriceEditor from './PriceEditor.vue'
         <!-- Loading State -->
         <template v-if="loading">
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-            <div v-for="i in 7" :key="i" class="h-16 rounded-lg bg-white/5 border border-white/5 animate-pulse"></div>
+            <div v-for="i in 7" :key="i" class="h-16 rounded-lg bg-white/5 border border-base-content/5 animate-pulse"></div>
           </div>
         </template>
 
@@ -187,14 +187,14 @@ import PriceEditor from './PriceEditor.vue'
             <div
               v-for="kpi in kpiCards"
               :key="kpi.label"
-              class="group relative border border-white/10 rounded-lg p-3 hover:border-white/20 transition-all duration-200 cursor-help"
+              class="group relative border border-base-content/10 rounded-lg p-3 hover:border-base-content/20 transition-all duration-200 cursor-help"
               :title="kpi.label + ': ' + kpi.sub"
             >
               <div class="flex flex-col items-center text-center gap-1.5">
                 <div class="w-6 h-6 rounded flex items-center justify-center flex-shrink-0" :style="{ background: `${kpi.accentColor}15` }">
                   <i :class="[kpi.faIcon, 'text-xs']" :style="{ color: kpi.accentColor }"></i>
                 </div>
-                <p class="text-sm font-bold text-white leading-tight">
+                <p class="text-sm font-bold  leading-tight">
                   {{ kpi.value }}
                 </p>
               </div>
@@ -204,13 +204,13 @@ import PriceEditor from './PriceEditor.vue'
           <!-- Charts Section -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <!-- Token Usage Chart -->
-            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+            <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+              <div class="px-4 py-3 border-b border-base-content/5 flex items-center gap-2">
                 <i class="fa-solid fa-chart-line text-primary text-sm"></i>
-                <h2 class="text-sm font-bold text-white">{{ groupingLabel }} Token Usage</h2>
+                <h2 class="text-sm font-bold ">{{ groupingLabel }} Token Usage</h2>
               </div>
               <div class="p-4">
-                <div v-if="dailyData.length === 0" class="flex flex-col items-center justify-center h-72 text-white/30">
+                <div v-if="dailyData.length === 0" class="flex flex-col items-center justify-center h-72 text-base-content/30">
                   <i class="fa-solid fa-chart-line text-4xl mb-2"></i>
                   <p class="text-xs font-medium">No data available</p>
                 </div>
@@ -221,13 +221,13 @@ import PriceEditor from './PriceEditor.vue'
             </div>
 
             <!-- Model Usage Breakdown -->
-            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+            <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+              <div class="px-4 py-3 border-b border-base-content/5 flex items-center gap-2">
                 <i class="fa-solid fa-microchip text-secondary text-sm"></i>
-                <h2 class="text-sm font-bold text-white">Usage by Model</h2>
+                <h2 class="text-sm font-bold ">Usage by Model</h2>
               </div>
               <div class="p-4">
-                <div v-if="Object.keys(byModelData).length === 0" class="flex flex-col items-center justify-center h-72 text-white/30">
+                <div v-if="Object.keys(byModelData).length === 0" class="flex flex-col items-center justify-center h-72 text-base-content/30">
                   <i class="fa-solid fa-robot text-4xl mb-2"></i>
                   <p class="text-xs font-medium">No model data available</p>
                 </div>
@@ -238,8 +238,8 @@ import PriceEditor from './PriceEditor.vue'
                     class="group"
                   >
                     <div class="flex items-center justify-between mb-1.5">
-                      <span class="text-xs font-semibold text-white truncate" :title="model">{{ model }}</span>
-                      <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                      <span class="text-xs font-semibold  truncate" :title="model">{{ model }}</span>
+                      <span class="text-xs text-base-content/50">{{ formatTokens(stats.total_tokens) }}</span>
                     </div>
                     <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                       <div
@@ -269,13 +269,13 @@ import PriceEditor from './PriceEditor.vue'
             <!-- User & Project Stats -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <!-- By User -->
-              <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-                <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+              <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+                <div class="px-4 py-3 border-b border-base-content/5 flex items-center gap-2">
                   <i class="fa-solid fa-users text-accent text-sm"></i>
-                  <h2 class="text-sm font-bold text-white">Usage by User</h2>
+                  <h2 class="text-sm font-bold ">Usage by User</h2>
                 </div>
                 <div class="p-4">
-                  <div v-if="Object.keys(byUserData).length === 0" class="flex flex-col items-center justify-center h-56 text-white/30">
+                  <div v-if="Object.keys(byUserData).length === 0" class="flex flex-col items-center justify-center h-56 text-base-content/30">
                     <i class="fa-regular fa-user text-3xl mb-2"></i>
                     <p class="text-xs font-medium">No user data available</p>
                   </div>
@@ -286,11 +286,11 @@ import PriceEditor from './PriceEditor.vue'
                       class="group"
                     >
                       <div class="flex items-center gap-2 mb-1.5">
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center flex-shrink-0 text-xs font-bold ">
                           {{ username.charAt(0).toUpperCase() }}
                         </div>
-                        <span class="text-xs font-semibold text-white flex-1 truncate">{{ username }}</span>
-                        <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                        <span class="text-xs font-semibold  flex-1 truncate">{{ username }}</span>
+                        <span class="text-xs text-base-content/50">{{ formatTokens(stats.total_tokens) }}</span>
                       </div>
                       <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden ml-8">
                         <div
@@ -299,7 +299,7 @@ import PriceEditor from './PriceEditor.vue'
                         ></div>
                       </div>
                       <div class="flex gap-1.5 mt-1 ml-8 text-xs flex-wrap">
-                        <span class="text-white/50">{{ stats.calls }} calls</span>
+                        <span class="text-base-content/50">{{ stats.calls }} calls</span>
                         <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">🪙 {{ formatCoins(stats.total_cxjcoins) }}</span>
                       </div>
                     </div>
@@ -308,13 +308,13 @@ import PriceEditor from './PriceEditor.vue'
               </div>
 
               <!-- By Project -->
-              <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-                <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+              <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+                <div class="px-4 py-3 border-b border-base-content/5 flex items-center gap-2">
                   <i class="fa-solid fa-folder-open text-info text-sm"></i>
-                  <h2 class="text-sm font-bold text-white">Usage by Project</h2>
+                  <h2 class="text-sm font-bold ">Usage by Project</h2>
                 </div>
                 <div class="p-4">
-                  <div v-if="Object.keys(byProjectData).length === 0" class="flex flex-col items-center justify-center h-56 text-white/30">
+                  <div v-if="Object.keys(byProjectData).length === 0" class="flex flex-col items-center justify-center h-56 text-base-content/30">
                     <i class="fa-regular fa-folder text-3xl mb-2"></i>
                     <p class="text-xs font-medium">No project data available</p>
                   </div>
@@ -325,8 +325,8 @@ import PriceEditor from './PriceEditor.vue'
                       class="group"
                     >
                       <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-xs font-semibold text-white truncate" :title="projectName">{{ projectName }}</span>
-                        <span class="text-xs text-white/50">{{ formatTokens(stats.total_tokens) }}</span>
+                        <span class="text-xs font-semibold  truncate" :title="projectName">{{ projectName }}</span>
+                        <span class="text-xs text-base-content/50">{{ formatTokens(stats.total_tokens) }}</span>
                       </div>
                       <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <div
@@ -335,7 +335,7 @@ import PriceEditor from './PriceEditor.vue'
                         ></div>
                       </div>
                       <div class="flex gap-1.5 mt-1 text-xs flex-wrap">
-                        <span class="text-white/50">{{ stats.calls }} calls</span>
+                        <span class="text-base-content/50">{{ stats.calls }} calls</span>
                         <span v-if="stats.total_cxjcoins != null" class="text-fuchsia-400">🪙 {{ formatCoins(stats.total_cxjcoins) }}</span>
                       </div>
                     </div>
@@ -345,27 +345,27 @@ import PriceEditor from './PriceEditor.vue'
             </div>
 
             <!-- Model Performance Table -->
-            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-              <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+            <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+              <div class="px-4 py-3 border-b border-base-content/5 flex items-center gap-2">
                 <i class="fa-solid fa-gauge-high text-warning text-sm"></i>
-                <h2 class="text-sm font-bold text-white">Model Performance</h2>
+                <h2 class="text-sm font-bold ">Model Performance</h2>
               </div>
               <div class="p-4">
-                <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-white/30">
+                <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-base-content/30">
                   <i class="fa-solid fa-robot text-3xl mb-2"></i>
                   <p class="text-xs font-medium">No model performance data available</p>
                 </div>
                 <div v-else class="overflow-x-auto">
                   <table class="w-full text-xs">
                     <thead>
-                      <tr class="border-b border-white/10">
-                        <th class="text-left px-3 py-2 text-white/70 font-semibold">Model</th>
-                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Calls</th>
-                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Total Tokens</th>
-                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Avg Duration</th>
-                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Tokens / sec</th>
-                        <th class="text-right px-3 py-2 text-white/70 font-semibold">Cost (🪙)</th>
-                        <th class="text-left px-3 py-2 text-white/70 font-semibold">Speed</th>
+                      <tr class="border-b border-base-content/10">
+                        <th class="text-left px-3 py-2 text-base-content/70 font-semibold">Model</th>
+                        <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Calls</th>
+                        <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Total Tokens</th>
+                        <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Avg Duration</th>
+                        <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Tokens / sec</th>
+                        <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Cost (🪙)</th>
+                        <th class="text-left px-3 py-2 text-base-content/70 font-semibold">Speed</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-white/10">
@@ -374,10 +374,10 @@ import PriceEditor from './PriceEditor.vue'
                         :key="model"
                         class="hover:bg-white/5 transition-colors"
                       >
-                        <td class="px-3 py-2 font-medium text-white truncate max-w-24" :title="model">{{ model }}</td>
-                        <td class="px-3 py-2 text-right text-white/50">{{ stats.calls }}</td>
-                        <td class="px-3 py-2 text-right text-white font-medium">{{ formatTokens(stats.total_tokens) }}</td>
-                        <td class="px-3 py-2 text-right font-mono text-white/70">
+                        <td class="px-3 py-2 font-medium  truncate max-w-24" :title="model">{{ model }}</td>
+                        <td class="px-3 py-2 text-right text-base-content/50">{{ stats.calls }}</td>
+                        <td class="px-3 py-2 text-right  font-medium">{{ formatTokens(stats.total_tokens) }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-base-content/70">
                           {{ stats.total_duration_seconds > 0 ? stats.total_duration_seconds.toFixed(2) + 's' : 'N/A' }}
                         </td>
                         <td class="px-3 py-2 text-right font-mono font-semibold" :class="getTokensPerSecColor(stats.tokens_per_second)">
@@ -395,7 +395,7 @@ import PriceEditor from './PriceEditor.vue'
                                 :style="{ width: getSpeedPercentage(stats.tokens_per_second) + '%' }"
                               ></div>
                             </div>
-                            <span class="text-xs text-white/50 w-6 text-right">
+                            <span class="text-xs text-base-content/50 w-6 text-right">
                               {{ getSpeedPercentage(stats.tokens_per_second) }}%
                             </span>
                           </div>
@@ -409,38 +409,38 @@ import PriceEditor from './PriceEditor.vue'
           </template>
 
           <!-- Data Table -->
-          <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+          <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
+            <div class="px-4 py-3 border-b border-base-content/5 flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <i class="fa-solid fa-table text-primary text-sm"></i>
-                <h2 class="text-sm font-bold text-white">Period Breakdown</h2>
+                <h2 class="text-sm font-bold ">Period Breakdown</h2>
               </div>
               <button
                 @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-                class="px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 text-xs font-medium transition-all flex items-center gap-1"
+                class="px-2 py-1 bg-white/5 hover:bg-white/10 border border-base-content/10 rounded-lg text-base-content/70 text-xs font-medium transition-all flex items-center gap-1"
               >
                 <i :class="sortOrder === 'asc' ? 'fa-solid fa-arrow-up-wide-short' : 'fa-solid fa-arrow-down-wide-short'" class="text-xs"></i>
               </button>
             </div>
             <div class="p-4">
-              <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-white/30">
+              <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-base-content/30">
                 <i class="fa-solid fa-database text-3xl mb-2"></i>
                 <p class="text-xs font-medium">No data available for the selected period</p>
               </div>
               <div v-else class="overflow-x-auto">
                 <table class="w-full text-xs">
                   <thead>
-                    <tr class="border-b border-white/10">
-                      <th class="text-left px-3 py-2 text-white/70 font-semibold">
+                    <tr class="border-b border-base-content/10">
+                      <th class="text-left px-3 py-2 text-base-content/70 font-semibold">
                         {{ grouping === 'minute' ? 'Time' : grouping === 'hour' ? 'Hour' : 'Date' }}
                       </th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Input</th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Output</th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Total</th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Calls</th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Avg Duration</th>
-                      <th class="text-right px-3 py-2 text-white/70 font-semibold">Cost</th>
-                      <th class="text-left px-3 py-2 text-white/70 font-semibold">Distribution</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Input</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Output</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Total</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Calls</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Avg Duration</th>
+                      <th class="text-right px-3 py-2 text-base-content/70 font-semibold">Cost</th>
+                      <th class="text-left px-3 py-2 text-base-content/70 font-semibold">Distribution</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-white/10">
@@ -449,12 +449,12 @@ import PriceEditor from './PriceEditor.vue'
                       :key="row.period || row.date"
                       class="hover:bg-white/5 transition-colors group"
                     >
-                      <td class="px-3 py-2 font-semibold text-white">{{ row.period || row.date }}</td>
+                      <td class="px-3 py-2 font-semibold ">{{ row.period || row.date }}</td>
                       <td class="px-3 py-2 text-right text-success">{{ formatTokens(row.input_tokens) }}</td>
                       <td class="px-3 py-2 text-right text-warning">{{ formatTokens(row.output_tokens) }}</td>
-                      <td class="px-3 py-2 text-right font-semibold text-white">{{ formatTokens(row.total_tokens) }}</td>
-                      <td class="px-3 py-2 text-right text-white/50">{{ row.calls }}</td>
-                      <td class="px-3 py-2 text-right font-mono text-white/50">
+                      <td class="px-3 py-2 text-right font-semibold ">{{ formatTokens(row.total_tokens) }}</td>
+                      <td class="px-3 py-2 text-right text-base-content/50">{{ row.calls }}</td>
+                      <td class="px-3 py-2 text-right font-mono text-base-content/50">
                         {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
                       </td>
                       <td class="px-3 py-2 text-right">
@@ -487,13 +487,13 @@ import PriceEditor from './PriceEditor.vue'
                     </tr>
                   </tbody>
                   <tfoot>
-                    <tr class="border-t-2 border-white/20 font-bold text-white bg-white/5">
+                    <tr class="border-t-2 border-base-content/20 font-bold  bg-white/5">
                       <td class="px-3 py-2">Total</td>
                       <td class="px-3 py-2 text-right text-success">{{ formatTokens(totalStats.input_tokens) }}</td>
                       <td class="px-3 py-2 text-right text-warning">{{ formatTokens(totalStats.output_tokens) }}</td>
                       <td class="px-3 py-2 text-right">{{ formatTokens(totalStats.total_tokens) }}</td>
-                      <td class="px-3 py-2 text-right text-white/50">{{ totalStats.calls }}</td>
-                      <td class="px-3 py-2 text-right font-mono text-white/50">
+                      <td class="px-3 py-2 text-right text-base-content/50">{{ totalStats.calls }}</td>
+                      <td class="px-3 py-2 text-right font-mono text-base-content/50">
                         {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
                       </td>
                       <td class="px-3 py-2 text-right text-fuchsia-400">
@@ -509,14 +509,14 @@ import PriceEditor from './PriceEditor.vue'
 
           <!-- Price Management (admin only) -->
           <template v-if="isAdminView">
-            <div class="border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+            <div class="border border-base-content/10 rounded-lg overflow-hidden hover:border-base-content/20 transition-colors">
               <button
                 @click="priceEditorOpen = !priceEditorOpen"
-                class="w-full px-4 py-3 border-b border-white/5 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+                class="w-full px-4 py-3 border-b border-base-content/5 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
               >
                 <div class="flex items-center gap-2">
                   <i class="fa-solid fa-tags text-primary text-sm"></i>
-                  <span class="font-semibold text-white text-sm">Price Management</span>
+                  <span class="font-semibold  text-sm">Price Management</span>
                   <span v-if="priceEditorDate" class="ml-2 px-2 py-1 bg-primary/20 border border-primary/30 text-primary text-xs font-medium rounded-lg">
                     <i class="fa-solid fa-calendar-day mr-1 text-xs"></i>
                     {{ priceEditorDate }}
@@ -526,18 +526,18 @@ import PriceEditor from './PriceEditor.vue'
                     {{ priceEditorModel }}
                   </span>
                 </div>
-                <i :class="['fa-solid fa-chevron-down', priceEditorOpen ? 'rotate-180' : '']" class="text-white/40 transition-transform text-sm"></i>
+                <i :class="['fa-solid fa-chevron-down', priceEditorOpen ? 'rotate-180' : '']" class="text-base-content/40 transition-transform text-sm"></i>
               </button>
-              <div v-if="priceEditorOpen" class="p-4 space-y-4 border-t border-white/5">
+              <div v-if="priceEditorOpen" class="p-4 space-y-4 border-t border-base-content/5">
                 <div class="flex flex-col sm:flex-row gap-3">
                   <div class="flex-1 space-y-1.5">
-                    <label class="text-xs font-semibold text-white/70">Filter by Model</label>
+                    <label class="text-xs font-semibold text-base-content/70">Filter by Model</label>
                     <select
                       v-model="priceEditorModel"
-                      class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-white/20"
+                      class="w-full px-3 py-2 bg-white/5 border border-base-content/10 rounded-lg  text-xs font-medium outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all cursor-pointer hover:border-base-content/20"
                     >
-                      <option :value="null" class="bg-[#1a1a1a]">All models</option>
-                      <option v-for="model in availableModels" :key="model" :value="model" class="bg-[#1a1a1a]">
+                      <option :value="null" class="bg-base-300">All models</option>
+                      <option v-for="model in availableModels" :key="model" :value="model" class="bg-base-300">
                         {{ model }}
                       </option>
                     </select>
@@ -545,7 +545,7 @@ import PriceEditor from './PriceEditor.vue'
                   <div class="flex items-end">
                     <button
                       @click="priceEditorModel = null"
-                      class="px-2.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 text-xs font-medium transition-all"
+                      class="px-2.5 py-2 bg-white/5 hover:bg-white/10 border border-base-content/10 rounded-lg text-base-content/70 text-xs font-medium transition-all"
                     >
                       <i class="fa-solid fa-times text-xs mr-1"></i>
                       Clear
@@ -820,7 +820,7 @@ export default {
       this.priceEditorModel = null
       this.priceEditorOpen = true
       this.$nextTick(() => {
-        const el = this.$el.querySelector('.border-white\\/10')
+        const el = this.$el.querySelector('.border-base-content\\/10')
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     },
@@ -913,7 +913,7 @@ export default {
       return Math.round((tokensPerSecond / this.maxTokensPerSecond) * 100)
     },
     getTokensPerSecColor(tps) {
-      if (!tps || tps <= 0) return 'text-white/50'
+      if (!tps || tps <= 0) return 'text-base-content/50'
       const pct = tps / this.maxTokensPerSecond
       if (pct >= 0.7) return 'text-success'
       if (pct >= 0.35) return 'text-warning'

@@ -5,7 +5,7 @@ import Wall from '../components/wall/Wall.vue'
 <template>
   <div class="h-full flex flex-col bg-base-100 overflow-hidden">
     <!-- Top Bar -->
-    <div class="flex items-center gap-4 px-6 py-3 border-b border-base-300 bg-base-100">
+    <div class="flex items-center gap-4 px-6 py-3 border-b border-base-100 bg-base-100">
       <img src="/only_icon.png" class="w-6 h-6" />
       <span class="font-bold text-lg tracking-tight">codx<span class="text-primary">-junior</span></span>
       <div class="flex-1"></div>
@@ -30,9 +30,9 @@ import Wall from '../components/wall/Wall.vue'
     </div>
 
     <!-- Search Modal -->
-    <div v-if="showSearch" class="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50"
+    <div v-if="showSearch" class="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-base-100/50"
       @click.self="showSearch = false">
-      <div class="card bg-base-100 shadow-2xl w-full max-w-lg border border-base-300">
+      <div class="card bg-base-100 shadow-2xl w-full max-w-lg border border-base-100">
         <div class="card-body p-3">
           <input
             ref="searchInput"
@@ -58,7 +58,7 @@ import Wall from '../components/wall/Wall.vue'
     <!-- Main 3-pane layout -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Pane 1: Navigation Rail -->
-      <div class="w-14 flex flex-col items-center py-4 gap-3 border-r border-base-300 bg-base-200">
+      <div class="w-14 flex flex-col items-center py-4 gap-3 border-r border-base-100 bg-base-200">
         <button v-for="nav in navRail" :key="nav.tab"
           class="btn btn-ghost btn-square btn-sm tooltip tooltip-right"
           :data-tip="nav.label"
@@ -69,9 +69,9 @@ import Wall from '../components/wall/Wall.vue'
       </div>
 
       <!-- Pane 2: Content Panel -->
-      <div class="w-72 flex-shrink-0 border-r border-base-300 flex flex-col overflow-hidden">
+      <div class="w-72 flex-shrink-0 border-r border-base-100 flex flex-col overflow-hidden">
         <!-- Pane header -->
-        <div class="px-3 py-2 border-b border-base-300 text-sm font-semibold text-base-content/70 flex items-center gap-2">
+        <div class="px-3 py-2 border-b border-base-100 text-sm font-semibold text-base-content/70 flex items-center gap-2">
           <i :class="activeNavItem?.icon" class="text-primary"></i>
           {{ activeNavItem?.label }}
         </div>
@@ -112,7 +112,7 @@ import Wall from '../components/wall/Wall.vue'
 
       <!-- Pane 3: Activity Feed -->
       <div class="flex-1 overflow-hidden flex flex-col">
-        <div class="px-4 py-2 border-b border-base-300 flex items-center gap-2">
+        <div class="px-4 py-2 border-b border-base-100 flex items-center gap-2">
           <i class="fa-solid fa-wave-square text-primary"></i>
           <span class="text-sm font-semibold">Activity Feed</span>
           <div class="badge badge-primary badge-sm ml-auto">Live</div>

@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" v-if="isLoading">
+  <div class="fixed inset-0 bg-base-100/50 backdrop-blur-sm flex items-center justify-center z-50" v-if="isLoading">
     <div class="bg-base-200 rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
       <!-- Header -->
       <div class="mb-6">

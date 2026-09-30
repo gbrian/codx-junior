@@ -5,7 +5,7 @@
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="flex gap-2 p-2 border-b border-slate-500 flex-wrap items-center">
+    <div class="flex gap-2 p-2 border-b border-base-100 flex-wrap items-center">
       <div class="flex gap-2 items-center">
         <span class="text-xs font-medium opacity-60">Screen:</span>
         <select 
@@ -67,7 +67,7 @@
     
     <div class="flex-1 overflow-auto flex items-center justify-center p-4 bg-base-200" ref="previewContainer">
       <div 
-        class="border border-slate-400 bg-white overflow-auto transition-all duration-200"
+        class="border border-base-100 bg-white overflow-auto transition-all duration-200"
         :style="{ width: displayWidth + 'px', height: displayHeight + 'px' }"
       >
         <iframe
@@ -84,7 +84,7 @@
   <!-- Popup Modal -->
   <div 
     v-if="isPopupOpen"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+    class="fixed inset-0 bg-base-100 bg-opacity-50 flex items-center justify-center p-4 z-50"
   >
     <vue-draggable-resizable
       v-model:w="popupWidth"
@@ -98,7 +98,7 @@
         class="bg-white rounded-lg shadow-2xl flex flex-col w-full h-full"
       >
         <!-- Popup Header -->
-        <div class="flex gap-2 p-3 border-b border-slate-300 bg-base-100 items-center rounded-t-lg flex-wrap">
+        <div class="flex gap-2 p-3 border-b border-base-100 bg-base-100 items-center rounded-t-lg flex-wrap">
           <span class="text-sm font-semibold">HTML Preview</span>
           
           <div class="flex gap-2 items-center flex-wrap">

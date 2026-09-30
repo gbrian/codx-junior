@@ -7,7 +7,7 @@ import GroupHeaderActions from './GroupHeaderActions.vue'
 <template>
   <div class="w-full h-full relative">
     <dockview-vue
-      class="dockview-theme-abyss w-full h-full"
+      class="w-full h-full"
       @ready="onReady"
       @panel-error="onPanelError"
       rightHeaderActionsComponent="groupHeaderActions"
@@ -115,28 +115,3 @@ export default {
   },
 }
 </script>
-
-<style>
-.dv-tabs-and-actions-container {
-    background-color: inherit;
-    box-sizing: unset;
-    height: inherit;
-    font-size: inherit;
-}
-
-.dv-tabs-and-actions-container {
-  height: fit-content;
-  background-color: inherit !important;
-}
-
-.dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
-.dv-tab {
-  background-color: inherit;
-}
-
-.dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
-.dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab {
-    background-color: inherit;
-    color: inherit;
-}
-</style>

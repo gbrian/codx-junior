@@ -47,7 +47,7 @@ import Chat from '../chat/Chat.vue'
     </div>
 
     <!-- Table Container with Scrolling -->
-    <div class="flex-1 overflow-hidden rounded-xl border border-base-300 bg-base-100 flex flex-col">
+    <div class="flex-1 overflow-hidden rounded-xl border border-base-100 bg-base-100 flex flex-col">
       <div class="overflow-x-auto overflow-y-auto flex-1">
         <table class="table table-sm w-full">
           <thead class="bg-base-200 sticky top-0">
@@ -178,7 +178,7 @@ import Chat from '../chat/Chat.vue'
               <!-- Inline quick test chat row -->
               <tr v-if="quickTestModel?.name === model.name && quickTestChat" @click.stop>
                 <td :colspan="columns.length + 1" class="p-0">
-                  <div class="bg-base-200 border-t border-base-300 flex flex-col" style="height: 420px">
+                  <div class="bg-base-200 border-t border-base-100 flex flex-col" style="height: 420px">
                     <div class="flex items-center gap-2 px-3 py-2 bg-base-300 text-xs text-base-content/60">
                       <i class="fa-solid fa-comment-dots text-success"></i>
                       <span class="font-semibold">Testing: <span class="text-primary">{{ model.name }}</span></span>

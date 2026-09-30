@@ -18,7 +18,7 @@ import MenuDivider from './MenuDivider.vue'
     </MenubarSubTrigger>
     <MenubarPortal>
       <MenubarSubContent
-        class="py-2 min-w-52 outline-none bg-base-100 rounded-lg px-2 border border-white/30 shadow-lg"
+        class="py-2 min-w-52 outline-none bg-base-100 rounded-lg px-2 border border-base-content/30 shadow-lg"
         :side-offset="8"
       >
         <!-- Create new view (admin only) -->

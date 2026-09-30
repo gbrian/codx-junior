@@ -9,7 +9,7 @@
   >
     <div class="flex flex-wrap gap-1 p-2 bg-base-200 border rounded-lg shadow-lg">
       <!-- Header with controls -->
-      <div class="w-full flex items-center gap-2 text-base-content/80 pb-1 border-b border-base-300">
+      <div class="w-full flex items-center gap-2 text-base-content/80 pb-1 border-b border-base-100">
         <div class="flex gap-1">
           <kbd class="kbd kbd-xs">Tab</kbd>
           <span class="text-xs">accept</span>
@@ -64,7 +64,7 @@
       </div>
 
       <!-- Project filter pills -->
-      <div v-if="uniqueProjects.length > 1" class="w-full flex flex-wrap items-center gap-1 pb-1 border-b border-base-300">
+      <div v-if="uniqueProjects.length > 1" class="w-full flex flex-wrap items-center gap-1 pb-1 border-b border-base-100">
         <span class="text-base-content/50 self-center text-xs">Filter:</span>
         <button
           class="badge badge-xs cursor-pointer transition-colors"
@@ -155,7 +155,7 @@
       </div>
 
       <!-- Result count footer -->
-      <div class="w-full text-base-content/40 text-xs text-right pt-1 border-t border-base-300">
+      <div class="w-full text-base-content/40 text-xs text-right pt-1 border-t border-base-100">
         <span>
           {{ filteredSuggestions.length }} result{{ filteredSuggestions.length !== 1 ? 's' : '' }}
         </span>

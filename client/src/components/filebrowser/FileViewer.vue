@@ -11,7 +11,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 <template>
   <div class="w-full h-full flex flex-col overflow-hidden">
     <!-- File header -->
-    <div class="flex items-center gap-3 px-3 py-2 bg-base-200 border-b border-base-300 flex-shrink-0">
+    <div class="flex items-center gap-3 px-3 py-2 bg-base-200 border-b border-base-100 flex-shrink-0">
       <i :class="getHeaderIcon()"></i>
       <span
         class="text-sm font-mono font-semibold truncate cursor-move hover:opacity-75 transition-opacity"

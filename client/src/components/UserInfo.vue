@@ -23,7 +23,7 @@ import MetricRow from './MetricRow.vue'
           <!-- Warning badge on avatar -->
           <span
             v-if="dailyLimitStatus"
-            class="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center text-white z-10"
+            class="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center  z-10"
             :class="dailyLimitStatus === 'exceeded' ? 'bg-error' : 'bg-warning'"
             :title="dailyLimitStatus === 'exceeded' ? 'Daily limit exceeded!' : 'Approaching daily limit'"
           >
@@ -59,7 +59,7 @@ import MetricRow from './MetricRow.vue'
     <!-- Detailed panel overlay -->
     <div
       v-if="showPanel"
-      class="absolute left-0 bottom-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
+      class="absolute left-0 bottom-8 z-50 w-96 bg-base-200 border border-base-100 rounded-lg shadow-xl p-4 flex flex-col gap-3"
     >
       <!-- Header: user info + close button -->
       <div class="flex items-center gap-3">

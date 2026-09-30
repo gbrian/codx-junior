@@ -2,13 +2,13 @@
 import AppIcon from '../apps/AppIcon.vue'
 </script>
 <template>
-  <div class="flex gap-1 items-center justify-between px-3 py-1 border-t-1 border-r-1 rounded w-40 text-md">
+  <div class="codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md">
     <div class="w-4/5 flex gap-1 items-center truncate overflow-hidden">
       <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
       <AppIcon :app="app" :loading="isUpdating" />
       <div class="grow truncate overflow-hidden">{{ tabName }}</div>
     </div>
-    <div class="click hover:text-warning shrink-0" @click="onClose">
+    <div class="click hover:text-warning shrink-0 mr-2" @click="onClose">
       <i class="fa-solid fa-xmark fa-sm"></i>
     </div>
   </div>

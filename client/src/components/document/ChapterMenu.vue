@@ -3,7 +3,7 @@
 
 <template>
   <div 
-    class="absolute -top-1 right-0 z-20 flex gap-1 items-center bg-base-100/95 backdrop-blur-sm rounded-lg px-1 py-1 shadow-md border border-base-300 transition-all opacity-0 group-hover/header:opacity-100"
+    class="absolute -top-1 right-0 z-20 flex gap-1 items-center bg-base-100/95 backdrop-blur-sm rounded-lg px-1 py-1 shadow-md border border-base-100 transition-all opacity-0 group-hover/header:opacity-100"
     @click.stop
   >
     <button

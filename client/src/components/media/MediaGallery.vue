@@ -44,7 +44,7 @@ import MediaPreview from './MediaPreview.vue'
         @click="selectMedia(media)"
       >
         <MediaPreview :media="media" class="w-full h-24 rounded" />
-        <div class="absolute inset-0 bg-black/0 group-hover:bg-primary/20 transition-all rounded"></div>
+        <div class="absolute inset-0 bg-base-100/0 group-hover:bg-primary/20 transition-all rounded"></div>
       </div>
     </div>
 

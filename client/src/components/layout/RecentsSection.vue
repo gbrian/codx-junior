@@ -5,13 +5,13 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
 
 <template>
   <div
-    class="flex flex-col border-b border-white/5 overflow-hidden flex-1"
+    class="flex flex-col border-b border-base-content/5 overflow-hidden flex-1"
     :class="isCollapsed && 'items-center'"
   >
     <!-- Toggle button (always visible when not collapsed) -->
     <button
       v-if="!isCollapsed || isMobile"
-      class="flex items-center justify-between px-5 py-3 text-xs font-semibold text-white/60 hover:text-white/80 transition-colors shrink-0 w-full"
+      class="flex items-center justify-between px-5 py-3 text-xs font-semibold text-base-content/60 hover:text-base-content/80 transition-colors shrink-0 w-full"
       @click.stop="recentsExpanded = !recentsExpanded"
       @touchend.stop.prevent="recentsExpanded = !recentsExpanded"
       title="Toggle Recents"
@@ -41,12 +41,12 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
       </div>
 
       <!-- Recents Footer -->
-      <div v-if="!isCollapsed" class="px-3 py-3 shrink-0 flex items-center justify-between border-t border-white/5">
-        <span class="text-xs font-semibold text-white/40 uppercase tracking-wide">Search Chats...</span>
+      <div v-if="!isCollapsed" class="px-3 py-3 shrink-0 flex items-center justify-between border-t border-base-content/5">
+        <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">Search Chats...</span>
         <button
           @click.stop="openSearchModal"
           @touchend.stop.prevent="openSearchModal"
-          class="p-1.5 text-white/40 hover:text-white/80 transition-colors"
+          class="p-1.5 text-base-content/40 hover:text-base-content/80 transition-colors"
           title="Search chats"
         >
           <i class="fas fa-magnifying-glass text-sm"></i>
@@ -58,16 +58,16 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
   <!-- Search Modal -->
   <div
     v-if="isSearchModalOpen"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/50"
     @click.self="closeSearchModal"
   >
-    <div class="bg-[#1a1a1a] rounded-lg border border-white/10 w-full max-w-md max-h-[90vh] flex flex-col">
+    <div class="bg-base-300 rounded-lg border border-base-content/10 w-full max-w-md max-h-[90vh] flex flex-col">
       <!-- Modal Header -->
-      <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between shrink-0">
-        <h2 class="text-sm font-semibold text-white">Search Chats</h2>
+      <div class="px-4 py-3 border-b border-base-content/5 flex items-center justify-between shrink-0">
+        <h2 class="text-sm font-semibold ">Search Chats</h2>
         <button
           @click="closeSearchModal"
-          class="p-1 text-white/40 hover:text-white/80 transition-colors"
+          class="p-1 text-base-content/40 hover:text-base-content/80 transition-colors"
         >
           <i class="fas fa-xmark"></i>
         </button>
@@ -76,7 +76,7 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
       <!-- Modal Content -->
       <div class="flex-1 overflow-hidden flex flex-col">
         <!-- Search Input with Loading Animation -->
-        <div class="px-4 py-3 border-b border-white/5 shrink-0 relative">
+        <div class="px-4 py-3 border-b border-base-content/5 shrink-0 relative">
           <ChatSearch
             :userId="currentUser?.id"
             :isSearching="isSearching"
@@ -87,10 +87,10 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
 
           <!-- Loading overlay animation -->
           <transition name="fade">
-            <div v-if="isSearching" class="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
+            <div v-if="isSearching" class="absolute inset-0 bg-base-100/20 rounded-lg flex items-center justify-center">
               <div class="flex flex-col items-center gap-2">
                 <span class="loading loading-spinner loading-md text-primary"></span>
-                <span class="text-xs text-white/70">Searching...</span>
+                <span class="text-xs text-base-content/70">Searching...</span>
               </div>
             </div>
           </transition>
@@ -104,30 +104,30 @@ import ChatListRenderer from '../chat/ChatListRenderer.vue'
               v-for="result in searchResults"
               :key="result.chat?.id || result.id"
               @click="selectSearchResult(result)"
-              class="card card-compact bg-white/5 border border-white/10 hover:border-codx-primary/50 hover:bg-white/10 cursor-pointer transition-all duration-200 p-2 gap-1"
+              class="card card-compact bg-white/5 border border-base-content/10 hover:border-codx-primary/50 hover:bg-white/10 cursor-pointer transition-all duration-200 p-2 gap-1"
             >
               <div class="flex items-start justify-between gap-2 min-w-0">
-                <h3 class="font-semibold text-xs truncate text-white">{{ (result.chat?.name || result.name) || 'Untitled' }}</h3>
+                <h3 class="font-semibold text-xs truncate ">{{ (result.chat?.name || result.name) || 'Untitled' }}</h3>
               </div>
-              <div v-if="result.snippet || result.content" class="text-xs text-white/50 line-clamp-1">
+              <div v-if="result.snippet || result.content" class="text-xs text-base-content/50 line-clamp-1">
                 {{ result.snippet || result.content }}
               </div>
             </div>
 
             <!-- Results count -->
-            <div v-if="searchMeta" class="text-xs text-white/40 text-center py-2">
+            <div v-if="searchMeta" class="text-xs text-base-content/40 text-center py-2">
               {{ searchResults.length }} / {{ searchMeta.total || searchResults.length }} results
             </div>
           </div>
 
           <!-- No results state -->
-          <div v-else-if="searchPerformed && !isSearching" class="text-center py-8 text-white/30">
+          <div v-else-if="searchPerformed && !isSearching" class="text-center py-8 text-base-content/30">
             <i class="fas fa-inbox text-2xl mb-2 block"></i>
             <p class="text-xs">No chats found</p>
           </div>
 
           <!-- Initial state -->
-          <div v-else-if="!isSearching" class="text-center py-8 text-white/30">
+          <div v-else-if="!isSearching" class="text-center py-8 text-base-content/30">
             <i class="fas fa-magnifying-glass text-2xl mb-2 block"></i>
             <p class="text-xs">Enter a search query</p>
           </div>

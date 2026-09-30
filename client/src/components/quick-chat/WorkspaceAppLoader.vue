@@ -5,7 +5,7 @@ import AppWindow from '../windowManager/AppWindow.vue'
 <template>
   <div class="flex flex-col h-full w-full relative">
     <!-- Header with app info and close button -->
-    <div v-if="showHeader" class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-base-300/50">
+    <div v-if="showHeader" class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-base-100/50">
       <div class="flex items-center gap-2 min-w-0">
         <i
           v-if="appIcon"

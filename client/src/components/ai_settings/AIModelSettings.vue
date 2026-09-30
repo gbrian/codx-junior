@@ -299,7 +299,7 @@ import Editor from '../monaco/Editor.vue'
 
     <!-- Modelfile tab -->
     <div class="w-full grow flex flex-col min-h-0" v-if="tabIx === 1">
-      <div class="flex-1 min-h-0 overflow-hidden rounded-lg border border-base-300">
+      <div class="flex-1 min-h-0 overflow-hidden rounded-lg border border-base-100">
         <Editor
           v-model="model.model_file"
           language="dockerfile"

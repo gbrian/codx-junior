@@ -50,10 +50,10 @@ import MediaUploadDialog from './MediaUploadDialog.vue'
           <MediaPreview :media="media" class="w-full h-40" />
 
           <!-- Info overlay -->
-          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-end">
-            <div class="w-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80">
+          <div class="absolute inset-0 bg-base-100/0 group-hover:bg-base-100/40 transition-all flex items-end">
+            <div class="w-full p-2  opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80">
               <div class="text-xs font-semibold truncate">{{ media.name }}</div>
-              <div class="text-xs text-white/70">{{ formatFileSize(media.size) }}</div>
+              <div class="text-xs text-base-content/70">{{ formatFileSize(media.size) }}</div>
             </div>
           </div>
 

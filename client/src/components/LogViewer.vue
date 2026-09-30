@@ -52,7 +52,7 @@ import LogAIView from './LogAIView.vue'
           :key="module" 
           @click="toggleModuleVisible(module)"
           :style="{ color: $ui.colorsMap[module] }"
-          :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
+          :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-base-content': 'badge-outline']"
         >
           {{ module }}
         </div>
@@ -61,7 +61,7 @@ import LogAIView from './LogAIView.vue'
           :key="module" 
           @click="toggleProfilerVisible(module)"
           :style="{ color: $ui.colorsMap[module] }"
-          :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
+          :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-base-content': 'badge-outline']"
         >
           {{ module }}
         </div>

@@ -4,7 +4,7 @@
 <template>
   <div
     v-if="isVisible"
-    class="fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-lg py-1 min-w-48"
+    class="fixed z-50 bg-base-100 border border-base-100 rounded-lg shadow-lg py-1 min-w-48"
     :style="{ top: position.y + 'px', left: position.x + 'px' }"
     @click.stop
     @contextmenu.prevent.stop

@@ -139,7 +139,7 @@
           </div>
         </div>
         <!-- Tool Limits -->
-        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-base-300">
+        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-base-100">
           <div class="form-control">
             <label class="label py-1">
               <span class="label-text text-xs"><i class="fa-solid fa-toolbox mr-1 text-secondary"></i>Max Tool Calls</span>
@@ -214,7 +214,7 @@
       </div>
 
       <!-- Preview table: scrollable container with fixed max height -->
-      <div v-if="parsedPriceList.length" class="rounded-lg border border-base-300 overflow-hidden">
+      <div v-if="parsedPriceList.length" class="rounded-lg border border-base-100 overflow-hidden">
         <div class="overflow-y-auto max-h-64">
           <table class="table table-xs w-full">
             <thead class="sticky top-0 z-10">
@@ -253,7 +253,7 @@
           </table>
         </div>
         <!-- Entry count footer -->
-        <div class="bg-base-200 px-3 py-1 text-xs text-base-content/50 flex items-center gap-1 border-t border-base-300">
+        <div class="bg-base-200 px-3 py-1 text-xs text-base-content/50 flex items-center gap-1 border-t border-base-100">
           <i class="fa-solid fa-list-ul"></i>
           {{ parsedPriceList.length }} {{ parsedPriceList.length === 1 ? 'entry' : 'entries' }}
           <span v-if="nullWarningCount > 0" class="text-warning ml-2">

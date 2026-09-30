@@ -3,7 +3,7 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
 </script>
 
 <template>
-  <div class="rounded-lg border border-base-300 bg-base-100 overflow-hidden hover:bg-base-200/50 transition-colors">
+  <div class="rounded-lg border border-base-100 bg-base-100 overflow-hidden hover:bg-base-200/50 transition-colors">
     <!-- Card header -->
     <button 
       @click="$emit('toggle')"
@@ -25,7 +25,7 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
     </button>
 
     <!-- Expanded content -->
-    <div v-if="isExpanded && attachments.length > 0" class="px-3 py-2 border-t border-base-300 bg-base-100">
+    <div v-if="isExpanded && attachments.length > 0" class="px-3 py-2 border-t border-base-100 bg-base-100">
       <ChatAttachmentPreview
         :attachments="attachments"
         @remove-attachment="$emit('remove-attachment', $event)"
@@ -33,7 +33,7 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
     </div>
 
     <!-- Empty state -->
-    <div v-if="isExpanded && attachments.length === 0" class="px-3 py-2 border-t border-base-300 bg-base-100 text-center text-xs text-base-content/50">
+    <div v-if="isExpanded && attachments.length === 0" class="px-3 py-2 border-t border-base-100 bg-base-100 text-center text-xs text-base-content/50">
       No attachments
     </div>
   </div>

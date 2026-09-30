@@ -5,12 +5,12 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
 
 <template>
   <div class="h-full relative">
-    <div class="flex flex-col items-center gap-2 p-3 bg-[#1a1a1a] border-r border-white/5 shrink-0 overflow-y-auto overflow-x-hidden h-full">
+    <div class="flex flex-col items-center gap-2 p-3 bg-base-300 border-r border-base-content/5 shrink-0 overflow-y-auto overflow-x-hidden h-full">
       
       <!-- Quick Actions - Always visible and stacked -->
       <div class="flex flex-col items-center gap-2 w-full">
         <button
-          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-base-content/60 hover:bg-white/8 hover: shrink-0"
           title="Home"
           @click="openHome"
         >
@@ -20,7 +20,7 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
         <QuickChatCreator />
 
         <button
-          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-base-content/60 hover:bg-white/8 hover: shrink-0"
           title="Wiki"
           @click="openWiki"
         >
@@ -28,7 +28,7 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
         </button>
 
         <button
-          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-base-content/60 hover:bg-white/8 hover: shrink-0"
           title="Tasks"
           @click="openTasks"
         >
@@ -36,7 +36,7 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
         </button>
 
         <button
-          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-base-content/60 hover:bg-white/8 hover: shrink-0"
           title="Media Library"
           @click="openFileExplorer"
         >
@@ -44,7 +44,7 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
         </button>
 
         <button
-          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-white/60 hover:bg-white/8 hover:text-white shrink-0"
+          class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-lg text-base-content/60 hover:bg-white/8 hover: shrink-0"
           title="More"
           @click="$emit('toggle-team-bar')"
         >
@@ -69,7 +69,7 @@ import QuickChatCreator from '@/components/chat/QuickChatCreator.vue'
           @click="selectTeam(team)"
         >
           <img v-if="team.icon" :src="team.icon" class="w-full h-full object-cover" />
-          <span v-else class="text-white font-bold">{{ team.name?.[0]?.toUpperCase() }}</span>
+          <span v-else class=" font-bold">{{ team.name?.[0]?.toUpperCase() }}</span>
         </button>
 
         <div class="w-8 h-px bg-white/5 my-1"></div>

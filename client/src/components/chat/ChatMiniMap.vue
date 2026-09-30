@@ -3,7 +3,7 @@
 
 <template>
   <div
-    class="relative w-3 h-full flex-shrink-0 flex flex-col bg-base-200/30 border-l border-base-300/50 cursor-pointer select-none overflow-hidden"
+    class="relative w-3 h-full flex-shrink-0 flex flex-col bg-base-200/30 border-l border-base-100/50 cursor-pointer select-none overflow-hidden"
     ref="trackEl"
     @click="onTrackClick"
     title="Mini-map — click to navigate"

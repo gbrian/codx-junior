@@ -27,7 +27,7 @@ compact: {
   </div>
 
   <!-- Expanded (existing) -->
-  <div v-if="!compact" class="rounded-lg border border-base-300 bg-base-100">
+  <div v-if="!compact" class="rounded-lg border border-base-100 bg-base-100">
     <!-- ... existing content ... -->
   </div>
 </div>
@@ -38,6 +38,6 @@ compact: {
 }
 
 .expanded-layout {
-  @apply border border-base-300 rounded-lg p-3;
+  @apply border border-base-100 rounded-lg p-3;
 }
 </style>

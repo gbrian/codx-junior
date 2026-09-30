@@ -8,7 +8,7 @@
       :key="color"
       class="w-6 h-6 rounded-lg border-2 transition-all hover:scale-110"
       :style="{ backgroundColor: color }"
-      :class="modelValue === color ? 'border-white scale-110 ring-2 ring-primary' : 'border-transparent'"
+      :class="modelValue === color ? 'border-base-content scale-110 ring-2 ring-primary' : 'border-transparent'"
       @click="$emit('update:modelValue', color)"
     />
   </div>

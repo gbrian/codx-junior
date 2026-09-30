@@ -6,9 +6,9 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 </script>
 
 <template>
-  <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
+  <div class="grow flex flex-col gap-2 border-2 border-base-100 rounded-md py-1" :key="file.fileFullName">
     <!-- Header Controls -->
-    <div class="px-1 flex gap-2 items-center border-slate-600 w-full">
+    <div class="px-1 flex gap-2 items-center border-base-100 w-full">
       <div class="flex flex-col gap-1 grow"
         :class="file.selected && 'text-warning'"
       >

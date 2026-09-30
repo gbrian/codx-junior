@@ -127,7 +127,7 @@ import Collapsible from '../Collapsible.vue'
         </label>
 
         <!-- Group + sort row -->
-        <div class="w-full border-t border-base-300 mt-1 pt-1 flex flex-wrap gap-2 items-center">
+        <div class="w-full border-t border-base-100 mt-1 pt-1 flex flex-wrap gap-2 items-center">
           <div class="flex items-center gap-1">
             <i class="fa-solid fa-layer-group text-xs opacity-60"></i>
             <span class="text-xs opacity-60">Group by:</span>
@@ -177,7 +177,7 @@ import Collapsible from '../Collapsible.vue'
           <div class="flex items-center gap-2 mb-2 sticky top-0 z-10 py-1 bg-base-200 rounded-xl">
             <div class="badge badge-primary badge-outline"> <i class="fa-solid fa-folder"></i> {{ groupKey }}</div>
             <div class="text-xs opacity-50">{{ group.length }} tasks</div>
-            <div class="grow border-b border-base-300"></div>
+            <div class="grow border-b border-base-100"></div>
 
             <!-- Column actions: new task + edit -->
             <template v-if="groupBy === 'column'">
@@ -264,7 +264,7 @@ import Collapsible from '../Collapsible.vue'
             <!-- Empty drop hint -->
             <div
               v-if="group.length === 0"
-              class="col-span-full flex items-center justify-center h-16 rounded-xl border-2 border-dashed border-base-300 text-base-content/30 text-sm"
+              class="col-span-full flex items-center justify-center h-16 rounded-xl border-2 border-dashed border-base-100 text-base-content/30 text-sm"
             >
               Drop tasks here
             </div>
@@ -275,7 +275,7 @@ import Collapsible from '../Collapsible.vue'
         <div v-if="groupBy === 'column'"
           class="flex items-center justify-center py-4">
           <button
-            class="btn btn-sm btn-ghost gap-2 opacity-50 hover:opacity-100 border border-dashed border-base-300"
+            class="btn btn-sm btn-ghost gap-2 opacity-50 hover:opacity-100 border border-dashed border-base-100"
             @click.stop="$emit('new-column')"
           >
             <i class="fa-solid fa-plus"></i> New Column

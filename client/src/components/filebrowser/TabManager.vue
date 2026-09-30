@@ -5,7 +5,7 @@ import FileViewer from './FileViewer.vue'
 <template>
   <div class="w-full h-full flex flex-col overflow-hidden">
     <!-- Tabs header -->
-    <div class="flex items-center gap-1 px-2 py-1 bg-base-200 border-b border-base-300 flex-shrink-0 overflow-x-auto">
+    <div class="flex items-center gap-1 px-2 py-1 bg-base-200 border-b border-base-100 flex-shrink-0 overflow-x-auto">
       <div
         v-for="tab in tabs"
         :key="tab.id"

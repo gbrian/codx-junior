@@ -11,7 +11,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
 <template>
   <div
-    class="flex h-full w-full bg-[#111111] overflow-hidden"
+    class="flex h-full w-full bg-base-300 overflow-hidden"
     :class="isMobile ? 'flex-col' : 'flex-row'"
   >
     <!-- ── Main area with VerticalSplitter (desktop only) ── -->
@@ -34,7 +34,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         <div class="h-full flex flex-col relative">
           <div class="absolute top-2 right-2 z-10">
             <button
-              class="btn btn-ghost btn-xs btn-circle text-white/50 hover:text-white"
+              class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:"
               title="Close workspace app"
               @click="closeWorkspaceApp"
             >
@@ -70,7 +70,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
           <!-- Greeting -->
           <h1
-            class="text-white tracking-tight relative z-10 text-center px-4 font-semibold"
+            class=" tracking-tight relative z-10 text-center px-4 font-semibold"
             :class="isMobile ? 'text-2xl' : 'text-4xl'"
           >
             What's next,
@@ -112,7 +112,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
               <!-- Project selector injected above textarea -->
               <template #before-textarea>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-white/30 shrink-0">Project:</span>
+                  <span class="text-xs text-base-content/30 shrink-0">Project:</span>
                   <ProjectDetailt
                     :model-value="selectedProject"
                     :options="{ showIcon: true, showFolders: false, showSelector: true }"
@@ -124,19 +124,19 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
             <!-- File list (from IntelliSense selection) -->
             <div v-if="homeMessage.files?.length" class="mt-3 space-y-2">
-              <div class="text-xs text-white/50 uppercase tracking-wider">
+              <div class="text-xs text-base-content/50 uppercase tracking-wider">
                 <i class="fa-solid fa-file text-xs mr-2"></i>Files
               </div>
               <div class="space-y-1.5">
                 <div
                   v-for="(file, idx) in homeMessage.files"
                   :key="file"
-                  class="flex items-center justify-between gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all"
+                  class="flex items-center justify-between gap-2 px-3 py-2 bg-white/5 border border-base-content/10 rounded-lg hover:bg-white/10 transition-all"
                 >
-                  <span class="text-xs text-white/70 truncate">{{ file.split('/').pop() }}</span>
+                  <span class="text-xs text-base-content/70 truncate">{{ file.split('/').pop() }}</span>
                   <button
                     @click.stop="removeHomeFile(idx)"
-                    class="text-white/40 hover:text-white/80 transition-colors"
+                    class="text-base-content/40 hover:text-base-content/80 transition-colors"
                   >
                     <i class="fa-solid fa-xmark text-xs"></i>
                   </button>

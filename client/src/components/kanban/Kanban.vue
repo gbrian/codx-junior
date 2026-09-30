@@ -180,7 +180,7 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
     <transition name="slide-down-search">
       <div
         v-if="isMobile && searchVisible"
-        class="absolute top-12 left-0 right-0 z-20 px-3 py-2 bg-base-200/95 backdrop-blur border-b border-base-300"
+        class="absolute top-12 left-0 right-0 z-20 px-3 py-2 bg-base-200/95 backdrop-blur border-b border-base-100"
       >
         <div class="input input-sm input-bordered flex items-center gap-2 w-full">
           <i class="fa-solid fa-magnifying-glass opacity-50 text-sm"></i>

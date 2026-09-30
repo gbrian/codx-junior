@@ -42,7 +42,7 @@ import AIProviderSettings from './AIProviderSettings.vue'
     </div>
 
     <!-- Table -->
-    <div class="overflow-x-auto rounded-xl border border-base-300 bg-base-100">
+    <div class="overflow-x-auto rounded-xl border border-base-100 bg-base-100">
       <table class="table table-sm w-full">
         <thead class="bg-base-200">
           <tr>

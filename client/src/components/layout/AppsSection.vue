@@ -5,7 +5,7 @@ import ViewModeToggle from './ViewModeToggle.vue';
 </script>
 
 <template>
-  <div class="px-2 py-3 shrink-0 border-b border-white/5">
+  <div class="px-2 py-3 shrink-0 border-b border-base-content/5">
     <div class="flex gap-2 pb-1">  
       
       <!-- Project selector -->
@@ -15,12 +15,13 @@ import ViewModeToggle from './ViewModeToggle.vue';
         :options="{ folders: true, showIcon: true }"
         @select="$storex.projects.activeProjectChanged($event)"
       />
-      <ViewModeToggle />
+      <ViewModeToggle v-if="!isCollapsed"
+       />
           
     </div>
     <button
       v-if="!isCollapsed"
-      class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-white/60 hover:text-white/80 transition-colors"
+      class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-base-content/60 hover:text-base-content/80 transition-colors"
       @click="primaryNavExpanded = !primaryNavExpanded"
       title="Toggle Primary Navigation"
     >

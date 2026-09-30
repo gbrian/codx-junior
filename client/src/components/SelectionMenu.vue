@@ -4,7 +4,7 @@ import { API } from '@/api/api'
 
 <template>
   <div 
-    class="selection-menu fixed bg-base-100 rounded-lg shadow-lg border border-base-300 z-50 py-2 min-w-48"
+    class="selection-menu fixed bg-base-100 rounded-lg shadow-lg border border-base-100 z-50 py-2 min-w-48"
     :style="{ top: menuPosition.y + 'px', left: menuPosition.x + 'px' }"
     @mousedown.stop
   >

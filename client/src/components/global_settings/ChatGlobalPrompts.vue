@@ -5,7 +5,7 @@ import CodeViewer from '../CodeViewer.vue'
 <template>
   <div class="w-full h-full flex flex-col gap-6">
     <!-- Chat Global Instructions Section -->
-    <div class="card bg-base-100 border border-base-300">
+    <div class="card bg-base-100 border border-base-100">
       <div class="card-body">
         <h3 class="card-title text-lg flex items-center gap-2">
           <i class="fa-solid fa-comments text-primary"></i>
@@ -32,7 +32,7 @@ import CodeViewer from '../CodeViewer.vue'
             </span>
           </label>
           
-          <div class="border border-base-300 rounded-lg overflow-hidden h-80">
+          <div class="border border-base-100 rounded-lg overflow-hidden h-80">
             <CodeViewer
               v-model="promptContent"
               :code="promptContent"

@@ -7,7 +7,7 @@ import Modal from './Modal.vue'
     <!-- Trigger Button showing selected project -->
     <button
       @click="isModalOpen = true"
-      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/15 rounded-lg text-white/70 hover:text-white text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
+      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-base-content/10 hover:border-base-content/15 rounded-lg text-base-content/70 hover: text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full"
     >
       <img 
         v-if="project?.project_icon" 
@@ -23,18 +23,18 @@ import Modal from './Modal.vue'
     <Modal v-if="isModalOpen" :close="true" @close="onModalClose">
       <template #header>
         <div class="flex items-center justify-between w-full gap-4">
-          <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+          <h2 class="text-lg font-semibold  flex items-center gap-2">
             <i class="fa-solid fa-cube"></i>
             Projects
           </h2>
           <div class="flex-1 max-w-xs">
             <div class="relative">
-              <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm"></i>
+              <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30 text-sm"></i>
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search projects..."
-                class="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all duration-200"
+                class="w-full bg-white/5 border border-base-content/10 rounded-lg pl-9 pr-3 py-2 text-xs  placeholder:text-base-content/30 outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all duration-200"
               />
             </div>
           </div>
@@ -44,7 +44,7 @@ import Modal from './Modal.vue'
       <!-- Content -->
       <div class="flex flex-col gap-4">
         <!-- Section Header -->
-        <h3 class="text-xs font-semibold text-white/60 uppercase tracking-wide">
+        <h3 class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
           {{ sectionLabel }}
         </h3>
 
@@ -54,7 +54,7 @@ import Modal from './Modal.vue'
             v-for="project in displayedProjects"
             :key="project.project_id"
             @click="onProjectSelected(project)"
-            class="group flex items-start gap-3 p-3 bg-[#1a1a1a] border border-white/5 rounded-lg hover:border-primary/30 hover:bg-[#1f1f1f] transition-all duration-200 text-left"
+            class="group flex items-start gap-3 p-3 bg-base-300 border border-base-content/5 rounded-lg hover:border-primary/30 hover:bg-[#1f1f1f] transition-all duration-200 text-left"
           >
             <!-- Icon -->
             <img
@@ -67,11 +67,11 @@ import Modal from './Modal.vue'
 
             <!-- Info -->
             <div class="flex-1 min-w-0">
-              <div class="font-medium text-white transition-colors truncate">
+              <div class="font-medium  transition-colors truncate">
                 {{ project.project_name }}
               </div>
-              <div class="text-xs text-white/40 truncate">{{ project.abs_project_path }}</div>
-              <div class="flex gap-2 mt-2 text-xs text-white/50">
+              <div class="text-xs text-base-content/40 truncate">{{ project.abs_project_path }}</div>
+              <div class="flex gap-2 mt-2 text-xs text-base-content/50">
                 <span v-if="project.metrics?.file_count" class="flex items-center gap-1">
                   <i class="fa-solid fa-file-lines text-primary/60"></i>
                   {{ project.metrics.file_count }}
@@ -80,15 +80,15 @@ import Modal from './Modal.vue'
                   <i class="fa-brands fa-trello"></i>
                   {{ project.metrics.number_of_chats }}
                 </span>
-                <span class="ml-auto text-white/30">{{ formatLastUpdate(project) }}</span>
+                <span class="ml-auto text-base-content/30">{{ formatLastUpdate(project) }}</span>
               </div>
             </div>
           </button>
 
           <!-- Empty state -->
           <div v-if="displayedProjects.length === 0" class="py-8 text-center">
-            <i class="fa-solid fa-inbox text-white/20 text-2xl mb-2 block"></i>
-            <p class="text-xs text-white/40">{{ emptyStateMessage }}</p>
+            <i class="fa-solid fa-inbox text-base-content/20 text-2xl mb-2 block"></i>
+            <p class="text-xs text-base-content/40">{{ emptyStateMessage }}</p>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ import Modal from './Modal.vue'
         <button
           v-if="showBackButton"
           @click="showAllProjects = false"
-          class="px-3 py-2 w-full text-xs font-medium text-white/50 hover:text-white/80 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all duration-200"
+          class="px-3 py-2 w-full text-xs font-medium text-base-content/50 hover:text-base-content/80 bg-white/5 hover:bg-white/10 border border-base-content/5 rounded-lg transition-all duration-200"
         >
           Back to Recent
         </button>

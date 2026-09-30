@@ -28,7 +28,7 @@ import ProjectIcon from '../ProjectIcon.vue'
       </div>
 
       <!-- Mode Info -->
-      <div class="rounded px-3 py-2 border border-base-300">
+      <div class="rounded px-3 py-2 border border-base-100">
         <div class="text-xs text-base-content/70">
           <span class="font-semibold">Mode:</span>
           <span class="capitalize ml-1">{{ chat.mode }}</span>

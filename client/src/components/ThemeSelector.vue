@@ -12,7 +12,7 @@
       </svg>
     </div>
     <div tabindex="0"
-      class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-white/5 shadow-2xl outline-1 outline-black/5">
+      class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-base-content/5 shadow-2xl outline-1 outline-black/5">
       <ul class="menu w-56">
         <li class="menu-title text-xs">Theme</li> <!--[--> 
         <li><button class="gap-3 px-2" data-set-theme="light" @click="setTheme('light')" data-act-class="[&amp;_svg]:visible">

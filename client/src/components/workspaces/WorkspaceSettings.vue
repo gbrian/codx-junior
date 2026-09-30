@@ -8,7 +8,7 @@ import WorkspaceLogs from './WorkspaceLogs.vue'
   <div class="w-full flex flex-col h-full max-h-screen">
 
     <!-- Top Bar -->
-    <div class="navbar bg-base-200 border-b border-base-300 min-h-0 px-4 py-2 shrink-0">
+    <div class="navbar bg-base-200 border-b border-base-100 min-h-0 px-4 py-2 shrink-0">
       <div class="flex-1 flex items-center gap-3">
         <button class="btn btn-ghost btn-sm btn-circle" @click="$emit('close')" title="Back to workspaces">
           <i class="fa-solid fa-arrow-left"></i>

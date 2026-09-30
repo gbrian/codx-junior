@@ -3,7 +3,7 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="rounded-lg border border-base-300 bg-base-100 overflow-hidden hover:bg-base-200/50 transition-colors">
+  <div class="rounded-lg border border-base-100 bg-base-100 overflow-hidden hover:bg-base-200/50 transition-colors">
     <!-- Card header (always visible) -->
     <button 
       @click="$emit('toggle')"
@@ -27,7 +27,7 @@ import moment from 'moment'
     </button>
 
     <!-- Expanded content (always visible by default) -->
-    <div v-if="isExpanded" class="px-3 py-2 border-t border-base-300 bg-base-100 space-y-3">
+    <div v-if="isExpanded" class="px-3 py-2 border-t border-base-100 bg-base-100 space-y-3">
       <!-- Run ID -->
       <div v-if="event.data.run_id" class="bg-base-200 rounded p-2">
         <p class="text-[10px] text-base-content/60 mb-1">
@@ -53,7 +53,7 @@ import moment from 'moment'
       </div>
 
       <!-- Analytics -->
-      <div v-if="event.data.analytics && Object.keys(event.data.analytics).length > 0" class="border-t border-base-300 pt-2">
+      <div v-if="event.data.analytics && Object.keys(event.data.analytics).length > 0" class="border-t border-base-100 pt-2">
         <p class="text-xs font-semibold mb-2 text-base-content/70">
           <i class="fa-solid fa-chart-pie"></i> Analytics
         </p>

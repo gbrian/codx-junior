@@ -16,7 +16,7 @@ import ProjectIconSquare from './ProjectIconSquare.vue';
       </li>
       <li>
         <a>
-          <div class="w-12 h-12 rounded-md flex flex-col justify-center items-center border border-white/80">
+          <div class="w-12 h-12 rounded-md flex flex-col justify-center items-center border border-base-content/80">
             <div class="m-auto text-center m-auto click" @click="showSearch = !showSearch">
               <i class="fa-solid fa-magnifying-glass"></i>
             </div>

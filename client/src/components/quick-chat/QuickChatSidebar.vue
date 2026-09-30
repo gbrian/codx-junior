@@ -8,14 +8,14 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
   <aside
     v-if="!isMobile"
     ref="sidebarEl"
-    class="flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 transition-all duration-200"
+    class="flex flex-col h-full shrink-0 bg-base-300 border-r border-base-content/5 transition-all duration-200"
     :class="isCollapsed ? 'w-16' : 'w-64'"
   >
     <!-- Primary Nav -->
     <nav class="px-2 pt-3 flex flex-col gap-0.5 shrink-0">
       <!-- Collapse toggle button -->
       <button
-        class="flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/60 hover:bg-white/8 hover:text-white transition-colors w-full"
+        class="flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl text-sm text-base-content/60 hover:bg-white/8 hover: transition-colors w-full"
         :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         @click="toggleCollapse"
       >
@@ -25,7 +25,7 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
 
       <!-- New chat button -->
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-base-content/80 hover:bg-white/8 hover: transition-colors text-left w-full"
         :class="isCollapsed ? 'justify-center' : ''"
         :title="isCollapsed ? 'New chat' : ''"
         @click="$emit('new-chat')"
@@ -36,7 +36,7 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
     </nav>
 
     <!-- Workspace App Selector -->
-    <div v-if="true || workspaceApps.length > 0" class="shrink-0 border-t border-white/5 py-2">
+    <div v-if="true || workspaceApps.length > 0" class="shrink-0 border-t border-base-content/5 py-2">
       <WorkspaceAppSelector
         :is-collapsed="isCollapsed"
         :selected-app="selectedWorkspaceApp"
@@ -56,7 +56,7 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
     </div>
 
     <!-- Footer -->
-    <div class="shrink-0 border-t border-white/5 px-2 py-3 flex flex-col gap-0.5">
+    <div class="shrink-0 border-t border-base-content/5 px-2 py-3 flex flex-col gap-0.5">
       <div
         class="flex items-center gap-3 px-3 py-2.5 rounded-xl"
         :class="isCollapsed ? 'justify-center' : ''"
@@ -66,11 +66,11 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
         </div>
         <template v-if="!isCollapsed">
           <div class="flex-1 min-w-0">
-            <div class="text-sm text-white font-medium truncate">{{ userName }}</div>
-            <div class="text-xs text-white/30">Quick Chat</div>
+            <div class="text-sm  font-medium truncate">{{ userName }}</div>
+            <div class="text-xs text-base-content/30">Quick Chat</div>
           </div>
           <button
-            class="p-1.5 text-white/30 hover:text-white/80 transition-colors"
+            class="p-1.5 text-base-content/30 hover:text-base-content/80 transition-colors"
             title="Settings"
             @click="$emit('settings')"
           >
@@ -82,7 +82,7 @@ import WorkspaceAppSelector from './WorkspaceAppSelector.vue'
       <!-- Settings button (visible when collapsed) -->
       <button
         v-if="isCollapsed"
-        class="flex items-center justify-center px-3 py-2.5 rounded-xl text-white/30 hover:text-white/80 transition-colors"
+        class="flex items-center justify-center px-3 py-2.5 rounded-xl text-base-content/30 hover:text-base-content/80 transition-colors"
         title="Settings"
         @click="$emit('settings')"
       >

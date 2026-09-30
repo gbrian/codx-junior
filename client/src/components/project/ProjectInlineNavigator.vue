@@ -6,7 +6,7 @@
       <i class="fa-solid fa-caret-right"></i>
     </div>
     <div class="carousel carousel-center bg-neutral max-w-full space-x-2">
-      <div class="carousel-item flex gap-2 items-center border border-slate-600 click rounded-md px-1"
+      <div class="carousel-item flex gap-2 items-center border border-base-100 click rounded-md px-1"
         @click="$projects.activeProjectChanged($projects.parentProject)"
         v-if="$projects.parentProject"
       >
@@ -14,7 +14,7 @@
         {{  $projects.parentProject.project_name }}
       </div>
       
-      <div class="carousel-item flex gap-2 items-center border border-slate-600 click rounded-md px-1"
+      <div class="carousel-item flex gap-2 items-center border border-base-100 click rounded-md px-1"
         v-for="project in $projects.childProjects" :key="project.project_id"
         @click="$projects.activeProjectChanged(project)"
       >

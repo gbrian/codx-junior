@@ -3,7 +3,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 bg-base-200/50 rounded-lg p-3 border border-base-300">
+  <div class="flex flex-col gap-2 bg-base-200/50 rounded-lg p-3 border border-base-100">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -27,7 +27,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         @click="openPreview(idx)"
       >
         <!-- Thumbnail Container -->
-        <div class="w-12 h-12 rounded-lg overflow-hidden border border-base-300 bg-base-100 flex items-center justify-center hover:border-primary transition-colors">
+        <div class="w-12 h-12 rounded-lg overflow-hidden border border-base-100 bg-base-100 flex items-center justify-center hover:border-primary transition-colors">
           <!-- Image Thumbnail -->
           <img
             v-if="attachment.isImage()"
@@ -44,14 +44,14 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         </div>
 
         <!-- Tooltip -->
-        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-base-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-base-900  text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
           {{ attachment.file_name }}
         </div>
       </div>
     </div>
 
     <!-- Summary -->
-    <div v-if="fileObjects.length > 0" class="text-xs text-base-content/60 border-t border-base-300/50 pt-2 mt-1">
+    <div v-if="fileObjects.length > 0" class="text-xs text-base-content/60 border-t border-base-100/50 pt-2 mt-1">
       Total: <span class="font-semibold text-base-content">{{ getTotalSize() }}</span>
     </div>
   </div>

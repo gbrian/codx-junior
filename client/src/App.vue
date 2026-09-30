@@ -21,7 +21,7 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
       <!-- Mobile Sidebar Overlay (Mobile only, slides from left) -->
       <div
         v-if="isMobile && showMobileSidebarOverlay"
-        class="fixed inset-0 z-100 bg-black/50 transition-opacity duration-200 md:hidden"
+        class="fixed inset-0 z-100 transition-opacity duration-200 md:hidden"
         @click="showMobileSidebarOverlay = false"
       ></div>
 

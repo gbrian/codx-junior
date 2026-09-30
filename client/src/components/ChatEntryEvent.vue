@@ -27,7 +27,7 @@ import moment from 'moment'
     </div>
 
     <!-- Expanded: full card layout -->
-    <div v-if="!compact" class="rounded-lg border border-base-300 bg-base-100 p-3 space-y-3">
+    <div v-if="!compact" class="rounded-lg border border-base-100 bg-base-100 p-3 space-y-3">
       <!-- Header -->
       <div class="flex items-start justify-between gap-2">
         <div class="flex items-start gap-2 flex-1">
@@ -71,7 +71,7 @@ import moment from 'moment'
       </div>
 
       <!-- Analytics (if available) -->
-      <div v-if="lifecycleEvent.analytics && Object.keys(lifecycleEvent.analytics).length > 0" class="border-t border-base-300 pt-2">
+      <div v-if="lifecycleEvent.analytics && Object.keys(lifecycleEvent.analytics).length > 0" class="border-t border-base-100 pt-2">
         <p class="text-xs font-semibold mb-2 text-base-content/70">
           <i class="fa-solid fa-chart-pie"></i> Analytics
         </p>

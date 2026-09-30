@@ -13,7 +13,7 @@
       <span class="capitalize">{{ $chats.statusLabel(status) }}</span>
       <i class="fa-solid fa-chevron-down text-xs opacity-60"></i>
     </button>
-    <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg border border-base-300 z-150 w-44 p-1 mt-1">
+    <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg border border-base-100 z-150 w-44 p-1 mt-1">
       <li v-for="option in $chats.statusList" :key="option.value">
         <a
           @click="$emit('status-changed', option.value); closeDropdown()"

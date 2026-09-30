@@ -90,7 +90,7 @@ import CreateFileDialog from './CreateFileDialog.vue'
 
     <!-- Directory tree listing -->
     <div 
-      class="grow overflow-auto border border-base-300 rounded-lg"
+      class="grow overflow-auto border border-base-100 rounded-lg"
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
@@ -173,7 +173,7 @@ import CreateFileDialog from './CreateFileDialog.vue'
     </div>
 
     <!-- Pagination controls (search results only) -->
-    <div class="flex items-center justify-between px-2 py-2 border-t border-base-300" v-if="isSearching && totalFiles > pageSize">
+    <div class="flex items-center justify-between px-2 py-2 border-t border-base-100" v-if="isSearching && totalFiles > pageSize">
       <span class="text-xs opacity-70">
         Showing {{ (currentPage) * pageSize + 1 }}-{{ Math.min((currentPage + 1) * pageSize, totalFiles) }} of {{ totalFiles }}
       </span>

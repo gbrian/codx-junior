@@ -210,7 +210,7 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
             </div>
 
             <!-- View mode: Document preview -->
-            <div class="flex-1 min-h-0 overflow-auto rounded-md bg-base-100 border border-base-300 p-3" v-if="contentMode === 'view'">
+            <div class="flex-1 min-h-0 overflow-auto rounded-md bg-base-100 border border-base-100 p-3" v-if="contentMode === 'view'">
               <Document
                 :content="editProfile.content"
                 :files="null"
@@ -336,7 +336,7 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
               <div
                 v-for="tool in filteredToolsList"
                 :key="tool.tool_json.function.name"
-                class="h-40 card bg-base-100 border border-base-300 hover:border-base-content/20 transition-colors"
+                class="h-40 card bg-base-100 border border-base-100 hover:border-base-content/20 transition-colors"
               >
                 <div class="card-body p-3">
                   <!-- Tool selection checkbox and name -->

@@ -4,7 +4,7 @@ import ChatPreviewVue from '../wall/ChatPreview.vue'
 </script>
 <template>
   <div class="flex flex-col h-full">
-    <div class="flex items-center gap-2 px-3 py-2 border-b border-base-300">
+    <div class="flex items-center gap-2 px-3 py-2 border-b border-base-100">
       <i class="fa-solid fa-clock-rotate-left text-base-content/60"></i>
       <span class="font-semibold text-sm">History</span>
       <span class="badge badge-sm badge-neutral ml-auto">{{ allChats?.length || 0 }}</span>

@@ -67,7 +67,7 @@
     </div>
 
     <!-- Action Bar -->
-    <div class="flex gap-2 flex-wrap pt-3 border-t border-base-300 mt-3" v-if="selectedFileCount">
+    <div class="flex gap-2 flex-wrap pt-3 border-t border-base-100 mt-3" v-if="selectedFileCount">
       <span class="text-xs text-base-content/60 flex items-center">
         <i class="fa-solid fa-check-circle mr-1 text-warning"></i>
         {{ selectedFileCount }} selected

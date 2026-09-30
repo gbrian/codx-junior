@@ -1,5 +1,5 @@
 <template>
-  <div class="border border-base-300 rounded-lg p-6 space-y-4">
+  <div class="border border-base-100 rounded-lg p-6 space-y-4">
     <div class="flex justify-between items-start gap-4">
       <div class="flex-1 space-y-4">
         <div>
@@ -34,7 +34,7 @@
         <i class="fa-solid fa-trash"></i>
       </button>
     </div>
-    <div class="flex items-center gap-3 pt-2 border-t border-base-300">
+    <div class="flex items-center gap-3 pt-2 border-t border-base-100">
       <input v-model="server.active" type="checkbox" class="toggle" />
       <label class="label-text">Active</label>
     </div>

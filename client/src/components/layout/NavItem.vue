@@ -3,9 +3,9 @@
 
 <template>
   <button
-    class="click flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/60 hover:bg-white/8 hover:text-white transition-colors w-full"
+    class="click flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-base-content/60 hover:bg-white/8 hover: transition-colors w-full"
     :class="[
-      isPrimary ? 'bg-white/10 text-white' : '',
+      isPrimary ? 'bg-white/10 ' : '',
       isCollapsed ? 'justify-center' : 'justify-start'
     ]"
     :title="isCollapsed ? label : ''"
@@ -20,7 +20,7 @@
       </span>
     </div>
 
-    <i v-if="expandable && !isCollapsed" :class="expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="ml-auto text-xs text-white/40"></i>
+    <i v-if="expandable && !isCollapsed" :class="expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="ml-auto text-xs text-base-content/40"></i>
   </button>
 </template>
 

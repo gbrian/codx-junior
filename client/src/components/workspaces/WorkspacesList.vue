@@ -25,7 +25,7 @@ import WorkspaceSettings from './WorkspaceSettings.vue'
       <div class="navbar bg-base-100 border-b border-base-200 sticky top-0 z-40">
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-white">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center ">
               <i class="fa-solid fa-cubes text-lg"></i>
             </div>
             <div>

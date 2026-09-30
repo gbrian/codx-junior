@@ -12,7 +12,7 @@ import MenuDivider from '@/components/main-menu/MenuDivider.vue'
 <template>
   <MenubarMenu>
     <MenubarTrigger
-      class="click py-1 px-2 text-sm select-none leading-none border border-white/20 rounded flex items-center gap-2 hover:bg-base-200 transition-all tooltip"
+      class="click py-1 px-2 text-sm select-none leading-none border border-base-content/20 rounded flex items-center gap-2 hover:bg-base-200 transition-all tooltip"
       data-tip="Switch role view"
     >
       <i :class="activeRole.icon" :style="{ color: activeRole.color }"></i>
@@ -21,7 +21,7 @@ import MenuDivider from '@/components/main-menu/MenuDivider.vue'
     </MenubarTrigger>
     <MenubarPortal>
       <MenubarContent
-        class="py-2 min-w-56 outline-none bg-base-100 rounded-lg px-2 border border-white/30 shadow-lg z-50"
+        class="py-2 min-w-56 outline-none bg-base-100 rounded-lg px-2 border border-base-content/30 shadow-lg z-50"
         :side-offset="5"
       >
         <div class="px-2 py-1 text-xs font-bold text-base-content-ERROR-40 uppercase tracking-wider mb-1">
@@ -35,7 +35,7 @@ import MenuDivider from '@/components/main-menu/MenuDivider.vue'
           @click="selectRole(role)"
         >
           <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm flex-shrink-0"
+            class="w-8 h-8 rounded-lg flex items-center justify-center  text-sm flex-shrink-0"
             :style="{ backgroundColor: role.color }">
             <i :class="role.icon"></i>
           </div>

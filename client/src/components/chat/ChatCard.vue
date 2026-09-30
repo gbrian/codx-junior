@@ -7,7 +7,7 @@ import ProjectIcon from '../ProjectIcon.vue'
 <template>
   <div
     @click="$emit('select')"
-    class="card card-compact bg-base-100 border border-base-300 hover:border-primary/50 cursor-pointer transition-all duration-200 hover:shadow-md"
+    class="card card-compact bg-base-100 border border-base-100 hover:border-primary/50 cursor-pointer transition-all duration-200 hover:shadow-md"
     :class="isActive ? 'border-primary bg-primary/5' : 'hover:bg-base-200/50'"
   >
     <div class="card-body p-3 gap-2">

@@ -139,7 +139,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
               <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
                 <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
               </button>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-300">
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
                 <li><a @click.stop="$emit('thread', message)">
                   <i class="fa-solid fa-comment-dots"></i> Thread
                 </a></li>
@@ -189,7 +189,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
                  transition-all duration-150 translate-y-0
                  flex items-center gap-0.5
                  bg-base-100/95 backdrop-blur-sm
-                 border border-base-300 rounded-lg shadow-md px-1 py-0.5"
+                 border border-base-100 rounded-lg shadow-md px-1 py-0.5"
         >
           <!-- Stop generation -->
           <button
@@ -401,7 +401,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <div
               v-for="patch in code_patches"
               :key="patch.file_path"
-              class="border border-base-300 rounded-lg p-3 bg-base-200/50"
+              class="border border-base-100 rounded-lg p-3 bg-base-200/50"
             >
               <div class="text-xs font-bold text-primary mb-1" :title="patch.file_path">
                 {{ patch.file_path.replace($project.abs_project_path, '') }}
@@ -468,7 +468,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
               >
                 <div class="flex flex-col gap-1">
                   <div
-                    class="bg-cover bg-center border border-base-300 rounded-lg w-20 h-20 hover:border-primary transition-colors"
+                    class="bg-cover bg-center border border-base-100 rounded-lg w-20 h-20 hover:border-primary transition-colors"
                     :style="`background-image: url(${image.src})`"
                   ></div>
                   <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
@@ -480,7 +480,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           <!-- Linked files -->
           <div
             v-if="displayMessage.files?.length && !showPRView && !showFileView && !showAttachments"
-            class="mt-3 pt-2 border-t border-base-300/50"
+            class="mt-3 pt-2 border-t border-base-100/50"
           >
             <p class="text-[11px] text-base-content/40 mb-1.5">
               <i class="fa-solid fa-paperclip mr-1"></i>Linked files

@@ -4,7 +4,7 @@ import ChatIcon from './chat/ChatIcon.vue'
 
 <template>
   <!-- Full card version (default) -->
-  <div v-if="!mini" class="relative group card w-full overflow-hidden border border-base-300 bg-base-100 shadow-md rounded-xl flex flex-col" style="min-height: 320px;">
+  <div v-if="!mini" class="relative group card w-full overflow-hidden border border-base-100 bg-base-100 shadow-md rounded-xl flex flex-col" style="min-height: 320px;">
     <!-- Header strip with category color -->
     <div class="h-2 w-full rounded-t-xl flex-shrink-0"
       :class="{
@@ -96,7 +96,7 @@ import ChatIcon from './chat/ChatIcon.vue'
   </div>
 
   <!-- Mini card version for profile selector -->
-  <div v-else class="card w-full border border-base-300 bg-base-100 shadow-sm rounded-lg p-3 flex flex-row items-center gap-3 hover:shadow-md transition-shadow">
+  <div v-else class="card w-full border border-base-100 bg-base-100 shadow-sm rounded-lg p-3 flex flex-row items-center gap-3 hover:shadow-md transition-shadow">
     <!-- Header strip indicator -->
     <div class="h-8 w-1 rounded-full flex-shrink-0"
       :class="{

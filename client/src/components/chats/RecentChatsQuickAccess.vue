@@ -52,7 +52,7 @@ import ChatCard from '../chat/ChatCard.vue'
           </div>
 
           <!-- Unread badge (if available) -->
-          <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-base-100">
+          <div v-if="chat.unread_count > 0" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error  text-[9px] font-bold flex items-center justify-center border border-base-100">
             {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
           </div>
 
@@ -73,7 +73,7 @@ import ChatCard from '../chat/ChatCard.vue'
   <!-- Full mode - shows detailed chat cards with scrollable list -->
   <div v-else class="flex flex-col w-full h-full gap-0 overflow-hidden">
     <!-- Always visible header with controls -->
-    <div class="flex-shrink-0 border-b border-base-300">
+    <div class="flex-shrink-0 border-b border-base-100">
       <!-- Title and filter/search buttons row -->
       <div class="flex items-center justify-between px-2 py-2 gap-2">
         <div class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase flex-1">
@@ -95,7 +95,7 @@ import ChatCard from '../chat/ChatCard.vue'
       </div>
 
       <!-- Search input (visible only when searching) -->
-      <div v-if="isSearching" class="px-2 py-2 border-t border-base-300">
+      <div v-if="isSearching" class="px-2 py-2 border-t border-base-100">
         <!-- Chat search input with userId -->
         <ChatSearch
           :userId="currentUser?.id"
@@ -142,7 +142,7 @@ import ChatCard from '../chat/ChatCard.vue'
         </div>
 
         <!-- Pagination info -->
-        <div v-if="searchPerformed && searchData" class="sticky bottom-0 text-xs text-base-content/50 text-center py-2 bg-base-100 border-t border-base-300">
+        <div v-if="searchPerformed && searchData" class="sticky bottom-0 text-xs text-base-content/50 text-center py-2 bg-base-100 border-t border-base-100">
           {{ searchResults.length || 0 }} / {{ searchData.total || 0 }} results
         </div>
       </template>

@@ -29,6 +29,8 @@ import VibeCodingView from '../views/VibeCodingView.vue'
 import WorkspacesManager from '../components/workspaces/WorkspacesManager.vue'
 import EmptyStateWelcome from '../components/desktop/EmptyStateWelcome.vue'
 import Tab from '../components/desktop/Tab.vue'
+import KanbanBoardView from '../components/kanban/board/KanbanBoardView.vue'
+
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
@@ -43,7 +45,7 @@ export const APP_COMPONENTS_MAP = {
   'wiki': WikiViewVue,
   'docs': DocsViewVue,
   'global-settings': GlobalSettingsVue,
-  'tasks': KanbanContainerVue,
+  'tasks': KanbanBoardView,
   'metrics': MetricsViewer,
   'account': AccountSettings,
   'file-explorer': FileExplorerPanel,

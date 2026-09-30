@@ -351,7 +351,7 @@
               </div>
 
               <!-- Expanded Details -->
-              <div v-if="expandedRecord === idx" class="mt-3 space-y-3 border-t border-base-300 pt-3">
+              <div v-if="expandedRecord === idx" class="mt-3 space-y-3 border-t border-base-100 pt-3">
                 <!-- Archived Message Details -->
                 <template v-if="isArchivedMessage(record)">
                   <!-- Response Preview -->
@@ -398,7 +398,7 @@
                   <div class="space-y-1">
                     <label class="text-xs font-bold text-base-content/70">Request Messages: {{ record.request_messages?.length }}</label>
                     <div class="bg-base-100 p-2 rounded text-xs max-h-24 overflow-y-auto">
-                      <div v-for="(msg, mIdx) in record.request_messages?.slice(0, 5)" :key="mIdx" class="pb-1 border-b border-base-300 last:border-0">
+                      <div v-for="(msg, mIdx) in record.request_messages?.slice(0, 5)" :key="mIdx" class="pb-1 border-b border-base-100 last:border-0">
                         <strong class="text-base-content/70">{{ msg.role }}:</strong>
                         <div class="text-base-content/60 truncate">
                           {{ typeof msg.content === 'string' ? msg.content.slice(0, 60) : '[non-text content]' }}
@@ -552,7 +552,7 @@
               <div v-if="!logs.raw_log_records || logs.raw_log_records.length === 0" class="text-center text-base-content/40 py-4">
                 No forensic records available
               </div>
-              <details v-for="(record, idx) in logs.raw_log_records" :key="idx" class="collapse bg-base-100 border border-base-300">
+              <details v-for="(record, idx) in logs.raw_log_records" :key="idx" class="collapse bg-base-100 border border-base-100">
                 <summary class="collapse-title p-3 cursor-pointer flex items-center justify-between">
                   <span class="flex items-center gap-2">
                     <i v-if="isArchivedMessage(record)" class="fa-solid fa-message text-primary text-xs"></i>

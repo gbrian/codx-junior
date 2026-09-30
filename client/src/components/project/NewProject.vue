@@ -40,7 +40,7 @@
           v-for="provider in gitProviders"
           :key="provider.label"
           @click="setGitPrefix(provider.prefix)"
-          class="btn btn-xs btn-ghost border border-base-300 gap-1"
+          class="btn btn-xs btn-ghost border border-base-100 gap-1"
         >
           <i :class="provider.icon"></i> {{ provider.label }}
         </button>
@@ -83,7 +83,7 @@
             class="group flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border-2 transition-all w-28 h-28 justify-center"
             :class="formData.selectedTemplate === template.id
               ? 'border-primary bg-primary/10 shadow shadow-primary/20'
-              : 'border-base-300 hover:border-base-content/30 hover:bg-base-200'"
+              : 'border-base-100 hover:border-base-content/30 hover:bg-base-200'"
           >
             <span class="text-3xl group-hover:scale-110 transition-transform">{{ template.icon }}</span>
             <span class="font-bold text-xs text-center leading-tight">{{ template.name }}</span>
@@ -94,7 +94,7 @@
     </div>
 
     <!-- Advanced section (collapsible) -->
-    <div class="collapse collapse-arrow border border-base-300 rounded-xl">
+    <div class="collapse collapse-arrow border border-base-100 rounded-xl">
       <input type="checkbox" />
       <div class="collapse-title text-sm font-semibold flex items-center gap-2 py-2 min-h-0">
         <i class="fa-solid fa-sliders text-warning"></i> Advanced settings

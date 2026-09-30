@@ -30,12 +30,12 @@ import ProjectCard from './ProjectCard.vue'
     </div>
 
     <!-- Projects List (scrollable) -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden border-t border-base-300">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden border-t border-base-100">
       <!-- List Items -->
       <div v-if="sortedFilteredProjects.length > 0" class="divide-y divide-base-300">
         <!-- Child Projects Section (if any) -->
         <div v-if="childProjectsToShow.length > 0">
-          <div class="sticky top-0 bg-base-100/95 backdrop-blur-sm px-4 py-2 border-b border-base-300 flex items-center gap-2">
+          <div class="sticky top-0 bg-base-100/95 backdrop-blur-sm px-4 py-2 border-b border-base-100 flex items-center gap-2">
             <i class="fa-solid fa-sitemap text-primary text-xs"></i>
             <span class="text-xs font-semibold text-base-content/70">Child Projects</span>
             <span class="badge badge-xs badge-primary/50">{{ childProjectsToShow.length }}</span>
@@ -53,7 +53,7 @@ import ProjectCard from './ProjectCard.vue'
 
         <!-- Other Projects Section (if child projects exist) -->
         <div v-if="childProjectsToShow.length > 0 && otherProjectsToShow.length > 0">
-          <div class="sticky top-0 bg-base-100/95 backdrop-blur-sm px-4 py-2 border-b border-base-300 flex items-center gap-2">
+          <div class="sticky top-0 bg-base-100/95 backdrop-blur-sm px-4 py-2 border-b border-base-100 flex items-center gap-2">
             <i class="fa-solid fa-folder text-base-content/50 text-xs"></i>
             <span class="text-xs font-semibold text-base-content/70">Other Projects</span>
             <span class="badge badge-xs badge-ghost">{{ otherProjectsToShow.length }}</span>
@@ -94,7 +94,7 @@ import ProjectCard from './ProjectCard.vue'
     </div>
 
     <!-- Footer Actions -->
-    <div class="flex justify-end items-center gap-2 pt-3 px-4 pb-3 border-t border-base-300 flex-shrink-0">
+    <div class="flex justify-end items-center gap-2 pt-3 px-4 pb-3 border-t border-base-100 flex-shrink-0">
       <button
         @click="$emit('open-new-project')"
         class="btn btn-primary btn-sm gap-2"

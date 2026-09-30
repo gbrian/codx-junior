@@ -11,7 +11,7 @@
     <!-- Color + preview -->
     <div class="flex items-center gap-4">
       <div
-        class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 cursor-pointer"
+        class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold  shrink-0 cursor-pointer"
         :style="{ backgroundColor: form.color }"
       >
         {{ form.name?.[0]?.toUpperCase() || '?' }}
@@ -24,7 +24,7 @@
             :key="color"
             class="w-5 h-5 rounded-md border-2 transition-all"
             :style="{ backgroundColor: color }"
-            :class="form.color === color ? 'border-white scale-110' : 'border-transparent'"
+            :class="form.color === color ? 'border-base-content scale-110' : 'border-transparent'"
             @click="form.color = color"
           />
         </div>

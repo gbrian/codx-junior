@@ -25,7 +25,7 @@ import Selector from './Selector.vue'
           </div>
           <div
             v-if="selected"
-            class="absolute -top-1 -right-1 bg-success text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"
+            class="absolute -top-1 -right-1 bg-success  rounded-full w-4 h-4 flex items-center justify-center text-xs"
           >
             ✓
           </div>

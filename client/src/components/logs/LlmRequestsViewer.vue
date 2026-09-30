@@ -157,7 +157,7 @@
                 <div class="text-xs font-semibold text-base-content/50 flex items-center gap-1">
                   <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> Arguments
                 </div>
-                <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-40 overflow-y-auto border border-base-300 whitespace-pre-wrap">{{ formatJson(item.data.request_args) }}</div>
+                <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-40 overflow-y-auto border border-base-100 whitespace-pre-wrap">{{ formatJson(item.data.request_args) }}</div>
               </div>
 
               <!-- Result -->
@@ -165,7 +165,7 @@
                 <div class="text-xs font-semibold text-base-content/50 flex items-center gap-1">
                   <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i> Result
                 </div>
-                <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-40 overflow-y-auto border border-base-300 whitespace-pre-wrap">{{ truncateContent(typeof item.data.result === 'string' ? item.data.result : formatJson(item.data.result)) }}</div>
+                <div class="bg-base-100 rounded p-2 font-mono text-xs text-base-content/70 overflow-x-auto max-h-40 overflow-y-auto border border-base-100 whitespace-pre-wrap">{{ truncateContent(typeof item.data.result === 'string' ? item.data.result : formatJson(item.data.result)) }}</div>
               </div>
 
               <!-- Error -->
@@ -174,7 +174,7 @@
               </div>
 
               <!-- Meta -->
-              <div class="flex flex-wrap gap-1.5 pt-1 border-t border-base-300 text-xs text-base-content/30 font-mono">
+              <div class="flex flex-wrap gap-1.5 pt-1 border-t border-base-100 text-xs text-base-content/30 font-mono">
                 <span title="Tool call ID">call: {{ item.data.tool_call_id?.slice(0, 16) }}…</span>
               </div>
             </div>

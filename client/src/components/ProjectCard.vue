@@ -3,7 +3,7 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="border-b border-base-300">
+  <div class="border-b border-base-100">
     <button
       @click="handleRowClick"
       class="w-full text-left px-4 py-3 hover:bg-base-300/50 transition-colors active:bg-base-300 flex items-center justify-between gap-3 group"
@@ -12,7 +12,7 @@ import moment from 'moment'
       <!-- Left Content: Icon + Project Info -->
       <div class="flex items-center gap-3 flex-1 min-w-0">
         <!-- Project Icon -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-base-200 border border-base-300">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-base-200 border border-base-100">
           <img
             :src="project.project_icon"
             :alt="project.project_name"

@@ -9,17 +9,17 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
 <template>
   <div :class="[
-    'border-r border-base-300 flex flex-col h-full overflow-hidden relative transition-all duration-200',
-    'md:border-r md:border-base-300',
+    'border-r border-base-100 flex flex-col h-full overflow-hidden relative transition-all duration-200',
+    'md:border-r md:border-base-100',
     isCompact ? 'w-16 md:w-16' : 'w-64 md:w-64',
     $ui?.isMobile && !isCompact ? 'shadow-lg z-40' : ''
   ]"
   >
 
     <!-- HEADER: Fixed - Project Selector & Root Chat Node -->
-    <div class="shrink-0 border-b border-base-300">
+    <div class="shrink-0 border-b border-base-100">
       <!-- Project Selector -->
-      <div v-if="!isCompact" class="px-2 md:px-3 py-3 border-b border-base-300">
+      <div v-if="!isCompact" class="px-2 md:px-3 py-3 border-b border-base-100">
         <ProjectDetailt
           @click.stop=""
           :iconify="false"
@@ -54,14 +54,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
             class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
             :class="[
               selectedChatId === rootChat?.id
-                ? 'bg-codx-secondary text-white border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
-                : 'text-white border-white/20 hover:bg-white/20 hover:border-white/30'
+                ? 'bg-codx-secondary  border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
+                : ' border-base-content/20 hover:bg-white/20 hover:border-base-content/30'
             ]"
           >
             {{ getInitials(rootChat?.name) }}
           </div>
           <!-- Tooltip -->
-          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/20">
+          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20  text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/20">
             {{ rootChat?.name }}
           </div>
         </div>
@@ -71,7 +71,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     <!-- CENTER: Scrollable Content Area -->
     <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
       <!-- Attachments Section -->
-      <div v-if="workingChat.attachments?.length" class="border-b border-base-300 shrink-0">
+      <div v-if="workingChat.attachments?.length" class="border-b border-base-100 shrink-0">
         <ChatAttachmentPreview
           :attachments="workingChat.attachments"
           @remove-attachment="$emit('remove-attachment', $event)"
@@ -79,7 +79,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <!-- Profiles Section -->
-      <div v-if="chatProfiles.length" class="border-b border-base-300 shrink-0">
+      <div v-if="chatProfiles.length" class="border-b border-base-100 shrink-0">
         <div v-if="!isCompact" class="px-3 py-3">
           <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3 px-1">
             <i class="fa-solid fa-circle-user text-xs mr-2 opacity-60"></i>Profiles
@@ -129,7 +129,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     </div>
 
     <!-- FOOTER: Fixed - Icon Toolbar -->
-    <div class="shrink-0 border-t border-base-300 px-2 py-2">
+    <div class="shrink-0 border-t border-base-100 px-2 py-2">
       <div class="flex items-center gap-1"
         :class="isCompact && 'flex-col gap-3'" 
       >

@@ -31,7 +31,7 @@ import MenuDivider from '../main-menu/MenuDivider.vue'
       </MenubarTrigger>
       <MenubarPortal>
         <MenubarContent
-          class="text-xs outline-none bg-base-100 rounded-lg p-[5px] border border-white/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
+          class="text-xs outline-none bg-base-100 rounded-lg p-[5px] border border-base-content/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
         >
           <MenubarItem @click.stop="$ui.cloneApp(app)">
             Duplicate

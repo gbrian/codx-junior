@@ -3,10 +3,10 @@
 
 <template>
   <nav
-    class="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-[#1a1a1a] border-t border-white/10 px-2 py-2 safe-area-bottom"
+    class="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-base-300 border-t border-base-content/10 px-2 py-2 safe-area-bottom"
   >
     <button
-      class="flex flex-col items-center gap-1 px-3 py-2 text-white/50 hover:text-white transition-colors"
+      class="flex flex-col items-center gap-1 px-3 py-2 text-base-content/50 hover: transition-colors"
       @click="$emit('show-menu')"
     >
       <i class="fas fa-ellipsis text-lg"></i>
@@ -14,7 +14,7 @@
     </button>
 
     <button
-      class="flex flex-col items-center gap-1 px-3 py-2 text-white/50 hover:text-white transition-colors"
+      class="flex flex-col items-center gap-1 px-3 py-2 text-base-content/50 hover: transition-colors"
       @click="handleNavigateToNewChat"
     >
       <i class="fas fa-plus text-lg"></i>
@@ -22,7 +22,7 @@
     </button>
 
     <button
-      class="flex flex-col items-center gap-1 px-3 py-2 text-white/50 hover:text-white transition-colors"
+      class="flex flex-col items-center gap-1 px-3 py-2 text-base-content/50 hover: transition-colors"
       @click="handleNavigateToKanban"
     >
       <i class="fas fa-list-check text-lg"></i>
@@ -30,7 +30,7 @@
     </button>
 
     <button
-      class="flex flex-col items-center gap-1 px-3 py-2 text-white/50 hover:text-white transition-colors"
+      class="flex flex-col items-center gap-1 px-3 py-2 text-base-content/50 hover: transition-colors"
       @click="handleNavigateToFileExplorer"
     >
       <i class="fas fa-folder-open text-lg"></i>

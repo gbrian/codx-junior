@@ -3,7 +3,7 @@ import Chat from '@/components/chat/Chat.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full gap-2 bg-base-100 rounded-md p-3 border border-base-300">
+  <div class="flex flex-col h-full gap-2 bg-base-100 rounded-md p-3 border border-base-100">
     <!-- Info banner -->
     <div class="flex items-center justify-between gap-2 shrink-0">
       <div class="flex items-center gap-2 text-sm">
@@ -30,7 +30,7 @@ import Chat from '@/components/chat/Chat.vue'
     </div>
 
     <!-- Chat selector dropdown -->
-    <div class="flex items-center gap-2 shrink-0 pb-2 border-b border-base-300" v-if="!chatId">
+    <div class="flex items-center gap-2 shrink-0 pb-2 border-b border-base-100" v-if="!chatId">
       <label class="text-xs font-semibold">Chat:</label>
       <select 
         v-model="selectedChatId" 

@@ -23,7 +23,7 @@ import {
     </MenubarSubTrigger>
     <MenubarPortal>
       <MenubarSubContent
-        class="min-w-[220px] outline-none bg-base-100 border-white/30 rounded-md p-2 border shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
+        class="min-w-[220px] outline-none bg-base-100 border-base-content/30 rounded-md p-2 border shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
         :align-offset="-5"
       >
         <slot></slot>

@@ -13,10 +13,10 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
     <!-- Left Column: Events Panel (when open) -->
     <div
       v-if="showEventsPanel && activeMessageData"
-      class="w-96 h-full border-r border-base-300 bg-base-200/50 flex flex-col flex-shrink-0 transition-all duration-300"
+      class="w-96 h-full border-r border-base-100 bg-base-200/50 flex flex-col flex-shrink-0 transition-all duration-300"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-base-300 flex-shrink-0 bg-base-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-base-100 flex-shrink-0 bg-base-100">
         <h3 class="font-semibold text-sm flex items-center gap-2">
           <i class="fa-solid fa-stream text-info"></i>
           Processing Details
@@ -32,7 +32,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
       <!-- Scrollable Content -->
       <div class="flex-1 overflow-y-auto">
         <!-- Attachments section -->
-        <div v-if="activeMessageData.attachments && activeMessageData.attachments.length > 0" class="px-4 py-3 border-b border-base-300">
+        <div v-if="activeMessageData.attachments && activeMessageData.attachments.length > 0" class="px-4 py-3 border-b border-base-100">
           <ChatAttachmentCard
             :attachments="activeMessageData.attachments"
             :isExpanded="true"
@@ -42,7 +42,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
         </div>
         
         <!-- Summary section -->
-        <div class="px-4 py-3 border-b border-base-300 flex-shrink-0">
+        <div class="px-4 py-3 border-b border-base-100 flex-shrink-0">
           <h4 class="text-xs font-semibold text-base-content/70 mb-3 flex items-center gap-2">
             <i class="fa-solid fa-chart-line"></i> Summary
           </h4>
@@ -55,7 +55,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
         </div>
 
         <!-- Tools section -->
-        <div v-if="activeMessageData.toolEvents.length > 0" class="px-4 py-3 border-b border-base-300">
+        <div v-if="activeMessageData.toolEvents.length > 0" class="px-4 py-3 border-b border-base-100">
           <h4 class="text-xs font-semibold text-base-content/70 mb-2 flex items-center gap-2">
             <i class="fa-solid fa-wrench text-warning"></i> Tools ({{ activeMessageData.toolCount }})
           </h4>
@@ -94,7 +94,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
       </div>
 
       <!-- Footer stats -->
-      <div class="border-t border-base-300 px-4 py-2 text-xs text-base-content/60 flex-shrink-0 bg-base-100">
+      <div class="border-t border-base-100 px-4 py-2 text-xs text-base-content/60 flex-shrink-0 bg-base-100">
         <div class="flex justify-between items-center">
           <span>{{ activeMessageData.totalEvents }} item{{ activeMessageData.totalEvents !== 1 ? 's' : '' }}</span>
           <span v-if="activeMessageData.metadata?.time_taken" class="text-success">

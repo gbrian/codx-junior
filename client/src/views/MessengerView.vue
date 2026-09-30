@@ -16,7 +16,7 @@ import Chat from '@/components/chat/Chat.vue'
     <!-- Desktop sidebar -->
     <aside
       v-if="!isMobile"
-      class="shrink-0 flex flex-col h-full bg-[#1a1a1a] border-r border-white/5 transition-all duration-200 overflow-hidden"
+      class="shrink-0 flex flex-col h-full bg-base-300 border-r border-base-content/5 transition-all duration-200 overflow-hidden"
       :style="sidebarCollapsed ? 'width:64px' : 'width:288px'"
     >
       <MessengerChannelList
@@ -36,11 +36,11 @@ import Chat from '@/components/chat/Chat.vue'
     <transition name="slide-left">
       <div
         v-if="isMobile && showMobileChannels"
-        class="fixed inset-0 z-40 flex flex-col bg-[#1a1a1a]"
+        class="fixed inset-0 z-40 flex flex-col bg-base-300"
       >
-        <div class="flex items-center justify-between px-4 py-4 border-b border-white/5 shrink-0">
-          <span class="text-sm font-semibold text-white/80">Channels</span>
-          <button class="p-2 text-white/40 hover:text-white" @click="showMobileChannels = false">
+        <div class="flex items-center justify-between px-4 py-4 border-b border-base-content/5 shrink-0">
+          <span class="text-sm font-semibold text-base-content/80">Channels</span>
+          <button class="p-2 text-base-content/40 hover:" @click="showMobileChannels = false">
             <i class="fas fa-xmark"></i>
           </button>
         </div>
@@ -67,7 +67,7 @@ import Chat from '@/components/chat/Chat.vue'
       <transition name="fade">
         <div
           v-if="!activeChat"
-          class="flex-1 flex flex-col items-center justify-center gap-6 text-white/20"
+          class="flex-1 flex flex-col items-center justify-center gap-6 text-base-content/20"
         >
           <div
             class="absolute inset-0 pointer-events-none"
@@ -75,8 +75,8 @@ import Chat from '@/components/chat/Chat.vue'
           ></div>
           <i class="fas fa-hashtag text-5xl relative z-10"></i>
           <div class="text-center relative z-10">
-            <p class="text-base text-white/30 font-medium">Select a channel to start chatting</p>
-            <p class="text-sm text-white/15 mt-1">or create a new group channel</p>
+            <p class="text-base text-base-content/30 font-medium">Select a channel to start chatting</p>
+            <p class="text-sm text-base-content/15 mt-1">or create a new group channel</p>
           </div>
           <button
             class="btn btn-sm bg-primary/20 hover:bg-primary/30 text-primary border-primary/30 border relative z-10"
@@ -92,11 +92,11 @@ import Chat from '@/components/chat/Chat.vue'
         <div v-if="activeChat" class="flex-1 flex flex-col h-full overflow-hidden">
 
           <!-- Chat header -->
-          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-[#111111]/80 backdrop-blur-sm">
+          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-content/5 bg-base-300/80 backdrop-blur-sm">
             <!-- Mobile back -->
             <button
               v-if="isMobile"
-              class="p-2 text-white/40 hover:text-white transition-colors"
+              class="p-2 text-base-content/40 hover: transition-colors"
               @click="activeChatId = null"
             >
               <i class="fas fa-arrow-left text-sm"></i>
@@ -108,8 +108,8 @@ import Chat from '@/components/chat/Chat.vue'
             </div>
 
             <div class="flex-1 min-w-0">
-              <h2 class="text-sm font-semibold text-white/80 truncate"># {{ activeChat.name || 'Channel' }}</h2>
-              <p class="text-[11px] text-white/30">
+              <h2 class="text-sm font-semibold text-base-content/80 truncate"># {{ activeChat.name || 'Channel' }}</h2>
+              <p class="text-[11px] text-base-content/30">
                 {{ membersLabel }}
               </p>
             </div>
@@ -118,7 +118,7 @@ import Chat from '@/components/chat/Chat.vue'
               <!-- Hidden messages toggle -->
               <button
                 class="btn btn-ghost btn-xs rounded-lg flex items-center gap-1"
-                :class="showHidden ? 'text-warning' : 'text-white/30 hover:text-white/70'"
+                :class="showHidden ? 'text-warning' : 'text-base-content/30 hover:text-base-content/70'"
                 :title="showHidden ? 'Hide hidden messages' : 'Show hidden messages'"
                 @click="showHidden = !showHidden"
               >
@@ -128,7 +128,7 @@ import Chat from '@/components/chat/Chat.vue'
 
               <!-- Members / info toggle -->
               <button
-                class="btn btn-ghost btn-xs text-white/30 hover:text-white/70 rounded-lg"
+                class="btn btn-ghost btn-xs text-base-content/30 hover:text-base-content/70 rounded-lg"
                 :class="showGroupInfo ? 'text-primary' : ''"
                 title="Group info & members"
                 @click="showGroupInfo = !showGroupInfo"
@@ -172,7 +172,7 @@ import Chat from '@/components/chat/Chat.vue'
       <transition name="slide-left">
         <div
           v-if="showGroupInfo && isMobile && activeChat"
-          class="fixed inset-0 z-50 flex flex-col bg-[#1a1a1a]"
+          class="fixed inset-0 z-50 flex flex-col bg-base-300"
         >
           <MessengerGroupInfo
             :chat="activeChat"
@@ -189,11 +189,11 @@ import Chat from '@/components/chat/Chat.vue'
     <!-- ══ MOBILE BOTTOM NAV ══ -->
     <nav
       v-if="isMobile"
-      class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-[#1a1a1a] border-t border-white/10 px-2 py-2"
+      class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-base-300 border-t border-base-content/10 px-2 py-2"
     >
       <button
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showMobileChannels ? 'text-primary' : 'text-white/50 hover:text-white'"
+        :class="showMobileChannels ? 'text-primary' : 'text-base-content/50 hover:'"
         @click="showMobileChannels = !showMobileChannels"
       >
         <i class="fas fa-hashtag text-lg"></i>
@@ -201,7 +201,7 @@ import Chat from '@/components/chat/Chat.vue'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover: transition-colors"
         @click="showNewGroupModal = true"
       >
         <i class="fas fa-plus text-lg"></i>
@@ -211,7 +211,7 @@ import Chat from '@/components/chat/Chat.vue'
       <button
         v-if="activeChat"
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showGroupInfo ? 'text-primary' : 'text-white/50 hover:text-white'"
+        :class="showGroupInfo ? 'text-primary' : 'text-base-content/50 hover:'"
         @click="showGroupInfo = !showGroupInfo"
       >
         <i class="fas fa-users text-lg"></i>
@@ -219,7 +219,7 @@ import Chat from '@/components/chat/Chat.vue'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-white/50 hover:text-white transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover: transition-colors"
         @click="$emit('account-settings')"
       >
         <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
@@ -233,10 +233,10 @@ import Chat from '@/components/chat/Chat.vue'
     <transition name="fade">
       <div
         v-if="showNewGroupModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/60 backdrop-blur-sm px-4"
         @click.self="showNewGroupModal = false"
       >
-        <div class="bg-[#1e1e1e] border border-white/10 rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl">
+        <div class="bg-[#1e1e1e] border border-base-content/10 rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl">
 
           <!-- Title -->
           <div class="flex items-center gap-3">
@@ -244,36 +244,36 @@ import Chat from '@/components/chat/Chat.vue'
               <i class="fas fa-hashtag text-primary"></i>
             </div>
             <div>
-              <h3 class="text-base font-semibold text-white/90">Create Channel</h3>
-              <p class="text-xs text-white/30">Group chat for your team</p>
+              <h3 class="text-base font-semibold text-base-content/90">Create Channel</h3>
+              <p class="text-xs text-base-content/30">Group chat for your team</p>
             </div>
           </div>
 
           <!-- Channel name -->
           <div class="flex flex-col gap-2">
-            <label class="text-xs text-white/40 uppercase tracking-wider font-semibold">Channel Name</label>
+            <label class="text-xs text-base-content/40 uppercase tracking-wider font-semibold">Channel Name</label>
             <input
               v-model="newGroupName"
               ref="newGroupNameInput"
               type="text"
               placeholder="e.g. design, backend, general"
-              class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/80 placeholder:text-white/20 outline-none focus:border-primary/50 transition-colors"
+              class="bg-white/5 border border-base-content/10 rounded-xl px-4 py-3 text-sm text-base-content/80 placeholder:text-base-content/20 outline-none focus:border-primary/50 transition-colors"
               @keydown.enter="createGroup"
             />
           </div>
 
           <!-- Add members (profiles) -->
           <div class="flex flex-col gap-2">
-            <label class="text-xs text-white/40 uppercase tracking-wider font-semibold">
+            <label class="text-xs text-base-content/40 uppercase tracking-wider font-semibold">
               Add Members (optional)
             </label>
-            <div class="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
-              <i class="fas fa-magnifying-glass text-white/25 text-xs shrink-0"></i>
+            <div class="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-base-content/10">
+              <i class="fas fa-magnifying-glass text-base-content/25 text-xs shrink-0"></i>
               <input
                 v-model="newGroupMemberSearch"
                 type="text"
                 placeholder="Search profiles..."
-                class="bg-transparent text-xs text-white/70 placeholder:text-white/25 outline-none flex-1"
+                class="bg-transparent text-xs text-base-content/70 placeholder:text-base-content/25 outline-none flex-1"
               />
             </div>
 
@@ -285,7 +285,7 @@ import Chat from '@/components/chat/Chat.vue'
                 class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium"
               >
                 <span>{{ name }}</span>
-                <button class="hover:text-white/80 transition-colors" @click="newGroupMembers = newGroupMembers.filter(n => n !== name)">
+                <button class="hover:text-base-content/80 transition-colors" @click="newGroupMembers = newGroupMembers.filter(n => n !== name)">
                   <i class="fas fa-xmark text-[10px]"></i>
                 </button>
               </div>
@@ -301,16 +301,16 @@ import Chat from '@/components/chat/Chat.vue'
               >
                 <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                   :class="newGroupMembers.includes(profile.name) ? 'bg-primary/30' : 'bg-white/8'">
-                  <i v-if="profile.icon" :class="[profile.icon, newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-white/40']"
+                  <i v-if="profile.icon" :class="[profile.icon, newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/40']"
                     class="text-xs"></i>
                   <span v-else
-                    :class="newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-white/40'"
+                    :class="newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/40'"
                     class="text-xs font-bold">{{ profile.name?.charAt(0)?.toUpperCase() }}</span>
                 </div>
-                <span class="text-xs text-white/60 flex-1 truncate">{{ profile.name }}</span>
+                <span class="text-xs text-base-content/60 flex-1 truncate">{{ profile.name }}</span>
                 <i v-if="newGroupMembers.includes(profile.name)" class="fas fa-check text-primary text-xs"></i>
               </button>
-              <div v-if="filteredNewGroupProfiles.length === 0" class="text-center py-3 text-white/20 text-xs">
+              <div v-if="filteredNewGroupProfiles.length === 0" class="text-center py-3 text-base-content/20 text-xs">
                 {{ newGroupMemberSearch ? 'No matches' : 'No profiles available' }}
               </div>
             </div>
@@ -319,13 +319,13 @@ import Chat from '@/components/chat/Chat.vue'
           <!-- Actions -->
           <div class="flex gap-3">
             <button
-              class="flex-1 btn btn-sm bg-white/5 hover:bg-white/10 text-white/50 border-white/10 border"
+              class="flex-1 btn btn-sm bg-white/5 hover:bg-white/10 text-base-content/50 border-base-content/10 border"
               @click="showNewGroupModal = false"
             >
               Cancel
             </button>
             <button
-              class="flex-1 btn btn-sm bg-primary hover:bg-primary/80 text-white border-none"
+              class="flex-1 btn btn-sm bg-primary hover:bg-primary/80  border-none"
               :disabled="!newGroupName.trim() || creatingGroup"
               @click="createGroup"
             >

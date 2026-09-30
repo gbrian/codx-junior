@@ -23,7 +23,7 @@ import TaskSettings from '@/components/kanban/TaskSettings.vue'
       @click.self="closeDrawer"
     >
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/30" @click="closeDrawer"></div>
+      <div class="absolute inset-0 bg-base-100/30" @click="closeDrawer"></div>
 
       <!-- Drawer Panel -->
       <div class="relative w-96 bg-base-100 shadow-xl flex flex-col h-full overflow-hidden">

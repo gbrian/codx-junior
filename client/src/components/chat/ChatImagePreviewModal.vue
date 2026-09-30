@@ -30,7 +30,7 @@
         ></textarea>
         <div class="flex justify-end">
           <button
-            class="btn btn-sm bg-purple-600 text-white tooltip"
+            class="btn btn-sm bg-purple-600  tooltip"
             data-tip="Extract text"
             @click="$emit('extract-text', imagePreview)"
           >

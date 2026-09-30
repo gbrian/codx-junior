@@ -6,8 +6,8 @@ import { ref } from 'vue'
   <div class="relative">
     <!-- Bell Icon Button -->
     <button
-      class="p-1.5 text-white/40 hover:text-white/80 transition-colors relative"
-      :class="hasNotifications ? 'text-white' : ''"
+      class="p-1.5 text-base-content/40 hover:text-base-content/80 transition-colors relative"
+      :class="hasNotifications ? '' : ''"
       @click="showCard = !showCard"
       title="Show events and notifications"
     >
@@ -29,15 +29,15 @@ import { ref } from 'vue'
     >
       <div
         v-if="showCard"
-        class="absolute top-full left-0 mt-2 w-80 bg-base-100 rounded-lg shadow-2xl border border-white/10 z-50 overflow-hidden"
+        class="absolute top-full left-0 mt-2 w-80 bg-base-100 rounded-lg shadow-2xl border border-base-content/10 z-50 overflow-hidden"
         @click.stop
       >
         <!-- Card Header -->
-        <div class="bg-gradient-to-r from-codx-primary/20 to-codx-secondary/20 px-4 py-3 border-b border-white/5">
+        <div class="bg-gradient-to-r from-codx-primary/20 to-codx-secondary/20 px-4 py-3 border-b border-base-content/5">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-white">Recent Events</h3>
+            <h3 class="text-sm font-semibold ">Recent Events</h3>
             <button
-              class="text-white/40 hover:text-white/80 transition-colors"
+              class="text-base-content/40 hover:text-base-content/80 transition-colors"
               @click="showCard = false"
             >
               <i class="fas fa-xmark text-xs"></i>
@@ -48,17 +48,17 @@ import { ref } from 'vue'
         <!-- Events List -->
         <div class="max-h-96 overflow-y-auto">
           <!-- Last Event (Latest) -->
-          <div v-if="lastEvent" class="px-4 py-3 border-b border-white/5 bg-white/2">
+          <div v-if="lastEvent" class="px-4 py-3 border-b border-base-content/5 bg-white/2">
             <div class="flex items-start gap-3">
               <div class="shrink-0 mt-1">
                 <i :class="getEventIcon(lastEvent)" class="text-lg"></i>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-semibold text-white/80 uppercase">{{ getEventType(lastEvent) }}</span>
-                  <span class="text-xs text-white/40 shrink-0">{{ formatTime(lastEvent.ts) }}</span>
+                  <span class="text-xs font-semibold text-base-content/80 uppercase">{{ getEventType(lastEvent) }}</span>
+                  <span class="text-xs text-base-content/40 shrink-0">{{ formatTime(lastEvent.ts) }}</span>
                 </div>
-                <p class="text-sm text-white/70 mt-1 break-words">
+                <p class="text-sm text-base-content/70 mt-1 break-words">
                   {{ getEventMessage(lastEvent) }}
                 </p>
               </div>
@@ -73,13 +73,13 @@ import { ref } from 'vue'
             <div
               v-for="notif in errorNotifications.slice(0, 3)"
               :key="notif.id"
-              class="px-4 py-2 border-b border-white/5 hover:bg-white/5 transition-colors"
+              class="px-4 py-2 border-b border-base-content/5 hover:bg-white/5 transition-colors"
             >
               <div class="flex items-start gap-2">
                 <i class="fa-solid fa-circle-exclamation text-error text-xs mt-1 shrink-0"></i>
                 <div class="flex-1 min-w-0">
                   <p class="text-xs text-error font-medium break-words">{{ notif.title || notif.text }}</p>
-                  <p v-if="notif.text && notif.title" class="text-xs text-white/50 mt-0.5 break-words">
+                  <p v-if="notif.text && notif.title" class="text-xs text-base-content/50 mt-0.5 break-words">
                     {{ notif.text }}
                   </p>
                 </div>
@@ -95,13 +95,13 @@ import { ref } from 'vue'
             <div
               v-for="notif in warningNotifications.slice(0, 2)"
               :key="notif.id"
-              class="px-4 py-2 border-b border-white/5 hover:bg-white/5 transition-colors"
+              class="px-4 py-2 border-b border-base-content/5 hover:bg-white/5 transition-colors"
             >
               <div class="flex items-start gap-2">
                 <i class="fa-solid fa-triangle-exclamation text-warning text-xs mt-1 shrink-0"></i>
                 <div class="flex-1 min-w-0">
                   <p class="text-xs text-warning font-medium break-words">{{ notif.title || notif.text }}</p>
-                  <p v-if="notif.text && notif.title" class="text-xs text-white/50 mt-0.5 break-words">
+                  <p v-if="notif.text && notif.title" class="text-xs text-base-content/50 mt-0.5 break-words">
                     {{ notif.text }}
                   </p>
                 </div>
@@ -117,13 +117,13 @@ import { ref } from 'vue'
             <div
               v-for="notif in successNotifications.slice(0, 2)"
               :key="notif.id"
-              class="px-4 py-2 border-b border-white/5 hover:bg-white/5 transition-colors"
+              class="px-4 py-2 border-b border-base-content/5 hover:bg-white/5 transition-colors"
             >
               <div class="flex items-start gap-2">
                 <i class="fa-solid fa-circle-check text-success text-xs mt-1 shrink-0"></i>
                 <div class="flex-1 min-w-0">
                   <p class="text-xs text-success font-medium break-words">{{ notif.title || notif.text }}</p>
-                  <p v-if="notif.text && notif.title" class="text-xs text-white/50 mt-0.5 break-words">
+                  <p v-if="notif.text && notif.title" class="text-xs text-base-content/50 mt-0.5 break-words">
                     {{ notif.text }}
                   </p>
                 </div>
@@ -133,14 +133,14 @@ import { ref } from 'vue'
 
           <!-- Empty State -->
           <div v-if="!hasNotifications" class="px-4 py-8 text-center">
-            <i class="fas fa-bell text-white/20 text-2xl mb-2"></i>
-            <p class="text-sm text-white/40">No events yet</p>
+            <i class="fas fa-bell text-base-content/20 text-2xl mb-2"></i>
+            <p class="text-sm text-base-content/40">No events yet</p>
           </div>
         </div>
 
         <!-- Card Footer -->
-        <div v-if="hasNotifications" class="px-4 py-2 border-t border-white/5 bg-white/2">
-          <button class="w-full text-xs text-center py-1.5 text-white/60 hover:text-white/80 transition-colors">
+        <div v-if="hasNotifications" class="px-4 py-2 border-t border-base-content/5 bg-white/2">
+          <button class="w-full text-xs text-center py-1.5 text-base-content/60 hover:text-base-content/80 transition-colors">
             Clear all
           </button>
         </div>

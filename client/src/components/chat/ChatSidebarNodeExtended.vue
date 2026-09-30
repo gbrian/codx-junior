@@ -7,10 +7,10 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="w-full px-1">
     <!-- Node Row -->
     <div
-      class="relative group p-2 rounded-lg border-l-4 cursor-pointer transition-all"
+      class="bg-base-100 relative group p-2 rounded-lg border-l-4 cursor-pointer transition-all"
       :class="[
         $chats.statusBorderColor(chat.status),
         selectedChatId === chat.id
@@ -82,14 +82,14 @@ import moment from 'moment'
     <!-- Delete Confirmation Modal -->
     <Modal v-if="showDeleteConfirm" :close="true" @close="showDeleteConfirm = false">
       <template #header>
-        <span class="text-base font-semibold text-white">Delete Chat</span>
+        <span class="text-base font-semibold ">Delete Chat</span>
       </template>
 
       <div class="space-y-4">
-        <p class="text-sm text-white/70">
-          Are you sure you want to delete <strong class="text-white">{{ chat.name }}</strong>?
+        <p class="text-sm text-base-content/70">
+          Are you sure you want to delete <strong class="">{{ chat.name }}</strong>?
         </p>
-        <p class="text-xs text-white/50">
+        <p class="text-xs text-base-content/50">
           This action cannot be undone. All messages and child chats will be permanently deleted.
         </p>
       </div>

@@ -3,7 +3,7 @@
 
 <template>
   <button
-    class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left text-white/70 hover:bg-white/5 hover:text-white transition-colors group"
+    class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left text-base-content/70 hover:bg-white/5 hover: transition-colors group"
     @click="$emit('click')"
   >
     <i class="fas fa-circle text-yellow-500/80 text-xs shrink-0"></i>

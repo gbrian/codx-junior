@@ -89,7 +89,7 @@ import MediaPreview from './MediaPreview.vue'
           <!-- Progress overlay -->
           <div
             v-if="uploadProgress[media.id]"
-            class="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg"
+            class="absolute inset-0 bg-base-100/50 flex items-center justify-center rounded-lg"
           >
             <div class="flex flex-col items-center gap-1">
               <progress
@@ -97,7 +97,7 @@ import MediaPreview from './MediaPreview.vue'
                 :value="uploadProgress[media.id]"
                 max="100"
               ></progress>
-              <span class="text-xs text-white font-semibold">
+              <span class="text-xs  font-semibold">
                 {{ uploadProgress[media.id] }}%
               </span>
             </div>

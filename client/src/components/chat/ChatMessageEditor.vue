@@ -39,7 +39,7 @@ import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
     </div>
 
     <!-- Markdown editor -->
-    <div class="flex-1 min-h-0 rounded-md border border-base-300 overflow-hidden">
+    <div class="flex-1 min-h-0 rounded-md border border-base-100 overflow-hidden">
       <Editor
         ref="editor"
         v-model="editorContent"

@@ -3,7 +3,7 @@ import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
 </script>
 
 <template>
-  <div class="flex h-full w-full bg-[#111111] overflow-hidden text-white">
+  <div class="flex h-full w-full bg-base-300 overflow-hidden ">
     <!-- Kanban Container with full responsive support -->
     <KanbanContainer class="flex-1 min-w-0 h-full" />
   </div>

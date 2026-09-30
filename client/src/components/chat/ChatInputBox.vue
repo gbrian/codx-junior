@@ -13,7 +13,7 @@ import FindReplaceBox from './FindReplaceBox.vue'
         ? 'bg-primary/10 ring-2 ring-primary rounded-lg md:rounded-xl'
         : isFocused
           ? 'ring-1 ring-base-300 shadow-md rounded-lg md:rounded-xl'
-          : 'border border-white/50 rounded-lg md:rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
+          : 'border border-base-content/50 rounded-lg md:rounded-xl hover:bg-base-200 hover:ring-1 hover:ring-base-300'
     ]"
     @dragover.prevent="isDraggingOver = true"
     @dragleave.prevent="isDraggingOver = false"
@@ -48,7 +48,7 @@ import FindReplaceBox from './FindReplaceBox.vue'
       <!-- Emoji Picker Popup -->
       <EmojiPicker
         v-if="cursorWord.word?.startsWith(':')"
-        class="px-2 md:px-3 py-2 md:py-2 border-b border-base-300/50"
+        class="px-2 md:px-3 py-2 md:py-2 border-b border-base-100/50"
         :emoji-name="cursorWord.word"
         @emoji="onEmojiSelected"
       />
@@ -69,7 +69,7 @@ import FindReplaceBox from './FindReplaceBox.vue'
       </div>
 
       <!-- Divider -->
-      <div class="mx-2 md:mx-3 border-t border-base-300/50 mt-1"></div>
+      <div class="mx-2 md:mx-3 border-t border-base-100/50 mt-1"></div>
 
       <!-- Toolbar -->
       <ChatInputToolbar

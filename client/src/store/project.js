@@ -653,6 +653,9 @@ export const actions = actionTree(
           await $storex.chats.loadChats()
           overlay?.completeStep('chats', 'Chats loaded')
 
+          // ── Notify kanban store about project change ──
+          await $storex.kanban.onActiveProjectChanged()
+
           $storex.projects.addRecentProject(state.activeProject)
           state.workspaces = API.allWorkspaces
           $storex.ui.saveState()

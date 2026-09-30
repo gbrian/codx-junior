@@ -15,8 +15,9 @@ import * as teams from './teams'
 import * as media from './media'
 import * as views from './views'
 import * as toast from './toast'
+import * as kanban from './kanban'
 
-const modules = { session, projects, ui, users, profiles, logs, chats, teams, media, views, toast }
+const modules = { session, projects, ui, users, profiles, logs, chats, teams, media, views, toast, kanban }
 const storePattern = {
   state () {
     return {

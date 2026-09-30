@@ -13,28 +13,28 @@ import MainMenu from '../main-menu/MainMenu.vue'
     <!-- Mobile Overlay -->
     <div
       v-if="!isCollapsed"
-      class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in pointer-events-auto"
+      class="fixed inset-0 z-40 backdrop-blur-sm animate-fade-in pointer-events-auto"
       @click="handleClose"
     ></div>
 
     <!-- Mobile Sidebar -->
     <aside
       ref="sidebarEl"
-      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 pointer-events-auto"
+      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 border-r border-base-content/5 pointer-events-auto"
       :style="{
         transform: isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
         transition: 'transform 0.3s ease-out'
       }"
     >
       <!-- Header Section -->
-      <div class="px-3 py-4 shrink-0 border-b border-white/5">
+      <div class="px-3 py-4 shrink-0 border-b border-base-content/5">
         <div class="flex items-center justify-between gap-2">
           <button
-            class="click w-6 h-6 rounded border border-white/20 flex items-center justify-center hover:bg-white/5 transition-colors"
+            class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
             @click="handleClose"
             title="Close sidebar"
           >
-            <i class="fa-solid fa-angle-left text-white/40 text-xs"></i>
+            <i class="fa-solid fa-angle-left text-base-content/40 text-xs"></i>
           </button>
           <span class="text-lg font-semibold">
             <span class="text-codx-secondary">codx-</span>
@@ -71,7 +71,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
       </div>
 
       <!-- Footer -->
-      <div class="shrink-0 border-t border-white/5 px-2 py-3">
+      <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
         <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
           <div class="grow flex items-center gap-3 flex-1">
             <UserInfo>
@@ -91,10 +91,10 @@ import MainMenu from '../main-menu/MainMenu.vue'
             </UserInfo>
             <div class="flex justify-between">
               <div class="flex-1 min-w-0">
-                <div class="text-sm text-white truncate">{{ userName }}</div>
-                <div class="text-xs text-white/40">{{ userSubtitle }}</div>
+                <div class="text-sm  truncate">{{ userName }}</div>
+                <div class="text-xs text-base-content/40">{{ userSubtitle }}</div>
               </div>
-              <button class="p-1 text-white/30 hover:text-white/80 transition-colors">
+              <button class="p-1 text-base-content/30 hover:text-base-content/80 transition-colors">
                 <i class="fas fa-chevron-down text-xs"></i>
               </button>
             </div>
@@ -114,19 +114,19 @@ import MainMenu from '../main-menu/MainMenu.vue'
   <aside
     v-else
     ref="sidebarEl"
-    class="flex flex-col h-full shrink-0 bg-[#1a1a1a] border-r border-white/5 transition-all duration-200"
+    class="flex flex-col h-full shrink-0 border-r border-base-content/5 transition-all duration-200"
     :class="[isCollapsed ? 'w-20' : 'w-64']"
   >
     <!-- Header Section -->
-    <div class="px-3 py-4 shrink-0 border-b border-white/5">
+    <div class="px-3 py-4 shrink-0 border-b border-base-content/5">
       <div class="flex items-center justify-between gap-2">
         <div v-if="!isCollapsed" class="flex items-center shrink-0 gap-2 flex-1">
           <button
-            class="click w-6 h-6 rounded border border-white/20 flex items-center justify-center hover:bg-white/5 transition-colors"
+            class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
             @click="toggleCollapse"
             title="Toggle sidebar"
           >
-            <i class="fa-solid fa-angle-left text-white/40 text-xs"></i>
+            <i class="fa-solid fa-angle-left text-base-content/40 text-xs"></i>
           </button>
           <span class="text-lg font-semibold">
             <span class="text-codx-secondary">codx-</span>
@@ -177,7 +177,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
     </div>
 
     <!-- Footer -->
-    <div class="shrink-0 border-t border-white/5 px-2 py-3">
+    <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
       <div v-if="!isCollapsed" class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
         <UserInfo>
           <template #trigger="{ togglePanel }">
@@ -194,7 +194,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
                 </div>
               </button>
               <div class="flex-1 min-w-0">
-                <div class="text-sm text-white truncate">{{ userName }}</div>
+                <div class="text-sm  truncate">{{ userName }}</div>
                 <div class="text-xs"
                   :class="connected ? 'text-success/60': 'text-error'"
                 >{{ connected ? 'online': 'offline' }}</div>

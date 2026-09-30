@@ -286,9 +286,19 @@ export const mutations = mutationTree(state, {
   },
   openWorkspace(_, workspace) {
     if (!$storex.ui.isDesktopMode) {
-      $storex.$router.$navigation.workspaces.open(workspace.key, workspace.name)
+      $storex.$router.$navigation.workspaces.open(workspace.id || workspace.key, workspace.name)
     } else {
-      $storex.ui.showApp(workspace)
+      $storex.ui.showApp({
+        tabId: `workspace-${workspace.id || workspace.key}`,
+        name: workspace.name,
+        component: 'workspace',
+        params: {
+          workspace: {
+            id: workspace.id || workspace.key,
+            name: workspace.name
+          }
+        }
+      })
     }  
   },
   openChat(_, chat) {

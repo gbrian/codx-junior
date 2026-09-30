@@ -13,7 +13,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 </script>
 
 <template>
-  <Collapsible v-model="showCode" class="h-full border border-slate-500">
+  <Collapsible v-model="showCode" class="h-full border border-base-100">
     <template #icon>
       <div class="" v-if="!finished" >
         <span class="loading loading-bars loading-xs shrink-0 text-info"></span>

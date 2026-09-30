@@ -87,7 +87,7 @@ import moment from 'moment'
           v-for="board in sortedBoards"
           :key="board.title"
           @click="selectBoard(board)"
-          class="card card-bordered border border-base-100/80 hover:border-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
+          class="hover:border-primary card card-bordered border border-base-100/80 hover:border-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
         >
           <!-- Background image -->
           <div

@@ -35,7 +35,7 @@
     <!-- Collapsible body -->
     <div
       v-show="isOpen"
-      class="border-t border-base-300 grow"
+      class="border-t border-base-100 grow"
     >
       <slot></slot>
     </div>

@@ -35,7 +35,7 @@ import DataRow from './DataRow.vue';
           <DataRow :item="item" 
             v-for="item, ix in results"
             :key="item.id + ix"
-            class="border-b border-slate-700"
+            class="border-b border-base-100"
             :class="ix % 2 == 0 ? 'bg-base-100' : ''"
             @click="onClickRow(item)" />
         </tbody>

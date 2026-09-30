@@ -34,7 +34,7 @@ import WikiTree from './WikiTree.vue'
           <div class="form-control">
             <label class="label">
               <div>
-                <button class="btn btn-xs text-white btn-error" @click="selectedItem = null">
+                <button class="btn btn-xs  btn-error" @click="selectedItem = null">
                   <i class="fa-solid fa-circle-xmark"></i>
                 </button>
                 <span class="ml-2 label-text">Title</span>
@@ -129,12 +129,12 @@ import WikiTree from './WikiTree.vue'
           </div>
           <div class="text-xl">Tools</div>
           <div class="flex flex-wrap justify-end gap-2">
-            <button class="btn btn-xs ml-2 text-white bg-purple-600 hover:animate-pulse tooltip"
+            <button class="btn btn-xs ml-2  bg-purple-600 hover:animate-pulse tooltip"
               data-tip="Automagically wiki tree"
               @click.stop="buildTree()">
               Build tree <i class="fa-solid fa-wand-magic-sparkles"></i>
             </button>
-            <button class="btn btn-xs ml-2 text-white tooltip"
+            <button class="btn btn-xs ml-2  tooltip"
               data-tip="Compile wiki"
               @click.stop="compileWiki()">
               Compile

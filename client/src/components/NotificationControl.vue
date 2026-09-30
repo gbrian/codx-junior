@@ -21,10 +21,10 @@ import moment from 'moment'
     <!-- Notifications Panel -->
     <div 
       v-if="showPanel"
-      class="absolute top-full right-0 mb-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto min-w-96"
+      class="absolute top-full right-0 mb-2 bg-base-100 border border-base-100 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto min-w-96"
     >
       <!-- Panel Header -->
-      <div :class="getHeaderClass(activePanel)" class="sticky top-0 px-4 py-2 border-b border-base-300 flex justify-between items-center">
+      <div :class="getHeaderClass(activePanel)" class="sticky top-0 px-4 py-2 border-b border-base-100 flex justify-between items-center">
         <span class="text-sm font-semibold capitalize">{{ activePanel }} Notifications</span>
         <button 
           @click="closePanel"
@@ -62,7 +62,7 @@ import moment from 'moment'
       </div>
 
       <!-- Clear All Button -->
-      <div v-if="filteredNotifications.length > 0" class="sticky bottom-0 bg-base-200 border-t border-base-300 p-2">
+      <div v-if="filteredNotifications.length > 0" class="sticky bottom-0 bg-base-200 border-t border-base-100 p-2">
         <button 
           @click="clearAll"
           class="w-full btn btn-xs btn-outline text-error"

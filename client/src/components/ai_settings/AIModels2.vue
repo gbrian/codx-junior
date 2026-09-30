@@ -32,7 +32,7 @@ import AIModelSettings from './AIModelSettings.vue'
           v-for="opt in typeOptions"
           :key="opt.value"
           class="btn btn-xs rounded-full"
-          :class="filterType === opt.value ? opt.activeClass : 'btn-ghost border border-base-300'"
+          :class="filterType === opt.value ? opt.activeClass : 'btn-ghost border border-base-100'"
           @click="filterType = filterType === opt.value ? '' : opt.value"
         >{{ opt.label }}</button>
       </div>
@@ -42,7 +42,7 @@ import AIModelSettings from './AIModelSettings.vue'
           v-for="p in uniqueProviders"
           :key="p"
           class="btn btn-xs rounded-full"
-          :class="filterProvider === p ? 'btn-secondary' : 'btn-ghost border border-base-300'"
+          :class="filterProvider === p ? 'btn-secondary' : 'btn-ghost border border-base-100'"
           @click="filterProvider = filterProvider === p ? '' : p"
         >{{ p }}</button>
       </div>
@@ -59,7 +59,7 @@ import AIModelSettings from './AIModelSettings.vue'
     </div>
 
     <!-- Data grid -->
-    <div class="overflow-auto rounded-lg border border-base-300 grow">
+    <div class="overflow-auto rounded-lg border border-base-100 grow">
       <table class="table table-xs w-full">
         <thead class="sticky top-0 z-10 bg-base-300">
           <tr>

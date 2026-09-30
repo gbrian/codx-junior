@@ -2,10 +2,10 @@
 </script>
 
 <template>
-  <div v-if="hasWorkspaceApps" class="px-2 py-3 shrink-0 border-b border-white/5">
+  <div v-if="hasWorkspaceApps" class="px-2 py-3 shrink-0 border-b border-base-content/5">
     <button
       v-if="!isCollapsed"
-      class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-white/60 hover:text-white/80 transition-colors"
+      class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-base-content/60 hover:text-base-content/80 transition-colors"
       @click="workspacesExpanded = !workspacesExpanded"
       title="Toggle Workspaces"
     >
@@ -16,9 +16,9 @@
       <button
         v-for="app in workspaceApps"
         :key="app.id"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-base-content/80 hover:bg-white/8 hover: transition-colors text-left w-full"
         :class="[
-          isWorkspaceSelected(app.id) ? 'bg-white/10 text-white' : '',
+          isWorkspaceSelected(app.id) ? 'bg-white/10 ' : '',
           isCollapsed ? 'justify-center' : ''
         ]"
         :title="isCollapsed ? app.name : ''"
@@ -54,7 +54,16 @@ export default {
   },
   methods: {
     handleSelectWorkspaceApp(app) {
-      this.$ui.openWorkspace(app)
+      app = this.$ui.openApps[app.key] || app
+      this.$ui.showApp({
+        ...app,
+        left: !app?.left,
+        ts: new Date().getTime(),
+        params: {
+          name: app.name,
+          path: app.path
+        }
+      })
     },
     isWorkspaceSelected(workspaceId) {
       return this.navigation.getWorkspaceId() === workspaceId

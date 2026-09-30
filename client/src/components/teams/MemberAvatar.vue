@@ -4,7 +4,7 @@
 <template>
   <div class="relative shrink-0" :class="sizeClass">
     <div
-      class="w-full h-full rounded-full flex items-center justify-center font-bold text-white"
+      class="w-full h-full rounded-full flex items-center justify-center font-bold "
       :style="{ backgroundColor: avatarColor }"
     >
       {{ member.username?.[0]?.toUpperCase() || '?' }}

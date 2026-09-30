@@ -5,8 +5,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" @click.self="$emit('close')">
-    <div class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col border border-base-300 overflow-hidden">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/80 p-4" @click.self="$emit('close')">
+    <div class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col border border-base-100 overflow-hidden">
 
       <!-- Header -->
       <div
@@ -52,7 +52,7 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
       </div>
 
       <!-- Tab Navigation -->
-      <div class="flex gap-0 border-b border-base-300 px-4 shrink-0 bg-base-200/50 overflow-x-auto">
+      <div class="flex gap-0 border-b border-base-100 px-4 shrink-0 bg-base-200/50 overflow-x-auto">
         <button
           v-for="tab in tabs"
           :key="tab.id"
@@ -82,8 +82,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
           <div v-if="activeTab === 'overview'" class="space-y-4">
             
             <!-- Chat Session Info -->
-            <div class="rounded-xl border border-base-300 overflow-hidden">
-              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+            <div class="rounded-xl border border-base-100 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                 <i class="fa-solid fa-info-circle text-primary"></i>
                 <span class="text-sm font-semibold">Chat Session</span>
               </div>
@@ -144,8 +144,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
 
             <div class="flex gap-2 justify-between text-xs">
               <!-- Profiles -->
-              <div v-if="profiles.length" class="rounded-xl border border-base-300 overflow-hidden flex">
-                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+              <div v-if="profiles.length" class="rounded-xl border border-base-100 overflow-hidden flex">
+                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                   <i class="fa-solid fa-user-group text-secondary"></i>
                   <span class="text-sm font-semibold">Profiles</span>
                 </div>
@@ -160,7 +160,7 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
               </div>
 
               <!-- Files -->
-              <div v-if="chatInfo?.files?.length" class="rounded-xl border border-base-300 overflow-hidden flex">
+              <div v-if="chatInfo?.files?.length" class="rounded-xl border border-base-100 overflow-hidden flex">
                 <div class="p-4">
                   <ChatFileList
                     :files="chatInfo.files"
@@ -172,8 +172,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
             </div>
 
             <!-- ADDED: Chat History Summary -->
-            <div v-if="chatHistorySummary.length" class="rounded-xl border border-base-300 overflow-hidden">
-              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+            <div v-if="chatHistorySummary.length" class="rounded-xl border border-base-100 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                 <i class="fa-solid fa-comments text-primary"></i>
                 <span class="text-sm font-semibold">Chat History Summary</span>
                 <span class="badge badge-ghost badge-xs ml-auto">{{ chatHistorySummary.length }} LLM rounds</span>
@@ -182,7 +182,7 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
                 <div
                   v-for="(round, idx) in chatHistorySummary"
                   :key="idx"
-                  class="rounded-lg border border-base-300 overflow-hidden"
+                  class="rounded-lg border border-base-100 overflow-hidden"
                 >
                   <!-- Round header -->
                   <div class="flex items-center gap-2 px-3 py-1.5 bg-secondary/8 text-xs text-secondary/80">
@@ -238,8 +238,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
             </div>
 
             <!-- LLM Calls Metrics -->
-            <div v-if="metricsInfo" class="rounded-xl border border-base-300 overflow-hidden">
-              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+            <div v-if="metricsInfo" class="rounded-xl border border-base-100 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                 <i class="fa-solid fa-message text-secondary"></i>
                 <span class="text-sm font-semibold">LLM Requests</span>
               </div>
@@ -264,8 +264,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
             </div>
 
             <!-- Tool Calls Metrics -->
-            <div v-if="metricsInfo" class="rounded-xl border border-base-300 overflow-hidden">
-              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+            <div v-if="metricsInfo" class="rounded-xl border border-base-100 overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                 <i class="fa-solid fa-wrench text-accent"></i>
                 <span class="text-sm font-semibold">Tool Calls</span>
               </div>
@@ -293,8 +293,8 @@ import LlmRequestsViewer from './LlmRequestsViewer.vue'
 
             <!-- Tool Breakdown -->
             <div v-if="toolMetrics && Object.keys(toolMetrics).length" class="space-y-3">
-              <div v-for="(metrics, toolName) in toolMetrics" :key="toolName" class="rounded-xl border border-base-300 overflow-hidden">
-                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-300 shrink-0">
+              <div v-for="(metrics, toolName) in toolMetrics" :key="toolName" class="rounded-xl border border-base-100 overflow-hidden">
+                <div class="flex items-center gap-2 px-4 py-2.5 bg-base-200 border-b border-base-100 shrink-0">
                   <i class="fa-solid fa-cube text-warning"></i>
                   <span class="text-sm font-semibold">{{ toolName }}</span>
                   <span class="ml-auto badge badge-sm" :class="metrics.success_rate === 100 ? 'badge-success' : 'badge-warning'">

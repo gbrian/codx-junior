@@ -2,10 +2,10 @@
 </script>
 
 <template>
-  <div v-if="moreExpanded && !isCollapsed" class="px-2 py-2 shrink-0 border-b border-white/5">
+  <div v-if="moreExpanded && !isCollapsed" class="px-2 py-2 shrink-0 border-b border-base-content/5">
     <div class="flex flex-col gap-1 pl-6">
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToHome"
         title="Home"
       >
@@ -14,7 +14,7 @@
       </button>
 
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleShowNewProject"
         title="New project"
       >
@@ -23,7 +23,7 @@
       </button>
 
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToTeam"
         title="Team"
       >
@@ -32,7 +32,7 @@
       </button>
 
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToViews"
         title="Views"
       >
@@ -42,7 +42,7 @@
 
       <button
         v-if="isProjectAdmin"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToProfiles"
         title="Profiles"
       >
@@ -52,7 +52,7 @@
 
       <button
         v-if="isProjectAdmin"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToKnowledge"
         title="Knowledge"
       >
@@ -61,7 +61,7 @@
       </button>
 
       <button
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:bg-white/8 hover:text-white transition-colors text-left w-full"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-base-content/70 hover:bg-white/8 hover: transition-colors text-left w-full"
         @click="handleNavigateToAnalytics"
         title="Analytics"
       >

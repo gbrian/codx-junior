@@ -10,7 +10,7 @@ import Document from '../document/Document.vue';
     </div>
     <div
       tabindex="0"
-      class="dropdown-content card card-sm bg-base-300/90 border-base-300 z-10 w-96 shadow-md">
+      class="dropdown-content card card-sm bg-base-300/90 border-base-100 z-10 w-96 shadow-md">
       <div class="card-body text-xs">
         <div class="badge badge-primary">{{ profile.name }}</div>
         <p>{{ profile.description }}</p>

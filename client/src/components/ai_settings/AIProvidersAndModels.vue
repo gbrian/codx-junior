@@ -107,7 +107,7 @@ import AIModelSettings from './AIModelSettings.vue'
             <div
               v-for="model in sortedFilteredModelsForProvider(provider)"
               :key="model.name"
-              class="card bg-base-100 border border-base-300 hover:border-primary/50 transition-all hover:shadow-xl hover:bg-base-50 group"
+              class="card bg-base-100 border border-base-100 hover:border-primary/50 transition-all hover:shadow-xl hover:bg-base-50 group"
             >
               <div class="card-body gap-4 p-5">
                 <!-- Header Row: Icon + Name + Type -->
@@ -204,7 +204,7 @@ import AIModelSettings from './AIModelSettings.vue'
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="flex gap-2 pt-2 border-t border-base-300 justify-end opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                <div class="flex gap-2 pt-2 border-t border-base-100 justify-end opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
                   <button
                     class="btn btn-sm btn-ghost gap-2"
                     @click.stop="showModelInfo = model"
@@ -254,7 +254,7 @@ import AIModelSettings from './AIModelSettings.vue'
 
             <!-- Add new model tile -->
             <div
-              class="card bg-base-100 border-2 border-dashed border-base-300 hover:border-primary/50 transition-colors hover:bg-base-200 cursor-pointer flex items-center justify-center"
+              class="card bg-base-100 border-2 border-dashed border-base-100 hover:border-primary/50 transition-colors hover:bg-base-200 cursor-pointer flex items-center justify-center"
               style="min-height: 280px"
               @click="addModelForProvider(provider)"
             >
@@ -266,7 +266,7 @@ import AIModelSettings from './AIModelSettings.vue'
           </div>
 
           <!-- Quick test chat -->
-          <div v-if="quickTestModel?.ai_provider === provider.name && quickTestChat" class="card bg-base-200 border border-base-300 mt-6">
+          <div v-if="quickTestModel?.ai_provider === provider.name && quickTestChat" class="card bg-base-200 border border-base-100 mt-6">
             <div class="card-body p-4">
               <div class="flex items-center gap-2 mb-4">
                 <i class="fa-solid fa-comment-dots text-success"></i>
@@ -285,7 +285,7 @@ import AIModelSettings from './AIModelSettings.vue'
 
       <!-- Add new provider -->
       <div
-        class="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-base-300 rounded-xl text-primary/70 hover:text-primary cursor-pointer transition-colors"
+        class="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-base-100 rounded-xl text-primary/70 hover:text-primary cursor-pointer transition-colors"
         @click="editProvider({})"
       >
         <i class="fa-solid fa-plus"></i>

@@ -5,7 +5,7 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
 </script>
 
 <template>
-  <div class="w-full relative group">
+  <div class="w-full relative group bg-base-100">
     <div
       class="p-1 rounded-lg border-l-4 cursor-pointer transition-all flex justify-center relative"
       :class="[
@@ -19,7 +19,7 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
       <!-- Unread badge -->
       <div
         v-if="unreadCount > 0"
-        class="absolute -top-1 -right-1 z-10 min-w-4 h-4 px-1 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center border border-base-100"
+        class="absolute -top-1 -right-1 z-10 min-w-4 h-4 px-1 rounded-full bg-error  text-[9px] font-bold flex items-center justify-center border border-base-100"
       >
         {{ unreadCount > 9 ? '9+' : unreadCount }}
       </div>

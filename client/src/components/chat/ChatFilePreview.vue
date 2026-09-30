@@ -3,7 +3,7 @@ import CodeViewer from '../CodeViewer.vue'
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-h-0 bg-base-200 rounded border border-base-300">
+  <div class="h-full flex flex-col min-h-0 bg-base-200 rounded border border-base-100">
     <!-- Loading state -->
     <div class="flex items-center justify-center grow" v-if="!loaded">
       <span class="loading loading-spinner loading-sm text-accent"></span>
@@ -21,7 +21,7 @@ import CodeViewer from '../CodeViewer.vue'
     <!-- File editor -->
     <div class="grow min-h-0 overflow-hidden flex flex-col" v-else>
       <!-- Header with action buttons -->
-      <div class="flex items-center justify-between px-4 py-2 border-b border-base-300 bg-base-300/30 shrink-0">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-base-100 bg-base-300/30 shrink-0">
         <span class="text-xs font-semibold text-base-content/70">{{ fileName }}</span>
         <div class="flex gap-2">
           <button

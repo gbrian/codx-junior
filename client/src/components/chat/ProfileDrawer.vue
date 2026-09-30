@@ -23,7 +23,7 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
       
       <div class="menu p-4 w-64 min-h-full bg-base-200 text-base-content flex flex-col gap-4">
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-base-300 pb-3">
+        <div class="flex items-center justify-between border-b border-base-100 pb-3">
           <h2 class="text-lg font-bold flex items-center gap-2">
             <i class="fa-solid fa-users"></i>
             <span>Profiles</span>
@@ -43,7 +43,7 @@ import ChatProfileSelector from './ChatProfileSelector.vue'
         </div>
 
         <!-- Footer info -->
-        <div class="border-t border-base-300 pt-3 text-xs text-base-content/60">
+        <div class="border-t border-base-100 pt-3 text-xs text-base-content/60">
           <div class="flex items-center gap-2">
             <i class="fa-solid fa-info-circle"></i>
             <span>{{ selectedProfiles.length }} profile(s) selected</span>

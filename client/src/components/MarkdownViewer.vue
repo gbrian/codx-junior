@@ -91,7 +91,7 @@ import Modal from './Modal.vue'
       @close="closeImageModal"
     >
       <template #header>
-        <span class="text-base font-semibold text-white">Image Preview</span>
+        <span class="text-base font-semibold ">Image Preview</span>
       </template>
 
       <div class="flex items-center justify-center">

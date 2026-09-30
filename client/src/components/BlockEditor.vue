@@ -4,9 +4,9 @@ import CodeViewer from './CodeViewer.vue'
 
 <template>
   <!-- Edit mode -->
-  <div v-if="isEditing" class="bg-base-200 rounded-lg p-3 border border-base-300">
+  <div v-if="isEditing" class="bg-base-200 rounded-lg p-3 border border-base-100">
     <!-- Editor toolbar -->
-    <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-base-300">
+    <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-base-100">
       <span class="text-xs font-semibold text-base-content/60">Editing block</span>
       <div class="flex gap-1">
         <button

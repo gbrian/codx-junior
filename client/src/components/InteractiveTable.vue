@@ -3,9 +3,9 @@ import { nextTick } from 'vue'
 </script>
 
 <template>
-  <div class="interactive-table-wrapper border border-base-300 rounded-lg overflow-hidden mb-4 bg-base-100">
+  <div class="interactive-table-wrapper border border-base-100 rounded-lg overflow-hidden mb-4 bg-base-100">
     <!-- Toolbar -->
-    <div class="flex flex-wrap gap-2 p-3 bg-base-200 border-b border-base-300">
+    <div class="flex flex-wrap gap-2 p-3 bg-base-200 border-b border-base-100">
       <button 
         @click="toggleEditMode" 
         class="btn btn-sm gap-1 text-xs"
@@ -67,9 +67,9 @@ import { nextTick } from 'vue'
     <div class="overflow-x-auto" @mouseup="endDragSelection">
       <table class="w-full border-collapse bg-base-100">
         <thead>
-          <tr class="bg-base-300 border-b border-base-300">
+          <tr class="bg-base-300 border-b border-base-100">
             <!-- Select All Checkbox -->
-            <th v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-300 border-r border-base-300">
+            <th v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-300 border-r border-base-100">
               <input 
                 type="checkbox" 
                 @change="toggleSelectAll"
@@ -81,7 +81,7 @@ import { nextTick } from 'vue'
             <th 
               v-for="(header, colIdx) in headers" 
               :key="`header-${colIdx}`"
-              class="p-2 text-left font-semibold text-sm border-r border-base-300 whitespace-nowrap bg-base-300"
+              class="p-2 text-left font-semibold text-sm border-r border-base-100 whitespace-nowrap bg-base-300"
               :class="{ 
                 'cursor-pointer hover:bg-primary hover:bg-opacity-10 group relative': isEditMode,
                 'bg-primary bg-opacity-20': isEditMode && selectedColumns.has(colIdx)
@@ -106,14 +106,14 @@ import { nextTick } from 'vue'
           <tr 
             v-for="(row, rowIdx) in dataRows" 
             :key="`row-${rowIdx}`"
-            class="border-b border-base-300"
+            class="border-b border-base-100"
             :class="{ 
               'hover:bg-base-200 transition-colors': isEditMode,
               'bg-primary bg-opacity-10': isEditMode && isRowSelected(rowIdx)
             }"
           >
             <!-- Row Checkbox -->
-            <td v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-100 border-r border-base-300">
+            <td v-if="isEditMode" class="w-10 p-2 text-center sticky left-0 bg-base-100 border-r border-base-100">
               <input 
                 type="checkbox" 
                 @change="toggleSelectRow(rowIdx)"
@@ -126,7 +126,7 @@ import { nextTick } from 'vue'
             <td 
               v-for="(cell, colIdx) in row" 
               :key="`cell-${rowIdx}-${colIdx}`"
-              class="p-2 border-r border-base-300 text-sm min-w-24"
+              class="p-2 border-r border-base-100 text-sm min-w-24"
               :class="{ 
                 'group relative cursor-cell': isEditMode,
                 'bg-primary bg-opacity-20 border-2 border-primary': isEditMode && isSelected(rowIdx, colIdx),

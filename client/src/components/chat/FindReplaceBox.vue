@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 px-3 py-3 bg-base-100 border-b border-base-300/50">
+  <div class="flex flex-col gap-3 px-3 py-3 bg-base-100 border-b border-base-100/50">
     <!-- Find input row -->
     <div class="flex gap-2 items-center">
       <input
