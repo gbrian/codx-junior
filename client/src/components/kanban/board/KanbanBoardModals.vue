@@ -1,11 +1,21 @@
 <script setup>
+import ChatProfileSelector from '../../../components/chat/ChatProfileSelector.vue'
+import ChatLLMModelSelector from '../../../components/chat/ChatLLMModelSelector.vue'
+import { getCurrentInstance } from 'vue'
+
+const instance = getCurrentInstance()
+defineExpose({
+  openNewTask:   (...args) => instance.proxy.openNewTask(...args),
+  openNewColumn: (...args) => instance.proxy.openNewColumn(...args),
+  openNewBoard:  (...args) => instance.proxy.openNewBoard(...args),
+})
 </script>
 
 <template>
   <div class="kanban-board-modals">
 
     <!-- ── New Task Modal ── -->
-    <modal close="true" @close="closeNewTask" v-if="showNewTask">
+    <modal close @close="closeNewTask" v-if="showNewTask">
       <div class="p-1">
         <h2 class="font-bold text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-plus text-primary text-sm"></i>
@@ -61,7 +71,7 @@
         </div>
 
         <!-- Mode selector -->
-        <div class="form-control mb-4">
+        <div class="form-control mb-3">
           <label class="label py-1">
             <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Type</span>
           </label>
@@ -78,6 +88,34 @@
               <i :class="mode.icon + ' text-xs'"></i>
               {{ mode.label }}
             </label>
+          </div>
+        </div>
+
+        <!-- Profiles & Model row -->
+        <div class="form-control mb-4">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Profiles & Model</span>
+          </label>
+          <div class="flex flex-wrap gap-2 items-center">
+            <ChatProfileSelector
+              :selected-profiles="newTask.selectedProfiles"
+              @profiles-changed="onProfilesChanged"
+            />
+            <ChatLLMModelSelector
+              :selected-model="newTask.llm_model"
+              @model-changed="onModelChanged"
+            />
+          </div>
+          <!-- Selected profile chips -->
+          <div v-if="newTask.selectedProfiles.length" class="flex flex-wrap gap-1 mt-2">
+            <span
+              v-for="p in newTask.selectedProfiles"
+              :key="p.name"
+              class="badge badge-sm badge-primary gap-1"
+            >
+              <i class="fa-solid fa-user text-xs"></i>
+              {{ p.name }}
+            </span>
           </div>
         </div>
 
@@ -107,7 +145,7 @@
     </modal>
 
     <!-- ── New / Edit Column Modal ── -->
-    <modal close="true" @close="closeNewColumn" v-if="showNewColumn">
+    <modal close @close="closeNewColumn" v-if="showNewColumn">
       <div class="p-1">
         <h2 class="font-bold text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-table-columns text-primary text-sm"></i>
@@ -165,7 +203,7 @@
     </modal>
 
     <!-- ── New Board Modal ── -->
-    <modal close="true" @close="closeNewBoard" v-if="showNewBoard">
+    <modal close @close="closeNewBoard" v-if="showNewBoard">
       <div class="p-1">
         <h2 class="font-bold text-base mb-4 flex items-center gap-2">
           <i class="fa-brands fa-trello text-primary text-sm"></i>
@@ -231,6 +269,15 @@ const TASK_MODES = [
   { value: 'topic',   label: 'Discussion', icon: 'fa-solid fa-comments' },
 ]
 
+const DEFAULT_NEW_TASK = () => ({
+  name: '',
+  column: '',
+  mode: 'chat',
+  parentId: null,
+  selectedProfiles: [],
+  llm_model: null
+})
+
 export default {
   props: {
     columns: { type: Array, default: () => [] },
@@ -243,7 +290,7 @@ export default {
       showNewTask: false,
       showNewColumn: false,
       showNewBoard: false,
-      newTask: { name: '', column: '', mode: 'chat', parentId: null },
+      newTask: DEFAULT_NEW_TASK(),
       newColumn: { title: '', color: '#6366f1' },
       newBoard: { title: '', description: '' },
       columnError: null,
@@ -262,9 +309,8 @@ export default {
     // ── New Task ──────────────────────────────────────────────────────────────
     openNewTask({ column, parentId } = {}) {
       this.newTask = {
-        name: '',
+        ...DEFAULT_NEW_TASK(),
         column: column || this.columns[0]?.title || '',
-        mode: 'chat',
         parentId: parentId || null
       }
       this.showNewTask = true
@@ -275,8 +321,20 @@ export default {
     },
     confirmNewTask() {
       if (!this.newTask.name?.trim()) return
-      this.$emit('task-created', { ...this.newTask })
+      this.$emit('task-created', {
+        name: this.newTask.name,
+        column: this.newTask.column,
+        mode: this.newTask.mode,
+        profiles: this.newTask.selectedProfiles.map(p => p.name),
+        llm_model: this.newTask.llm_model || null
+      })
       this.closeNewTask()
+    },
+    onProfilesChanged(profiles) {
+      this.newTask.selectedProfiles = profiles || []
+    },
+    onModelChanged(modelName) {
+      this.newTask.llm_model = modelName || null
     },
 
     // ── New Column ────────────────────────────────────────────────────────────

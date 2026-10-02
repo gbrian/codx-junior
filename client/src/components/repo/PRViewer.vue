@@ -52,7 +52,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             <span class="hidden sm:inline">{{ diffViewMode === 'unified' ? 'Unified' : 'Split' }}</span>
             <i class="fa-solid fa-chevron-down text-[8px]"></i>
           </button>
-          <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-32 p-1 shadow">
+          <ul class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-32 p-1 shadow">
             <li><a @click="setDiffViewMode('unified')" :class="{ 'active': diffViewMode === 'unified' }">Unified</a></li>
             <li><a @click="setDiffViewMode('split')" :class="{ 'active': diffViewMode === 'split' }">Split</a></li>
           </ul>

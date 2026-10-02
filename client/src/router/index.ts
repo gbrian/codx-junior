@@ -7,6 +7,7 @@ import MessengerView from '@/views/MessengerView.vue'
 import MetricsDashboard from '@/components/analytics/MetricsDashboard.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
 import KanbanBoardView from '@/components/kanban/board/KanbanBoardView.vue'
+import BrowsersSessionManager from '@/components/browsers/BrowsersSessionManager.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,14 +41,25 @@ const router = createRouter({
       component: WorkspaceView
     },
     {
-      path: '/kanban',
-      name: 'kanban',
-      component: KanbanBoardView
-    },
-    {
       path: '/workspaces/:workspaceId/:workspaceName',
       name: 'workspace',
       component: WorkspaceView
+    },
+    {
+      // Browser routes: router mode
+      path: '/browsers',
+      name: 'browsers',
+      component: BrowsersSessionManager
+    },
+    {
+      path: '/browsers/:sessionId/:sessionName',
+      name: 'browser-session',
+      component: BrowsersSessionManager
+    },
+    {
+      path: '/kanban',
+      name: 'kanban',
+      component: KanbanBoardView
     },
     {
       path: '/messenger',

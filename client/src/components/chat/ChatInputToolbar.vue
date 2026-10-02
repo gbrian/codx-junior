@@ -66,7 +66,7 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
           <div tabindex="1" role="button" class="btn btn-sm m-1">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </div>
-          <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
+          <ul tabindex="1" class="dropdown-content bg-base-100 menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
             <li class="btn btn-sm tooltip" data-tip="Attach files" @click="openFileModal">
               <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
             </li>

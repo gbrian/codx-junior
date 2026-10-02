@@ -4,11 +4,13 @@
   "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [
     "/home/codx-junior-projects/codx-junior/client/src/components/kanban/KanbanContainer.vue",
     "/home/codx-junior-projects/codx-junior/client/src/components/kanban/Kanban.vue"
@@ -20,6 +22,7 @@
   ],
   "name": "Create kanban",
   "pinned": false,
+  "is_template": false,
   "description": "In migrating functionality from the Kanban component to KanbanContainer, the focus was on fixing the \"Add Kanban\" button functionality. I provided an updated version of `KanbanContainer.vue`, enhancing the logic by implementing methods like `showNewBoardModal` to initiate new board creation and `onDeleteBoard` for board deletion. Additionally, placeholders for methods like `toggleBookmark`, `createSubTask`, and `moveChatsToColumn` were set up for future logic extensions. This update aims to address issues with adding new Kanban boards while ensuring the KanbanContainer fully replicates the original component's functionality.",
   "messages": [
     {
@@ -33,13 +36,15 @@
       "improvement": false,
       "created_at": "2026-04-02 08:55:08.182144",
       "updated_at": "2026-04-02 08:55:08.182166",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 14.334508657455444,
         "first_chunk_time_taken": 0.22586941719055176,
         "model": "ChatGPT"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -47,7 +52,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "0acb9045-51c1-45a0-b58b-2b56388f35e9",
@@ -60,12 +66,14 @@
       "improvement": false,
       "created_at": "2026-04-05 15:38:58.478670",
       "updated_at": "2026-04-05T15:55:48.279Z",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "start_time": 1775404512.7862728,
         "model": "claude-sonnet-4"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -73,7 +81,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "b4730102-ff28-4b4b-a06a-6c6a0a58e333",
@@ -86,12 +95,14 @@
       "improvement": false,
       "created_at": "2026-04-05 15:38:58.478670",
       "updated_at": "2026-04-05 15:38:58.478692",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/KanbanSettings.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/KanbanSettings.vue"
       ],
       "meta_data": {},
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -99,7 +110,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "d21b9ddd-1f94-457f-b39c-31e3ae530a0b",
@@ -112,12 +124,14 @@
       "improvement": false,
       "created_at": "2026-04-05 15:38:58.478670",
       "updated_at": "2026-04-05T16:04:52.972Z",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "start_time": 1775405063.8286307,
         "model": "claude-sonnet-4"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -125,11 +139,12 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-04-02 08:55:08.185023",
-  "updated_at": "2026-04-05T16:05:15.420963",
+  "updated_at": "2026-09-30T16:50:39.372696",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -143,7 +158,13 @@
   "llm_model": "claude-sonnet-4",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

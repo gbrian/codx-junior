@@ -3,7 +3,7 @@
 
 <template>
   <div v-if="hasWorkspaceApps" class="flex flex-col gap-1.5 px-2">
-    <!-- Dropdown (when collapsed) -->
+    <!-- dropdown (when collapsed) -->
     <div class="dropdown dropdown-bottom dropdown-right w-full">
       <button
         tabindex="0"
@@ -15,7 +15,7 @@
         <i class="fa-solid fa-play w-5 text-center shrink-0"></i>
         <span v-if="!isCollapsed">Workspaces</span>
       </button>
-      <ul tabindex="-1" class="dropdown-content z-10 menu p-2 shadow bg-base-100 rounded-box w-52">
+      <ul tabindex="-1" class="dropdown-content bg-base-100 z-10 menu p-2 shadow bg-base-100 rounded-box w-52">
         <li v-for="app in workspaceApps" :key="app.name">
           <a @click="selectApp(app)" :class="isSelected(app) ? 'active' : ''">
             <i v-if="app.icon" :class="app.icon" class="mr-2"></i>

@@ -4,7 +4,6 @@ import ChatListRenderer from './ChatListRenderer.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import ProfileCard from '../ProfileCard.vue'
 import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
-import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -16,19 +15,8 @@ import ProjectDetailt from '../ProjectDetailt.vue'
   ]"
   >
 
-    <!-- HEADER: Fixed - Project Selector & Root Chat Node -->
+    <!-- HEADER: Fixed - Root Chat Node -->
     <div class="shrink-0 border-b border-base-100">
-      <!-- Project Selector -->
-      <div v-if="!isCompact" class="px-2 md:px-3 py-3 border-b border-base-100">
-        <ProjectDetailt
-          @click.stop=""
-          :iconify="false"
-          :modelValue="targetProject"
-          :options="{ showFolders: false, showIcon: true, showSelector: true }"
-          @update:modelValue="$emit('select-project', $event)"
-        />
-      </div>
-
       <!-- Root Chat Node - Expanded Mode -->
       <div v-if="!isCompact" class="px-2 md:px-3 py-2">
         <ChatSidebarNode
@@ -42,7 +30,6 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           @click.stop=""
         />
       </div>
-
       <!-- Root Chat Node - Compact Mode -->
       <div v-else class="flex flex-col items-center gap-2 p-2">
         <div
@@ -53,16 +40,17 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           <div
             class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
             :class="[
-              selectedChatId === rootChat?.id
-                ? 'bg-codx-secondary  border-codx-primary/60 shadow-md ring-2 ring-codx-primary/20'
-                : ' border-base-content/20 hover:bg-white/20 hover:border-base-content/30'
+              selectedChatId === rootChat.id
+                ? 'border-primary/60 shadow-md ring-2 ring-primary/20'
+                : 'border-base-content/20 hover:bg-white/20 hover:border-base-content/30'
             ]"
+            :style="`background-image: url(${allChatsWorkingProject[rootChat]?.project_icon})`"
           >
-            {{ getInitials(rootChat?.name) }}
+            {{ getInitials(rootChat.name) }}
           </div>
           <!-- Tooltip -->
-          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20  text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/20">
-            {{ rootChat?.name }}
+          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/20">
+            {{ rootChat.name }}
           </div>
         </div>
       </div>
@@ -106,14 +94,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
       </div>
 
-      <!-- Chat Children (Subtasks) Section -->
-      <div v-if="sortedRootChildren.length > 0" class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0">
+      <!-- Chat Children (Subtasks) Section - Now shows ALL nested chats -->
+      <div v-if="allNestedChats.length > 0" class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0">
         <div v-if="!isCompact" class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2 px-1 shrink-0">
           <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
         </div>
         <ChatListRenderer
           :class="!isCompact && 'p-1'"
-          :chatList="sortedRootChildren"
+          :chatList="sortedAllNestedChats"
           :selectedChatId="selectedChatId"
           :isCompact="isCompact"
           :allChats="allChats"
@@ -133,6 +121,15 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       <div class="flex items-center gap-1"
         :class="isCompact && 'flex-col gap-3'" 
       >
+        <!-- Browser Session Button -->
+        <button 
+          @click.stop="openBrowserSessionDialog"
+          :title="'Create browser session'"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+        >
+          <i class="fa-solid fa-globe text-sm"></i>
+        </button>
+
         <!-- Logs Button -->
         <button 
           @click.stop="$emit('action', { type: 'logs' })"
@@ -179,6 +176,81 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </button>
       </div>
     </div>
+
+    <!-- Browser Session Dialog Modal -->
+    <dialog v-if="showBrowserDialog" class="modal modal-open">
+      <form method="dialog" class="modal-box w-full max-w-sm">
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        
+        <h3 class="font-bold text-lg mb-4">Create Browser Session</h3>
+        
+        <div class="form-control gap-4">
+          <!-- Session Name -->
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text text-sm font-medium">Session Name</span>
+            </label>
+            <input
+              v-model="browserSessionForm.name"
+              type="text"
+              placeholder="e.g., Testing Session"
+              class="input input-bordered input-sm w-full focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+
+          <!-- Chat ID (Read-only) -->
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text text-sm font-medium">Chat ID</span>
+            </label>
+            <input
+              :value="workingChat.id"
+              type="text"
+              disabled
+              class="input input-bordered input-sm w-full bg-base-300 text-base-content/50"
+            />
+          </div>
+
+          <!-- Description -->
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text text-sm font-medium">Description (Optional)</span>
+            </label>
+            <textarea
+              v-model="browserSessionForm.description"
+              placeholder="Add notes about this session..."
+              class="textarea textarea-bordered textarea-sm w-full focus:ring-2 focus:ring-primary/50 resize-none"
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-action gap-2 mt-6">
+          <button
+            type="button"
+            @click="closeBrowserSessionDialog"
+            class="btn btn-ghost btn-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="createBrowserSession"
+            :disabled="!browserSessionForm.name.trim() || isCreatingSession"
+            class="btn btn-primary btn-sm"
+          >
+            <span v-if="isCreatingSession" class="loading loading-spinner loading-sm"></span>
+            <span v-else>Create Session</span>
+          </button>
+        </div>
+      </form>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeBrowserSessionDialog">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -194,13 +266,23 @@ export default {
     isCompact: { type: Boolean, default: false },
     chatProfiles: { type: Array, default: () => [] }
   },
-  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment', 'select-project'],
+  emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment'],
+  data() {
+    return {
+      showBrowserDialog: false,
+      isCreatingSession: false,
+      browserSessionForm: {
+        name: '',
+        description: ''
+      }
+    }
+  },
   computed: {
-    rootChildren() {
-      return this.allChats.filter(c => c.parent_id === this.rootChat.id)
+    allNestedChats() {
+      return this.$storex.chats.chatDescendants(this.rootChat.id).filter(chat => chat.id !== this.rootChat.id)
     },
-    sortedRootChildren() {
-      return [...this.rootChildren].sort((a, b) => {
+    sortedAllNestedChats() {
+      return [...this.allNestedChats].sort((a, b) => {
         const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
         const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
         return timeB - timeA
@@ -209,8 +291,9 @@ export default {
     selectedChat() {
       return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat
     },
-    targetProject() {
-      return this.$chats.getChatWorkingProject(this.selectedChat)
+    allChatsWorkingProject() {
+      return [this.rootChat, ...this.allNestedChats]
+        .reduce((v, acc) => ({ ...acc, [v.id]: this.$chats.getChatWorkingProject(v) }), {})
     }
   },
   methods: {
@@ -225,6 +308,39 @@ export default {
         return (words[0][0] + words[1][0]).toUpperCase()
       }
       return name.substring(0, 2).toUpperCase()
+    },
+    openBrowserSessionDialog() {
+      this.browserSessionForm = {
+        name: `${this.workingChat.name} - Browser Session`,
+        description: ''
+      }
+      this.showBrowserDialog = true
+    },
+    closeBrowserSessionDialog() {
+      this.showBrowserDialog = false
+      this.browserSessionForm = {
+        name: '',
+        description: ''
+      }
+    },
+    async createBrowserSession() {
+      if (!this.browserSessionForm.name.trim()) return
+
+      this.isCreatingSession = true
+      try {
+        const sessionData = {
+          name: this.browserSessionForm.name,
+          description: this.browserSessionForm.description,
+          chat_id: this.workingChat.id
+        }
+
+        await this.$storex.browsers.createSession(sessionData)
+        this.closeBrowserSessionDialog()
+      } catch (error) {
+        console.error('[ChatSidebar] Error creating browser session:', error)
+      } finally {
+        this.isCreatingSession = false
+      }
     }
   }
 }

@@ -34,9 +34,15 @@ function registerChat(state, chat) {
     return
   }
   const existingChat = state.chats[chat.id] || {}
+  
+  // Update lastMessageAt when registering a chat with messages
+  const lastMessage = chat.messages?.[chat.messages.length - 1]
+  const lastMessageAt = lastMessage?.timestamp || lastMessage?.created_at || chat.updated_at || new Date().toISOString()
+  
   state.chats[chat.id] = {
     ...existingChat,
-    ...chat
+    ...chat,
+    lastMessageAt
   }
 }
 
@@ -90,7 +96,16 @@ export const getters = getterTree(state, {
   searchResults: state => state.searchResults,
   getChatProject: () => getChatProject,
   getChatWorkingProject: () => getChatWorkingProject,
-  recentChats: state => state.recentChatIds.map(id => state.chats[id]).filter(Boolean),
+  recentChats: state => {
+    return state.recentChatIds
+      .map(id => state.chats[id])
+      .filter(Boolean)
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || a.updated_at || 0).getTime()
+        const timeB = new Date(b.lastMessageAt || b.updated_at || 0).getTime()
+        return timeB - timeA
+      })
+  },
   recentChatsHasMore: state => state.recentChatsHasMore,
   recentChatsLoading: state => state.recentChatsLoading,
 
@@ -189,6 +204,12 @@ export const mutations = mutationTree(state, {
     state.chats = {}
     state.activeChatId = null
     state.chatLoadingStatus = {}
+  },
+
+  updateChatLastMessageAt(state, { chatId, timestamp }) {
+    if (state.chats[chatId]) {
+      state.chats[chatId].lastMessageAt = timestamp
+    }
   }
 })
 
@@ -434,6 +455,12 @@ export const actions = actionTree(
         
         if (updatedChat && updatedChat.messages) {
           state.chats[chat.id].messages = updatedChat.messages
+          // Update lastMessageAt with the latest message timestamp
+          const lastMessage = updatedChat.messages[updatedChat.messages.length - 1]
+          if (lastMessage) {
+            const timestamp = lastMessage.timestamp || lastMessage.created_at || new Date().toISOString()
+            $storex.chats.updateChatLastMessageAt({ chatId: chat.id, timestamp })
+          }
         }
         
         return updatedChat
@@ -496,6 +523,12 @@ export const actions = actionTree(
 
         if (lastResult?.messages) {
           state.chats[chat.id].messages = lastResult.messages
+          // Update lastMessageAt with the latest message timestamp
+          const lastMessage = lastResult.messages[lastResult.messages.length - 1]
+          if (lastMessage) {
+            const timestamp = lastMessage.timestamp || lastMessage.created_at || new Date().toISOString()
+            $storex.chats.updateChatLastMessageAt({ chatId: chat.id, timestamp })
+          }
         } else {
           await $storex.chats.reloadChat(chat)
         }

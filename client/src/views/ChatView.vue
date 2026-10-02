@@ -25,14 +25,12 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       :chatSearch="chatSearch"
       :isCompact="compactSidebar"
       :chatProfiles="chatProfiles"
-      :targetProject="targetProject"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
       @remove-attachment="onSidebarRemoveAttachment"
-      @select-project="setChatProject"
     />
 
     <!-- ─────────────────────────────────────────────────────────────
@@ -49,6 +47,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         :hiddenCount="hiddenCount"
         :showHidden="showHidden"
         :isSelectedChatChild="isSelectedChatChild"
+        :targetProject="targetProject"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
@@ -63,6 +62,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @toggle-ignore-parent-knowledge="onIgnoreParentKnowledgeChanged"
         @toggle-ignore-parent-files="onIgnoreParentFilesChanged"
         @status-changed="onStatusChanged"
+        @select-project="setChatProject"
       />
 
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
@@ -371,6 +371,7 @@ export default {
     },
     async saveChatInfo(chat) {
       this.editName = false
+      chat.auto_initialize = false
       return this.$chats.saveChatInfo(chat || this.theChat)
     },
     async confirmDeleteChat() {

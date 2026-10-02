@@ -10,7 +10,6 @@ import ProjectSettingsVue from '../views/ProjectSettings.vue'
 import WikiViewVue from '../views/WikiView.vue'
 import DocsViewVue from '../views/DocsView.vue'
 import GlobalSettingsVue from '../views/GlobalSettings.vue'
-import KanbanContainerVue from '../components/kanban/KanbanContainer.vue'
 import MetricsViewer from '../components/metrics/MetricsViewer.vue'
 import AccountSettings from '../components/security/AccountSettings.vue'
 import FileExplorerPanel from '../components/filebrowser/FileExplorerPanel.vue'
@@ -25,17 +24,18 @@ import TeamChannel from '../components/teams/TeamChannel.vue'
 import TeamDM from '../components/teams/TeamDM.vue'
 import TeamMediaLibrary from '../components/teams/TeamMediaLibrary.vue'
 import VibeCodingView from '../views/VibeCodingView.vue'
-// CHANGED: Use WorkspacesManager as the app entry point instead of WorkspacesList
 import WorkspacesManager from '../components/workspaces/WorkspacesManager.vue'
 import EmptyStateWelcome from '../components/desktop/EmptyStateWelcome.vue'
 import Tab from '../components/desktop/Tab.vue'
 import KanbanBoardView from '../components/kanban/board/KanbanBoardView.vue'
-
+import BrowserSessionList from '../components/browsers/BrowserSessionList.vue'
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
   'window': Window,
   'app-window': AppWindow,
+  'workspace': AppWindow,
+  'browser-sessions': BrowserSessionList,
   'log-viewer': LogViewer,
   'knowledge': KnowledgeViewVue,
   'knowledge_settings': KnowledgeSettingsVue,

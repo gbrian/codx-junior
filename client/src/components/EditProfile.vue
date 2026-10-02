@@ -302,7 +302,7 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
               </button>
             </div>
 
-            <!-- Tag Filter Dropdown -->
+            <!-- Tag Filter dropdown -->
             <div v-if="availableTags.length" class="flex flex-col gap-2">
               <label class="label label-text text-xs pb-1">Filter by tag</label>
               <select 

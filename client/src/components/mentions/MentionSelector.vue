@@ -16,7 +16,7 @@
         </button>
       </div>
     </div>
-    <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
+    <ul tabindex="0" class="dropdown-content bg-base-100 z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
       <li class="tooltip text-lg" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
         <a @click="addSerchTerm(term)">
           <div :class="[searchTermSelIx === ix ? 'underline':'']">

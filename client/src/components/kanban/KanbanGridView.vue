@@ -56,7 +56,7 @@ import Collapsible from '../Collapsible.vue'
             Columns
             <span v-if="columnFilter.length" class="badge badge-sm">{{ columnFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableColumns" :key="opt">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -77,7 +77,7 @@ import Collapsible from '../Collapsible.vue'
             Profiles
             <span v-if="profileFilter.length" class="badge badge-sm">{{ profileFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableProfiles" :key="opt">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -98,7 +98,7 @@ import Collapsible from '../Collapsible.vue'
             Types
             <span v-if="modeFilter.length" class="badge badge-sm">{{ modeFilter.length }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu rounded-box z-20 w-52 p-2 shadow">
             <li v-for="opt in availableModes" :key="opt.value">
               <label class="flex gap-2 items-center cursor-pointer">
                 <input type="checkbox" class="checkbox checkbox-xs"
@@ -191,7 +191,7 @@ import Collapsible from '../Collapsible.vue'
                 >
                   <i class="fa-solid fa-plus text-xs"></i> Task
                 </div>
-                <ul tabindex="0" class="dropdown-content menu rounded-box z-20 w-44 p-2 shadow">
+                <ul tabindex="0" class="dropdown-content bg-base-100 menu rounded-box z-20 w-44 p-2 shadow">
                   <li @click="emitNewTaskForColumn(groupKey, 'chat')">
                     <a><ChatIcon mode="chat" /> Chat</a>
                   </li>

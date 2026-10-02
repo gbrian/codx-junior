@@ -56,7 +56,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
           :class="`border-[${file.column?.color || 'gainsboro'}] text-[${file.column?.color || 'gainsboro'}]`">
           <i class="fa-solid fa-table-columns"></i> {{  file.column?.title || '...'  }}
         </div>
-        <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-20 p-2 shadow-sm">
+        <ul tabindex="-1" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-20 p-2 shadow-sm">
           <li v-for="column in columns" 
             :key="column.title"
             class="mb-2 text-sm border rounded-lg overflow-hidden text-nowrap text-ellipsis"

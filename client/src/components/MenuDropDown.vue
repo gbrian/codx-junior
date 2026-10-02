@@ -5,7 +5,7 @@
         <i class="fa-solid fa-ellipsis-vertical"></i>
       </slot>
     </div>
-    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+    <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
       <slot>
 
       </slot>

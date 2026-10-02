@@ -16,7 +16,7 @@ import Chat from '../chat/Chat.vue'
     </div>
     <ul
       tabindex="-1"
-      class="dropdown-content menu border bg-base-100 rounded-box z-1 w-[600px] p-2 shadow-sm mr-2"
+      class="dropdown-content bg-base-100 menu border bg-base-100 rounded-box z-1 w-[600px] p-2 shadow-sm mr-2"
       :class="[ focused && 'border-info']"
       >
       <div>

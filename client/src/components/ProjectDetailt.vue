@@ -15,8 +15,8 @@ import Modal from './Modal.vue'
         :alt="project.project_name" 
         class="w-5 h-5 rounded-md" 
       />
-      <span class="truncate">{{ project?.project_name || 'Select Project' }}</span>
-      <i class="fa-solid fa-right-left text-xs ml-auto"></i>
+      <span v-if="!iconify" class="truncate">{{ project?.project_name || 'Select Project' }}</span>
+      <i v-if="!iconify" class="fa-solid fa-right-left text-xs ml-auto"></i>
     </button>
 
     <!-- Modal: Recent Projects with Search & More -->
@@ -126,6 +126,10 @@ export default {
     modelValue: {
       type: Object,
       default: () => null
+    },
+    iconify: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:modelValue', 'select'],

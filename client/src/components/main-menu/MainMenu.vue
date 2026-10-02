@@ -65,7 +65,9 @@ import ViewsMenu from './ViewsMenu.vue'
               <i class="fa-regular fa-folder-open"></i>
               File explorer
             </MenubarItem>
-            <ViewsMenu />
+            <MenubarItem @click="$ui.setActiveTab('browser-sessions')">
+              <i class="fa-regular fa-compass"></i> Browser sessions
+            </MenubarItem>
             <MenubarItem @click="$ui.setActiveTab('profiles')"
               v-if="$users.isProjectAdmin">
               <i class="fa-solid fa-id-badge"></i>

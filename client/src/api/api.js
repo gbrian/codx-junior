@@ -7,6 +7,7 @@ import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
 import { workspacesModule } from './modules/workspaces'
+import { browsersModule } from './modules/browsers'
 
 /**
  * In-flight request deduplication map.
@@ -603,10 +604,11 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.get('/api/update')
       }
     },
-    browser: {
-      message(chat) {
-        return API.post('/api/browser', chat)
-      },
+    get browsers() {
+      if (!API._browsersModule) {
+        API._browsersModule = browsersModule(API)
+      }
+      return API._browsersModule
     },
     tools: {
       async imageToText(file) {

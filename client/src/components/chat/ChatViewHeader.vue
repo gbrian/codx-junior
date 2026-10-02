@@ -1,6 +1,7 @@
 <script setup>
 import ChatModeSelector from './ChatModeSelector.vue'
 import ChatStatusSelector from './ChatStatusSelector.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -54,13 +55,16 @@ import ChatStatusSelector from './ChatStatusSelector.vue'
       </div>
     </div>
     
-    <!-- ROW 2: Mode + Title + Tags + Status + Settings -->
+    <!-- ROW 2: Project Selector + Title + Tags + Status + Toggles + Mode Selector -->
     <div class="flex items-center gap-3 min-w-0 flex-wrap">
-      <!-- Chat Mode Selector (Fixed Width) -->
+      <!-- Project Detail Selector (Fixed Width) -->
       <div class="shrink-0">
-        <ChatModeSelector 
-          :selected-mode="chat.mode"
-          @mode-changed="$emit('mode-changed', $event)"
+        <ProjectDetailt
+          @click.stop=""
+          :iconify="true"
+          :modelValue="targetProject"
+          :options="{ showFolders: false, showIcon: true, showSelector: true }"
+          @update:modelValue="$emit('select-project', $event)"
         />
       </div>
 
@@ -119,49 +123,48 @@ import ChatStatusSelector from './ChatStatusSelector.vue'
         />
       </div>
 
-      <!-- Settings Toggles (Right) -->
+      <!-- Settings Toggles + Mode Selector (Right) -->
       <div class="flex items-center gap-1.5 ml-auto shrink-0">
         
-        <!-- Template Toggle (Available for All) -->
-        <label 
-          class="tooltip tooltip-bottom"
-          data-tip="Mark as template"
+        <!-- Template Toggle (Icon Button) -->
+        <button
+          @click="toggleTemplate"
+          class="tooltip tooltip-bottom focus:ring-2 focus:ring-primary/50 rounded p-1 transition-colors duration-150 outline-none"
+          :class="chat.is_template ? 'text-warning' : 'text-gray-500'"
+          :data-tip="chat.is_template ? 'Remove from templates' : 'Mark as template'"
         >
-          <input 
-            type="checkbox" 
-            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
-            :checked="chat.is_template"
-            @change="toggleTemplate"
-          />
-        </label>
+          <i class="fa-solid fa-star text-sm"></i>
+        </button>
 
         <!-- Ignore Parent Knowledge (Child Only) -->
-        <label 
+        <button
           v-if="isSelectedChatChild"
-          class="tooltip tooltip-bottom"
-          data-tip="Ignore parent knowledge"
+          @click="toggleIgnoreParentKnowledge"
+          class="tooltip tooltip-bottom focus:ring-2 focus:ring-primary/50 rounded p-1 transition-colors duration-150 outline-none"
+          :class="chat.ignore_parent_knowledge ? 'text-gray-500' : 'text-info'"
+          :data-tip="chat.ignore_parent_knowledge ? 'Enable parent knowledge' : 'Ignore parent knowledge'"
         >
-          <input 
-            type="checkbox" 
-            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
-            :checked="chat.ignore_parent_knowledge"
-            @change="toggleIgnoreParentKnowledge"
-          />
-        </label>
+          <i class="fa-solid fa-brain text-sm"></i>
+        </button>
 
         <!-- Ignore Parent Files (Child Only) -->
-        <label 
+        <button
           v-if="isSelectedChatChild"
-          class="tooltip tooltip-bottom"
-          data-tip="Ignore parent files"
+          @click="toggleIgnoreParentFiles"
+          class="tooltip tooltip-bottom focus:ring-2 focus:ring-primary/50 rounded p-1 transition-colors duration-150 outline-none"
+          :class="chat.ignore_parent_files ? 'text-gray-500' : 'text-info'"
+          :data-tip="chat.ignore_parent_files ? 'Enable parent files' : 'Ignore parent files'"
         >
-          <input 
-            type="checkbox" 
-            class="checkbox checkbox-sm focus:ring-2 focus:ring-primary/50"
-            :checked="chat.ignore_parent_files"
-            @change="toggleIgnoreParentFiles"
+          <i class="fa-solid fa-file text-sm"></i>
+        </button>
+
+        <!-- Chat Mode Selector (After Parent Flags) -->
+        <div class="shrink-0">
+          <ChatModeSelector 
+            :selected-mode="chat.mode"
+            @mode-changed="$emit('mode-changed', $event)"
           />
-        </label>
+        </div>
       </div>
     </div>
 
@@ -177,7 +180,8 @@ export default {
     messageCount: { type: Number, default: 0 },
     hiddenCount: { type: Number, default: 0 },
     showHidden: { type: Boolean, default: false },
-    isSelectedChatChild: { type: Boolean, default: false }
+    isSelectedChatChild: { type: Boolean, default: false },
+    targetProject: { type: Object, default: null }
   },
   emits: [
     'update-name',

@@ -43,7 +43,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
               <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
                 <i class="mt-1 fa-solid fa-plus"></i>
               </div>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+              <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                 <li @click="$emit('new-task', { column, mode: 'chat' })">
                   <a><ChatIcon mode="chat" /> Chat</a>
                 </li>

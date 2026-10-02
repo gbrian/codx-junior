@@ -39,7 +39,7 @@ import AppIcon from '../apps/AppIcon.vue';
     <!-- ADDED: Quick new workspace shortcut -->
     <MenubarItem
       class="flex gap-2 hover:bg-base-300"
-      @click.stop="openWorkspaceManager({ create: true })"
+      @click.stop="openWorkspacesManager({ create: true })"
     >
       <i class="fa-solid fa-plus text-success"></i>
       New workspace
@@ -48,7 +48,7 @@ import AppIcon from '../apps/AppIcon.vue';
     <!-- CHANGED: Manage workspaces link (was present before, restored + improved) -->
     <MenubarItem
       class="flex gap-2 hover:bg-base-300"
-      @click.stop="openWorkspaceManager()"
+      @click.stop="openWorkspacesManager()"
     >
       <i class="fa-solid fa-sliders"></i>
       Manage workspaces
@@ -82,8 +82,7 @@ export default {
         }
       })
     },
-    // ADDED: open the workspace manager, optionally pre-opening the create dialog
-    openWorkspaceManager(params = {}) {
+    openWorkspacesManager(params = {}) {
       this.$ui.showApp({
         tabId: 'workspaces-manager',
         name: 'Workspaces',

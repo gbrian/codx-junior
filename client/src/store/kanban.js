@@ -81,7 +81,13 @@ export const getters = getterTree(state, {
       const storeColumn = board?.columns?.find(bc => bc.title === col) || {}
       const tasks = getters.boardChats
         .filter(t => t.column === col)
-        .sort((a, b) => (a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1))
+        .sort((a, b) => {
+          // Respect explicit sort_index if present, then fall back to pinned / chat index
+          if (a.sort_index !== undefined && b.sort_index !== undefined) {
+            return a.sort_index - b.sort_index
+          }
+          return a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1
+        })
 
       const filtered = filterText
         ? tasks.filter(task =>
@@ -354,7 +360,20 @@ export const actions = actionTree(
       await $storex.chats.saveChatInfo({ ...task, column: toColumn })
     },
 
-    async newTask({ state }, { mode, column, name, profiles, board }) {
+    // Persist a new task order within a column using sort_index on each chat
+    async reorderTasksInColumn({ state, getters }, { columnTitle, taskIds }) {
+      const tasks = getters.boardChats.filter(t => t.column === columnTitle)
+      await Promise.all(
+        taskIds.map((id, index) => {
+          const task = tasks.find(t => t.id === id)
+          if (!task) return Promise.resolve()
+          return $storex.chats.saveChatInfo({ ...task, sort_index: index })
+        })
+      )
+    },
+
+    async newTask({ state }, { mode, column, name, profiles, board, llm_model }) {
+      const activeProject = $storex.projects.activeProject
       const chat = await $storex.chats.createNewChat({
         id: uuidv4(),
         mode: mode || 'chat',
@@ -362,7 +381,9 @@ export const actions = actionTree(
         messages: [],
         name: name || null,
         board: board || state.activeBoard,
-        column: column || null
+        column: column || null,
+        llm_model: llm_model || null,
+        owner_project_id: activeProject?.project_id || null,
       })
       return chat
     },
@@ -381,6 +402,7 @@ export const actions = actionTree(
         parent_id: parent_id || parent.id,
         message_id,
         project_id: project_id || parent.project_id,
+        owner_project_id: parent.owner_project_id || parent.project_id,
         messages: description ? [{ role: 'user', content: description }] : [],
         file_list,
         child_index

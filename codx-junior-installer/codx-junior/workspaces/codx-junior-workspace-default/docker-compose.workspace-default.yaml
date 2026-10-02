@@ -68,6 +68,26 @@ services:
     networks:
       - codx-junior
 
+  docs:
+    image: node:latest
+    container_name: codx-junior-default-docs
+    restart: unless-stopped
+    volumes:
+      - /home/codx-junior-projects/codx-junior/docs:/app
+    working_dir: /app
+    command: bash -c "npm i && npm run docs:dev"    
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.codx-junior-default-workspace-docs-router.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/workspace-default/docs`)
+      - traefik.http.routers.codx-junior-default-workspace-docs-router.service=codx-junior-default-workspace-docs-service
+      - traefik.http.services.codx-junior-default-workspace-docs-service.loadbalancer.server.port=19000
+      - traefik.http.services.codx-junior-default-workspace-docs-service.loadbalancer.server.scheme=http
+      - traefik.http.middlewares.codx-junior-default-workspace-docs-path.replacepathregex.regex=^/docs/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-docs-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-default-workspace-docs-router.middlewares=codx-junior-default-workspace-docs-path,codx-junior-auth
+    networks:
+      - codx-junior
+
 volumes:
   codx-junior-config:
   codx-junior-projects:

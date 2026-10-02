@@ -5,9 +5,15 @@ import ChatNodeHoverPanel from './ChatNodeHoverPanel.vue'
 </script>
 
 <template>
-  <div class="w-full relative group bg-base-100">
+  <div class="w-full relative group">
+    <!-- Background Image Container -->
     <div
-      class="p-1 rounded-lg border-l-4 cursor-pointer transition-all flex justify-center relative"
+      v-if="chatProject?.project_icon"
+      class="absolute inset-0 rounded-lg bg-cover bg-center opacity-20"
+      :style="`background-image: url(${chatProject.project_icon})`"
+    />
+    <div
+      class="p-1 rounded-lg border-l-4 cursor-pointer transition-all flex justify-center relative z-10"
       :class="[
         $chats.statusBorderColor(chat.status),
         selectedChatId === chat.id
@@ -79,6 +85,9 @@ export default {
         const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
         return isAssistantMsg && isOtherUser && isUnread && !msg.hide
       }).length
+    },
+    chatProject() {
+      return this.$chats.getChatWorkingProject(this.chat)
     }
   }
 }

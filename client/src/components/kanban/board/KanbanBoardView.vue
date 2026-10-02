@@ -2,10 +2,42 @@
 import KanbanBoardSidebar from './KanbanBoardSidebar.vue'
 import KanbanBoardCanvas from './KanbanBoardCanvas.vue'
 import KanbanBoardModals from './KanbanBoardModals.vue'
+import KanbanList from '../KanbanList.vue'
 </script>
 
 <template>
   <div class="kanban-board-view flex h-full overflow-hidden bg-base-100 relative">
+
+    <!-- Board list overlay (triggered from sidebar search icon) -->
+    <transition name="fade-slide">
+      <div
+        v-if="showBoardList"
+        class="absolute inset-0 z-40 bg-base-100 flex flex-col overflow-hidden"
+      >
+        <!-- Back bar -->
+        <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-100 bg-base-200">
+          <button
+            @click="showBoardList = false"
+            class="btn btn-ghost btn-sm gap-1.5 text-base-content/60"
+          >
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            <span class="text-xs">Back to board</span>
+          </button>
+          <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
+            All Boards
+          </span>
+        </div>
+
+        <!-- KanbanList -->
+        <div class="flex-1 overflow-auto p-4">
+          <KanbanList
+            @select="onSelectBoardFromList"
+            @new-board="openNewBoardModal"
+            @bookmark="onBookmark"
+          />
+        </div>
+      </div>
+    </transition>
 
     <!-- Sidebar -->
     <KanbanBoardSidebar
@@ -25,6 +57,7 @@ import KanbanBoardModals from './KanbanBoardModals.vue'
       @new-column="openNewColumnModal"
       @update-search="onUpdateSearch"
       @toggle-compact="sidebarCompact = !sidebarCompact"
+      @show-board-list="showBoardList = true"
     />
 
     <!-- Main canvas -->
@@ -39,6 +72,8 @@ import KanbanBoardModals from './KanbanBoardModals.vue'
       @new-column="openNewColumnModal"
       @edit-column="onEditColumn"
       @move-task="onMoveTask"
+      @reorder-columns="onReorderColumns"
+      @reorder-tasks="onReorderTasks"
     />
 
     <!-- Modals -->
@@ -67,6 +102,7 @@ export default {
       selectedTaskId: null,
       searchQuery: '',
       editingColumn: null,
+      showBoardList: false
     }
   },
   computed: {
@@ -111,6 +147,7 @@ export default {
       this.selectedTaskId = null
       this.searchQuery = ''
       this.activeColumnFilter = 'all'
+      this.showBoardList = false
     }
   },
   methods: {
@@ -118,6 +155,15 @@ export default {
       this.$storex.kanban.setActiveBoard(boardId)
       this.selectedTaskId = null
       this.activeColumnFilter = 'all'
+    },
+    onSelectBoardFromList(boardTitle) {
+      this.$storex.kanban.setActiveBoard(boardTitle)
+      this.selectedTaskId = null
+      this.activeColumnFilter = 'all'
+      this.showBoardList = false
+    },
+    onBookmark(board) {
+      this.$storex.kanban.toggleBookmark(board.title)
     },
     onToggleColumnFilter(colTitle) {
       this.activeColumnFilter = this.activeColumnFilter === colTitle ? 'all' : colTitle
@@ -149,9 +195,19 @@ export default {
     async onMoveTask({ taskId, toColumn }) {
       await this.$storex.kanban.moveTask({ taskId, toColumn })
     },
-    async onTaskCreated({ name, column, mode }) {
+    async onReorderColumns(reorderedColumns) {
+      await this.$storex.kanban.syncColumnOrder(reorderedColumns)
+    },
+    async onReorderTasks({ columnTitle, taskIds }) {
+      await this.$storex.kanban.reorderTasksInColumn({ columnTitle, taskIds })
+    },
+    async onTaskCreated({ name, column, mode, profiles, llm_model }) {
       if (!name?.trim() || !this.activeBoard) return
-      await this.$storex.kanban.newTask({ name, column, mode })
+      const chat = await this.$storex.kanban.newTask({ name, column, mode, profiles, llm_model })
+      if (chat) {
+        // Open the newly created task immediately
+        this.onSelectTask(chat)
+      }
     },
     async onColumnCreated({ title, color }) {
       if (!title?.trim() || !this.activeBoard) return
@@ -169,3 +225,15 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+</style>

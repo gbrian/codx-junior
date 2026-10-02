@@ -62,7 +62,7 @@ import Editor from './monaco/Editor.vue'
             <button tabindex="0" class="btn hover:btn-error btn-xs" @click="$emit('remove')">
               <i class="fa-solid fa-bars"></i>
             </button>
-            <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
+            <ul tabindex="0" class="dropdown-content bg-base-100 menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
               <li class="text-error">
                 <a class="hover:underline" @click="$emit('confirm-remove')">
                   <i class="fa-solid fa-trash-can"></i> Delete

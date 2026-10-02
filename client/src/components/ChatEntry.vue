@@ -139,7 +139,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
               <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
                 <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
               </button>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
+              <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
                 <li><a @click.stop="$emit('thread', message)">
                   <i class="fa-solid fa-comment-dots"></i> Thread
                 </a></li>
@@ -268,7 +268,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             </button>
             <ul
               tabindex="0"
-              class="dropdown-content menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
+              class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
             >
               <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
               <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>

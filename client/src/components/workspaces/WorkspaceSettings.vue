@@ -130,82 +130,84 @@ import WorkspaceLogs from './WorkspaceLogs.vue'
       </div>
 
       <!-- ── Apps Tab ── -->
-      <div v-else-if="activeTab === 'apps'" class="h-full overflow-y-auto p-4">
-        <div class="flex items-center gap-2 mb-4">
+      <div v-else-if="activeTab === 'apps'" class="h-full overflow-hidden flex flex-col">
+        <div class="flex items-center gap-2 p-4 pb-0 shrink-0">
           <h3 class="font-bold flex-1">Apps</h3>
           <button class="btn btn-xs btn-primary" @click="addApp">
             <i class="fa-solid fa-plus"></i> Add App
           </button>
         </div>
 
-        <div v-if="!workspace.apps?.length" class="alert alert-info">
-          <i class="fa-solid fa-lightbulb"></i>
-          <span>Add apps to expose them through Traefik routing</span>
-        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="!workspace.apps?.length" class="alert alert-info">
+            <i class="fa-solid fa-lightbulb"></i>
+            <span>Add apps to expose them through Traefik routing</span>
+          </div>
 
-        <div v-else class="flex flex-col gap-3">
-          <div
-            v-for="(app, index) in workspace.apps"
-            :key="index"
-            class="card bg-base-100 border border-base-200"
-          >
-            <div class="card-body p-4 space-y-3">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <AppIcon :app="app" />
-                  <span class="font-semibold text-sm">{{ app.name || `App ${index + 1}` }}</span>
+          <div v-else class="flex flex-col gap-3">
+            <div
+              v-for="(app, index) in workspace.apps"
+              :key="index"
+              class="card bg-base-100 border border-base-200"
+            >
+              <div class="card-body p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <AppIcon :app="app" />
+                    <span class="font-semibold text-sm">{{ app.name || `App ${index + 1}` }}</span>
+                  </div>
+                  <button class="btn btn-ghost btn-xs text-error" @click="removeApp(index)">
+                    <i class="fa-regular fa-trash-can"></i>
+                  </button>
                 </div>
-                <button class="btn btn-ghost btn-xs text-error" @click="removeApp(index)">
-                  <i class="fa-regular fa-trash-can"></i>
-                </button>
-              </div>
 
-              <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="form-control">
+                    <label class="label label-text-alt">Name *</label>
+                    <input v-model="app.name" type="text" placeholder="My App" class="input input-bordered input-sm" />
+                  </div>
+                  <div class="form-control">
+                    <label class="label label-text-alt">Icon (Font Awesome)</label>
+                    <input v-model="app.icon" type="text" placeholder="fa-globe" class="input input-bordered input-sm" />
+                  </div>
+                  <div class="form-control">
+                    <label class="label label-text-alt">Path *</label>
+                    <input v-model="app.path" type="text" placeholder="/app" class="input input-bordered input-sm" />
+                  </div>
+                  <div class="form-control">
+                    <label class="label label-text-alt">Port *</label>
+                    <input v-model.number="app.port" type="number" placeholder="3000" class="input input-bordered input-sm" />
+                  </div>
+                </div>
+
                 <div class="form-control">
-                  <label class="label label-text-alt">Name *</label>
-                  <input v-model="app.name" type="text" placeholder="My App" class="input input-bordered input-sm" />
+                  <label class="label label-text-alt">App ID (for routing, auto from name if blank)</label>
+                  <input v-model="app.id" type="text" placeholder="my-app" class="input input-bordered input-sm" />
                 </div>
-                <div class="form-control">
-                  <label class="label label-text-alt">Icon (Font Awesome)</label>
-                  <input v-model="app.icon" type="text" placeholder="fa-globe" class="input input-bordered input-sm" />
-                </div>
-                <div class="form-control">
-                  <label class="label label-text-alt">Path *</label>
-                  <input v-model="app.path" type="text" placeholder="/app" class="input input-bordered input-sm" />
-                </div>
-                <div class="form-control">
-                  <label class="label label-text-alt">Port *</label>
-                  <input v-model.number="app.port" type="number" placeholder="3000" class="input input-bordered input-sm" />
-                </div>
-              </div>
 
-              <div class="form-control">
-                <label class="label label-text-alt">App ID (for routing, auto from name if blank)</label>
-                <input v-model="app.id" type="text" placeholder="my-app" class="input input-bordered input-sm" />
-              </div>
-
-              <div class="flex items-center gap-4 flex-wrap">
-                <label class="label cursor-pointer gap-2">
-                  <input type="checkbox" :checked="app.scheme === 'https'" class="checkbox checkbox-xs" @change="app.scheme = $event.target.checked ? 'https' : 'http'" />
-                  <span class="label-text-alt">HTTPS scheme</span>
-                </label>
-                <label class="label cursor-pointer gap-2">
-                  <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
-                  <span class="label-text-alt">VNC app</span>
-                </label>
-              </div>
-
-              <div class="form-control">
-                <label class="label label-text-alt">Access Roles (empty = all roles)</label>
-                <div class="flex gap-3">
+                <div class="flex items-center gap-4 flex-wrap">
                   <label class="label cursor-pointer gap-2">
-                    <input type="checkbox" :checked="app.roles?.includes('user')" class="checkbox checkbox-xs" @change="toggleRole(app, 'user')" />
-                    <span class="label-text-alt">user</span>
+                    <input type="checkbox" :checked="app.scheme === 'https'" class="checkbox checkbox-xs" @change="app.scheme = $event.target.checked ? 'https' : 'http'" />
+                    <span class="label-text-alt">HTTPS scheme</span>
                   </label>
                   <label class="label cursor-pointer gap-2">
-                    <input type="checkbox" :checked="app.roles?.includes('admin')" class="checkbox checkbox-xs" @change="toggleRole(app, 'admin')" />
-                    <span class="label-text-alt">admin</span>
+                    <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
+                    <span class="label-text-alt">VNC app</span>
                   </label>
+                </div>
+
+                <div class="form-control">
+                  <label class="label label-text-alt">Access Roles (empty = all roles)</label>
+                  <div class="flex gap-3">
+                    <label class="label cursor-pointer gap-2">
+                      <input type="checkbox" :checked="app.roles?.includes('user')" class="checkbox checkbox-xs" @change="toggleRole(app, 'user')" />
+                      <span class="label-text-alt">user</span>
+                    </label>
+                    <label class="label cursor-pointer gap-2">
+                      <input type="checkbox" :checked="app.roles?.includes('admin')" class="checkbox checkbox-xs" @change="toggleRole(app, 'admin')" />
+                      <span class="label-text-alt">admin</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

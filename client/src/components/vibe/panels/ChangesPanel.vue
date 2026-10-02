@@ -12,7 +12,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       <button 
         v-if="availableProjectsToAdd.length > 0"
         class="btn btn-xs btn-ghost" 
-        @click="toggleAddProjectDropdown" 
+        @click="toggleAddProjectdropdown" 
         title="Add more projects"
       >
         <i class="fa-solid fa-plus text-base-content/60"></i>
@@ -24,10 +24,10 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
 
-      <!-- Add Projects Dropdown Menu -->
+      <!-- Add Projects dropdown Menu -->
       <div 
-        v-if="showAddProjectDropdown && availableProjectsToAdd.length > 0"
-        class="absolute top-12 right-2 dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10"
+        v-if="showAddProjectdropdown && availableProjectsToAdd.length > 0"
+        class="absolute top-12 right-2 dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10"
       >
         <li v-for="proj in availableProjectsToAdd" :key="projId(proj)">
           <a @click="addProjectToPanel(proj)" class="text-info gap-2">
@@ -62,7 +62,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         <!-- Project selector + Branch selector row -->
         <div class="shrink-0 border-b border-base-content/10 bg-base-200/30 px-2 py-2">
           <div class="flex items-center gap-3">
-            <!-- Project Dropdown -->
+            <!-- Project dropdown -->
             <div class="dropdown dropdown-hover">
               <button 
                 class="btn btn-sm btn-ghost gap-2 min-w-[200px] justify-start"
@@ -78,7 +78,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
                   {{ changeCountByProject[selectedProjectId] }}
                 </span>
               </button>
-              <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10">
+              <ul class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10">
                 <li v-for="proj in projectsWithBranches" :key="projId(proj)">
                   <a 
                     @click="selectedProjectId = projId(proj)"
@@ -172,7 +172,7 @@ export default {
       changesByProject: {},
       changeCountByProject: {},
       branchSelectionByProject: {},
-      showAddProjectDropdown: false
+      showAddProjectdropdown: false
     }
   },
   computed: {
@@ -271,25 +271,25 @@ export default {
   },
   mounted() {
     if (this.chat) this.loadAllProjects()
-    document.addEventListener('click', this.closeDropdown)
+    document.addEventListener('click', this.closedropdown)
   },
   beforeUnmount() {
-    document.removeEventListener('click', this.closeDropdown)
+    document.removeEventListener('click', this.closedropdown)
   },
   methods: {
     projId({ project_id, owner_project_id } = {}) {
       return project_id || owner_project_id
     },
 
-    toggleAddProjectDropdown() {
-      this.showAddProjectDropdown = !this.showAddProjectDropdown
+    toggleAddProjectdropdown() {
+      this.showAddProjectdropdown = !this.showAddProjectdropdown
     },
 
-    closeDropdown(event) {
+    closedropdown(event) {
       const headerBtn = event.target.closest('[title="Add more projects"]')
-      const dropdown = event.target.closest('.dropdown-content')
+      const dropdown = event.target.closest('.dropdown-content bg-base-100')
       if (!headerBtn && !dropdown) {
-        this.showAddProjectDropdown = false
+        this.showAddProjectdropdown = false
       }
     },
 
@@ -379,7 +379,7 @@ export default {
 
       // Save to storage immediately
       await this.$storex.chats.saveChat(updatedChat)
-      this.showAddProjectDropdown = false
+      this.showAddProjectdropdown = false
 
       // Load branches for newly added project
       this.loadingStep = `Loading branches for ${project.project_name}...`

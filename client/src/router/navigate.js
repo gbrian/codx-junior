@@ -3,7 +3,7 @@ export default function Navigate({ $router, $storex }) {
   // ════════════════════════════════════════════════════════════════
   // ROUTE BUILDERS - Centralized route path generation
   // ════════════════════════════════════════════════════════════════
-  
+
   const routes = {
     chat: {
       list: () => ({ name: 'chats' }),
@@ -21,6 +21,13 @@ export default function Navigate({ $router, $storex }) {
       open: (workspaceId, workspaceName) => ({
         name: 'workspace',
         params: { workspaceId, workspaceName }
+      })
+    },
+    browser: {
+      list: () => ({ name: 'browsers' }),
+      open: (sessionId, sessionName) => ({
+        name: 'browser-session',
+        params: { sessionId, sessionName }
       })
     },
     kanban: {
@@ -67,6 +74,11 @@ export default function Navigate({ $router, $storex }) {
       return name === 'workspace' || name === 'workspaces'
     },
 
+    get isBrowserView() {
+      const name = $router.currentRoute.value.name
+      return name === 'browsers' || name === 'browser-session'
+    },
+
     get isKanbanView() {
       return $router.currentRoute.value.name === 'kanban'
     },
@@ -99,12 +111,24 @@ export default function Navigate({ $router, $storex }) {
       return $router.currentRoute.value.params.workspaceName || null
     },
 
+    getSessionId() {
+      return $router.currentRoute.value.params.sessionId || null
+    },
+
+    getSessionName() {
+      return $router.currentRoute.value.params.sessionName || null
+    },
+
     get hasChatContext() {
       return this.getChatId() !== null
     },
 
     get hasWorkspaceContext() {
       return this.getWorkspaceId() !== null
+    },
+
+    get hasSessionContext() {
+      return this.getSessionId() !== null
     },
 
     // ════════════════════════════════════════════════════════════════
@@ -173,7 +197,7 @@ export default function Navigate({ $router, $storex }) {
         }
 
         const name = chatName || `chat-${chatId}`
-        
+
         if ($navigation.isDesktopMode) {
           // Desktop mode: show as app panel
           $storex.ui.showApp({
@@ -261,7 +285,7 @@ export default function Navigate({ $router, $storex }) {
           // In chat view: open workspace with chat context
           const chatId = $navigation.getChatId()
           const chatName = $navigation.getChatName()
-          
+
           if (chatId) {
             $navigation.chats.openWithWorkspace(chatId, chatName, workspaceId, name)
             return
@@ -285,6 +309,55 @@ export default function Navigate({ $router, $storex }) {
         } else {
           // Router mode: navigate to workspace route
           $router.push(routes.workspace.open(workspaceId, name))
+        }
+      }
+    },
+
+    // ════════════════════════════════════════════════════════════════
+    // BROWSER NAVIGATION
+    // ════════════════════════════════════════════════════════════════
+
+    browsers: {
+      list() {
+        if ($navigation.isDesktopMode) {
+          // Desktop mode: show as app panel
+          $storex.ui.showApp({
+            tabId: 'browsers',
+            name: 'Browser Sessions',
+            component: 'browsers',
+            params: {}
+          })
+        } else {
+          // Router mode: navigate to route
+          $router.push(routes.browser.list())
+        }
+      },
+
+      open(sessionId, sessionName) {
+        if (!sessionId) {
+          console.warn('[Navigation] browsers.open: invalid sessionId', sessionId)
+          return
+        }
+
+        const name = sessionName || `session-${sessionId}`
+
+        if ($navigation.isDesktopMode) {
+          // Desktop mode: show session viewer
+          $storex.ui.showApp({
+            tabId: `browser-${sessionId}`,
+            name: name,
+            component: 'browser-viewer',
+            params: {
+              sessionId: sessionId,
+              session: {
+                id: sessionId,
+                name: name
+              }
+            }
+          })
+        } else {
+          // Router mode: navigate to session route
+          $router.push(routes.browser.open(sessionId, name))
         }
       }
     },
@@ -417,7 +490,7 @@ export default function Navigate({ $router, $storex }) {
       getCurrentWorkspace() {
         const workspaceId = $navigation.getWorkspaceId()
         const workspaceName = $navigation.getWorkspaceName()
-        
+
         if (workspaceId) {
           return { id: workspaceId, name: workspaceName }
         }
@@ -426,6 +499,26 @@ export default function Navigate({ $router, $storex }) {
 
       hasContext() {
         return $navigation.hasWorkspaceContext
+      }
+    },
+
+    // ════════════════════════════════════════════════════════════════
+    // SESSION CONTEXT (for reading current state)
+    // ════════════════════════════════════════════════════════════════
+
+    session: {
+      getCurrentSession() {
+        const sessionId = $navigation.getSessionId()
+        const sessionName = $navigation.getSessionName()
+
+        if (sessionId) {
+          return { id: sessionId, name: sessionName }
+        }
+        return null
+      },
+
+      hasContext() {
+        return $navigation.hasSessionContext
       }
     }
   }

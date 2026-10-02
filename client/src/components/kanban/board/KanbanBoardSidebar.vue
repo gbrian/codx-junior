@@ -17,19 +17,29 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
           <span class="text-xs font-bold text-base-content/40 uppercase tracking-widest">
             <i class="fa-brands fa-trello text-primary mr-1.5"></i>Boards
           </span>
-          <button
-            @click="$emit('new-board')"
-            class="btn btn-ghost btn-xs text-base-content/40 hover:text-primary"
-            title="New board"
-          >
-            <i class="fa-solid fa-plus text-xs"></i>
-          </button>
+          <div class="flex items-center gap-0.5">
+            <!-- Browse all boards (navigate to KanbanList) -->
+            <button
+              @click="$emit('show-board-list')"
+              class="btn btn-ghost btn-xs text-base-content/40 hover:text-primary"
+              title="Browse all boards"
+            >
+              <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            </button>
+            <button
+              @click="$emit('new-board')"
+              class="btn btn-ghost btn-xs text-base-content/40 hover:text-primary"
+              title="New board"
+            >
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+          </div>
         </div>
 
-        <!-- Board rows — scrollable when list is long -->
+        <!-- Board rows — sorted by last activity, scrollable when list is long -->
         <div class="flex flex-col gap-0.5 overflow-y-auto max-h-40 pr-0.5">
           <div
-            v-for="board in boards"
+            v-for="board in sortedBoards"
             :key="board.id"
             @click="$emit('select-board', board.id)"
             class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors duration-150 shrink-0"
@@ -135,16 +145,16 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
     <!-- Compact header -->
     <div v-show="isCompact" class="shrink-0 flex flex-col items-center gap-2 px-1 pt-3 pb-2 border-b border-base-100">
       <button
-        @click="$emit('new-board')"
+        @click="$emit('show-board-list')"
         class="btn btn-ghost btn-xs w-10 h-10 rounded-lg flex items-center justify-center text-base-content/40 hover:text-primary"
-        title="Boards"
+        title="Browse boards"
       >
         <i class="fa-brands fa-trello text-sm"></i>
       </button>
     </div>
 
-    <!-- ── Scrollable task list ── -->
-    <div class="flex-1 overflow-y-auto min-h-0 py-1" v-show="!isCompact">
+    <!-- ── Scrollable task list with infinite scroll ── -->
+    <div ref="taskListEl" class="flex-1 overflow-y-auto min-h-0 py-1" v-show="!isCompact">
 
       <!-- Per-column groups -->
       <template v-if="groupedTasks && Object.keys(groupedTasks).length">
@@ -166,7 +176,7 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
             <span class="text-xs text-base-content/20 ml-0.5">{{ group.length }}</span>
           </div>
 
-          <!-- Tasks -->
+          <!-- Tasks (paginated) -->
           <div class="px-2">
             <KanbanBoardTaskRow
               v-for="task in group"
@@ -182,9 +192,9 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
       </template>
 
       <!-- Flat list when column filter is active or search results -->
-      <div v-else-if="tasks.length" class="px-2">
+      <div v-else-if="visibleFlatTasks.length" class="px-2">
         <KanbanBoardTaskRow
-          v-for="task in tasks"
+          v-for="task in visibleFlatTasks"
           :key="task.id"
           :task="task"
           :isSelected="selectedTaskId === task.id"
@@ -200,6 +210,11 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
         <span class="text-xs text-base-content/30">
           {{ searchQuery ? 'No tasks found' : 'No tasks yet' }}
         </span>
+      </div>
+
+      <!-- Infinite scroll sentinel -->
+      <div ref="scrollSentinel" class="h-4 flex items-center justify-center shrink-0">
+        <span v-if="hasMorePages" class="loading loading-dots loading-xs text-base-content/20"></span>
       </div>
     </div>
 
@@ -226,6 +241,8 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
 </template>
 
 <script>
+const PAGE_SIZE = 40
+
 export default {
   props: {
     boards: { type: Array, default: () => [] },
@@ -237,30 +254,106 @@ export default {
     isCompact: { type: Boolean, default: false },
     searchQuery: { type: String, default: '' }
   },
-  emits: ['select-board', 'toggle-column-filter', 'select-task', 'new-task', 'new-board', 'new-column', 'update-search', 'toggle-compact'],
+  emits: ['select-board', 'toggle-column-filter', 'select-task', 'new-task', 'new-board', 'new-column', 'update-search', 'toggle-compact', 'show-board-list'],
+  data() {
+    return {
+      visiblePage: 1,
+      scrollObserver: null
+    }
+  },
   computed: {
+    allChats() {
+      return Object.values(this.$storex.chats.chats || {})
+    },
+    // Map board id -> latest task updated_at for sorting
+    boardActivityMap() {
+      const map = {}
+      this.allChats.forEach(chat => {
+        if (!chat.board) return
+        const ts = chat.updated_at || chat.created_at || null
+        if (!ts) return
+        if (!map[chat.board] || ts > map[chat.board]) {
+          map[chat.board] = ts
+        }
+      })
+      return map
+    },
+    // Boards sorted by latest task activity descending
+    sortedBoards() {
+      return [...this.boards].sort((a, b) => {
+        const aTs = this.boardActivityMap[a.id] || a.last_update || ''
+        const bTs = this.boardActivityMap[b.id] || b.last_update || ''
+        return aTs > bTs ? -1 : aTs < bTs ? 1 : 0
+      })
+    },
     groupedTasks() {
       // Only group when showing ALL columns with no search
       if (this.activeColumnFilter !== 'all' || this.searchQuery) return null
 
       const groups = {}
+      const pageLimit = this.visiblePage * PAGE_SIZE
+      let rendered = 0
+
       this.columns.forEach(col => {
         const colTasks = this.tasks.filter(t => (t.column || '--none--') === col.title)
-        if (colTasks.length) groups[col.title] = colTasks
+        if (colTasks.length) {
+          const slice = colTasks.slice(0, Math.max(0, pageLimit - rendered))
+          if (slice.length) groups[col.title] = slice
+          rendered += colTasks.length
+        }
       })
 
       // Tasks with no matching column
       const knownCols = new Set(this.columns.map(c => c.title))
       const orphans = this.tasks.filter(t => !knownCols.has(t.column || '--none--'))
-      if (orphans.length) groups['Other'] = orphans
+      if (orphans.length) {
+        groups['Other'] = orphans.slice(0, Math.max(0, pageLimit - rendered))
+      }
 
       return Object.keys(groups).length ? groups : null
+    },
+    // For flat list (filtered by column or search), paginated
+    visibleFlatTasks() {
+      return this.tasks.slice(0, this.visiblePage * PAGE_SIZE)
+    },
+    totalVisibleCount() {
+      if (this.groupedTasks) {
+        return Object.values(this.groupedTasks).reduce((sum, g) => sum + g.length, 0)
+      }
+      return this.visibleFlatTasks.length
+    },
+    hasMorePages() {
+      return this.totalVisibleCount < this.tasks.length
     }
+  },
+  watch: {
+    tasks() {
+      // Reset pagination when task list changes
+      this.visiblePage = 1
+    },
+    activeColumnFilter() {
+      this.visiblePage = 1
+    },
+    searchQuery() {
+      this.visiblePage = 1
+    },
+    isCompact(compact) {
+      if (!compact) {
+        this.$nextTick(() => this.setupScrollObserver())
+      } else {
+        this.teardownScrollObserver()
+      }
+    }
+  },
+  mounted() {
+    this.setupScrollObserver()
+  },
+  beforeUnmount() {
+    this.teardownScrollObserver()
   },
   methods: {
     boardTaskCount(boardId) {
-      return Object.values(this.$storex.chats.chats || {})
-        .filter(c => c.board === boardId).length
+      return this.allChats.filter(c => c.board === boardId).length
     },
     getColumnColor(colTitle) {
       const col = this.columns.find(c => c.title === colTitle)
@@ -269,6 +362,30 @@ export default {
     onAllColumnsClick() {
       if (this.activeColumnFilter !== 'all') {
         this.$emit('toggle-column-filter', this.activeColumnFilter)
+      }
+    },
+    setupScrollObserver() {
+      this.teardownScrollObserver()
+      const sentinel = this.$refs.scrollSentinel
+      if (!sentinel) return
+
+      this.scrollObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && this.hasMorePages) {
+            this.visiblePage += 1
+          }
+        },
+        {
+          root: this.$refs.taskListEl || null,
+          threshold: 0.1
+        }
+      )
+      this.scrollObserver.observe(sentinel)
+    },
+    teardownScrollObserver() {
+      if (this.scrollObserver) {
+        this.scrollObserver.disconnect()
+        this.scrollObserver = null
       }
     }
   }

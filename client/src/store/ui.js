@@ -284,23 +284,6 @@ export const mutations = mutationTree(state, {
   setAppShowMode(state, mode) {
     state.appShowMode = mode
   },
-  openWorkspace(_, workspace) {
-    if (!$storex.ui.isDesktopMode) {
-      $storex.$router.$navigation.workspaces.open(workspace.id || workspace.key, workspace.name)
-    } else {
-      $storex.ui.showApp({
-        tabId: `workspace-${workspace.id || workspace.key}`,
-        name: workspace.name,
-        component: 'workspace',
-        params: {
-          workspace: {
-            id: workspace.id || workspace.key,
-            name: workspace.name
-          }
-        }
-      })
-    }  
-  },
   openChat(_, chat) {
     if (!$storex.ui.isDesktopMode) {
       $storex.$router.push({
@@ -555,6 +538,27 @@ export const actions = actionTree(
         component: 'workspaces',
         params: {}
       })
+    },
+
+    openWorkspace(_, workspace) {
+      if (!workspace || !workspace.key) {
+        console.warn('[UI] openWorkspace: invalid workspace', workspace)
+        return
+      }
+
+      const workspaceId = workspace.key
+      const workspaceName = workspace.name || `workspace-${workspaceId}`
+
+      if ($storex.ui.isDesktopMode) {
+        $storex.ui.showApp({
+          tabId: `workspace-${workspaceId}`,
+          name: workspaceName,
+          component: 'workspace',
+          ...workspace
+        })
+      } else {
+        $storex.$router.$navigation.workspaces.open(workspaceId, workspaceName)
+      }
     },
 
     openTasks() {

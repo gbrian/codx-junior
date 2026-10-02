@@ -4,11 +4,13 @@
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [],
   "check_lists": [],
   "profiles": [
@@ -19,6 +21,7 @@
   ],
   "name": "Kanban service",
   "pinned": false,
+  "is_template": false,
   "description": "Here's a 5-line summary:\n\n1. A new `KanbanService` class was created in `client/src/service/kanban.js` extending the base `Service` class to manage all Kanban-related operations.\n2. All Kanban operations are **project-scoped**, using `project.$api` for API calls and `project.$state` for storing state per project.\n3. The service provides full **CRUD operations** for boards and columns, plus helpers for active board tracking and chat filtering by board/column.\n4. The service index (`service/index.js`) was updated to register the new `KanbanService` as `services.kanban`.\n5. The project store (`store/project.js`) was updated to initialize `kanban` and `activeBoard` in project state, and all Kanban-related store actions now delegate to `window.$services.kanban`.",
   "messages": [
     {
@@ -32,7 +35,7 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/service/service.js",
         "/home/codx-junior-projects/codx-junior/client/src/store/project.js",
@@ -48,6 +51,8 @@
         "first_chunk_time_taken": 0.16769933700561523,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -55,7 +60,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "343b0380-c1fe-4860-91c1-fcd99aa5f8c0",
@@ -68,13 +74,15 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 113.72706627845764,
         "first_chunk_time_taken": 0.16769933700561523,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "project"
       ],
@@ -84,11 +92,12 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-05-05 18:15:21.186335",
-  "updated_at": "2026-05-09T11:28:06.933052",
+  "updated_at": "2026-09-30T16:50:39.267911",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -102,7 +111,13 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

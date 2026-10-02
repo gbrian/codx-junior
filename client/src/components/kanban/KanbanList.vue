@@ -55,7 +55,7 @@ import moment from 'moment'
           v-for="board in bookmarks"
           :key="board.title"
           @click="selectBoard(board)"
-          class="snap-start shrink-0 w-48 h-28 p-3 card card-bordered shadow rounded-xl cursor-pointer border-warning relative overflow-hidden active:scale-95 transition-transform"
+          class="border-secondary/30 hover:border-secondary border rounded-md snap-start shrink-0 w-48 h-28 p-3 card card-bordered shadow rounded-xl cursor-pointer border-warning relative overflow-hidden active:scale-95 transition-transform"
         >
           <div
             class="absolute inset-0 opacity-30 rounded-xl bg-cover bg-center"
@@ -82,12 +82,12 @@ import moment from 'moment'
         Boards
       </div>
       <!-- Single column on mobile, 2 on sm, 3 on xl -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 @xl:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div
           v-for="board in sortedBoards"
           :key="board.title"
           @click="selectBoard(board)"
-          class="hover:border-primary card card-bordered border border-base-100/80 hover:border-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
+          class="border-primary/30 hover:border-primary card card-bordered border border-base-100/80 hover:border-base-100 shadow rounded-xl cursor-pointer relative overflow-hidden active:scale-[0.98] transition-transform min-h-36"
         >
           <!-- Background image -->
           <div
@@ -97,9 +97,9 @@ import moment from 'moment'
           ></div>
 
           <div class="card-body p-3 flex flex-col gap-1 relative">
-            <!-- Timestamp -->
-            <span class="text-xs text-base-content/40" v-if="board.last_update">
-              {{ moment(board.last_update).fromNow() }}
+            <!-- Timestamp (last task activity) -->
+            <span class="text-xs text-base-content/40" v-if="boardLastActivity(board)">
+              {{ moment(boardLastActivity(board)).fromNow() }}
             </span>
 
             <!-- Parent label -->
@@ -149,7 +149,7 @@ import moment from 'moment'
               </span>
               <span class="flex items-center gap-1">
                 <i class="fa-brands fa-trello"></i>
-                {{ board.tasks?.length || 0 }}
+                {{ boardTaskCount(board) }}
               </span>
               <!-- Remote URL -->
               <a
@@ -200,11 +200,9 @@ export default {
     }
   },
   computed: {
-    kanban() {
-      return this.project?.$state?.kanban || { boards: {} }
-    },
     allStoredBoards() {
-      return Object.values(this.kanban.boards || {})
+      // Use storex.kanban as the source of truth
+      return this.$storex.kanban.allBoards || []
     },
     displayBoards() {
       if (this.boards && Array.isArray(this.boards) && this.boards.length > 0) {
@@ -213,7 +211,7 @@ export default {
       return this.allStoredBoards
     },
     allChats() {
-      return this.$projects.allChats || []
+      return Object.values(this.$storex.chats.chats || {})
     },
     chatMap() {
       const map = {}
@@ -222,17 +220,21 @@ export default {
       })
       return map
     },
+    // Map board title -> latest task updated_at
+    boardActivityMap() {
+      const map = {}
+      this.allChats.forEach(chat => {
+        if (!chat.board) return
+        const ts = chat.updated_at || chat.created_at || null
+        if (!ts) return
+        if (!map[chat.board] || ts > map[chat.board]) {
+          map[chat.board] = ts
+        }
+      })
+      return map
+    },
     bookmarks() {
       return this.displayBoards.filter(b => b.bookmark && this.matchesFilter(b))
-    },
-    sortedBoards() {
-      return this.filteredBoards
-        .filter(b => !b.bookmark)
-        .sort((a, b) =>
-          a.last_update && b.last_update ?
-            a.last_update > b.last_update ? -1 : 1 :
-              a.last_update ? -1 : 1
-        )
     },
     rootBoards() {
       if (this.boards && Array.isArray(this.boards)) {
@@ -244,9 +246,25 @@ export default {
     filteredBoards() {
       if (!this.boardFilter) return this.rootBoards
       return this.rootBoards.filter(board => this.matchesFilter(board))
+    },
+    sortedBoards() {
+      return this.filteredBoards
+        .filter(b => !b.bookmark)
+        .sort((a, b) => {
+          // Sort by latest task activity first, fallback to board last_update
+          const aTs = this.boardActivityMap[a.title] || a.last_update || ''
+          const bTs = this.boardActivityMap[b.title] || b.last_update || ''
+          return aTs > bTs ? -1 : aTs < bTs ? 1 : 0
+        })
     }
   },
   methods: {
+    boardLastActivity(board) {
+      return this.boardActivityMap[board.title] || board.last_update || null
+    },
+    boardTaskCount(board) {
+      return this.allChats.filter(c => c.board === board.title).length
+    },
     matchesFilter(board) {
       const filterLower = this.boardFilter.toLowerCase()
 

@@ -4,11 +4,13 @@
   "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [
     "src/components/kanban/KanbanContainer.vue",
     "src/components/kanban/Kanban.vue",
@@ -27,6 +29,7 @@
   ],
   "name": "Kanban per project",
   "pinned": false,
+  "is_template": false,
   "description": "Here is a 5-line summary of the conversation:\n\n1. The task involved restoring the `ChatHistory` feature with its `project` property inside `KanbanContainer.vue`.\n2. A `showHistory` toggle was re-added to control visibility of the `ChatHistoryVue` component.\n3. The `ChatHistoryVue` component receives `:projects=\"[project, ...$projects.childProjects]\"` to maintain proper project context.\n4. In `KanbanList.vue`, a **History** button was restored to the header, emitting a `toggle-history` event.\n5. `KanbanContainer` listens to `@toggle-history` from `KanbanList` to flip the `showHistory` state and switch between the board list and chat history views.",
   "messages": [
     {
@@ -40,7 +43,7 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/Kanban.vue",
         "/home/codx-junior-projects/codx-junior/client/src/store/project.js",
@@ -52,6 +55,8 @@
         "first_chunk_time_taken": 0.13739705085754395,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -59,7 +64,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "df3f6be9-6666-46b0-b45c-33655687e7a1",
@@ -72,13 +78,15 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 134.83803749084473,
         "first_chunk_time_taken": 0.13739705085754395,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "VueDeveloper",
         "py_senior",
@@ -90,7 +98,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "816e17d9-541f-4063-bcfe-96f3eb1064a1",
@@ -103,7 +112,7 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/KanbanContainer.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/ChatHistory.vue",
@@ -117,6 +126,8 @@
         "first_chunk_time_taken": 0.14279723167419434,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -124,7 +135,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "0cc57759-f71c-4318-a49b-e920b6011a2e",
@@ -137,13 +149,15 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 176.1487100124359,
         "first_chunk_time_taken": 0.14279723167419434,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "py_senior",
         "VueDeveloper",
@@ -156,7 +170,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "b0457fbf-45bb-4eef-a46c-6fb43006ed9d",
@@ -169,7 +184,7 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/store/project.js",
         "/home/codx-junior-projects/codx-junior/client/src/store/project.js"
@@ -179,6 +194,8 @@
         "first_chunk_time_taken": 0.18824291229248047,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -186,7 +203,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "531f743a-fccd-470f-a3e7-e84b180a3e03",
@@ -199,13 +217,15 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 113.25288343429565,
         "first_chunk_time_taken": 0.18824291229248047,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "py_senior",
         "VueDeveloper",
@@ -219,7 +239,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "f4e91b74-945b-4ba9-9336-a42044e4f2fb",
@@ -232,7 +253,7 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/ChatHistory.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/ChatHistory.vue"
@@ -242,6 +263,8 @@
         "first_chunk_time_taken": 0.19973349571228027,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -249,7 +272,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "36b1179f-98f8-4189-a5ed-82c7e29b9cfe",
@@ -262,13 +286,15 @@
       "improvement": false,
       "created_at": "2026-05-05 18:15:21.183574",
       "updated_at": "2026-05-05 18:15:21.183596",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 34.01005506515503,
         "first_chunk_time_taken": 0.19973349571228027,
         "model": "claude-sonnet-4-6"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "py_senior",
         "VueDeveloper",
@@ -282,11 +308,12 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-05-05 18:15:21.186335",
-  "updated_at": "2026-05-07T08:10:43.417619",
+  "updated_at": "2026-09-30T16:50:39.180062",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -300,7 +327,13 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

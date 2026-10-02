@@ -303,7 +303,7 @@ export default {
         }
         return log
       })
-      .sort((a, b) => a.iso_date > b.iso_date ? -1 : 1)
+      .sort((a, b) => a.timestamp > b.timestamp ? -1 : 1)
 
       // Load and convert all profiles concurrently
       await Promise.all(results.map(log => this.setLogProfiles(log)))

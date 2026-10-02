@@ -1,6 +1,3 @@
-<script setup>
-</script>
-
 <template>
   <div class="space-y-4">
     <!-- Loading state -->
