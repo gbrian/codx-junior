@@ -1,99 +1,80 @@
-This document outlines the steps required to set up and run the `codx-junior` project locally using Docker Compose.
+# Getting started
 
-## Clone the Repository
+This page shows how to self-host codx-junior with Docker Compose. The engine is free and open source. If you would rather not run it yourself, see [Self-hosted or managed](/managed).
 
-Clone the repository from GitHub and navigate into the project directory:
+## Requirements
+
+* A Linux server or workstation with **Docker** and **Docker Compose**.
+* Enough resources for the stack: Milvus, the API and, if you run models locally, LocalAI. 4 CPUs and 16 GB of RAM is a comfortable start; local models need more.
+* An API key for an OpenAI-compatible provider, or a local model server (LocalAI, Ollama, vLLM).
+* Optionally, a domain name pointing to the server if you want HTTPS.
+
+## 1. Clone the repository
 
 ```sh
 git clone https://github.com/gbrian/codx-junior.git
-cd codx-junior
+cd codx-junior/codx-junior-installer/codx-junior
 ```
 
-## Review `docker-compose.yaml`
+## 2. Configure the environment
 
-Review the `docker-compose.yaml` file in the root of the project and adapt to your needs. 
-This file defines the services necessary to build and run the `codx-junior` application.
-
-```yaml
-version: '3.8'
-
-services:
-  codx-junior-build:
-    #####################################
-    ## BUILD codx-junior IMAGE         ##
-    ## it takes time up to 5-8 min     ##
-    #####################################
-    image: codx-junior:latest
-    build: 
-      context: .
-      # User permissions
-      args:
-        - USER_GID=${USER_GID:-1001}
-        - USER_UID=${USER_UID:-1001}
-    volumes:
-      - .:/home/codx-junior/codx-junior
-    command: echo "Done"
-  
-  codx-junior-all:
-    # Build image first with "codx-junior-build"
-    image: codx-junior:latest
-    container_name: codx-junior-all
-    shm_size: 4gb
-    # Set to true if you want to use docker inside codx-junior
-    privileged: true
-    environment:
-      # Settings file
-      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json
-      # LLM Settings (Use any OpenAI compatible)
-      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1
-      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
-      - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o
-      - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small
-    volumes:
-      # Keep global settings
-      - codx-junior:/home/codx-junior/.codx-junior
-      - .:/home/codx-junior/codx-junior
-    ports:
-      # CODX_JUNIOR_WEB_PORT
-      - 8080:19981
-      # Reserved ports to expose internal projects
-      - 29000-29100:9000-9100
-    networks:
-      - codx-junior
-
-volumes:
-  codx-junior:
-
-networks:
-  codx-junior:
-```
-
-## Build the Docker Image
-
-Use Docker Compose to build the `codx-junior` image. This process typically takes 5–8 minutes.
+Copy the example file and edit it:
 
 ```sh
-docker-compose build codx-junior-build
+cp .env.example .env
 ```
 
-## Run the Application
+```ini
+USER_ID=911
+GROUP_ID=911
 
-Start the application with the following command:
+# Used by the LiteLLM model manager, if you enable it
+LITELLM_MASTER_KEY="sk-change-me"
+LITELLM_SALT_KEY="sk-change-me"
+
+# Domain Traefik answers on. Use localhost for a local install.
+CODX_JUNIOR_DOMAIN="localhost"
+
+# Email used for Let's Encrypt certificates
+ACME_EMAIL="you@example.com"
+```
+
+See [Configuration](/configuration) for the full list of variables.
+
+## 3. Build or pull the images
+
+The stack uses the `codxjunior/codx-junior:api`, `codxjunior/codx-junior:client` and `codxjunior/codx-junior:debian` images. Build them from source with:
 
 ```sh
-docker-compose up -d codx-junior-all
+bash build.sh
 ```
 
-This will run `codx-junior` in the background. Once running, you can access the application at `http://localhost:19981`.
+## 4. Start codx-junior
 
-## Notes
+```sh
+docker compose up -d
+```
 
-- Make sure Docker is installed and running.
-- Set a valid OpenAI-compatible API key in `CODX_JUNIOR_LLMFACTORY_KEY`.
-- If you need Docker-in-Docker support, ensure `privileged: true` is set (as shown).
+This starts:
 
-## Conclusion
+| Service | Purpose |
+| --- | --- |
+| `traefik-codx-junior` | Reverse proxy on ports 80 and 443 |
+| `codx-junior-client` | Web application |
+| `codx-junior-api` | API |
+| `codx-junior-api-background` | Background jobs (indexing, watchers, mentions) |
+| `milvus-codx-junior` | Vector store for knowledge |
+| `localai-codx-junior` | Optional local models |
 
-After completing these steps, `codx-junior` should be up and running. If you encounter issues, consult the repository README or contact the maintainers.
+Projects are stored on the host under `/home/codx-junior-projects`, and global settings are kept in the `codx-junior` Docker volume.
 
-Happy coding!
+## 5. Open the app
+
+Go to `http://localhost` (or `https://<CODX_JUNIOR_DOMAIN>`). Continue with the [Initial setup](/initial-setup).
+
+## Troubleshooting
+
+* **The page loads but says "API disconnected!"**: check `docker logs codx-junior-api`.
+* **Knowledge search returns nothing**: make sure `milvus-codx-junior` is healthy and that an embeddings model is configured.
+* **Workspaces do not start**: the API needs access to `/var/run/docker.sock`, which the compose file mounts by default.
+* **API reference**: the OpenAPI documentation is served at `/api/docs`.
