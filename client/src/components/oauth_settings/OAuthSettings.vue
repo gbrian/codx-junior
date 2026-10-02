@@ -7,7 +7,7 @@
       <div
         v-for="provider in computedProviders"
         :key="provider.name"
-        class="click card border border-slate-300 bg-slate-800 text-white/80 p-4 shadow-sm flex flex-col justify-between"
+        class="click card border border-base-100 bg-slate-800 text-base-content/80 p-4 shadow-sm flex flex-col justify-between"
         @click="editProvider(provider)"
       >
         <div class="overflow-hidden">
@@ -15,18 +15,20 @@
             {{ provider.name }}
           </h2>
           <table class="w-full">
-            <tr>
-              <td>Client ID:</td>
-              <td>{{ provider.client_id }}</td>
-            </tr>
-            <tr>
-              <td>Secret:</td>
-              <td>{{ provider.secret }}</td>
-            </tr>
-            <tr>
-              <td>Callback URL:</td>
-              <td>{{ location.origin + '/auth/' + provider.name }}</td>
-            </tr>
+            <thead>
+              <tr>
+                <td>Client ID:</td>
+                <td>{{ provider.client_id }}</td>
+              </tr>
+              <tr>
+                <td>Secret:</td>
+                <td>{{ provider.secret }}</td>
+              </tr>
+              <tr>
+                <td>Callback URL:</td>
+                <td>{{ location.origin + '/auth/' + provider.name }}</td>
+              </tr>
+            </thead>
           </table>
         </div>
         <div class="flex gap-2 mt-4">
@@ -38,7 +40,7 @@
           </button>
         </div>
       </div>
-      <div class="card border-2 border-dashed border-base-300 p-4 flex justify-center items-center cursor-pointer" @click="editProvider(null)">
+      <div class="card border-2 border-dashed border-base-100 p-4 flex justify-center items-center cursor-pointer" @click="editProvider(null)">
         <span class="text-gray-500">Add New Provider</span>
       </div>
     </div>

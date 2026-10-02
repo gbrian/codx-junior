@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config version="1.0">
+	<features>
+		<feature name="FileScan" action="1"/>
+		<feature name="UserControl" action="1"/>
+		<feature name="Antiphishing" action="1"/>
+		<feature name="Firewall" action="1"/>
+		<feature name="UpdateServer" action="0"/>
+		<feature name="BehavioralScan" action="1"/>
+		<feature name="TrafficScan" action="1"/>
+		<feature name="MailServers" action="0"/>
+		<feature name="DataLossPrevention" action="1"/>
+		<feature name="ApplicationControl" action="0"/>
+		<feature name="PowerUser" action="0"/>
+		<feature name="EventCorrelator" action="1"/>
+		<feature name="VolumeEncryption" action="0"/>
+		<feature name="PatchManagement" action="0"/>
+		<feature name="PatchManagementServer" action="0"/>
+		<feature name="VulnerabilityAssessment" action="1"/>
+		<feature name="AntiExploit" action="1"/>
+		<feature name="NetworkMonitor" action="1"/>
+		<feature name="ContainerProtection" action="0"/>
+		<feature name="IntegrityMonitor" action="0"/>
+		<feature name="ActivityMonitor" action="0"/>
+	</features>
+
+	<serverAddress strVar="EpagServer">https://cloudgz-ecs.gravityzone.bitdefender.com/hydra</serverAddress>
+	<customerId strVar="EpagCustId">67eabca0c35d05522508e9f5</customerId>
+	<connTime strVar="EpagConnTime">1800</connTime>
+	<userId strVar="EpagUserId">68ac74846113fca371011503</userId>
+
+	<downloadUrl strVar="DownloadUrl"><![CDATA[https://cloudgz-ecs.gravityzone.bitdefender.com/Packages/BSTNIX/0]]></downloadUrl>
+
+	<installPath strVar="InstallDir"><![CDATA[%PROGRAMFILES%]]></installPath>
+
+	<localization strVar="localization">es-ES</localization>
+	<arrakisUpdateServer strVar="ArrakisUpdateServer">update-cloud.2d585.cdn.bitdefender.net:443</arrakisUpdateServer>
+
+	<rebootIfNeeded var="RebootIfNeeded">0</rebootIfNeeded>
+	<forceResumeAfterReboot var="ForceResumeAfterReboot">0</forceResumeAfterReboot>
+
+	<disableScanBeforeInstall var="DisableScanBeforeInstall">1</disableScanBeforeInstall>
+	<encryptedPass>e/IfMoeaCnBB+csrLFFnQ2/XpbacwxE3psMi2xQI5Xg=</encryptedPass>
+
+	<remoteScanSettings>
+		<servers></servers>
+		<enableRemoteScan>0</enableRemoteScan>
+	</remoteScanSettings>
+
+	<scanType strVar="ScanType">full</scanType>
+
+	<scanTypeDetection>
+		<detectEC2 scanType="light" enableRemoteScan="1" detectEC2Url="http://169.254.169.254/latest/meta-data/instance-id">0</detectEC2>
+        <detectAzure scanType="full" enableRemoteScan="0" detectAzureUrl="http://169.254.169.254/metadata/instance/compute/vmId?api-version=2017-08-01&amp;amp;format=text">0</detectAzure>
+		<detectVM scanType="light" enableRemoteScan="1">1</detectVM>
+		<detectSlowMachine scanType="light" enableRemoteScan="1">1</detectSlowMachine>
+
+	</scanTypeDetection>
+
+	<appId var="AppIdProduct">12</appId>
+
+	<competitorRemoval>
+		<execute mode="always"/>
+		<useExternal value="yes"/>
+		<exclude>
+        	<!--Ex: < product name="" /> -->
+    	</exclude>
+	</competitorRemoval>
+
+	<trackingInfo>
+		<key>26SuZaIK83MkicK8vj7kyLXx3n/nh7F6icUfVixkLIY=</key>
+		<partnerId>84</partnerId>
+		<productId>2733</productId>
+	</trackingInfo>
+
+	<keepSettings var="KeepSettings">1</keepSettings>
+	<keepFeatures var="KeepFeatures">0</keepFeatures>
+
+	<proxyServer strVar="ProxyServer"></proxyServer>
+
+	<proxyPort strVar="ProxyPort"></proxyPort>
+
+	<proxyUser strVar="ProxyUser"></proxyUser>
+
+	<proxyPass strVar="ProxyPass"></proxyPass>
+
+	<installLink strVar="InstallLink"></installLink>
+
+	<rebootAfterEachRemovedProduct var="RebootAfterEachRemovedProduct">0</rebootAfterEachRemovedProduct>
+
+	<epagCustomField strVar="EpagCustomField"><![CDATA[{"productType":0,"ComputersFolder":"69e8eef80c6a82aafd0d28a7","VirtualMachinesFolder":null}]]></epagCustomField>
+
+	<statusLink strVar="StatusLink">https://cloudgz-ecs.gravityzone.bitdefender.com/tasks/state</statusLink>
+
+	<submitDumps var="SubmitDumps">1</submitDumps>
+	<submitQuar var="SubmitQuar">1</submitQuar>
+	<submitQuarInterval var="SubmitQuarInterval">3600</submitQuarInterval>
+	<submitSuspicious var="SubmitSuspicious">1</submitSuspicious>
+
+	<epagConfig>
+		<authToken strVar="EpagToken">8ZeuFEp/bYLpYcjT00Y6Jg==</authToken>
+	</epagConfig>
+
+<pinnedProductVersion></pinnedProductVersion></config>

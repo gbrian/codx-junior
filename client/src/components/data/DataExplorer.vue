@@ -35,7 +35,7 @@ import DataRow from './DataRow.vue';
           <DataRow :item="item" 
             v-for="item, ix in results"
             :key="item.id + ix"
-            class="border-b border-slate-700"
+            class="border-b border-base-100"
             :class="ix % 2 == 0 ? 'bg-base-100' : ''"
             @click="onClickRow(item)" />
         </tbody>
@@ -51,7 +51,7 @@ import DataRow from './DataRow.vue';
 
 <script>
 export default {
-  props: ['status'],
+  props: ['status', 'project'],
   data() {
     return {
       filter: "source LIKE '%%'",
@@ -71,7 +71,7 @@ export default {
   watch: {},
   methods: {
     async query() {
-      this.results = await $storex.api.data.rawQuery({ 
+      this.results = await this.project.$api.data.rawQuery({ 
         filter: this.filter, 
         limit: this.limit, 
         page: this.page 

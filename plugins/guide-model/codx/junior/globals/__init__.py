@@ -1,0 +1,3 @@
+import os
+
+CODX_JUNIOR_MODELS_PATH = os.environ.get("CODX_JUNIOR_MODELS_PATH")

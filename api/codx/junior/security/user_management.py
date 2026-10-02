@@ -1,13 +1,14 @@
 import logging
 import jwt
 import bcrypt
+import os
 
 from fastapi import Request
 
-from typing import Optional
+from typing import Optional, List
 
-from codx.junior.settings import read_global_settings, write_global_settings
-from codx.junior.model.model import (
+from codx.junior.global_settings import read_global_settings, write_global_settings
+from codx.junior.model.user import (
   CodxUser,
   CodxUserLogin,
   ProjectPermission
@@ -16,18 +17,63 @@ from codx.junior.settings import CODXJuniorSettings
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# GitHub Admin Helper
+# ---------------------------------------------------------------------------
+
+def get_github_admin_accounts() -> List[str]:
+    """
+    Read the GITHUB_ADMINS environment variable and return a list of
+    GitHub usernames that should be granted admin role.
+
+    Format: comma-separated list (case-insensitive matching)
+    Example: "user1,user2,user3"
+
+    Returns:
+        List of GitHub usernames (normalized to lowercase).
+    """
+    github_admins_env = os.getenv("GITHUB_ADMINS", "")
+    if not github_admins_env.strip():
+        return []
+    
+    # Split by comma, strip whitespace, and normalize to lowercase
+    admins = [
+        account.strip().lower()
+        for account in github_admins_env.split(",")
+        if account.strip()
+    ]
+    return admins
+
+
+def is_github_admin_account(github_username: str) -> bool:
+    """
+    Check if a GitHub username is in the GITHUB_ADMINS list.
+
+    Args:
+        github_username: The GitHub account username to check.
+
+    Returns:
+        True if the account is in the admin list, False otherwise.
+    """
+    if not github_username:
+        return False
+    
+    admin_accounts = get_github_admin_accounts()
+    return github_username.lower() in admin_accounts
+
+
 class UserSecurityManager():
     def __init__(self):
         self.global_settings = read_global_settings()
 
     def find_user(self, username: str = None) -> Optional[CodxUser]:
-        return next((user for user in self.global_settings.users
+        return next((CodxUser(**user.__dict__) for user in self.global_settings.users
                      if user.username == username), None)
 
     def find_github_user(self, account) -> Optional[CodxUser]:
-        return next((user for user in self.global_settings.users
+        return next((CodxUser(**user.__dict__) for user in self.global_settings.users
                      if user.github == account), None)
-    
+
     def find_user_login(self, username: str = None) -> Optional[CodxUserLogin]:
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
@@ -41,17 +87,22 @@ class UserSecurityManager():
     def get_user_token(self, user: CodxUser):
         return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
     
+    def get_user_from_token(self, token):
+        if not token:
+            return None
+        try:
+            decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
+            return CodxUserLogin(**decoded)
+        except:
+            return None
+
     def login_user(self, user: CodxUserLogin = None, token: str = None, oauth_password: str = None) -> CodxUser:
         def do_login(user: CodxUserLogin, token: str):
             if token:
-                try:
-                    decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
-                    user = CodxUserLogin(**decoded)
-                except Exception as ex:
-                    if not user:
-                        logging.error(f"Invalid token login {ex} {token}")
-                        return None
-
+                user = self.get_user_from_token(token)
+                if not user:
+                    logging.error(f"Invalid token login {token}")
+                    return None
             try:
                 stored_user = self.find_user(username=user.username)
                 stored_login = self.find_user_login(username=user.username)
@@ -60,12 +111,24 @@ class UserSecurityManager():
                     if stored_user.disabled:
                         logger.error(f"Disabled user login attempt: {stored_user}")
                         return None
+                    
+                    # Check if user is GitHub-only and attempting password login
+                    if stored_user.github_only and not oauth_password:
+                        logger.error(
+                            f"GitHub-only user '{stored_user.username}' attempted password login. "
+                            "Use GitHub OAuth instead."
+                        )
+                        return None
+                    
                     if stored_login:
                         if token == stored_login.token:
                             return stored_user
                         if not user.password and oauth_password:
                             return stored_user
-                        # Verify existing password
+                        # Verify existing password (skip for GitHub-only users with oauth)
+                        if oauth_password:
+                            # OAuth login, no password verification needed
+                            return stored_user
                         if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
                             return stored_user
                         else:
@@ -76,6 +139,7 @@ class UserSecurityManager():
                         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                         new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
                         self.global_settings.user_logins.append(new_login)
+                        logger.info("Create a new user login with the hashed password and save settings")
                         self.save_settings()
                         
                         return stored_user
@@ -88,12 +152,15 @@ class UserSecurityManager():
             
         try:
             logged_user = do_login(user=user, token=token)
-            # logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
+            logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
-                # logger.info(f"User logged {logged_user}")
-                user_login.token = self.get_user_token(user=logged_user)
-                self.save_settings()
+                
+                if not self.get_user_from_token(user_login.token):
+                    user_login.token = self.get_user_token(user=logged_user)
+                    logger.info("User logged and save settings")
+                    self.save_settings()
+                
                 logged_user.token = user_login.token
             return logged_user
         except Exception as ex:
@@ -108,11 +175,20 @@ class UserSecurityManager():
             existing_user.theme = user.theme
 
             if password:
+                # Prevent password update for GitHub-only users
+                if existing_user.github_only:
+                    logger.error(
+                        f"Cannot set password for GitHub-only user '{existing_user.username}'. "
+                        "Use GitHub OAuth for authentication."
+                    )
+                    raise Exception("Password cannot be set for GitHub-only users")
+                
                 # Update password in the user logins
-                stored_login = self.find_user_login(username=user.username, email=user.email)
+                stored_login = self.find_user_login(username=user.username)
                 if stored_login:
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                     stored_login.password = hashed_password.decode('utf-8')
+            logger.info("Update user and save settings")
             self.save_settings()
 
         return existing_user
@@ -141,6 +217,7 @@ class UserSecurityManager():
             ))
             save_settings = True
         if save_settings:
+            logger.info("Add user to project and save settings")
             self.save_settings()
 
     def get_users_with_project_access(self, project_id: str):
@@ -159,6 +236,7 @@ class UserSecurityManager():
                 })
                         
         return users_with_access
+
     def save_settings(self):
         write_global_settings(self.global_settings)
 

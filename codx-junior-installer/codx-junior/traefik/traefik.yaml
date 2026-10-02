@@ -1,0 +1,41 @@
+entrypoints:
+  web:
+    address: :80
+    observability:
+      accessLogs: true
+      metrics: true
+      tracing: true
+  websecure:
+    address: :443
+    observability:
+      accessLogs: true
+      metrics: true
+      tracing: true
+
+api:
+  dashboard: true
+  insecure: false # Must be false to set basePath 
+  basePath: /traefik
+
+log:
+  level: DEBUG
+  
+accessLog:
+  addInternals: true
+  format: json
+  fields:
+    headers:
+      defaultMode: keep
+
+providers:
+  file:
+    directory: /config/routes
+    watch: true
+  docker: {}
+      
+certificatesResolvers:
+  sslresolver:
+    acme:
+      storage: "/config/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web

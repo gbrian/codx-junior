@@ -1,5 +1,6 @@
 <script setup>
 import { v4 as uuidv4 } from 'uuid'
+import WorkspaceSettings from './WorkspaceSettings.vue'
 </script>
 
 <template>
@@ -17,24 +18,11 @@ import { v4 as uuidv4 } from 'uuid'
       <h3 class="text-lg font-bold">Settings</h3>
       <div class="form-control mt-4">
         <label class="label">
-          <span class="label-text">Workspace Start Port</span>
-        </label>
-        <input v-model="settings.workspace_start_port" type="number" placeholder="Start Port" class="input input-bordered w-full max-w-xs" required />
-      </div>
-      <div class="form-control mt-4">
-        <label class="label">
-          <span class="label-text">Workspace End Port</span>
-        </label>
-        <input v-model="settings.workspace_end_port" type="number" placeholder="End Port" class="input input-bordered w-full max-w-xs" required />
-      </div>
-      <div class="form-control mt-4">
-        <label class="label">
           <span class="label-text">Workspace Docker Settings</span>
         </label>
         <div v-for="(value, key) in settings.workspace_docker_settings" :key="key" class="flex gap-2 items-center mt-2">
           <input :value="key" placeholder="Key" 
             readonly class="input input-bordered w-32 text-info border-0" />
-          
           <input v-model="settings.workspace_docker_settings[key]" placeholder="Value" class="input input-bordered w-32" />
           <button class="btn btn-error btn-xs" @click="addDockerSetting">
             <i class="fa-solid fa-circle-xmark"></i>
@@ -55,91 +43,22 @@ import { v4 as uuidv4 } from 'uuid'
           {{ workspace.description }}
           <div class="flex justify-end gap-2 items-center">
             {{ workspace.project_ids.length }} projects
+            <!-- Add clone button -->
+            <button class="btn btn-warning btn-xs" @click.stop="cloneWorkspace(workspace)">
+              Clone
+            </button>
           </div>
         </div>
       </div>
 
-      <modal close="true" @close="showModal = false" v-if="showModal">
-        <div class="p-4">
-          <div>
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Workspace Name</span>
-              </label>
-              <input v-model="selectedWorkspace.name" type="text" placeholder="Workspace Name" class="input input-bordered w-full max-w-xs" required />
-            </div>
-            <div class="form-control mt-4">
-              <label class="label">
-                <span class="label-text">Description</span>
-              </label>
-              <textarea v-model="selectedWorkspace.description" placeholder="Workspace Description" class="textarea textarea-bordered w-full max-w-xs" required></textarea>
-            </div>
-            <div class="form-control mt-4">
-              <label class="label">
-                <span class="label-text">Apps</span>
-              </label>
-              <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 items-center mt-2">
-                <select v-model="app.name" class="select select-bordered">
-                  <option value="coder">Code Server</option>
-                  <option value="desktop">Virtual Desktop</option>
-                </select>
-                <input v-model="app.description" placeholder="App Description" class="input input-bordered w-36" />
-                <input v-model="app.port" type="number" placeholder="Port" class="input input-bordered w-20" />
-                <label class="flex items-center">
-                  <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
-                  <span class="ml-1">VNC</span>
-                </label>
-                <button class="btn btn-error btn-xs" @click="removeApp(index)">
-                  <i class="fa-solid fa-circle-xmark"></i>
-                </button>
-              </div>
-              <div class="flex gap-2 items-center mt-2">
-                <select v-model="newApp.name" class="select select-bordered">
-                  <option value="coder">Code Server</option>
-                  <option value="desktop">Virtual Desktop</option>
-                </select>
-                <input v-model="newApp.description" placeholder="App Description" class="input input-bordered w-36" />
-                <input v-model="newApp.port" type="number" placeholder="Port" class="input input-bordered w-20" />
-                <label class="flex items-center">
-                  <input type="checkbox" v-model="newApp.is_vnc" class="checkbox checkbox-xs" />
-                  <span class="ml-1">VNC</span>
-                </label>
-                <button class="btn btn-sm btn-primary" @click="addApp">
-                  <i class="fa-solid fa-plus"></i>
-                </button>
-              </div>
-            </div>
-            <div class="form-control mt-4">
-              <label class="label">
-                <span class="label-text">Associated Projects</span>
-              </label>
-              <div class="flex gap-1 items-center">
-                <select class="select select-sm select-bordered grow" v-model="selectedProjectId">
-                  <option v-for="project in availableProjects" :key="project.project_id" :value="project.project_id">
-                    {{ project.project_name }}
-                  </option>
-                </select>
-                <button class="btn btn-sm btn-primary" @click="toggleProjectSelection(selectedProjectId)">
-                  <i class="fa-solid fa-plus"></i>
-                </button>
-              </div>
-              <ul class="list-disc pl-5 mt-2">
-                <li v-for="projectId in selectedWorkspace.project_ids" :key="projectId" class="flex items-center">
-                  <span>{{ getProjectName(projectId) }}</span>
-                  <button class="btn btn-error btn-sm ml-2" @click="toggleProjectSelection(projectId)">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div class="flex justify-end mt-4">
-              <button class="btn btn-error" @click="deleteWorkspace(selectedWorkspace.id)">Delete</button>
-              <div class="grow"></div>
-              <button class="btn btn-primary mr-2" @click="saveWorkspace">Save</button>
-              <button type="button" class="btn btn-ghost" @click="showModal = false">Cancel</button>
-            </div>
-          </div>
-        </div>
+      <modal close="true" class="w-5/6" @close="showModal = false" v-if="showModal">
+        <WorkspaceSettings
+          :workspace="selectedWorkspace"
+          :availableProjects="availableProjects"
+          @close="showModal = false"
+          @delete="deleteWorkspace"
+          @save="saveWorkspace"
+        />
       </modal>
     </div>
   </div>
@@ -157,7 +76,7 @@ export default {
         name: '',
         description: '',
         project_ids: [],
-        apps: [] // Initialize apps array
+        apps: []
       },
       selectedProjectId: null,
       showSettings: false
@@ -187,13 +106,11 @@ export default {
       }
     },
     saveWorkspace() {
-      if (!this.selectedWorkspace.id) {
-        this.settings.workspaces.push({ ...this.selectedWorkspace, id: uuidv4() })
+      const index = this.settings.workspaces.findIndex(ws => ws.id === this.selectedWorkspace.id)
+      if (index !== -1) {
+        this.settings.workspaces[index] = { ...this.selectedWorkspace }
       } else {
-        const index = this.settings.workspaces.findIndex(ws => ws.id === this.selectedWorkspace.id)
-        if (index !== -1) {
-          this.settings.workspaces[index] = { ...this.selectedWorkspace }
-        }
+        this.settings.workspaces.push({ ...this.selectedWorkspace, id: uuidv4() })
       }
       this.showModal = false
     },
@@ -206,6 +123,9 @@ export default {
       }
     },
     getProjectName(projectId) {
+      if (projectId === '*') {
+        return "All projects"
+      }
       const project = this.availableProjects.find(p => p.project_id === projectId)
       return project ? project.project_name : 'Unknown'
     },
@@ -221,14 +141,14 @@ export default {
     removeDockerSetting(key) {
       this.$delete(this.settings.workspace_docker_settings, key)
     },
-    addApp() {
-      if (this.newApp.name && this.newApp.port) {
-        this.selectedWorkspace.apps.push({ ...this.newApp })
-        this.newApp = { name: '', description: '', port: null, is_vnc: false }
+    cloneWorkspace(workspace) {
+      // Clone the workspace and assign a new ID
+      const clonedWorkspace = { 
+        ...JSON.parse(JSON.stringify(workspace)), 
+        id: uuidv4(), 
+        name: `${workspace.name} (Copy)` 
       }
-    },
-    removeApp(index) {
-      this.selectedWorkspace.apps.splice(index, 1)
+      this.settings.workspaces.push(clonedWorkspace)
     }
   }
 }

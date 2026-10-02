@@ -2,7 +2,7 @@
 import ThemeSelector from '../ThemeSelector.vue'
 </script>
 <template>
-  <div class="flex flex-col items-center p-4 gap-4">
+  <div class="flex flex-col h-full overflow-auto items-center p-4 gap-4">
     <div class="text-2xl">Account settings</div>
     <div class="avatar">
       <div class="w-24 ring rounded-full">
@@ -75,9 +75,10 @@ export default {
     resetPassword() {
       if (this.newPassword === this.confirmPassword) {
         this.$users.resetPassword(this.newPassword)
+        this.$toast.success('Password reset successfully')
         this.showResetPasswordModal = false
       } else {
-        alert('Passwords do not match')
+        this.$toast.error('Passwords do not match')
       }
     }
   }

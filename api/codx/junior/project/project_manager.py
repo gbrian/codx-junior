@@ -8,19 +8,18 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.engine import CODXJuniorSession
 from codx.junior.model.model import CodxUser
 
-from codx.junior.settings import read_global_settings
 from codx.junior.utils.utils import exec_command
+from codx.junior.globals import CODX_JUNIOR_PROJECTS_PATH
 
-from codx.junior.project.project_discover import find_project_by_project_path
+from codx.junior.project.project_discover import find_project_by_project_path, get_projects_root_path
     
 logger = logging.getLogger(__name__)
-    
+
 def create_project(project_path: str, user: CodxUser):
     logger.info(f"Create new project {project_path}")
-    global_settings = read_global_settings()
-    projects_root_path = global_settings.projects_root_path or f"{os.environ['HOME']}/projects"
+    projects_root_path = get_projects_root_path()
     os.makedirs(projects_root_path, exist_ok=True)
-
+    
     repo_url = None 
     repo_name = None
     if project_path.startswith("http"):
@@ -37,6 +36,9 @@ def create_project(project_path: str, user: CodxUser):
         return existing_project
 
     settings = CODXJuniorSettings()
+    if project_path[0] != '/':
+        project_path = os.path.join(CODX_JUNIOR_PROJECTS_PATH, project_path)
+    
     settings.project_name = project_path.split("/")[-1]
     settings.codx_path = f"{project_path}/.codx"
     settings.watching = True

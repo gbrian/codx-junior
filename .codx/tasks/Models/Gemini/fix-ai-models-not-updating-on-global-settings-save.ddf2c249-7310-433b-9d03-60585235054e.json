@@ -1,0 +1,122 @@
+{
+  "id": "ddf2c249-7310-433b-9d03-60585235054e",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "py_senior",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Fix AI models not updating on global settings save",
+  "pinned": false,
+  "description": "# Conversation Summary\n\n1. **Issue Identified**: Global settings changes were not being reflected in the project store's AI models configuration.\n\n2. **Root Cause**: The `saveSettings` method in `GlobalSettings.vue` called `reloadProject()` but didn't properly reinitialize the project's AI models state.\n\n3. **Solution Implemented**: Added a proper reload sequence that synchronizes global settings \u2192 all projects \u2192 active project with updated AI model configurations.\n\n4. **Key Changes**: Modified `saveSettings` to load settings, reload all projects, and reinitialize the active project's AI state after saving.\n\n5. **Result**: Global AI model settings now properly propagate to the active project store, ensuring consistent model configuration across the application.",
+  "messages": [
+    {
+      "doc_id": "06270903-91b9-45f0-ba90-6bdcf2216fd1",
+      "role": "user",
+      "task_item": "",
+      "content": "When global settings are stored the ai models are not updated\u00a0",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-26 09:55:08.780948",
+      "updated_at": "2026-06-26 09:55:08.780976",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/views/GlobalSettings.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/store/project.js",
+        "/home/codx-junior-projects/codx-junior/client/src/views/GlobalSettings.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/store/project.js"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "0815b5ce-419b-4851-b15c-6193afbc2281",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "Looking at the issue, when global settings are saved, the AI models in the project store are not being updated. The problem is in the `saveSettings` method in `GlobalSettings.vue`.\n\nThe issue is that after saving global settings, the code calls `this.$projects.reloadProject()`, but this doesn't properly reinitialize the project's AI models state. Additionally, there's no synchronization between global settings changes and the active project's AI model configuration.\n\nHere's the fix:\n\n```vue client/src/views/GlobalSettings.vue\n<script setup>\nimport AISettings from './AISettings.vue'\nimport AgentSettings from '@/components/ai_settings/AgentSettings.vue'\nimport ModelSelector from '@/components/ai_settings/ModelSelector.vue'\nimport ExportImportButton from '@/components/ExportImportButton.vue'\nimport SecurityUserList from '@/components/security/SecurityUserList.vue'\nimport Workspaces from '@/components/workspaces/Workspaces.vue'\nimport ProjectScripts from '@/components/project/ProjectScripts.vue'\nimport OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'\nimport PluginsEditor from '@/components/global_settings/plugins/PluginsEditor.vue'\nimport EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.vue'\n</script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col gap-2 p-4 overflow-auto\" v-if=\"settings\">\n    <div class=\"text-xl font-medium my-2 flex justify-between\">\n      Global Settings\n      <div class=\"flex justify-end gap-2 items-center\">\n        <button class=\"btn btn-sm\" @click=\"reloadSettings\">Reload</button>\n        <button class=\"btn btn-sm btn-primary\" @click=\"saveSettings\">Save</button>\n        <ExportImportButton :data=\"settings\" @change=\"submit\">\n          <li @click=\"activeTab = 'Settings'\" :class=\"{ 'tab-active': activeTab === 'Settings' }\" class=\"\"><a>General</a></li>\n          <li @click=\"activeTab = 'AI Models'\" :class=\"{ 'tab-active': activeTab === 'AI Models' }\" class=\"\"><a>AI Models</a></li>\n          <li @click=\"activeTab = 'Plugins'\" :class=\"{ 'tab-active': activeTab === 'Plugins' }\" class=\"\"><a>Plugins</a></li>\n          <li @click=\"activeTab = 'Workspaces'\" :class=\"{ 'tab-active': activeTab === 'Workspaces' }\" class=\"\"><a>Workspaces</a></li>\n          <li @click=\"activeTab = 'Users'\" :class=\"{ 'tab-active': activeTab === 'Users' }\" class=\"\"><a>Users</a></li>\n          <li @click=\"activeTab = 'Scripts'\" :class=\"{ 'tab-active': activeTab === 'Scripts' }\" class=\"\"><a>Scripts</a></li>\n          <li @click=\"activeTab = 'OAuth'\" :class=\"{ 'tab-active': activeTab === 'OAuth' }\" class=\"\"><a>OAuth</a></li>\n          <li @click=\"activeTab = 'ENV Variables'\" :class=\"{ 'tab-active': activeTab === 'ENV Variables' }\" class=\"\"><a>ENV Variables</a></li>\n          <li class=\"separator\"></li>\n        </ExportImportButton>\n      </div>\n    </div>\n\n    <SecurityUserList :settings=\"settings\" v-if=\"activeTab === 'Users'\" />\n    <Workspaces :settings=\"settings\" v-if=\"activeTab === 'Workspaces'\" />\n    <ProjectScripts :settings=\"settings\" v-if=\"activeTab === 'Scripts'\" />\n    <OAuthSettings  :settings=\"settings\" v-if=\"activeTab === 'OAuth'\" />\n    <PluginsEditor  v-if=\"activeTab === 'Plugins'\" />\n    <div v-if=\"activeTab === 'Settings'\" class=\"flex flex-col gap-4\">\n      <div class=\"flex flex-col gap-4\">\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Global</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">codx-junior Avatar:</span>\n              <input v-model=\"settings.codx_junior_avatar\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Projects Root Path:</span>\n              <input v-model=\"settings.projects_root_path\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n          </div>\n        </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Git</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Username:</span>\n              <input v-model=\"settings.git.username\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Email:</span>\n              <input v-model=\"settings.git.email\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n          </div>\n        </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">AI</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Log AI:</span>\n              <input v-model=\"settings.log_ai\" type=\"checkbox\" class=\"checkbox\" />\n            </div>\n            <div class=\"font-bold\">Embeddings</div>\n            <div class=\"text-xs\">Converts project's documents into embeddings for knowledge search</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.embeddings_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">Knowledge search</div>\n            <div class=\"text-xs\">Scores knowledge results based on user's request</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.rag_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">Reasoning</div>\n            <div class=\"text-xs\">Default Reasoning model</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.llm_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">WIKI</div>\n            <div class=\"text-xs\">Generates wiki documents from project's knowledge</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.wiki_model\" />\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n    </div>\n    <div v-if=\"activeTab === 'AI Models'\" class=\"flex flex-col gap-4\">\n      <AISettings :settings=\"settings\" />\n    </div>\n    <div v-if=\"activeTab === 'Agents'\" class=\"flex flex-col gap-4\">\n      <AgentSettings />\n    </div>\n    <EnvVariablesEditor v-if=\"activeTab === 'ENV Variables'\" :settings=\"settings\" />\n    <modal v-if=\"showImport\" :close=\"true\" @close=\"showImport = false\">\n      <div class=\"flex flex-col gap-2\">\n        <div class=\"text-xl\">Paste your JSON settings here</div>\n        <textarea v-model=\"importData\" class=\"textarea textarea-bordered w-full\"></textarea>\n        <button class=\"btn btn-sm btn-primary\" @click=\"submit\">Import</button>\n      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n      activeTab: 'Settings',\n      settings: null,\n      importData: '',\n      showImport: false\n    }\n  },\n  created() {\n    this.loadSettings()\n  },\n  methods: {\n    async loadSettings() {\n      const data = await this.$storex.api.settings.global.read()\n      this.settings = data\n    },\n    async saveSettings() {\n      await this.$storex.api.settings.global.write(this.settings)\n      \n      // Reload global settings first\n      await this.loadSettings()\n      \n      // Force reload all projects with new global settings\n      await this.$storex.projects.loadAllProjects()\n      \n      // Reload and reinitialize active project with updated AI models\n      if (this.$storex.projects.activeProject) {\n        await this.$storex.projects.realoadProject()\n      }\n      \n      this.$ui.addNotification({ text: 'Saved' })\n    },\n    reloadSettings() {\n      this.loadSettings()\n    },\n    async submit(importData) {\n      try {\n        const imported = importData\n        this.settings = { ...this.settings, ...imported }\n      } catch (e) {\n        console.error('Import failed', e)\n      }\n    }\n  }\n}\n</script>\n```\n\nAnd update the project store to ensure AI models are properly reloaded:\n\n```js client/src/store/project.js\n// In the realoadProject action, add model initialization\nasync realoadProject({ state }) {\n  state.projectLoading = true\n  try {\n    const [_, models] = await Promise.all([\n      API.settings.read(),\n      API.projects.ai.models.list()\n    ])\n    state.ai.models = models\n    \n    // Update active project's AI state\n    if (state.activeProject?.$state) {\n      state.activeProject.$state.ai = { models }\n    }\n  } finally {\n    state.projectLoading = false\n  }\n  state.activeProject = null\n  await $storex.projects.setActiveProject(API.activeProject)\n  await $storex.projects.setAllProjects((state.allProjects||[])\n    .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))\n  return state.activeProject\n}\n```\n\n**Key changes:**\n1. **Proper reload sequence**: Global settings \u2192 All projects \u2192 Active project reload\n2. **Active project update**: Ensures `$state.ai.models` is updated in the active project\n3. **Model synchronization**: Models are fetched fresh from API and pushed to both store and project state",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-26 09:55:08.780948",
+      "updated_at": "2026-06-26 09:55:08.780976",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1782552479.1560137,
+        "cancellation_token_id": "ad8b6c5e-44c3-4566-840b-4b0d6174d536",
+        "model": "claude-haiku-4-5",
+        "time_taken": 16.725926637649536,
+        "first_chunk_time_taken": 0.221174955368042,
+        "files": [
+          {
+            "language": "vue",
+            "file_path": "client/src/views/GlobalSettings.vue",
+            "content": "<script setup>\nimport AISettings from './AISettings.vue'\nimport AgentSettings from '@/components/ai_settings/AgentSettings.vue'\nimport ModelSelector from '@/components/ai_settings/ModelSelector.vue'\nimport ExportImportButton from '@/components/ExportImportButton.vue'\nimport SecurityUserList from '@/components/security/SecurityUserList.vue'\nimport Workspaces from '@/components/workspaces/Workspaces.vue'\nimport ProjectScripts from '@/components/project/ProjectScripts.vue'\nimport OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'\nimport PluginsEditor from '@/components/global_settings/plugins/PluginsEditor.vue'\nimport EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.vue'\n</script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col gap-2 p-4 overflow-auto\" v-if=\"settings\">\n    <div class=\"text-xl font-medium my-2 flex justify-between\">\n      Global Settings\n      <div class=\"flex justify-end gap-2 items-center\">\n        <button class=\"btn btn-sm\" @click=\"reloadSettings\">Reload</button>\n        <button class=\"btn btn-sm btn-primary\" @click=\"saveSettings\">Save</button>\n        <ExportImportButton :data=\"settings\" @change=\"submit\">\n          <li @click=\"activeTab = 'Settings'\" :class=\"{ 'tab-active': activeTab === 'Settings' }\" class=\"\"><a>General</a></li>\n          <li @click=\"activeTab = 'AI Models'\" :class=\"{ 'tab-active': activeTab === 'AI Models' }\" class=\"\"><a>AI Models</a></li>\n          <li @click=\"activeTab = 'Plugins'\" :class=\"{ 'tab-active': activeTab === 'Plugins' }\" class=\"\"><a>Plugins</a></li>\n          <li @click=\"activeTab = 'Workspaces'\" :class=\"{ 'tab-active': activeTab === 'Workspaces' }\" class=\"\"><a>Workspaces</a></li>\n          <li @click=\"activeTab = 'Users'\" :class=\"{ 'tab-active': activeTab === 'Users' }\" class=\"\"><a>Users</a></li>\n          <li @click=\"activeTab = 'Scripts'\" :class=\"{ 'tab-active': activeTab === 'Scripts' }\" class=\"\"><a>Scripts</a></li>\n          <li @click=\"activeTab = 'OAuth'\" :class=\"{ 'tab-active': activeTab === 'OAuth' }\" class=\"\"><a>OAuth</a></li>\n          <li @click=\"activeTab = 'ENV Variables'\" :class=\"{ 'tab-active': activeTab === 'ENV Variables' }\" class=\"\"><a>ENV Variables</a></li>\n          <li class=\"separator\"></li>\n        </ExportImportButton>\n      </div>\n    </div>\n\n    <SecurityUserList :settings=\"settings\" v-if=\"activeTab === 'Users'\" />\n    <Workspaces :settings=\"settings\" v-if=\"activeTab === 'Workspaces'\" />\n    <ProjectScripts :settings=\"settings\" v-if=\"activeTab === 'Scripts'\" />\n    <OAuthSettings  :settings=\"settings\" v-if=\"activeTab === 'OAuth'\" />\n    <PluginsEditor  v-if=\"activeTab === 'Plugins'\" />\n    <div v-if=\"activeTab === 'Settings'\" class=\"flex flex-col gap-4\">\n      <div class=\"flex flex-col gap-4\">\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Global</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">codx-junior Avatar:</span>\n              <input v-model=\"settings.codx_junior_avatar\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Projects Root Path:</span>\n              <input v-model=\"settings.projects_root_path\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n          </div>\n        </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Git</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Username:</span>\n              <input v-model=\"settings.git.username\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Email:</span>\n              <input v-model=\"settings.git.email\" type=\"text\" class=\"input input-bordered flex-grow\" />\n            </div>\n          </div>\n        </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">AI</div>\n          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n              <span class=\"w-1/4\">Log AI:</span>\n              <input v-model=\"settings.log_ai\" type=\"checkbox\" class=\"checkbox\" />\n            </div>\n            <div class=\"font-bold\">Embeddings</div>\n            <div class=\"text-xs\">Converts project's documents into embeddings for knowledge search</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.embeddings_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">Knowledge search</div>\n            <div class=\"text-xs\">Scores knowledge results based on user's request</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.rag_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">Reasoning</div>\n            <div class=\"text-xs\">Default Reasoning model</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.llm_model\" />\n              </div>\n            </div>\n            <div class=\"font-bold\">WIKI</div>\n            <div class=\"text-xs\">Generates wiki documents from project's knowledge</div>\n            <div class=\"flex flex-col gap-2\">\n              <div class=\"flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.wiki_model\" />\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n    </div>\n    <div v-if=\"activeTab === 'AI Models'\" class=\"flex flex-col gap-4\">\n      <AISettings :settings=\"settings\" />\n    </div>\n    <div v-if=\"activeTab === 'Agents'\" class=\"flex flex-col gap-4\">\n      <AgentSettings />\n    </div>\n    <EnvVariablesEditor v-if=\"activeTab === 'ENV Variables'\" :settings=\"settings\" />\n    <modal v-if=\"showImport\" :close=\"true\" @close=\"showImport = false\">\n      <div class=\"flex flex-col gap-2\">\n        <div class=\"text-xl\">Paste your JSON settings here</div>\n        <textarea v-model=\"importData\" class=\"textarea textarea-bordered w-full\"></textarea>\n        <button class=\"btn btn-sm btn-primary\" @click=\"submit\">Import</button>\n      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n      activeTab: 'Settings',\n      settings: null,\n      importData: '',\n      showImport: false\n    }\n  },\n  created() {\n    this.loadSettings()\n  },\n  methods: {\n    async loadSettings() {\n      const data = await this.$storex.api.settings.global.read()\n      this.settings = data\n    },\n    async saveSettings() {\n      await this.$storex.api.settings.global.write(this.settings)\n      \n      // Reload global settings first\n      await this.loadSettings()\n      \n      // Force reload all projects with new global settings\n      await this.$storex.projects.loadAllProjects()\n      \n      // Reload and reinitialize active project with updated AI models\n      if (this.$storex.projects.activeProject) {\n        await this.$storex.projects.realoadProject()\n      }\n      \n      this.$ui.addNotification({ text: 'Saved' })\n    },\n    reloadSettings() {\n      this.loadSettings()\n    },\n    async submit(importData) {\n      try {\n        const imported = importData\n        this.settings = { ...this.settings, ...imported }\n      } catch (e) {\n        console.error('Import failed', e)\n      }\n    }\n  }\n}\n</script>"
+          },
+          {
+            "language": "js",
+            "file_path": "client/src/store/project.js",
+            "content": "// In the realoadProject action, add model initialization\nasync realoadProject({ state }) {\n  state.projectLoading = true\n  try {\n    const [_, models] = await Promise.all([\n      API.settings.read(),\n      API.projects.ai.models.list()\n    ])\n    state.ai.models = models\n    \n    // Update active project's AI state\n    if (state.activeProject?.$state) {\n      state.activeProject.$state.ai = { models }\n    }\n  } finally {\n    state.projectLoading = false\n  }\n  state.activeProject = null\n  await $storex.projects.setActiveProject(API.activeProject)\n  await $storex.projects.setAllProjects((state.allProjects||[])\n    .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))\n  return state.activeProject\n}"
+          }
+        ]
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-06-26 09:55:08.783975",
+  "updated_at": "2026-06-27T09:28:20.101792",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Models",
+  "column": "Gemini",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Models/Gemini/fix-ai-models-not-updating-on-global-settings-save.ddf2c249-7310-433b-9d03-60585235054e.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "auto_initialize": false
+}

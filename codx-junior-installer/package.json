@@ -1,0 +1,21 @@
+{
+  "name": "codx-junior-installer",
+  "version": "1.0.0",
+  "description": "codx-junior installer is a helper to setup a new codx-junior instance.",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build:base": "cd codx-junior && docker-compose -f docker-compose.build.yaml build codx-junior-debian-image",
+    "build:api": "cd codx-junior && docker-compose -f docker-compose.build.yaml build codx-junior-api-image",
+    "build:client": "cd codx-junior && docker-compose -f docker-compose.build.yaml build codx-junior-client-image",
+    "build:dind": "cd .. && docker build -t codxjunior/codx-junior:dind -f codx-junior-installer/codx-junior-dind/Dockerfile .",
+    "build:default-workspace": "cd codx-junior/workspaces/codx-junior-workspace-default && docker build -t codxjunior/codx-junior-default-workspace:latest .",
+    "publish:base": "docker push codxjunior/codx-junior:debian",
+    "publish:api": "docker push codxjunior/codx-junior:api",
+    "publish:client": "docker push codxjunior/codx-junior:client",
+    "publish:dind": "docker push codxjunior/codx-junior:dind",
+    "publish:default-workspace": "docker push codxjunior/codx-junior-default-workspace:latest"
+  }
+}

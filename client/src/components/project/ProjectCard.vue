@@ -3,15 +3,15 @@ import moment from 'moment';
 import HeatMap from '../metrics/HeatMap.vue';
 </script>
 <template>
-  <div class="p-4 border rounded-md p-2 flex flex-col gap-2 bg-base-300 click">
+  <div class="p-4 border border-base-100 rounded-md p-2 flex flex-col gap-2 bg-base-300 click">
     <div class="font-bold flex gap-2 items-start">
       <img class="w-6 h-6 rounded-full bg-white" :src="project.project_icon" />
       {{ project.project_name }}
     </div>
     <div class="text-xs flex gap-1 tooltip -mt-1 click hover:underline hover:text-info" 
         @click.stop="$ui.coderOpenPath(project)" 
-        :data-tip="project.project_path">
-      <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.project_path }}</span>
+        :data-tip="project.abs_project_path">
+      <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.abs_project_path }}</span>
     </div>
     <div class="grow"></div>
     <div class="text-xs" v-if="metrics?.last_update">

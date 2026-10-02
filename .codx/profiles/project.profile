@@ -1,1 +1,51 @@
-{"name": "project", "url": "", "avatar": "https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=project", "description": "Project overview and tech stack definition. Will help all processes to keep focus on the project", "category": "project", "file_match": "", "content": "See project.profile.md file", "path": "/home/codx-junior/codx-junior/.codx/profiles/project.profile", "content_path": "/home/codx-junior/codx-junior/.codx/profiles/project.profile.md", "profiles": [], "llm_model": "", "use_knowledge": true, "user": {"username": "", "email": "", "avatar": "", "theme": "dim", "projects": [], "role": "user", "token": "", "disabled": false}, "tools": [], "tags": [], "api_settings": {"active": false, "model_name": null, "description": null}, "chat_mode": null}
+{
+  "name": "project",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=project",
+  "description": "Project overview and tech stack definition. Will help all processes to keep focus on the project",
+  "category": "project",
+  "file_match": "",
+  "content": "# About {{ project_name }}\nProject's path is:  '{{ project_path }}' \n",
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/project.profile",
+  "content_path": "/home/codx-junior-projects/codx-junior/.codx/profiles/project.profile.md",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "5294dd3c-eaf4-4aef-a8b1-2b37577fb10b",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-07-05T07:37:24.726544",
+      "updated_at": "2026-07-05T07:37:24.726555",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": ""
+}

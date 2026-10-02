@@ -14,9 +14,6 @@
     <!-- Spacer -->
     <div class="flex-grow"></div>
 
-    <!-- Search Bar in Icon Mode -->
-    <SearchBar class="icon-mode" />
-
     <!-- Notifications Component -->
     <Notifications />
 

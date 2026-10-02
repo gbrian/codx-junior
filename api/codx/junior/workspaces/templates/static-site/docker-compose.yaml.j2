@@ -1,0 +1,35 @@
+services:
+  app:
+    image: {{ workspace.env.get('IMAGE', 'node:22-slim') }}
+    container_name: codx-ws-{{ workspace.slug }}-app
+    working_dir: {{ projects[0].container_path if projects else '/home/projects' }}
+    command: {{ workspace.env.get('COMMAND', 'sh -c "npm install && npm run dev -- --host"') }}
+    restart: unless-stopped
+    shm_size: '{{ workspace.resources.shm_size }}'
+{% if workspace.resources.cpus or workspace.resources.memory %}
+    deploy:
+      resources:
+        limits:
+{% if workspace.resources.cpus %}          cpus: '{{ workspace.resources.cpus }}'
+{% endif %}{% if workspace.resources.memory %}          memory: {{ workspace.resources.memory }}
+{% endif %}{% endif %}
+    volumes:
+{% for project in projects %}
+      - {{ project.host_path }}:{{ project.container_path }}
+{% endfor %}
+    environment:
+{% for key, value in workspace.env.items() %}
+      - {{ key }}={{ value }}
+{% endfor %}
+    labels:
+{% for app in workspace.apps %}
+{% for label in traefik_labels(workspace, app) %}
+      - {{ label }}
+{% endfor %}
+{% endfor %}
+    networks:
+      - workspace
+
+networks:
+  workspace:
+    name: {{ workspace.network_name }}

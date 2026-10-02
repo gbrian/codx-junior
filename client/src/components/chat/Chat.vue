@@ -1,425 +1,411 @@
 <script setup>
-import moment from 'moment'
-import { API } from '../../api/api'
-import ChatEntry from '@/components/ChatEntry.vue'
-import Browser from '@/components/browser/Browser.vue'
-import Markdown from '@/components/Markdown.vue'
-import TaskCard from '../kanban/TaskCard.vue'
-import UserSelector from './UserSelector.vue'
-import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 import CheckLists from './CheckLists.vue'
-import MentionSelector from '../mentions/MentionSelector.vue'
-import PRView from '@/components/repo/PRView.vue'
-import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
-import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
+import PRChangesPanel from '@/components/vibe/panels/PRChangesPanel.vue'
+import ChatFileList from './ChatFileList.vue'
+import ChatInputBox from './ChatInputBox.vue'
+import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
+import ChatMessageList from './ChatMessageList.vue'
+import ChatIntelliSense from './ChatIntelliSense.vue'
+import ChatFilePreview from './ChatFilePreview.vue'
+import ChatProfileSelector from './ChatProfileSelector.vue'
+import ChatFileUploadConfirmModal from './ChatFileUploadConfirmModal.vue'
+import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
+import { ENTITY_STATUS } from '@/store/entityStatuses'
+import ChatAttachment from '@/api/model/ChatAttachment.js'
+import Collapsible from '../Collapsible.vue'
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-1">
-    <div class="grow relative flex flex-col gap-1">
-      <div class="flex gap-2 items-center justify-bnetween">
-        <div class="w-full" v-if="chatFiles.length">
-          <div class="my-2 text-xs">
-            <span>
-              <i class="fa-solid fa-paperclip"></i>
-            </span>
-            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
-              <span class="click mr-1" @click.stop="$ui.copyTextToClipboard(file)"><i class="fa-solid fa-copy"></i></span>
-              <span :title="file" >{{ file?.split('/').reverse()[0] || '---error---' }}</span>
-              <span class="ml-2 cursor-pointer" @click.stop="removeFileFromChat(file)">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </span>
-            </a>
-          </div>
-        </div>
-        <CheckLists class="" :chat="chat" @change="saveChat" />
-        
+  <div class="h-full flex flex-col gap-1 overflow-hidden"
+    @dragover.prevent="onDragOver"
+    @dragleave.prevent="handleDragLeave"
+    @drop.prevent="onDropChat"
+    :class="draggingOver && 'ring-2 ring-primary ring-inset rounded-lg'"
+  >
+    <!-- Loading Skeleton -->
+    <div v-if="isChatLoading" class="h-full flex flex-col gap-2 p-4">
+      <div class="shrink-0 flex gap-2 items-center justify-between">
+        <div class="skeleton h-10 w-32"></div>
+        <div class="skeleton h-10 w-20"></div>
       </div>
-      <div class="grow overflow-y-auto overflow-x-hidden">
-        <Browser class="" :token="$ui.monitors['shared']" v-if="isBrowser"/>
-        <PRView class="h-full overflow-auto" 
-          :fromBranch="chat.pr_view?.from_branch"
-          :toBranch="chat.pr_view?.to_branch"
-          :chat="chat"
-          @select="onPRViewBranchChanged"
-          @comment="onPRFileComment"
-          @change-column="$emit('change-column', $event)"
-          @new-chat="onPRFileCreateChat"
-          @chat-message="onPRChatMessage"
-          v-if="isPRView" />
-        
-        <div class="overflow-auto h-full" v-if="!isBrowser && !isPRView">
-          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
-            <ChatEntry :class="['mb-4 rounded-md',
-              isChannel ? '': 'py-2',
-              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
-              :chat="chat"
-              :message="message"
-              :isTopic="isTopic && !ix"
-              :mentionList="mentionList"
-              :menu-less="readOnly"
-              @edited="onMessageEdited"
-              @enhance="onEditMessage(message, true)"
-              @remove="removeMessage(message)"
-              @remove-file="removeFileFromMessage(message, $event)"
-              @hide="toggleHide(message)"
-              @answer="toggleAnswer(message)"
-              @run-edit="runEdit"
-              @copy="onCopy(message)"
-              @add-file-to-chat="onAddFile($event)"
-              @image="imagePreview = { ...$event, readonly: true }"
-              @generate-code="onGenerateCode"
-              @reload-file="onReloadMessageFile"
-              @open-file="onOpenFile"
-              @save-file="onSaveFile"
-              @add-file="onAddFile"
-              @edit-message="onEditMessage($event, message)"
-              @code-file-shown.stop="console.log"
-              @subtask="$emit('subtask', { chat, message })"
-            />
-          </div>
-          <div class="anchor" ref="anchor"></div>
-          <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
-            <div v-for="child in childrenChats" :key="child.id" class="relative">
-              <TaskCard class="click p-2 bg-base-100 h-40" :task="child" @click="$projects.setActiveChat(child)" />
-            </div>
+      <div class="grow flex flex-col gap-3 overflow-y-auto">
+        <div class="flex gap-2">
+          <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-24"></div>
+            <div class="skeleton h-12 w-full"></div>
           </div>
         </div>
+        <div class="flex gap-2 justify-end">
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-20 ml-auto"></div>
+            <div class="skeleton h-12 w-full"></div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <div class="skeleton h-8 w-8 rounded-full shrink-0"></div>
+          <div class="flex-1 flex flex-col gap-2">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-16 w-full"></div>
+          </div>
+        </div>
+      </div>
+      <div class="shrink-0 flex flex-col gap-2">
+        <div class="skeleton h-20 w-full"></div>
+        <div class="skeleton h-10 w-24"></div>
       </div>
     </div>
-    <div class="sticky bottom-0 z-50 bg-base-300">
-      <div class="flex gap-2">
-        <span class="badge tooltip flex gap-2 items-center"
-          :data-tip="mention.tooltip"
-          :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
-          v-for="mention in messageMentions" :key="mention.name"
-          :title="mention.file || mention.name"
-          >
-          <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
-          <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
-          <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
-          <i class="fa-solid fa-file-lines" v-if="mention.file"></i>
-          <i class="fa-solid fa-file-arrow-up" @click="onAddFile(mention.file)" v-if="mention.file"></i>
-          
-          <div class="-mt-1">
-            {{ mention.name }}
-          </div>
-          <span class="click" @click="removeMessageMention(mention)">X</span>
-        </span>
-      </div>
 
-      <SimpleEditorVue class="h-40 border w-full" v-model="editorText" :project="projectContext" v-if="false" />
-      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
-            'flex-col',
-            editMessage && 'border-warning',
-            onDraggingOverInput ? 'bg-warning/10': '']"
-        @dragover.prevent="onDraggingOverInput = true"
-        @dragleave.prevent="onDraggingOverInput = false"
-        @drop.prevent="onDrop"
-        v-if="!isBrowser && !isPRView && readOnly !== true"
-        >
-                <ProjectResourcesAutoCompleteVue 
-          class=""
-          :project="projectContext"
-          @select="onAddDocument"
-          @close="closeDocumentSearch"
-          v-if="showDocumentSearchModal"
-        />
+    <!-- Normal Chat Content -->
+    <template v-else>
 
-        <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
-          :contenteditable="!waiting"
-          ref="editor"
-          @paste="onContentPaste"
-          @keydown="onEditMessageKeyDown"
-          
-        >
-        </div>
-        <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
-          <div class="carousel rounded-box">
-            <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
-              <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
-                :style="`background-image: url(${image.src})`" @click="imagePreview = image">
-              </div>
-              <p class="text-xs">{{ image.alt.slice(0, 10) }}</p>
-              <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
-                @click="removeImage(ix)">
-                X
-              </button>
-            </div>
-          </div>
-          <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
-          <div class="grow flex gap-2 items-end" v-else>
-            <UserSelector 
-              class="dropdown-top"
-              :selectedUser="selectedUser"
-              :profiles="profiles"
-              @user-changed="selectedUser = $event"
-            />
-            <div class="text-xs">Find: ctrl+f</div>
-            <div class="grow"></div>
-            <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
-              <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
-                <i class="fa-solid fa-save"></i>
-                <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
-              </button>
-              <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
-                v-if="editMessage">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </button>
-              <button class="btn btn btn-sm btn-circle tooltip"
-                data-tip="Ask codx-junior"
-                :class="isVoiceSession && 'btn-success animate-pulse'"
-                @click="sendMessage"
-                ref="sendButton"
-                v-if="!editMessage">
-                <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-                <i class="fa-solid fa-paper-plane" v-else></i>
-              </button>
-              <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
-                <i class="fa-solid fa-code"></i>
-              </button>
 
-              <div class="dropdown dropdown-top dropdown-end">
-                <div tabindex="1" role="button" class="btn btn-sm m-1">
-                  <i class="fa-solid fa-ellipsis-vertical"></i>
-                </div>
-                <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
-                  <li class="btn btn-sm tooltip"
-                    data-tip="Attach files"
-                    @click="selectFile = true">
-                    <a>
-                      <i class="fa-solid fa-paperclip"></i> Attach files
-                    </a>
-                  </li>
-                  <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
-                    <a>
-                      <i class="fa-solid fa-flask"></i>
-                      Test
-                    </a>
-                  </li>
-                  <li class="btn btn-sm tooltip"
-                    :class="isVoiceSession && 'btn-success'"
-                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
-                    @click="toggleVoiceSession" v-if="!editMessage">
-                    <a>
-                      <i class="fa-solid fa-microphone-lines"></i>
-                      Voice mode
-                    </a>
-                  </li>
-                  <li class="btn btn-sm btn-error tooltip"
-                    :class="isVoiceSession && 'btn-success'"
-                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
-                    @click="showDeleteModal = true" v-if="enableDelete">
-                    <a>
-                      <i class="fa-solid fa-trash-can"></i>
-                      Delete
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="flex gap-2 items-center justify-end py-2 animate-pulse" v-else>
-              Searching...
-            </div>
+      <Collapsible :defaultOpen="false" class="w-full">
+        <!-- Icon -->
+        <template #icon>
+          <span></span>
+        </template>
+
+        <!-- Title -->
+        <template #title>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
+            <i class="fa-solid fa-file"></i>
+            Files: {{ allfiles.length }} +  
           </div>
-        </div>
-      </div>
-    </div>
-    <modal class="w-10/12 lg:w-3/4 h-10/12 lg:h-3/4" v-if="imagePreview">
-      <div class="h-full flex flex-col gap-2 justify-between">
-        <div class="text-2xl">Upload image</div>
-        <div class="grow">
-          <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-full w-full" :style="`background-image: url(${imagePreview.src})`"></div>
-        </div>
-        <div>
-          Image alt: <span class="text-xs" v-if="imagePreview.alt?.length">{{ imagePreview.alt?.length }} chars.</span>
-        </div>
-        <pre class="alert alert-xs h-20 overflow-auto" v-if="imagePreview.readonly">{{ imagePreview.alt }}</pre>
-        <div class="textarea input-bordered" v-else>
-          <textarea class="w-full bg-transparent" v-model="imagePreview.alt" placeholder="Image content">
-          </textarea>
-          <div class="flex justify-end">
-            <button class="btn btn-sm bg-purple-600 text-white tooltip"
-              data-tip="Extract text"
-              @click="onExtractTextImage(imagePreview)">
-              <i class="fa-regular fa-closed-captioning"></i>
-            </button>
-          </div>
-        </div>
-        <div class="flex justify-end gap-2">
-          <button class="btn" @click="imagePreview = null">
-            Cancel
-          </button>
-          <button class="btn btn-primary" @click="onAddImage">
-            Ok
-          </button>
-        </div>
-      </div>
-    </modal>
-    <modal v-if="selectFile">
-      <div class="flex flex-col">
-        <div class="text-xl">Project file</div>
-        
-        <input type="text" class="input input-bordered"
-          placeholder="File path" 
-          v-model="uploadProjectFile" 
+        </template>
+
+        <!-- Actions -->
+        <template #actions>
+                  <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+          <ChatProfileSelector
+            :project="chatProject"
+            :selected-profiles="chat.profiles"
+            :use-modal="true"
+            @profiles-changed="onProfilesChanged"
           />
-        <button class="btn btn-sm" @click="addChatFile">
-          Add file
-        </button>
-        
-        
-        <label class="file-select">
-          <div class="select-button">
-            <span>Select File(s)</span>
-          </div>
-          <input type="file" accept="image/*" multiple @change="handleFileChange" />
-          <button class="btn btn-sm btn-error" @click="selectFile = false">
-            Cancel
-          </button>
-        </label>
-      </div>
-    </modal>
-    <modal v-if="showDeleteModal">
-      <div class="flex flex-col gap-2">
-        <div class="text-xl">Confirm Deletion</div>
-        <p>Are you sure you want to delete this task?</p>
-        <div class="font-bold text-primary text-xl">{{ taskToDelete.name }}</div>
-        <div class="flex justify-end gap-2">
-          <button class="btn" @click="showDeleteModal = false">Cancel</button>
-          <button class="btn btn-error" @click="deleteTask">Delete</button>
+          <CheckLists :chat="chat" :readOnly="readOnly" />
+        </div>
+
+        </template>
+      <!-- File list + profile selector header -->
+      <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
+        <div class="w-full" v-if="chatFiles.length || messageFiles.length">
+          <ChatFileList
+            :files="chatFiles"
+            :message-files="messageFiles"
+            :chat-project="chatProject"
+            @remove-file="removeFileFromChat"
+            @add-file="onAddFileToChat"
+            @add-as-message="addFileContentAsMessage"
+            @sync-notebook="syncNotebook"
+            @export-notebook="exportNotebook"
+            @preview-file="openFilePreview"
+            v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
+          />
         </div>
       </div>
-    </modal>
+      </Collapsible>
+
+      <!-- PR View Section -->
+      <div class="grow overflow-auto" v-show="isPRView">
+        <PRChangesPanel
+          class="h-full flex flex-col overflow-auto"
+          :chat="chat"
+          @comment="onPRFileComment"
+        />
+      </div>
+
+      <!-- Main Chat View -->
+      <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
+
+        <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
+
+          <!-- ── Unified scroll container: messages + composer ── -->
+          <ChatMessageList
+            ref="messageList"
+            class="w-full h-full"
+            :chat="chat"
+            :messages="messages"
+            :edit-message="editMessage"
+            :mention-list="mentionList"
+            :read-only="readOnly"
+            :users-list="usersList"
+            :children-chats="childrenChats"
+            @edited="onMessageEdited"
+            @remove="removeMessage"
+            @remove-file="removeFileFromMessage($event.message, $event.file)"
+            @hide="toggleHide"
+            @answer="toggleAnswer"
+            @run-edit="runEdit"
+            @copy="onCopy"
+            @add-file-to-chat="onAddFile"
+            @image="onMessageImagePreview"
+            @generate-code="onGenerateCode"
+            @reload-file="onReloadMessageFile"
+            @open-file="onOpenFile"
+            @save-file="onSaveFile"
+            @add-file="onAddFile"
+            @edit-message="onEditMessage"
+            @thread="onNewThread"
+            @sub-task="onChatEntryCreateSubtask"
+            @set-active-chat="$chats.setActiveChat($event)"
+            @message-changed="onMessageChanged"
+            @run-agents="onMessageRunAgents"
+            @preview-file="handleFilePreview"
+            @search-files="onSelectionSearchFiles"
+          >
+            <!-- IntelliSense slot — floats above the composer -->
+            <template #intellisense>
+              <ChatIntelliSense
+                ref="intelliSense"
+                :suggestions="intelliSenseSuggestions"
+                :active-index="intelliSenseIndex"
+                :query="intelliSenseQuery"
+                :search-controller="searchController"
+                :progress="intelliSenseProgress"
+                @select="onIntelliSenseSelect"
+                @hover="intelliSenseIndex = $event"
+                @accept-multi="onIntelliSenseAcceptMulti"
+                @cancel="cancelIntelliSense"
+              />
+            </template>
+
+            <!-- Input box slot -->
+            <template #input>
+              <!-- Edit mode banner -->
+              <div v-if="editMessage" class="flex items-center gap-2 px-3 py-1.5 mb-1 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Editing message from <strong>{{ editMessage.user }}</strong></span>
+                <button class="ml-auto btn btn-xs btn-ghost text-warning" @click="onResetEdit">
+                  <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+              </div>
+              <ChatInputBox
+                ref="inputBox"
+                :waiting="waiting"
+                :is-editing="!!editMessage"
+                :is-voice-session="isVoiceSession"
+                :searching="searchingInKnowledge"
+                :read-only="readOnly"
+                :selected-model="chat.llm_model"
+                :ai-models="aiModels"
+                :profiles="profiles"
+                :selected-profiles="selectedProfiles"
+                :cursor-word="cursorWord"
+                :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                @send="sendMessage"
+                @add-message="addNewMessage()"
+                @search-message="addSearchMessage"
+                @cancel-edit="onResetEdit"
+                @paste="onContentPaste"
+                @keydown="onChatInputKeyDown"
+                @drop.stop="onDropInputBox"
+                @model-changed="onLLMModelChanged"
+                @profiles-selected="onProfilesSelected"
+                @toggle-voice="toggleVoiceSession"
+              />
+              <ChatAttachmentPreview
+                :attachments="attachments"
+                @remove-attachment="removeAttachment"
+                v-if="attachments?.length"
+              />
+            </template>
+
+            <!-- Per-message files slot (files attached to the current message being composed) -->
+            <template #files>
+              <ChatFileList
+                :files="files"
+                :message-files="[]"
+                :chat-project="chatProject"
+                @remove-file="removeFileFromFiles"
+                @add-file="addFileContentAsMessage"
+                @preview-file="handleFilePreview"
+                v-if="files?.length"
+              />
+            </template>
+          </ChatMessageList>
+
+        </div>
+
+        <!-- File Preview Panel -->
+        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile && !isVibe">
+          <ChatFilePreview
+            class="h-full"
+            :file-path="previewFile"
+            :chat-project="chatProject"
+            @close="closeFilePreview"
+            @saved="onPreviewFileSaved"
+          />
+        </div>
+
+      </div>
+
+      <!-- Modals -->
+      <ChatFileSelectorModal
+        :show="selectFile"
+        :file-path="uploadProjectFile"
+        @update:filePath="uploadProjectFile = $event"
+        @close="selectFile = false"
+        @add-file="addChatFile"
+        @file-change="handleFileChange"
+      />
+
+      <ChatFileUploadConfirmModal
+        :show="showUploadConfirmModal"
+        :files="pendingUploadFiles"
+        :upload-path="uploadPath"
+        @confirm="confirmUpload"
+        @cancel="cancelUpload"
+      />
+
+      <!-- Notification Toast -->
+      <div v-if="notebookStatus" class="toast toast-top toast-center z-50">
+        <div class="alert alert-info text-xs">
+          <i class="fa-solid fa-book-open mr-1"></i>
+          <span>{{ notebookStatus }}</span>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
-const defFormater = d => JSON.stringify(d, null, 2)
+import ChatAttachment from '@/api/model/ChatAttachment.js'
 
 export default {
-  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
+  props: [
+    'chat',
+    'filter',
+    'showHidden',
+    'childrenChats',
+    'readOnly',
+    'message',
+    'input-only'
+  ],
   data() {
     return {
       waiting: false,
       editMessage: null,
       editMessageId: null,
       files: [],
-      images: [],
-      previewImage: null,
-      editorText: "",
-      imagePreview: null,
+      attachments: [],
+      draggingOver: false,
       onDraggingOverInput: false,
-      testError: null,
-      previewStyle: {
-        zoom: 0.6
-      },
+      dragoverTimeout: null,
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
       syncEditableTextInterval: null,
-      showDeleteModal: false,
-      taskToDelete: null,
       selectedUser: null,
-      refreshngMentions: null,
-      selectedDocuments: null,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
-      projectContext: this.$project,
       uploadProjectFile: null,
+      metadata: null,
+      pasteWithShift: false,
+      mentions: [],
+      selectorProfileNames: [],
+      textProfileNames: [],
+      cursorWord: {},
+      notebookStatus: null,
+      editorText: "",
+      previewFile: null,
+      intelliSenseSuggestions: [],
+      intelliSenseIndex: 0,
+      intelliSenseQuery: '',
+      intelliSenseProgress: '',
+      intelliSenseDebounce: null,
+      intelliSenseDismissed: false,
+      searchController: null,
+      previousQuery: null,
+      previousEditorText: '',
+      showUploadConfirmModal: false,
+      pendingUploadFiles: [],
+      uploadPath: '',
+      uploadContext: null,
+      MAX_IMAGE_SIZE_MB: 50,
+      dragCounter: 0
     }
   },
   created() {
     this.selectedUser = this.$user
-    this.setProjectContext()
+    this.metadata = this.message?.metadata
+    this.editorText = this.message?.content
+    this.initProject()
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
-    this.initSelectedUserFromChat()
+    this.editorText && this.setEditorText(this.editorText)
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
+    clearTimeout(this.dragoverTimeout)
+    this.cancelIntelliSense()
   },
   computed: {
+    chatSvc() {
+      return this.$service.chat
+    },
+    isChatLoading() {
+      return !this.chat?.id || this.chat?.status === ENTITY_STATUS.LOADING
+    },
+    aiModels() {
+      return this.isTopic ? [] : this.$projects.ai.models || []
+    },
     chatFiles() {
       return this.chat.file_list || []
+    },
+    messageFiles() {
+      const allMsgFiles = new Set()
+      this.messages?.forEach(msg => {
+        msg.files?.forEach(f => allMsgFiles.add(f))
+        if (msg.content) {
+          const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
+          extractedFiles.forEach(f => allMsgFiles.add(f))
+        }
+      })
+      return Array.from(allMsgFiles)
+    },
+    allfiles() {
+      return [...this.chatFiles || [], ...this.messageFiles || []]
     },
     isPRView() {
       return this.chat.mode === 'prview'
     },
-    isBrowser() {
-      return this.chat.mode === 'browser'
+    isVibe() {
+      return this.chat.mode === 'vibe'
+    },
+    isGroup() {
+      return this.chat.mode === 'group'
     },
     visibleMessages() {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
-      const { activeMessages } = this
-      const lastAiMessages = activeMessages?.filter(m => m.role === 'assistant').reverse()
-      if (!lastAiMessages?.length) {
-        return null
-      }
-      if (lastAiMessages.length < 2) {
-        return lastAiMessages[0]
-      }
-      const [ last, ...previous ] = lastAiMessages  
-      
+      const lastAiMessages = this.activeMessages?.filter(m => m.role === 'assistant').reverse()
+      if (!lastAiMessages?.length) return null
+      if (lastAiMessages.length < 2) return lastAiMessages[0]
+      const [last, ...previous] = lastAiMessages
       return { ...last, diffMessage: previous[0] }
     },
     lastUserMessage() {
-      const { messages } = this
-      const msgs = messages?.filter(m => m.role !== 'assistant')
+      const msgs = this.messages?.filter(m => m.role !== 'assistant')
       return msgs ? msgs[msgs.length - 1] : null
     },
     lastMessage() {
-      const { messages } = this
-      return messages?.length ? messages[messages.length - 1] : null
-    },
-    diffMessage() {
-      if (this.isTask) {
-        const { messages } = this.chat
-        const aiMsgs = messages.filter(m => m.role === 'assistant')
-        if (aiMsgs.length > 1) {
-          return aiMsgs[aiMsgs.length - 2]
-        }
-      }
-      return null
+      return this.messages?.length ? this.messages[this.messages.length - 1] : null
     },
     activeMessages() {
       const messages = this.chat?.messages
+      if (this.filter) {
+        return messages?.filter(m => m.content?.toLowerCase().includes(this.filter.toLowerCase()))
+      }
       return messages?.filter(m => !m.hide || this.showHidden) || []
     },
     messages() {
-      const { activeMessages } = this
-      if (!activeMessages.length) {
-        return []
-      }
-      if (this.isTask && !this.showHidden && activeMessages?.length) {
-        const aiMsg = this.lastAIMessage
-        const lastMsg = activeMessages[activeMessages.length - 1]
-        const res = []
-        if (aiMsg) {
-          res.push(aiMsg)
-        }
-        if (lastMsg && lastMsg?.role !== 'assistant') {
-          res.push(lastMsg)
-        }
-        return res
-      }
-      return activeMessages.filter(message => (!message.hide || this.showHidden))
-    },
-    multiline() {
-      return this.editorText?.split("\n").length > 1 || this.images?.length
-    },
-    allImages() {
-      return this.images
-    },
-    messageText() {
-      return this.editorText
+      return this.activeMessages.filter(message => !message.hide || this.showHidden)
     },
     canPost() {
-      return this.messageText || this.images?.length
+      return this.editorText || this.attachments?.length
     },
     isTask() {
       return this.chat?.mode === 'task'
@@ -427,248 +413,541 @@ export default {
     isTopic() {
       return this.chat?.mode === 'topic'
     },
-    topicMessage() {
-      return this.messages[0]
-    },
     chatProject() {
-      return this.projectContext || this.$project
+      return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
+        || this.$project
     },
     mentionList() {
-      return (this.projectContext?.$state || this.$projects).mentionList
+      return (this.chatProject?.$state || this.$projects).mentionList
     },
     messageMentions() {
-      const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
-        .map(w => w[1])
-      return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
-              ...this.files.map(file => ({
-                name: file.split("/").reverse()[0],
-                file
-              }))]
-    },
-    lastChatEvent() {
-      const { events } = this.$storex.session
-      const event = events[events.length - 1]
-      if (event?.data.chat?.id === this.chat.id) {
-        const message = event.data.message?.content || ""
-        return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
-      } 
+      const mentions = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(w => w[1]) || []
+      return [
+        ...this.mentionList?.filter(m => mentions.includes(m.mention)) || [],
+        ...this.mentions,
+        ...this.files.map(file => ({ name: file.split("/").reverse()[0], file }))
+      ]
     },
     profiles() {
-      return this.projectContext?.profiles || []
+      return this.chatProject?.$state?.profiles || []
     },
     usersList() {
-      return [this.$store.state.user, ...this.profiles]
+      return [this.$user, ...this.profiles]
     },
     isChannel() {
       return this.chat.mode === 'topic'
     },
-    chatProject() {
-      return this.$projects.allProjectsById[this.chat.project_id] ||
-                this.$project
+    hasIntelliSense() {
+      return this.intelliSenseSuggestions.length > 0
     },
-    editor() {
-      return this.$el.querySelector('.editor')
+    selectedProfiles() {
+      const allSelectedNames = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
+      return this.profiles.filter(p => allSelectedNames.includes(p.name))
+    },
+    groupMessageHasProfileMention() {
+      if (!this.isGroup) return false
+      const allProfileNames = this.profiles.map(p => p.name)
+      const mentionedNames = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(m => m[1])
+      return mentionedNames.some(name => allProfileNames.includes(name))
     }
   },
   watch: {
     chat() {
-      this.initSelectedUserFromChat()
-      this.setProjectContext()
+      this.initProject()
     },
     uploadProjectFile(newVal, oldVal) {
       if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
         this.detectSearchTerm()
       }
+    },
+    editorText() {
+      this.updateCursorWord()
+      this.updateProfileMentionsFromText()
+      this.scheduleIntelliSense()
     }
   },
   methods: {
-    async setProjectContext() {
-      this.projectContext = this.$project
-      if (this.projectContext?.project_id !== this.chatProject.project_id) {
-        this.projectContext = await this.$projects.loadProject(this.chatProject)
+    initProject() {
+      this.$projects.initProjectState(this.chatProject)
+    },
+    extractFilesFromCodeBlocks(content) {
+      if (!content) return []
+      const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
+      const files = []
+      let match
+      while ((match = codeBlockRegex.exec(content)) !== null) {
+        const filePath = match[2].trim()
+        if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
+          if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
+            files.push(filePath.split(' ')[0])
+          }
+        }
+      }
+      return files
+    },
+    updateProfileMentionsFromText() {
+      const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
+      const mentionedNames = mentionMatches.map(m => m[1])
+      const profileNames = this.profiles.map(p => p.name)
+      const detectedProfiles = mentionedNames.filter(name => profileNames.includes(name))
+      const previousMentionMatches = [...this.previousEditorText?.matchAll(/@([^\s]+)/mg) || []]
+      const previousMentionedNames = previousMentionMatches.map(m => m[1])
+      const previousDetectedProfiles = previousMentionedNames.filter(name => profileNames.includes(name))
+      const profilesToRemove = previousDetectedProfiles.filter(
+        name => !detectedProfiles.includes(name) && !this.selectorProfileNames.includes(name)
+      )
+      profilesToRemove.forEach(name => {
+        const idx = this.textProfileNames.indexOf(name)
+        if (idx > -1) this.textProfileNames.splice(idx, 1)
+      })
+      detectedProfiles.forEach(name => {
+        if (!this.textProfileNames.includes(name)) this.textProfileNames.push(name)
+      })
+      this.previousEditorText = this.editorText
+    },
+    hasFile(fileToCheck, fileList) {
+      return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
+    },
+    normalizeFilePath(path) {
+      return path?.toLowerCase().trim() || ''
+    },
+    hasFileInChat(file) {
+      return this.hasFile(file, this.chatFiles)
+    },
+    hasFileInMessage(file) {
+      return this.hasFile(file, this.files)
+    },
+    isProjectFile(textContent) {
+      return this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
+    },
+    async processFilePath(filePath, chatDrop) {
+      if (!this.isProjectFile(filePath)) return false
+      if (chatDrop) {
+        await this.onAddFile(filePath)
+      } else {
+        this.addFileToMessage(filePath)
+      }
+      return true
+    },
+    async processMultipleFilePaths(textContent, chatDrop) {
+      const filePaths = textContent
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p && p.length > 0 && this.isProjectFile(p))
+      if (filePaths.length === 0) return false
+      for (const filePath of filePaths) {
+        await this.processFilePath(filePath, chatDrop)
+      }
+      return true
+    },
+    async processJsonFileList(jsonData, chatDrop) {
+      try {
+        const { files } = JSON.parse(jsonData)
+        if (!files || files.length === 0) return false
+        for (const file of files) {
+          if (!file.is_dir) await this.processFilePath(file.path, chatDrop)
+        }
+        return true
+      } catch (ex) {
+        console.error('[DROP] Error parsing file list JSON', ex)
+        return false
       }
     },
-    initSelectedUserFromChat() {
-      const messages = this.chat.messages.filter(m => !m.hide && m.profiles?.length)
-      const lastProfileMessage = messages[messages.length - 1]
-      if (lastProfileMessage) {
-        const userName = lastProfileMessage.profiles[0]
-        const user = this.$projects.userList.find(u => u.name === userName) 
-        this.selectedUser = user
-      } else if (!this.selectedUser) {
-        this.selectedUser = this.$user
+    validateImageSize(file) {
+      const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
+      if (file.size > maxSizeBytes) {
+        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
+        return false
+      }
+      return true
+    },
+    async fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    },
+    async prepareAttachmentFromFile(file) {
+      if (!this.validateImageSize(file)) return null
+      try {
+        const attachment = await ChatAttachment.fromFile(file)
+        return attachment
+      } catch (error) {
+        console.error("Error preparing attachment:", error)
+        this.$ui?.addNotification?.({ text: "Failed to process file", type: 'error' })
+        return null
       }
     },
-    zoomIn() {
-      this.previewStyle.zoom += 0.1
+    async prepareAttachmentFromUrl(imgUrl) {
+      try {
+        const response = await fetch(imgUrl)
+        if (!response.ok) {
+          console.error(`Failed to fetch image from URL: ${imgUrl}`)
+          return null
+        }
+        const blob = await response.blob()
+        const file = new File([blob], this.extractFileNameFromUrl(imgUrl), { type: blob.type })
+        return await ChatAttachment.fromFile(file)
+      } catch (error) {
+        console.error("Error preparing attachment from URL:", error)
+        this.$ui?.addNotification?.({ text: "Failed to process image URL", type: 'error' })
+        return null
+      }
     },
-    zoomOut() {
-      this.previewStyle.zoom -= 0.1
+    extractFileNameFromUrl(url) {
+      try {
+        const pathname = new URL(url).pathname
+        const fileName = pathname.split('/').pop()
+        return fileName && fileName.length > 0 ? fileName : 'image.png'
+      } catch {
+        return 'image.png'
+      }
+    },
+    onInputAttachmentPreview(file) {
+      this.pendingImage = file
+    },
+    onMessageImagePreview(imageFile) {
+      this.imagePreview = imageFile
+    },
+    async processMultipleImages(imageFiles, isMessage) {
+      const validImageFiles = imageFiles.filter(f => this.validateImageSize(f))
+      if (validImageFiles.length === 0) return false
+      for (const imageFile of validImageFiles) {
+        const attachment = await this.prepareAttachmentFromFile(imageFile)
+        if (attachment) {
+          if (isMessage) {
+            this.attachments.push(attachment)
+          } else {
+            this.chat.attachments.push(attachment)
+          }
+        }
+      }
+      return validImageFiles.length > 0
+    },
+    showUploadConfirmation(fileList, uploadPath, context) {
+      this.pendingUploadFiles = Array.from(fileList)
+      this.uploadPath = uploadPath
+      this.uploadContext = context
+      this.showUploadConfirmModal = true
+    },
+    async confirmUpload() {
+      this.showUploadConfirmModal = false
+      const uploadedPaths = await this.performUpload(this.pendingUploadFiles, this.uploadPath)
+      if (this.uploadContext.chatDrop) {
+        uploadedPaths.forEach(path => this.onAddFile(path))
+      } else {
+        uploadedPaths.forEach(path => this.addFileToMessage(path))
+      }
+      this.pendingUploadFiles = []
+      this.uploadPath = ''
+      this.uploadContext = null
+    },
+    cancelUpload() {
+      this.showUploadConfirmModal = false
+      this.pendingUploadFiles = []
+      this.uploadPath = ''
+      this.uploadContext = null
+    },
+    async performUpload(fileList, uploadPath) {
+      const uploadedFilePaths = []
+      for (const file of fileList) {
+        try {
+          const result = await this.$storex.api.files.upload(file, uploadPath)
+          const filePath = result?.path || result
+          uploadedFilePaths.push(filePath)
+        } catch (error) {
+          console.error('[UPLOAD] Failed to upload file:', file.name, error)
+          this.$ui?.addNotification?.({ text: `Failed to upload ${file.name}: ${error.message}`, type: 'error' })
+        }
+      }
+      return uploadedFilePaths
+    },
+    async uploadLocalFiles(fileList, chatDrop) {
+      const uploadPath = this.chatProject?.upload_path || '/upload'
+      this.showUploadConfirmation(fileList, uploadPath, { chatDrop })
+    },
+    handleFilePreview(filePath) {
+      if (this.$ui.isVibeMode) {
+        this.openFilePreview(filePath)
+      } else {
+        this.$storex.ui.openFileInViewer(filePath)
+      }
+    },
+    openFilePreview(filePath) {
+      if (this.$ui.isVibeMode) {
+        this.previewFile = this.previewFile === filePath ? null : filePath
+      } else {
+        this.$ui.openFileInViewer(filePath)
+      }
+    },
+    closeFilePreview() {
+      this.previewFile = null
+    },
+    onPreviewFileSaved({ file, content }) {
+      this.$ui?.addNotification?.({ text: `Saved: ${file.split('/').reverse()[0]}`, type: 'success' })
+    },
+    scheduleIntelliSense(word = null) {
+      if (this.intelliSenseDismissed) {
+        const currentWord = word || this.cursorWord.word
+        if (currentWord !== this.intelliSenseQuery) this.intelliSenseDismissed = false
+      }
+      clearTimeout(this.intelliSenseDebounce)
+      this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(word), 220)
+    },
+    async runIntelliSense(word = null) {
+      if (this.intelliSenseDismissed) return
+      const searchWord = word || this.cursorWord.word
+      if (!searchWord?.startsWith('@')) { this.cancelIntelliSense(); return }
+      const rawQuery = searchWord.slice(1)
+      if (!rawQuery || rawQuery.trim().length < 3) { this.cancelIntelliSense(); return }
+      if (this.previousQuery !== rawQuery && this.searchController) this.cancelIntelliSense()
+      this.previousQuery = rawQuery
+      this.searchController = await this.$storex.projects.createSearchController()
+      this.intelliSenseQuery = rawQuery
+      this.intelliSenseIndex = 0
+      this.searchController.onProgress = ({ stage, project }) => {
+        this.intelliSenseProgress = `${stage}: ${project}`
+      }
+      try {
+        await this.chatProject?.$state?.searchMentions?.({
+          query: rawQuery,
+          limit: 10,
+          controller: this.searchController,
+          onResults: (results) => {
+            if (!this.searchController.isCancelled) {
+              if (results.length === 1 && results[0].name === rawQuery) {
+                this.onIntelliSenseSelect(results[0])
+              } else {
+                this.intelliSenseSuggestions = results
+                this.intelliSenseIndex = 0
+              }
+            }
+          }
+        })
+      } catch (error) {
+        if (error.message !== 'Search cancelled') console.error('[IntelliSense] Search error:', error)
+      }
+      this.intelliSenseProgress = ''
+    },
+    cancelIntelliSense() {
+      if (this.searchController) { this.searchController.cancel(); this.searchController = null }
+      this.intelliSenseSuggestions = []
+      this.intelliSenseQuery = ''
+      this.previousQuery = null
+    },
+    onIntelliSenseSelect(suggestion) {
+      const { file, name } = suggestion
+      const { caretIndex, word } = this.cursorWord
+      const text = this.$refs.inputBox?.getEditorText() || ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      let insert = '@' + name
+      if (file) {
+        if (!this.hasFileInMessage(file)) this.addFileToMessage(file)
+        insert = ""
+      }
+      this.setEditorText(left + insert + ' ' + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+    },
+    onIntelliSenseAcceptMulti(items) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.$refs.inputBox?.getEditorText() || ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      const mentionInserts = []
+      items.forEach(({ file, name }) => {
+        if (file) {
+          if (!this.hasFileInMessage(file)) this.addFileToMessage(file)
+        } else {
+          mentionInserts.push('@' + name)
+        }
+      })
+      const insert = mentionInserts.join(' ')
+      this.setEditorText(left + insert + (insert ? ' ' : '') + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+    },
+    dismissIntelliSense() {
+      this.intelliSenseDismissed = true
+    },
+    onChatInputKeyDown(event) {
+      const hasSuggestions = this.intelliSenseSuggestions.length > 0
+      if (hasSuggestions) {
+        if (event.key === 'Tab') {
+          event.preventDefault(); event.stopPropagation()
+          this.onIntelliSenseSelect(this.intelliSenseSuggestions[this.intelliSenseIndex])
+          return
+        }
+        if (event.key === 'Escape') { this.dismissIntelliSense(); return }
+        if (event.key === ' ' && event.ctrlKey) {
+          event.preventDefault(); event.stopPropagation()
+          this.$refs.intelliSense?.toggleSelected(this.intelliSenseSuggestions[this.intelliSenseIndex])
+          return
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.max(0, this.intelliSenseIndex - 1)
+          return
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.min(this.intelliSenseSuggestions.length - 1, this.intelliSenseIndex + 1)
+          return
+        }
+      }
+      this.onEditMessageKeyDown(event)
+    },
+    onLLMModelChanged(modelName) {
+      this.chat.llm_model = modelName
+      this.saveChatInfo()
+    },
+    updateCursorWord() {
+      this.cursorWord = this.$refs.inputBox?.getCaretWordInfo() ?? {}
     },
     setEditorText(text) {
-      this.editor.innerText = text
+      this.$refs.inputBox?.setEditorText(text)
     },
-    onEditMessage(message, enhance) {
-      if (this.editMessage === message) {
-        return this.onResetEdit()
+    onEditMessage(message) {
+      if (this.editMessage?.doc_id === message.doc_id) {
+        this.onResetEdit()
+        return
       }
-      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
-      this.editMessage = this.chat.messages[this.editMessageId]
-      const profile = this.editMessage.profiles[0]?.name
-      if (profile) {
-        this.selectedUser = profile
-      } 
-      try {
-        this.images = message.images.map(JSON.parse)
-      } catch { }
-      this.setEditorText(this.editMessage.content)
+      this.editMessage = message
+      this.setEditorText(message.content || '')
+      this.selectorProfileNames = [...(message.profiles || [])]
+      this.files = [...(message.files || [])]
+      this.attachments = (message.attachments || []).map(a => {
+        try { return typeof a === 'string' ? JSON.parse(a) : a } catch { return a }
+      }).filter(Boolean)
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+    },
+    onResetEdit() {
+      this.editMessage = null
+      this.editMessageId = null
+      this.setEditorText('')
+      this.files = []
+      this.attachments = []
+      this.selectorProfileNames = []
+      this.textProfileNames = []
+      this.previousEditorText = ''
+    },
+    async updateMessage() {
+      const content = this.$refs.inputBox?.getEditorText() ?? ''
+      const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
+      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat,
+        doc_id: this.editMessage.doc_id,
+        update: {
+          content,
+          profiles,
+          files,
+          attachments: this.attachments.map(a => a.toJSON?.() || a),
+          updated_at: new Date().toISOString()
+        }
+      })
+      this.onResetEdit()
     },
     toggleHide({ doc_id, hide }) {
-      this.updateExistingMessage({ doc_id }, { hide: !hide })
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
     },
     toggleAnswer({ doc_id, is_answer }) {
-      this.updateExistingMessage({ doc_id }, { is_answer: !is_answer })
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { is_answer: !is_answer } })
     },
     onCopy(message) {
       navigator.permissions.query({ name: "clipboard-read" }).then(result => {
-        if (result.state == "granted" || result.state == "prompt") {
+        if (result.state === "granted" || result.state === "prompt") {
           navigator.clipboard.writeText(message.content)
         }
-      })
-      .catch(console.error)
-    },
-    async improveCode() {
-      this.postMyMessage(this.editorText)
-      await this.$projects.codeImprove(this.chat)
-      this.testProject()
+      }).catch(console.error)
     },
     runEdit(codeSnipped) {
-      this.sendApiRequest(
-        () => API.run.edit({ id: "", messages: [{ role: 'user', content: codeSnipped }] }),
-        data => [
-          data.messages.reverse()[0].content,
-          "\n\n",
-          ...data.errors.map(e => ` * ${e}\n`)
-        ].join("\n")
-      )
+      this.waiting = true
+      this.$storex.api.run.edit({ id: "", messages: [{ role: 'user', content: codeSnipped }] })
+        .then(data => {
+          const content = [data.messages.reverse()[0].content, "\n\n", ...data.errors.map(e => ` * ${e}\n`)].join("\n")
+          this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content } })
+        })
+        .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: ex.message } }))
+        .finally(() => { this.waiting = false })
     },
-    addMessage(msg) {
-      this.chat.messages = [
-        ...this.chat.messages || [],
-        msg
-      ]
+    onGenerateCode({ codeSnippet, language }) {
+      this.waiting = true
+      this.$storex.api.run.generate({ id: "", code: codeSnippet, language })
+        .then(data => {
+          const content = data.code || codeSnippet
+          const codeBlock = `\`\`\`${language || 'text'}\n${content}\n\`\`\``
+          this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: codeBlock } })
+        })
+        .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: `Error: ${ex.message}` } }))
+        .finally(() => { this.waiting = false })
     },
-    getMessageProfiles() {
-      const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-      if (this.selectedUser?.isProfile) {
-         profiles.push(this.selectedUser.name)
+    handleFileChange(fileData) {
+      if (fileData) {
+        this.uploadProjectFile = fileData
       }
-      return profiles
     },
-    getUserMessage(message) {
-      const files = [...this.messageMentions.filter(m => m.file).map(m => m.file),
-                      ...(this.files ||[])]
-      const profiles = this.getMessageProfiles()
-      return {
-        role: 'user',
-        content: message,
-        images: this.images.map(JSON.stringify),
-        files,
-        profiles,
+    getUserMessage({ message, task_item }) {
+      return this.chatSvc.getUserMessage({
+        message,
+        files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
+        profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
+        attachments: this.attachments.map(a => a.toJSON()),
+        metadata: this.metadata,
         user: this.$user.username,
-        disable_knowledge: true,
-      }
+        task_item
+      })
     },
-    postMyMessage(message) {
-      const userMessage = this.getUserMessage(message)
-      this.addMessage(userMessage)
+    async postMyMessage({ message, task_item }) {
+      const userMessage = this.getUserMessage({ message, task_item })
+      await this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
       this.cleanUserInputAndWaitAnswer()
       return userMessage
     },
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
-      this.images = []
+      this.attachments = []
       this.files = []
-      this.scrollToBottom()
+      this.mentions = []
+      this.textProfileNames = []
+      this.metadata = null
+      this.previousEditorText = ''
+    },
+    async addNewMessage({ task_item } = {}) {
+      if (this.isVoiceSession && !this.canPost) return false
+      if (this.editMessage !== null) {
+        await this.updateMessage()
+        return false
+      }
+      const message = this.editorText
+      if (message) await this.postMyMessage({ message, task_item })
+      return true
+    },
+    async addSearchMessage() {
+      return this.addNewMessage({ task_item: 'search' })
     },
     async sendMessage() {
-      if (this.isVoiceSession && !this.canPost) {
+      if (this.editMessage !== null) {
+        await this.updateMessage()
         return
       }
-
-      if (this.editMessage !== null) {
-        this.updateMessage()
-        this.saveChat()
-      } else {
-        const message = this.editorText        
-        if (message?.length &&
-          this.canPost && this.postMyMessage(message)) {
-          await this.saveChat()
+      if (await this.addNewMessage()) {
+        if (this.isGroup) {
+          if (this.lastMessage?.profiles?.length) {
+            await this.sendChatMessage(this.chat)
+            this.$emit('send-message', this.lastMessage)
+          }
+          return
         }
         if (!this.isChannel || this.lastMessage?.profiles.length) {
           await this.sendChatMessage(this.chat)
+          this.$emit('send-message', this.lastMessage)
         }
       }
-    },
-    getSendMessage() {
-      return this.editMessage ||
-        this.chat.messages[this.chat.messages.length - 1].content
-    },
-    async askKnowledge() {
-      const searchTerm = this.editor.innerText
-      if (!searchTerm || searchTerm.length <= 10) {
-        return
-      }
-      const knowledgeSearch = {
-        searchTerm,
-        searchType: 'embeddings',
-        documentSearchType: API.activeProject.knowledge_search_type,
-        cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
-        documentCount: API.activeProject.knowledge_search_document_count
-      }
-      this.searchingInKnowledge = true
-      try {
-        const { response, documents } = await this.projectContext.$api.knowledge.search(knowledgeSearch)
-        const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
-            const file = source
-            const fileName = file.split("/").reverse()[0] 
-            return [
-                    "```" + language + " " + fileName,
-                    page_content,
-                    "```",
-                  ].join("\n")
-          }).join("\n")
-        const message = [
-          response,
-          "",
-          docs
-        ].join("\n")
-        const searchMessage = {
-          role: 'assistant',
-          content: message,
-          files: documents.map(doc => doc.metadata.source),
-          disable_knowledge: true,
-        }
-        this.addMessage(searchMessage)
-        this.saveChat()
-        this.cleanUserInputAndWaitAnswer()
-      } finally {
-        this.searchingInKnowledge = false
-      }
-    },
-    async sendApiRequest(apiCall, formater = defFormater) {
-      try {
-        this.waiting = true
-        await apiCall()
-        this.$emit('refresh-chat')
-        this.scrollToBottom()
-      } catch (ex) {
-        this.addMessage({
-          role: 'assistant',
-          content: ex.message
-        })
-      }
-      this.waiting = false
     },
     async sendChatMessage(chat) {
       this.waiting = true
@@ -678,290 +957,219 @@ export default {
         this.waiting = false
       }
     },
-    async updateMessage() {
-      const { innerText } = this.editor
-      const images = this.images.map(JSON.stringify)
-      
-      this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = this.getMessageProfiles()
-      this.editMessage.content = innerText
-      this.editMessage.images = images
-      this.editMessage.updated_at = new Date().toISOString()
-      this.onResetEdit()
-    },
-    onResetEdit() {
-      this.editMessage = null
-      this.setEditorText("")
-      this.editMessageId = null
-      this.images = []
-    },
     removeMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
-      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
-        this.chat.messages[ix - 1].hide = false
-      }
-      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
-      this.saveChat()
+      this.chatSvc.removeMessage({ chat: this.chat, message })
     },
-    async fileToMessage(file) {
-      const content = await this.$storex.api.files.read(file)
-      const ext = file.split(".").reverse()[0]
-      return [
-        "```" + `${ext} ${file}`,
-        content,
-        "```"
-      ].join("\n")
-      
+    onMessageChange() {
+      const text = this.$refs.inputBox?.getEditorText() ?? ''
+      if (text !== this.editorText) this.editorText = text
     },
-    async addSerchTerm({ mention, orgText }) {
-      if (mention.file) {
-        this.onAddFile(mention.file)
-      } else {
-        this.setEditorText(
-          this.editorText.split(" ")
-              .map(w => w === orgText ? "@" + mention.name : w)
-              .join(" ")
-        )
+    onDragOver() {
+      this.draggingOver = true
+      this.dragCounter++
+      clearTimeout(this.dragoverTimeout)
+      this.dragoverTimeout = setTimeout(() => {
+        this.draggingOver = false
+        this.dragCounter = 0
+      }, 500)
+    },
+    handleDragLeave(e) {
+      this.dragCounter--
+      if (this.dragCounter === 0) {
+        this.draggingOver = false
+        clearTimeout(this.dragoverTimeout)
       }
     },
-    onMentionReplace({ mention, orgText }) {
-      this.addSerchTerm({ mention, orgText })
+    onDropInputBox(e) {
+      this.onDrop(e, false)
     },
-    getEditorCaretCharOffset() {
-      let caretOffset = 0
-      const element = this.editor
-      if (window.getSelection) {
-        var range = window.getSelection().getRangeAt(0)
-        var preCaretRange = range.cloneRange()
-        preCaretRange.selectNodeContents(element)
-        preCaretRange.setEnd(range.endContainer, range.endOffset)
-        caretOffset = preCaretRange.toString().length
-      } else if (document.selection && document.selection.type != "Control") {
-        var textRange = document.selection.createRange()
-        var preCaretTextRange = document.body.createTextRange()
-        preCaretTextRange.moveToElementText(element)
-        preCaretTextRange.setEndPoint("EndToEnd", textRange)
-        caretOffset = preCaretTextRange.text.length
-      }
-      return caretOffset
+    onDropChat(e) {
+      this.draggingOver = false
+      this.dragCounter = 0
+      clearTimeout(this.dragoverTimeout)
+      this.onDrop(e, true)
     },
-    getCursorWord() {
-      const text = this.editor?.innerText
-      if (!text.length) {
-        return ""
+    async onDrop(e, chatDrop) {
+      let itemsAdded = false
+
+      if (e.dataTransfer.files?.length) {
+        const imageFiles = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))
+        if (imageFiles.length > 0) {
+          if (await this.processMultipleImages(imageFiles, !chatDrop)) itemsAdded = true
+        }
+
+        const nonImageFiles = [...e.dataTransfer.files].filter(f => !f.type.startsWith("image/"))
+        if (nonImageFiles.length > 0) {
+          await this.uploadLocalFiles(nonImageFiles, chatDrop)
+          itemsAdded = true
+        }
       }
-      const caretIndex = this.getEditorCaretCharOffset()
-      const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
-      return text.split(/\s/g)[lastWorkIndex]
+
+      const textContent = e.dataTransfer.getData('text/plain')
+      if (textContent) {
+        const decodedContent = decodeURIComponent(textContent)
+        if (await this.processMultipleFilePaths(decodedContent, chatDrop)) {
+          itemsAdded = true
+        } else if (this.isProjectFile(decodedContent) && !this.pasteWithShift) {
+          await this.processFilePath(decodedContent, chatDrop)
+          this.setEditorText(this.editorText.replace(decodedContent, ""))
+          itemsAdded = true
+        }
+      }
+
+      const jsonData = e.dataTransfer.getData('application/x-file-list-json')
+      if (jsonData && !itemsAdded && await this.processJsonFileList(jsonData, chatDrop)) itemsAdded = true
+
+      this.processDropUrls(e.dataTransfer, chatDrop)
+      if (e.dataTransfer.getData("resourceurls")) itemsAdded = true
+
+      if (!itemsAdded) {
+        this.$ui?.addNotification?.({ text: 'No valid content was added from the dropped items', type: 'warning' })
+      }
     },
-    async saveChat() {
-      if (!this.chat.temp) { 
-        return await this.$projects.saveChat(this.chat)
-      }
-    },
-    onDrop(e) {
-      this.onDraggingOverInput = false
-      if (!e.dataTransfer.files) {
-        return
-      }
-      var file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
-      if (file) {
-        this.onInputImage(file)
+    processDropUrls(dataTransfer, chatDrop) {
+      const urls = dataTransfer.getData("resourceurls")
+      if (urls) {
+        JSON.parse(urls).map(url => {
+          try {
+            const { pathname } = new URL(url)
+            this.processInputTextContent(pathname, chatDrop)
+          } catch (ex) { console.error(ex) }
+        })
       }
     },
     async onContentPaste(e) {
-      if (!e.clipboardData?.items) {
-        return
-      }
-      const stop = () => {
-        e.preventDefault()
-        return false
-      }
-      var file = [...e.clipboardData?.items].filter(f => f.type.indexOf("image") !== -1)[0]?.getAsFile()
-      if (file) {
-        this.onInputImage(file)
+      if (!e.clipboardData?.items) return
+      const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
+      const imageFile = await this.chatSvc.parseImageFromPaste(e)
+      if (imageFile) {
+        const attachment = await this.prepareAttachmentFromFile(imageFile)
+        this.attachments.push(attachment)
         return stop()
       }
-      const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
-      if (text) {
-        const textContent = await new Promise(ok => text.getAsString(ok))
-        const fileMention = this.mentionList.find(m => m.file === textContent)
-        if (fileMention) {
-          this.addFileToMessage(fileMention.file)
-          e.preventDefault()
-          return stop()
+      const textContent = await this.chatSvc.parseTextFromPaste(e)
+      if (!textContent) return
+      const handled = this.processInputTextContent(textContent)
+      if (handled) return stop()
+    },
+    async processInputTextContent(textContent, chatDrop) {
+      const decodedContent = decodeURIComponent(textContent)
+      const imgUrl = this.chatSvc.extractImageUrlFromHtml(decodedContent)
+      if (imgUrl) {
+        const attachment = await this.prepareAttachmentFromUrl(imgUrl)
+        if (attachment) {
+          this.attachments.push(attachment)
+          return true
         }
-        const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))
-        if (isProjectFile) {
-          this.addFileToMessage(textContent)
-          this.setEditorText(this.editorText.replace(textContent, ""))
-          e.preventDefault()
-          return stop()
-        }
+        return false
       }
+      const isProjectFile = this.$projects.allProjects.find(p => decodedContent.startsWith(p.abs_project_path))
+      if (isProjectFile && !this.pasteWithShift) {
+        if (chatDrop) {
+          this.onAddFile(decodedContent)
+        } else {
+          this.addFileToMessage(decodedContent)
+        }
+        this.setEditorText(this.editorText.replace(decodedContent, ""))
+        return true
+      }
+      return false
     },
     addFileToMessage(file) {
-      if (!this.files.includes(file)) {
-        this.files.push(file)
+      if (!this.hasFileInMessage(file) && !this.files.includes(file)) {
+        this.files = [...this.files, file]
       }
     },
-    getFileImageUrl(file) {
-      return new Promise(ok => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const base64URL = event.target.result
-          ok(base64URL)
-        }
-        reader.readAsDataURL(file)
+    removeAttachment(idx) {
+      this.attachments = this.attachments.filter((_, ix) => ix !== idx)
+    },
+    removeAttachmentByIndex(idx) {
+      this.removeAttachment(idx)
+    },
+    removeFileFromMessage({ doc_id, files }, file) {
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat, doc_id, update: { files: files.filter(f => f !== file) }
       })
     },
-    async onInputImage(file) {
-      const base64URL = await this.getFileImageUrl(file)
-      this.imagePreview = {
-        src: base64URL,
-        alt: ""
-      }
-    },
-    onAddImage() {
-      if (this.imagePreview.ix === undefined) {
-        this.images.push(this.imagePreview)
-        this.imagePreview.ix = this.images.length - 1
-      }
-      this.imagePreview = null
-    },
-    async onExtractTextImage(image) {
-      function base64ToFile(base64Data, filename) {
-        const byteString = atob(base64Data.split(',')[1])
-        const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]
-        const byteArray = new Uint8Array(byteString.length)
-        for (let i = 0; i < byteString.length; i++) {
-          byteArray[i] = byteString.charCodeAt(i)
-        }
-        const blob = new Blob([byteArray], { type: mimeString })
-        return new File([blob], filename, { type: mimeString })
-      }
-
-      const file = base64ToFile(image.src, "image")
-      const text = await API.tools.imageToText(file)
-      image.alt = text
-    },
-    async handleFileChange({ target: { files } }) {
-      const allUrls = await Promise.all([...files].map(file => this.getFileImageUrl(file)))
-      console.log("handleFileChange", allUrls)
-      this.images = [
-        ...this.images,
-        ...allUrls.map((src, ix) => ({ src, alt: "", ix: this.images.length + 1 + ix }))
-      ]
-      this.selectFile = false
-    },
-    onGenerateCode(codeBlockInfo) {
-      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
-    },
-    removeImage(ix) {
-      this.images = this.images.filter((i, imx) => imx !== ix)
-    },
-    onMessageChange() {
-      if (this.editor &&
-        this.editor.innerText != this.editorText) {
-        this.editorText = this.editor.innerText
-      }
-    },
-    async testProject() {
-      throw new Error('Obsolte')
-      const data = await API.projects.test()
-      this.testError = data
-      if (this.testError) {
-        this.editMessage = this.testError
-        this.setEditorText(this.editMessage)
-      }
-    },
-    removeFileFromMessage(message, file) {
-      message.files = message.files.filter(f => f !== file)
-      this.saveChat()
-    },
     removeFileFromChat(file) {
-      this.chat.file_list = this.chat.file_list?.filter(f => f !== file)
-      this.saveChat()
+      this.chatSvc.removeFileFromChat({ chat: this.chat, file })
+    },
+    removeFileFromFiles(file) {
+      this.files = this.files.filter(f => f !== file)
+    },
+    showNotebookStatus(msg) {
+      this.notebookStatus = msg
+      setTimeout(() => { this.notebookStatus = null }, 3000)
+    },
+    async syncNotebook(file) {
+      try {
+        this.showNotebookStatus(`Syncing ${file.split('/').reverse()[0]}...`)
+        await this.chatSvc.syncNotebook({ project: this.chatProject, chat: this.chat, file })
+        this.showNotebookStatus(`Notebook synced: ${file.split('/').reverse()[0]}`)
+      } catch (err) {
+        this.showNotebookStatus(`Error syncing notebook: ${err.message}`)
+      }
+    },
+    async exportNotebook(file) {
+      try {
+        this.showNotebookStatus(`Exporting to ${file.split('/').reverse()[0]}...`)
+        await this.chatSvc.exportNotebook({ project: this.chatProject, chat: this.chat, file })
+        this.showNotebookStatus(`Notebook exported: ${file.split('/').reverse()[0]}`)
+      } catch (err) {
+        this.showNotebookStatus(`Error exporting notebook: ${err.message}`)
+      }
     },
     toggleVoiceSession() {
-      if (this.isVoiceSession) {
-        return this.stopVoiceSession()
-      }
+      if (this.isVoiceSession) return this.stopVoiceSession()
       let silents = 5
       this.isVoiceSession = true
-
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()
-      recognition.lang = this.$ui.voiceLanguage
-      recognition.interimResults = false
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript
-        this.editor.innerText += transcript
-      }
-
-      recognition.onend = () => {
-        if (this.isVoiceSession && silents--) {
-          recognition.start()
-        } else {
-          this.stopVoiceSession()
+      this.recognition = this.chatSvc.startVoiceRecognition({
+        lang: this.$ui.voiceLanguage,
+        onResult: (event) => { this.$refs.inputBox?.appendEditorText(event.results[0][0].transcript) },
+        onEnd: () => {
+          if (this.isVoiceSession && silents--) this.recognition.start()
+          else this.stopVoiceSession()
         }
-      }
-
-      recognition.start()
-      this.recognition = recognition
+      })
     },
     stopVoiceSession() {
       this.recognition?.stop()
       this.recognition = null
-    },
-    scrollToBottom() {
-      setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
+      this.isVoiceSession = false
     },
     onEditMessageKeyDown(event) {
-      const stop = () => {
-        event.stopPropagation()
-        event.preventDefault()
-        return false
-      }
-      if (event.key === 'Escape') {
-        this.onResetEdit()
-      } else if(event.key === 'Enter' && event.ctrlKey) {
-        this.sendMessage()
-      } else if(event.key === 'f' && event.ctrlKey) {
-        this.toggleDocumentSearch()
-      }  else {
-        return true
-      }
-      return stop()
+      const stop = () => { event.stopPropagation(); event.preventDefault(); return false }
+      if (event.key === 'Escape') { this.onResetEdit(); return stop() }
+      else if (event.key === 'Enter' && event.ctrlKey) { this.sendMessage(); return stop() }
+      else if (event.key === 'f' && event.ctrlKey) { this.addSearchMessage(); return stop() }
+      else if (event.key === 'A' && event.ctrlKey && event.shiftKey) { this.hideAll(); return stop() }
+      else if (event.key === 'b' && event.ctrlKey) { this.createBlock(); return stop() }
+      else if (event.key === 'v' && event.ctrlKey) { this.pasteWithShift = false; return true }
+      else if (event.key === 'V' && event.ctrlKey) { this.pasteWithShift = true; return true }
+      return true
+    },
+    hideAll() {
+      this.visibleMessages.forEach(m => this.toggleHide(m))
     },
     toggleDocumentSearch() {
       this.showDocumentSearchModal = !this.showDocumentSearchModal
-    },
-    openDocumentSearch() {
-      this.showDocumentSearchModal = true
     },
     closeDocumentSearch() {
       this.showDocumentSearchModal = false
     },
     onAddDocument(doc) {
       const source = doc.file || doc.metadata?.source
-      if (source) {
-        this.addFileToMessage(source)
-        this.saveChat()
-      }
-    },
-    addFileToChat(filePath) {
-      this.chat.file_list = [...new Set([...this.chat.file_list ||[], filePath])]
+      if (source && !this.hasFileInMessage(source)) this.addFileToMessage(source)
     },
     async onReloadMessageFile({ file, message }) {
-      message.content = await this.fileToMessage(file)
-      this.saveChat()
+      message.content = await this.chatSvc.fileToMessage({ file })
     },
-    onSaveFile({ file, content }) {
-      this.projectContext.$api.files.write(file, content)
+    async onSaveFile({ file, content }) {
+      await this.$storex.chats.writeFile({ chat: this.chat, file, content })
+      this.$ui.addNotification({ text: `File ${file.split("/").reverse()[0]} saved` })
     },
     onOpenFile(file) {
-      this.projectContext.$api.coder.openFile(file)
+      this.chatProject.$api.coder.openFile(file)
     },
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
@@ -969,82 +1177,97 @@ export default {
       this.selectFile = false
     },
     async onAddFile(file) {
-      if (this.chat.file_list?.includes(file)) {
-        return
-      }
-      this.chat.file_list = [...(this.chat.file_list || []), file]
-      this.addNewFile = null
-      await this.saveChat()
+      if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {}
     },
-    onEditMessage({ orgContent, newContent }, message) {
-      message.content = message.content.replace(orgContent, newContent)
-      this.saveChat()
+    async onAddFileToChat(file) {
+      await this.onAddFile(file)
     },
-    onMessageEdited({ doc_id, content }) {
-      this.updateExistingMessage({ doc_id }, { content })
-      this.saveChat()
+    onMessageEdited({ doc_id, content, profiles, llm_model }) {
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content, profiles, llm_model } })
+      this.editMessage = null
     },
-    updateExistingMessage(message, update) {
-      const existng = this.chat.messages.find(m => m.doc_id === message.doc_id)
-      Object.assign(existng, update)
-      this.saveChat()
+    onMessageChanged({ doc_id, content }) {
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
     },
     removeMessageMention(mention) {
-      const orgMention = this.mentionList.find(m => m === mention)
+      const orgMention = this.mentionList?.find(m => m === mention)
       if (orgMention) {
-        this.setEditorText(this.editorText.replace("@"+mention.name, ""))
+        this.setEditorText(this.editorText.replace("@" + mention.name, ""))
       } else {
         this.files = this.files.filter(f => f !== mention.file)
       }
     },
-    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
-      this.chat.pr_view = {
-        from_branch, to_branch
-      }
-      this.saveChat()
+    onPRFileComment({ file, lineNumber, comment, diff }) {
+      const description = `Comment on ${file} (line ${lineNumber}):\n${diff ? diff + '\n' : ''}${comment}`
+      this.createChatSubTask({
+        title: `Review: ${file.split('/').reverse()[0]}`,
+        description,
+        files: [file]
+      })
     },
-    async refreshPRView() {
-      await this.saveChat()
-      await this.$storex.api.repo.changes(this.chat) 
+    onChatEntryCreateSubtask({ file, content, title }) {
+      const existingChat = file ? this.chatSvc.findChildChatByFile({
+        chat: this.chat,
+        childrenChats: this.childrenChats,
+        file
+      }) : null
+      if (existingChat) { this.$chats.setActiveChat(existingChat); return }
+      this.createChatSubTask({
+        title: title || file?.split("/").reverse()[0] || content.split("\n")[0],
+        description: content,
+        files: file ? [file] : []
+      })
     },
-    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
-      if (chat) {
-        chat.messages.push({
-          user: this.$user.username,
-          role: "user",
-          content: description
-        })
-        chat.profiles = profiles.map(p => p.name)
-        await this.$projects.saveChatInfo(chat)
-        await this.$storex.projects.chatWihProject(chat)
-        
-      } else {
-        this.subtaskName = title
-        this.subtaskDescription = description
-        this.subtaskFiles = files
-        this.subtaskProfiles = profiles
-        this.subtaskMode = mode
-        this.subtaskColumn = column
-        this.createSubtask(false)
-      }
+    async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id, auto_initialize }) {
+      const payload = this.chatSvc.buildSubTaskPayload({
+        title, description, files, profiles,
+        mode: mode || this.chat.mode,
+        column: column || this.chat.column,
+        board: this.chat.board,
+        metadata,
+        projectId: project_id || this.chatProject.project_id,
+        parentId: parent_id || this.chat.id,
+        user: this.$user.username,
+        auto_initialize: auto_initialize ?? true
+      })
+      await this.$chats.createNewChat(payload)
     },
-    async onPRFileCreateChat({ chat, title, files, description, metadata, profiles, mode, column }) {
-      this.$emit('sub-task', {
-          parent: this.chat,
-          name: title,
-          description,
-          project_id: this.chatProject.id,
-          parent_id: this.chat.id,
-          file_list: files,
-          profiles,
-          mode,
-          column,
-          metadata,
-          activateChat: false
-        })
+    createBlock() {
+      this.setEditorText(this.editorText + "```\n\n```")
     },
-    onPRChatMessage({ file, message, metadata }) {
-      file.chat.messages.push({})
+    onNewThread(message) {
+      this.$chats.createNewThread({ chat: this.chat, message })
+    },
+    async addFileContentAsMessage(file) {
+      const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })
+      const codeBlock = ["```" + file.split(".")[1] + " " + file, content, "```"].join("\n")
+      this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage({ message: codeBlock }) })
+    },
+    addMention(mention) {
+      this.mentions.push({ ...mention, active: true })
+    },
+    onProfilesSelected(selectedProfiles) {
+      this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
+    },
+    onProfilesChanged(selectedProfiles) {
+      this.chat.profiles = selectedProfiles.map(p => p.name || p)
+      return this.saveChatInfo()
+    },
+    saveChatInfo(chat) {
+      return this.chatSvc.saveChatInfo(chat || this.chat)
+    },
+    replaceEmoji({ emoji }) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.$refs.inputBox?.getEditorText() ?? ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      this.setEditorText(left + emoji + right)
+    },
+    async onMessageRunAgents(message) {
+      this.$projects.createSubTasks({ chat: this.chat, message, instructions: "" })
+    },
+    async onSelectionSearchFiles({ query }) {
+      this.scheduleIntelliSense("@" + query)
     }
   }
 }

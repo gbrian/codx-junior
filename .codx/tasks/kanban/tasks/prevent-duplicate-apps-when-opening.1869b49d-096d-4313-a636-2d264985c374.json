@@ -1,0 +1,201 @@
+{
+  "id": "1869b49d-096d-4313-a636-2d264985c374",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "loaded",
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+    "/home/codx-junior-projects/codx-junior/client/src/store/views.js"
+  ],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Prevent duplicate apps when opening",
+  "pinned": false,
+  "description": "# Summary\n\n1. **Requirement**: Implement logic to detect if an app is already open and activate its panel instead of creating a duplicate\n2. **Scope**: Apply only to non-mobile/desktop views, skip for mobile (vibe mode)\n3. **Matching Strategy**: Primary match by `key`, fallback to `component` + `params` comparison\n4. **Implementation**: Modified `showApp` mutation to check existing apps and call `activatePanel` action via desktop API\n5. **Outcome**: Prevents duplicate app instances while reusing and focusing existing open panels",
+  "messages": [
+    {
+      "doc_id": "b6ad6d90-0f5b-4186-bc0d-14ca0555d9e0",
+      "role": "user",
+      "task_item": "",
+      "content": "When opening a new app check if it's already open and if so activate the panel (it not mobile)",
+      "think": null,
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 05:58:47.358329",
+      "updated_at": "2026-08-30 05:58:47.358337",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/store/views.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "4fbd6dc3-38a2-4a90-9646-0b203ce5e976",
+      "role": "user",
+      "task_item": "",
+      "content": "When opening a new app check if it's already open and if so activate the panel (it not mobile)",
+      "think": null,
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 05:58:47.358329",
+      "updated_at": "2026-08-30 05:58:47.358337",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/store/views.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "87da4e9f-0d15-4d08-ba25-2da6893f14a5",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll help you implement this feature to check if an app is already open and activate its panel instead of creating a duplicate.\n\nLet me first clarify the requirements:\n\n1. When opening a new app via `showApp`, check if an app with the same `key` (or similar identifier) is already open\n2. If it exists, activate that panel instead of creating a new one\n3. This should apply for non-mobile views only\n\n| File | Changes |\n|------|---------|\n| `src/store/ui.js` | Modified `showApp` mutation to check for existing app and activate it via desktop API |\n| `src/store/views.js` | Added `activatePanel` action to activate an existing panel by ID |\n\nHere are the changes:\n\n```js src/store/ui.js\n// In mutations, update showApp:\nshowApp(state, app) {\n  app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`\n  app.params = app.params || {}\n  app.openedAt = Date.now()\n  \n  // Check if app is already open (non-mobile only)\n  if (state.viewMode !== 'vibe' && !state.isMobile) {\n    const existingApp = Object.values(state.openApps).find(openApp => {\n      // Match by key if available, otherwise by component and params\n      if (app.key && openApp.key) {\n        return openApp.key === app.key\n      }\n      return openApp.component === app.component && \n             JSON.stringify(openApp.params) === JSON.stringify(app.params)\n    })\n    \n    if (existingApp) {\n      // Activate existing app instead\n      state.activeApp = existingApp\n      $storex.views.activatePanel(existingApp.tabId)\n      return\n    }\n  }\n  \n  state.openApps = {\n    ...state.openApps,\n    [app.tabId]: app\n  }\n  state.activeApp = app\n},\n```\n\n```js src/store/views.js\n// Add this action:\nasync activatePanel(_, panelId) {\n  try {\n    const desktopApi = $storex.views._desktopApi\n    if (!desktopApi) return\n    \n    const panel = desktopApi.getPanel(panelId)\n    if (panel) {\n      desktopApi.setActivePanel(panel)\n    }\n  } catch (error) {\n    console.error(`Error activating panel ${panelId}:`, error)\n  }\n},\n```\n\n**Key implementation details:**\n- Checks if app is already open by matching `key` first (recommended approach)\n- Falls back to matching `component` + `params` if no key is provided\n- Only applies when not in vibe mode and not on mobile\n- Activates the existing panel via desktop API instead of creating a duplicate\n- Returns early to prevent duplicate registration in `openApps`",
+      "think": null,
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 05:58:47.910203",
+      "updated_at": "2026-08-30T05:58:56.118272",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1788069527.9101183,
+        "cancellation_token_id": "c0c66faa-1e28-4825-972d-e1787dd2d7f2",
+        "model": "claude-haiku-4-5",
+        "analytics": {
+          "prompt_tokens": 9304,
+          "completion_tokens": 715,
+          "total_tokens": 10019,
+          "tools": {}
+        },
+        "time_taken": 8.208052396774292,
+        "first_chunk_time_taken": 0.3286867141723633,
+        "files": [
+          {
+            "language": "js",
+            "file_path": "src/store/ui.js",
+            "content": "// In mutations, update showApp:\nshowApp(state, app) {\n  app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`\n  app.params = app.params || {}\n  app.openedAt = Date.now()\n  \n  // Check if app is already open (non-mobile only)\n  if (state.viewMode !== 'vibe' && !state.isMobile) {\n    const existingApp = Object.values(state.openApps).find(openApp => {\n      // Match by key if available, otherwise by component and params\n      if (app.key && openApp.key) {\n        return openApp.key === app.key\n      }\n      return openApp.component === app.component && \n             JSON.stringify(openApp.params) === JSON.stringify(app.params)\n    })\n    \n    if (existingApp) {\n      // Activate existing app instead\n      state.activeApp = existingApp\n      $storex.views.activatePanel(existingApp.tabId)\n      return\n    }\n  }\n  \n  state.openApps = {\n    ...state.openApps,\n    [app.tabId]: app\n  }\n  state.activeApp = app\n},"
+          },
+          {
+            "language": "js",
+            "file_path": "src/store/views.js",
+            "content": "// Add this action:\nasync activatePanel(_, panelId) {\n  try {\n    const desktopApi = $storex.views._desktopApi\n    if (!desktopApi) return\n    \n    const panel = desktopApi.getPanel(panelId)\n    if (panel) {\n      desktopApi.setActivePanel(panel)\n    }\n  } catch (error) {\n    console.error(`Error activating panel ${panelId}:`, error)\n  }\n},"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "cf5b3328c8ec",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "profiles": [
+        "project",
+        "store_module"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": null,
+      "role": "user",
+      "task_item": "",
+      "content": "tabId uses a timestamp that will make everytime different. \nModify all openXXX app like openChat, openFile, etc to generate an unique tabId based on the parameters: chat.id, file_path, etc\nAsk for more details if needed",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-30 06:26:56.635692",
+      "updated_at": "2026-08-30 06:26:56.635707",
+      "images": [],
+      "files": [],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-08-30 05:57:54.851820",
+  "updated_at": "2026-08-30T06:26:56.635890",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/prevent-duplicate-apps-when-opening.1869b49d-096d-4313-a636-2d264985c374.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-08-30T05:58:58.187813+00:00",
+      "summary": "# Summary\n\n1. **Requirement**: Implement logic to detect if an app is already open and activate its panel instead of creating a duplicate\n2. **Scope**: Apply only to non-mobile/desktop views, skip for mobile (vibe mode)\n3. **Matching Strategy**: Primary match by `key`, fallback to `component` + `params` comparison\n4. **Implementation**: Modified `showApp` mutation to check existing apps and call `activatePanel` action via desktop API\n5. **Outcome**: Prevents duplicate app instances while reusing and focusing existing open panels",
+      "message_ids": [
+        "b6ad6d90-0f5b-4186-bc0d-14ca0555d9e0",
+        "4fbd6dc3-38a2-4a90-9646-0b203ce5e976",
+        "87da4e9f-0d15-4d08-ba25-2da6893f14a5"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

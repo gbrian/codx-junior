@@ -1,0 +1,51 @@
+{
+  "name": "wiki",
+  "url": "",
+  "avatar": "https://avatar.iran.liara.run/public/job/teacher/female",
+  "description": "The analyst ensures that every task is well-defined, with clear requirements, examples (if applicable), and a concise goal. This aids developers in implementing features, improvements, or fixes effectively.",
+  "category": "project",
+  "file_match": "",
+  "content": "",
+  "parsed_content": null,
+  "path": "/home/codx-junior/codx-junior/api/codx/junior/profiles/wiki.profile",
+  "content_path": "/home/codx-junior/codx-junior/api/codx/junior/profiles/wiki.profile.md",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "40e415ee-0177-45f6-ba5d-f037d908ed55",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-08-03T13:22:22.021168",
+      "updated_at": "2026-08-03T13:22:22.021179",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": null,
+  "chat_id": ""
+}

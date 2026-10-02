@@ -13,7 +13,7 @@ def get_active_profiles_for_api():
     active_profiles = []
     for project in find_all_projects().values():
         profile_manager = ProfileManager(settings=project)
-        profiles = profile_manager.list_profiles()
+        profiles = profile_manager.list_all_profiles()
         for profile in profiles:
             try:
                 if profile.api_settings.active:

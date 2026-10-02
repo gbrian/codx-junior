@@ -1,9 +1,8 @@
 import logging
 import os
 
-from langchain.schema.document import Document
-from langchain.text_splitter import Language
-from langchain.document_loaders.parsers import LanguageParser
+from langchain_core.documents import Document
+from langchain_community.document_loaders.parsers import LanguageParser
 from langchain_community.document_loaders.blob_loaders import Blob
 
 from codx.junior.settings import CODXJuniorSettings
@@ -11,7 +10,7 @@ from codx.junior.settings import CODXJuniorSettings
 # from codx.junior.browser.browseruse import BrowserUse
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 from llama_index.core.node_parser import CodeSplitter
@@ -20,14 +19,12 @@ from codx.junior.knowledge.settings import (
     CODE_PARSER_FROM_EXTENSION
 )
 
-from docling.document_converter import DocumentConverter
-
 from codx.junior.utils.utils import exec_command
 
-CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
-LANGUAGE_PARSER_MAPPING = {
-    "ts": "js"
-}
+from codx.junior.globals import (
+  CURRENT_SPLITTER_LANGUAGES,
+  LANGUAGE_PARSER_MAPPING
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +49,16 @@ class KnowledgeCodeSplitter:
         suffix = file_path.split(".")[-1] if "." in file_path else "txt"
         language = LANGUAGE_FROM_EXTENSION.get(suffix, suffix) or suffix
         code_parser_language = CODE_PARSER_FROM_EXTENSION.get(suffix, language) or language 
+        
+        # Handle PDF files with dedicated loader
+        if suffix.lower() == "pdf":
+            try:
+                return self.load_with_pdf_loader(file_path=file_path)
+            except Exception as ex:
+                logger.error(f"[KnowledgeCodeSplitter] PDF loader failed for {file_path}: {ex}")
+                # Fall through to other loaders as fallback
+                pass
+        
         try:
             return self.load_with_code_plitter(file_path=file_path, code_parser_language=code_parser_language)
         except Exception as ex:
@@ -64,12 +71,12 @@ class KnowledgeCodeSplitter:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
             pass
           
-        if not file_path.endswith(".md") and False:
-            try:
-                return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
-            except Exception as ex:
-                logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
-                pass
+        # if not file_path.endswith(".md") and False:
+        #     try:
+        #         return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
+        #     except Exception as ex:
+        #         logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
+        #         pass
               
         try:
             return self.load_as_text(file_path=file_path)
@@ -82,7 +89,33 @@ class KnowledgeCodeSplitter:
     
     def load_with_browser(self, file_path):
         browser = Browser(settings=self.settings)
+
+    def load_with_pdf_loader(self, file_path):
+        """Load PDF files using PyMuPDF."""
+        from codx.junior.knowledge.knowledge_pdf_loader import KnowledgePDFLoader
         
+        pdf_loader = KnowledgePDFLoader(settings=self.settings)
+        docs = pdf_loader.load(file_path)
+        
+        # Split large pages if necessary
+        if self.embeddings_ai_settings.chunk_size:
+            docs = self._split_large_documents(docs)
+        
+        return docs
+
+    def _split_large_documents(self, documents):
+        """Split documents that exceed chunk size."""
+        result = []
+        for doc in documents:
+            if len(doc.page_content) <= self.embeddings_ai_settings.chunk_size:
+                result.append(doc)
+            else:
+                # Split large documents using text splitter
+                chunks = self.text_splitter.split_text(doc.page_content)
+                for chunk in chunks:
+                    new_doc = Document(page_content=chunk, metadata=doc.metadata.copy())
+                    result.append(new_doc)
+        return result
 
     def load_with_code_plitter(self, file_path, code_parser_language):
         code_parser = CodeSplitter(
@@ -127,6 +160,8 @@ class KnowledgeCodeSplitter:
             return docs
 
     def load_with_docling(self, file_path, code_parser_language):
+        from docling.document_converter import DocumentConverter
+
         extension = file_path.split(".")[-1]
         if extension in ["pdf", "docx", "xls", "jpg"]:
             markdown_path = file_path + ".md"
@@ -152,4 +187,3 @@ class KnowledgeCodeSplitter:
           doc.metadata["loader_type"] = "text"
           doc.metadata["splitter"] = "TextLoader"
       return docs
-      

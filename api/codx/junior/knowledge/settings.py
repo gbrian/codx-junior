@@ -20,6 +20,7 @@ LANGUAGE_FROM_EXTENSION = {
     "cs": "csharp",
     "cshtml": "html",
     "json": "js",
+    "pdf": "pdf",
 }
 
 CODE_PARSER_FROM_EXTENSION = {
@@ -44,4 +45,5 @@ CODE_PARSER_FROM_EXTENSION = {
     "cs": "csharp",
     "cshtml": "html",
     "json": "js",
+    "pdf": "pdf",
 }

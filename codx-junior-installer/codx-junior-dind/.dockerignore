@@ -1,0 +1,24 @@
+# Ignore everything
+*
+
+# Allow debian image files and directories
+!scripts
+!set_env.sh
+
+# Allow api image files and directories
+!.codx
+!api
+!scripts
+!codx-junior
+!set_env.sh
+
+# Allow client image files and directories
+!client
+!scripts
+!codx-junior
+!set_env.sh
+
+# Allow installer
+!codx-junior-installer
+
+

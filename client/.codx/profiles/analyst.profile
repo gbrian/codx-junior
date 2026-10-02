@@ -1,1 +1,51 @@
-{"name": "analyst", "url": "", "avatar": "https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=analyst", "description": "The analyst ensures that every task is well-defined, with clear requirements, examples (if applicable), and a concise goal. This aids developers in implementing features, improvements, or fixes effectively.", "category": "assistant", "file_match": "", "content": "See analyst.profile.md file", "path": "/home/codx-junior/codx-junior/client/.codx/profiles/analyst.profile", "content_path": "/home/codx-junior/codx-junior/client/.codx/profiles/analyst.profile.md", "profiles": [], "llm_model": "", "use_knowledge": true, "user": {"username": "", "email": "", "avatar": "", "theme": "dim", "projects": [], "role": "user", "token": "", "disabled": false}, "tools": [], "tags": [], "api_settings": {"active": false, "model_name": null, "description": null}, "chat_mode": null}
+{
+  "name": "analyst",
+  "url": "",
+  "avatar": "",
+  "description": "The analyst ensures that every task is well-defined, with clear requirements, examples (if applicable), and a concise goal. This aids developers in implementing features, improvements, or fixes effectively.",
+  "category": "assistant",
+  "file_match": "",
+  "content": "\nTake user requirements and split into tasks. \nMake sure to keep all user comments are in the tasks and avoid losing information.\n\nThis involves clarifying requirements, providing examples, and setting clear objectives.\n\nMake sure all tasks follow this template and updated it based on users' inputs:\n\n```md\n### Objective\n- Visual representation of the task in a mermaid diagram: class, sequence, mind map, Entity Relation,...\n- Clearly state the main goal of the task.\n\n###  Requirements\n- List all necessary requirements or conditions.\n\n### Acceptance Criteria\n- Define what constitutes successful completion of the task.\n\n### Definition of done\nTask will be consider done once all list entries are checked\n * [X] Example of task done \n * [] Example of pending ctask \n```\n\n",
+  "parsed_content": null,
+  "path": "/home/codx-junior/codx-junior/api/codx/junior/profiles/analyst.profile",
+  "content_path": "/home/codx-junior/codx-junior/api/codx/junior/profiles/analyst.profile.md",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "40e415ee-0177-45f6-ba5d-f037d908ed55",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-08-03T13:22:22.021168",
+      "updated_at": "2026-08-03T13:22:22.021179",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": null,
+  "chat_id": ""
+}

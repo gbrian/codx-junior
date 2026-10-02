@@ -25,13 +25,13 @@
     </div>
     <div>
       <form class="flex gap-2" method="dialog">
-        <button class="btn btn-info text-white" @click="reIndexFile(showDoc)">
+        <button class="btn btn-info " @click="reIndexFile(showDoc)">
           Re-index
         </button>
-        <button class="btn btn-info text-white" @click="extractKeywords(showDoc)">
+        <button class="btn btn-info " @click="extractKeywords(showDoc)">
           Keywords
         </button>
-        <button class="btn btn-error text-white" @click="unIndexFile(showDoc)">
+        <button class="btn btn-error " @click="unIndexFile(showDoc)">
           Drop file
         </button>
         <div class="grow"></div>

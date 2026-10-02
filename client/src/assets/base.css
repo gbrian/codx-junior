@@ -1,11 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-.codx-primary {
-  color: #cc0099;
-}
-
-.codx-secondary {
-  color: #8f008f;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "daisyui" {
+  themes: all;
 }

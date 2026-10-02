@@ -1,0 +1,24 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Model files (large binaries)
+models/*.gguf
+models/*.state
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,32 +1,24 @@
 <script setup>
-import ChatEntry from '../ChatEntry.vue'
-import ProjectIcon from '../ProjectIcon.vue';
+import ChatPreview from './ChatPreview.vue';
 </script>
 
 <template>
-  <div class="w-full">
-    <div class="text-2xl">
-      Recent activity <span v-if="project">: {{ project.project_name }}</span>
-    </div>
-    <div class="alert" v-if="lastMessages.length === 0">
-      No recent activity
-    </div>
-    <div class="grid grid-cols-2 @5xl:grid-cols-3 grid-flow-rows gap-2">
-      <div class="border border-slate-800 hover:border-slate-600 rounded-lg my-2 click group"
-        v-for="chat in lastMessages" :key="chat.doc_id"
-        @click="setActiveChat(chat)">
-        <div class="flex gap-2 items-center bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
-          <ProjectIcon inline="true" :project="chat.project" />
-          <div class="divider"></div>
-          {{ chat.name }}
-        </div>      
-        <div class="relative">
-          <ChatEntry
-            class="rounded-b-lg overflow-auto opacity-60 h-60 group-hover:opacity-100" 
-            :menu-less="true" 
-            :message="chat.messages[0]" :chat="chat"
-            />
-          <div class="absolute top-0 left-0 right-0 bottom-0 z-20"></div>
+  <div class="w-full h-full relative">
+    <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
+      <div class="text-2xl">
+        Recent activity <span v-if="project">: {{ project.project_name }}</span>
+      </div>
+      <div class="alert" v-if="lastMessages.length === 0">
+        No recent activity
+      </div>
+      <div class="grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
+        <div class="my-2 click group"
+          v-for="chat in lastMessages" :key="chat.doc_id"
+          @click="setActiveChat(chat)">
+            <ChatPreview
+              :project="chat.project"
+              :chat="chat"
+              />
         </div>
       </div>
     </div>
@@ -35,7 +27,7 @@ import ProjectIcon from '../ProjectIcon.vue';
 
 <script>
 export default {
-  props: ['project'],
+  props: ['project', 'board'],
   data() {
     return {}
   },
@@ -45,7 +37,7 @@ export default {
       if (this.project) {
         const { project_path } = this.project
         const childProjects = allProjects
-          .filter(p => p.project_path !== project_path && p.project_path.startsWith(project_path))
+          .filter(p => p.abs_project_path !== project_path && p.abs_project_path.startsWith(project_path))
         return [this.project, ...childProjects]
       }
       return allProjects
@@ -64,10 +56,10 @@ export default {
   },
   methods: {
     async setActiveChat(chat) {
-      if (chat.project.project_id !== this.$project.project_id) {
-        await this.$projects.setActiveProject(chat.project)
+      if (chat.project.project_id !== this.$project?.project_id) {
+        await this.$projects.activeProjectChanged(chat.project)
       }
-      this.$projects.setActiveChat(chat)
+      this.$chats.setActiveChat(chat)
       this.$ui.setActiveTab('tasks')
     }
   }

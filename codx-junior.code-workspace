@@ -1,0 +1,51 @@
+{
+	"folders": [
+        {
+            "path": "client",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
+        },
+        {
+            "path": "api",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": true
+            }
+        },
+        {
+            "path": "notebooks",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
+        },
+        {
+            "path": ".",
+            "settngs": {
+                "python.testing.pytestArgs": [
+                    "."
+                ],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": false
+            }
+        }
+    ],
+    "settings": {
+        "python.testing.pytestArgs": [
+            "."
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": false
+    }
+}

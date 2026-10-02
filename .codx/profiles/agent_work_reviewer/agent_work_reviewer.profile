@@ -1,0 +1,50 @@
+{
+  "name": "agent_work_reviewer",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=agent_work_reviewer",
+  "description": "Reviews work done by the agent. It checks that the changes generated/proposed by the agent will work fine.",
+  "category": "agent-validator",
+  "file_match": "",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/agent_work_reviewer/agent_work_reviewer.profile",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "fb89e46c-52da-4a03-b540-f1ca0ec9eb6c",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-09-14T17:52:52.660710",
+      "updated_at": "2026-09-14T17:52:52.660721",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": "7b12828f-b583-4aa9-8daf-47a45c3ca27b"
+}

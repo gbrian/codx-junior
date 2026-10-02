@@ -1,0 +1,135 @@
+{
+  "id": "c9395ef3-180f-4ae7-9232-757409d41737",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+    "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+    "/home/codx-junior-projects/codx-junior/client/src/components/main-menu/ViewsMenu.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/api/modules/views.js",
+    "/home/codx-junior-projects/codx-junior/client/src/store/views.js"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper",
+    "daisyui_components",
+    "project",
+    "store_module"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Save dock grid layouts by project",
+  "pinned": false,
+  "description": "# Conversation Summary\n\n1. **Requirement**: Implement project-scoped dock grid layouts (\"views\") with ability to save multiple named grids per project and auto-sync changes.\n\n2. **Current State**: Existing `Desktop.vue` manages dockview layouts with localStorage persistence; `ViewsMenu.vue` provides basic view CRUD; API has generic `views` endpoints lacking project context.\n\n3. **Solution Strategy**: Extend API layer with project-aware view endpoints, enhance `src/store/ui.js` to track current view per project and sync layout changes, modify `Desktop.vue` to auto-save and load views, improve `ViewsMenu.vue` UX with \"Save As\" and current view display.\n\n4. **Key Architecture**: Views should be project-scoped, load last accessed view on project switch (or create default), debounce auto-save on layout changes, track dirty state for unsaved changes.\n\n5. **Blocking Questions**: Awaiting clarification on backend view persistence format, auto-save frequency/warnings, default view strategy, view metadata fields, and current API endpoint project-scoping support.",
+  "messages": [
+    {
+      "doc_id": "877e9f5a-dc2e-4a6d-84a5-4f5be6e6978c",
+      "role": "user",
+      "task_item": "",
+      "content": "We must be able to save dock grid by project and have multiple grids per project with a name.\nWhen switching projects it will load the last accessed view in the project or create a new default to save the changes.\nChanges to the grid will be sync with the saved grid (often referrerd as views)\n\nAnalayze exsiting components \n  ",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-17 07:20:14.052214",
+      "updated_at": "2026-08-17 07:20:14.052240",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/main-menu/ViewsMenu.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/main-menu/ViewsMenu.vue"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "1cce669d-389a-4579-add3-aceb95daee60",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Analysis & Pre-Thinking\n\n## Core Requirements\n- **Save dock grid layouts by project** with custom names (referred to as \"views\")\n- **Multiple grids per project** with persistence and retrieval\n- **Project switching** loads the last accessed view or creates a default\n- **Auto-sync** grid changes with saved views\n- Reuse existing `Desktop.vue` dockview functionality\n- Maintain current ViewsMenu.vue pattern for view management\n\n## Strategic Approach\n\n1. **Extend API layer** (`src/api/api.js`):\n   - Add `views.list()`, `views.save()`, `views.delete()`, `views.rename()` (already exist but need project context)\n   - Add project-scoped view persistence\n\n2. **Extend store** (`src/store/ui.js`):\n   - Add `views` array to state\n   - Add `currentView` to track active view per project\n   - Add `lastView` for default fallback\n   - Add mutations/actions for CRUD operations on views\n   - Add `loadViewForProject()` action to handle project switches\n\n3. **Update Desktop.vue**:\n   - Hook into layout changes to auto-save to current view\n   - Load view on mount if switching projects\n   - Add view selection dropdown/picker\n\n4. **Update ViewsMenu.vue**:\n   - Add \"Save As\" flow for new named views\n   - Display current view name\n   - Handle view switching with confirmation if layout changed\n\n## Dependencies & Risks\n\n- **Auto-save timing**: Need debouncing to avoid excessive API calls\n- **Dirty state tracking**: Track if layout differs from saved view\n- **Project context**: Views must be scoped to `activeProject.codx_path`\n- **Default view**: Need fallback when no views exist\n- **State consistency**: Ensure view data stays in sync across tabs/windows\n\n## Target Files\n\n| File | Action | Reason |\n| :--- | :--- | :--- |\n| `src/api/api.js` | Modify | Add project-scoped view endpoints |\n| `src/store/ui.js` | Modify | Add views state, CRUD actions, project-aware loading |\n| `src/components/desktop/Desktop.vue` | Modify | Auto-save layout, load view on project switch |\n| `src/components/main-menu/ViewsMenu.vue` | Modify | Add \"Save As\", show current view, improve UX |\n\n---\n\n## Missing Information Required\n\n**Before proceeding with implementation, please clarify:**\n\n1. **View persistence backend**: Should views be saved via `API.views.save()` endpoint? Does the backend already support project-scoped views, or should we extend it?\n\n2. **Auto-save behavior**: \n   - How frequently should layout changes auto-sync? (e.g., debounce 2 seconds after each change?)\n   - Should unsaved changes trigger a warning on project switch?\n\n3. **Default view strategy**:\n   - Should we auto-create a \"Default\" view on first project load?\n   - Or always prompt user to save when switching projects with changes?\n\n4. **View metadata**: Should views store only layout JSON, or also metadata like:\n   - Creation/modification timestamp?\n   - View description/notes?\n   - View tags or categories?\n\n5. **Current API endpoint behavior**: Does `API.views.save(view)` and `API.views.list()` already accept/return project context, or are they project-agnostic?\n\n**Please provide:**\n- Current backend API response format for views\n- Example view data structure\n- Project ID/path field name to use for scoping\n\n---\n\nOnce you clarify these points, I'll provide:\n1. Full implementation of modified `src/api/api.js`\n2. Full implementation of modified `src/store/ui.js`\n3. Full implementation of modified `src/components/desktop/Desktop.vue`\n4. Full implementation of modified `src/components/main-menu/ViewsMenu.vue`",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-08-17 07:20:14.052214",
+      "updated_at": "2026-08-17 07:20:14.052240",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1786980318.357389,
+        "cancellation_token_id": "8a386e62-5131-41f2-9752-6abdee6a815e",
+        "model": "claude-haiku-4-5",
+        "time_taken": 12.442186117172241,
+        "first_chunk_time_taken": 0.4248471260070801
+      },
+      "profiles": [
+        "VueDeveloper",
+        "project",
+        "store_module",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-08-17 07:20:14.055466",
+  "updated_at": "2026-08-17T16:33:58.646948",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/save-dock-grid-layouts-by-project.c9395ef3-180f-4ae7-9232-757409d41737.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-08-17T15:25:34.514096+00:00",
+      "summary": "# Conversation Summary\n\n1. **Requirement**: Implement project-scoped dock grid layouts (\"views\") with ability to save multiple named grids per project and auto-sync changes.\n\n2. **Current State**: Existing `Desktop.vue` manages dockview layouts with localStorage persistence; `ViewsMenu.vue` provides basic view CRUD; API has generic `views` endpoints lacking project context.\n\n3. **Solution Strategy**: Extend API layer with project-aware view endpoints, enhance `src/store/ui.js` to track current view per project and sync layout changes, modify `Desktop.vue` to auto-save and load views, improve `ViewsMenu.vue` UX with \"Save As\" and current view display.\n\n4. **Key Architecture**: Views should be project-scoped, load last accessed view on project switch (or create default), debounce auto-save on layout changes, track dirty state for unsaved changes.\n\n5. **Blocking Questions**: Awaiting clarification on backend view persistence format, auto-save frequency/warnings, default view strategy, view metadata fields, and current API endpoint project-scoping support.",
+      "message_ids": [
+        "877e9f5a-dc2e-4a6d-84a5-4f5be6e6978c",
+        "1cce669d-389a-4579-add3-aceb95daee60"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

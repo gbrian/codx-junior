@@ -7,9 +7,9 @@ import TreeViewVue from './TreeView.vue'
   <div class="flex flex-col gap-1 relative h-full">
     <div class="h-12"> 
       <div class="flex items-center gap-2">
-        <summary class="btn btn-sm" @click="openMenu = !openMenu">
+        <div class="btn btn-sm" @click="openMenu = !openMenu">
           <i class="fa-solid fa-bars"></i>
-        </summary>
+        </div>
         <div class="grow text-xs">{{ fileName }}</div>
         <div class="flex gap-1 justify-end" v-if="item">
           <button class="btn btn-sm" :class="aiAssistant && 'text-purple-600'"
@@ -116,12 +116,12 @@ export default {
   },
   methods: {
     async projectChanged () {
-      const { files } = await this.$storex.api.files.list(this.project.project_path)
+      const { files } = await this.$storex.api.files.list(this.project.abs_project_path)
       this.items = files
       if (this.$ui.openedFile) {
         this.item = {
           "name": this.$ui.openedFile.split("/").reverse()[0],
-          "file_path": `${this.$project.project_path}/${this.$ui.openedFile}`,
+          "file_path": `${this.$project.abs_project_path}/${this.$ui.openedFile}`,
           "is_dir": false
         }
         this.onOpenItem(this.item)

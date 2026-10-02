@@ -4,259 +4,676 @@ import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
+import ProfileAvatar from './profile/ProfileAvatar.vue'
+import DocumentSummary from './document/DocumentSummary.vue'
+import MessagePRView from './chat/MessagePRView.vue'
+import MessageFileView from './chat/MessageFileView.vue'
+import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
+import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
+import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative p-2"
+  <!-- =============================================
+       NOTION-STYLE DESKTOP BLOCK RENDERING
+       ============================================= -->
+  <div
+    class="notion-entry group/entry relative w-full"
     :class="[
-      message.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
-      message.hide ? 'border-l-2 border-warning' : '',
-      !message.done && 'border border-dashed border-sky-800 p-1',
-      message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
-      isTopic && 'border-l p-2 bg-info/5 border-info/50',
-      editting && 'border border-dashed p-2 border-warning',
+      displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
     ]"
+    tabindex="0"
   >
-    <div class="w-full">
-      <div class="w-full flex flex-col gap-1 hover:rounded-md group">
-        <progress class="progress w-full" v-if="!message.done"></progress>
-    
-        <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
-          <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
-            <ChatIcon mode="answer" /> Knowledge 
+    <!-- ── Row: Avatar + Header + Content ── -->
+    <div class="flex gap-3 items-start w-full">
+      <!-- Avatar column -->
+      <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+        
+        <template v-if="isNewSpeaker">
+          <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
+          <div
+            v-for="profile in messageProfiles"
+            :key="profile.name"
+            class="tooltip tooltip-right"
+            :data-tip="profile.name || profile.username"
+          >
+            <ProfileAvatar :profile="profile" width="6" />
           </div>
-          <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
-            <ChatIcon mode="topic" /> Topic 
-          </div>              
-          <div class="flex gap-1 items-center" 
-            :class="message.hide && 'text-slate-500'">
-            <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
-            <div v-for="profile in messageProfiles" :key="profile.name">
-              <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
-                <div class="w-4 h-4 mt-1 rounded-full">
-                  <img :src="profile.avatar" :alt="profile.name" />
-                </div>
-              </div>
-            </div>
-            <div class="flex gap-2 grow">
-              [{{ formatDate(message.updated_at) }}] 
-              <span v-if="timeTaken">({{ timeTaken }} s.)</span>
-            </div>
-            <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
-              v-if="menuLess !== true"
-            >
-              <div class="px-2 flex flex-col">
-                <div class="gap-2 flex justify-end items-center">
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Thread" 
-                    @click="$emit('subtask', message)"
-                    v-if="!editting"
-                  >
-                    <i class="fa-solid fa-comment-dots"></i>
-                  </button>      
-
-                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer', message)"
-                    v-if="!editting"
-                  >
-                    <i class="fa-solid fa-check-double"></i>
-                  </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard"
-                    v-if="!editting"
-                  >
-                    <i class="fa-solid fa-copy"></i>
-                  </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
-                    <i class="fa-regular fa-file-lines"></i>
-                    <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
-                  </button>
-                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="onEditMessage">
-                    <i class="fa-solid fa-pencil"></i>
-                  </button>
-                  <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
-                  <button v-if="editting" class="btn btn-xs btn-error" @click="cancelEditting">Cancel</button>
-                  <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-                    @click="$emit('enhance', message)">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                  </button>
-                  <div class="dropdown dropdown-hover dropdown-end" v-if="!editting">
-                    <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-                      <i class="fa-solid fa-bars"></i>
-                    </button>
-                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
-                      <li @click="toggleSrcView"  v-if="message.done">
-                        <a><i class="fa-solid fa-code"></i> Source</a>
-                      </li>
-                      <li class="text-warning" v-if="message.done">
-                        <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
-                            :data-tip="message.hide ? 'Click to add message to conversation' : 
-                                              'Click to archive message from the conversation'">
-                          <i class="fa-solid fa-box-archive"></i> {{ message.hide ? 'Show' : 'Archive' }}
-                        </a>                  
-                      </li>
-                      <li class="text-error">
-                        <a class="hover:underline" @click="confirmRemove">
-                          <i class="fa-solid fa-trash-can"></i> Delete
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" 
-              v-if="!message.content && !message.think">
-          <div class="flex items-center gap-4">
-            <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-            <div class="flex flex-col gap-4">
-              <div class="skeleton h-4 w-20"></div>
-            </div>
-          </div>
-          <div class="skeleton h-32 w-full"></div>
+        </template>
+        <!-- Connecting line for grouped messages -->
+        <div
+          v-if="!isNewSpeaker"
+          class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
+        >           
         </div>
         
-        <div v-if="message.think">
-          <div class="chat chat-start click"
-            @click="message.full_think = !message.full_think"
+        <!-- Events button — desktop only -->
+        <div class="flex flex-col gap-1 click"
+          @click.stop="toggleEventsPanel">
+          <button
+            v-if="!isMyMessage"
+            class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Events & Tools"
           >
-            <div class="chat-bubble">
-              <div class="badge badge-info badge-outline">think</div>
-              {{ thinkText }}
-              <div class="chat-footer opacity-50" v-if="message.is_thinking">
-                <span class="loading loading-dots"></span>
-              </div>
-              <span class="underline" v-if="message.full_think">close</span>
-            </div>
-          </div>                
+            <i class="fa-solid fa-stream text-info"></i>
+          </button>
+          <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
+            <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
+            <i class="fa-solid fa-wrench"></i>
+          </div>
         </div>
-        <div @copy.stop="onMessageCopy" 
-            :class="['max-w-full border-slate-300/20', 
-            (isCollapsed === undefined ? message.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
+      </div>
+
+      <!-- Main block column -->
+      <div class="flex-1 min-w-0 pb-0.5">
+
+        <!-- Header row: only shown on first message of a speaker group -->
+        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none flex-wrap">
           
-          <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
-          <pre v-if="srcView">{{ message.content }}</pre>
-          <Document 
+          <!-- Check mark for seen status (only for other users' messages, at top) -->
+          <button
+            v-if="!isMyMessage && isDone"
+            class="h-5 w-5 min-h-0 tooltip tooltip-bottom flex items-center justify-center transition-all"
+            :class="isMessageSeen ? 'text-success hover:text-success/80' : 'text-base-content/30 hover:text-base-content/50'"
+            :data-tip="isMessageSeen ? 'Mark un-seen' : 'Mark seen'"
+            @click.stop="toggleUnseenStatus"
+          >
+            <i class="fa-solid fa-check-double text-sm"></i>
+          </button>
+
+
+          <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
+          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
+          <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+
+          <!-- State badges inline with header -->
+          <span v-if="cancellationTime" class="badge badge-xs badge-error">
+            <i class="fa-solid fa-ban mr-0.5"></i>Cancelled
+          </span>
+          <span v-if="displayMessage.is_answer" class="badge badge-xs badge-success gap-1">
+            <ChatIcon mode="answer" /> Knowledge
+          </span>
+          <span v-if="isTopic" class="badge badge-xs badge-info gap-1">
+            <ChatIcon mode="topic" /> Topic
+          </span>
+          <span v-if="displayMessage.hide" class="text-[11px] text-warning/50">
+            <i class="fa-solid fa-box-archive"></i> Archived
+          </span>
+
+          <!-- ── Mobile-only indicators in header ── -->
+          <div class="flex md:hidden items-center gap-1 ml-auto">
+            <!-- Mobile profile avatars -->
+            <div
+              v-for="profile in messageProfiles"
+              :key="profile.name"
+              class="flex items-center"
+            >
+              <ProfileAvatar :profile="profile" width="4" />
+            </div>
+
+            <!-- Mobile events indicator -->
+            <button
+              v-if="hasEvents"
+              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
+              :class="eventsOpen && 'btn-active text-warning'"
+              @click.stop="toggleEventsPanel"
+            >
+              <i class="fa-solid fa-stream text-info text-[10px]"></i>
+              <span class="text-[10px]">{{ eventCount }}</span>
+            </button>
+
+            <!-- Mobile attachments indicator -->
+            <button
+              v-if="hasAttachments"
+              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
+              :class="eventsOpen && 'btn-active text-warning'"
+              @click.stop="toggleEventsPanel"
+            >
+              <i class="fa-solid fa-paperclip text-info text-[10px]"></i>
+              <span class="text-[10px]">{{ attachmentCount }}</span>
+            </button>
+
+            <!-- Mobile floating menu button -->
+            <div class="dropdown dropdown-end md:hidden">
+              <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
+                <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
+              </button>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
+                <li><a @click.stop="$emit('thread', message)">
+                  <i class="fa-solid fa-comment-dots"></i> Thread
+                </a></li>
+                <li><a @click.stop="$emit('hide', message)" :class="!isDone && 'disabled'">
+                  <i class="fa-solid fa-box-archive text-warning/70"></i>
+                  {{ displayMessage.hide ? 'Unarchive' : 'Archive' }}
+                </a></li>
+                <li><a @click.stop="$emit('answer', message)">
+                  <i class="fa-solid fa-check-double text-success/70"></i> Mark as answer
+                </a></li>
+                <li><a @click.stop="copyMessageToClipboard">
+                  <i class="fa-solid fa-copy"></i> Copy
+                </a></li>
+                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'">
+                  <i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}
+                </a></li>
+                <li v-if="displayMessage.diffMessage"><a @click.stop="toggleShowDiff">
+                  <i class="fa-regular fa-file-lines"></i> Diff
+                </a></li>
+                <li v-if="hasCodeBlocksOrFiles"><a @click.stop="toggleFileView">
+                  <i class="fa-solid fa-file-code"></i> Files
+                </a></li>
+                <li v-if="hasPRViewBlocks"><a @click.stop="togglePRView">
+                  <i class="fa-solid fa-code-branch"></i> Review
+                </a></li>
+                <li><a @click.stop="runAgents">
+                  <i class="fa-solid fa-people-group"></i> Run agents
+                </a></li>
+                <li v-if="isDone"><a @click.stop="toggleSrcView()">
+                  <i class="fa-solid fa-code"></i> View source
+                </a></li>
+                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)">
+                  <i class="fa-solid fa-pen"></i> Edit
+                </a></li>
+                <li><a @click.stop="confirmRemove" class="text-error">
+                  <i class="fa-solid fa-trash-can"></i> Delete
+                </a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
+        <div
+          class="absolute right-0 top-0 z-20
+                 opacity-0 group-hover/entry:opacity-100
+                 transition-all duration-150 translate-y-0
+                 flex items-center gap-0.5
+                 bg-base-100/95 backdrop-blur-sm
+                 border border-base-100 rounded-lg shadow-md px-1 py-0.5"
+        >
+          <!-- Stop generation -->
+          <button
+            v-if="!isDone && cancellationTokenId"
+            class="btn btn-xs btn-error gap-1"
+            @click.stop="cancelMessage"
+          >
+            <span class="loading loading-xs"></span>Stop
+          </button>
+
+          <!-- Core actions -->
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
+            @click.stop="$emit('hide', message)"
+            v-if="isDone"
+          >
+            <i class="fa-solid fa-box-archive text-warning/70"></i>
+          </button>
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Thread"
+            @click.stop="$emit('thread', message)"
+          >
+            <i class="fa-solid fa-comment-dots"></i>
+          </button>
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Mark as answer"
+            @click.stop="$emit('answer', message)"
+          >
+            <i class="fa-solid fa-check-double text-success/70"></i>
+          </button>
+          <button
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            data-tip="Copy"
+            @click.stop="copyMessageToClipboard"
+          >
+            <i class="fa-solid fa-copy"></i>
+          </button>
+          <button
+            v-if="displayMessage.diffMessage"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showDiff && 'btn-active'"
+            data-tip="Diff"
+            @click.stop="toggleShowDiff"
+          >
+            <i class="fa-regular fa-file-lines"></i>
+          </button>
+          <button
+            v-if="hasCodeBlocksOrFiles"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showFileView && 'btn-active'"
+            data-tip="Files"
+            @click.stop="toggleFileView"
+          >
+            <i class="fa-solid fa-file-code"></i>
+          </button>
+          <button
+            v-if="hasPRViewBlocks"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="showPRView && 'btn-active'"
+            data-tip="Review"
+            @click.stop="togglePRView"
+          >
+            <i class="fa-solid fa-code-branch"></i>
+          </button>
+
+          <!-- Divider -->
+          <div class="w-px h-4 bg-base-300 mx-0.5"></div>
+
+          <!-- More dropdown -->
+          <div class="dropdown dropdown-end" @click.stop>
+            <button tabindex="0" class="btn btn-xs btn-ghost">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
+            >
+              <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
+              <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
+              <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
+              <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
+              <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ── Thread / Reply badge (always visible if exists) ── -->
+        <div
+          v-if="threadChat"
+          class="mb-1 inline-flex"
+        >
+          <button
+            class="flex items-center gap-1 text-[11px] text-info hover:text-info hover:underline cursor-pointer"
+            @click.stop="openThread"
+          >
+            <ChatIcon :mode="threadChat.mode" />
+            <span>{{ threadChat.messages?.length || 0 }} replies</span>
+          </button>
+        </div>
+
+        <!-- ── Loading bar ── -->
+        <progress
+          v-if="!isDone"
+          class="progress progress-xs w-full mb-2 opacity-50"
+        ></progress>
+
+        <!-- ── Selection context menu ── -->
+        <ChatEntrySelectionMenu
+          v-if="showSelectionMenu"
+          :selectedText="selectedText"
+          :chatProject="chatProject"
+          @copy="onSelectionCopy"
+          @create-subtask="onSelectionCreateSubtask"
+          @search-files="onSelectionSearchFiles"
+          @close="onCloseSelectionMenu"
+        />
+
+        <!-- ── Skeleton loader ── -->
+        <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2 py-1">
+          <div class="skeleton h-4 w-full rounded"></div>
+          <div class="skeleton h-4 w-4/5 rounded"></div>
+          <div class="skeleton h-4 w-2/3 rounded"></div>
+        </div>
+
+        <!-- ── Answer / Topic accent bar ── -->
+        <div
+          v-if="displayMessage.is_answer || isTopic"
+          class="absolute left-0 top-0 bottom-0 w-0.5 rounded-full"
+          :class="[
+            displayMessage.is_answer && 'bg-success',
+            isTopic && !displayMessage.is_answer && 'bg-info',
+          ]"
+        ></div>
+
+        <!-- ── TOC for long documents ── -->
+        <DocumentSummary
+          v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents && !showAttachments"
+          :content="messageContent"
+          :minHeadings="3"
+          :documentId="documentId"
+          :scrollContainer="$refs.contentArea"
+          class="mb-3"
+        />
+
+        <!-- ── Main content area ── -->
+        <div
+          ref="contentArea"
+          @copy.stop="onMessageCopy"
+          @mouseup="onContentMouseUp"
+          class="min-w-0 w-full notion-content"
+          :class="[
+            displayMessage.is_answer && 'pl-3 border-l-2 border-success/30',
+            isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
+          ]"
+        >
+
+          <!-- Source view -->
+          <pre v-if="srcView" class="text-xs overflow-auto bg-base-200 p-3 rounded-lg">{{ displayMessage.content }}</pre>
+
+          <!-- Document / Markdown -->
+          <Document
+            v-if="!showDiff && !srcView && !showPRView && !showFileView && !code_patches && !isWord && !showAttachments"
             :content="messageContent"
             :files="chatFiles"
-            @generate-code="onGenerateCode" 
+            :project="chatProject"
+            :chat="chat"
+            :loading="!message.done"
+            :documentId="documentId"
+            :message="message"
+            @generate-code="onGenerateCode"
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
-            @edit-message="$emit('edit-message', $event)"
+            @sub-task="$emit('sub-task', $event)"
+            @copy-chapter="onCopyChapter"
+            @create-task="onCreateTask"
+            @block-edited="onBlockEdited"
             :mentionList="mentionList"
-            v-if="!showDiff && !editting && !srcView && !code_patches" />
+          >
+            <template #chapter-actions="{ chapter, fullContent }">
+              <button class="btn btn-sm btn-ghost gap-1" @click="copyChapterMarkdown(chapter, fullContent)">
+                <i class="fa-solid fa-copy"></i> Copy
+              </button>
+              <button class="btn btn-sm btn-ghost gap-1" @click="createTaskFromChapter(chapter, fullContent)">
+                <i class="fa-solid fa-plus"></i> Task
+              </button>
+            </template>
+          </Document>
+
+          <!-- Error -->
+          <div class="alert alert-error text-xs mt-2" v-if="displayMessage.error">
+            {{ displayMessage.error }}
+          </div>
+
+          <!-- Diff view -->
           <CodeDiff
-            :new-string="message.diffMessage.content"
+            v-if="showDiff && !showPRView && !showFileView"
+            :new-string="displayMessage.diffMessage.content"
             :old-string="messageContent"
             theme="dark"
-            v-if="showDiff"
           />
-          <div v-if="code_patches">
-            <div class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
-              <div class="text-xs font-bold text-primary" :title="patch.file_path">
-                {{ patch.file_path.replace($project.project_path, '') }}
+
+          <!-- Code patches -->
+          <div v-if="code_patches && !showPRView && !showFileView && !showAttachments" class="space-y-3 mt-2">
+            <div
+              v-for="patch in code_patches"
+              :key="patch.file_path"
+              class="border border-base-100 rounded-lg p-3 bg-base-200/50"
+            >
+              <div class="text-xs font-bold text-primary mb-1" :title="patch.file_path">
+                {{ patch.file_path.replace($project.abs_project_path, '') }}
               </div>
-              <div class="">{{ patch.description }}</div>
+              <div class="text-xs text-base-content/50 mb-2">{{ patch.description }}</div>
               <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
-              <div class="flex justify-end">
-                <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
+              <div class="flex justify-end mt-2">
+                <button
+                  class="btn btn-sm btn-warning gap-1"
+                  :disabled="patch.working"
+                  @click="applyPatch(patch)"
+                >
                   <span class="loading loading-spinner" v-if="patch.working"></span>
                   Apply changes
                 </button>
               </div>
-              <div v-if="patch.res">
-                <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
-                <div class="text-xs text-success" v-else>Patch applied</div>
-              </div>
-            </div>
-          </div>
-          <div class="chat-footer opacity-50" v-if="message.content && !message.done">
-            <span class="loading loading-dots"></span>
-          </div>
-          <div v-if="images">
-            <div class="carousel gap-2" v-if="images?.length">
-              <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
-                <div class="flex flex-col">
-                  <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
-                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
+              <div v-if="patch.res" class="text-xs mt-2">
+                <div class="text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+                <div class="text-success" v-else>
+                  <i class="fa-solid fa-check"></i> Applied
                 </div>
               </div>
             </div>
           </div>
-          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
-            Linked files:
-            <div v-for="file in allFiles" :key="file" :title="file" class="flex gap-2 items-center click">
-              <div class="flex gap-2 click hover:underline" @click="openFile(file)">
-                <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
-                  <i class="fa-solid fa-file-arrow-up"></i>
+
+          <!-- File View -->
+          <MessageFileView
+            v-if="showFileView && !srcView && !showDiff && !showPRView && !showAttachments"
+            :codeBlocks="prViewCodeBlocks"
+            :linkedFiles="displayMessage.files"
+            :chat="chat"
+            :message="message"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+            @remove-file="$emit('remove-file', $event)"
+          />
+
+          <!-- PR View -->
+          <MessagePRView
+            v-if="showPRView && !srcView && !showDiff && !showFileView && !showAttachments"
+            :codeBlocks="prViewCodeBlocks"
+            :chat="chat"
+            :message="message"
+            :activeBranch="activeBranch"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+          />
+
+          <!-- Images -->
+          <div v-if="images && !showPRView && !showFileView && !showAttachments && images?.length" class="mt-3">
+            <p class="text-xs text-base-content/40 mb-2">
+              <i class="fa-solid fa-images mr-1"></i>Images
+            </p>
+            <div class="carousel gap-2">
+              <div
+                class="carousel-item cursor-pointer"
+                v-for="image in images"
+                :key="image.src"
+                @click="$emit('image', image)"
+              >
+                <div class="flex flex-col gap-1">
+                  <div
+                    class="bg-cover bg-center border border-base-100 rounded-lg w-20 h-20 hover:border-primary transition-colors"
+                    :style="`background-image: url(${image.src})`"
+                  ></div>
+                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
                 </div>
-                <div class="overflow-hidden">
+              </div>
+            </div>
+          </div>
+
+          <!-- Linked files -->
+          <div
+            v-if="displayMessage.files?.length && !showPRView && !showFileView && !showAttachments"
+            class="mt-3 pt-2 border-t border-base-100/50"
+          >
+            <p class="text-[11px] text-base-content/40 mb-1.5">
+              <i class="fa-solid fa-paperclip mr-1"></i>Linked files
+            </p>
+            <div class="flex flex-wrap gap-1">
+              <div
+                v-for="file in displayMessage.files"
+                :key="file"
+                class="flex items-center gap-1 text-xs bg-base-200 hover:bg-base-300 rounded-md px-2 py-0.5 transition-colors group/file"
+              >
+                <i class="fa-solid fa-file text-primary/60 text-[10px]"></i>
+                <a
+                  class="hover:underline cursor-pointer max-w-[180px] truncate"
+                  @click="openFile(file)"
+                  :title="file"
+                >
                   {{ file.split('/').reverse()[0] }}
-                </div>
-              </div>
-              <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
-                <i class="fa-regular fa-circle-xmark"></i>
+                </a>
+                <button
+                  class="opacity-0 group-hover/file:opacity-100 ml-0.5 hover:text-error transition-all"
+                  @click.stop="$emit('add-file', file)"
+                  title="Add to chat"
+                >
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+                <button
+                  class="opacity-0 group-hover/file:opacity-100 hover:text-error transition-all"
+                  @click.stop="$emit('remove-file', file)"
+                >
+                  <i class="fa-regular fa-circle-xmark text-[10px]"></i>
+                </button>
               </div>
             </div>
           </div>
+
+          <!-- Images -->
+          <ChatAttachmentPreview
+            v-if="displayMessage.attachments?.length"
+            :attachments="displayMessage.attachments"
+          />
+        </div>
+
+        <!-- ── Seen timeout progress bar ── -->
+        <div
+          ref="seenProgressBar"
+          class="mt-2 transition-opacity duration-200 min-h-2 bg-base-200"
+          :class="isFocused && !isMessageSeen ? 'opacity-100' : 'opacity-0'"
+          tabindex="0"
+          @focus="onMessageFocus"
+          @blur="onMessageBlur"
+        >
+          <div class="flex gap-2 items-center h-full"
+            v-if="!isMyMessage && isDone"
+            :class="isFocused && !isMessageSeen ? 'opacity-100' : 'opacity-0'"
+          >
+            <progress
+              class="progress progress-xs flex-1 bg-success/20"
+              :value="seenProgressValue"
+              max="100"
+            ></progress>
+            <i class="fa-solid fa-check-double text-sm text-success"></i>
+          </div>
+        </div>
+
+        <!-- ── Collapsed toggle (for archived messages) ── -->
+        <div
+          v-if="isCollapsed && displayMessage.hide"
+          class="mt-1 text-[11px] text-base-content/30 cursor-pointer hover:text-base-content/60 transition-colors"
+          @click="collapsed = false"
+        >
+          <i class="fa-solid fa-chevron-down mr-1"></i>Show archived content
         </div>
       </div>
     </div>
   </div>
+
+  <!-- ── Events/Tools Drawer ── -->
+  <ChatEntryDrawer
+    :isOpen="eventsOpen"
+    :lifecycleEvents="message?.lifecycle_events || []"
+    :toolEvents="message?.tool_events || []"
+    :metadata="message?.meta_data"
+    @close="eventsOpen = false"
+  />
 </template>
 
 <script>
 export default {
-  props: ['chat', 'message', 'isTopic', 'mentionList', 'menu-less'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker'],
+  emits: [
+    'generate-code',
+    'reload-file',
+    'open-file',
+    'save-file',
+    'add-file',
+    'sub-task',
+    'thread',
+    'hide',
+    'remove',
+    'answer',
+    'enhance',
+    'copy',
+    'add-file-to-chat',
+    'remove-file',
+    'image',
+    'run-agents',
+    'edit-message',
+    'search-files',
+    'edited',
+    'run-edit',
+    'code-file-shown',
+    'message-changed',
+    'show-events',
+    'preview-file'
+  ],
   data() {
     return {
       srcView: false,
       isRemove: false,
       improvementData: null,
       showDiff: false,
-      editting: false
+      showPRView: false,
+      showFileView: false,
+      showAttachments: false,
+      documentId: 'doc-' + Math.random().toString(36).slice(2, 8),
+      activeBranch: null,
+      branchLoading: false,
+      showSelectionMenu: false,
+      selectedText: '',
+      selectionPosition: { top: 0, left: 0 },
+      collapsed: false,
+      eventsOpen: false,
+      hasSeen: false,
+      unseenToggling: false,
+      isFocused: false,
+      seenProgressValue: 0,
+      seenDuration: 2500,
+      progressInterval: null,
+      intersectionObserver: null
     }
   },
+  created() {
+    this.loadThreadChat()
+    this.loadActiveBranch()
+    this.collapsed = this.displayMessage.hide
+  },
   computed: {
+    isDone() {
+      return this.displayMessage.done
+    },
+    isWord() {
+      return this.chat?.mode === 'word'
+    },
+    isTopic() {
+      return this.chat?.mode === 'topic'
+    },
+    isSlackStyle() {
+      return this.chat?.mode === 'topic'
+    },
     isCollapsed() {
-      return this.message.collapsed !== undefined ?
-          this.message.collapsed :
-          this.message.is_answer ? true: false
+      return this.collapsed !== undefined
+        ? this.collapsed
+        : this.displayMessage.hide ? true : false
     },
     isMyMessage() {
-      return this.message.user === this.$user.username
+      return this.displayMessage.user === this.$user.username
     },
     isChannelMessage() {
       return this.chat.mode === 'channel'
     },
+    isAssistant() {
+      return this.message.role === 'assistant'
+    },
     canEditMessage() {
       return !this.isChannelMessage ||
         this.isMyMessage ||
-        this.message.role === 'assistant'
+        this.isAssistant
     },
-    thinkText () {
-      const { full_think, is_thinking, think } = this.message 
-      return (full_think || is_thinking) 
-        ? think : `${think.slice(0, 50)}...`
+    thinkText() {
+      return this.displayMessage.think
+    },
+    displayMessage() {
+      const message = this.threadChat?.messages
+          .filter(m => !m.hide)
+          .reverse()[0] || this.message
+      return message
     },
     messageProfiles() {
-      let profiles = this.$projects.profiles?.filter(p => this.message.profiles?.includes(p.name)) || []
-      const user = this.$project.users.find(({ username }) => username === this.message.user)
+      let profiles = this.$projects.profiles
+        ?.filter(p => this.displayMessage.profiles?.includes(p.name)) || []
+      const user = this.$project.users
+        .find(({ username }) => username === this.displayMessage.user)
       return [user, ...profiles].filter(u => !!u)
-    },
-    html() {
-      if (!this.showDoc) {
-        try {
-          return this.md.render(this.message.content)
-        } catch (ex) {
-          console.error("Message can't be rendered", this.message)
-        }
-      }
-      return this.showDocPreview
-    },
-    showDocPreview() {
-      return this.md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
     },
     images() {
       return this.message?.images?.map(i => {
@@ -268,25 +685,25 @@ export default {
       })
     },
     messageContent() {
-      const { content } = this.message
-      return content
+      return this.displayMessage.content
     },
-    selection () {
-      return document.getSelection().toString()
-    },
-    code_changes () {
+    code_changes() {
       return this.improvementData?.code_changes
     },
-    code_patches () {
+    code_patches() {
       return this.improvementData?.code_patches
     },
-    timeTaken () {
-      if (!this.message.meta_data?.time_taken) {
-        return null
+    timeTaken() {
+      if (!this.displayMessage.meta_data) return null
+      let timeTaken = '--'
+      if (this.displayMessage.meta_data?.time_taken) {
+        const seconds = Math.floor(this.displayMessage.meta_data.time_taken)
+        const baseMoment = moment({ h: 0, m: 0, s: 0, ms: 0 })
+        timeTaken = baseMoment.add(seconds, 'seconds').format('mm:ss')
+      } else if (this.displayMessage.meta_data?.start_time) {
+        timeTaken = moment(this.displayMessage.meta_data?.start_time).fromNow()
       }
-      const seconds = Math.floor(this.message.meta_data.time_taken)
-      const baseMoment = moment({h:0, m:0, s:0, ms:0})
-      return `${this.message.meta_data.model} ${baseMoment.add(seconds, 'seconds').format("mm:ss")}`
+      return timeTaken ? `${this.displayMessage.meta_data.model} ${timeTaken}` : null
     },
     chatProject() {
       if (this.chat.project_id) {
@@ -294,30 +711,88 @@ export default {
       }
       return this.$project
     },
-    messageContentProjectFiles() {
-      return this.messageContent.split(" ")
-              .filter(word => word.startsWith(this.$project.project_path))
-    },
-    allFiles() {
-      return [...new Set([...this.message.files, ...this.messageContentProjectFiles])]
-    },
     chatFiles() {
       return this.chat.file_list
+    },
+    threadChat() {
+      return this.$projects.allChats.find(c => c.message_id === this.message.doc_id)
+    },
+    cancellationTokenId() {
+      return this.displayMessage.meta_data?.cancellation_token_id
+    },
+    cancellationTime() {
+      return this.displayMessage.meta_data?.cancelled_at
+    },
+    hasPRViewBlocks() {
+      return this.$service.chat.hasCodeBlocksWithFilePaths(this.displayMessage)
+    },
+    hasCodeBlocksOrFiles() {
+      return this.prViewCodeBlocks.length > 0 || this.displayMessage.files?.length > 0
+    },
+    prViewCodeBlocks() {
+      return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
+    },
+    toolEventCount() {
+      const toolEvents = this.message?.tool_events
+      if (Array.isArray(toolEvents)) {
+        return toolEvents.length
+      }
+      return this.message?.tool_event ? 1 : 0
+    },
+    lifecycleEventCount() {
+      const lifecycleEvents = this.message?.lifecycle_events
+      if (Array.isArray(lifecycleEvents)) {
+        return lifecycleEvents.length
+      }
+      return this.message?.lifecycle_event ? 1 : 0
+    },
+    hasEvents() {
+      return this.toolEventCount > 0
+    },
+    attachmentCount() {
+      return this.message?.attachments?.length || 0
+    },
+    hasAttachments() {
+      return this.attachmentCount > 0
+    },
+    eventCount() {
+      return this.toolEventCount + this.attachmentCount
+    },
+    isMessageSeen() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return false
+      return (this.message.read_by || []).includes(currentUsername)
+    }
+  },
+  watch: {
+    message() {
+      this.loadThreadChat()
+      this.resetSeenTracking()
+    },
+    'message.content': function() {
+      this.extractImprovementData()
+    },
+    isDone() {
+      if (this.isDone && !this.isMyMessage && this.isFocused && !this.isMessageSeen) {
+        this.startSeenTracking()
+      } else if (!this.isDone) {
+        this.stopProgressTracking()
+      }
     }
   },
   methods: {
     formatDate(date) {
-      return moment(date).format('DD/MMM HH:mm:ss')
+      return moment(date).format('DD/MMM HH:mm')
     },
     extractImprovementData() {
       this.improvementData = null
-      if (this.message.content?.startsWith("```json")) {
+      if (this.displayMessage.content?.startsWith('```json')) {
         try {
-          const lines = this.message.content.split("\n")
-          const jsBlock = lines.slice(1, lines.length-1).join("\n")
+          const lines = this.displayMessage.content.split('\n')
+          const jsBlock = lines.slice(1, lines.length - 1).join('\n')
           this.improvementData = JSON.parse(jsBlock)
         } catch (ex) {
-          console.error("Failed to parse improvement data", ex)
+          console.error('Failed to parse improvement data', ex)
         }
       }
     },
@@ -331,23 +806,93 @@ export default {
         ev.preventDefault()
       }
     },
-    toggleCollapse() {
-      if (this.message.collapsed !== undefined) {
-        this.message.collapsed = !this.message.collapsed 
-      } else {
-        this.message.collapsed = !this.isCollapsed
+    getSelectionPosition() {
+      const selection = window.getSelection()
+      if (selection.rangeCount === 0) return { top: 0, left: 0 }
+      const range = selection.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      return {
+        top: Math.max(10, rect.top + window.scrollY - 60),
+        left: rect.left
       }
     },
+    onContentMouseUp() {
+      function getSelectedHTML() {
+        const selection = window.getSelection()
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          const clonedContent = range.cloneContents()
+          const div = document.createElement('div')
+          div.appendChild(clonedContent)
+          return div.innerHTML
+        }
+        return ""
+      }
+
+      const selectedText = getSelectedHTML()
+      if (selectedText.length > 0) {
+        this.selectedText = selectedText
+        this.showSelectionMenu = true
+      } else {
+        this.showSelectionMenu = false
+      }
+    },
+    onSelectionCopy(text) {
+      this.copyTextToClipboard(text)
+    },
+    onSelectionCreateSubtask(content) {
+      this.$emit('sub-task', { content })
+    },
+    onSelectionSearchFiles({ query }) {
+      this.$emit('search-files', { query, fromSelection: true })
+    },
+    onCloseSelectionMenu() {
+      this.showSelectionMenu = false
+    },
     toggleSrcView() {
-      if (this.srcView = !this.srcView) {
+      this.srcView = !this.srcView
+      if (this.srcView) {
         this.showDiff = false
-        this.collapsed = false
+        this.showPRView = false
+        this.showFileView = false
+        this.showAttachments = false
       }
     },
     toggleShowDiff() {
-      if (this.showDiff = !this.showDiff) {
+      this.showDiff = !this.showDiff
+      if (this.showDiff) {
         this.srcView = false
-        this.collapsed = false
+        this.showPRView = false
+        this.showFileView = false
+        this.showAttachments = false
+      }
+    },
+    toggleFileView() {
+      this.showFileView = !this.showFileView
+      if (this.showFileView) {
+        this.srcView = false
+        this.showDiff = false
+        this.showPRView = false
+        this.showAttachments = false
+      }
+    },
+    togglePRView() {
+      this.showPRView = !this.showPRView
+      if (this.showPRView) {
+        this.srcView = false
+        this.showDiff = false
+        this.showFileView = false
+        this.showAttachments = false
+        this.loadActiveBranch()
+      }
+    },
+    toggleAttachmentsView() {
+      this.showAttachments = !this.showAttachments
+      if (this.showAttachments) {
+        this.srcView = false
+        this.showDiff = false
+        this.showFileView = false
+        this.showPRView = false
       }
     },
     onRemove() {
@@ -361,22 +906,20 @@ export default {
       this.isRemove = true
       this.$emit('remove')
     },
-    cancelRemove() {
-      this.isRemove = false
-    },
     copyMessageToClipboard() {
-      this.copyTextToClipboard(this.message.content)
+      this.copyTextToClipboard(this.displayMessage.content)
     },
     async applyPatch(patch) {
-      patch.working = true 
+      patch.working = true
       try {
         const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
-        await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
-        patch.res = {
-          info: "Patch sent, please check events for updates"
-        }
+        await this.$projects.codeImprovePatch({
+          chat: this.chat,
+          code_generator: { code_changes, code_patches: [patch] }
+        })
+        patch.res = { info: 'Patch sent' }
       } catch {
-        patch.res = { info: "", error: "Error aplaying patch" }
+        patch.res = { error: 'Error applying patch' }
       }
       delete patch.working
     },
@@ -384,23 +927,227 @@ export default {
       this.$emit('generate-code', codeBlockInfo)
     },
     openFile(file) {
-      this.$ui.openFile(file)
+      this.$emit('preview-file', file)
     },
-    saveEditting() {
-      this.message.content = this.editting
-      this.editting = null
-      this.$emit('edited', this.message)
+    openThread() {
+      this.$chats.setActiveChat(this.threadChat)
     },
-    cancelEditting() {
-      this.editting = null
+    loadThreadChat() {
+      if (this.threadChat) {
+        this.$chats.reloadChat(this.threadChat)
+      }
     },
-    onEditMessage() {
-      this.editting = this.message.content
+    runAgents() {
+      this.$emit('run-agents', this.message)
+    },
+    async cancelMessage() {
+      const tokenId = this.cancellationTokenId
+      if (!tokenId) return
+      try {
+        await this.$storex.api.chats.cancelMessage(tokenId)
+      } catch (ex) {
+        console.error('Failed to cancel message', ex)
+      }
+    },
+    async loadActiveBranch() {
+      if (this.branchLoading) return
+      this.branchLoading = true
+      try {
+        const repoInfo = await this.chatProject.$api.repo.info()
+        this.activeBranch = repoInfo?.active_branch
+      } catch (ex) {
+        console.error('Failed to load active branch', ex)
+        this.activeBranch = null
+      } finally {
+        this.branchLoading = false
+      }
+    },
+    copyChapterMarkdown(chapter, fullContent) {
+      this.copyTextToClipboard(fullContent)
+    },
+    createTaskFromChapter(chapter, fullContent) {
+      this.$emit('sub-task', { content: fullContent, title: chapter.title })
+    },
+    onCopyChapter(chapterData) {
+      this.copyTextToClipboard(chapterData.content)
+    },
+    onCreateTask(taskData) {
+      this.$emit('sub-task', { content: taskData.content, title: taskData.title })
+    },
+    toggleEventsPanel() {
+      this.eventsOpen = !this.eventsOpen
+      if (this.eventsOpen) {
+        this.$emit('show-events', {
+          toolEvents: this.message?.tool_events || [],
+          lifecycleEvents: this.message?.lifecycle_events || [],
+          attachments: this.message?.attachments || [],
+          metadata: this.message?.meta_data,
+          toolCount: this.toolEventCount,
+          lifecycleCount: this.lifecycleEventCount,
+          attachmentCount: this.attachmentCount,
+          totalEvents: this.toolEventCount + this.lifecycleEventCount + this.attachmentCount
+        })
+      }
+    },
+    onBlockEdited(data) {
+      const { blockHash, originalContent, newContent, block } = data
+      const updatedContent = this.replaceBlockInContent(
+        this.displayMessage.content,
+        originalContent,
+        newContent
+      )
+
+      this.$emit('edited', {
+        ...this.message,
+        content: updatedContent
+      })
+    },
+    replaceBlockInContent(fullContent, originalBlock, newBlock) {
+      return fullContent.replace(originalBlock, newBlock)
+    },
+    setupIntersectionObserver() {
+      if (!this.$refs.seenProgressBar || this.intersectionObserver) return
+
+      const options = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.5
+      }
+
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            this.onMessageFocus()
+          } else {
+            this.onMessageBlur()
+          }
+        })
+      }, options)
+
+      this.intersectionObserver.observe(this.$refs.seenProgressBar)
+    },
+    onMessageFocus() {
+      if (!this.isMyMessage && this.isDone) {
+        this.isFocused = true
+        if (this.isDone && !this.isMyMessage && !this.isMessageSeen) {
+          this.startSeenTracking()
+        }
+      }
+    },
+    onMessageBlur() {
+      if (!this.isMyMessage && this.isDone) {
+        this.isFocused = false
+        this.stopProgressTracking()
+      }
+    },
+    startSeenTracking() {
+      if (this.hasSeen || this.isMessageSeen || !this.isDone) return
+      this.seenProgressValue = 0
+      
+      const startTime = Date.now()
+      
+      this.progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime
+        this.seenProgressValue = (elapsed / this.seenDuration) * 100
+        
+        if (elapsed >= this.seenDuration) {
+          this.stopProgressTracking()
+          this.submitMessageSeen()
+        }
+      }, 30)
+    },
+    stopProgressTracking() {
+      if (this.progressInterval) {
+        clearInterval(this.progressInterval)
+        this.progressInterval = null
+      }
+      this.seenProgressValue = 0
+    },
+    async submitMessageSeen() {
+      try {
+        const currentUsername = this.$user?.username
+        if (!currentUsername) return
+        
+        const chatId = this.chat?.doc_id || this.chat?.id
+        const messageId = this.message?.doc_id || this.message?.id
+        
+        if (!chatId || !messageId) {
+          console.error('Missing chat_id or message_id', { chatId, messageId })
+          return
+        }
+        
+        const readByList = this.message.read_by || []
+        if (readByList.includes(currentUsername)) {
+          this.hasSeen = true
+          return
+        }
+        
+        await this.$storex.api.chats.markMessageAsSeen({
+          chat_id: chatId,
+          message_id: messageId,
+          username: currentUsername
+        })
+        this.hasSeen = true
+        this.message.read_by = [...(this.message.read_by || []), currentUsername]
+      } catch (ex) {
+        console.error('Failed to mark message as seen', ex)
+      }
+    },
+    resetSeenTracking() {
+      this.hasSeen = false
+      this.isFocused = false
+      this.stopProgressTracking()
+    },
+    async toggleUnseenStatus() {
+      if (this.unseenToggling) return
+      this.unseenToggling = true
+      
+      try {
+        const chatId = this.chat?.doc_id || this.chat?.id
+        const messageId = this.message?.doc_id || this.message?.id
+        const currentUsername = this.$user?.username
+        
+        if (!chatId || !messageId || !currentUsername) {
+          console.error('Missing required IDs', { chatId, messageId, currentUsername })
+          return
+        }
+        
+        if (this.isMessageSeen) {
+          await this.$storex.api.chats.unmarkMessageAsSeen({
+            chat_id: chatId,
+            message_id: messageId,
+            username: currentUsername
+          })
+          this.message.read_by = this.message.read_by.filter(u => u !== currentUsername)
+          this.hasSeen = false
+          this.stopProgressTracking()
+        } else {
+          await this.$storex.api.chats.markMessageAsSeen({
+            chat_id: chatId,
+            message_id: messageId,
+            username: currentUsername
+          })
+          this.message.read_by = [...(this.message.read_by || []), currentUsername]
+          this.hasSeen = true
+        }
+      } catch (ex) {
+        console.error('Failed to toggle message seen status', ex)
+      } finally {
+        this.unseenToggling = false
+      }
     }
   },
   mounted() {
-    this.collapsed = this.isCollapsed || this.message.hide
+    this.collapsed = this.isCollapsed || this.displayMessage.hide
     this.extractImprovementData()
+    this.resetSeenTracking()
+    this.setupIntersectionObserver()
+  },
+  beforeUnmount() {
+    this.stopProgressTracking()
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect()
+    }
   }
 }
 </script>

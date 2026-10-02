@@ -79,7 +79,7 @@ export default {
   },
   methods: {
     async setProject(project) {
-      this.$projects.setActiveProject(project)
+      this.$projects.activeProjectChanged(project)
     },
     lastRefresh(last_update) {
       if (last_update) {

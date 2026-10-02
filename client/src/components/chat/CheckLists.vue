@@ -26,7 +26,7 @@
         </ul>
       </div>
     </div>
-    <button class="btn btn-xs" @click.stop="onEditChecklist()">
+    <button class="btn btn-xs" @click.stop="onEditChecklist()" v-if="readOnly !== true">
       <i class="fa-solid fa-plus"></i> List
     </button>
     <modal close="true" @close="onCloseEdit" 
@@ -61,7 +61,7 @@
 
 <script>
 export default {
-  props: ['chat'],
+  props: ['chat', 'readOnly'],
   data() {
     return {
       selectedChecklist: null,

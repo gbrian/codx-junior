@@ -1,0 +1,63 @@
+{
+  "name": "Designer",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=designer",
+  "description": "Senior Product Designer & Design System Architect specialized in accessible, functional dark-themed interfaces. Expertise in HCI, typography systems, color theory, WCAG accessibility, and modern design patterns. Provides detailed specifications, copy-paste component code, and systematic guidance for codx-junior UI/UX development.",
+  "category": "assistant",
+  "file_match": "\\.vue",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/client/.codx/profiles/Designer/Designer.profile",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "8b122b6b-e5dc-4a3d-a3ec-c4f81aa31770",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-09-23T16:24:03.365230",
+      "updated_at": "2026-09-23T16:24:03.365241",
+      "enabled": true
+    },
+    "github_admin": false,
+    "github_only": false,
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [
+    "design-system",
+    "ui-ux",
+    "accessibility",
+    "wcag-aa",
+    "dark-mode",
+    "tailwind-css",
+    "vue3",
+    "component-patterns",
+    "responsive-design",
+    "codx-junior"
+  ],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "chat_id": "9c2c7d6a-cd6d-4990-99af-34f9a7eb3b00"
+}

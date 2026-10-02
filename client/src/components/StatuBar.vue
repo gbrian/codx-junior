@@ -1,36 +1,47 @@
 <script setup>
-import moment from 'moment';
+import EventBar from './EventBar.vue'
+import UserInfo from '@/components/UserInfo.vue'
 </script>
 <template>
-    <div class="relative h-6 bg-white/10">
-      <div class="absolute top-0 right-0 h-full flex justify-end" v-if="$session.apiCalls">
-        <div class="w-60 px-1 bg-gradient-to-r from-transparent to-codx-secondary/70 animate-pulse text-right">
-        </div> 
+  <div class="relative flex p-1 bg-base-100 items-center gap-2">
+    <div class="grow"></div>
+    <EventBar />
+    
+    <!-- User Status Section -->
+    <div class="flex items-center gap-2 border-l border-base-content/10 pl-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-7 h-7 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-bold shrink-0">
+          {{ userInitial }}
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="text-xs font-semibold truncate">{{ $users.user?.username }}</div>
+          <div class="text-xs text-success flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>
+            Online
+          </div>
+        </div>
       </div>
-      <div class="flex gap-1 text-xs items-center h-full text-nowrap max-w-96 overflow-hidden text-ellipsis tooltip"
-        :data-tip="lastEvent" :title="lastEvent"
-        v-if="lastEvent"
-      >
-        <span class="text-info"><i class="fa-solid fa-circle-info"></i></span>
-        {{  lastEvent }}
-      </div>
+      <UserInfo>
+        <template #trigger="{ togglePanel, dailyLimitStatus }">
+          <button
+            class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
+            @click="togglePanel"
+            :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+          >
+            <i class="fa-solid fa-circle-info"></i>
+          </button>
+        </template>
+      </UserInfo>
     </div>
+  </div>
 </template>
+
 <script>
 export default {
-
+  name: 'StatuBar',
   computed: {
-    lastEvent() {
-      const { lastEvent } = this.$storex.session
-      if (lastEvent) {
-        const messageType = lastEvent.data?.event_type || lastEvent.data?.type || lastEvent.type || ""
-        let message = lastEvent.data?.message?.content || lastEvent.data?.text || ""
-        if (messageType === 'loaded') {
-          message = lastEvent.file_path
-        }
-        return `[${moment(lastEvent.ts).format('HH:mm:ss')}] ${messageType} ${message}`
-      }
-      return null
+    userInitial() {
+      return this.$users.user?.username?.[0]?.toUpperCase() || '?'
     }
   }
 }

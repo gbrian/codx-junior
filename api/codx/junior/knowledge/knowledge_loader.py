@@ -1,32 +1,30 @@
-
 import logging
 import os
 import time
 import subprocess
 import pathlib
 from datetime import datetime
+from typing import Optional, Dict, List
 
-from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
-
-
+from codx.junior.engine.progress_callback import ProgressCallback, ProgressEventType
 from codx.junior.utils.utils import (
-  exec_command,
-  calculate_md5
+    exec_command,
+    calculate_md5
 )
 
 logger = logging.getLogger(__name__)
 
 
 class KnowledgeLoader:
-    def __init__(self, settings: CODXJuniorSettings):
-        self.path = settings.project_path
+    def __init__(self, settings: CODXJuniorSettings, callback: Optional[ProgressCallback] = None):
+        self.path = settings.abs_project_path
         self.settings = settings
+        self.callback = callback
 
     def should_index_doc(self, file_path, last_update, current_sources):
         if not last_update:
@@ -54,34 +52,126 @@ class KnowledgeLoader:
         logger.info("File last update check last_update: %s - last_doc_update: %s", last_update, last_doc_update)
         
         if not last_update or last_doc_update > last_update:
-          return True
+            return True
 
         return False
 
     def is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
         if not os.path.isfile(file):
+            logger.error(f"File '{file}' is not a valid file (not found or not a regular file).")
             return False
 
-        if path:
-            if not (path in file):
-                return False
+        if path and (path not in file):
+            logger.error(f"File '{file}' does not match the specified path '{path}'.")
+            return False
+
         file_errors = [err for err in knowledge_file_ignore if err in file]
         if file_errors:
+            logger.error(f"File '{file}' is ignored due to matching ignore patterns: {file_errors}.")
             return False
+
         last_update = None
         if current_sources_and_updates and file in current_sources_and_updates:
             last_update = current_sources_and_updates[file]["metadata"]["last_update"]
             last_update = datetime.fromisoformat(last_update)
-            
+
         if not self.should_index_doc(file_path=file, last_update=last_update, current_sources=current_sources):
+            logger.error(f"File '{file}' should not be indexed based on existing criteria (size, time, or content).")
             return False
-    
+
         return True
+
+    async def load_with_progress(
+        self,
+        path: Optional[str] = None,
+        last_update: Optional[float] = None,
+        current_sources: Optional[Dict] = None,
+        ignore_paths: Optional[List[str]] = None,
+        current_sources_and_updates: Optional[Dict] = None,
+    ) -> List:
+        """
+        Load documents from filesystem with progress callback support.
+        
+        Args:
+            path: Specific path to load (optional).
+            last_update: Only load files modified after this timestamp.
+            current_sources: Currently indexed sources.
+            ignore_paths: Paths to ignore.
+            current_sources_and_updates: Sources with update metadata.
+            
+        Yields progress events via callback if provided.
+        
+        Returns:
+            List of loaded documents.
+        """
+        documents = []
+        code_splitter = KnowledgeCodeSplitter(settings=self.settings)
+        
+        files_to_load = self.list_repository_files(
+            current_sources_and_updates=current_sources_and_updates,
+            path=path,
+            current_sources=current_sources,
+            ignore_paths=ignore_paths or [],
+        )
+        
+        if self.callback:
+            await self.callback.on_progress(
+                ProgressEventType.STARTED,
+                {
+                    "total_files": len(files_to_load),
+                    "path": path,
+                    "incremental": last_update is not None,
+                }
+            )
+        
+        for idx, file_path in enumerate(files_to_load):
+            try:
+                # Load the file
+                new_docs = code_splitter.load(file_path)
+                if not new_docs:
+                    logger.error(f"No documents generated for: {file_path}")
+                    continue
+                
+                documents.extend(new_docs)
+                
+                if self.callback:
+                    await self.callback.on_progress(
+                        ProgressEventType.DOCUMENT_PROCESSING,
+                        {
+                            "file_index": idx + 1,
+                            "total_files": len(files_to_load),
+                            "source": file_path,
+                            "documents_count": len(new_docs),
+                        }
+                    )
+            except Exception as ex:
+                if self.callback:
+                    await self.callback.on_error(ex, {"source": file_path})
+                else:
+                    logger.exception(f"Error loading {file_path}")
+        
+        # Filter out documents with empty content
+        good_docs = [doc for doc in documents if doc.page_content]
+        bad_docs = [doc for doc in documents if not doc.page_content]
+        
+        if bad_docs:
+            logger.debug(f"Loaded {len(documents)} documents from {len(files_to_load)} files. OK: {len(good_docs)} ERROR: {len(bad_docs)}")
+        
+        if self.callback:
+            await self.callback.on_progress(
+                ProgressEventType.BATCH_COMPLETE,
+                {
+                    "documents_loaded": len(good_docs),
+                    "files_processed": len(files_to_load),
+                    "invalid_documents": len(bad_docs),
+                }
+            )
+        
+        return good_docs
 
     def load(self, current_sources_and_updates: datetime = None, path: str = None, current_sources=None, ignore_paths=[]):
         documents = []
         code_splitter = KnowledgeCodeSplitter(settings=self.settings)
-        #code_splitter = KnowledgeCodeToDocuments(settings=self.settings)
         files = self.list_repository_files(
             path=path,
             current_sources_and_updates=current_sources_and_updates,
@@ -147,9 +237,7 @@ class KnowledgeLoader:
                 full_file_paths = [path]
             else:  
                 full_file_paths = [str(file_path) for file_path in pathlib.Path(path).rglob("*")]
-            logging.info(f"Indexing {full_file_paths}")
         else:
-            
             # filter if we are in a sub-path
             full_file_paths = self.get_git_files()
                         
@@ -161,12 +249,18 @@ class KnowledgeLoader:
         knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
         knowledge_file_ignore = ignore_paths + [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
         # logger.info(f"knowledge ignore files {knowledge_file_ignore}")
-        changed_file_paths = [file for file in full_file_paths \
-                            if self.is_valid_file(file,
+        def check_if_file_is_valid(file_path: str):
+            is_valid = self.is_valid_file(file_path,
                                 current_sources_and_updates=current_sources_and_updates,
                                 path=path,
                                 current_sources=current_sources,
-                                knowledge_file_ignore=knowledge_file_ignore) ]
+                                knowledge_file_ignore=knowledge_file_ignore)
+            if not is_valid:
+                logger.error("File '%s' is not valid for indexing.", file_path)
+            return is_valid
+
+        changed_file_paths = [file for file in full_file_paths \
+                            if  check_if_file_is_valid(file_path=file)]
         
         return changed_file_paths
 
@@ -180,4 +274,3 @@ class KnowledgeLoader:
             fix = [err for err in error.split("\n") if "git config" in err][0]
             logging.info(f"Fixing git error {fix}")
             self.run_git_command(fix.strip().split(" "))
-

@@ -1,0 +1,211 @@
+{
+  "name": "TASK: New project",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "desktop": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "file-explorer-1784652903146",
+                "tasks-1784190689314"
+              ],
+              "activeView": "file-explorer-1784652903146",
+              "id": "1"
+            },
+            "size": 695
+          },
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "-1784188751604",
+                "workspaces-1783785500036",
+                "kanban store-1784192738605",
+                "-1784285710967",
+                "FileExplorer.vue-1784652962013"
+              ],
+              "activeView": "FileExplorer.vue-1784652962013",
+              "id": "2"
+            },
+            "size": 1309.3125
+          }
+        ],
+        "size": 1125.5
+      },
+      "width": 2004.3125,
+      "height": 1125.5,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "file-explorer-1784652903146": {
+        "id": "file-explorer-1784652903146",
+        "contentComponent": "file-explorer",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "name": "file-explorer",
+            "component": "file-explorer",
+            "tabId": "file-explorer-1784652903146",
+            "params": {},
+            "openedAt": 1784652903146
+          },
+          "tabName": "file-explorer"
+        },
+        "title": "file-explorer",
+        "renderer": "always"
+      },
+      "tasks-1784190689314": {
+        "id": "tasks-1784190689314",
+        "contentComponent": "tasks",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "name": "tasks",
+            "component": "tasks",
+            "tabId": "tasks-1784190689314",
+            "params": {},
+            "openedAt": 1784652895448
+          },
+          "tabName": "tasks"
+        },
+        "title": "tasks",
+        "renderer": "always"
+      },
+      "-1784188751604": {
+        "id": "-1784188751604",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "9645277e-ae29-4299-9729-38d64f7c24a8",
+            "name": "",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "9645277e-ae29-4299-9729-38d64f7c24a8",
+                "name": "",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "-1784188751604",
+            "openedAt": 1784188751604
+          },
+          "tabName": ""
+        },
+        "title": "",
+        "renderer": "always"
+      },
+      "workspaces-1783785500036": {
+        "id": "workspaces-1783785500036",
+        "contentComponent": "workspaces",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "key": "workspaces",
+            "name": "Workspaces",
+            "component": "workspaces",
+            "params": {},
+            "tabId": "workspaces-1783785500036",
+            "openedAt": 1784652895518
+          },
+          "tabName": "Workspaces"
+        },
+        "title": "Workspaces",
+        "renderer": "always"
+      },
+      "kanban store-1784192738605": {
+        "id": "kanban store-1784192738605",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "c018f594-7abe-4e91-ad8e-ee612f7d738c",
+            "name": "kanban store",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "kanban store",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "c018f594-7abe-4e91-ad8e-ee612f7d738c",
+                "name": "kanban store",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "kanban store-1784192738605",
+            "openedAt": 1784192738605
+          },
+          "tabName": "kanban store"
+        },
+        "title": "kanban store",
+        "renderer": "always"
+      },
+      "-1784285710967": {
+        "id": "-1784285710967",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "4c05d7fe-d066-44e8-b2e6-dd71ff85e494",
+            "name": "",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "4c05d7fe-d066-44e8-b2e6-dd71ff85e494",
+                "name": "",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "-1784285710967",
+            "openedAt": 1784285710967
+          },
+          "tabName": ""
+        },
+        "title": "",
+        "renderer": "always"
+      },
+      "FileExplorer.vue-1784652962013": {
+        "id": "FileExplorer.vue-1784652962013",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "27ee3cb5-12c2-4662-80b4-34d921655079",
+            "name": "FileExplorer.vue",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "FileExplorer.vue",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "27ee3cb5-12c2-4662-80b4-34d921655079",
+                "name": "FileExplorer.vue",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "FileExplorer.vue-1784652962013",
+            "openedAt": 1784652962013
+          },
+          "tabName": "FileExplorer.vue"
+        },
+        "title": "FileExplorer.vue",
+        "renderer": "always"
+      }
+    },
+    "activeGroup": "2"
+  }
+}

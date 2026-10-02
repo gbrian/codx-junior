@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: claude-instance
+    image: claude:latest
+    stdin_open: true
+    tty: true
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./workspace:/app/workspace
+      - claude-cache:/home/claude/.cache
+    environment:
+      - CLAUDE_HOME=/app
+    networks:
+      - claude-network
+    restart: unless-stopped
+
+volumes:
+  claude-cache:
+
+networks:
+  claude-network:
+    driver: bridge

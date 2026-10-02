@@ -1,0 +1,39 @@
+{
+  "plugin_id": "az-devops-pull-requests",
+  "name": "AZ Pull Request",
+  "description": "Load Pull Requests from url",
+  "module_path": "plugins.azuredevops.plugin",
+  "method": "get_pull_request_comments",
+  "arguments": [
+    {
+      "name": "personal_access_token",
+      "description": "AZ Personal token",
+      "default_value": "{{ get_env('AZ_PERSONAL_ACCESS_TOKEN') }}"
+    },
+    {
+      "name": "organization_url",
+      "description": "AZ Organization url",
+      "default_value": "{{ get_env('AZ_ORGANIZATION_URL') }}"
+    },
+    {
+      "name": "project_path",
+      "description": "AZ Personal token",
+      "default_value": "{{ project_settings.project_path }}"
+    },
+    {
+      "name": "pr_url",
+      "description": "Pull request url",
+      "default_value": ""
+    }
+  ],
+  "roles": [
+    "admin",
+    "user"
+  ],
+  "extends": [
+    "profile",
+    "task",
+    "prview",
+    "chat"
+  ]
+}

@@ -1,5 +1,4 @@
 <script setup>
-import { API } from '../../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
 </script>
 
@@ -14,8 +13,8 @@ import MarkdownVue from '@/components/Markdown.vue'
         </label>
       </div>
       <div class="flex gap-2 items-center">
-        <label class="input input-sm input-bordered flex items-center gap-2 grow">
-          <input type="text" class="flex-grow" placeholder="Search in knowledge" @keypress.enter="onKnowledgeSearch"
+        <label class="input input-sm input-bordered flex items-center gap-2 flex">
+          <input type="text" class="grow" placeholder="Search in knowledge" @keypress.enter="onKnowledgeSearch"
             :disabled="searching"
             v-model="searchTerm" />
           <i :class="searching && 'animate-pulse'" class="fa-solid fa-magnifying-glass click" @click="onKnowledgeSearch"></i>

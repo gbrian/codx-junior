@@ -4,19 +4,18 @@ import json
 import logging
 import datetime
 import yaml
+import re
 
 from pathlib import Path
 
 from slugify import slugify
 from enum import Enum
-from typing import List, Dict, Tuple, Any, Optional, Any
+from typing import List, Dict, Tuple, Any, Optional
 
 from pydantic import BaseModel, Field
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from slugify import slugify
-from pydantic import BaseModel
 from aiofiles import open as aio_open
 
 from codx.junior.settings import CODXJuniorSettings
@@ -37,10 +36,13 @@ from ..events.event_manager import EventManager
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
+from codx.junior.knowledge.knowledge_graph import DependencyGraph
+from codx.junior.wiki.wiki_domains import WikiDomains
+from codx.junior.wiki.wiki_index import WikiIndex
 
 from codx.junior.utils.utils import write_file
 
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 from codx.junior.model.model import CodxUser
 
@@ -51,6 +53,9 @@ WIKI_FILE_PATH_TEMPLATE = "/{slug}.md"
 HOME_PAGE_UPDATE_EVENT = "Build home page"
 WIKI_TREE_FILE_NAME = 'wiki_tree.json'
 MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
+INVALID_FILENAME_CHARS = re.compile(r'[\[\]<>:"|?*\x00-\x1f]')
+MAX_FILENAME_LENGTH = 200
+
 
 class WikiCategory(BaseModel):
     """Defines a wiki category"""
@@ -62,6 +67,7 @@ class WikiCategory(BaseModel):
     children: List[Any] = Field(default=[])
     files: List[str] = Field(default=[])
 
+
 class WikiSettings(BaseModel):
     categories: List[WikiCategory] = Field(default=[])
 
@@ -72,7 +78,7 @@ class WikiManager:
     using VitePress or MkDocs. It initializes, builds, and updates a wiki based on the project's
     structure and changes in files.
     """
-    
+
     def __init__(self, settings: CODXJuniorSettings) -> None:
         self.settings: CODXJuniorSettings = settings
         self.event_manager = EventManager(codx_path=settings.codx_path)
@@ -81,124 +87,199 @@ class WikiManager:
         self.db = KnowledgeDB(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
         self.is_wiki_active = self.settings.project_wiki or False
-        self.wiki_home_path = os.path.join(self.wiki_path, "index.md")
+        self.wiki_home_path = os.path.join(self.wiki_path, "home.md")
         self.wiki_settings_path = os.path.join(self.settings.codx_path, "wiki_settings.json")
+        self._ai_instance: Optional[AI] = None
 
-    def save_wiki_settings(self, wiki_settings: Any) -> None:
+    # ─────────────────────────────────────────────────────────────
+    # AI accessor  (cached – one instance per WikiManager lifetime)
+    # ─────────────────────────────────────────────────────────────
+
+    def _get_ai(self) -> AI:
+        """Return a cached AI engine instance."""
+        if self._ai_instance is None:
+            self._ai_instance = AI(
+                settings=self.settings,
+                llm_model=self.settings.get_wiki_model(),
+                user=CodxUser(username=__name__)
+            )
+        return self._ai_instance
+
+    def _ai_chat(self, prompt: str, tags: str = "", clean: bool = True):
         """
-        Serialize and save the wiki_settings object to a JSON file.
+        Execute an AI chat request with the given prompt.
 
         Args:
-            wiki_settings: The list of wiki settings to save.
+            prompt: The prompt to send to the AI.
+            tags: Additional tags for the request.
+            clean: Whether to clean markdown code fence wrapping.
+
+        Returns:
+            List of chat messages from the AI.
         """
+        tags = f"{tags},wiki" if tags else "wiki"
+        headers = {"tags": tags}
+        messages = self._get_ai().chat(prompt=prompt, headers=headers)
+        content = messages[-1].content.strip()
+        if clean and content.startswith("```"):
+            content = "\n".join(content.split("\n")[1:-1])
+            messages[-1].content = content
+        return messages
+
+    # ─────────────────────────────────────────────────────────────
+    # Settings persistence
+    # ─────────────────────────────────────────────────────────────
+
+    def save_wiki_settings(self, wiki_settings: Any) -> Any:
+        """Serialize and save wiki_settings to JSON, return reloaded settings."""
         self._fix_wiki_categories(wiki_settings)
         file_path = self._get_settings_path()
         wiki_settings["path"] = file_path
         write_file(file_path, json.dumps(wiki_settings, indent=2))
-        logger.info(f"Wiki settings successfully saved to {file_path}")
+        logger.info("Wiki settings saved to %s", file_path)
         return self.load_wiki_settings()
 
-    def load_wiki_settings(self, with_files=False) -> Any:
-        """
-        Read and deserialize the wiki_settings object from a JSON file.
-
-        Returns:
-            A dictionary of the deserialized wiki settings.
-        """
+    def load_wiki_settings(self, with_files: bool = False) -> Any:
+        """Read and deserialize wiki_settings from JSON."""
         try:
             file_path = self._get_settings_path()
-            with open(file_path, 'r') as file:
-                wiki_settings = json.load(file)
-            logger.info(f"Wiki settings successfully loaded from {file_path}")
+            with open(file_path, 'r', encoding='utf-8') as f:
+                wiki_settings = json.load(f)
+            logger.info("Wiki settings loaded from %s", file_path)
             self._fix_wiki_categories(wiki_settings)
             return wiki_settings
+        except FileNotFoundError:
+            logger.warning("Wiki settings file not found: %s", file_path)
+            return {"categories": []}
         except Exception as e:
-            logger.exception(f"Error loading wiki settings: {e}")
-            return {
-                "categories": [],
-                "error": str(e) 
-            }
+            logger.exception("Error loading wiki settings: %s", e)
+            return {"categories": [], "error": str(e)}
 
-    def create_wiki_tree(self):
+    def _get_settings_path(self) -> str:
+        return self.wiki_settings_path
+
+    # ─────────────────────────────────────────────────────────────
+    # Wiki tree creation
+    # ─────────────────────────────────────────────────────────────
+
+    def create_wiki_tree(self) -> Dict[str, Any]:
+        """
+        Analyse the repository and ask the AI to build / refresh the category tree.
+        The result is persisted via save_wiki_settings and also returned.
+        """
         repository_files = self.loader.list_repository_files()
-        ignore_patters = [
-          MKDOCS_YAML_FILE_NAME,
-          self.wiki_path
-        ]
-        def is_valid_file(file_path):
-            for ignore in ignore_patters:
-                if ignore in file_path:
-                    return False
-            return True
-        repository_files = [f for f in repository_files if is_valid_file(f)]
-        repository_files = "\n".join(sorted(repository_files))
+        ignore_patterns = [MKDOCS_YAML_FILE_NAME, self.wiki_path]
 
-        logger.info("Valid wiki files:\n%s", repository_files)
-        
+        def is_valid_file(file_path: str) -> bool:
+            return not any(p in file_path for p in ignore_patterns)
+
+        repository_files = [
+            f.replace(self.settings.abs_project_path, '')
+            for f in repository_files
+            if is_valid_file(f)
+        ]
+
+        # Domain hints from dependency graph
+        wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+        domain_map = wiki_domains.load_domain_map()
+        domain_hints = ""
+        if domain_map:
+            domain_hints = "<domain_hints>\n"
+            for d in domain_map:
+                files_sample = ", ".join(d.get("files", [])[:10])
+                domain_hints += f"  Domain '{d['name']}' contains: {files_sample}\n"
+            domain_hints += "</domain_hints>\n"
+
+        repository_files_str = "\n".join(sorted(repository_files))
+        logger.info("Valid wiki files:\n%s", repository_files_str)
+
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
+
         try:
-            summary_prompt=f"""
+            project_info = self.profile_manager.read_profile("project").content
+        except Exception:
+            project_info = ""
+
+        try:
+            summary_prompt = f"""
             <project_info>
-            { self.profile_manager.read_profile("project").content}
+            {project_info}
             </project_info>
             <project_files>
-            { repository_files }
+            {repository_files_str}
             </project_files>
+            {domain_hints}
             <wiki_settings>
-            { json.dumps(wiki_settings, indent=2) }
+            {json.dumps(wiki_settings, indent=2)}
             </wiki_settings>
             <user_instructions>
-            { user_instructions }
+            {user_instructions}
             </user_instructions>
             <user_language>
-            { user_language }
+            {user_language}
             </user_language>
 
             We are defining the project's documentation wiki to help new users understand and manage the project.
             Update the wiki structure based on the project's information that can assist users with onboarding, learning and (if apply) executing the project.
+            Use domain_hints (if provided) to group files into coherent categories that reflect actual code dependencies.
             Detect which kind of project is and choose and structure it wisely into categories and subcategories.
             Update wiki tree definition from given updated information about the project and its folders.
             A wiki tree will split the project into 6 top-level categories for the main project's sections/functionalities.
             Top-level categories can have "children" categories.
-            A category entry is defined in a json with fields:  
+            A category entry is defined in a json with fields:
                 * "title": Unique category title. Can't be repeated in by any other category or subcategory.
                 * "description": An 8 lines category description
                 * "keywords": List of keyword to check if a file belongs to the category
                 * "children": An array of category entries
                 * "files": (Mandatory) The list of WikiFile matching this category.
             WikiFile object has this properties:
-                * "name": A short user friendly name fo this file in { user_language } that gives seme hint about the file. Can contain 2 or 3 words, no more.
+                * "name": A short user friendly name fo this file in {user_language} that gives some hint about the file. Can contain 2 or 3 words, no more.
                 * "path": File path
             Remove all WikiFiles that are not present in project_files.
             Make sure all project_files has been assigned to a category.
             Return updated wiki_settings JSON object.
-            Generated content must be in user_language: { user_language }
+            Generated content must be in user_language: {user_language}
             """
             messages = self._ai_chat(prompt=summary_prompt, clean=False)
-            wiki_settings = next(extract_json_blocks(messages[-1].content))
-            self._fix_wiki_categories(wiki_settings)
-                        
-            return wiki_settings
+            new_settings = next(extract_json_blocks(messages[-1].content))
+            # Preserve top-level metadata (language, mode, prompt, …) from existing settings
+            for key in ("language", "mode", "prompt"):
+                if key in wiki_settings and key not in new_settings:
+                    new_settings[key] = wiki_settings[key]
+            # Persist and return
+            return self.save_wiki_settings(new_settings)
 
         except Exception as ex:
-            logger.exception(f"Error creating wiki document: {ex}")
-            return {
-                **wiki_settings,
-                "error": ex
-            }    
-        
-    def update_category_home(self, documents: List[Document]):
-        pass
+            logger.exception("Error creating wiki tree: %s", ex)
+            return {**wiki_settings, "error": str(ex)}
 
-    def create_wiki_document(self, source: str, update_wiki_conf: bool = True) -> Document:
+    # ─────────────────────────────────────────────────────────────
+    # Document creation
+    # ─────────────────────────────────────────────────────────────
+
+    def create_wiki_document(self, source: str, update_wiki_conf: bool = True) -> Optional[Document]:
+        """Generate (or refresh) the wiki page for a single source file."""
         if not self.is_wiki_active:
+            logger.debug("Wiki is not active, skipping document creation for %s", source)
+            return None
+
+        # Validate source path to prevent malformed filenames
+        if not self._is_valid_source_path(source):
+            logger.warning("Invalid source path detected: %s", source)
             return None
 
         file_content = self._read_file(source)
+        if not file_content:
+            logger.warning("Empty or unreadable file, skipping: %s", source)
+            return None
+
         wiki_settings = self.load_wiki_settings()
         category = self._assign_category_to_file(source, wiki_settings)
+        if not category:
+            logger.warning(CATEGORY_NOT_FOUND_MESSAGE, source)
+            return None
 
         title = category['title']
         keywords = category['keywords']
@@ -206,93 +287,147 @@ class WikiManager:
         wiki_path = category["path"]
         wiki_file_path = self._determine_wiki_file_path(category, source)
 
-        current_wiki_content = self._read_file(wiki_file_path) if os.path.isfile(wiki_file_path) else ""
+        # Validate wiki file path before attempting to read
+        if not self._is_valid_wiki_file_path(wiki_file_path):
+            logger.error("Invalid wiki file path generated: %s", wiki_file_path)
+            return None
 
-        # Prepare the summary or update prompt based on the content
-        summary_prompt = self._prepare_summary_prompt(current_wiki_content, category, file_content, project_name, source, title, keywords, wiki_settings)
+        current_wiki_content = (
+            self._read_file(wiki_file_path)
+            if os.path.isfile(wiki_file_path)
+            else ""
+        )
+
+        summary_prompt = self._prepare_summary_prompt(
+            current_wiki_content, category, file_content,
+            project_name, source, title, keywords, wiki_settings
+        )
 
         messages = self._ai_chat(prompt=summary_prompt)
         page_content = messages[-1].content
 
-        logger.info("Creating wiki document at %s", wiki_file_path)
+        # Append dependency section from graph
+        graph = DependencyGraph(settings=self.settings)
+        if graph.load():
+            deps = graph.get_file_deps(source)
+            dep_section = self._build_dependency_section(deps, source)
+            if dep_section:
+                page_content = f"{page_content}\n\n{dep_section}"
+
+        logger.info("Writing wiki document to %s", wiki_file_path)
         os.makedirs(os.path.dirname(wiki_file_path), exist_ok=True)
         write_file(wiki_file_path, page_content)
+
         metadata = {
             "keywords": keywords,
             "category": title,
             "source": source,
             "language": "md",
-            "wiki_path": wiki_path
+            "wiki_path": wiki_path,
         }
 
-        # Update home
+        # Build changeset summary for home-page update
         if current_wiki_content:
-            page_content = self._create_changeset_document(current_wiki_content, page_content, source)
+            home_update_content = self._create_changeset_document(
+                current_wiki_content, page_content, source
+            )
+        else:
+            # New page – feed the full content to home so it can decide relevance
+            home_update_content = page_content
 
-        self.build_wiki_home(page_content)
+        self.build_wiki_home(home_update_content)
 
-        # Update wiki configuration
         if update_wiki_conf:
             self._update_wiki_conf()
 
         return Document(page_content, metadata=metadata)
 
-    def build_wiki_category(self, path: str) -> None:
-        """
-        Build wiki documents for all files in the category matching the given path.
+    # ─────────────────────────────────────────────────────────────
+    # Category / bulk build
+    # ─────────────────────────────────────────────────────────────
 
-        Args:
-            path: The path of the category for which to build wiki documents.
-        """
-        # Load current wiki settings
+    def build_wiki_category(self, path: str) -> None:
+        """Build wiki documents for all files in the category at *path*."""
         wiki_settings = self.load_wiki_settings(with_files=True)
-        
-        # Find the category that matches the given path
         categories = self._get_all_categories(wiki_settings["categories"])
         category = next((c for c in categories if c.get("path") == path), None)
-        
+
         if not category:
-            logger.warning(f"No category found for path: {path}")
+            logger.warning("No category found for path: %s", path)
             return
 
-        # Use ThreadPoolExecutor to parallelize the creation of wiki documents
+        files = category.get("files", [])
+        if not files:
+            logger.info("Category '%s' has no files, skipping.", path)
+            return
+
+        logger.info("Building wiki category '%s' (%d files)", path, len(files))
+        self.event_manager.send_event(
+            "wiki_category_start", {"path": path, "total": len(files)}
+        )
+
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.create_wiki_document, file["path"], False) for file in category.get("files", [])]
-            for future in futures:
+            future_to_file = {
+                executor.submit(self.create_wiki_document, f["path"], False): f["path"]
+                for f in files
+            }
+            for future in as_completed(future_to_file):
+                file_path = future_to_file[future]
                 try:
                     future.result()
-                    logger.exception("build_wiki_category %s done", path)
+                    logger.info("Wiki document built: %s", file_path)
                 except Exception as e:
-                    logger.exception(f"Failed to create wiki document. Error: {e}")
+                    logger.exception("Failed to build wiki document for %s: %s", file_path, e)
 
         self._update_wiki_conf()
+        self.event_manager.send_event("wiki_category_done", {"path": path})
+
+    def rebuild_wiki(self) -> None:
+        """Rebuild all wiki documents for every category."""
+        wiki_settings = self.load_wiki_settings()
+        categories = self._get_all_categories(wiki_settings["categories"])
+        logger.info("Rebuilding entire wiki (%d categories)", len(categories))
+
+        for category in categories:
+            self.build_wiki_category(category["path"])
+
+        # Final home + config update after all categories are done
+        self.build_wiki_home(self._read_file(self.wiki_home_path) or "")
+        self._update_wiki_conf()
+        logger.info("Wiki rebuild complete.")
+
+    # ─────────────────────────────────────────────────────────────
+    # Home page
+    # ─────────────────────────────────────────────────────────────
 
     def build_wiki_home(self, markdown_content: str) -> None:
         """
-        Build or update the content of the home page of the wiki based on provided markdown content.
-        The method will decide if the content is relevant for the front page and update accordingly.
-
-        Args:
-            markdown_content: The markdown content from a modified project file.
+        Decide whether *markdown_content* contains information worth showing on the
+        wiki landing page and, if so, update home.md accordingly.
         """
-        # Load current wiki settings
+        if not markdown_content or not markdown_content.strip():
+            logger.debug("build_wiki_home called with empty content – skipping.")
+            return
+
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
 
-        # Strip the "files" field from the categories
         categories_without_files = [
-            {key: category[key] for key in category if key != "files"}
-            for category in self._get_all_categories(wiki_settings["categories"])
+            {k: v for k, v in cat.items() if k != "files"}
+            for cat in self._get_all_categories(wiki_settings["categories"])
         ]
 
-        # Prepare the prompt for AI to decide on the relevance of the content
+        existing_home = ""
+        if os.path.isfile(self.wiki_home_path):
+            existing_home = self._read_file(self.wiki_home_path) or ""
+
         relevance_prompt = f"""
         <markdown_content>
         {markdown_content}
         </markdown_content>
         <home_page_content>
-        {self._read_file(self.wiki_home_path)}
+        {existing_home}
         </home_page_content>
         <categories>
         {json.dumps(categories_without_files, indent=2)}
@@ -304,78 +439,70 @@ class WikiManager:
         {user_language}
         </user_language>
 
-        Analyze the provided markdown content and decide if it contains important information 
-        that should be included in the front page of the wiki. If relevant, update the home page content 
-        with this information. Ensure that content is coherent and well-structured.
-        Remember that the home page must show a high level overview don't deep down into details user will navigate the wiki for this.
+        Analyze the provided markdown content and decide if it contains important information
+        that should be included in the front page of the wiki. If relevant, update the home page
+        content with this information. Ensure that content is coherent and well-structured.
+        The home page must show a high-level overview – do not go into implementation details;
+        users will navigate the wiki for that.
         Generated content must be in user_language: {user_language}.
-        Generate the final "home" document content without any extra comments. 
+        Generate ONLY the final home document content without any extra comments or code fences.
         """
-        
+
         try:
             messages = self._ai_chat(prompt=relevance_prompt)
-            updated_home_content = messages[-1].content
-            
-            # Write the updated content to the home page file
-            write_file(self.wiki_home_path, updated_home_content)
-            logger.info(f"Wiki home page successfully updated at {self.wiki_home_path}")
-            
+            updated_home = messages[-1].content
+            os.makedirs(os.path.dirname(self.wiki_home_path), exist_ok=True)
+            write_file(self.wiki_home_path, updated_home)
+            logger.info("Wiki home page updated at %s", self.wiki_home_path)
         except Exception as e:
-            logger.exception(f"Error updating wiki home page: {e}")
+            logger.exception("Error updating wiki home page: %s", e)
 
-    def compile_wiki(self):
+    # ─────────────────────────────────────────────────────────────
+    # Wiki compile / mkdocs
+    # ─────────────────────────────────────────────────────────────
+
+    def compile_wiki(self) -> None:
+        """Compile the wiki based on its configuration."""
         wiki_settings = self.load_wiki_settings()
-        # Update mkdocs.yaml if mode is mkdocs
         if wiki_settings.get("mode") == "mkdocs":
             self._update_mkdocs()
 
-    def rebuild_wiki(self):
-        wiki_settings = self.load_wiki_settings()
-        categories = self._get_all_categories(wiki_settings["categories"])
-        
-        for category in categories:
-            self.build_wiki_category(category["path"])          
-
-    def _update_wiki_conf(self):
+    def _update_wiki_conf(self) -> None:
+        """Update wiki configuration files."""
         wiki_settings = self.load_wiki_settings()
         if wiki_settings.get("mode") == "mkdocs":
             self._update_mkdocs()
 
     def _update_mkdocs(self) -> None:
-        """
-        Use AI to update the mkdocs.yaml file, taking into account the current content
-        of the mkdocs.yaml file and all the files and folders from the wiki_path.
-        """
-        mkdocs_file_path = Path(self.settings.project_path) / MKDOCS_YAML_FILE_NAME
+        """Use AI to regenerate the nav section of mkdocs.yml."""
+        mkdocs_file_path = Path(self.settings.abs_project_path) / MKDOCS_YAML_FILE_NAME
 
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
-        
-        # Read the existing mkdocs.yaml content
-        current_mkdocs_content = {
-          "nav": []
-        }
-        if mkdocs_file_path.exists():
-            with open(mkdocs_file_path, 'r') as mkdocs_file:
-                current_mkdocs_content = yaml.safe_load(mkdocs_file)
 
-        # Gather all files and folders from the wiki_path
-        wiki_files = []
-        for root, dirs, files in os.walk(self.wiki_path):
+        current_mkdocs_content: Dict[str, Any] = {"nav": []}
+        if mkdocs_file_path.exists():
+            with open(mkdocs_file_path, 'r', encoding='utf-8') as f:
+                loaded = yaml.safe_load(f)
+                if isinstance(loaded, dict):
+                    current_mkdocs_content = loaded
+
+        wiki_files: List[str] = []
+        for root, _dirs, files in os.walk(self.wiki_path):
             for file in files:
                 if file != MKDOCS_YAML_FILE_NAME:
-                    wiki_files.append(os.path.relpath(os.path.join(root, file), self.wiki_path))
+                    wiki_files.append(
+                        os.path.relpath(os.path.join(root, file), self.wiki_path)
+                    )
         wiki_files.sort()
-        wiki_files = '\n'.join(wiki_files)
-        
-        # Prepare the prompt for AI
+
         update_prompt = f"""
         <current_nav_section>
         {yaml.dump(current_mkdocs_content.get('nav', []), default_flow_style=False)}
         </current_nav_section>
         <wiki_files>
-        {wiki_files}
+        {chr(10).join(wiki_files)}
         </wiki_files>
         <user_instructions>
         {user_instructions}
@@ -384,54 +511,317 @@ class WikiManager:
         {user_language}
         </user_language>
 
-        Update the 'nav' section of the mkdocs.yaml content to reflect any changes in the wiki structure, 
-        including new or removed files and folders. Ensure that the navigation structure 
-        remains clear and logical.
-        Generate only the updated 'nav' section as a YAML list.
+        Update the 'nav' section of the mkdocs.yaml to reflect all current wiki files.
+        Ensure the navigation structure remains clear and logical, grouping pages sensibly.
+        Return ONLY the updated 'nav' section as a raw YAML list (no enclosing dict, no code fences).
         Generated content must be in user_language: {user_language}
         """
 
         try:
             messages = self._ai_chat(prompt=update_prompt)
-            updated_nav_content = yaml.safe_load(messages[-1].content)
+            raw = messages[-1].content.strip()
+            # AI may return bare list OR {"nav": [...]}
+            parsed = yaml.safe_load(raw)
+            if isinstance(parsed, dict) and "nav" in parsed:
+                updated_nav = parsed["nav"]
+            elif isinstance(parsed, list):
+                updated_nav = parsed
+            else:
+                logger.warning("Unexpected mkdocs nav format from AI, skipping update.")
+                return
 
-            # Replace the existing 'nav' section with the updated content
-            current_mkdocs_content['nav'] = updated_nav_content['nav']
-
-            # Write the updated content to the mkdocs.yaml file
-            with open(mkdocs_file_path, 'w') as mkdocs_file:
-                yaml.dump(current_mkdocs_content, mkdocs_file, default_flow_style=False)
-            logger.info(f"mkdocs.yaml successfully updated at {mkdocs_file_path}")
-
+            current_mkdocs_content["nav"] = updated_nav
+            with open(mkdocs_file_path, 'w', encoding='utf-8') as f:
+                yaml.dump(current_mkdocs_content, f, default_flow_style=False, allow_unicode=True)
+            logger.info("mkdocs.yml updated at %s", mkdocs_file_path)
         except Exception as e:
-            logger.exception(f"Error updating mkdocs.yaml: {e}")
+            logger.exception("Error updating mkdocs.yml: %s", e)
 
-    def _find_category_for_file(self, file_path, all_categories):
+    # ─────────────────────────────────────────────────────────────
+    # Dependency graph & domains
+    # ─────────────────────────────────────────────────────────────
+
+    def build_dependency_graph(self) -> DependencyGraph:
+        """Build and save the project dependency graph."""
+        graph = DependencyGraph(settings=self.settings)
+        file_paths = self.loader.list_repository_files()
+        ignore_patterns = [self.wiki_path, MKDOCS_YAML_FILE_NAME]
+        file_paths = [f for f in file_paths if not any(p in f for p in ignore_patterns)]
+        graph.build(file_paths)
+        graph.save()
+        return graph
+
+    def build_domains(self, graph: DependencyGraph = None) -> List[Dict]:
+        """Build domain-based wiki pages."""
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+
+        source_map = self.db.get_all_sources()
+        wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+        domains = wiki_domains.detect_domains(graph=graph, source_map=source_map)
+
+        domains_dir = os.path.join(self.wiki_path, "domains")
+        os.makedirs(domains_dir, exist_ok=True)
+
+        with ThreadPoolExecutor() as executor:
+            def _build_page(domain: Dict) -> None:
+                try:
+                    content = wiki_domains.build_domain_page(domain=domain, graph=graph)
+                    page_path = os.path.join(domains_dir, f"{domain['slug']}.md")
+                    write_file(page_path, content)
+                except Exception as ex:
+                    logger.exception("Error building domain page for %s: %s", domain.get("name"), ex)
+
+            futures = [executor.submit(_build_page, d) for d in domains]
+            for f in as_completed(futures):
+                try:
+                    f.result()
+                except Exception as ex:
+                    logger.exception("build_domains future error: %s", ex)
+
+        wiki_domains.save_domain_map(domains)
+        return domains
+
+    def build_wiki_index(self, graph: DependencyGraph = None, domains: List[Dict] = None) -> Dict:
+        """Build and index wiki content."""
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+        if domains is None:
+            wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+            domains = wiki_domains.load_domain_map()
+
+        wiki_settings = self.load_wiki_settings()
+        wiki_index = WikiIndex(settings=self.settings, db=self.db)
+        index = wiki_index.build(wiki_settings=wiki_settings, domain_map=domains, graph=graph)
+        wiki_index.save(index)
+        wiki_index.index_to_milvus(index)
+        return index
+
+    def build_module_page(self, file_path: str, graph: DependencyGraph = None) -> str:
+        """Generate a module documentation page."""
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+
+        deps = graph.get_file_deps(file_path)
+        file_content = self._read_file(file_path)
+        rel_path = file_path.replace(self.settings.abs_project_path, "")
+
+        imports_str = "\n".join(deps.get("imports", [])) or "none"
+        imported_by_str = "\n".join(deps.get("imported_by", [])) or "none"
+        external_str = ", ".join(deps.get("external_deps", [])) or "none"
+
+        prompt = f"""
+<file_path>{rel_path}</file_path>
+<file_content>
+{file_content}
+</file_content>
+<imports>
+{imports_str}
+</imports>
+<imported_by>
+{imported_by_str}
+</imported_by>
+<external_deps>{external_str}</external_deps>
+
+Generate a markdown L2 module page for this file.
+Include these sections:
+# Module: {rel_path}
+## Overview
+## Exported Symbols
+## Dependencies
+**Imports from:** (list internal imports)
+**Imported by:** (list files that import this)
+**External dependencies:** (list external packages)
+## Usage Examples
+
+Do not add code fences around the entire document.
+"""
+        try:
+            messages = self._ai_chat(prompt=prompt)
+            page_content = messages[-1].content
+            slug = slugify(rel_path)
+            module_dir = os.path.join(self.wiki_path, "modules")
+            os.makedirs(module_dir, exist_ok=True)
+            page_path = os.path.join(module_dir, f"{slug}.md")
+            write_file(page_path, page_content)
+            return page_content
+        except Exception as ex:
+            logger.exception("Error building module page for %s: %s", file_path, ex)
+            return ""
+
+    # ─────────────────────────────────────────────────────────────
+    # Single-file entry point (called by ChangeManager)
+    # ─────────────────────────────────────────────────────────────
+
+    def build_file(self, file_path: str) -> None:
+        """Called by ChangeManager when a single file changes."""
+        self.create_wiki_document(source=file_path)
+
+    def update_category_home(self, documents: List[Document]) -> None:
+        """Placeholder – aggregate category-level home page (not yet implemented)."""
+        pass
+
+    # ─────────────────────────────────────────────────────────────
+    # File path validation helpers
+    # ─────────────────────────────────────────────────────────────
+
+    def _is_valid_source_path(self, file_path: str) -> bool:
+        """
+        Validate that the source path is a legitimate file path.
+        Reject paths that contain invalid characters or patterns from code/markdown.
+
+        Checks for:
+        - Non-string types
+        - Markdown/code syntax patterns (```, [, etc.)
+        - Invalid filesystem characters (brackets, pipes, etc.)
+        - Path traversal attempts
+        - Paths that don't end with file extensions
+
+        Args:
+            file_path: The path to validate.
+
+        Returns:
+            True if the path is valid, False otherwise.
+        """
+        if not isinstance(file_path, str):
+            logger.error("Source path must be a string, got %s", type(file_path))
+            return False
+
+        # Check for empty or whitespace-only paths
+        if not file_path or not file_path.strip():
+            logger.warning("Source path is empty or whitespace-only: %s", file_path)
+            return False
+
+        # Check for markdown/code patterns that shouldn't be file paths
+        if file_path.startswith("```"):
+            logger.warning("Source path looks like code block start: %s", file_path)
+            return False
+
+        if file_path.startswith("["):
+            logger.warning("Source path looks like markdown link: %s", file_path)
+            return False
+
+        # Check for any markdown inline code or other special markup
+        if file_path.startswith("`") or file_path.startswith("*"):
+            logger.warning("Source path looks like markdown formatting: %s", file_path)
+            return False
+
+        # Normalize path to catch various forms
+        try:
+            normalized = os.path.normpath(file_path)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to normalize path %s: %s", file_path, e)
+            return False
+
+        # Check for path traversal attempts
+        if ".." in normalized or normalized.startswith(".."):
+            logger.warning("Path traversal attempt detected: %s", file_path)
+            return False
+
+        # Check for invalid filesystem characters that might slip through
+        if INVALID_FILENAME_CHARS.search(file_path):
+            logger.warning("Invalid filesystem characters in path: %s", file_path)
+            return False
+
+        # Reject paths without extensions (likely malformed)
+        # Exception: allow paths that are clearly directories (should have slashes)
+        if os.path.sep in file_path or "/" in file_path:
+            # It's a path with directories, which is ok
+            pass
+        elif "." not in os.path.basename(file_path):
+            # Single filename without extension - reject it
+            logger.warning("Path has no file extension (likely malformed): %s", file_path)
+            return False
+
+        return True
+
+    def _is_valid_wiki_file_path(self, file_path: str) -> bool:
+        """
+        Validate that the wiki file path is safe to write to.
+        Check for invalid filename characters and excessive length.
+
+        Args:
+            file_path: The wiki file path to validate.
+
+        Returns:
+            True if the path is safe to use, False otherwise.
+        """
+        try:
+            # Ensure path is normalized
+            normalized = os.path.normpath(file_path)
+
+            # Check each component for invalid characters
+            for part in normalized.split(os.sep):
+                if not part:
+                    # Empty component (e.g., from double slashes) - skip
+                    continue
+
+                # Check for invalid characters
+                if INVALID_FILENAME_CHARS.search(part):
+                    logger.warning("Invalid characters in wiki file path component '%s'", part)
+                    return False
+
+                # Check for excessive length
+                if len(part) > MAX_FILENAME_LENGTH:
+                    logger.warning(
+                        "Wiki file path component too long: '%s' (%d chars, max %d)",
+                        part,
+                        len(part),
+                        MAX_FILENAME_LENGTH
+                    )
+                    return False
+
+            return True
+        except Exception as e:
+            logger.exception("Error validating wiki file path %s: %s", file_path, e)
+            return False
+
+    # ─────────────────────────────────────────────────────────────
+    # Category helpers
+    # ─────────────────────────────────────────────────────────────
+
+    def _find_category_for_file(
+        self, file_path: str, all_categories: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Find the category that contains the given file."""
+        file_path = file_path.replace(self.settings.abs_project_path, '')
         for category in all_categories:
-            for file in category.get("files", []):
-                if file.get("path", "") == file_path:
+            for f in category.get("files", []):
+                if f.get("path", "") == file_path:
                     return category
         return None
 
-    def _assign_category_to_file(self, source: str, wiki_settings: Dict[str, Any]) -> Dict[str, Any]:
+    def _assign_category_to_file(
+        self, source: str, wiki_settings: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Assign a file to a category, using AI if necessary."""
         all_categories = self._get_all_categories(wiki_settings["categories"])
         category = self._find_category_for_file(file_path=source, all_categories=all_categories)
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
 
         if not category:
-            categories_and_keywords = [{
-                "path": category["path"],
-                "title": category["title"],
-                "keywords": category["keywords"]
-            } for category in all_categories]
+            if not all_categories:
+                logger.warning("No categories defined in wiki_settings, cannot assign file: %s", source)
+                return None
+
+            categories_and_keywords = [
+                {"path": c["path"], "title": c["title"], "keywords": c["keywords"]}
+                for c in all_categories
+            ]
 
             summary_prompt = f"""
             <document>
             {self._read_file(source)}
             </document>
             <categories>
-            {categories_and_keywords}
+            {json.dumps(categories_and_keywords, indent=2)}
             </categories>
             <user_instructions>
             {user_instructions}
@@ -441,31 +831,78 @@ class WikiManager:
             </user_language>
 
             Analyze this document and match the best category from the list of categories for this document.
-            Only categories from the list are valid response and always return a .
-            Return a JSON dictionary with the "path" field category
+            Only categories from the list are valid responses.
+            Return a JSON dictionary with a single field "path" containing the chosen category path.
             Generated content must be in user_language: {user_language}
             """
-            messages = self._ai_chat(prompt=summary_prompt, clean=False)
-            metadata = next(extract_json_blocks(messages[-1].content))
-            wiki_path = metadata["path"]
-            category = next(filter(lambda x: x["path"] == wiki_path, all_categories))
+            try:
+                messages = self._ai_chat(prompt=summary_prompt, clean=False)
+                metadata = next(extract_json_blocks(messages[-1].content))
+                wiki_path = metadata["path"]
+                category = next(
+                    (c for c in all_categories if c["path"] == wiki_path), None
+                )
+                if category is None:
+                    logger.warning("AI returned unknown category path '%s' for %s", wiki_path, source)
+                    # Fall back to first category
+                    category = all_categories[0]
+            except Exception as ex:
+                logger.exception("Error assigning category to %s: %s", source, ex)
+                category = all_categories[0] if all_categories else None
 
-            # Update category
-            if "files" not in category:
-                category["files"] = []
-            if source not in category["files"]:
-                category["files"].append({"path": source})
-                self.save_wiki_settings(wiki_settings)
+            if category is not None:
+                # Register file in category and persist
+                if "files" not in category:
+                    category["files"] = []
+                rel_source = source.replace(self.settings.abs_project_path, '')
+                if not any(f.get("path") == rel_source for f in category["files"]):
+                    category["files"].append({"path": rel_source})
+                    self.save_wiki_settings(wiki_settings)
 
         return category
 
     def _determine_wiki_file_path(self, category: Dict[str, Any], source: str) -> str:
+        """
+        Determine the wiki file path for a source file.
+
+        Args:
+            category: The category containing the file.
+            source: The source file path.
+
+        Returns:
+            The full wiki file path.
+        """
         if category.get("single_file", False):
             return path_join(self.wiki_path, f"{category['path']}.md")
-        else:
-            return path_join(self.wiki_path, category["path"], self._get_file_wiki_name(source))
+        return path_join(self.wiki_path, category["path"], self._get_file_wiki_name(source))
 
-    def _prepare_summary_prompt(self, current_wiki_content: str, category: Dict[str, Any], file_content: str, project_name: str, source: str, title: str, keywords: List[str], wiki_settings: Dict[str, Any]) -> str:
+    def _prepare_summary_prompt(
+        self,
+        current_wiki_content: str,
+        category: Dict[str, Any],
+        file_content: str,
+        project_name: str,
+        source: str,
+        title: str,
+        keywords: List[str],
+        wiki_settings: Dict[str, Any],
+    ) -> str:
+        """
+        Prepare the AI prompt for generating wiki documentation.
+
+        Args:
+            current_wiki_content: Existing wiki content (if any).
+            category: The target category.
+            file_content: The source file content.
+            project_name: Name of the project.
+            source: Path to the source file.
+            title: Category title.
+            keywords: Category keywords.
+            wiki_settings: Wiki configuration.
+
+        Returns:
+            The formatted prompt for the AI.
+        """
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
 
@@ -487,13 +924,13 @@ class WikiManager:
             Update the current wiki content with the new information coming from the document.
             Resulting document must be in markdown syntax without further decoration or enclosing marks.
             Ensure the updated content is coherent and well-structured.
-            Important: Use only information from the document don't make it from other sources and add references to the document sections.
+            Important: Use only information from the document; add references to relevant sections.
             Generated content must be in user_language: {user_language}
             """
-        else:
-            source = source.replace(self.settings.project_path, '')
-            return f"""
-            <document project="{project_name}" file="{source}" category="{title}" keywords="{keywords}">
+
+        rel_source = source.replace(self.settings.abs_project_path, '')
+        return f"""
+            <document project="{project_name}" file="{rel_source}" category="{title}" keywords="{keywords}">
             {file_content}
             </document>
             <user_instructions>
@@ -505,12 +942,25 @@ class WikiManager:
 
             Given this document generate the wiki documentation based on user_instructions.
             Resulting document must be in markdown syntax without further decoration or enclosing marks.
-            Do not include the name of the file in the document.
-            Important: Use only information from the document don't make it from other sources and add references to the document sections.
+            Do not include the raw file name/path as a heading in the document.
+            Important: Use only information from the document; add references to relevant sections.
             Generated content must be in user_language: {user_language}
             """
 
-    def _create_changeset_document(self, current_wiki_content: str, page_content: str, source: str) -> str:
+    def _create_changeset_document(
+        self, current_wiki_content: str, page_content: str, source: str
+    ) -> str:
+        """
+        Create a summary of changes between wiki versions.
+
+        Args:
+            current_wiki_content: The previous wiki content.
+            page_content: The new wiki content.
+            source: The source file path.
+
+        Returns:
+            A formatted changeset document.
+        """
         prompt = f"""
         <old_wiki>
         {current_wiki_content}
@@ -519,76 +969,116 @@ class WikiManager:
         {page_content}
         </new_wiki>
 
-        Explain the changes done to the wiki page for {source}.
+        Concisely explain the changes made to the wiki page for {source}.
+        Focus on what is new, removed, or significantly altered.
         """
         changes = self._ai_chat(prompt=prompt)[-1].content
-        return f"""
-        <wiki_changes source="{source}">
-        {changes}
-        </wiki_changes>
-        """
+        return f'<wiki_changes source="{source}">\n{changes}\n</wiki_changes>'
 
-    def _get_settings_path(self):
-        return self.wiki_settings_path
-
-    def _get_all_categories(
-        self, 
-        categories: List[Dict[str, Any]], 
-        flattened_list: List[Dict[str, Any]] = [], 
-        parent: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+    def _build_dependency_section(self, deps: Dict[str, Any], source: str) -> str:
         """
-        Flatten the hierarchical list of categories into a single list while preserving hierarchical path info.
+        Build a dependency section for the wiki page.
 
         Args:
-            categories: A list of category dictionaries to process.
-            flattened_list: A list to collect all categories, starting as empty.
-            parent: The parent category dictionary for hierarchical reference.
+            deps: Dictionary of dependencies from the dependency graph.
+            source: The source file path.
 
         Returns:
-            A list of all categories with updated path and id info.
+            Formatted markdown dependency section, or empty string if no deps.
         """
+        imports = deps.get("imports", [])
+        imported_by = deps.get("imported_by", [])
+        if not imports and not imported_by:
+            return ""
+        lines = ["## Dependencies"]
+        if imports:
+            lines.append(f"**Imports from:** {', '.join(imports)}")
+        if imported_by:
+            lines.append(f"**Imported by:** {', '.join(imported_by)}")
+        return "\n".join(lines)
+
+    def _get_all_categories(
+        self,
+        categories: List[Dict[str, Any]],
+        flattened_list: Optional[List[Dict[str, Any]]] = None,
+        parent: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Flatten the hierarchical category tree into a single list,
+        assigning each category a unique slugified *path*.
+
+        Args:
+            categories: List of category definitions.
+            flattened_list: Accumulator for flattened categories (auto-initialized).
+            parent: Parent category context.
+
+        Returns:
+            Flattened list of all categories and subcategories.
+        """
+        if flattened_list is None:
+            flattened_list = []
+
         parent_path = slugify(parent.get("path", "")) if parent else ""
 
         for category in categories:
-            _id = slugify(category["title"])
+            _id = slugify(category.get("title", "unknown"))
             category["id"] = _id
-            category["path"] = f'{parent_path}/{_id}' if parent else _id
+            category["path"] = f"{parent_path}/{_id}" if parent_path else _id
             flattened_list.append(category)
-            
+
             children = category.get("children", [])
             if children:
                 self._get_all_categories(children, flattened_list, category)
 
         return flattened_list
 
-    def _fix_wiki_categories(self, wiki_settings):
-        categories = self._get_all_categories(wiki_settings["categories"])
+    def _fix_wiki_categories(self, wiki_settings: Dict[str, Any]) -> None:
+        """
+        Ensure every category and file entry has correct path/slug metadata.
+
+        Args:
+            wiki_settings: The wiki settings dictionary to fix in-place.
+        """
+        categories = self._get_all_categories(wiki_settings.get("categories", []))
         for category in categories:
             if not category.get("path"):
-                category["path"] = slugify(category["title"])
+                category["path"] = slugify(category.get("title", "unknown"))
             for file in category.get("files", []):
                 file["slug"] = self._get_file_wiki_name(file["path"])
-                file["wiki_file"] = path_join(self.wiki_path, category["path"], file["slug"])
+                file["wiki_file"] = path_join(
+                    self.wiki_path, category["path"], file["slug"]
+                )
 
-    def _read_file(self, file_path):
-        return read_file(file_path, self.settings.project_path)
+    def _read_file(self, file_path: str) -> str:
+        """
+        Read a file from the project.
 
-    def _get_file_wiki_name(self, source):
-        return slugify(source.replace(self.settings.project_path, "")) + ".md"
+        Args:
+            file_path: Path to the file to read.
 
-    def _get_ai(self) -> AI:
-        """Create and return an AI engine instance for processing."""
-        return AI(settings=self.settings, llm_model=self.settings.get_wiki_model(), user=CodxUser(username=__name__))
+        Returns:
+            The file content as a string.
+        """
+        return read_file(file_path, self.settings.abs_project_path)
 
-    def _ai_chat(self, prompt, tags="", clean=True):
-        tags = f"{tags},wiki" if tags else "wiki"
-        headers = {
-            "tags": tags
-        }
-        messages = self._get_ai().chat(prompt=prompt, headers=headers)
-        content = messages[-1].content.strip()
-        if clean and content.startswith("```"):
-            content = "\n".join(content.split("\n")[1:-1])
-            messages[-1].content = content
-        return messages
+    def _get_file_wiki_name(self, source: str) -> str:
+        """
+        Generate a safe wiki filename from a source file path.
+
+        Args:
+            source: The source file path.
+
+        Returns:
+            A slugified markdown filename.
+        """
+        # Extract filename without path
+        filename = os.path.basename(source)
+        # Remove extension if present
+        name_without_ext = os.path.splitext(filename)[0]
+        # Slugify and ensure it's valid
+        safe_slug = slugify(name_without_ext)
+        if not safe_slug:
+            safe_slug = "document"
+        return f"{safe_slug}.md"
+
+# Made with ❤️ by codx-junior

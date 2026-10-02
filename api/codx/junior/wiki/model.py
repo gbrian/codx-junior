@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
-from langchain.output_parsers import PydanticOutputParser
+from langchain_core.output_parsers.pydantic import PydanticOutputParser
 
 # Define logger
 import logging

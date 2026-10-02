@@ -2,19 +2,22 @@
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
 import moment from 'moment'
-import { useId } from 'vue';
 </script>
 
 <template>
   <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
     <div class="text-2xl">Loading...</div>
   </div>
-  <div class="@container codx-junior flex min-h-full relative group-codxjunior" 
-    :class="(!$ui.isMobile && !$ui.showApp) && 'max-w-[1600px]'"
+  <div class="@container codx-junior w-full h-full relative group-codxjunior pt-2" 
+    :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
-    <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <div class="grow overflow-auto p-1 md:p-2">
-        <TabViewVue  :key="projectKey" />
+    <div class="h-full flex flex-col relative overflow-auto bg-base-300">
+      <div class="grow overflow-auto">
+        <div class="h-full relative">
+          <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
+            <TabViewVue :key="projectKey" />
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
@@ -37,7 +40,7 @@ import { useId } from 'vue';
       </div>
     </div>    
     <div class="toast toast-end">
-      <div class="bg-error text-white overflow-auto rounded-md max-w-96 max-h-60 text-xs"
+      <div class="bg-error  overflow-auto rounded-md max-w-96 max-h-60 text-xs"
         v-if="lastError" @click="clearLastError">
         <pre><code>ERROR: {{ lastError }}</code></pre>
       </div>
@@ -99,9 +102,9 @@ export default {
   methods: {
     openLastEvent() {
       const { data: { chat: { id } } } = this.$session.events[this.$session.events.length-1]
-      const chat = this.$projects.chats[id];
+      const chat = this.$chats.chats[id];
       if (chat) {
-        this.$projects.setActiveChat(chat)
+        this.$chats.setActiveChat(chat)
         if (!this.$ui.activeTab !== 'tasks') {
           this.$ui.setActiveTab('tasks')
         }
@@ -141,7 +144,7 @@ export default {
     },
     openTask(task) {
       this.setActiveTab('tasks')
-      this.$projects.setActiveChat(task)
+      this.$chats.setActiveChat(task)
     },
     removeNotification(notification) {
       this.$session.removeNotification(notification)

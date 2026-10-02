@@ -5,7 +5,7 @@ import { TreeItem, TreeRoot } from 'radix-vue'
 <template>
   <TreeRoot
     v-slot="{ flattenItems }"
-    class="list-none select-none text-blackA11 rounded-lg p-2 text-sm font-medium"
+    class="list-none select-none text-blackA11 rounded-lg p-2 text-sm font-medium overflow-auto"
     :items="groupedItems"
     :get-key="(item) => item[gkey]"
     :default-expanded="defaultExpanded"

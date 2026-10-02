@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Union, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
+from langchain.messages import AIMessage, HumanMessage, SystemMessage
 
 from codx.junior.utils.utils import (
   document_to_context,
@@ -19,7 +19,7 @@ from codx.junior.ai.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_milvus import Knowledge 
 from codx.junior.profiling.profiler import profile_function
-from langchain.output_parsers import PydanticOutputParser
+from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from pydantic import BaseModel, Field, field_validator
 import pydantic
 
@@ -174,7 +174,7 @@ def find_relevant_documents(query: str, settings, knowledge_documents, ignore_do
         relevant_documents = documents
         if ai_validate:
             relevant_documents = validate_search_documents(query, documents, settings)
-        file_list = [os.path.join(settings.project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
+        file_list = [os.path.join(settings.abs_project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
         return relevant_documents, file_list
     return [], []

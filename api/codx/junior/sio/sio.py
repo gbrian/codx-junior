@@ -28,7 +28,7 @@ USERS = {}
 logger = logging.getLogger(__name__)
 
 #Socket io (sio) create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
+sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
 SIO_POOL = ThreadPoolExecutor(max_workers=10)
 
@@ -72,6 +72,13 @@ async def error():
 async def connect(sid, env):
     logger.info("New Client Connected to This id :"+" "+str(sid))
 
+@sio.on("disconnect")
+async def disconnect(sid):
+    logger.info("Client Disconnected: "+" "+str(sid))
+    if USERS.get(sid):
+        del USERS[sid]
+    send_online_users(sid)  
+
 def send_online_users(sid):
     channel = SessionChannel(sio=sio, sid=sid)
     online_users = [{
@@ -80,14 +87,6 @@ def send_online_users(sid):
       "sid": sid
     } for sid in USERS.keys() if USERS.get("sid",{}).get("user")]
     channel.send_event('codx-junior-online-users', { "users": online_users })
-  
-
-@sio.on("disconnect")
-async def disconnect(sid):
-    logger.info("Client Disconnected: "+" "+str(sid))
-    if USERS.get(sid):
-        del USERS[sid]
-    send_online_users(sid)  
 
 @sio.on("codx-junior-ping")
 async def io_ping(sid, data: dict = None):
@@ -96,7 +95,7 @@ async def io_ping(sid, data: dict = None):
 
 @sio.on("background-event")
 async def on_background_event(sid, data: dict):
-    logger.info(f"***************** On event bacground: {data}")
+    # logger.info(f"***************** On event bacground: {data}")
     event = data["event"]
     if event == "hello":
         return f"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}"
@@ -113,8 +112,17 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
     codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
-    await codxjunior_session.chat_with_project(chat=data.chat)
-    await codxjunior_session.save_chat(data.chat)
+    await codxjunior_session.chat_with_project(chat_id=data.chat.id, owner_project_id=data.chat.owner_project_id)
+
+@sio.on("codx-junior-chat-search")
+@sio_api_endpoint
+async def io_chat_search(sid, msg_data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**msg_data)
+    logger.info(f"codx-junior-chat-search {data.chat.name} {codxjunior_session.settings.project_name}")
+    codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chat search...")
+    chat_id = data.chat.id
+    query = msg_data["query"]
+    await codxjunior_session.chat_search(chat_id=chat_id, query=query)
 
 @sio.on("codx-junior-subtasks")
 @sio_api_endpoint
@@ -129,7 +137,6 @@ async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSessio
 async def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     await codxjunior_session.improve_existing_code(chat=data.chat)
-    await codxjunior_session.save_chat(data.chat)
 
 @sio.on("codx-junior-generate-tasks")
 @sio_api_endpoint

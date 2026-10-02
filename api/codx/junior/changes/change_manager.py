@@ -15,11 +15,10 @@ from codx.junior.globals import (
 from codx.junior.mentions.mention_manager import MentionManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.wiki.wiki_manager import WikiManager
-from codx.junior.chat_manager import ChatManager
 
 from codx.junior.whisper.audio_manager import AudioManager
 
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
 
@@ -35,7 +34,6 @@ class ChangeManager:
         self.knowledge = Knowledge(settings=self.settings)
         self.wiki_manager = WikiManager(settings=settings)
         self.audio_manager = AudioManager()
-        self.chat_manager = ChatManager(settings=self.settings)
 
     @classmethod
     async def check_mentions_on_all_projects(cls, all_projects):
@@ -59,10 +57,6 @@ class ChangeManager:
         await asyncio.gather(*tasks)
 
     async def process_project_changes(self):
-        if not self.settings.is_valid_project():
-            # logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
-            return
-        
         current_sources_and_updates = self.knowledge.get_db().get_all_sources()
         new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
 
@@ -125,7 +119,8 @@ class ChangeManager:
         
         if self.settings.project_wiki:
             try:
-                await self.wiki_manager.build_file(file_path=file_path)
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self.wiki_manager.build_file, file_path)
             except Exception as ex:
                 logger.exception(f"Error processing wiki changes for file {file_path}", ex)
 

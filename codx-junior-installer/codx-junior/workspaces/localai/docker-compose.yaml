@@ -1,0 +1,59 @@
+services:
+  codx-junior-localai:
+    #####################################################################################
+    ## 
+    ## NOTE: codx-junior-auth@file
+    ## 
+    ## LocalAI instance integrated with the codx-junior network and Traefik router.
+    ## Handles HTTPS and subpaths natively via proxy headers.
+    #####################################################################################
+    image: localai/localai:latest
+    # For GPU acceleration (CUDA), use the specific GPU tag instead:
+    # image: localai/localai:latest-gpu-nvidia-cuda-12
+    container_name: codx-junior-localai
+    restart: unless-stopped
+    shm_size: '2gb'
+    
+    # Optional: Uncomment if utilizing NVIDIA GPUs
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    volumes:
+      - ./localai-models:/build/models
+    env_file:
+      - ./.workspace.env
+    environment:
+      - PUID=${USER_ID:-1001}
+      - PGID=${GROUP_ID:-1001}
+      - MODELS_PATH=/build/models
+      - CONTEXT_SIZE=4096
+      - THREADS=4
+      # Optional: If you have a specific public domain/IP, you can set it here:
+      # - LOCALAI_BASE_URL=https://your-domain.com
+    labels:
+      - traefik.enable=true
+      
+      # Route requests matching the subpath to the LocalAI service
+      - traefik.http.routers.codx-junior-localai-router.rule=PathPrefix(`/workspace-default/localai`)
+      - traefik.http.routers.codx-junior-localai-router.service=codx-junior-localai-service
+      - traefik.http.services.codx-junior-localai-service.loadbalancer.server.port=8080
+      
+      # Custom Headers: Informing LocalAI about the subpath and protocol
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Prefix=/workspace-default/localai
+      # Traefik automatically passes X-Forwarded-Host by default
+      
+      # Router middleware stack (combining authorization and proxy headers)
+      - traefik.http.routers.codx-junior-localai-router.middlewares=localai-headers,codx-junior-auth
+    networks:
+      - codx-junior
+
+networks:
+  codx-junior:
+    name: codx-junior_default
+    external: true

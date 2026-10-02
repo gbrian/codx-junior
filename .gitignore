@@ -3,17 +3,15 @@ node_modules
 __pycache__
 *egg-*
 client/.vite
-global_settings*
+global_settings.json
 **/.codx/db
 filebrowser.
 core
 .idea
 .vscode
 static
-llm-factory/ollama-data
 pids
 ollama_models
-logs
 .codx/logs/ai.md
 **/.vitepress/cache
 **/dist
@@ -21,5 +19,21 @@ client/public/wiki
 *.db
 *.wal
 *.lock
-llm-factory/litegpt/checkpoints
-llm-factory/litegpt/out
+docs/.vitepress/.temp
+acme.json
+
+
+# Default workspace
+## webtop's /config folder in Desktop workspace 
+codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/config
+codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/config
+codx-junior-installer/codx-junior-dind/images
+projects/
+codx-junior-installer/vllm/.cache
+# temp chats
+.codx/tasks/Quick chats
+.codx/tasks/kanban.json
+.codx/logs
+ciso/scripts/vuln-reports
+ciso/scripts/security-scripts/scanwatch_*
+localai-models

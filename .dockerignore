@@ -7,3 +7,11 @@ client/.vite
 **/global_settings.json
 **/.codx/db
 filebrowser.db
+.codx
+.pytest_cache
+.vscode
+assets
+logs
+ollama_models
+tests
+wiki

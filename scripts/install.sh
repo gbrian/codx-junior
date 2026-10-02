@@ -24,8 +24,8 @@ if [ "$USER_ID" != "" ];then
     groupmod -g $USER_GROUP codx-junior
   fi
   
-  sudo chown -R codx-junior $HOME
-  sudo chown -R codx-junior $CODX_JUNIOR_API_VENV
+  chown -R codx-junior $HOME
+  chown -R codx-junior $CODX_JUNIOR_API_VENV
 fi
 
 
@@ -37,29 +37,11 @@ echo "Starting installation..."
 function install_client() {
   echo "Install web client"
   bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
-
-  echo "Install noVNC"
-  bash ${CODX_JUNIOR_PATH}/scripts/install_noVNC.sh
 }
 
 function install_api() {
   echo "Install api"
   bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
-}
-
-function install_llmFactory () {
-  echo "Install llm-factory"
-  bash ${CODX_JUNIOR_PATH}/scripts/install_llmFactory.sh
-}
-
-function install_docker() {
-  codx docker
-  
-  app=$1
-  log_info "Copying supervisor conf for: $app"
-  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
-  conf_dest="/etc/supervisord/supervisor.${app}.conf"
-
 }
 
 echo "Load supervisor files"
@@ -72,12 +54,6 @@ for app in $CODX_JUNIOR_APPS; do
       ;;
     api)
       install_api
-      ;;
-    llm-factory)
-      install_llmFactory
-      ;;
-    docker)
-      install_docker
       ;;
     *)
       echo "Unknown app: $app"

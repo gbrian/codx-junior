@@ -9,139 +9,34 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from codx.junior.global_settings import (
+  get_model_settings,
+  read_global_settings,
+  get_global_settings
+)
+
 from codx.junior.utils.utils import (
-  write_file,
-  exec_command
+  write_file
 )
 from codx.junior.model.model import (
-    GlobalSettings,
     ProjectScript,
     AISettings,
-    AIModel,
-    AIProvider,
-    AILLMModelSettings,
-    AIModelType
+    MCPServer
 )
 
 logger = logging.getLogger(__name__)
 
 ROOT_PATH = os.path.dirname(__file__)
-GLOBAL_SETTINGS = None
 HOME=os.environ.get("HOME")
-GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
-
-def backup_up_global_settings():
-    backup_dir = os.path.join(os.path.dirname(GLOBAL_SETTINGS_PATH), "codx-junior-backup")
-    os.makedirs(backup_dir, exist_ok=True)
-    
-    # Create a backup file name with the current date and time
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = os.path.join(backup_dir, f"global_settings_backup_{timestamp}.json")
-    logger.info("Saving global_settings backup: %s", backup_file)
-    try:
-        with open(GLOBAL_SETTINGS_PATH, "r") as f:
-            settings_data = f.read()
-        
-        with open(backup_file, "w") as f:
-            f.write(settings_data)
-    except Exception as ex:
-        logger.error(f"Error backing up global settings: {ex}")
-
-    try:        
-        # Maintain only the last 20 backups
-        backups = sorted(pathlib.Path(backup_dir).glob("global_settings_backup_*.json"), key=os.path.getmtime)
-        if len(backups) > 20:
-            for old_backup in backups[:-20]:
-                old_backup.unlink()
-    except Exception as ex:
-        logger.error(f"Error cleaning up global backup settings: {ex}")
-
-
-# logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
 CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
-
-def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
-    global_settings = global_settings or GLOBAL_SETTINGS
-    ai_provider_settings = [p for p in global_settings.ai_providers if p.name == ai_provider]
-    if not ai_provider_settings:
-        raise Exception(f"LLM AI provider not found: {ai_provider}")
-    
-    ai_provider = ai_provider_settings[0]
-    ai_provider.api_url = os.path.expandvars(ai_provider.api_url or "")
-    ai_provider.api_key = os.path.expandvars(ai_provider.api_key or "")
-
-    return ai_provider
-
-def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
-    global_settings = global_settings or GLOBAL_SETTINGS
-    model_settings = [m for m in global_settings.ai_models if m.name == llm_model or m.ai_model == llm_model]
-    if not model_settings:
-        raise Exception(f"LLM model not found: {llm_model}")
-    model: AIModel = model_settings[0]
-    provider = get_provider_settings(model.ai_provider, global_settings=global_settings)
-    ai_settings = AISettings(
-        **model.settings.__dict__,
-        provider=provider.provider,
-        api_url=provider.api_url,
-        api_key=provider.api_key,
-        model=model.ai_model or model.name,
-        model_type=model.model_type,
-        url=model.url
-    )
-    return ai_settings
-
-def read_global_settings():
-    global GLOBAL_SETTINGS
-    try:
-        with open(GLOBAL_SETTINGS_PATH) as f:
-            GLOBAL_SETTINGS = GlobalSettings(**json.loads(f.read()))
-    except Exception as ex:
-        logger.error(f"Error {ex} loading global settings from {GLOBAL_SETTINGS_PATH}")
-        GLOBAL_SETTINGS = GlobalSettings()
-    return GLOBAL_SETTINGS
-
-
-def write_global_settings(global_settings: GlobalSettings):
-    global GLOBAL_SETTINGS
-    # logger.exception(f"WRITE GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}, \n{traceback.format_stack()}")
-    try:
-        backup_up_global_settings()
         
-        old_settings = read_global_settings()
-        with open(GLOBAL_SETTINGS_PATH, "w") as f:
-            f.write(json.dumps(global_settings.dict()))
-
-        if global_settings.git.username:
-            exec_command(
-                f'git config --global user.name "{global_settings.git.username}"'
-            )
-        if global_settings.git.email:
-            exec_command(f'git config --global user.email "{global_settings.git.email}"')
-
-        GLOBAL_SETTINGS = global_settings
-    except Exception as ex:
-        logger.exception(f"Error saving global settings: {ex}")
-
-def get_oauth_provider(oauth_provider: str):
-    global_settings = read_global_settings()
-    return next((provider for provider in global_settings.oauth_providers \
-                if provider.name == oauth_provider), None)
-
-read_global_settings()
-# logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
-
-
-class DevOpsRepository(BaseModel):
-    def __init__(self, repo_url: str):
-        self.repo_url = repo_url
-        
-
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
 
     project_name: Optional[str] = Field(default=None)
     project_path: Optional[str] = Field(default="")
+    abs_project_path: Optional[str] = Field(default="")
     project_branches: Optional[List[str]] = Field(default=[])
     
     codx_path: Optional[str] = Field(default=None)
@@ -172,6 +67,8 @@ class CODXJuniorSettings(BaseModel):
 
     log_ignore: Optional[str] = Field(default="")
 
+    last_access_time: Optional[str] = Field(default="")
+
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
     embeddings_model:  str = Field(default="")
@@ -179,11 +76,19 @@ class CODXJuniorSettings(BaseModel):
     rag_model: str = Field(default="")
     wiki_model: str = Field(default="")
 
+    # Image generation and vision settings
+    image_generation_model: Optional[str] = Field(default="")
+    image_vision_model: Optional[str] = Field(default="")
+    image_storage_folder: Optional[str] = Field(default="images/generated")
+    image_max_file_size_mb: Optional[int] = Field(default=100)
+
     last_error: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
 
     repo_url: Optional[str] = Field(default=None)
+
+    mcp_servers: Optional[List[MCPServer]] = Field(default=[], description="List of MCP servers configured for this project")
 
     is_git_root: Optional[bool] = Field(default=False)
 
@@ -191,20 +96,20 @@ class CODXJuniorSettings(BaseModel):
         return str(self.model_dump())
 
     def get_agent_max_iterations(self):
-        return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions
+        return get_global_settings().agent_settings.max_agent_iteractions
 
     def get_llm_settings(self, llm_model: str = None) -> AISettings:
         if not llm_model:
             llm_model = self.llm_model 
         if not llm_model:
-            llm_model = GLOBAL_SETTINGS.llm_model
+            llm_model = get_global_settings().llm_model
 
         return get_model_settings(llm_model)   
 
     def get_embeddings_settings(self) -> AISettings:
         embeddings_model = self.embeddings_model 
         if not embeddings_model:
-            embeddings_model = GLOBAL_SETTINGS.embeddings_model
+            embeddings_model = get_global_settings().embeddings_model
 
         return get_model_settings(embeddings_model)
 
@@ -214,6 +119,34 @@ class CODXJuniorSettings(BaseModel):
     def get_project_workspaces(self):
         global_settings = read_global_settings()
         return [w for w in global_settings.workspaces if self.project_id in w.project_ids]
+
+    def get_active_mcp_servers(self) -> List[MCPServer]:
+        """Get list of active MCP servers."""
+        return [server for server in self.mcp_servers if server.active]
+
+    def get_mcp_server_by_name(self, name: str) -> Optional[MCPServer]:
+        """Get MCP server by name."""
+        return next((server for server in self.mcp_servers if server.name == name), None)
+
+    def is_image_generation_enabled(self) -> bool:
+        """Check if image generation is enabled (model defined)."""
+        return bool(self.image_generation_model)
+
+    def is_image_vision_enabled(self) -> bool:
+        """Check if image vision is enabled (model defined)."""
+        return bool(self.image_vision_model)
+
+    def get_image_generation_settings(self) -> AISettings:
+        """Get AI settings for image generation model."""
+        if not self.image_generation_model:
+            return AISettings()
+        return get_model_settings(self.image_generation_model)
+
+    def get_image_vision_settings(self) -> AISettings:
+        """Get AI settings for image vision model."""
+        if not self.image_vision_model:
+            return AISettings()
+        return get_model_settings(self.image_vision_model)
 
     @classmethod
     def from_codx_path(cls, codx_path: str):
@@ -229,11 +162,23 @@ class CODXJuniorSettings(BaseModel):
             settings = CODXJuniorSettings(**{**base.model_dump(), **settings})
             # Avoid override
             settings.codx_path = base.codx_path
-            if not settings.project_path or settings.project_path[0] != "/":
-                settings.project_path = base.project_path
+            # User set absolute path in project_path
+            if settings.project_path \
+                and settings.project_path.startswith("/") \
+                and os.path.isdir(settings.project_path):
+                settings.abs_project_path = settings.project_path
+            else:
+                # User set reltive project_path
+                if settings.project_path:
+                    norm_project_path = os.path.normpath(os.path.join(base.project_path, settings.project_path))
+                    settings.abs_project_path = norm_project_path        
+            # project_path is empty, use same as base
+            if not settings.abs_project_path:
+                settings.abs_project_path = base.project_path
+    
             if not settings.project_id:
                 return settings.save_project()
-            settings.is_git_root = os.path.isdir(f"{settings.project_path}/.git")
+            settings.is_git_root = os.path.isdir(f"{settings.abs_project_path}/.git")
             return settings
 
     @classmethod
@@ -253,12 +198,12 @@ class CODXJuniorSettings(BaseModel):
         valid_keys = CODXJuniorSettings.get_valid_keys()
         path = f"{self.codx_path}/project.json"
         os.makedirs(self.codx_path, exist_ok=True)
-        project_path_folders = self.project_path.split("/")
+        project_path_folders = self.abs_project_path.split("/")
         codx_path_folders = self.codx_path.split("/")[:-1]
         logging.info(f"Saving settings without project_path {project_path_folders} {codx_path_folders}")
             
         if project_path_folders == codx_path_folders: # Check for custom project_path
-            self.project_path = None
+            self.abs_project_path = None
         # project_id
         if not self.project_id:
             self.project_id = str(uuid.uuid4())
@@ -275,7 +220,7 @@ class CODXJuniorSettings(BaseModel):
 
     def get_sub_projects(self):
         try:
-            all_project_files = pathlib.Path(self.project_path).rglob(
+            all_project_files = pathlib.Path(self.abs_project_path).rglob(
                 "**/.codx/project.json"
             )
             sub_projects = [
@@ -308,7 +253,7 @@ class CODXJuniorSettings(BaseModel):
 
         if self.project_wiki_path[0] == "/":
             return self.project_wiki_path
-        return os.path.join(self.project_path, self.project_wiki_path)
+        return os.path.join(self.abs_project_path, self.project_wiki_path)
 
     def get_project_dependencies(self):
         if self.project_dependencies:
@@ -316,17 +261,17 @@ class CODXJuniorSettings(BaseModel):
         return []
 
     def get_log_ai(self):
-        return GLOBAL_SETTINGS.log_ai
+        return get_global_settings().log_ai
 
     def get_sub_projects_paths(self):
         sub_projects = self.get_sub_projects()
-        return [project.project_path for project in sub_projects]
+        return [project.abs_project_path for project in sub_projects]
 
 
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
         if self.project_wiki_path:
-            wiki_path = os.path.join(self.project_path, self.project_wiki_path)
+            wiki_path = os.path.join(self.abs_project_path, self.project_wiki_path)
             ignore_patterns.append(wiki_path)
         if self.knowledge_file_ignore:
             ignore_patterns = ignore_patterns + \
@@ -338,11 +283,13 @@ class CODXJuniorSettings(BaseModel):
         return not [p for p in self.get_ignore_patterns() if p in file_path]
 
     def get_wiki_model(self):
-        return self.wiki_model or GLOBAL_SETTINGS.wiki_model
+        return self.wiki_model or get_global_settings().wiki_model
+
+    def get_rag_model(self):
+        return self.rag_model or get_global_settings().rag_model
 
     def get_project_ai_models(self):
-        return GLOBAL_SETTINGS.ai_models
-
+        return get_global_settings().ai_models
 
 
 class CODXJuniorProject(CODXJuniorSettings):

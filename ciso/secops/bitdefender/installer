@@ -1,0 +1,2582 @@
+#!/bin/sh
+#
+# Bitdefender (c) 2024
+#
+
+set -e
+
+LC_ALL=C
+DEBIAN_FRONTEND=noninteractive
+export LC_ALL
+export DEBIAN_FRONTEND
+
+umask 0077
+
+#
+# These variables are populated by GravityZone
+#
+CONFIG_URL="https://cloudgz-ecs.gravityzone.bitdefender.com/Packages/BSTNIX/0/KLS8bS"
+LOGINPASSWD="{LOGINPASSWD}"
+STATUS_LINK="https://cloudgz-ecs.gravityzone.bitdefender.com/tasks/state"
+
+#
+# The 'taskId' argument must be the very first one
+#
+TASK_ID=$(printf "%s" "$1" | grep taskId | sed -e 's/taskId=/''/g' | sed -e 's/[{}]/''/g')
+
+#
+# Known actions:
+#  1 - install
+#  2 - reconfigure
+#  3 - repair
+#  4 - uninstall
+#
+CURRENT_ACTION=${CURRENT_ACTION:-1}
+
+INSTALLER_DATE="Tue, 24 Mar 2026 15:25:50 +0200"
+INSTALLER_VERSION="7.8.2.200288"
+SDIR=$(readlink -f "$(dirname "$0")")
+SNAME=${0##*/}
+INSTALLER="$SDIR/$SNAME"
+BDCONFIGURE="$SDIR/bdconfigure"
+
+BRAND="Bitdefender"
+DIR="/opt/bitdefender-security-tools"
+ENABLE_GZ_INTEGRATION="ON"
+LOG_DIR="$DIR/var/log"
+LOG_FILE="$LOG_DIR/installer.log"
+SETUP_DIR=${SETUP_DIR:-"$DIR/var/tmp/setup"}
+INSTALLER_CONFIG=${INSTALLER_CONFIG:-$SETUP_DIR/installer.xml}
+ARRAKIS_PRODUCT_ID="25"
+ENABLE_LOGS="0"
+
+#
+# There are two globals indicating locations from which files can be downloaded:
+#   CONFIG_URL   - this is from where the installer components can be retreived
+#                  (the installer configuration XML and the bdconfigure tool)
+#   DOWNLOAD_URL - this is from where the files to be installed can be retrieved
+#                  (package, repository signing key etc.)
+#
+DOWNLOAD_URL=""
+PINNED_VERSION=""
+
+PKG_MAJOR=7
+PKG_MINOR=0
+PKG_RELEASE=0
+PKG_BUILD=0
+PKG_ARCH=""
+PKG_REMOTE_DIR=""
+PKG_FILE=""
+
+OS_ID=""
+OS_VERSION=""
+OS_BITNESS=""
+OS_SUPPORTED=1
+
+DO_SIG_CHECK=0
+
+LOCKFILE="/tmp/bdinstaller.lock"
+
+VERSION_TXT=""
+
+SCAN_TYPE=""
+AMAZON_ID=""
+AZURE_ID=""
+SYSTEMINFO_VM=""
+SYSTEMINFO_SERVER=""
+SYSTEMINFO_SLOW=""
+REMOTE_SCAN=0
+USE_SCAN_SETTINGS=0
+BEST_LEGACY_PRESENT=0
+BEST_LEGACY_DIRECTORY=""
+
+#
+# Disk space requirements (in 1KiB blocks)
+#
+FILESCAN_DISK_SPACE_REMOTE=614400                #  600MiB
+FILESCAN_DISK_SPACE_FULL=1638400                 # 1600MiB
+FILESCAN_DISK_SPACE_LIGHT=1126400                # 1100MiB
+FILESCAN_DISK_SPACE_REMOTE_FULL=1638400          # 1600MiB
+FILESCAN_DISK_SPACE_REMOTE_LIGHT=1126400         # 1100MiB
+UPDATESERVER_DISK_SPACE_LIMIT=10485760           #   10GiB
+PATCHMANAGEMENTSERVER_DISK_SPACE_LIMIT=104857600 #  100GiB
+
+#
+# Proxy configuration
+#
+PROXY_SERVER=""
+PROXY_PORT=""
+PROXY_USER=""
+PROXY_PASS=""
+
+#
+# Credits to Michael Holmes Hodgin
+# https://unix.stackexchange.com/a/218505
+#
+_log ()
+(
+	p=
+	mkfifo "${p:=$(mktemp -u)}"  &&
+	printf %s "$p"               &&
+	exec <&- >&- <>/dev/null >&0 &&
+	{
+		rm "$p"
+		"$BDCONFIGURE" --logger-ident installer --logger-priority "$1" --logger-pid "$2" --logger "$LOG_FILE"
+	} <"$p" &
+)
+
+logsetup ()
+{
+	printf "Redirecting all output to %s ...\n" "$LOG_FILE"
+	mkdir -p "$LOG_DIR"
+	chmod u+x "$BDCONFIGURE"
+	exec >"$(_log info $$)" 2>"$(_log error $$)"
+}
+
+start_product ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl start bdsec
+	else
+		$DIR/bin/bd start >/dev/null
+	fi
+}
+
+stop_product ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl stop bdsec
+	else
+		$DIR/bin/bd stop >/dev/null
+	fi
+}
+
+product_is_enabled ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl is-active bdsec && return 0 || return 1
+	fi
+
+	if [ -x /sbin/chkconfig ]; then
+		chkconfig bdsec && return 0 || return 1
+	fi
+
+	[ -L /etc/rc3.d/S80bdsec ] && return 0
+
+	return 1
+}
+
+stop_arrakis ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl stop bdsec-arrakis
+	elif [ -x $DIR/bin/arrakis ]; then
+		$DIR/bin/arrakis -k >/dev/null
+	fi
+}
+
+enable_arrakis ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl enable bdsec-arrakis
+	fi
+}
+
+disable_arrakis ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl disable bdsec-arrakis
+	fi
+}
+
+cleanup_arrakis_folders ()
+{
+	local rmPMSFolder=$1
+	local rmRelayFolder=$2
+	if [ $rmPMSFolder -eq 1 ]; then
+		local patchDownloadDir=""
+
+		[ -f "$DIR/etc/patchManager.xml" ] && \
+			patchDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/patchManager.xml" -r "/PatchManagerSettings/DownloadDirectory/@value" 2>/dev/null || true)
+
+		printf "Remove PMSFolder: %s\n" "$patchDownloadDir"
+
+		if [ -d "$patchDownloadDir" ]; then
+			# The directory must be of the format: /<somedir>/patchManager
+			local bn=$(basename "$patchDownloadDir")
+			if [ "$bn" = "patchManager" ]; then
+				printf "removing directory: %s ...\n" "$patchDownloadDir"
+				rm -rf "$patchDownloadDir"
+				rmdir "$(dirname "$patchDownloadDir")" >/dev/null 2>&1 || true
+			fi
+		fi
+	fi
+
+	if [ $rmRelayFolder -eq 1 ]; then
+		local productUpdateDownloadDir=""
+		local signatureUpdateDownloadDir=""
+		local kitsDownloadDir=""
+		[ -f "$DIR/etc/updatePlugin.xml" ] && \
+			productUpdateDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/updatePlugin.xml" -r "/UpdatePluginSettings/ProductUpdateSettings/downloadDirectory/@value" 2>/dev/null || true)
+
+		[ -f "$DIR/etc/updatePlugin.xml" ] && \
+			signatureUpdateDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/updatePlugin.xml" -r "/UpdatePluginSettings/SignatureUpdateSettings/downloadDirectory/@value" 2>/dev/null || true)
+
+		[ -f "$DIR/etc/kits.xml" ] && \
+			kitsDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/kits.xml" -r "/Plugin/DownloadDirectory/@value" 2>/dev/null || true)
+
+		printf "Remove productUpdateDownloadDir: %s\n" "$productUpdateDownloadDir"
+		printf "Remove signatureUpdateDownloadDir: %s\n" "$signatureUpdateDownloadDir"
+		printf "Remove kitsDownloadDir: %s\n" "$kitsDownloadDir"
+
+		if [ -d "$productUpdateDownloadDir" ]; then
+			# The directory must be of the format: /<somedir>/products
+			local bn=$(basename "$productUpdateDownloadDir")
+			if [ "$bn" = "products" ]; then
+				printf "removing directory: %s ...\n" "$productUpdateDownloadDir"
+				rm -rf "$productUpdateDownloadDir"
+				rmdir "$(dirname "$productUpdateDownloadDir")" >/dev/null 2>&1 || true
+			fi
+		fi
+
+		if [ -d "$signatureUpdateDownloadDir" ]; then
+			# The directory must be of the format: /<somedir>/signatures
+			local bn=$(basename "$signatureUpdateDownloadDir")
+			if [ "$bn" = "signatures" ]; then
+				printf "removing directory: %s ...\n" "$signatureUpdateDownloadDir"
+				rm -rf "$signatureUpdateDownloadDir"
+				rmdir "$(dirname "$signatureUpdateDownloadDir")" >/dev/null 2>&1 || true
+			fi
+		fi
+
+		if [ -d "$kitsDownloadDir" ]; then
+			# The directory must be of the format: /<somedir>/DownloadableKits
+			local bn=$(basename "$kitsDownloadDir")
+			if [ "$bn" = "DownloadableKits" ]; then
+				printf "removing directory: %s ...\n" "$kitsDownloadDir"
+				rm -rf "$kitsDownloadDir"
+				rmdir "$(dirname "$kitsDownloadDir")" >/dev/null 2>&1 || true
+			fi
+		fi
+	fi
+}
+
+fetch ()
+{
+	local src="$1"
+	local dst="$2"
+
+	printf "fetching \"%s\" into \"%s\"\n" "$src" "$dst"
+
+	if [ -x "$BDCONFIGURE" ]; then
+		local bdconfigure_opt
+		require_tls "$src" && bdconfigure_opt="" || bdconfigure_opt="-k"
+		"$BDCONFIGURE" $bdconfigure_opt -f "$src" -o "$dst"
+	elif [ -x /usr/bin/curl ]; then
+		local curl_opt
+		require_tls "$src" && curl_opt="" || curl_opt="-k"
+		/usr/bin/curl $curl_opt -L --retry 2 -f -m 300 -s -o "$dst" "$src"
+	elif [ -x /usr/bin/wget ]; then
+		local wget_opt
+		require_tls "$src" && wget_opt="" || wget_opt="--no-check-certificate"
+		/usr/bin/wget $wget_opt --tries 2 -T 300 -q -O "$dst" "$src"
+	else
+		return 1
+	fi
+}
+
+http_post ()
+{
+	local data="$1"
+	local url="$2"
+
+	printf "POST-ing \"%s\" to \"%s\"\n" "$data" "$url"
+
+	if [ -x "$BDCONFIGURE" ]; then
+		local bdconfigure_opt
+		require_tls "$url" && bdconfigure_opt="" || bdconfigure_opt="-k"
+		"$BDCONFIGURE" $bdconfigure_opt -d "$data" -p "$url"
+	elif [ -x /usr/bin/curl ]; then
+		local curl_opt
+		require_tls "$url" && curl_opt="" || curl_opt="-k"
+		/usr/bin/curl $curl_opt --retry 2 -f -m 300 -s -d "$data" "$url"
+		printf "\n"
+	elif [ -x /usr/bin/wget ]; then
+		local wget_opt
+		require_tls "$url" && wget_opt="" || wget_opt="--no-check-certificate"
+		/usr/bin/wget $wget_opt --tries 2 -T 300 -q -O - --post-data "$data" "$url"
+		printf "\n"
+	else
+		return 1
+	fi
+}
+
+#
+# Known states:
+#   200 - begin download
+#   201 - end downloading
+#   202 - remove competitor
+#   203 - done removing competitor
+#   204 - begin remove old version
+#   205 - end remove old version
+#   210 - begin installation
+#   211 - end installation
+#
+post_status ()
+{
+	local state="$1"
+	local error="$2"
+	local timestamp=$(date +%s)
+	local json=""
+
+	[ -z "$STATUS_LINK" ] && return 0
+	[ "$STATUS_LINK" = "{STATUS""_LINK}" ] && return 0
+
+	[ -z "$TASK_ID" ] && return 0
+	[ -z "$error" ] && error=0
+
+	read json <<EOF || true
+{"version":1,"action":$CURRENT_ACTION,"stateId":$state,"stateInfo":null,"error":$error,"timestamp":$timestamp,"taskId":"$TASK_ID"}
+EOF
+
+	http_post "$json" "$STATUS_LINK" || true
+}
+
+#
+# This is the generic exit point configured with 'trap <action> EXIT'
+#
+script_exit ()
+{
+	local err=$?
+
+	if [ $err -gt 0 ]; then
+		printf "the installer has unexpectedly exit with error %d\n" "$err" >&2
+		if [ -x "$SETUP_DIR/bdaur" ]; then
+			case "$CURRENT_ACTION" in
+				1)
+					post_status 211 $err
+					"$SETUP_DIR/bdaur" -i $err "$PINNED_VERSION" >/dev/null 2>&1 || true
+				;;
+				4)
+					"$SETUP_DIR/bdaur" -u $err >/dev/null 2>&1 || true
+				;;
+				*)
+				;;
+			esac
+		fi
+
+		if [ $CURRENT_ACTION -eq 2 ] || [ $CURRENT_ACTION -eq 3 ]; then
+			post_status 211 $err
+		fi
+
+		if [ $CURRENT_ACTION -eq 2 ] && [ -x "$DIR/bin/bdaur" ]; then
+			"$DIR/bin/bdaur" -m $err "unexpected error" >/dev/null 2>&1 || true
+		fi
+	fi
+
+	return $err
+}
+
+#
+# Known error codes:
+#   1 - download URL not found
+#   2 - download error
+#   3 - file could not be copied; the package is corrupted or run on the wrong architecture
+#   4 - could not create setup directory
+#  10 - cannot find Linux distribution
+#  11 - operating system not supported
+#  12 - another installation is in progress
+#  13 - could not uninstall Bitdefender Tools
+#  16 - this package is already installed
+#  19 - could not find configuration file
+#  22 - cURL error (HTTP 4xx; see the curl(1) manual page for more information)
+#  31 - uninstalling competitor product failed
+#  74 - not enough disk space
+#  75 - there is a problem with the package manager
+#  77 - the current scan type configuration is not permitted
+#  78 - could not install plugins
+#  79 - invalid settings
+#  80 - feature failed to install
+#
+die ()
+{
+	local err="$1"
+	local msg="$2"
+
+	[ -n "$msg" ] && printf "%s\n" "$msg" >&2
+
+	post_status 211 "$err"
+
+	# Disable the exit trap
+	trap - EXIT
+
+	if [ -x "$SETUP_DIR/bdaur" ]; then
+		case "$CURRENT_ACTION" in
+			1)
+				"$SETUP_DIR/bdaur" -i $err "$PINNED_VERSION" >/dev/null 2>&1 || true
+			;;
+			4)
+				"$SETUP_DIR/bdaur" -u $err >/dev/null 2>&1 || true
+			;;
+			*)
+			;;
+		esac
+	fi
+
+	if [ $CURRENT_ACTION -eq 2 ]; then
+		if [ -x "$DIR/bin/bdaur" ]; then
+			"$DIR/bin/bdaur" -m $err "$msg" >/dev/null 2>&1 || true
+		fi
+		rm -rf "$SETUP_DIR"
+	fi
+
+	exit $err
+}
+
+get_distro ()
+{
+	local distro=""
+	local distrover=""
+
+	if [ ! -f /etc/os-release ]; then
+		if [ -f /etc/centos-release ]; then
+			distro="centos"
+			distrover=$(cat /etc/centos-release | grep -E -o '[0-9.]+' || true)
+		elif [ -f /etc/redhat-release ]; then
+			distro="rhel"
+			distrover=$(cat /etc/redhat-release | grep -E -o '[0-9.]+' || true)
+		elif [ -f /etc/SuSE-release ]; then
+			distro="sles"
+			distrover=$(cat /etc/SuSE-release | grep -E -o '[0-9.]+' || true)
+		elif [ -f /etc/debian_version ]; then
+			distro="debian"
+			distrover=$(cat /etc/debian_version | grep -E -o '[0-9.]+' || true)
+		else
+			die 10 "/etc/os-release is missing"
+		fi
+	else
+		. /etc/os-release
+
+		distro="$ID"
+		distrover="$VERSION_ID"
+	fi
+
+	OS_ID="$distro"
+	OS_VERSION="$distrover"
+}
+
+update_arch ()
+{
+	local pkgmgr
+	pkgmgr=$("$BDCONFIGURE" --distro-pkgmgr 2>/dev/null)
+
+	PKG_ARCH=$(uname -m)
+
+	case "$pkgmgr" in
+		apt)
+			case "$PKG_ARCH" in
+				i*86)
+					PKG_ARCH="i386"
+					PKG_REMOTE_DIR="linux-i386"
+					OS_BITNESS="32"
+				;;
+				x86_64)
+					PKG_ARCH="amd64"
+					PKG_REMOTE_DIR="linux-amd64"
+					OS_BITNESS="64"
+				;;
+				aarch64)
+					PKG_ARCH="arm64"
+					PKG_REMOTE_DIR="linux-arm64"
+					OS_BITNESS="64"
+				;;
+				*)
+					die 11 "unsupported architecture $PKG_ARCH"
+				;;
+			esac
+		;;
+		*)
+			case "$PKG_ARCH" in
+				i*86)
+					PKG_ARCH="i686"
+					PKG_REMOTE_DIR="linux-i386"
+					OS_BITNESS="32"
+				;;
+				x86_64)
+					PKG_REMOTE_DIR="linux-amd64"
+					OS_BITNESS="64"
+				;;
+				aarch64)
+					PKG_REMOTE_DIR="linux-arm64"
+					OS_BITNESS="64"
+				;;
+				*)
+					die 11 "unsupported architecture $PKG_ARCH"
+				;;
+			esac
+		;;
+	esac
+}
+
+update_globals ()
+{
+	local pkgfmt
+	pkgfmt=$("$BDCONFIGURE" --distro-pkgfmt 2>/dev/null)
+
+	PKG_MAJOR=$(cut -d. -f 1 "$VERSION_TXT" | tr -d '\n\r')
+	PKG_MINOR=$(cut -d. -f 2 "$VERSION_TXT" | tr -d '\n\r')
+	PKG_RELEASE=$(cut -d. -f 3 "$VERSION_TXT" | tr -d '\n\r')
+	PKG_BUILD=$(cut -d. -f 4 "$VERSION_TXT" | tr -d '\n\r')
+
+	case "$pkgfmt" in
+		deb)
+			PKG_FILE="bitdefender-security-tools_${PKG_MAJOR}.${PKG_MINOR}.${PKG_RELEASE}-${PKG_BUILD}_${PKG_ARCH}.deb"
+		;;
+		rpm)
+			PKG_FILE="bitdefender-security-tools-${PKG_MAJOR}.${PKG_MINOR}.${PKG_RELEASE}-${PKG_BUILD}.${PKG_ARCH}.rpm"
+		;;
+		*)
+			die 11 "unsupported distribution $OS_ID"
+		;;
+	esac
+
+	printf "OS: %s\n" "$OS_ID"
+	printf "OS version: %s\n" "$OS_VERSION"
+	printf "kernel: %s\n" "$(uname -r)"
+}
+
+installed_version ()
+{
+	local ver=""
+	local pkgmgr
+	pkgmgr=$("$BDCONFIGURE" --distro-pkgmgr 2>/dev/null)
+
+	case "$pkgmgr" in
+		apt)
+			# Handle the case where the package was removed with 'apt-get remove' instead of 'apt-get purge'
+			local p="$(dpkg-query -f '${Status}' --show "bitdefender-security-tools" 2>/dev/null | grep -v deinstall || true)"
+			[ -n "$p" ] && ver=$(dpkg-query -f '${Version}' --show "bitdefender-security-tools" 2>/dev/null || true)
+		;;
+		dnf|tdnf|yum|zypper)
+			ver=$(rpm -q --queryformat='%{VERSION}-%{RELEASE}' "bitdefender-security-tools" 2>/dev/null | grep -v "not installed" || true)
+		;;
+		*)
+			die 11 "unsupported distribution $OS_ID"
+		;;
+	esac
+
+	printf "%s\n" "$ver"
+}
+
+copy_file ()
+{
+	local src="$1"
+	local dst="$2"
+
+	printf "copying \"%s\" into \"%s\"\n" "$src" "$dst"
+	cp -f "$src" "$dst"
+}
+
+copy_or_download ()
+{
+	local src="$1"
+	local dst="$2"
+	[ -z "$dst" ] && dst="$src"
+
+	if [ -f "$SDIR/$src" ]; then
+		local d=$(dirname "$dst")
+		[ "$d" = "." ] || mkdir -p "$SETUP_DIR/$d"
+		printf "copying \"%s\" into \"%s\"\n" "$SDIR/$src" "$SETUP_DIR/$dst"
+		copy_file "$SDIR/$src" "$SETUP_DIR/$dst"
+	else
+		local d=$(dirname $dst)
+		[ "$d" = "." ] || mkdir -p "$SETUP_DIR/$d"
+		if ! fetch "$DOWNLOAD_URL/$src" "$SETUP_DIR/$dst"; then
+			die 2 "failed to download '$DOWNLOAD_URL/$src'"
+		fi
+		DO_SIG_CHECK=1
+	fi
+}
+
+do_jq()
+{
+	local expr="$1"
+	local json_file="$2"
+	local jq="$DIR/bin/jq"
+
+	$jq "$expr" "$json_file" > "${json_file}.tmp" && \
+		mv -f "${json_file}.tmp" "$json_file" || rm -f "${json_file}.tmp"
+}
+
+get_proxy_config ()
+{
+	# If the proxy has already been configured, then leave this function early. This
+	# effectively means that multiple proxy configurations are not supported.
+	[ -n "$PROXY_SERVER" ] && [ ! "$PROXY_SERVER" = "{PROXY""_SERVER}" ] && return 0
+
+	local installerFile
+	[ -f "$SDIR/installer.xml" ] && \
+		PROXY_SERVER=$("$BDCONFIGURE" -I "$SDIR/installer.xml" -r "/config/proxyServer" 2>/dev/null || true) && \
+		installerFile="$SDIR/installer.xml"
+	if [ -f "$INSTALLER_CONFIG" ] && ([ -z "$PROXY_SERVER" ] || [ "$PROXY_SERVER" = "{PROXY""_SERVER}" ]); then
+		PROXY_SERVER=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/proxyServer" 2>/dev/null || true)
+		installerFile="$INSTALLER_CONFIG"
+	fi
+
+	if [ -n "$PROXY_SERVER" ] && [ ! "$PROXY_SERVER" = "{PROXY""_SERVER}" ]; then
+		printf "setting up the proxy environment variables (%s)\n" "$PROXY_SERVER"
+
+		PROXY_PORT=$("$BDCONFIGURE" -I "$installerFile" -r "/config/proxyPort" 2>/dev/null || true)
+		PROXY_USER=$("$BDCONFIGURE" -I "$installerFile" -r "/config/proxyUser" 2>/dev/null || true)
+		PROXY_PASS=$("$BDCONFIGURE" -I "$installerFile" -r "/config/proxyPass" 2>/dev/null || true)
+
+		http_proxy=$("$BDCONFIGURE" --proxy-server "$PROXY_SERVER:$PROXY_PORT" --proxy-user "$PROXY_USER" --proxy-password "$PROXY_PASS" --proxy-string)
+		https_proxy="$http_proxy"
+		export http_proxy
+		export https_proxy
+	else
+		printf "no proxy configured\n"
+	fi
+}
+
+stop_epag ()
+{
+	if [ -x /bin/systemctl ]; then
+		systemctl stop bdsec-epagng
+	elif [ -x $DIR/bin/epagngd ]; then
+		$DIR/bin/epagngd -k >/dev/null
+	fi
+}
+
+configure_epag_ex ()
+{
+	local server="$1"
+	local custid="$2"
+	local conntime="$3"
+	local customfield="$4"
+	local appid="$5"
+	local token="$6"
+	local userid="$7"
+
+	local proxy_server="$8"
+	local proxy_port="$9"
+	local proxy_user="${10}"
+	local proxy_password="${11}"
+
+	local epagjso="$DIR/etc/epagng/epagng.jso"
+
+	[ "$ENABLE_LOGS" = "1" ] && \
+		do_jq ".log.level=\"trace\"" "$epagjso"
+
+	do_jq ".conn.srvaddrlist=[\"$server\"]" "$epagjso"
+
+	[ -n "$custid" ] && \
+		do_jq ".id.custid=\"$custid\"" "$epagjso" || \
+		do_jq ".id.custid=\"\"" "$epagjso"
+
+	[ -n "$conntime" ] && \
+		do_jq ".conn.timesec=$conntime" "$epagjso" || \
+		do_jq ".conn.timesec=1800" "$epagjso"
+
+	[ -n "$customfield" ] && \
+		do_jq ".id.customdata=$customfield" "$epagjso" || \
+		do_jq ".id.customdata={}" "$epagjso"
+
+	[ -n "$appid" ] && \
+		do_jq ".id.appid=$appid" "$epagjso" || \
+		do_jq ".id.appid=12" "$epagjso"
+
+	if [ -n "$token" ] && [ ! -d "$DIR/etc/epagng/madata" ]; then
+		do_jq ".id.token=\"$token\"" "$epagjso"
+	else
+		do_jq ".id.token=\"\"" "$epagjso"
+	fi
+
+	[ -n "$userid" ] && \
+		do_jq ".id.userid=\"$userid\"" "$epagjso" || \
+		do_jq ".id.userid=\"\"" "$epagjso"
+
+	if [ -n "$proxy_server" ]; then
+		do_jq ".conn.proxy.server=\"$proxy_server\"" "$epagjso"
+		do_jq ".conn.proxy.port=$proxy_port" "$epagjso"
+		do_jq ".conn.proxy.username=\"$proxy_user\"" "$epagjso"
+		do_jq ".conn.proxy.password=\"$proxy_password\"" "$epagjso"
+	else
+		do_jq ".conn.proxy.server=\"\"" "$epagjso"
+		do_jq ".conn.proxy.port=0" "$epagjso"
+		do_jq ".conn.proxy.username=\"\"" "$epagjso"
+		do_jq ".conn.proxy.password=\"\"" "$epagjso"
+	fi
+}
+
+configure_epag ()
+{
+	local epag_server="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/serverAddress" 2>/dev/null || true)"
+	local epag_custid="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/customerId" 2>/dev/null || true)"
+	local epag_conntime="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/connTime" 2>/dev/null || true)"
+	local epag_custom_field="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/epagCustomField" 2>/dev/null || true)"
+	local epag_appid="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/appId" 2>/dev/null || true)"
+	local epag_token="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/epagConfig/authToken" 2>/dev/null || true)"
+	local epag_userid="$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/userId" 2>/dev/null || true)"
+
+	[ -z "$epag_server" ] && die 79 "cannot get the ECS server"
+
+	configure_epag_ex "$epag_server" "$epag_custid" "$epag_conntime" "$epag_custom_field" "$epag_appid" "$epag_token" "$epag_userid" \
+	                  "$PROXY_SERVER" "$PROXY_PORT" "$PROXY_USER" "$PROXY_PASS"
+}
+
+configure_bdsecd ()
+{
+	if [ "$ENABLE_LOGS" = "1" ]; then
+		local bdsecd_json="$DIR/etc/bdsecd.json"
+		do_jq ".log.level=\"debug\"" "$bdsecd_json"
+	fi
+
+	if [ -n "$PROXY_SERVER" ]; then
+		"$BDCONFIGURE" -s "/global/installer/proxy/server=$PROXY_SERVER"
+		"$BDCONFIGURE" -s "/global/installer/proxy/port=$PROXY_PORT"
+		"$BDCONFIGURE" -s "/global/installer/proxy/user=$PROXY_USER"
+		"$BDCONFIGURE" -s "/global/installer/proxy/password=$PROXY_PASS"
+	fi
+}
+
+configure_watchdog ()
+{
+	local service_name="$1"
+	local bdwatchdog_json="$DIR/etc/bdwatchdogd.json"
+	local idx=$($DIR/bin/jq ".services | map(.name == \"$service_name\") | index(true)" "$bdwatchdog_json" 2>/dev/null || true)
+
+	if [ "$idx" = "null" ]; then
+		"$DIR/bin/jq" ".services[.services | length] |= . + {\"name\":\"$service_name\",\"config\": \"bdsecd.json\",\"restartCount\":5}" "$bdwatchdog_json" > "${bdwatchdog_json}.tmp"
+		mv -f "${bdwatchdog_json}.tmp" "$bdwatchdog_json"
+	else
+		printf "%s already watched: %s\n" "$service_name" "$idx"
+		local arguments=$("$DIR/bin/jq" -r ".services[$idx].arguments" "$bdwatchdog_json")
+		printf "arguments: %s\n" "$arguments"
+		if [ "$arguments" = "null" ]; then
+			printf "Already at last configure\n"
+		else
+			"$DIR/bin/jq" ".services[$idx] = {\"name\":\"$service_name\",\"config\": \"bdsecd.json\",\"restartCount\":5}" "$bdwatchdog_json" > "${bdwatchdog_json}.tmp"
+			mv -f "${bdwatchdog_json}.tmp" "$bdwatchdog_json"
+		fi
+	fi
+}
+
+verify_signature ()
+{
+	printf "verifying the digital signature (ecs)\n"
+	if [ -n "$DOWNLOAD_URL" ]; then
+		for f in versions.dat versions.sig; do
+			[ -f "$SDIR/$f" ] && cp -f "$SDIR/$f" "$SETUP_DIR/$f" || fetch "$DOWNLOAD_URL/$f" "$SETUP_DIR/$f" || break
+		done
+		if [ -f "$SETUP_DIR/versions.dat" ] && [ -f "$SETUP_DIR/versions.sig" ]; then
+			"$BDCONFIGURE" -C "$SETUP_DIR" || die 2
+			printf "signature: OK\n"
+		fi
+	fi
+}
+
+check_feature ()
+{
+	local supported=$("$BDCONFIGURE" --check-feature "$1" 2>/dev/null || true)
+	if [ "$supported" = "1" ]; then
+		local action=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/features/feature[@name='$1']/@action" 2>/dev/null || true)
+		[ "$action" = "1" ] && return 0
+	else
+		printf "feature \"%s\" is not supported!\n" "$1"
+	fi
+	return 1
+}
+
+check_supported_feature ()
+{
+	local supported=$("$BDCONFIGURE" --check-feature "$1" 2>/dev/null || true)
+	[ "$supported" = "1" ] && return 0
+	return 1
+}
+
+install_antimalware_plugins ()
+{
+	local basedir="$DIR/var/lib/modules/antimalware"
+
+	printf "installing the antimalware plugins \"%s\"\n" "$SETUP_DIR/$PKG_REMOTE_DIR/$PLUGINS_ARCHIVE"
+
+	rm -rf "$basedir"
+	mkdir -p "$basedir"
+	tar -C "$basedir" -xzf "$SETUP_DIR/$PKG_REMOTE_DIR/$PLUGINS_ARCHIVE" "./etc" "./var/lib/scan/base-temp"
+
+	# Use the installed bdconfigure to speed up the exception processing as the
+	# one that's bundled with the installer is an SFX
+	local bdc="$DIR/bin/bdconfigure"
+
+	# Delete all update exceptions
+	"$bdc" -s "/modules/update/scheduled/signatures/exceptions="
+
+	# If present, load the new update exceptions
+	if [ -f "$basedir/etc/updexc.xml" ]; then
+		"$bdc" -I "$basedir/etc/updexc.xml" -r "/updexc/*" --xml-full-path | sed 's#.*\/\([^\/=]\+\).*#\1#' | while read updexc; do
+			local x=0
+			local y=1
+			local v=$("$bdc" -I "$basedir/etc/updexc.xml" -r "/updexc/$updexc/item[$y]/@file" 2>/dev/null || true)
+			( while [ -n "$v" ]; do
+				printf "%s\n" "/modules/update/scheduled/signatures/exceptions/$updexc/$x=$v" && x=$((x + 1))
+				y=$((y + 1))
+				v=$("$bdc" -I "$basedir/etc/updexc.xml" -r "/updexc/$updexc/item[$y]/@file" 2>/dev/null || true)
+			done ) | "$bdc" -s -
+		done
+	fi
+
+	# Move the plugins to the right place, cleanup and adjust the permissions
+	mv "$basedir/var/lib/scan/base-temp" "$basedir/base"
+	rm -rf "$basedir/etc" "$basedir/var"
+	chown -Rh root:root "$basedir"
+	find "$basedir" -type d -exec chmod 0700 {} \;
+	find "$basedir" -type f -exec chmod 0600 {} \;
+
+	"$bdc" -s "/modules/antimalware/scanType=$SCAN_TYPE"
+	[ $REMOTE_SCAN -eq 1 ] && \
+		"$bdc" -s "/modules/remoteScan/enabled=true" || \
+		"$bdc" -s "/modules/remoteScan/enabled=false"
+
+	"$bdc" -s "/modules/remoteScan/serverOrder=0"
+	"$bdc" -s "/modules/remoteScan/servers=" >/dev/null 2>&1 || true
+
+	( si=0
+	for s in $(seq 1 50); do
+		local s_address=$("$bdc" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/servers/server[$s]/@address" 2>/dev/null || true)
+		[ -z "$s_address" ] && break
+
+		local s_ssl=$("$bdc" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/servers/server[$s]/@useSSL" 2>/dev/null || true)
+		local s_id=$("$bdc" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/servers/server[$s]/@id" 2>/dev/null || true)
+		local s_port=$("$bdc" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/servers/server[$s]/@port" 2>/dev/null || true)
+
+		printf "%s\n" "/modules/remoteScan/servers/$si/address=$s_address"
+		printf "%s\n" "/modules/remoteScan/servers/$si/port=$s_port"
+		printf "%s\n" "/modules/remoteScan/servers/$si/useSSL=$s_ssl"
+		printf "%s\n" "/modules/remoteScan/servers/$si/id=$s_id"
+		printf "%s\n" "/modules/remoteScan/servers/$si/priority=$si"
+
+		si=$((si + 1))
+	done ) | "$bdc" -s -
+
+	local linuxOnAccessFolders=$("$bdc" -I "$INSTALLER_CONFIG" -r "/config/linuxOnAccessFolders" 2>/dev/null || true)
+	if [ -n $linuxOnAccessFolders ]; then
+		"$bdc" -s "/modules/onaccess/installpaths=$linuxOnAccessFolders"
+	fi
+}
+
+control_module ()
+{
+	local module="$1"
+	local enabled="$2"
+	local bdsecd_json="$DIR/etc/bdsecd.json"
+	local idx=$($DIR/bin/jq ".modules | map(.name == \"$module\") | index(true)" "$bdsecd_json" 2>/dev/null || true)
+
+	if [ "$idx" = "null" ]; then
+		"$DIR/bin/jq" ".modules[.modules | length] |= . + {\"name\":\"$module\",\"installed\":$enabled}" "$bdsecd_json" > "${bdsecd_json}.tmp"
+		mv -f "${bdsecd_json}.tmp" "$bdsecd_json"
+	elif [ -n "$idx" ]; then
+		"$DIR/bin/jq" ".modules[$idx].installed=$enabled" "$bdsecd_json" > "${bdsecd_json}.tmp"
+		mv -f "${bdsecd_json}.tmp" "$bdsecd_json"
+	else
+		printf "cannot control module \"%s\"\n" "$module" >&2
+	fi
+}
+
+check_installed_module ()
+{
+	local bdsecd_json="$DIR/etc/bdsecd.json"
+	local idx=$($DIR/bin/jq ".modules | map(.name == \"$1\") | index(true)" "$bdsecd_json")
+	[ "$idx" = "null" ] && return 1
+	local state=$($DIR/bin/jq -r ".modules[$idx].installed" "$bdsecd_json")
+	[ "$state" = "false" ] && return 1
+	return 0
+}
+
+control_feature ()
+{
+	local feature="$1"
+	local module="$2"
+	local enabled=""
+
+	check_feature "$feature" && enabled="true" || enabled="false"
+
+	case "$feature" in
+		"FileScan")
+			if [ $USE_SCAN_SETTINGS -ne 1 ]; then
+				printf "not using the scan settings for module %s\n" "$module"
+			elif [ "$module" = "onaccess" ]; then
+				[ "$enabled" = "true" ] && \
+					install_antimalware_plugins || \
+					rm -rf "$DIR/var/lib/modules/antimalware"/*
+			fi
+		;;
+		"UpdateServer" | "PatchManagementServer")
+			check_feature "UpdateServer" && upds_enabled=1 || upds_enabled=0
+			check_installed_module "relay" && old_upds_enabled=1 || old_upds_enabled=0
+			check_feature "PatchManagementServer" && pms_enabled=1 || pms_enabled=0
+			check_installed_module "patchmanagementserver" && old_pms_enabled=1 || old_pms_enabled=0
+
+			if [ $feature = "PatchManagementServer" ] && [ $upds_enabled -eq 0 ]; then
+				pms_enabled=0
+				enabled="false"
+			fi
+
+			if [ $upds_enabled -eq 1 ] || [ $pms_enabled -eq 1 ]; then
+				enable_arrakis
+				configure_watchdog "arrakis"
+
+				mkdir -p "$DIR/var/data" "$DIR/var/www" "$DIR/var/www2" "$DIR/var/cache_store" "$DIR/var/caching_proxy"
+
+				printf "<?xml version=\"1.0\"?>\n<config version=\"1.0\">\t<features>\n" > "$DIR/etc/features.xml"
+
+				[ $upds_enabled -eq 1 ] && \
+					printf "\t\t<feature name=\"Relay\"/>\n" >> "$DIR/etc/features.xml"
+
+				[ $pms_enabled -eq 1 ] && \
+					printf "\t\t<feature name=\"PatchManagerServer\"/>\n" >> "$DIR/etc/features.xml"
+
+				printf "\t</features>\n</config>\n" >> "$DIR/etc/features.xml"
+			else
+				disable_arrakis
+				rm -rf "$DIR/var/data" "$DIR/var/www" "$DIR/var/www2" "$DIR/var/cache_store" "$DIR/var/caching_proxy"
+				rm -f "$DIR/etc/features.xml"
+			fi
+
+			if [ $upds_enabled -eq 0 ] && [ $old_upds_enabled -eq 1 ]; then
+				cleanup_arrakis_folders 1 1
+			elif [ $pms_enabled -eq 0 ] && [ $old_pms_enabled -eq 1 ]; then
+				cleanup_arrakis_folders 1 0
+			fi
+
+			# Restore the default update server settings
+			if [ $CURRENT_ACTION -ne 2 ]; then
+				for cfg in generalSettings.xml http_proxy_server.xml kits.xml \
+					    logsettings.xml patches.xml patchManager.xml products.xml relay.xml \
+					    server.xml updatePlugin.xml caching_proxy.xml; do
+					if [ -f "$DIR/etc/$cfg.dist" ]; then
+						cp -f "$DIR/etc/$cfg.dist" "$DIR/etc/$cfg"
+					fi
+				done
+			fi
+			rm -f "$DIR/etc/arrakis.xml"
+			if [ $upds_enabled -eq 1 ]; then
+				$BDCONFIGURE --configure-arrakis
+			fi
+		;;
+		"PatchManagement")
+			local pm_path=$($BDCONFIGURE -g "/modules/patchmanagement/path" 2>/dev/null || true)
+			[ -z "$pm_path" ] && enabled="false"
+		;;
+		"NetworkMonitor")
+			if [ "$enabled" = "true" ]; then
+				if [ "$OS_BITNESS" = "32" ]; then
+					printf "%s is not supported on 32-bit systems\n" "$module"
+					enabled="false"
+				elif [ ! -x /bin/systemctl ]; then
+					printf "%s is not supported by this distribution\n" "$module"
+					enabled="false"
+				elif check_feature "ContainerProtection"; then
+					printf "%s is not supported alongside Container Protection\n" "$module"
+					enabled="false"
+				fi
+			fi
+		;;
+		"IntegrityMonitor" | "ActivityMonitor")
+			if [ "$enabled" = "true" ]; then
+				if [ "$OS_BITNESS" = "32" ]; then
+					printf "%s is not supported on 32-bit systems\n" "$module"
+					enabled="false"
+				else
+					# Exclude from the start a set of unsupported operating systems. The proper
+					# test is done by actually trying to attach an eBPF probe to a kprobe.
+					#
+					# Get the kernel version as a single integer for easy testing
+					local kv=$(uname -r | grep -Eo '^[0-9]+\.[0-9]+\.[0-9]+' | awk -F. '{ print $1 * 1000000 + $2 * 1000 + $3 }' || true)
+
+					[ -z $kv ] && kv="0"
+
+					if [ $kv -lt 4008000 ]; then
+						if [ -f /etc/redhat-release ]; then
+							# Get the kernel package version
+							# More information: https://www.redhat.com/en/blog/what-latest-kernel-release-my-version-red-hat-enterprise-linux
+							local kpv=$(uname -r | grep -Eo '^[0-9.]+\-[0-9]+' | awk -F- '{ print $2 }' || true)
+
+							[ -z $kpv ] && kpv="0"
+
+							if [ $kv -lt 3010000 ]; then
+								printf "%s is not supported on this system (kernel is too old)\n" "$module"
+								enabled="false"
+							elif [ $kv -eq 3010000 -a $kpv -lt 940 ]; then
+								# The earliest kernel with the necessary patches is 3.10.0-940
+								# See: https://www.redhat.com/en/blog/introduction-ebpf-red-hat-enterprise-linux-7
+								printf "%s is not supported on this system (kernel is too old)\n" "$module"
+								enabled="false"
+							fi
+						else
+							printf "%s is not supported on this system (kernel is too old)\n" "$module"
+							enabled="false"
+						fi
+					fi
+				fi
+			fi
+		;;
+		*)
+		;;
+	esac
+
+	printf "feature %s -> %s -> %s\n" "$feature" "$module" "$enabled"
+	control_module "$module" "$enabled"
+}
+
+control_features ()
+{
+	control_feature "FileScan" "ondemand"
+	control_feature "FileScan" "onaccess"
+	control_feature "FileScan" "malwaremonitor"
+	control_feature "FileScan" "antimalware"
+	control_feature "EventCorrelator" "edr"
+	control_feature "EventCorrelator" "logmonitor"
+	control_feature "EventCorrelator" "siem"
+	control_feature "VulnerabilityAssessment" "vulnerabilityassessment"
+	control_feature "AntiExploit" "antiexploit"
+	control_feature "ContainerProtection" "container"
+	control_feature "UpdateServer" "relay"
+	control_feature "PatchManagement" "patchmanagement"
+	control_feature "PatchManagementServer" "patchmanagementserver"
+	control_feature "NetworkMonitor" "networkmonitor"
+	control_feature "IntegrityMonitor" "integritymonitor"
+	control_feature "BehavioralScan" "behavioralscan"
+	control_feature "ActivityMonitor" "activitymonitor"
+}
+
+launch_best_legacy ()
+{
+	local tmpdir="$1"
+	local update_server
+	update_server=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/arrakisUpdateServer" 2>/dev/null || true)
+	local bst_nix="$update_server/bst_nix"
+	local upd_dns
+	upd_dns=$(printf "%s\n" "$update_server" | sed 's#^.*:\/\/\(.*\)#\1#' | grep -E -o '^[^\/:]+' | grep -E -i -v '^.*\.bitdefender\.biz$' | sed 's#.*\.\(bitdefender\)\.[^.]\+#\1#' || true)
+
+	[ "$upd_dns" = "bitdefender" ] && \
+		bst_nix="https://download.bitdefender.com/SMB/Hydra/release/bst_nix"
+
+	local latest_dat="$bst_nix/latest.dat"
+
+	rm -rf "$tmpdir"
+	mkdir -p "$tmpdir"
+
+	if [ -z "$update_server" ] || [ "$update_server" = "{ARRAKIS""_UPDATE_SERVER}" ]; then
+		printf "cannot download BEST legacy (invalid update server)\n" >&2
+		return 1
+	fi
+
+	if ! fetch "$latest_dat" "$tmpdir/bst_nix_latest.dat"; then
+		printf "cannot download BEST legacy (failed to fetch latest.dat)\n" >&2
+		return 1
+	fi
+
+	local version="$(cat "$tmpdir/bst_nix_latest.dat" | grep -E -o '^25\s+6\.[0-9.]+' | awk '{ print $2 }')"
+	if [ -z "$version" ]; then
+		printf "cannot download BEST legacy (cannot determine the latest version)\n" >&2
+		return 1
+	fi
+
+	# Prepare the installer files
+	if ! fetch "$bst_nix/$version/downloader.sh" "$tmpdir/installer"; then
+		printf "cannot download BEST legacy (cannot download downloader.sh)\n" >&2
+		return 1
+	fi
+	if ! fetch "$bst_nix/$version/bdconfigure" "$tmpdir/bdconfigure"; then
+		printf "cannot download BEST legacy (cannot download installer.xml)\n" >&2
+		return 1
+	fi
+	cp -f "$INSTALLER_CONFIG" "$tmpdir/installer.xml"
+	chmod u+x "$tmpdir/installer" "$tmpdir/bdconfigure"
+
+	# Patch the installer (downloader.sh)
+	sed -i "s#{URL""_CONFIG_NIX}#$bst_nix/$version#g" "$tmpdir/installer"
+	[ "$LOGINPASSWD" = "{LOGIN""PASSWD}" ] || sed -i "s#{LOGIN""PASSWD}#$LOGINPASSWD#g" "$tmpdir/installer"
+	sed -i "s#{STATUS""_LINK}#$STATUS_LINK#g" "$tmpdir/installer"
+
+	# Patch installer.xml
+	sed -i "s#^\s*<downloadUrl\s\+.*#\t<downloadUrl strVar=\"DownloadUrl\"><\![CDATA[$bst_nix/$version]]></downloadUrl>#" "$tmpdir/installer.xml"
+
+	shift
+
+	ERR=0
+	"$tmpdir/installer" "$@" || ERR=$?
+	printf "legacy installer exit code: %d\n" "$ERR"
+
+	mv -f "$LOG_FILE" "$tmpdir"
+	rm -rf "$DIR"
+
+	exit $ERR
+}
+
+check_disk_space ()
+{
+	local check_dir="/"
+	if [ -d "$DIR" ]; then
+		check_dir="$DIR"
+	elif [ -d "/opt" ]; then
+		check_dir="/opt"
+	fi
+
+	local freespace=$(df -P "$check_dir" | tail -1 | tr -s ' \t\n\r' ' ' | cut -d' ' -f 4 || true)
+	if [ -z "$freespace" ]; then
+		die 74 "failed to determine the currently available disk space"
+	fi
+
+	printf "free disk space: %d KB\n" "$freespace"
+
+	local stype=0
+	if [ "$SCAN_TYPE" = "remote" ]; then
+		[ $REMOTE_SCAN -eq 1 ] && stype=1 || stype=0
+	elif [ "$SCAN_TYPE" = "light" ]; then
+		[ $REMOTE_SCAN -eq 1 ] && stype=2 || stype=4
+	else
+		[ $REMOTE_SCAN -eq 1 ] && stype=3 || stype=5
+	fi
+
+	printf "scan type: %s (%s)\n" "$SCAN_TYPE" "$stype"
+	[ $REMOTE_SCAN -eq 1 ] && printf "remote scan: enabled\n" || printf "remote scan: disabled\n"
+
+	local requiredspace=0
+	case "$stype" in
+		1) requiredspace=$FILESCAN_DISK_SPACE_REMOTE ;;
+		2) requiredspace=$FILESCAN_DISK_SPACE_REMOTE_LIGHT ;;
+		3) requiredspace=$FILESCAN_DISK_SPACE_REMOTE_FULL ;;
+		4) requiredspace=$FILESCAN_DISK_SPACE_LIGHT ;;
+		5) requiredspace=$FILESCAN_DISK_SPACE_FULL ;;
+	esac
+
+	check_feature "UpdateServer" && \
+		requiredspace=$((requiredspace + UPDATESERVER_DISK_SPACE_LIMIT)) || true
+
+	check_feature "PatchManagementServer" && \
+		requiredspace=$((requiredspace + PATCHMANAGEMENTSERVER_DISK_SPACE_LIMIT)) || true
+
+	printf "required disk space: %d KB\n" "$requiredspace"
+
+	[ $freespace -gt $requiredspace ] || \
+		die 74 "not enough disk space (free: $freespace, required: $requiredspace)"
+}
+
+detect_vm ()
+{
+	local detect_vm=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectVM" 2>/dev/null || true)
+	local stype=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectVM/@scanType" 2>/dev/null || true)
+	local rscan=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectVM/@enableRemoteScan" 2>/dev/null || true)
+
+	[ -z "$stype" ] && stype="light"
+	[ -z "$rscan" ] && rscan=0
+
+	#
+	# We will resume to x86 hardware virtualization which, by standard, is required
+	# to set the 'hypervisor' CPUID bit (see Intel SDM)
+	#
+	local is_vm=1
+	grep hypervisor /proc/cpuinfo >/dev/null && is_vm=0 || { systemd-detect-virt --vm --quiet 2>/dev/null && is_vm=0 ; } || is_vm=1
+
+	if [ $is_vm -eq 0 ]; then
+		printf "is VM: yes\n"
+		SYSTEMINFO_VM="/global/systemInfo/isVM=true"
+
+		[ -z "$detect_vm" ] && return 1
+		[ "$detect_vm" = "0" ] && return 1
+		SCAN_TYPE="$stype"
+		REMOTE_SCAN="$rscan"
+	else
+		printf "is VM: no\n"
+		SYSTEMINFO_VM="/global/systemInfo/isVM=false"
+	fi
+}
+
+detect_server ()
+{
+	local chassis=$(dmidecode -s chassis-type 2>/dev/null || true)
+	local is_server=0
+
+	case "$chassis" in
+		"Portable"|"Notebook"|"Laptop"|"Hand Held"|"Sub Notebook")
+			is_server=1
+		;;
+		*)
+		;;
+	esac
+
+	if [ $is_server -eq 0 ]; then
+		printf "server system: yes\n"
+		SYSTEMINFO_SERVER="/global/systemInfo/isServer=true"
+	else
+		printf "server system: no\n"
+		SYSTEMINFO_SERVER="/global/systemInfo/isServer=false"
+	fi
+
+	return $is_server
+}
+
+avg ()
+{
+	local t=0 n=0 v
+
+	while read -r v; do
+		v=$(( v / 1000 ))
+		n=$(( n + 1 ))
+		t=$(( t + v ))
+	done
+
+	if [ "$n" != 0 ]; then
+		echo $(( t / n ))
+	else
+		echo 0
+	fi
+}
+
+detect_slow_machine ()
+{
+	local detect_sm=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectSlowMachine" 2>/dev/null || true)
+	local stype=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectSlowMachine/@scanType" 2>/dev/null || true)
+	local rscan=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectSlowMachine/@enableRemoteScan" 2>/dev/null || true)
+
+	[ -z "$stype" ] && stype="light"
+	[ -z "$rscan" ] && rscan=0
+
+	local free_ram=$(free | grep Mem | tr -s ' ' | cut -d ' ' -f 2)
+	local cpu_count=$(grep -E -c 'processor\s*:' /proc/cpuinfo)
+	local cpu_avg_speed=$({ cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq 2>/dev/null | avg; } || echo 0)
+	if [ "$cpu_avg_speed" = "0" ]; then
+		local cpu_speeds=$(grep -i "cpu MHz" /proc/cpuinfo | tr -s ' ' | cut -d ' ' -f 3 | xargs printf "%s+")
+		# cpu_speeds has a trailing '+', thus the need for a '0' in the expression below
+		cpu_avg_speed=$(awk -v "cpu_count=$cpu_count" "BEGIN{print int((${cpu_speeds}0) / cpu_count + 0.5)}")
+	fi
+	if [ "$cpu_avg_speed" = "0" ] && ! grep -q MHz /proc/cpuinfo; then
+		# There is no MHz in cpuinfo on ARM64.
+		# If we get less than 250 MB/s, we say it is a slow machine.
+		local mbs=$( (timeout 2s dd if=/dev/zero bs=1MB count=128 | sha512sum >/dev/null) 2>&1 | grep -o ' [0-9]* MB/s$' | awk '{print $1}')
+		[ -n "$mbs" ] && cpu_avg_speed=$(awk "BEGIN{print int($mbs / 250 * 1500)}")
+	fi
+	local is_slow=1
+
+	printf "free RAM: %d KiB\n" "$free_ram"
+	printf "CPU count: %d\n" "$cpu_count"
+	printf "CPU average speed: %d MHz\n" "$cpu_avg_speed"
+
+	[ $free_ram -lt 1048576 ] && is_slow=0
+	[ $cpu_avg_speed -lt 1500 ] && is_slow=0
+
+	if [ $is_slow -eq 0 ]; then
+		printf "slow machine: yes\n"
+		SYSTEMINFO_SLOW="/global/systemInfo/isSlowMachine=true"
+
+		[ -z "$detect_sm" ] && return 1
+		[ "$detect_sm" = "0" ] && return 1
+		SCAN_TYPE="$stype"
+		REMOTE_SCAN="$rscan"
+	else
+		printf "slow machine: no\n"
+		SYSTEMINFO_SLOW="/global/systemInfo/isSlowMachine=false"
+	fi
+
+	return $is_slow
+}
+
+detect_amazon_ec2 ()
+{
+	local detect_ec2
+	detect_ec2=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectEC2" 2>/dev/null || true)
+
+	[ -z "$detect_ec2" ] && return 1
+	[ "$detect_ec2" = "0" ] && return 1
+
+	local stype
+	stype=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectEC2/@scanType" 2>/dev/null || true)
+
+	local rscan
+	rscan=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectEC2/@enableRemoteScan" 2>/dev/null || true)
+
+	local cloud_platform
+	cloud_platform=$("$BDCONFIGURE" --cloud-platform 2>/dev/null || true)
+
+	[ "$cloud_platform" = "aws" ] || return 1
+
+	[ -z "$stype" ] && stype="light"
+	[ -z "$rscan" ] && rscan=0
+
+	SCAN_TYPE="$stype"
+	REMOTE_SCAN="$rscan"
+	AMAZON_ID=$("$BDCONFIGURE" --cloud-instanceid || true)
+
+	return 0
+}
+
+detect_azure ()
+{
+	local detect_azure
+	detect_azure=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectAzure" 2>/dev/null || true)
+
+	[ -z "$detect_azure" ] && return 1
+	[ "$detect_azure" = "0" ] && return 1
+
+	local stype
+	stype=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectAzure/@scanType" 2>/dev/null || true)
+
+	local rscan
+	rscan=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanTypeDetection/detectAzure/@enableRemoteScan" 2>/dev/null || true)
+
+	local cloud_platform
+	cloud_platform=$("$BDCONFIGURE" --cloud-platform 2>/dev/null || true)
+
+	[ "$cloud_platform" = "azure" ] || return 1
+
+	[ -z "$stype" ] && stype="light"
+	[ -z "$rscan" ] && rscan=0
+
+	SCAN_TYPE="$stype"
+	REMOTE_SCAN="$rscan"
+	AZURE_ID=$("$BDCONFIGURE" --cloud-instanceid || true)
+
+	return 0
+}
+
+filter_scan_type_and_remote_scan ()
+{
+	if [ "$(uname -m)" = aarch64 ]; then
+		SCAN_TYPE=full
+		REMOTE_SCAN=0
+	else
+		case "$SCAN_TYPE" in
+			full|remote|light)
+			;;
+			*)
+				SCAN_TYPE=full
+			;;
+		esac
+	fi
+
+	printf "scan type: %s\n" "$SCAN_TYPE"
+}
+
+detect_scan_type ()
+{
+	#
+	# Known scan types: remote, light, full
+	#
+	SCAN_TYPE=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/scanType" 2>/dev/null || true)
+	if [ -z "$SCAN_TYPE" ]; then
+		die 77 "cannot determine the scan type"
+	fi
+
+	REMOTE_SCAN=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/enableRemoteScan" 2>/dev/null || true)
+	if [ -z "$REMOTE_SCAN" ] || [ ! "$REMOTE_SCAN" = "1" ]; then
+		if ([ "$SCAN_TYPE" = "remote" ] || [ "$REMOTE_SCAN" = "1" ]) && ! check_supported_feature "RemoteScan"; then
+			die 77 "unsupported RemoteScan with scan type '$SCAN_TYPE'!"
+		fi
+		REMOTE_SCAN=0
+		[ "$SCAN_TYPE" = "remote" ] && SCAN_TYPE="light"
+	else
+		REMOTE_SCAN=1
+	fi
+
+	#
+	# Basic check of the servers
+	#
+	if ! "$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/remoteScanSettings/servers/server[1]/@address" >/dev/null 2>&1; then
+		if ([ "$SCAN_TYPE" = "remote" ] || [ "$REMOTE_SCAN" = "1" ]) && ! check_supported_feature "RemoteScan"; then
+			die 77 "unsupported RemoteScan with scan type '$SCAN_TYPE'!"
+		fi
+		REMOTE_SCAN=0
+		[ "$SCAN_TYPE" = "remote" ] && SCAN_TYPE="light"
+	fi
+
+	#
+	# Configure the scan settings
+	#
+	if ! detect_amazon_ec2 && ! detect_azure && ! detect_vm; then
+		printf "nothing detected; proceeding with the default scan settings\n"
+	fi
+
+	if ([ "$SCAN_TYPE" = "remote" ] || [ "$REMOTE_SCAN" = "1" ]) && ! check_supported_feature "RemoteScan"; then
+		die 77 "unsupported RemoteScan with scan type '$SCAN_TYPE'!"
+	fi
+	#
+	# Update the scan settings if the system is too slow
+	#
+	detect_slow_machine || true
+
+	filter_scan_type_and_remote_scan
+}
+
+config_detected_sysinfo ()
+{
+	[ -n "$AMAZON_ID" ] \
+		&& "$BDCONFIGURE" -s "/global/systemInfo/instanceIdEc2=$AMAZON_ID" \
+		|| "$BDCONFIGURE" -s "/global/systemInfo/instanceIdEc2="
+
+	[ -n "$AZURE_ID" ] \
+		&& "$BDCONFIGURE" -s "/global/systemInfo/instanceIdAzure=$AZURE_ID" \
+		|| "$BDCONFIGURE" -s "/global/systemInfo/instanceIdAzure="
+	[ -n "$SYSTEMINFO_SERVER" ] && "$BDCONFIGURE" -s "$SYSTEMINFO_SERVER"
+	[ -n "$SYSTEMINFO_VM" ] && "$BDCONFIGURE" -s "$SYSTEMINFO_VM"
+	[ -n "$SYSTEMINFO_SLOW" ] && "$BDCONFIGURE" -s "$SYSTEMINFO_SLOW"
+}
+
+fetch_antimalware_plugins ()
+{
+	[ "$SCAN_TYPE" = "light" ] && PLUGINS_ARCHIVE="plugins_lightav${OS_BITNESS}.tar.gz" || \
+		PLUGINS_ARCHIVE="plugins_${SCAN_TYPE}${OS_BITNESS}.tar.gz"
+	copy_or_download "$PKG_REMOTE_DIR/$PLUGINS_ARCHIVE"
+}
+
+uninstall_competitor ()
+{
+	local remove_competitor=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/competitorRemoval/execute/@mode" 2>/dev/null || true)
+
+	[ -z "$remove_competitor" ] && return 0
+	[ "$remove_competitor" = "never" ] && return 0
+
+	local savscan=""
+	local uninstaller="/opt/sophos-av/uninstall.sh"
+	[ -L /usr/local/bin/savscan ] && savsan=$(readlink /usr/local/bin/savscan)
+	[ -n "$savscan" ] && [ -x "$savscan" ] && uninstaller=${savscan%/*/*}/uninstall.sh
+
+	if [ -x "$uninstaller" ]; then
+		printf "removing Sophos\n"
+
+		post_status 202
+
+		$uninstaller --automatic --force >/dev/null 2>&1 || true
+		pkill -9 savscand >/dev/null 2>&1 || true
+
+		post_status 203
+	else
+		printf "no competitor detected\n"
+	fi
+
+	return 0
+}
+
+product_uninstall ()
+{
+	local productUpdateDownloadDir=""
+	local signatureUpdateDownloadDir=""
+	local kitsDownloadDir=""
+	local patchDownloadDir=""
+
+	[ -f "$DIR/etc/updatePlugin.xml" ] && \
+		productUpdateDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/updatePlugin.xml" -r "/UpdatePluginSettings/ProductUpdateSettings/downloadDirectory/@value" 2>/dev/null || true)
+
+	[ -f "$DIR/etc/updatePlugin.xml" ] && \
+		signatureUpdateDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/updatePlugin.xml" -r "/UpdatePluginSettings/SignatureUpdateSettings/downloadDirectory/@value" 2>/dev/null || true)
+
+	[ -f "$DIR/etc/kits.xml" ] && \
+		kitsDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/kits.xml" -r "/Plugin/DownloadDirectory/@value" 2>/dev/null || true)
+
+	[ -f "$DIR/etc/patchManager.xml" ] && \
+		patchDownloadDir=$("$BDCONFIGURE" -I "$DIR/etc/patchManager.xml" -r "/PatchManagerSettings/DownloadDirectory/@value" 2>/dev/null || true)
+
+	get_distro
+
+	local nad_entry=$($DIR/bin/jq ".modules | map(.name == \"networkmonitor\") | index(true)" "$DIR/etc/bdsecd.json" 2>/dev/null || true)
+	local nad_installed="false"
+	if [ "$nad_entry" != "null" ]; then
+		nad_installed=$($DIR/bin/jq ".modules[$nad_entry].installed" "$DIR/etc/bdsecd.json" 2>/dev/null || true)
+		if [ "$nad_installed" = "true" ]; then
+			trap "" HUP
+		fi
+	fi
+
+	local pkgmgr
+	pkgmgr=$("$BDCONFIGURE" --distro-pkgmgr 2>/dev/null)
+
+	case "$pkgmgr" in
+		apt)
+			apt-get purge -qq -y bitdefender-security-tools || true
+		;;
+		dnf|tdnf|yum)
+			$pkgmgr remove -q -y bitdefender-security-tools || true
+		;;
+		zypper)
+			zypper -q remove -y bitdefender-security-tools || true
+		;;
+		*)
+			die 11 "unsupported distribution $OS_ID"
+		;;
+	esac
+
+	if [ "$nad_installed" = "true" ]; then
+		trap - HUP
+	fi
+
+	if [ -d "$productUpdateDownloadDir" ]; then
+		# The directory must be of the format: /<somedir>/products
+		local bn=$(basename "$productUpdateDownloadDir")
+		if [ "$bn" = "products" ]; then
+			printf "removing directory: %s ...\n" "$productUpdateDownloadDir"
+			rm -rf "$productUpdateDownloadDir"
+			rmdir "$(dirname "$productUpdateDownloadDir")" >/dev/null 2>&1 || true
+		fi
+	fi
+
+	if [ -d "$signatureUpdateDownloadDir" ]; then
+		# The directory must be of the format: /<somedir>/signatures
+		local bn=$(basename "$signatureUpdateDownloadDir")
+		if [ "$bn" = "signatures" ]; then
+			printf "removing directory: %s ...\n" "$signatureUpdateDownloadDir"
+			rm -rf "$signatureUpdateDownloadDir"
+			rmdir "$(dirname "$signatureUpdateDownloadDir")" >/dev/null 2>&1 || true
+		fi
+	fi
+
+	if [ -d "$kitsDownloadDir" ]; then
+		# The directory must be of the format: /<somedir>/DownloadableKits
+		local bn=$(basename "$kitsDownloadDir")
+		if [ "$bn" = "DownloadableKits" ]; then
+			printf "removing directory: %s ...\n" "$kitsDownloadDir"
+			rm -rf "$kitsDownloadDir"
+			rmdir "$(dirname "$kitsDownloadDir")" >/dev/null 2>&1 || true
+		fi
+	fi
+
+	if [ -d "$patchDownloadDir" ]; then
+		# The directory must be of the format: /<somedir>/patchManager
+		local bn=$(basename "$patchDownloadDir")
+		if [ "$bn" = "patchManager" ]; then
+			printf "removing directory: %s ...\n" "$patchDownloadDir"
+			rm -rf "$patchDownloadDir"
+			rmdir "$(dirname "$patchDownloadDir")" >/dev/null 2>&1 || true
+		fi
+	fi
+
+	#
+	# Remove the product gpg keys
+	#
+	rm -f /etc/apt/trusted.gpg.d/bitdefender.gpg /etc/apt/trusted.gpg.d/bitdefender-2022.gpg
+	for pkg in gpg-pubkey-af6056f5-55f5671f gpg-pubkey-c865e540-621e143e; do
+		[ -x /usr/bin/rpm ] && rpm -e $pkg >/dev/null 2>&1 || true
+	done
+
+	#
+	# Remove extra CST log files, if present
+	#
+	rm -rf /BDLogging /root/BDLogging
+
+	#
+	# Remove the NAD CA
+	#
+	rm -f /usr/local/share/ca-certificates/BDNetworkMonitorCA.crt \
+		/etc/pki/ca-trust/source/anchors/BDNetworkMonitorCA.crt \
+		/usr/share/pki/trust/anchors/BDNetworkMonitorCA.crt
+}
+
+configure_submissions ()
+{
+	local submit_dumps
+	submit_dumps=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/submitDumps" 2>/dev/null || true)
+	local submit_quar
+	submit_quar=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/submitQuar" 2>/dev/null || true)
+	local submit_quar_interval
+	submit_quar_interval=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/submitQuarInterval" 2>/dev/null || true)
+	local submit_suspicious
+	submit_suspicious=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/submitSuspicious" 2>/dev/null || true)
+	local submit_nimbus
+	submit_nimbus=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/cloudInstance" 2>/dev/null || true)
+
+	[ "$submit_dumps" = "1" ] && submit_dumps="true" || submit_dumps="false"
+	[ "$submit_quar" = "1" ] && submit_quar="true" || submit_quar="false"
+
+	[ "$submit_quar_interval" = "{SUBMIT""_QUARANTINE_SECONDS}" ] && submit_quar_interval=""
+	[ -z "$submit_quar_interval" ] && submit_quar_interval="3600"
+
+	[ "$submit_suspicious" = "1" ] && submit_suspicious="true" || submit_suspicious="false"
+
+	"$BDCONFIGURE" -s "/global/submitDumps=$submit_dumps"
+	"$BDCONFIGURE" -s "/global/submitQuar=$submit_quar"
+	"$BDCONFIGURE" -s "/global/submitQuarInterval=$submit_quar_interval"
+	"$BDCONFIGURE" -s "/global/cloud/allowFilesSubmission=$submit_suspicious"
+
+	if [ -n "$submit_nimbus" ]; then
+		"$BDCONFIGURE" -s "/global/cloud/cloudInstance=$submit_nimbus"
+		"$BDCONFIGURE" -s "/global/cloud/cloudInstanceSDK=true"
+		if [ -f "$DIR/etc/bdnc.ini" ]; then
+			if [ "$submit_nimbus" != "global" ] && [ "$submit_nimbus" != "<default>" ]; then
+				sed -i "s#=.*nimbus.bitdefender.net#= $submit_nimbus.nimbus.bitdefender.net#" "$DIR/etc/bdnc.ini"
+			else
+				sed -i "s#=.*nimbus.bitdefender.net#= nimbus.bitdefender.net#" "$DIR/etc/bdnc.ini"
+			fi
+		fi
+	fi
+}
+
+check_update_server ()
+{
+	local server="$1"
+	local use_ssl="$2"
+	local use_proxy="$3"
+	local upd_dns="$4"
+	local url=""
+
+	if [ "$use_proxy" = "true" ]; then
+		http_proxy=$("$BDCONFIGURE" --proxy-string 2>/dev/null || true)
+		https_proxy="$http_proxy"
+	else
+		http_proxy=""
+		https_proxy=""
+	fi
+
+	export http_proxy
+	export https_proxy
+
+	if [ "$upd_dns" = "bitdefender" ]; then
+		url="https://$server/bst_nix7"
+
+		fetch "$url/latest.dat" "$SETUP_DIR/latest.dat" >/dev/null || return 1
+		local ver="$(cat "$SETUP_DIR/latest.dat" | awk '{ print $2 }')"
+
+		fetch "$url/$ver/versions.dat" "$SETUP_DIR/versions.dat" >/dev/null || return 1
+		fetch "$url/$ver/versions.sig" "$SETUP_DIR/versions.sig" >/dev/null || return 1
+
+		printf "%s" "$url/$ver"
+	else
+		server=$(printf "%s" "$server" | sed 's#^[a-z]\+:\/\/##g')
+
+		[ "$use_ssl" = "true" ] && \
+			url="https://$server" || \
+			url="http://$server"
+
+		if fetch "$url/DownloadableKits/${ARRAKIS_PRODUCT_ID}_latest_downloaded_version.dat" \
+			"$SETUP_DIR/${ARRAKIS_PRODUCT_ID}_latest_downloaded_version.dat" >/dev/null; then
+			local ver="$(cat "$SETUP_DIR/${ARRAKIS_PRODUCT_ID}_latest_downloaded_version.dat")"
+
+			fetch "$url/DownloadableKits/${ARRAKIS_PRODUCT_ID}_$ver/versions.dat" "$SETUP_DIR/versions.dat" >/dev/null || return 1
+			fetch "$url/DownloadableKits/${ARRAKIS_PRODUCT_ID}_$ver/versions.sig" "$SETUP_DIR/versions.sig" >/dev/null || return 1
+
+			printf "%s" "$url/DownloadableKits/${ARRAKIS_PRODUCT_ID}_$ver"
+		else
+			fetch "$url/bst_nix7/latest.dat" "$SETUP_DIR/latest.dat" >/dev/null || return 1
+			local ver="$(cat "$SETUP_DIR/latest.dat" | awk '{ print $2 }')"
+
+			fetch "$url/bst_nix7/$ver/versions.dat" "$SETUP_DIR/versions.dat" >/dev/null || return 1
+			fetch "$url/bst_nix7/$ver/versions.sig" "$SETUP_DIR/versions.sig" >/dev/null || return 1
+
+			printf "%s" "$url/bst_nix7/$ver"
+		fi
+	fi
+
+	return 0
+}
+
+check_antimalware_plugins ()
+{
+	local os_arch
+	local bdcore
+
+	os_arch="$(uname -m)"
+	bdcore=""
+
+	case "$os_arch" in
+		x86_64)  bdcore="bdcore.so.linux-x86_64"  ;;
+		aarch64) bdcore="bdcore.so.linux-armel64" ;;
+		*)       bdcore="bdcore.so.linux-x86"     ;;
+	esac
+
+	[ -f "$DIR/var/lib/modules/antimalware/base/$bdcore" ]
+}
+
+product_reconfigure ()
+{
+	local is_active=0
+	local use_ss=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/useScanSettings")
+	local scanType=$("$BDCONFIGURE" -g "/modules/antimalware/scanType" 2>/dev/null || true)
+	if [ -z "$scanType" ]; then
+		scanType="light"
+	fi
+
+	# force the installation of the antimalware plugins if none exist
+	check_antimalware_plugins || use_ss=1
+
+	product_is_enabled && is_active=1 || true
+
+	# change the current directory to a known safe one
+	cd "$(dirname "$INSTALLER_CONFIG")"
+
+	printf "reconfiguring ...\n"
+
+	# allow a bit of time for epag to process the response event to the
+	# add/remove/modify task
+	printf "sleeping for a bit\n"
+	sleep 10
+
+	update_arch
+
+	detect_scan_type
+
+	check_disk_space
+
+	if [ "$use_ss" = "1" ]; then
+		printf "searching for an appropriate update server\n"
+
+		for i in $(seq 0 9); do
+			upd_host=$("$BDCONFIGURE" -g "/modules/update/scheduled/product/locations/$i/host" 2>/dev/null || true)
+			[ -z "$upd_host" ] && break
+
+			upd_use_ssl=$("$BDCONFIGURE" -g "/modules/update/scheduled/product/locations/$i/useSSL" 2>/dev/null || true)
+			upd_use_proxy=$("$BDCONFIGURE" -g "/modules/update/scheduled/product/locations/$i/useProxy" 2>/dev/null || true)
+
+			upd_dns=$(printf "%s\n" "$upd_host" | sed 's#^.*:\/\/\(.*\)#\1#' | grep -E -o '^[^\/:]+' | grep -E -i -v '^.*\.bitdefender\.biz$' | sed 's#.*\.\(bitdefender\)\.[^.]\+#\1#' || true)
+			[ "$upd_dns" = "bitdefender" ] && \
+				upd_host="download.bitdefender.com/SMB/Hydra/release" && \
+				upd_use_ssl="true"
+
+			printf "checking: %s (useSSL: %s, useProxy: %s)\n" "$upd_host" "$upd_use_ssl" "$upd_use_proxy"
+
+			DOWNLOAD_URL=$(check_update_server "$upd_host" "$upd_use_ssl" "$upd_use_proxy" "$upd_dns" || true)
+			[ -z "$DOWNLOAD_URL" ] && continue
+			printf "%s" "$DOWNLOAD_URL" >"$SETUP_DIR/update-server"
+			break
+		done
+
+		if [ ! -f "$SETUP_DIR/update-server" ]; then
+			# This covers the case where the reconfigure task was launched by the package
+			# postinstall script after detecting the existence of '$DIR/etc/installer.xml'.
+			# At this stage in the product installation process, the settings file does not
+			# contain any product update servers so we have to fallback to the installer
+			# configuration file.
+
+			get_proxy_config
+
+			DOWNLOAD_URL=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/downloadUrl" 2>/dev/null || true)
+			if [ -z "$DOWNLOAD_URL" ] || \
+				! fetch "$DOWNLOAD_URL/versions.dat" "$SETUP_DIR/versions.dat" || \
+				! fetch "$DOWNLOAD_URL/versions.sig" "$SETUP_DIR/versions.sig"; then
+				[ $is_active -eq 1 ] && start_product
+				die 1 "no suitable update server found"
+			fi
+		else
+			DOWNLOAD_URL=$(cat "$SETUP_DIR/update-server")
+		fi
+
+		printf "stopping the product (is active: %s)\n" "$is_active"
+		stop_product
+
+		# Backup relevant configuration files
+		[ -f "$DIR/etc/bdsecd.json" ] && \
+			cp -f "$DIR/etc/bdsecd.json" "$SETUP_DIR/bdsecd.json.backup"
+		[ -f "$DIR/var/cache/settings.bdsecd.enc" ] && \
+			cp -f "$DIR/var/cache/settings.bdsecd.enc" "$SETUP_DIR/settings.bdsecd.enc.backup"
+
+		fetch_antimalware_plugins
+
+		if [ "$DO_SIG_CHECK" -eq 1 ]; then
+			if ! "$BDCONFIGURE" -C "$SETUP_DIR"; then
+				# Restore backups and bail
+				[ -f "$SETUP_DIR/bdsecd.json.backup" ] && \
+					mv -f "$SETUP_DIR/bdsecd.json.backup" "$DIR/etc/bdsecd.json"
+				[ -f "$SETUP_DIR/settings.bdsecd.enc.backup" ] && \
+					mv -f "$SETUP_DIR/settings.bdsecd.enc.backup" "$DIR/var/cache/settings.bdsecd.enc"
+				[ $is_active -eq 1 ] && start_product
+				die 2 "failed to verify setup dir"
+			fi
+		else
+			printf "no files have been downloaded; not verifying the digital signature\n"
+		fi
+
+		USE_SCAN_SETTINGS=1
+	else
+		printf "stopping the product (is active: %s)\n" "$is_active"
+		stop_product
+	fi
+
+	local enableLogs=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/enableFullProductLogging" 2>/dev/null || true)
+	[ -n "$enableLogs" ] && ENABLE_LOGS="$enableLogs"
+
+	if [ "$ENABLE_GZ_INTEGRATION" = "ON" ]; then
+		TMPVAL=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/serverAddress" 2>/dev/null || true)
+		if [ -n "$TMPVAL" ]; then
+			printf "configuring epagng\n"
+
+			configure_epag
+		fi
+	fi
+
+	"$BDCONFIGURE" --print-modules > "$DIR/var/tmp/modifiedmodules"
+
+	printf "controlling the features\n"
+	control_features
+
+	"$BDCONFIGURE" --print-modules >> "$DIR/var/tmp/modifiedmodules"
+
+	"$DIR/bin/bdaur" -m 0 "$DIR/var/tmp/modifiedmodules" "$scanType" >/dev/null 2>&1 || true
+
+	rm -f "$DIR/var/tmp/modifiedmodules"
+
+	TMPVAL=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/submitDumps" 2>/dev/null || true)
+	[ -n "$TMPVAL" ] && configure_submissions
+
+	"$BDCONFIGURE" -s "/modules/suspend="
+
+	[ $is_active -eq 1 ] && printf "starting the product\n" && start_product
+	#clean-up SETUP_DIR except installer.xml
+	for entry in "$SETUP_DIR"/*; do
+		[ $entry = "${SETUP_DIR}/installer.xml" ] || rm -rf $entry
+	done
+
+	printf "done\n"
+}
+
+require_tls ()
+{
+	local host
+	host=$(printf "%s" "$1" | grep -E -i -o "^https://[^\/]+\.bitdefender\.[a-z]+/" | sed 's#https:\/\/\([^\/]\+\).*#\1#' | grep -E -i -v '^.*\.bitdefender\.biz$' || true)
+	[ -n "$host" ] && \
+		return 0 || \
+		return 1
+}
+
+#
+# This function targets Debian 8 in particular which has a version of apt
+# that is unable to handle installing packages by path, eg:
+#
+#     apt-get install /opt/bitdefender-security-tools/var/tmp/setup/bitdefender-security-tools_7.0.0-0_amd64.deb
+#
+# In this case we do a two stage installation:
+#
+#     dpkg -i /opt/bitdefender-security-tools/var/tmp/setup/bitdefender-security-tools_7.0.0-0_amd64.deb ||
+#         apt-get -q install -y -f
+#
+apt_too_old ()
+{
+	local ver=$(apt-get --version | grep -E -o 'apt[[:blank:]]+[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+' | cut -d' ' -f 2 | awk -F. '{ print $1 * 10000 + $2 * 100 + $3 }')
+
+	[ -z "$ver" ] && return 0
+
+	# versions older than 1.2.0 are considered as being unable to install
+	# packages by using a filesystem path
+	[ $ver -lt 10200 ] && return 0
+
+	return 1
+}
+
+detect_best_legacy_by_init_script ()
+{
+	local bd_script=""
+
+	[ -L "/usr/bin/bd" ] && bd_script="$(readlink "/usr/bin/bd")"
+	[ -n "$bd_script" ] && bd_script="$(basename "$bd_script")"
+
+	[ "$bd_script" = "bd-sve-client" ] || return 1
+
+	BEST_LEGACY_PRESENT=1
+
+	local bd_sve_client="$(readlink "/usr/bin/bd")"
+	local bd_bin_dir="$(dirname "$bd_sve_client")"
+
+	BEST_LEGACY_DIRECTORY="$(cd "$bd_bin_dir/../" && pwd)"
+}
+
+detect_best_legacy_by_update_script ()
+{
+	local bdupdate=""
+	local bd_bin_dir=""
+	local company_name="Bitdefender"
+	[ -L "/etc/cron.hourly/${company_name}UpdateRecovery" ] && bdupdate="$(readlink "/etc/cron.hourly/${company_name}UpdateRecovery")"
+	[ -n "$bdupdate" ] && bd_bin_dir="$(dirname "$bdupdate")"
+
+	[ -x "$bd_bin_dir/bd-sve-client" ] || return 1
+
+	BEST_LEGACY_PRESENT=1
+
+	BEST_LEGACY_DIRECTORY="$(cd "$bd_bin_dir/../" && pwd)"
+}
+
+detect_best_legacy ()
+{
+	detect_best_legacy_by_init_script || detect_best_legacy_by_update_script || true
+}
+
+upgrade_from_best_legacy ()
+{
+	local bd_dir="$BEST_LEGACY_DIRECTORY"
+
+	printf "BEST legacy detected; upgrading ...\n"
+
+	printf "stopping BEST legacy\n"
+	if ! /usr/bin/bd stop; then
+		printf "forcefully stopping all daemons\n"
+		for b in bdmond bdepsecd bdsrvscand.bin bdupdated bdlogd bdregd epagd arrakis; do
+			[ -x "$bd_dir/bin/$b" ] && printf "killing %s\n" "$b" && pkill -9 "$b" || true
+		done
+	fi
+
+	printf "migrating the legacy epag database\n"
+	"$BDCONFIGURE" --epag-migrate --epag-directory "$bd_dir/bin" --epag-logs "$bd_dir/var/epag"
+
+	[ -d "$bd_dir/etc/epagng" ] && rm -rf "$DIR/etc/epagng" && cp -rf "$bd_dir/etc/epagng" "$DIR/etc/"
+	[ -d "$bd_dir/var/epagng" ] && rm -rf "$DIR/var/epagng" && cp -rf "$bd_dir/var/epagng" "$DIR/var/"
+
+	[ -d "$DIR/etc/epagng" ] && chown -Rh root:root "$DIR/etc/epagng"
+	[ -d "$DIR/var/epagng" ] && chown -Rh root:root "$DIR/var/epagng"
+
+	printf "migrating the quarantine\n"
+	if [ -d "$bd_dir/var/quarantine" ]; then
+		rm -rf "$DIR/var/quarantine"
+		cp -rf "$bd_dir/var/quarantine" "$DIR/var/"
+		chown -Rh root:root "$DIR/var/quarantine"
+	fi
+
+	if [ -x "$bd_dir/bin/arrakis" ] && check_feature "UpdateServer"; then
+		printf "migrating the relay data\n"
+		if [ -d "$bd_dir/var/data" ]; then
+			rm -rf "$DIR/var/data"
+			mv "$bd_dir/var/data" "$DIR/var/"
+			chown -Rh root:root "$DIR/var/data"
+			find "$DIR/var/data" -type d -exec chmod 0755 {} \;
+			find "$DIR/var/data" -type f -exec chmod 0644 {} \;
+		fi
+		if [ -d "$bd_dir/var/www" ]; then
+			rm -rf "$DIR/var/www"
+			mv "$bd_dir/var/www" "$DIR/var/"
+			chown -Rh root:root "$DIR/var/www"
+			find "$DIR/var/www" -type d -exec chmod 0755 {} \;
+			find "$DIR/var/www" -type f -exec chmod 0644 {} \;
+		fi
+		if [ -d "$bd_dir/var/www2" ]; then
+			rm -rf "$DIR/var/www2"
+			mv "$bd_dir/var/www2" "$DIR/var/"
+			chown -Rh root:root "$DIR/var/www2"
+			find "$DIR/var/www2" -type d -exec chmod 0755 {} \;
+			find "$DIR/var/www2" -type f -exec chmod 0644 {} \;
+		fi
+
+		# Fix all symlinks
+		if [ -d "$DIR/var/www" ]; then
+			find "$DIR/var/www" -type l | while read lnk; do
+				local old_target="$(readlink "$lnk")"
+				local new_target="$(printf "%s" "$old_target" | sed "s#$bd_dir#$DIR#")"
+				ln -sf "$new_target" "$lnk"
+			done
+		fi
+		if [ -d "$DIR/var/www2" ]; then
+			find "$DIR/var/www2" -type l | while read lnk; do
+				local old_target="$(readlink "$lnk")"
+				local new_target="$(printf "%s" "$old_target" | sed "s#$bd_dir#$DIR#")"
+				ln -sf "$new_target" "$lnk"
+			done
+		fi
+	fi
+
+	printf "creating a backup of the BEST legacy installation\n"
+	mkdir -p "$DIR/var/backup"
+	tar \
+		--exclude "$bd_dir/var/lib/scan/*/Plugins" \
+		--exclude "$bd_dir/var/data" \
+		--exclude "$bd_dir/var/www" \
+		--exclude "$bd_dir/var/www2" \
+		-czf "$DIR/var/backup/best_legacy.tar.gz" "$bd_dir"
+
+	printf "removing BEST legacy\n"
+	sed -i "s#UNINSTALLLINK=\$\+.*#UNINSTALLLINK=\"\"#g" "$bd_dir/bin/remove-sve-client"
+	"$bd_dir/bin/remove-sve-client" isConsoleOrdered=true
+
+	# Redo the symlink that the BEST legacy uninstaller most certainly removed
+	ln -s "$DIR/bin/bd" /usr/bin/bd
+
+	printf "upgrade complete\n"
+}
+
+product_repair ()
+{
+	KEEPQUAR=1
+	export KEEPQUAR
+
+	printf "starting repair\n"
+
+	local company_name
+	company_name="Bitdefender.XXXXXX"
+	local tmpdir
+	tmpdir=$(mktemp -d "/tmp/${company_name}")
+
+	printf "setting up the installer configuration\n"
+	cp -f "$SETUP_DIR/installer.xml" "${tmpdir}/installer.xml"
+	cp -f "$INSTALLER_CONFIG" "${tmpdir}/installer.template.xml"
+
+	printf "configuring the product features\n"
+        for f in FileScan UserControl Antiphishing Firewall UpdateServer BehavioralScan \
+		TrafficScan MailServers DataLossPrevention ApplicationControl PowerUser \
+		MailServersForSandboxAnalyser EventCorrelator VolumeEncryption \
+		PatchManagement PatchManagementServer VulnerabilityAssessment AntiExploit \
+		NetworkMonitor IntegrityMonitor ContainerProtection ActivityMonitor; do
+		local action
+		action=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/features/feature[@name='$f']/@action" 2>/dev/null || printf "0\n")
+		printf "feature %s -> %s\n" "$f" "$action"
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -r "/config/features/feature[@name='$f']/@action" >/dev/null 2>&1 && \
+			"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/features/feature[@name\\='$f']/@action=$action"
+	done
+
+	local new_companyID
+	new_companyID=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/customerId" 2>/dev/null || printf "0\n")
+	local old_companyID
+	old_companyID=$("$BDCONFIGURE" -I "${tmpdir}/installer.xml" -r "/config/customerId" 2>/dev/null || printf "0\n")
+	printf "new_companyID: %s\n" "${new_companyID}"
+	printf "old_companyID: %s\n" "${new_companyID}"
+
+	if [ "${new_companyID}" != "${old_companyID}" ] && [ "${new_companyID}" != "{CUSTOMER""_ID}" ] && [ -d "$DIR/etc/epagng/madata" ]; then
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/customerId=${new_companyID}" 2>/dev/null || true
+		printf "SET new_companyID: %s\n" "${new_companyID}"
+
+		rm -rf "${DIR}.tmp/etc"
+		mkdir -p "${DIR}.tmp/etc"
+
+		stop_epag
+
+		mv "$DIR/etc/epagng/madata" "${DIR}.tmp/etc/"
+	fi
+
+	local newECS=$("$DIR/bin/jq" -r ".conn.srvaddr" "$DIR/etc/epagng/epagng.jso" 2>/dev/null || true)
+	[ -n "$newECS" ] && "$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/serverAddress=${newECS}" 2>/dev/null || true
+
+	[ -d "$DIR/var/epagng/epagng.db" ] && rm -rf "${DIR}.tmp/epagng" && \
+					    mkdir -p "${DIR}.tmp/epagng" && mv "$DIR/var/epagng/epagng.db" "${DIR}.tmp/epagng/"
+
+	local cloudInstance
+	cloudInstance=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/cloudInstance" 2>/dev/null || printf "0\n")
+	if [ -n "${cloudInstance}" ] && [ "${cloudInstance}" != "{CLOUD""_INSTANCE}" ]; then
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/cloudInstance=${cloudInstance}" 2>/dev/null || true
+		printf "SET cloudInstance: %s\n" "${cloudInstance}"
+	fi
+
+	PINNED_VERSION=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/pinnedProductVersion" 2>/dev/null || printf "0\n")
+	if [ -n "$" ] && [ "$" != "{PINNED""_PRODUCT_VERSION}" ]; then
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/pinnedProductVersion=$" 2>/dev/null || true
+		printf "SET pinnedProductVersion: %s\n" "$"
+	else
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/pinnedProductVersion=" 2>/dev/null || true
+		printf "SET pinnedProductVersion empty\n"
+	fi
+
+	get_proxy_config
+
+	local server
+	server=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/downloadUrl" 2>/dev/null || true)
+	[ -z "$server" ] && die 1
+	[ "$server" = "{DOWNLOAD""_URL}" ] && die 1
+
+	local versionURL
+	[ "$(printf "%s" "$server" | tail -c -1)" = "/" ] && \
+		versionURL=$(echo "${server}" | rev | cut -d'/' -f 2 | rev) || \
+		versionURL=$(echo "${server}" | rev | cut -d'/' -f 1 | rev)
+
+	if [ -n "$" ]; then
+		local server_nover
+		if printf "%s\n" "$versionURL" | grep -Eq '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+'; then
+			[ "$(printf "%s" "$server" | tail -c -1)" = "/" ] && \
+				server_nover=$(printf "%s\n" "$server" | sed "s#$versionURL/##") || \
+				server_nover=$(printf "%s\n" "$server" | sed "s#$versionURL##")
+		else
+			server_nover=$server
+		fi
+
+		local dwl_server
+		local upd_dns
+		upd_dns=$(printf "%s\n" "$server_nover" | sed 's#^.*:\/\/\(.*\)#\1#' | grep -E -o '^[^\/:]+' | grep -E -i -v '^.*\.bitdefender\.biz$' | sed 's#.*\.\(bitdefender\)\.[^.]\+#\1#' || true)
+		[ "$upd_dns" = "bitdefender" ] && \
+			dwl_server="https://download.bitdefender.com/SMB/Hydra/release/bst_nix7" || \
+			dwl_server=$(printf "%s\n" "$server_nover" | sed 's#SMB/Hydra/release#SMB/Hydra/release#' || true)
+
+		local ver
+		local verToFind
+		verToFind=$(echo "$PINNED_VERSION" | awk -F. '{ printf("%.0f",$1 * 100000000000000 + $2 * 10000000000 + $3 * 1000000 + $4) }' || printf "0")
+		fetch "$dwl_server/info.dat" "${tmpdir}/info.dat" >/dev/null || return 1
+		while read -r line
+		do
+			local verRead
+			verRead=$(echo "$line" | awk '{ print $2 }')
+			local verReadCMP
+			verReadCMP=$(echo "$verRead" | awk -F. '{ printf("%.0f",$1 * 100000000000000 + $2 * 10000000000 + $3 * 1000000 + $4) }' || printf "0")
+
+			[ $verReadCMP -le $verToFind ] && ver=$verRead
+		done < "${tmpdir}"/info.dat
+
+		DOWNLOAD_URL="$dwl_server/$ver"
+		server=$dwl_server
+	else
+		local dwl_server
+		local upd_dns
+		upd_dns=$(printf "%s\n" "$server" | sed 's#^.*:\/\/\(.*\)#\1#' | grep -E -o '^[^\/:]+' | grep -E -i -v '^.*\.bitdefender\.biz$' | sed 's#.*\.\(bitdefender\)\.[^.]\+#\1#' || true)
+
+		if printf "%s\n" "$versionURL" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+			[ "$upd_dns" = "bitdefender" ] && \
+				DOWNLOAD_URL="https://download.bitdefender.com/SMB/Hydra/release/bst_nix7/$versionURL" || \
+				DOWNLOAD_URL=$(printf "%s\n" "$server" | sed 's#SMB/Hydra/release#SMB/Hydra/release#' || true)
+		else
+			DOWNLOAD_URL="$server"
+		fi
+		server="$DOWNLOAD_URL"
+	fi
+
+	[ -z "$DOWNLOAD_URL" ] && die 1
+	[ "$DOWNLOAD_URL" = "{DOWNLOAD""_URL}" ] && die 1
+
+	printf "server: %s\n" "$server"
+	printf "DOWNLOAD_URL: %s\n" "$DOWNLOAD_URL"
+
+	printf "downloading the installer components\n"
+
+	fetch "$DOWNLOAD_URL/downloader.sh" "${tmpdir}/installer"
+	chmod +x "${tmpdir}/installer"
+
+	fetch "$DOWNLOAD_URL/bdconfigure" "${tmpdir}/bdconfigure"
+
+	printf "setting the download URL to: %s\n" "$server"
+	"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/downloadUrl=$server"
+
+	printf "copying the proxy settings\n"
+	for s in proxyServer proxyPort proxyUser proxyPass; do
+		local value
+		value=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/$s" 2>/dev/null || true)
+		printf "setting %s -> %s\n" "$s" "$value"
+		"$BDCONFIGURE" -I "${tmpdir}/installer.xml" -w "/config/$s=$value" 2>/dev/null || true
+	done
+
+	sed -i "s#{STATUS""_LINK}#$STATUS_LINK#" "${tmpdir}/installer"
+
+	local upds_feature
+	upds_feature=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/features/feature[@name='UpdateServer']/@action" || true)
+	local pms_feature
+	pms_feature=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/features/feature[@name='PatchManagementServer']/@action" || true)
+	if [ "$upds_feature" = "1" ] || [ "$pms_feature" = "1" ]; then
+		printf "moving away the arrakis data\n"
+
+		rm -rf "${DIR}.tmp/var"
+		mkdir -p "${DIR}.tmp/var"
+
+		stop_arrakis
+
+		mv "$DIR/var/data" "${DIR}.tmp/var/"
+		mv "$DIR/var/www" "${DIR}.tmp/var/"
+		mv "$DIR/var/www2" "${DIR}.tmp/var/"
+		mv "$DIR/var/cache_store" "${DIR}.tmp/var/"
+		mv "$DIR/var/caching_proxy" "${DIR}.tmp/var/"
+	else
+		rm -rf "${DIR}.tmp/var"
+		rmdir "${DIR}.tmp" >/dev/null 2>&1 || true
+	fi
+
+	cp -f "$LOG_FILE" "${tmpdir}/installer.log"
+
+	product_uninstall
+
+	if [ -d "${DIR}.tmp/var" ]; then
+		printf "restoring the arrakis data\n"
+		mkdir -p "$DIR/var"
+		[ -d "${DIR}.tmp/var/data" ] && rm -rf "$DIR/var/data" && mv "${DIR}.tmp/var/data" "$DIR/var/"
+		[ -d "${DIR}.tmp/var/www" ] && rm -rf "$DIR/var/www" && mv "${DIR}.tmp/var/www" "$DIR/var/"
+		[ -d "${DIR}.tmp/var/www2" ] && rm -rf "$DIR/var/www2" && mv "${DIR}.tmp/var/www2" "$DIR/var/"
+		[ -d "${DIR}.tmp/var/cache_store" ] && rm -rf "$DIR/var/cache_store" && mv "${DIR}.tmp/var/cache_store" "$DIR/var/"
+		[ -d "${DIR}.tmp/var/caching_proxy" ] && rm -rf "$DIR/var/caching_proxy" && mv "${DIR}.tmp/var/caching_proxy" "$DIR/var/"
+		rm -rf "${DIR}.tmp/var"
+		rmdir "${DIR}.tmp" >/dev/null 2>&1 || true
+	fi
+
+	if [ -d "${DIR}.tmp/etc/madata" ]; then
+		printf "restoring the epag madata\n"
+		mkdir -p "$DIR/etc/epagng"
+
+		rm -rf "$DIR/etc/epagng/madata"
+		mv "${DIR}.tmp/etc/madata" "$DIR/etc/epagng"
+	fi
+
+	if [ -f "${DIR}.tmp/epagng/epagng.db" ]; then
+		printf "restoring the epag database\n"
+		mkdir -p "$DIR/var/epagng/"
+
+		rm -f "$DIR/var/epagng/epagng.db"
+		mv "${DIR}.tmp/epagng/epagng.db" "$DIR/var/epagng/epagng.db"
+	fi
+
+	unset INSTALLER_CONFIG
+	unset CURRENT_ACTION
+
+	ERR=0
+
+	/bin/sh "${tmpdir}/installer" "taskId=$TASK_ID" || ERR=$?
+
+	CURRENT_ACTION=3 post_status 211
+
+	rm -rf "${tmpdir}"
+
+	exit $ERR
+}
+
+check_download_url ()
+{
+	PINNED_VERSION=$("$BDCONFIGURE" -I "$SDIR/installer.xml" -r "/config/pinnedProductVersion" 2>/dev/null || true)
+	local server
+
+	[ -f "$SDIR/installer.xml" ] && \
+		server=$("$BDCONFIGURE" -I "$SDIR/installer.xml" -r "/config/downloadUrl" 2>/dev/null || true) && \
+		PINNED_VERSION=$("$BDCONFIGURE" -I "$SDIR/installer.xml" -r "/config/pinnedProductVersion" 2>/dev/null || true)
+	[ -f "$INSTALLER_CONFIG" ] && [ -z "$server" ] && \
+		server=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/downloadUrl" 2>/dev/null || true) && \
+		PINNED_VERSION=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/pinnedProductVersion" 2>/dev/null || true)
+	if [ -z "$server" ] || [ "$server" = "{DOWNLOAD""_URL}" ]; then
+		die 1 "cannot find the download URL"
+	fi
+
+	local upd_dns
+	local dwl_server
+	upd_dns=$(printf "%s\n" "$server" | sed 's#^.*:\/\/\(.*\)#\1#' | grep -E -o '^[^\/:]+' | grep -E -i -v '^.*\.bitdefender\.biz$' | sed 's#.*\.\(bitdefender\)\.[^.]\+#\1#' || true)
+	[ "$upd_dns" = "bitdefender" ] && \
+		dwl_server="https://download.bitdefender.com/SMB/Hydra/release/bst_nix7" || \
+		dwl_server=$(printf "%s\n" "$server" | sed 's#SMB/Hydra/release#SMB/Hydra/release#' || true)
+
+	[ "$" = "{PINNED""_PRODUCT_VERSION}" ] && PINNED_VERSION=""
+	if [ -n "$PINNED_VERSION" ]; then
+		printf "Install pinnedVersion %s\n" "$PINNED_VERSION"
+		local ver
+		local verToFind
+		verToFind=$(echo "$PINNED_VERSION" | awk -F. '{ printf("%.0f",$1 * 100000000000000 + $2 * 10000000000 + $3 * 1000000 + $4) }' || printf "0")
+		rm -f "$SDIR/info.dat"
+		fetch "$dwl_server/info.dat" "$SDIR/info.dat" >/dev/null || return 1
+		while read -r line
+		do
+			local verRead
+			verRead=$(echo "$line" | awk '{ print $2 }')
+			local verReadCMP
+			verReadCMP=$(echo "$verRead" | awk -F. '{ printf("%.0f",$1 * 100000000000000 + $2 * 10000000000 + $3 * 1000000 + $4) }' || printf "0")
+
+			[ $verReadCMP -le $verToFind ] && ver=$verRead
+		done < "$SDIR"/info.dat
+
+		DOWNLOAD_URL="$dwl_server/$ver"
+	else
+		printf "No pinned version set!\n"
+		DOWNLOAD_URL=$server
+	fi
+
+	[ -z "$DOWNLOAD_URL" ] && die 1 "cannot find the download URL"
+
+	printf "download URL: %s\n" "$DOWNLOAD_URL"
+}
+
+trap script_exit EXIT
+
+if [ "$SNAME" = "uninstall" ]; then
+	BDUID=`id -u`
+	if [ $BDUID -ne 0 ]; then
+		printf "this script must be run as 'root'\n" >&2
+		exit 79
+	fi
+
+	logsetup
+
+	CURRENT_ACTION=4
+	product_uninstall
+	exit 0
+fi
+
+#
+# If running as a regular user, then elevate the privileges to root
+#
+# NOTE: The privilege elevation must happen before trying to acquire the lock file.
+#       Otherwise, we will run into a quagmire because of /proc/sys/fs/protected_regular
+#       (see proc(5) for more information)
+#
+BDUID=`id -u`
+if [ $BDUID -ne 0 ]; then
+	if [ "$LOGINPASSWD" = "{LOGIN""PASSWD}" ]; then
+		die 79 "missing login password"
+	fi
+	LOGINPASSWD_DECODED=`printf "%s" "$LOGINPASSWD" | base64 -d`
+	printf "%s\n" "$LOGINPASSWD_DECODED" | sudo -S FLOCKER="$FLOCKER" "$INSTALLER" "$@"
+	die $?
+fi
+
+#
+# Do not allow multiple instances of the installer
+#
+[ "${FLOCKER}" != "$LOCKFILE" ] && exec env FLOCKER="$LOCKFILE" flock -en "$LOCKFILE" "$0" "$@" || :
+
+#
+# Not all installer files are readily available. Some need to be downloaded
+#
+# NOTE: This is a special case that prepares the usual install process, hence
+#       the copy and move between $SETUP_DIR and $SDIR
+#
+if [ $CURRENT_ACTION -eq 1 ] && [ ! -f "$BDCONFIGURE" ]; then
+	[ "$CONFIG_URL" = "{URL_CONFIG""_NIX}" ] && die 1 "cannot use CONFIG_URL to download bdconfigure"
+	mkdir -p "$SETUP_DIR"
+
+	DOWNLOAD_URL="$CONFIG_URL"
+	copy_or_download "bdconfigure"
+	mv -f "$SETUP_DIR/bdconfigure" "$BDCONFIGURE"
+	DOWNLOAD_URL=""
+fi
+
+if [ $CURRENT_ACTION -eq 1 ] && [ ! -f "$SDIR/installer.xml" ]; then
+	[ "$CONFIG_URL" = "{URL_CONFIG""_NIX}" ] && die 1 "cannot use CONFIG_URL to download installer.xml"
+	mkdir -p "$SETUP_DIR"
+
+	DOWNLOAD_URL="$CONFIG_URL"
+	copy_or_download "installer.xml"
+	mv -f "$SETUP_DIR/installer.xml" "$SDIR/installer.xml"
+	DOWNLOAD_URL=""
+fi
+
+#
+# Enable a script-wide logger
+#
+logsetup
+
+printf "starting the installation ...\n"
+printf "command line: %s\n" "$*"
+printf "version: %s (%s)\n" "$INSTALLER_VERSION" "$INSTALLER_DATE"
+
+# Uncomment the following two lines to enable debugging
+# set -x
+# set
+
+# Prefetch the OS information
+get_distro
+
+# Make sure all HTTP(S) requests go through the specified proxy (if any)
+get_proxy_config
+
+for p in $*; do
+	if [ "$p" = "--reconfigure" ]; then
+		[ $ENABLE_GZ_INTEGRATION = "ON" ] && STATUS_LINK=$("$DIR/bin/jq" -r ".conn.srvaddr" "$DIR/etc/epagng/epagng.jso" 2>/dev/null | sed 's#\/hydra.*$#\/tasks/state#' || true)
+
+		CURRENT_ACTION=2
+
+		post_status 210
+		product_reconfigure
+		post_status 211
+		exit 0
+	elif [ "$p" = "--repair" ]; then
+		[ $ENABLE_GZ_INTEGRATION = "ON" ] && STATUS_LINK=$("$DIR/bin/jq" -r ".conn.srvaddr" "$DIR/etc/epagng/epagng.jso" 2>/dev/null | sed 's#\/hydra.*$#\/tasks/state#' || true)
+
+		CURRENT_ACTION=3
+
+		post_status 210
+		product_repair
+		post_status 211
+		exit 0
+	elif [ "$p" = "--container" ]; then
+		install -m 0755 -d "$DIR/etc"
+		touch "$DIR/etc/.container"
+	fi
+done
+
+# copy_or_download uses DOWNLOAD_URL, so make sure it's set
+check_download_url
+
+#
+# Sanity checks
+#
+printf "sanity checks\n"
+
+INSTALL_PATH=$("$BDCONFIGURE" -I "$SDIR/installer.xml" -r "/config/installPath" 2>/dev/null || true)
+[ -n "$INSTALL_PATH" ] && [ ! "$INSTALL_PATH" = "%PROGRAMFILES%" ] && die 79 "installations in custom directories are no longer supported ($INSTALL_PATH)"
+
+if [ "$CONFIG_URL" = "{URL_CONFIG""_NIX}" ]; then
+	printf "CONFIG_URL is unset. Using %s\n" "$DOWNLOAD_URL"
+	CONFIG_URL="$DOWNLOAD_URL"
+fi
+
+[ -f "$BDCONFIGURE" ] || \
+	die 1 "cannot find the executable bdconfigure"
+
+[ -f "$SDIR/installer.xml" ] || \
+	die 19 "cannot find the installer configuration file (installer.xml)"
+
+#
+# Check if the product is already installed
+#
+INSTALLED_VERSION=$(installed_version)
+[ -n "$INSTALLED_VERSION" ] && \
+	printf "already installed version: %s\n" "$INSTALLED_VERSION"
+
+#
+# Place all files into $SETUP_DIR
+#
+printf "preparing to copy files\n"
+
+rm -rf "$SETUP_DIR" && mkdir -p "$SETUP_DIR" || die 4
+chmod 0755 "$DIR" \
+	"$DIR/var" \
+	"$DIR/var/tmp"
+
+printf "copying all files into \"%s\"\n" "$SETUP_DIR"
+
+copy_file "$INSTALLER" "$SETUP_DIR/installer"
+chmod 0700 "$SETUP_DIR/installer"
+
+copy_file "$BDCONFIGURE" "$SETUP_DIR/bdconfigure"
+chmod 0700 "$BDCONFIGURE"
+
+#
+# Extract the telemetry tool (just in case)
+#
+"$SETUP_DIR/bdconfigure" extractbdaur
+
+copy_file "$SDIR/installer.xml" "$INSTALLER_CONFIG"
+chmod 0600 "$SDIR/installer.xml"
+
+#
+# Get the CPU architecture information
+#
+update_arch
+printf "CPU: %s\n" "$(uname -m)"
+printf "Package architecture: %s\n" "$PKG_ARCH"
+
+if [ $OS_SUPPORTED -eq 0 ]; then
+	launch_best_legacy "/tmp/bitdefender_legacy" "$@"
+	die 11
+fi
+
+#
+# Fetch the GravityZone status link (used mainly during automatic deployments)
+#
+[ "$STATUS_LINK" = "{STATUS""_LINK}" ] && \
+	STATUS_LINK=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/statusLink" 2>/dev/null || true)
+printf "status link: %s\n" "$STATUS_LINK"
+
+# Begin download
+post_status 200
+
+copy_or_download "$PKG_REMOTE_DIR/version.txt"
+VERSION_TXT="$SETUP_DIR/$PKG_REMOTE_DIR/version.txt"
+
+update_globals
+
+copy_or_download "$PKG_REMOTE_DIR/$PKG_FILE"
+
+detect_scan_type
+fetch_antimalware_plugins
+USE_SCAN_SETTINGS=1
+
+copy_or_download "$PKG_REMOTE_DIR/repo-key.gpg"
+copy_or_download "$PKG_REMOTE_DIR/repo-key.asc"
+copy_or_download "$PKG_REMOTE_DIR/repo-key-2022.gpg"
+copy_or_download "$PKG_REMOTE_DIR/repo-key-2022.asc"
+
+# End download
+post_status 201
+
+#
+# If a download has taken place, then proceed with the signature verification
+#
+[ "$DO_SIG_CHECK" -eq 1 ] && verify_signature || printf "no files have been downloaded; not verifying the digital signature\n"
+
+uninstall_competitor
+
+check_disk_space
+
+#
+# The new product package will overwrite the '/usr/bin/bd' symlink, so we need
+# to do the BEST legacy detection before proceeding with the installation
+#
+detect_best_legacy
+
+# Begin installation
+post_status 210
+
+#
+# Install the product package
+#
+printf "installing the product package \"%s\"\n" "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE"
+
+PKGMGR=$("$BDCONFIGURE" --distro-pkgmgr 2>/dev/null)
+case "$PKGMGR" in
+	apt)
+		mkdir -p /etc/apt/trusted.gpg.d
+		cp -f "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key.gpg" /etc/apt/trusted.gpg.d/bitdefender.gpg
+		chmod 0644 /etc/apt/trusted.gpg.d/bitdefender.gpg
+		cp -f "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key-2022.gpg" /etc/apt/trusted.gpg.d/bitdefender-2022.gpg
+		chmod 0644 /etc/apt/trusted.gpg.d/bitdefender-2022.gpg
+		if apt_too_old; then
+			dpkg -i --refuse-downgrade "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE" || \
+				apt-get -q install -y -f || die 75
+		else
+			apt-get -q install -y "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE" || die 75
+		fi
+	;;
+	dnf|tdnf|yum)
+		[ -z "$INSTALLED_VERSION" ] && YUM_OPTS="install" || YUM_OPTS="update"
+		rpm --import "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key.asc"
+		rpm --import "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key-2022.asc"
+		if ! $PKGMGR $YUM_OPTS -y "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE"; then
+			# Fail directly if this is not a full kit (ie. components were downloaded)
+			[ $DO_SIG_CHECK -eq 0 ] || die 75
+
+			# Attempt an offline install in case the environment is air gapped
+			$PKGMGR -q $YUM_OPTS -y "--disablerepo=*" "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE" || die 75
+		fi
+	;;
+	zypper)
+		rpm --import "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key.asc"
+		rpm --import "$SETUP_DIR/$PKG_REMOTE_DIR/repo-key-2022.asc"
+		zypper -q install -y --no-recommends "$SETUP_DIR/$PKG_REMOTE_DIR/$PKG_FILE" || die 75
+	;;
+	*)
+		die 11 "unsupported distribution $OS_ID"
+	;;
+esac
+
+# From now on we will run bdconfigure from install path
+[ -f "$DIR/bin/bdconfigure" ] && BDCONFIGURE="$DIR/bin/bdconfigure"
+
+config_detected_sysinfo
+
+if [ $BEST_LEGACY_PRESENT -eq 1 ]; then
+	upgrade_from_best_legacy || die 13
+fi
+
+if [ -z "$INSTALLED_VERSION" ]; then
+	enableLogs=$("$BDCONFIGURE" -I "$INSTALLER_CONFIG" -r "/config/enableFullProductLogging" 2>/dev/null || true)
+	[ -n "$enableLogs" ] && ENABLE_LOGS="$enableLogs"
+
+	if [ $ENABLE_GZ_INTEGRATION = "ON" ]; then
+		printf "configuring epagng\n"
+
+		configure_epag
+	else
+		printf "epagng not installed\n"
+	fi
+
+	configure_bdsecd
+
+	control_features
+
+	configure_submissions
+
+	[ -n "$PINNED_VERSION" ] && "$BDCONFIGURE" -s "/config/pinnedProductVersion=$PINNED_VERSION"
+
+	"$DIR"/bin/bdaur -i 0 "$PINNED_VERSION" >/dev/null 2>&1 || true
+
+	# The '--container' argument is used from the container build stage.
+	# Thus, there is no point in trying to start the product.
+	if [ ! -f "$DIR/etc/.container" ]; then
+		printf "starting the product\n"
+		start_product
+	fi
+else
+	printf "skipping the product configuration (an upgrade was performed)\n"
+fi
+
+#clean-up SDIR
+rm -f versions.dat versions.sig info.dat latest.dat 25_latest_downloaded_version.dat
+
+#clean-up SETUP_DIR except installer.xml
+for entry in "$SETUP_DIR"/*; do
+	[ $entry = "${SETUP_DIR}/installer.xml" ] || rm -rf $entry
+done
+
+rm -f "$DIR/etc/.container"
+
+# End installation
+post_status 211
+
+printf "installation complete"

@@ -5,18 +5,20 @@ export const namespaced = true
 
 import { API } from '../api/api'
 export const state = () => ({
-  onlineUsers: {}
+  onlineUsers: {},
+  users: [],
+  metrics: null
 })
 
 export const getters = getterTree(state, {
   user: () => API.user,
   isAdmin: () => API.user?.role === 'admin',
   allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : [],
-  codxJunior: () => (      state.codxJunior = { 
-        userName: "codx-junior", 
-        avatar: API.globalSettings?.codx_junior_avatar
-      }),
-  projectRole: () => $storex.users.isAdmin ? 'admin' : API.user.projects.find(p => p.project_id === $storex.projects.activeProject?.project_id)?.role,
+  codxJunior: () => (state.codxJunior = { 
+    userName: "codx-junior", 
+    avatar: API.globalSettings?.codx_junior_avatar
+  }),
+  projectRole: () => $storex.users.isAdmin ? 'admin' : API.user?.projects.find(p => p.project_id === $storex.projects.activeProject?.project_id)?.permissions,
   isProjectAdmin: () => $storex.users.isAdmin || $storex.users.projectRole === 'admin',
   canShowCoder: () => $storex.users.isAdmin || $storex.users.user?.apps.includes("coder"),
   canShowBrowser: () => $storex.users.isAdmin || $storex.users.user?.apps.includes("viewer")
@@ -25,6 +27,12 @@ export const getters = getterTree(state, {
 export const mutations = mutationTree(state, {
   setOnlineUsers(state, users) {
     state.onlineUsers = users
+  },
+  setUsers(state, users) {
+    state.users = users
+  },
+  setMetrics(state, metrics) {
+    state.metrics = metrics
   }
 })
 
@@ -32,6 +40,14 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }, $storex) {
+    },
+    async loadUsers({ state }) {
+      const users = await $storex.api.users.list()
+      $storex.users.setUsers(users || [])
+    },
+    async loadMetrics() {
+      const metrics = await API.analytics.me()
+      $storex.users.setMetrics(metrics)
     },
     async login({ _ }, user) {
       try {
@@ -43,11 +59,11 @@ export const actions = actionTree(
     },
     async oauthLogin({ _ }, { provider, code, state }) {
       try {
-        await API.oauth.oauthLogin({ oauth_provider: provider, code, state });
+        await API.oauth.oauthLogin({ oauth_provider: provider, code, state })
         window.location.reload()
       } catch (ex) {
         $storex.session.onError("OAuth login error")
-        throw ex;
+        throw ex
       }
       $storex.init()
     },

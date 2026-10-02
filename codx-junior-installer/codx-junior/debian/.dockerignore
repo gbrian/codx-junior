@@ -1,0 +1,6 @@
+# Ignore everything
+*
+
+# Allow image files and directories
+!scripts
+!set_env.sh

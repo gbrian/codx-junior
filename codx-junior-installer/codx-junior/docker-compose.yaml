@@ -1,0 +1,266 @@
+#########################################################################
+## 
+## codx-junior installer
+## 
+#########################################################################
+services:
+  ### RAG AND DB ########################################################
+  milvus:
+    image: milvusdb/milvus:v2.5.11
+    container_name: milvus-codx-junior
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - ETCD_USE_EMBED=true
+      - ETCD_DATA_DIR=/var/lib/milvus/etcd
+      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
+      - COMMON_STORAGETYPE=local
+    volumes:
+      - milvus_data:/var/lib/milvus
+      - ./milvus_embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+      - ./milvus_user.yaml:/milvus/configs/user.yaml
+    restart: unless-stopped
+    command: milvus run standalone
+    healthcheck:
+      test: "curl -f http://localhost:9091/healthz"
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    labels:
+      - traefik.enable=false
+
+  ###################################################################
+  ## Model management
+  ###################################################################
+
+  localai:
+    container_name: localai-codx-junior
+    image: codx-junior-localai:latest
+    build: ./localai
+    # For GPU acceleration (CUDA), use the specific GPU tag instead:
+    # image: localai/localai:latest-gpu-nvidia-cuda-12
+    shm_size: "20gb"
+    restart: unless-stopped
+    command: run --p2p
+    volumes:
+      - localai_models:/build/models
+      - ./localai:/home/localai-config
+    env_file:
+      - .env # Load local .env file
+    environment:
+      - MODELS_PATH=/build/models
+      - CONTEXT_SIZE=4096
+      # - THREADS=8
+      # Optional: Hardcode base url if required, or rely on headers below
+      # - LOCALAI_BASE_URL=https://${CODX_JUNIOR_DOMAIN}
+    labels:
+      - traefik.enable=true
+      
+      # HTTP Router (for behind other proxies)
+      - traefik.http.routers.codx-junior-localai.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai/app`)
+      - traefik.http.routers.codx-junior-localai.entrypoints=web
+      
+      # HTTPS Router (for standalone with SSL)
+      - traefik.http.routers.codx-junior-localai-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-localai/app`)
+      - traefik.http.routers.codx-junior-localai-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-localai-secure.tls.certresolver=sslresolver
+      
+      # Shared Load Balancer Service (LocalAI default internal port is 8080)
+      - traefik.http.routers.codx-junior-localai.service=codx-junior-localai-service
+      - traefik.http.routers.codx-junior-localai-secure.service=codx-junior-localai-service
+      - traefik.http.services.codx-junior-localai-service.loadbalancer.server.port=8080
+      
+      # Custom Headers middleware to supply LocalAI with reverse proxy subpath specs
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.localai-headers.headers.customrequestheaders.X-Forwarded-Prefix=/codx-localai/app
+      
+      # Apply header requirements and authentication middleware stacks
+      - traefik.http.routers.codx-junior-localai.middlewares=localai-headers,codx-junior-auth
+      - traefik.http.routers.codx-junior-localai-secure.middlewares=localai-headers,codx-junior-auth
+
+  ###################################################################
+  ## API
+  ###################################################################
+
+  codx-junior-api:
+    depends_on:
+      - milvus
+    # Build image first (see build.sh)
+    container_name: codx-junior-api
+    image: codxjunior/codx-junior:api
+    shm_size: 4gb
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    user: "1001:1001"
+    environment:
+      - DEBUG=1      
+      - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_HIDDEN=${CODX_JUNIOR_HIDDEN}
+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
+      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
+      - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
+      - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      # vLLM
+      - VLLM_TARGET_DEVICE=CPU
+    volumes:
+      # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      # Global settings folder  ##########################################################
+      - codx-junior:/home/codx-junior/.codx-junior/settings
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+      # Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Traefik
+      - ./traefik:/traefik
+    labels:
+      - traefik.enable=true
+      # HTTP Router (for behind other proxies)
+      - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.codx-junior-api.entrypoints=web
+      
+      # HTTPS Router (for standalone with SSL)
+      - traefik.http.routers.codx-junior-api-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.codx-junior-api-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-api-secure.tls.certresolver=sslresolver
+      
+      # Shared Service and Middleware
+      - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
+      - traefik.http.routers.codx-junior-api-secure.service=codx-junior-api-service
+      - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
+      - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
+      - traefik.http.middlewares.codx-junior-auth.forwardAuth.trustForwardHeader=true
+
+  codx-junior-api-background:
+    depends_on:
+      - codx-junior-api
+    container_name: codx-junior-api-background
+    image: codxjunior/codx-junior:api
+    shm_size: 4gb
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    user: "1001:1001"
+    environment:
+      - DEBUG=1
+      - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_HIDDEN=${CODX_JUNIOR_HIDDEN}
+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
+      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
+      - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
+      - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      - CODX_JUNIOR_API_URL=http://codx-junior-api:19980
+      ## API BACKGROUND
+      - CODX_JUNIOR_API_BACKGROUND=1
+    volumes:
+      # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      # Global settings folder  ##########################################################
+      - codx-junior:/home/codx-junior/.codx-junior/settings  
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+      # Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=false
+      
+  codx-junior-client:
+    container_name: codx-junior-client
+    image: codxjunior/codx-junior:client
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    environment:
+      - DEBUG=0
+    volumes:
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+    labels:
+      - traefik.enable=true
+      # HTTP Router
+      - traefik.http.routers.codx-junior.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
+      - traefik.http.routers.codx-junior.entrypoints=web
+
+      # HTTPS Router
+      - traefik.http.routers.codx-junior-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
+      - traefik.http.routers.codx-junior-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-secure.tls.certresolver=sslresolver
+
+      # Shared Service
+      - traefik.http.routers.codx-junior.service=codx-junior-service
+      - traefik.http.routers.codx-junior-secure.service=codx-junior-service
+      - traefik.http.services.codx-junior-service.loadbalancer.server.port=19981
+  
+  ###################################################################
+  ## Traefik 
+  ## A powerful and versatile proxy engine
+  ###################################################################
+  
+  traefik:
+    image: traefik:latest
+    container_name: traefik-codx-junior
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    environment:
+      - TRAEFIK_CERTIFICATESRESOLVERS_SSLRESOLVER_ACME_EMAIL=${ACME_EMAIL:-your-ssl@email.here}
+      - TRAEFIK_LOG_LEVEL=DEBUG
+      - TRAEFIK_ACCESSLOG=true
+      - TRAEFIK_ACCESSLOG_FORMAT=json
+    command:
+      - "--configFile=/config/traefik.yaml"
+      # HTTP provider: polls codx-junior-api for workspace external-URL routes
+      - "--providers.http.endpoint=http://codx-junior-api:19980/api/traefik/config"
+      - "--providers.http.pollInterval=10s"
+      - "--providers.http.pollTimeout=5s"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./traefik:/config
+    labels:
+      - traefik.enable=true
+
+      # HTTP router
+      - traefik.http.routers.traefik-dashboard.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/traefik`)
+      - traefik.http.routers.traefik-dashboard.entrypoints=web
+      # 2. CHANGE this to api@internal
+      - traefik.http.routers.traefik-dashboard.service=api@internal
+      - traefik.http.routers.traefik-dashboard.middlewares=codx-junior-auth
+
+      # HTTPS router
+      - traefik.http.routers.traefik-dashboard-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/traefik`)
+      - traefik.http.routers.traefik-dashboard-secure.entrypoints=websecure
+      - traefik.http.routers.traefik-dashboard-secure.tls.certresolver=sslresolver
+      # 3. CHANGE this to api@internal
+      - traefik.http.routers.traefik-dashboard-secure.service=api@internal
+      - traefik.http.routers.traefik-dashboard-secure.middlewares=codx-junior-auth
+
+  codx-junior-init:
+    depends_on:
+      - localai
+    image: codxjunior/codx-junior:debian # reuse existing image
+    volumes:
+      - ./initial-setup.sh:/initial-setup.sh
+    command: bash /initial-setup.sh
+    labels:
+      - traefik.enable=false
+
+volumes:
+  prometheus_demo_data:
+    name: codx-junior-litellm_prometheus_data
+  postgres_demo_data:
+    name: codx-junior-litellm_postgres_data
+  milvus_data:
+    name: codx-junior-milvus_data
+  localai_models:
+    name: codx-junior-localai_models
+  localai_data:
+    name: codx-junior-localai_data
+  codx-junior:
+    name: codx-junior
+  codx-junior-projects:
+    name: codx-junior-projects

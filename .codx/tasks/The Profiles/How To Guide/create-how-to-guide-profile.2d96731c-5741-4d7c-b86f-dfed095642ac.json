@@ -1,0 +1,179 @@
+{
+  "id": "2d96731c-5741-4d7c-b86f-dfed095642ac",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Create How To Guide Profile",
+  "pinned": false,
+  "description": "# Conversation Summary\n\n1. **Profile Introduction**: The \"How To Guide Profile\" was presented as a framework for creating step-by-step, recipe-style guides that help users complete tasks independently.\n\n2. **Structure Components**: Guides should include a title, overview, prerequisites, numbered steps with actions/context/code/verification, and troubleshooting sections.\n\n3. **Writing Principles**: Content should use active voice, assume moderate technical knowledge, keep guides concise, and include minimal examples with file paths.\n\n4. **Key Emphasis**: The profile stresses maximizing clarity and LLM efficiency by keeping guides as short as possible while avoiding lengthy explanations.\n\n5. **Project Context**: The profile is designed to be applied to the codx-junior project located at `/home/codx-junior-projects/codx-junior` when creating guides.",
+  "messages": [
+    {
+      "doc_id": "36d5632c-9108-46e9-b193-e28c26c20f4c",
+      "role": "user",
+      "task_item": "",
+      "content": "## How To Guide Profile\nThis profile must describe how to create \"How to\" guides so other users can apply them.\nHow To Guides must be like recipes explaining step by step in a clear way how to do the task.\n\n\nThe \"How to Guide Profile\" will instruct on how to define the recipe.\n\nCreate the profile. Keep it as short as possible to save llm context space",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-23 08:05:34.907944",
+      "updated_at": "2026-07-23 08:05:34.907966",
+      "images": [],
+      "files": [],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "2a0ddd0f-a53d-4a0f-9ac1-f4e8eeab6de1",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "# How To Guide Profile\n\n## Purpose\nCreate step-by-step recipe-style guides that enable users to complete specific tasks independently.\n\n## Structure\n\n### 1. **Title**\nClear, action-oriented heading (e.g., \"How to Set Up Authentication\")\n\n### 2. **Overview**\n- 1-2 sentence summary of what the guide accomplishes\n- Who should use it\n\n### 3. **Prerequisites**\n- Required knowledge, tools, or setup\n- Files or dependencies needed\n\n### 4. **Steps**\nNumbered list with:\n- **Action**: Clear imperative statement\n- **Context**: Brief explanation of why\n- **Code/Details**: Minimal examples with file paths\n- **Verification**: How to confirm success\n\n### 5. **Troubleshooting** (if needed)\nCommon issues and solutions\n\n### 6. **Next Steps**\nRelated guides or what to do next\n\n## Writing Guidelines\n- Use active voice, second person (\"you\")\n- One task per step\n- Include file paths in code blocks\n- Be concise\u2014assume moderate technical knowledge\n- Test accuracy before finalizing\n\n---\n\n**Project Context:**\n- Path: `/home/codx-junior-projects/codx-junior`\n- Apply this profile when creating guides for codx-junior",
+      "think": null,
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-23 08:05:34.907944",
+      "updated_at": "2026-07-23 08:05:34.907966",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1785137557.820261,
+        "cancellation_token_id": "263f87d9-832b-4a04-93f7-0fad09cd6848",
+        "model": "claude-haiku-4-5",
+        "time_taken": 3.978289842605591,
+        "first_chunk_time_taken": 0.21414875984191895
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "09819937-4140-4b18-bd7f-037b91fd1a20",
+      "role": "user",
+      "task_item": "",
+      "content": "This profile must be concise and clear, can have examples. Profile must advise guide generators to keep their guides \"short as possible\" and llm fiendly so the generated guide doesn't fill the whole llm context",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-23 08:05:34.907944",
+      "updated_at": "2026-07-23 08:05:34.907966",
+      "images": [],
+      "files": [],
+      "meta_data": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "c21aabf9-fd5e-4288-b71b-63f75e196394",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "# How To Guide Profile\n\n## Purpose\nCreate step-by-step recipe-style guides that enable users to complete specific tasks independently.\n\n## Structure\n\n### 1. **Title**\nClear, action-oriented heading (e.g., \"How to Set Up Authentication\")\n\n### 2. **Overview**\n- 1-2 sentence summary of what the guide accomplishes\n- Who should use it\n\n### 3. **Prerequisites**\n- Required knowledge, tools, or setup\n- Files or dependencies needed\n\n### 4. **Steps**\nNumbered list with:\n- **Action**: Clear imperative statement\n- **Context**: Brief explanation of why\n- **Code/Details**: Minimal examples with file paths\n- **Verification**: How to confirm success\n\n### 5. **Troubleshooting** (if needed)\nCommon issues and solutions\n\n### 6. **Next Steps**\nRelated guides or what to do next\n\n## Writing Guidelines\n- Use active voice, second person (\"you\")\n- One task per step\n- Include file paths in code blocks\n- Be concise\u2014assume moderate technical knowledge\n- **Keep guides as short as possible** to maximize clarity and LLM efficiency\n- Use minimal examples; avoid lengthy explanations or context-filling content\n- Test accuracy before finalizing\n",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-07-23 08:05:34.907944",
+      "updated_at": "2026-07-23 08:05:34.907966",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1785137697.3076048,
+        "cancellation_token_id": "cfa4ee3a-979f-4dc9-ac4c-1ddd79a7f994",
+        "model": "claude-haiku-4-5",
+        "time_taken": 2.4952125549316406,
+        "first_chunk_time_taken": 0.1459040641784668
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-07-23 08:05:34.911248",
+  "updated_at": "2026-07-27T07:35:25.185516",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "The Profiles",
+  "column": "How To Guide",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/The Profiles/How To Guide/create-how-to-guide-profile.2d96731c-5741-4d7c-b86f-dfed095642ac.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-07-27T07:32:44.318682+00:00",
+      "summary": "# Conversation Summary\n\n1. **Introduction of How-To Guide Profile**: A comprehensive template was provided for creating step-by-step, recipe-style guides that help users complete tasks independently.\n\n2. **Structure Components**: The profile defines six key sections\u2014Title, Overview, Prerequisites, Steps, Troubleshooting, and Next Steps\u2014to ensure guides are well-organized and easy to follow.\n\n3. **Writing Standards**: Guidelines emphasize active voice, second-person perspective, conciseness, file paths in code blocks, and clarity for moderately technical users.\n\n4. **Verification & Accuracy**: Each step should include action, context, code/details, and verification methods; guides must be tested before finalization.\n\n5. **Project Application**: The profile is designed for use in the `/home/codx-junior-projects/codx-junior` project when creating task-oriented documentation.",
+      "message_ids": [
+        "36d5632c-9108-46e9-b193-e28c26c20f4c",
+        "2a0ddd0f-a53d-4a0f-9ac1-f4e8eeab6de1"
+      ]
+    },
+    {
+      "timestamp": "2026-07-27T07:35:01.943869+00:00",
+      "summary": "# Conversation Summary\n\n1. **Profile Introduction**: The \"How To Guide Profile\" was presented as a framework for creating step-by-step, recipe-style guides that help users complete tasks independently.\n\n2. **Structure Components**: Guides should include a title, overview, prerequisites, numbered steps with actions/context/code/verification, and troubleshooting sections.\n\n3. **Writing Principles**: Content should use active voice, assume moderate technical knowledge, keep guides concise, and include minimal examples with file paths.\n\n4. **Key Emphasis**: The profile stresses maximizing clarity and LLM efficiency by keeping guides as short as possible while avoiding lengthy explanations.\n\n5. **Project Context**: The profile is designed to be applied to the codx-junior project located at `/home/codx-junior-projects/codx-junior` when creating guides.",
+      "message_ids": [
+        "36d5632c-9108-46e9-b193-e28c26c20f4c",
+        "2a0ddd0f-a53d-4a0f-9ac1-f4e8eeab6de1",
+        "09819937-4140-4b18-bd7f-037b91fd1a20",
+        "c21aabf9-fd5e-4288-b71b-63f75e196394"
+      ]
+    }
+  ],
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

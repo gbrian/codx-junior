@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class KnowledgeKeywords:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
-        self.path = self.settings.project_path
+        self.path = self.settings.abs_project_path
         self.index_name = slugify(str(self.path))
         self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         self.db_keywords_file = f"{self.db_path}/keywords.json"

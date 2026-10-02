@@ -14,12 +14,12 @@ import UserAvatar from '../user/UserAvatar.vue'
           </div>
         </div>
         <ul v-if="isOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[150] w-52 p-2 shadow">
-        <li v-for="user in usersList" :key="user.id" @click="selectUser(user)">
-            <a>
-              <UserAvatar :user="user" width="6" />
-              {{ user.name || user.username }}
-            </a>
-        </li>
+          <li v-for="user in usersList" :key="user.id" @click="selectUser(user)">
+              <a>
+                <UserAvatar :user="user" width="6" />
+                {{ user.name || user.username }}
+              </a>
+          </li>
         </ul>
     </div>
 </template>

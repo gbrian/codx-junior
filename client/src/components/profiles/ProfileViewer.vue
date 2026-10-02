@@ -17,7 +17,7 @@
     </div>
     <div class="bg-base-300 p-4 rounded-md">
       <div class="font-semibold">Content</div>
-      <Markdown class="mt-2 p-2 rounded-md bg-base-100 border border-slate-700" :text="profile.content" />
+      <Markdown class="mt-2 p-2 rounded-md bg-base-100 border border-base-100" :text="profile.content" />
     </div>
   </div>
 </template>

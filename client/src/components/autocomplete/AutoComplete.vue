@@ -11,7 +11,7 @@ import { ComboboxAnchor, ComboboxContent, ComboboxEmpty, ComboboxGroup, Combobox
     <div class="mt-1 ml-1 flex items-center input input-sm input-bordered">
       <ComboboxAnchor class="grow">
         <ComboboxInput
-          class="h-full"
+          class="h-full w-full"
           placeholder="Search..."
           ref="input"
           @input="onInput"
@@ -32,7 +32,7 @@ import { ComboboxAnchor, ComboboxContent, ComboboxEmpty, ComboboxGroup, Combobox
 
         <ComboboxGroup>
           <ComboboxItem
-            v-for="(option, index) in results"
+            v-for="(option, index) in validResults"
             :key="index"
             class="p-1 rouunded-md hover:bg-base-100 click"
             :value="option"
@@ -64,6 +64,11 @@ export default {
   },
   mounted() {
     // this.$refs.input?.focus()
+  },
+  computed: {
+    validResults() {
+      return this.results?.filter(r => !!r?.name)
+    }
   },
   methods: {
     onInput(event) {

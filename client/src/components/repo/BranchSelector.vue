@@ -26,7 +26,11 @@ export default {
   },
   computed: {
     allBranches() {
-      return this.localChanges ?  ['local', ...this.branches || []] : this.branches
+      let branches = (this.branches || [])
+      if (this.localChanges) {
+        branches = ['local', ...branches]
+      }
+      return branches
     }
   }
 }

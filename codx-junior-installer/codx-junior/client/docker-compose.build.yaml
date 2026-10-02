@@ -1,0 +1,10 @@
+services:
+  codx-junior-base:
+    image: codx-junior:client
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior/client/Dockerfile.client
+      context: ../../.. # codx-junior base
+      args:
+        - USER_UID=1001
+        - GROUP_UID=1001
+    command: sleep 1

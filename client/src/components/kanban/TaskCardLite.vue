@@ -79,7 +79,7 @@ export default {
       return this.$projects.allProjects.find(p => p.project_id === this.task.project_id && p.project_id !== this.$project.project_id)
     },
     parentChat() {
-      return this.$projects.chats[this.task.parent_id]
+      return this.$chats.chats[this.task.parent_id]
     },
     updating() {
       const { chat, message } = this.$session.lastEvent || {}
@@ -105,7 +105,7 @@ export default {
       this.closeSettingsModal()
     },
     saveTask() {
-      this.$projects.saveChatInfo(this.task)
+      this.$chats.saveChatInfo(this.task)
     }
   }
 }

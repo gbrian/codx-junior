@@ -1,0 +1,72 @@
+{
+  "id": "8a72b30a-daa5-404c-a191-e9f20907c4ff",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "analyst"
+  ],
+  "users": [],
+  "name": "task go back",
+  "pinned": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "09882eb3-ee2f-4338-a4eb-f3fbea9f9c6a",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "```md\n### Navigate Back to Parent Task\n\n**Objective:**\n- Implement a feature that allows users to easily navigate back to the parent task from the current task in the Kanban component.\n\n**Requirements:**\n- Add a visible button or link in the task view that guides users back to the parent task.\n- The navigation should maintain user context, ensuring that any unsaved changes are handled appropriately.\n- Ensure the feature is accessible and user-friendly across different devices, especially mobile.\n\n**Examples:**\n- Users should see a \"Back to Parent Task\" button when viewing a subtask.\n- Example flow: User clicks on a task > Views subtask details > Clicks \"Back to Parent Task\" > Returns to parent task view.\n\n**Acceptance Criteria:**\n- When viewing a subtask, a button or link labeled \"Back to Parent Task\" should be visible.\n- Clicking this button/link should navigate the user back to the parent task.\n- The feature should function correctly and maintain any changes made before navigation on both desktop and mobile.\n\n**Additional Notes:**\n- Consider using breadcrumbs for hierarchical navigation to provide users with an overview of their current location within the task hierarchy.\n\n**Mermaid Diagram:**\n```mermaid\nflowchart TD\n    A[View Task List] --> B[Select a Task]\n    B --> C[View Subtask Details]\n    C --> D[Back to Parent Task]\n    D --> B\n\n    style A fill:#f9f,stroke:#333,stroke-width:2px;\n    style B fill:#bbf,stroke:#333,stroke-width:2px;\n    style C fill:#bbf,stroke:#333,stroke-width:2px;\n    style D fill:#f9f,stroke:#333,stroke-width:2px;\n```\n```",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2025-04-22 07:14:35.822009",
+      "updated_at": "2025-04-22 07:14:35.822038",
+      "images": [],
+      "files": [
+        "/src/components/kanban/Kanban.vue"
+      ],
+      "meta_data": {
+        "first_chunk_time_taken": 7.317506551742554,
+        "model": "gpt-4o",
+        "time_taken": 10.87285327911377
+      },
+      "profiles": [
+        "analyst"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2025-04-22 07:14:35.823760",
+  "updated_at": "2025-08-30T13:56:31.701869",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Bugs",
+  "column": "Completed",
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior/codx-junior/client/.codx/tasks/Bugs/Completed/task-go-back.8a72b30a-daa5-404c-a191-e9f20907c4ff.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

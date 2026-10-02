@@ -1,5 +1,5 @@
 import os
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 class QASplitter:
     def __init__(self):

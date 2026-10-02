@@ -19,7 +19,8 @@ export const state = () => ({
     "en-US": "English",
     "es-SP": "Español"
   },
-  appActives: [],
+  viewMode: 'expert',
+  openApps: {},
   appDivided: 'horizontal',
   resolution: API.screen.display?.resolution,
   resolutions: API.screen.display?.resolutions,
@@ -35,76 +36,66 @@ export const state = () => ({
   notifications: [],
   noVNCSettings: {
     resize: 'remote',
-
   },
   theme: 'dark',
-  activeTab: 'home'
+  activeTab: 'home',
+  newProject: false,
+  activeApp: null,
+  appShowMode: null,
+  viewEditor: null,
+  activeTeam: null,
+  teamBarCollapsed: false,
+  panelWidths: {
+    chat: 30,
+    changes: 33,
+    preview: 37
+  },
+  projectLoadingState: {
+    isLoading: false,
+    projectName: '',
+    currentStep: null,
+    error: null
+  }
 })
 
 export const getters = getterTree(state, {
-  showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait',
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
   enableFileManger: () => API.globalSettings?.enable_file_manager,
+  activeApps: () => Object.values($storex.ui.openApps),
+  isVibeMode: state => state.viewMode === 'vibe',
+  isExpertMode: state => state.viewMode === 'expert',
+  isDesktopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
 })
 
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
-    tab = tab || 'hme'
-    if (state.activeTab === tab) {
-      if (state.appActives.length) {
-        state.activeTab = null  
-      }
+    tab = tab || 'home'
+    if (tab !== 'home') {
+      $storex.ui.showApp({
+        name: tab,
+        component: tab
+      })
     } else {
-      state.activeTab = tab
-    }
-  },
-  loadState(state) {
-    const savedState = localStorage.getItem('uiState')
-    if (savedState) {
-      const parsedState = JSON.parse(savedState)
-      Object.keys(parsedState)
-        .forEach(k => state[k] = parsedState[k])
-    }
-    $storex.ui.handleResize()
-    if (state.isMobile && state.tabIx !== 'app') {
-      state.showCoder = false
-      state.showBrowser = false
-    }
-  },
-  toggleCoder(state) {
-    $storex.ui.setShowCoder(!state.showCoder)
-  },
-  toggleBrowser(state) {
-    $storex.ui.setShowBrowser(!state.showBrowser)
-  },
-  setShowCoder(state, show) {
-    state.showCoder = show
-    if (state.showCoder) {
-      state.appActives = ['coder', ...state.appActives]
-    } else {
-      state.appActives = state.appActives.filter(a => a !== 'coder')
-    }
-    if (state.showCoder && state.isMobile && state.showBrowser) {
-      $storex.ui.setShowBrowser(false)
-    }
-    if (!state.appActives.length) {
-      state.tabIx = state.lastActiveTab
+      state.activeTab = null
+      state.activeApp = null
     }
     $storex.ui.saveState()
   },
-  setShowBrowser(state, show) {
-    state.showBrowser = show
-    if (state.showBrowser) {
-      state.appActives = ['browser', ...state.appActives]
-    } else {
-      state.appActives = state.appActives.filter(a => a !== 'browser')
+  showTab(state, tab) {
+    if (tab !== state.activeTab) {
+      $storex.ui.setActiveTab(tab)
     }
-    if (state.showCoder && state.isMobile && state.showBrowser) {
-      $storex.ui.setShowCoder(false)
+    if (!state.isMobile) {
+      $storex.ui.showApp({
+        name: tab,
+        component: tab
+      })
     }
-    $storex.ui.saveState()
+  },
+  closeTab(state) {
+    state.activeTab = null
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
@@ -112,9 +103,32 @@ export const mutations = mutationTree(state, {
   },
   toggleLogs(state) {
     state.showLogs = !state.showLogs
+    $storex.ui.showApp({
+      name: 'Logs',
+      component: 'log-viewer'
+    })
+  },
+  openChatLogs(state) {
+    state.showLogs = !state.showLogs
+    $storex.ui.showApp({
+      name: 'Chat logs',
+      component: 'chat-logs'
+    })
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
+    $storex.ui.saveState()
+  },
+  setVibeMode(state) {
+    state.viewMode = 'vibe'
+    $storex.ui.saveState()
+  },
+  setExpertMode(state) {
+    state.viewMode = 'expert'
+    $storex.ui.saveState()
+  },
+  setViewMode(state, mode) {
+    state.viewMode = mode
     $storex.ui.saveState()
   },
   setAppDivided(state, divided) {
@@ -133,6 +147,7 @@ export const mutations = mutationTree(state, {
     state.coderProjectCodxPath = project.codx_path
   },
   setUIready(state) {
+    $storex.ui.loadState()
     state.uiReady = true
   },
   setFloatinCodxJunior(state, floating) {
@@ -144,45 +159,268 @@ export const mutations = mutationTree(state, {
     $storex.ui.saveState()
   },
   addNotification(state, { text, type }) {
+    const existing = state.notifications?.find(n => n.text === text)
+    if (existing) {
+      existing.ts = moment().format("HH:mm:ss")
+      return
+    }
     const notif = {
-      ts: moment().format("hh:mm:ss"),
+      ts: moment().format("HH:mm:ss"),
       text,
-      type
+      type: type || 'info'
     }
     state.notifications.push(notif)
-    setTimeout(() => $storex.ui.removeNotification(notif) , 30000)
+    setTimeout(() => $storex.ui.removeNotification(notif), 30000)
   },
   removeNotification(state, notification) {
     state.notifications.splice(
       state.notifications.findIndex(n => n === notification), 1)
+  },
+  clearNotifications(state, notifications) {
+    state.notifications = state.notifications.filter(n => !notifications.includes(n))
   },
   setNoVNCSettings(state, settings) {
     state.noVNCSettings = { ...state.noVNCSettings, ...settings }
   },
   setTheme(state, theme) {
     state.theme = theme
-  }
+  },
+  showNewProject(state, show) {
+    state.newProject = show
+  },
+  cloneApp(state, app) {
+    $storex.ui.showApp({ ...app, tabId: null })
+  },
+  resetOpenApps(state) {
+    state.openApps = {}
+    state.activeApp = null
+  },
+  showApp(state, app) {
+    app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
+    app.params = app.params || {}
+    // Auto-inject project_id if not present
+    if (!app.params.project_id && $storex.projects.activeProject?.project_id) {
+      app.params.project_id = $storex.projects.activeProject.project_id
+    }
+    app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
+    app.openedAt = Date.now()
+    
+    if (state.viewMode !== 'vibe' && !state.isMobile) {
+      // Check if app already exists in openApps state
+      const existingApp = Object.values(state.openApps).find(openApp => {
+        if (app.key && openApp.key) {
+          return openApp.key === app.key
+        }
+        return openApp.component === app.component && 
+              JSON.stringify(openApp.initialParams) === JSON.stringify(app.initialParams)
+      })
+      
+      if (existingApp) {
+        state.activeApp = existingApp
+        $storex.views.activatePanel(existingApp.tabId)
+        return
+      }
+      
+      // Check if panel already exists in Desktop API by checking component and initialParams
+      const desktopApi = $storex.views._desktopApi
+      if (desktopApi && desktopApi.panels) {
+        const existingPanel = desktopApi.panels.find(panel => {
+          if (app.key && panel.key) {
+            return panel.key === app.key
+          }
+          const panelParams = panel.params?.params || panel.params || {}
+          return panel.component === app.component && 
+                JSON.stringify(panelParams.initialParams || panelParams) === JSON.stringify(app.initialParams)
+        })
+        
+        if (existingPanel) {
+          state.activeApp = app
+          $storex.views.activatePanel(existingPanel.id)
+          return
+        }
+      }
+    }
+    
+    state.openApps = {
+      ...state.openApps,
+      [app.tabId]: app
+    }
+    state.activeApp = app
+  },
+  updateAppParams(state, { tabId, params }) {
+    const app = state.openApps[tabId]
+    if (!app) return
+    state.openApps = {
+      ...state.openApps,
+      [tabId]: {
+        ...app,
+        params: {
+          ...app.params,
+          ...params
+        }
+      }
+    }
+  },
+  closeApp(state, app) {
+    if (!app) return
+    delete state.openApps[app.tabId]
+    if (state.activeApp?.tabId === app.tabId) {
+      const remainingApps = Object.values(state.openApps)
+      if (remainingApps.length > 0) {
+        state.activeApp = remainingApps.reduce((latest, current) =>
+          current.openedAt > latest.openedAt ? current : latest
+        )
+      } else {
+        state.activeApp = null
+      }
+    }
+    if (!Object.keys(state.openApps).length) {
+      if (!state.activeTab) {
+        $storex.ui.showTab(state.lastActiveTab || 'tasks')
+      }
+    }
+    $storex.ui.saveState()
+  },
+  setAppShowMode(state, mode) {
+    state.appShowMode = mode
+  },
+  openWorkspace(_, workspace) {
+    if (!$storex.ui.isDesktopMode) {
+      $storex.$router.$navigation.workspaces.open(workspace.id || workspace.key, workspace.name)
+    } else {
+      $storex.ui.showApp({
+        tabId: `workspace-${workspace.id || workspace.key}`,
+        name: workspace.name,
+        component: 'workspace',
+        params: {
+          workspace: {
+            id: workspace.id || workspace.key,
+            name: workspace.name
+          }
+        }
+      })
+    }  
+  },
+  openChat(_, chat) {
+    if (!$storex.ui.isDesktopMode) {
+      $storex.$router.push({
+        name: 'chat',
+        params: {
+          chatId: chat.id,
+          chatName: chat.name
+        }
+      })
+    } else {
+      $storex.ui.showApp({
+        tabId: chat.id,
+        name: chat.name,
+        component: 'chat',
+        params: {
+          chat: {
+            id: chat.id,
+            name: chat.name,
+            owner_project_id: chat.owner_project_id
+          }
+        }
+      })
+    }
+  },
+  openFileInViewer(_, filePath) {
+    const fileName = filePath.split('/').pop()
+    $storex.ui.showApp({
+      tabId: `file-viewer-${filePath}`,
+      name: fileName,
+      component: 'file-viewer',
+      params: { filePath }
+    })
+  },
+  openViewEditor(state, view = null) {
+    state.viewEditor = { view: view || null }
+  },
+  closeViewEditor(state) {
+    state.viewEditor = null
+  },
+  setActiveTeam(state, team) {
+    state.activeTeam = team
+    $storex.ui.saveState()
+  },
+  setTeamBarCollapsed(state, collapsed) {
+    state.teamBarCollapsed = collapsed
+    $storex.ui.saveState()
+  },
+  setPanelWidth(state, { panel, width }) {
+    state.panelWidths = {
+      ...state.panelWidths,
+      [panel]: width
+    }
+    $storex.ui.saveState()
+  },
+  setProjectLoadingState(state, loadingState) {
+    state.projectLoadingState = {
+      ...state.projectLoadingState,
+      ...loadingState
+    }
+  },
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init ({ state }, $storex) {
-      $storex.ui.loadState()
+    async init ({ state }) {
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
-      if (!state.tabIx) {
-        state.tabIx = 'home'
-      }
       if (API.user?.theme) {
         state.theme = API.user.theme
       }
       state.coderProjectCodxPath = null
     },
     saveState({ state }) {
-      const data = { ...state, uiReady: false }
-      delete data.activeTab
-      localStorage.setItem('uiState', JSON.stringify(data))
+      if (!state.uiReady) {
+        return
+      }
+      try {
+        const data = { 
+          ...state, 
+          uiReady: false,
+          openApps: {},
+          viewEditor: null,
+          projectLoadingState: {
+            isLoading: false,
+            projectName: '',
+            currentStep: null,
+            error: null
+          }
+        }
+        localStorage.setItem('uiState', JSON.stringify(data))
+      } catch (error) {
+        console.error('Failed to save UI state:', error)
+      }
+    },
+    async loadState({ state }) {
+      try {
+        const savedState = localStorage.getItem('uiState')
+        if (savedState) {
+          const parsedState = JSON.parse(savedState)
+          Object.keys(parsedState)
+            .forEach(k => state[k] = parsedState[k])
+        }
+      } catch (error) {
+        console.error('Failed to parse saved UI state:', error)
+      }
+
+      const {
+        activeProject: project_id,
+        activeChat: chatId
+      } = state
+
+      if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
+        await $storex.projects.activeProjectChanged({ project_id })
+      }
+      if (chatId && $storex.projects.activeProject) {
+        $storex.projects.setActiveChat({ id: chatId })
+      }
+      
+      $storex.ui.handleResize()
     },
     handleResize({ state }) {
       const width = window.innerWidth
@@ -197,7 +435,6 @@ export const actions = actionTree(
     },
     async openFile({ state }, file) {
       if (state.isMobile) {
-        state.tabIx = 'help'
         state.openedFile = file
       } else {
         await API.coder.openFile(file)
@@ -220,7 +457,7 @@ export const actions = actionTree(
     },
     async readScreenResolutions ({ state }) {
       await API.screen.getScreenResolution()
-      state.resolution = API.screen.display?.resolution,
+      state.resolution = API.screen.display?.resolution
       state.resolutions = API.screen.display?.resolutions
     },
     copyTextToClipboard(_, text) {
@@ -236,13 +473,132 @@ export const actions = actionTree(
     async readClipboardText(_, itemType = "text/plain") {
       const items = await navigator.clipboard.read()
       const getText = async item => {
-        const blob = await item.getType(itemType);
-        return await blob.text();
+        const blob = await item.getType(itemType)
+        return await blob.text()
       }
       const allTexts = await Promise.all(
                         items.filter(i => i.types.includes(itemType))
                               .map(i => getText(i)))
       return allTexts.reduce((a, b) => a + b, "")
-    }
+    },
+    async shareScreen() {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        preferCurrentTab: true,
+      })
+      const [track] = stream.getVideoTracks()
+    },
+    openNewWindowAppPanel(_, app) {
+      const { origin } = window.location
+      const url = `${origin}${app.path}`
+      window.open(url, app.name)
+    },
+
+    openTeamChannel(_, { team, channel }) {
+      $storex.ui.showApp({
+        tabId: `team-channel-${channel.id}`,
+        name: `# ${channel.name}`,
+        component: 'team-channel',
+        params: { team, channel }
+      })
+    },
+
+    async openTeamDM(_, { team, member }) {
+      const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
+      $storex.ui.showApp({
+        tabId: `team-dm-${team.id}-${member.id}`,
+        name: `@ ${member.username}`,
+        component: 'team-dm',
+        params: { team, member, chatId }
+      })
+    },
+
+    openTeamMediaLibrary(_, { team }) {
+      $storex.ui.showApp({
+        tabId: `team-media-${team.id}`,
+        name: `🖼 ${team.name} Media`,
+        component: 'team-media-library',
+        params: { team }
+      })
+    },
+
+    openVibeCoding() {
+      $storex.ui.showApp({
+        key: 'vibe-coding',
+        name: 'Vibe Coding',
+        component: 'vibe-coding',
+        params: {}
+      })
+    },
+
+    openProjects() {
+      $storex.ui.showApp({
+        tabId: 'projects',
+        name: 'Projects',
+        component: 'projects',
+        params: {}
+      })
+    },
+
+    openTeams() {
+      $storex.ui.showApp({
+        tabId: 'teams',
+        name: 'Teams',
+        component: 'teams',
+        params: {}
+      })
+    },
+
+    openWorkspaces() {
+      $storex.ui.showApp({
+        tabId: 'workspaces',
+        name: 'Workspaces',
+        component: 'workspaces',
+        params: {}
+      })
+    },
+
+    openTasks() {
+      $storex.ui.setActiveTab('tasks')
+    },
+
+    openWiki() {
+      $storex.ui.setActiveTab('wiki')
+    },
+
+    openMediaLibrary() {
+      $storex.ui.showApp({
+        tgabId: 'media-library',
+        name: 'Media Library',
+        compotabIdnent: 'media-library',
+        params: {}
+      })
+    },
+
+    openHome() {
+      $storex.ui.setActiveTab('home')
+    },
+
+    openTutorial(_, tutorialId) {
+      $storex.ui.showApp({
+        tabId: `tutorial-${tutorialId}`,
+        name: 'Knowledge',
+        component: 'knowledge',
+        params: { tutorial: tutorialId }
+      })
+    },
+
+    setProjectLoading(_, isLoading) {
+      $storex.ui.setProjectLoadingState({ isLoading })
+    },
+
+    updateProjectLoadingStep(_, { stepId, status, options = {} }) {
+      window.dispatchEvent(new CustomEvent('project-loading-step', {
+        detail: { stepId, status, options }
+      }))
+    },
+
+    setProjectLoadingError(_, error) {
+      $storex.ui.setProjectLoadingState({ error })
+    },
   },
 )

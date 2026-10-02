@@ -2,12 +2,7 @@ import os
 import subprocess
 import logging
 
-from codx.junior.settings import CODXJuniorSettings, read_global_settings
-from codx.junior.utils.utils import exec_command
-from codx.junior.security.user_management import UserSecurityManager
-from codx.junior.model.model import CodxUser
-from codx.junior.db import Chat
-
+HOST_USER = os.environ.get("HOST_USER") or os.environ.get("USER") 
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
@@ -15,6 +10,8 @@ MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
 MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS = 3 * 60
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
+
+CODX_JUNIOR_PROJECTS_PATH = os.environ.get("CODX_JUNIOR_PROJECTS_PATH")
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +29,39 @@ APPS_COMMANDS = {
 
 AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
 
-def coder_open_file(settings: CODXJuniorSettings, file_name: str):
-    logger.info(f"coder_open_file {file_name}")
-    os.system(f"code-server -r {file_name}")
+from langchain_text_splitters import Language
 
+CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
+LANGUAGE_PARSER_MAPPING = {
+    "ts": "js",
+    "cs": "csharp"
+}
 
-def update_engine():
-    try:
-        command = ["git", "pull"]
-        subprocess.run(command)
-    except Exception as ex:
-        logger.exception(ex)
-        return ex
+LOGS_FOLDER = os.environ.get("CODX_JUNIOR_API_LOGS", "/tmp/codx-junior-logs")
+
+# Global path for analytics data, shared across all projects.
+# Defaults to /home/codx-junior/analytics when the env var is not set.
+ANALYTICS_DATA_PATH = os.environ.get(
+    "CODX_JUNIOR_API_ANALYTICS_DATA_PATH",
+    "/home/codx-junior/analytics"
+)
+
+CODX_JUNIOR_AI_RAW_LOG_PATH = os.environ.get(
+    "CODX_JUNIOR_AI_RAW_LOG_PATH",
+    "/home/codx-junior/analytics/chats"
+)
+
+# Workspaces folder - stores workspace configuration and files
+CODX_JUNIOR_WORKSPACES_FOLDER = os.environ.get(
+    "CODX_JUNIOR_WORKSPACES_FOLDER",
+    "/home/codx-junior/codx-junior-global-settings.json/workspaces"
+)
+
+# Default workspace template path - contains template files to copy when creating new workspaces
+CODX_JUNIOR_DEFAULT_WORKSPACE_PATH = os.environ.get(
+    "CODX_JUNIOR_DEFAULT_WORKSPACE_PATH",
+    "/home/codx-junior-projects/codx-junior/workspace-templates"
+)
+
+CODX_JUNIOR_HIDDEN = \
+True if os.environ.get("CODX_JUNIOR_HIDDEN", "").lower() in ["1", "true"] else False

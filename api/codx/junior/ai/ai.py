@@ -1,31 +1,22 @@
-
 import json
 import logging
-import os
 import hashlib
+from typing import List, Optional, Union, Dict, Any, Callable
 
-from typing import List, Optional, Union
-
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-
-from langchain_community.chat_models import ChatOpenAI
-from langchain.chat_models.base import BaseChatModel
-from langchain.schema import (
+from langchain.messages import (
     AIMessage,
     HumanMessage,
     SystemMessage,
-    messages_from_dict,
-    messages_to_dict,
 )
+
+from engine.agent_runtime import AgentRunContext
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
-from codx.junior.ai.anthropic import Anthropic_AI
-from codx.junior.ai.mistral_ai import Mistral_AI
 from codx.junior.ai.ai_logger import AILogger
+from codx.junior.ai.cancellation import CancellationToken, CancelledError
 
 from codx.junior.profiling.profiler import profile_function
-
 from codx.junior.model.model import CodxUser
 
 # Type hint for a chat message
@@ -34,190 +25,423 @@ Message = Union[AIMessage, HumanMessage, SystemMessage]
 # Set up logging
 logger = logging.getLogger(__name__)
 
-GLOBAL_CHAT_INSTRUCTIONS = """
-<instructions info="General to follow when generating your response">
-  <instruction>
-    When creating file content add the file name after the code block extension like in "```js /absolute/file/path/file.js"
-    Use tools to convert relative project's file path to absolute.
-    Read file's content if not present in the comversation.
-    Use project search to find context if not clear on the conversation.
-  </instruction>
-</instructions>
-"""
-
-
-class LogginCallbackHandler(StreamingStdOutCallbackHandler):
-    pass
 
 class AI:
+    """
+    Main class for managing AI interactions with provider routing.
+
+    Routes chat requests to either SmolAgent (async-native) or OpenAI_AI (legacy)
+    based on global settings flag ``use_smol_agent``.
+
+    Supports forwarding a ``chat_id`` (for analytics traceability) and a shared
+    :class:`AgentRunContext` (for real-time tool/lifecycle event listeners and
+    unified cancellation) down to the provider.
+
+    Mermaid Diagram:
+    ```mermaid
+    classDiagram
+        AI --> OpenAI_AI : use_smol_agent == False
+        AI --> SmolAgent : use_smol_agent == True
+        AI --> AILogger : Logging operations
+        AI --> CancellationToken : Cancellation handling
+        AI --> AgentRunContext : Event fan-out / run sharing
+    ```
+    """
+
     def __init__(
-        self, settings: CODXJuniorSettings,
-        llm_model: str = None,
-        user: CodxUser = None
-    ):
-        self.user = user
-        self.settings = settings
-        self.llm_model = llm_model
-        self.llm = self.create_chat_model(llm_model=llm_model)
-        self.a_llm = self.create_a_chat_model(llm_model=llm_model)
-        self.embeddings = self.create_embeddings_model()
-        self.cache = False
-        self.ai_logger = AILogger(settings=settings)
-        
+        self,
+        settings: CODXJuniorSettings,
+        llm_model: Optional[str] = None,
+        user: Optional[CodxUser] = None,
+        system: Optional[str] = None,
+        session: Optional[Any] = None,
+    ) -> None:
+        """
+        Initialize the AI class with provider routing.
 
-    @profile_function
-    def image(self, prompt):
-        return self.llm.generate_image(prompt)
+        :param settings: Configuration settings (includes use_smol_agent flag).
+        :param llm_model: The specific model to be used.
+        :param user: The user interacting with the AI.
+        :param system: System level parameters.
+        :param session: Optional session context for tools that need access to current chat state.
+        """
+        self.system: Optional[str] = system
+        self.user: Optional[CodxUser] = user
+        self.settings: CODXJuniorSettings = settings
+        self.llm_model: Optional[str] = llm_model
+        self.llm_settings: Any = settings.get_llm_settings(llm_model=llm_model)
+        self.cache: Union[bool, Dict[str, str]] = False
+        self.ai_logger: AILogger = AILogger(settings=settings)
+        self.session: Optional[Any] = session
 
+        # Determine which provider to use
+        self._use_smol_agent: bool = True
 
-    def log(self, message):
+        # Initialize the appropriate chat model
+        self.llm: Callable = self.create_chat_model(llm_model=llm_model)
+        self.a_llm: Callable = self.create_a_chat_model(llm_model=llm_model)
+
+        logger.info(
+            "AI initialized with provider: %s (user=%s, model=%s, session=%s)",
+            "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
+            user.username if user else "NONE",
+            llm_model,
+            "present" if session else "absent",
+        )
+
+    def log(self, message: str, *args: Any) -> None:
+        """
+        Logs a message using the AI Logger if enabled.
+
+        :param message: The message string.
+        :param args: Optional arguments for lazy string formatting.
+        """
         if self.settings.get_log_ai():
-            self.ai_logger.info(message)
-    
+            self.ai_logger.info(message, *args)
+
+    @staticmethod
+    def _extract_message_content(message: Any) -> str:
+        """
+        Extract content string from a message object or dict.
+
+        Handles:
+        - LangChain message objects with .content attribute
+        - Dict objects with 'content' key (from convert_message for images)
+        - Fallback to string representation
+
+        :param message: Message object or dict to extract content from.
+        :return: String content, or empty string if no content found.
+        """
+        # Handle LangChain message objects
+        if hasattr(message, 'content'):
+            return str(message.content)
+        
+        # Handle dict objects (e.g. image messages from convert_message)
+        if isinstance(message, dict):
+            content = message.get('content', '')
+            return str(content) if content else ''
+        
+        # Fallback
+        return str(message)
+
     @profile_function
     def chat(
         self,
-        messages: List[Message] = None,
+        messages: Optional[List[Message]] = None,
         prompt: Optional[str] = None,
         *,
         max_response_length: Optional[int] = None,
-        callback = None,
-        headers = {}
+        callback: Optional[Callable] = None,
+        tools: Optional[List[str]] = None,
+        headers: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        chat_id: Optional[str] = None,
+        run_context: Optional[AgentRunContext] = None,
+        current_chat: Optional[Any] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Message]:
-        if not messages:
-            messages = []
+        """
+        Synchronous wrapper around asynchronous chat functionality.
 
-        if prompt:
-            messages.append(HumanMessage(content=prompt))
+        Processes user inputs and returns AI responses using the configured
+        provider (SmolAgent or OpenAI_AI). The sync wrapper delegates to
+        ``a_chat()`` to ensure consistent behavior across providers.
 
-        response_messages = None
-        md5_key = messages_md5(messages) if self.cache else None
-        if self.cache and md5_key in self.cache:
-            response_messages.append(
-                AIMessage(content=json.loads(self.cache[md5_key])["content"])
-            )
-            if self.settings.get_log_ai():
-                self.ai_logger.debug(f"Response from cache: {messages} {response}")
+        Note: This method internally uses asyncio to bridge async code.
+        For high-concurrency scenarios, prefer ``a_chat()`` directly.
 
-        else:
+        :param messages: History of messages.
+        :param prompt: Prompt to append as a human message.
+        :param max_response_length: The max tokens limit.
+        :param callback: An optional callback function.
+        :param tools: A list of tools for function calling.
+        :param headers: Custom headers dict for the LLM request.
+        :param cancellation_token: Optional token to cancel the ongoing completion.
+        :param chat_id: Optional chat identifier for analytics traceability.
+        :param run_context: Optional shared AgentRunContext carrying event
+                            listeners (e.g. ChatEventBridge) and cancellation.
+        :param current_chat: Optional current chat object for tool context.
+        :param vision_content: Optional list of vision content blocks (images, PDFs)
+                               to pass to vision-capable models.
+        :return: A list of processed messages including the AI reply.
+        :raises CancelledError: If the request is cancelled.
+        :raises RuntimeError: If AI processing fails.
+        """
+        import asyncio
 
-            callbacks = []
-            if callback:
-                callbacks.append(callback)
-            
+        # Get or create the event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
-                # Apply global instructions
-                
-                response_messages = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
-                                               + messages, 
-                                               config={"callbacks": callbacks, "headers": headers})
-            except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
-                raise RuntimeError("Failed to process AI request after retries.")
-
-            if self.cache:
-                self.cache[md5_key] = json.dumps(
-                    {
-                        "messages": serialize_messages(messages),
-                        "content": response_messages[-1].content,
-                    }
+                return loop.run_until_complete(
+                    self.a_chat(
+                        messages=messages,
+                        prompt=prompt,
+                        max_response_length=max_response_length,
+                        callback=callback,
+                        tools=tools,
+                        headers=headers,
+                        cancellation_token=cancellation_token,
+                        chat_id=chat_id,
+                        run_context=run_context,
+                        current_chat=current_chat,
+                        vision_content=vision_content,
+                    )
                 )
-      
-        return response_messages
-
+            finally:
+                loop.close()
+        else:
+            # We're already in an async context, create a task
+            return loop.run_until_complete(
+                self.a_chat(
+                    messages=messages,
+                    prompt=prompt,
+                    max_response_length=max_response_length,
+                    callback=callback,
+                    tools=tools,
+                    headers=headers,
+                    cancellation_token=cancellation_token,
+                    chat_id=chat_id,
+                    run_context=run_context,
+                    current_chat=current_chat,
+                    vision_content=vision_content,
+                )
+            )
 
     @profile_function
     async def a_chat(
         self,
-        messages: List[Message] = None,
+        messages: Optional[List[Message]] = None,
         prompt: Optional[str] = None,
         *,
         max_response_length: Optional[int] = None,
-        callback = None,
-        headers = {}
+        callback: Optional[Callable] = None,
+        tools: Optional[List[str]] = None,
+        headers: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        chat_id: Optional[str] = None,
+        run_context: Optional[AgentRunContext] = None,
+        current_chat: Optional[Any] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Message]:
-        if not messages:
+        """
+        Asynchronous chat functionality that processes user inputs and returns AI responses.
+
+        Delegates to the configured provider (SmolAgent or OpenAI_AI) based on
+        the ``use_smol_agent`` settings flag. The ``chat_id`` and
+        ``run_context`` are forwarded in the provider config so tool and
+        lifecycle events can be traced back to the chat and surfaced to any
+        registered listeners in real time. Vision content is also forwarded
+        for models that support image and PDF processing.
+
+        :param messages: History of messages.
+        :param prompt: Prompt to append as a human message.
+        :param max_response_length: The max tokens limit.
+        :param callback: An optional callback function.
+        :param tools: A list of tools for function calling.
+        :param headers: Custom headers dict for the LLM request.
+        :param cancellation_token: Optional token to cancel the ongoing completion.
+        :param chat_id: Optional chat identifier for analytics traceability.
+        :param run_context: Optional shared AgentRunContext carrying event
+                            listeners (e.g. ChatEventBridge) and cancellation.
+        :param current_chat: Optional current chat object for tool context.
+        :param vision_content: Optional list of vision content blocks (image_url, file types)
+                               to pass to vision-capable models for multi-modal processing.
+        :return: A list of processed messages including the AI reply.
+        :raises CancelledError: If the request is cancelled.
+        :raises RuntimeError: If AI processing fails.
+        """
+        if messages is None:
             messages = []
+        if tools is None:
+            tools = []
+        if headers is None:
+            headers = {}
 
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        response_messages = None
-        md5_key = messages_md5(messages) if self.cache else None
-        if self.cache and md5_key in self.cache:
-            response_messages.append(
-                AIMessage(content=json.loads(self.cache[md5_key])["content"])
-            )
-            if self.settings.get_log_ai():
-                self.ai_logger.debug(f"Response from cache: {messages} {response}")
+        # Safely extract content from messages that may be LangChain objects or dicts
+        total_words = len("".join([self._extract_message_content(m) for m in messages]))
 
-        else:
+        self.log(
+            "Creating a new a_chat completion. Messages: %d, words: %d, provider: %s",
+            len(messages),
+            total_words,
+            "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
+        )
 
-            callbacks = []
-            if callback:
-                callbacks.append(callback)
-            
-            try:
-                self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
-                # Apply global instructions
-                
-                response_messages = await self.a_llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
-                                               + messages, 
-                                               config={"callbacks": callbacks, "headers": headers})
-            except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
-                raise RuntimeError("Failed to process AI request after retries.")
+        # Delegate to the appropriate provider's async method
+        response_messages: List[Message] = await self.a_llm(
+            messages=messages,
+            config={
+                "callbacks": [callback] if callback else [],
+                "headers": headers,
+                "tools": tools,
+                "cancellation_token": cancellation_token,
+                "chat_id": chat_id,
+                "run_context": run_context,
+                "current_chat": current_chat,
+                "vision_content": vision_content,
+            },
+        )
 
-            if self.cache:
-                self.cache[md5_key] = json.dumps(
-                    {
-                        "messages": serialize_messages(messages),
-                        "content": response_messages[-1].content,
-                    }
-                )
-      
         return response_messages
 
-    @profile_function
-    def embeddings(self, content: str):
-        return self.embeddings(content=content)
+    def create_chat_model(self, llm_model: Optional[str]) -> Callable:
+        """
+        Initialize the correct chat completions target based on settings.
+
+        Routes to SmolAgent or OpenAI_AI based on ``use_smol_agent`` flag.
+
+        :param llm_model: Optional model override.
+        :return: A callable chat model function (may be sync or async).
+        """
+        if self._use_smol_agent:
+            from codx.junior.ai.smol.smol_agent import SmolAgent
+
+            agent = SmolAgent(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+                session=self.session,
+            )
+            logger.debug("SmolAgent chat model initialized")
+            # Return a wrapper that bridges SmolAgent.chat (async) to sync interface
+            return self._make_sync_wrapper(agent.chat)
+        else:
+            return OpenAI_AI(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+            ).chat_completions
+
+    def create_a_chat_model(self, llm_model: Optional[str]) -> Callable:
+        """
+        Initialize the correct asynchronous chat completions target based on settings.
+
+        Routes to SmolAgent or OpenAI_AI based on ``use_smol_agent`` flag.
+
+        :param llm_model: Optional model override.
+        :return: An async callable chat model function.
+        """
+        if self._use_smol_agent:
+            from codx.junior.ai.smol.smol_agent import SmolAgent
+
+            agent = SmolAgent(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+                session=self.session,
+            )
+            logger.debug("SmolAgent a_chat model initialized")
+            return agent.chat
+        else:
+            return OpenAI_AI(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+            ).a_chat_completions
 
     @staticmethod
-    def serialize_messages(messages: List[Message]) -> str:
-        try:
-            return json.dumps(messages_to_dict(messages))
-        except Exception as ex:
-            logger.error(f"serialize_messages error: {messages} {ex}")
-            raise ex
+    def _make_sync_wrapper(async_func: Callable) -> Callable:
+        """
+        Create a synchronous wrapper around an async function.
 
-    @staticmethod
-    def deserialize_messages(jsondictstr: str) -> List[Message]:
-        data = json.loads(jsondictstr)
-        # Modify implicit is_chunk property to ALWAYS false
-        # since Langchain's Message schema is stricter
-        prevalidated_data = [
-            {**item, "data": {**item["data"], "is_chunk": False}} for item in data
-        ]
-        return list(messages_from_dict(prevalidated_data))  # type: ignore
+        Used to bridge SmolAgent's async-only interface to legacy sync callers.
+
+        :param async_func: The async function to wrap.
+        :return: A sync callable that internally handles asyncio.
+        """
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            import asyncio
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(async_func(*args, **kwargs))
+                finally:
+                    loop.close()
+            else:
+                # Already in async context, this shouldn't happen for sync callers
+                logger.warning(
+                    "sync_wrapper called from within async context. "
+                    "Consider using a_chat directly."
+                )
+                raise RuntimeError(
+                    "Cannot use sync chat wrapper from within async context. "
+                    "Use a_chat() instead."
+                )
+
+        return sync_wrapper
+
+    def get_openai_chat_client(self, llm_model: Optional[str] = None) -> Any:
+        """
+        Get the underlying OpenAI client (only available with OpenAI_AI provider).
+
+        :param llm_model: Optional model override.
+        :return: The OpenAI client instance.
+        :raises RuntimeError: If using SmolAgent provider (which uses generic client).
+        """
+        if self._use_smol_agent:
+            logger.warning(
+                "get_openai_chat_client called with SmolAgent provider. "
+                "Returning generic OpenAI client from SmolAgent."
+            )
+            from codx.junior.ai.smol.smol_agent import SmolAgent
+
+            agent = SmolAgent(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+                session=self.session,
+            )
+            return agent.client
+        else:
+            return OpenAI_AI(
+                settings=self.settings,
+                llm_model=llm_model,
+                user=self.user,
+                system=self.system,
+            ).client
 
 
-    def create_chat_model(self, llm_model: str) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).chat_completions
+def messages_md5(messages: List[Message]) -> str:
+    """
+    Creates an MD5 hash representing the conversation string array.
 
-    def create_a_chat_model(self, llm_model: str) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).a_chat_completions
-
-    def get_openai_chat_client(self, llm_model: str = None):
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).client
-
-    def create_embeddings_model(self):
-        return OpenAI_AI(settings=self.settings, user=self.user).embeddings()
-
-def serialize_messages(messages: List[Message]) -> str:
-    return AI.serialize_messages(messages)
+    :param messages: List of message objects.
+    :return: Hexadecimal MD5 digest of the concatenated message contents.
+    """
+    messages_str = "".join([str(msg.content) for msg in messages])
+    return str(hashlib.md5(messages_str.encode("utf-8")).hexdigest())
 
 
-def messages_md5(messages: List[Message]):
-    messageaStr = "".join(map(lambda x: x.content, messages))
-    return str(hashlib.md5(messageaStr.encode("utf-8")).hexdigest())
+def serialize_messages(messages: List[Message]) -> List[Dict[str, str]]:
+    """
+    Serialize messages to a JSON-compatible format.
+
+    :param messages: List of message objects.
+    :return: List of serialized message dicts with type and content.
+    """
+    return [
+        {
+            "type": type(msg).__name__,
+            "content": str(msg.content),
+        }
+        for msg in messages
+    ]
+
+# Made with ❤️ by codx-junior

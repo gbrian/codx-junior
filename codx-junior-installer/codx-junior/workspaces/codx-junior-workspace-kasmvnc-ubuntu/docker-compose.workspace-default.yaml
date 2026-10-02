@@ -1,0 +1,125 @@
+x-workspace-name: &workspace-name ${COMPOSE_PROJECT_NAME:-codx-junior-default-workspace}
+
+name: ${COMPOSE_PROJECT_NAME:-codx-junior-default-workspace}
+
+services:
+  codx-junior-default:
+    #####################################################################################
+    ## 
+    ## NOTE: codx-junior-auth@file
+    ## 
+    ## Use codx-junior-auth middleware to secure the workspace endpoints
+    #####################################################################################
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codxjunior/${WORKSPACE_NAME:-codx-junior-default-workspace}:latest
+    container_name: *workspace-name
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/ppp:/dev/ppp
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior # TODO: remove
+      # Projects volume mapping
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      # - /custom/project/path:/custom/project/path
+      # coder config
+      - ./coder:/coder
+      # Full profile persistence (Desktop, Downloads, Configs)
+      - ./config:/home/kasm-user
+      # Mount kasmvnc config to ensure non-SSL is always applied at runtime
+      # - ./kasmvnc.yaml:/home/kasm-user/.vnc/kasmvnc.yaml:ro
+      # - ./kasmvnc.yaml:/etc/kasmvnc/kasmvnc.yaml:ro
+      # Access docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ./.workspace.env
+    environment:
+      - PUID=${USER_ID:-1000}
+      - PGID=${GROUP_ID:-1000}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-9080}
+      # KasmVNC specific env vars - no authentication
+      - VNC_PW=password
+      - PASSWD=password
+      - NO_VNC_PASSWORD=true
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      # Disable SSL at KasmVNC level - SSL is handled by Traefik
+      - KASM_SSL=false
+      - VNC_DISABLE_AUTH=true
+      # Path
+      - SUBDIR=/${WORKSPACE_NAME:-codx-junior-default-workspace}/preview
+    labels:
+      - traefik.enable=true
+
+      #####################################################################################
+      ## KasmVNC WebTop - port 6901
+      ## Path: /${WORKSPACE_NAME}/preview/
+      ## NOTE: KasmVNC uses self-signed SSL internally, so we:
+      ##   1. Point Traefik to port 6901 using HTTPS scheme
+      ##   2. Use a custom serversTransport that skips certificate verification
+      ##
+      ## IMPORTANT: serversTransport name must be short and use only alphanumeric + dash.
+      ## We use a fixed short name "kasmtransport" to avoid Traefik parsing issues.
+      #####################################################################################
+
+      # Router for KasmVNC
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-router.rule=PathPrefix(`/${WORKSPACE_NAME:-codx-junior-default-workspace}/preview`)
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-router.service=${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-service
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-router.middlewares=${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-chain,codx-junior-auth
+
+      # Service backend - use HTTPS scheme and self-signed cert transport
+      - traefik.http.services.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-service.loadbalancer.server.port=6901
+      - traefik.http.services.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-service.loadbalancer.server.scheme=https
+      - traefik.http.services.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-service.loadbalancer.serversTransport=insecure-skip-verify@file
+
+      # Middleware: strip the prefix path so KasmVNC receives requests at /
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-strip.stripprefix.prefixes=/${WORKSPACE_NAME:-codx-junior-default-workspace}/preview
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-strip.stripprefix.forceSlash=true
+
+      # Middleware: set headers required for WebSocket proxying to KasmVNC
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-headers.headers.customrequestheaders.X-Forwarded-Port=443
+
+      # Middleware chain: strip prefix + set headers
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-chain.chain.middlewares=${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-strip,${WORKSPACE_NAME:-codx-junior-default-workspace}-webtop-headers
+
+      #####################################################################################
+      ## Code Server - port ${CODE_SERVER_PORT}
+      ## Path: /${WORKSPACE_NAME}/coder/
+      #####################################################################################
+
+      # Router for code-server
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-router.rule=PathPrefix(`/${WORKSPACE_NAME:-codx-junior-default-workspace}/coder`)
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-router.service=${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-service
+      - traefik.http.routers.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-router.middlewares=${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-chain,codx-junior-auth
+
+      # Service backend
+      - traefik.http.services.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-service.loadbalancer.server.port=${CODE_SERVER_PORT:-9080}
+
+      # Middleware: strip the prefix path
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-strip.stripprefix.prefixes=/${WORKSPACE_NAME:-codx-junior-default-workspace}/coder
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-strip.stripprefix.forceSlash=true
+
+      # Middleware: set headers for code-server
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-headers.headers.customrequestheaders.X-Forwarded-Port=443
+
+      # Middleware chain
+      - traefik.http.middlewares.${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-chain.chain.middlewares=${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-strip,${WORKSPACE_NAME:-codx-junior-default-workspace}-coder-headers
+
+    networks:
+      - codx-junior
+
+volumes:
+  codx-junior-projects:
+    external: true
+
+networks:
+  codx-junior:
+    name: codx-junior_default
+    external: true

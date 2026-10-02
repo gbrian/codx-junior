@@ -6,42 +6,41 @@ export class ProjectService extends Service {
         projectPath.includes("/issues/")) {
         projectPath = projectPath.split("/issues/")[0]
     } 
-    await this.projects.createNewProject(projectPath)
+    await this.$projects.createNewProject(projectPath)
   }
   
   async watch(watching) {
-    this.project.watching = watching
-    this.projects.saveSettings(this.project)
+    this.$project.$api.projects.watch(watching)
   }
 
   async openUserChat(user) {
-    const chat = this.projects.allChats.find(({ column, board, name }) => 
+    const chat = this.$projects.allChats.find(({ column, board, name }) => 
       column === "chats" && board === "chats" && name === user.username
-    ) ||  await this.projects.createNewChat({
+    ) ||  await this.$chats.createNewChat({
       board: "chats",
       column: "chats",
       name: user.username,
       mode: 'channel'
     })
-    this.projects.setActiveChat(chat)
+    this.$projects.setActiveChat(chat)
    
-    if ($storex.ui.activeTab !== 'tasks') {
-      this.$storex.ui.setActiveTab('tasks')
+    if (this.$ui.activeTab !== 'tasks') {
+      this.$ui.setActiveTab('tasks')
     }
   }
 
   findParentProject(project) {
     const  { allProjects } = this.$storex.api
     return allProjects.find(p =>
-      p.project_path !== project.project_path && 
-      project.project_path.startsWith(p.project_path))
+      p.abs_project_path !== project.abs_project_path && 
+      project.abs_project_path.startsWith(p.abs_project_path))
   }
 
   findChildProject(project) {
     const  { allProjects } = this.$storex.api
     return allProjects.filter(p => 
-      p.project_path !== project.project_path && 
-      p.project_path.startsWith(project.project_path))
+      p.abs_project_path !== project.abs_project_path && 
+      p.abs_project_path.startsWith(project.abs_project_path))
   }
 
   findProjectDependencies(project) {
@@ -50,6 +49,67 @@ export class ProjectService extends Service {
     return `${project_dependencies}`.split(",").map(dep => 
       allProjects.find(({ project_name }) => project_name === dep.trim()))
                           .filter(p => !!p)
+  }
+
+  async searchProjectFiles(project, searchQuery, limit = 20) {
+    const relatedProjects = this.getRelatedProjects(project)
+    const allProjectsToSearch = [project, ...relatedProjects]
+    
+    const fileResults = []
+    const seenFiles = new Set()
+
+    for (const proj of allProjectsToSearch) {
+      if (!proj?.$api) continue
+      
+      try {
+        const results = await proj.$api.files.search({
+          search: searchQuery,
+          pageSize: limit,
+          page: 0
+        })
+        
+        if (results?.files) {
+          for (const file of results.files) {
+            const key = file.path?.toLowerCase() || file
+            if (!seenFiles.has(key)) {
+              seenFiles.add(key)
+              fileResults.push({
+                file: file.path || file,
+                name: (file.path || file).split('/').reverse()[0],
+                project: proj,
+                searchIndex: (file.path || file).split('/').reverse().slice(0, 3).reverse().join('/')
+              })
+            }
+          }
+        }
+      } catch (ex) {
+        console.error(`Error searching files in project ${proj.project_name}:`, ex)
+      }
+    }
+
+    return fileResults.slice(0, limit)
+  }
+
+  getRelatedProjects(project) {
+    const { project_id, abs_project_path } = project
+    const allProjects = this.$storex.projects.allProjects
+
+    const subProjects = allProjects.filter(p =>
+      p.project_id !== project_id &&
+      p.abs_project_path?.startsWith(abs_project_path)
+    )
+
+    const dependencies = this.findProjectDependencies(project)
+
+    const seen = new Set()
+    const result = []
+    for (const p of [...subProjects, ...dependencies]) {
+      if (!seen.has(p.project_id)) {
+        seen.add(p.project_id)
+        result.push(p)
+      }
+    }
+    return result
   }
 
   async mentionList(project, profiles) {
@@ -75,20 +135,6 @@ export class ProjectService extends Service {
       ]
         .filter(project => project)
         .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
-      ...[
-        ...project.knowledge?.files || [],
-        ...project.knowledge?.pending_files || []
-      ]
-        .map(file => ({ file,
-                        name: file.split('/').reverse()[0],
-                        filePath: file.split('/').reverse().slice(0, 3).reverse().join('/')
-                      }))
-        .map(({ file, name, filePath }) => ({ 
-                        name, 
-                        file, 
-                        searchIndex: filePath,
-                        tooltip: `Use file ${filePath}`
-                      })),
     ].map(m => ({ 
       ...m,
       searchIndex: m.searchIndex || m.name.toLowerCase(),

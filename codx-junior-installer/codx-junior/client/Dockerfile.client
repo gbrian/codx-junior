@@ -1,0 +1,18 @@
+##################################################
+## codx-junior:client
+##################################################
+FROM codxjunior/codx-junior:debian
+
+USER ${USER}
+WORKDIR ${HOME}/codx-junior
+
+COPY --chown=${USER} client ./client
+COPY --chown=${USER} scripts ./scripts
+COPY --chown=${USER} codx-junior ./codx-junior
+COPY --chown=${USER} set_env.sh .
+
+
+ENV CODX_JUNIOR_APPS="client"
+RUN bash scripts/install.sh
+
+CMD [ "bash", "-c", "${HOME}/codx-junior/scripts/run_client.sh" ]

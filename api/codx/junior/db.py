@@ -1,78 +1,224 @@
 import os
 import logging
-import re
 import uuid
 from slugify import slugify
 
 from codx.junior.settings import CODXJuniorSettings
-from tinydb import TinyDB, Query, where
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List, Any, Dict
 
 from datetime import datetime
 from enum import Enum
 
-from codx.junior.model.model import PRView
-
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+ROLE_USER = "user"
+ROLE_ASSISTANT = "assistant"
+MAX_IMAGE_SIZE_MB = 50
+MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
+
+
+class ChatAttachment(BaseModel):
+    """Represents an image stored in chat or message with file metadata and base64 data."""
+    file_name: str = Field(description="Original file name of the image")
+    file_type: str = Field(description="MIME type (e.g., 'image/png', 'image/jpeg')")
+    file_size: int = Field(description="File size in bytes")
+    base64_data: str = Field(description="Base64 encoded image data")
+    uploaded_at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when image was uploaded")
+    
+    @validator('file_size')
+    def validate_file_size(cls, v):
+        if v > MAX_IMAGE_SIZE_BYTES:
+            raise ValueError(f"Image size exceeds maximum allowed size of {MAX_IMAGE_SIZE_MB}MB")
+        return v
+    
+    @validator('file_type')
+    def validate_file_type(cls, v):
+        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml']
+        if v not in allowed_types:
+            raise ValueError(f"Image type '{v}' not allowed. Allowed types: {', '.join(allowed_types)}")
+        return v
+
+
+class KanbanColumn(BaseModel):
+    """Represents a column in a Kanban board."""
+    doc_id: Optional[str] = Field(default=None)
+    title: str = Field(default=None)
+    color: Optional[str] = Field(default=None)
+    index: int = Field(default=0)
+    chats: List[str] = Field(default=[])
+
+
+class Kanban(BaseModel):
+    """Represents a Kanban board with columns and chats."""
+    doc_id: Optional[str] = Field(default=None)
+    title: str = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    index: int = Field(default=0)
+    columns: Optional[List[KanbanColumn]] = Field(default=[])
+    created_at: str = Field(default_factory=lambda: str(datetime.now()))
+    updated_at: str = Field(default_factory=lambda: str(datetime.now()))
+
+
 class MessageTaskItem(Enum):
+    """Enum for message task item types."""
     SUMMARY = "summary"
 
+
+class ToolEvent(BaseModel):
+    """
+    Represents a tool execution event.
+    
+    Used to track tool calls, their execution status, and results.
+    Attached to the assistant response message that triggered the tool call.
+    """
+    tool: str = Field(description="Name of the tool that was executed")
+    tool_call_id: str = Field(description="Unique identifier for this tool call from the provider")
+    status: str = Field(description="Execution status: 'running', 'done', or 'error'")
+    request: Optional[Dict[str, Any]] = Field(default=None, description="Parsed JSON arguments sent to the tool")
+    response: Optional[str] = Field(default=None, description="Truncated tool result preview")
+    duration_ms: Optional[float] = Field(default=None, description="Execution time in milliseconds")
+    error: Optional[str] = Field(default=None, description="Error details when status is 'error'")
+
+
+class LifeCycleEvent(BaseModel):
+    """
+    Represents a lifecycle event in the agent run.
+    
+    Used to track agent run status changes and execution metrics.
+    Attached to the assistant response message produced by the run.
+    """
+    status: str = Field(description="Lifecycle status: 'running', 'done', or 'error'")
+    run_id: str = Field(description="Unique identifier for the agent run")
+    duration_ms: Optional[float] = Field(default=None, description="Execution time in milliseconds")
+    error: Optional[str] = Field(default=None, description="Error details when status is 'error'")
+
+
 class Message(BaseModel):
+    """
+    A single chat message.
+
+    Tool and run-lifecycle events emitted while generating an assistant
+    response are ASSOCIATED with that response message (they are NOT separate
+    chat messages):
+
+    - ``tool_events``:      one :class:`ToolEvent` per tool call executed
+                            during this response, updated in place
+                            (running → done/error).
+    - ``lifecycle_events``: one :class:`LifeCycleEvent` per agent run
+                            performed to produce this response.
+
+    Both lists are streamed in real time together with the message and are
+    persisted with the chat.
+    
+    **Message Read Tracking (`read_by` field)**
+    
+    The `read_by` field tracks which users have viewed a message in collaborative chats.
+    
+    **Usage Context:**
+    - Primarily for assistant messages (role='assistant') in multi-user chat environments
+    - Indicates message delivery and read status to other users
+    - User's own messages are excluded from tracking (message.user !== current_username)
+    
+    **Automatic Tracking:**
+    - When a user scrolls past and views an assistant message from another user,
+      their username is automatically added to the `read_by` list
+    - Tracked via ChatEntry.vue which monitors viewport visibility
+    - After 500ms idle time, calls `/api/chats/markMessageAsSeen` endpoint
+    - Endpoint signature: POST /api/chats/markMessageAsSeen
+      - Params: (chat_id, message_id, username)
+      - Effect: Adds username to message.read_by list if not already present
+    
+    **Display Indicators:**
+    - ChatMiniMap: Double-check marks
+      - Gray checks (✓) = message unread by current user
+      - Green checks (✓✓) = message read by current user
+      - Only shown for assistant messages from other users
+    - ChatSidebarNodeCompact/Extended: Unread badge
+      - Shows count of unread assistant messages from others
+      - Triggers awareness of new messages in the chat
+    - Message Headers: Optional read status indicators
+    
+    **Initialization & Lifecycle:**
+    - Always initialized as empty list [] when message is created
+    - Populated over time as different users view the message
+    - Never decreases (read state is permanent per user)
+    - Cleared only if message is deleted
+    """
     doc_id: Optional[str] = Field(default=None)
     role: str = Field(default='')
     task_item: str = Field(default='')
     content: str = Field(default='')
-    think: Optional[str] = Field(default='')
+    think: Optional[str] = Field(default=None)
     hide: bool = Field(default=False)
     is_answer: bool = Field(default=False)
     improvement: bool = Field(default=False)
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-    images: List[str] = Field(default=[])
+    created_at: str = Field(default_factory=lambda: str(datetime.now()))
+    updated_at: str = Field(default_factory=lambda: str(datetime.now()))
+    attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this message")
     files: List[str] = Field(default=[])
-    meta_data: Optional[dict] = Field(default={})
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (timings, model, analytics...)")
+    tool_events: List[ToolEvent] = Field(default=[], description="Tool execution events associated with this response message")
+    lifecycle_events: List[LifeCycleEvent] = Field(default=[], description="Agent run lifecycle events associated with this response message")
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
     disable_knowledge: Optional[bool] = Field(default=False)
-    read_by: List[str] = Field(default=[])
+    read_by: List[str] = Field(default=[], description="List of usernames who have viewed this assistant message; automatically populated when users view the message")
+    error: Optional[str] = Field(default=None)
+    linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
+
+
+class ChatHistoryEntry(BaseModel):
+    """Represents a historical entry in a chat with timestamp, summary, and associated message IDs."""
+    timestamp: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when this history entry was generated")
+    summary: str = Field(default='', description="Summary of this history entry")
+    message_ids: List[str] = Field(default=[], description="List of message IDs associated with this history entry")
 
 
 class ChatId(BaseModel):
+    """Represents a reference to a chat in another project."""
     chat_id: str = Field(default=None, description="Chat id")
     project_id: str = Field(default=None, description="Defines the project which this chat belongs")
-    
+
+
 class Chat(BaseModel):
+    """Represents a chat session with messages, metadata, and kanban board associations."""
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
-    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
-    target_project_id: Optional[str] = Field(default=None, description="None if it's the same as project_id or points for a specific project. Helps to keep chats on different projects to manage child projects.")
+    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat works, see owner_project_id for the project where the chat was created")
+    owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
+    linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
+    parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
     parent_project_id: Optional[str] = Field(default=None, description="Parent chat project id")
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
-    tags: List[str] = Field(default=[], description="Informative set of tags")
+    tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])
     users: List[str] = Field(default=[])
     name: str = Field(default='')
     pinned: Optional[bool] = Field(default=False)
+    is_template: Optional[bool] = Field(default=False, description="Chat will be used as temlate")
     description: str = Field(default='')
     messages: List[Message] = Field(default=[])
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
+    created_at: str = Field(default_factory=lambda: str(datetime.now()))
+    updated_at: str = Field(default_factory=lambda: str(datetime.now()))
     mode: str = Field(default='chat')
     kanban_id: str = Field(default='')
     column_id: str = Field(default='')
     board: str = Field(default='')
     column: str = Field(default='')
+    columns: List[KanbanColumn] = Field(default=[])
     chat_index: Optional[int] = Field(default=0)
     url: str = Field(default='')
     branch: str = Field(default='')
@@ -80,85 +226,30 @@ class Chat(BaseModel):
     llm_model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
+    attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this chat")
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
-    
+    history: List[ChatHistoryEntry] = Field(default=[], description="Historical entries of this chat")
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Optional session/conversation identifier used to link chat with AI request/response logs"
+    )
+    auto_initialize: Optional[bool] = Field(
+        default=False,
+        description=(
+            "Indicates this is a new chat that has not been initialized yet. "
+            "When True, AI will auto-fill board, column and name fields on first response."
+        )
+    )
+    ignore_parent_knowledge: Optional[bool] = Field(
+        default=False,
+        description="When True, disconnects from parent chat knowledge/context and only uses own messages"
+    )
+    ignore_parent_files: Optional[bool] = Field(
+        default=False,
+        description="When True, excludes parent chat file list from the working context"
+    )
 
-class KanbanColumn(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    color: Optional[str]
-    index: int = Field(default=0)
 
-class Kanban(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    description: Optional[str]
-    index: int = Field(default=0)
-    columns: Optional[List[KanbanColumn]] = Field(default=[])
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-
-PROJECT_DATABASES = {}
-
-class CODXJuniorDB:
-    def __init__(self, settings: CODXJuniorSettings):
-        self.settings = settings
-        self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(self.settings.codx_path))
-        self.db_path = f"{self.settings.codx_path}/{self.index_name}.db.json"
-        self.client = PROJECT_DATABASES.get(self.settings.project_path, None)
-        if not self.client:
-            self.init_client()
-        self.kanban_table = self.client.table('kanban', cache_size=0)
-        self.column_table = self.client.table('column', cache_size=0)
-        self.chat_table = self.client.table('chat', cache_size=0)
-
-    def init_client(self):
-        if self.client is None:
-            logger.info(f"Connected to database: {self.settings.project_path}")
-            self.client = TinyDB(self.db_path, sort_keys=True, indent=4, separators=(',', ': '))
-            PROJECT_DATABASES[self.settings.project_path] = self.client
-        
-    def reset(self):
-        logger.info(f"Reseting DB {self.settings.project_path}")
-        if os.path.exists(self.db_path):
-            os.remove(self.db_path)
-            PROJECT_DATABASES[self.settings.project_path] = None
-            self.init_client()
-
-    def save_kanban(self, kanban: Kanban):
-        """Save a kanban to the database, if kanban has not doc_id, create a new one"""
-        if not kanban.doc_id:
-            kanban.doc_id = str(uuid.uuid4())
-            kanban.created_at = str(datetime.now())
-            kanban.updated_at = str(datetime.now())
-            self.kanban_table.insert(kanban.model_dump())            
-        else:
-            kanban.updated_at = str(datetime.now())
-            self.kanban_table.update(kanban.model_dump(), where('doc_id') == kanban.doc_id)
-        return self.get_kanban(kanban.doc_id)
-
-    def get_kanban(self, kanban_id: str):
-        return Kanban(**self.kanban_table.get(where('doc_id') == kanban_id))
-
-    def get_all_kankan(self):
-        return [Kanban(**kanban) for kanban in self.kanban_table.all()]
-
-    def get_kanban_chats(self, kanban_id: str, column_id: str):
-        """Load all chats from a column of a kanban"""
-        return [Chat(**chat) for chat in self.chat_table.search(where('kanban_id') == kanban_id 
-                                    and where('column_id') == column_id)]
-    def get_chat(self, chat_id: str):
-        return Chat(**self.chat_table.get(where('doc_id') == chat_id))
-
-    def save_chat(self, chat: Chat):
-        """Save a chat to the database, if chat has not doc_id, create a new one"""
-        if not chat.doc_id:
-            chat.doc_id = str(uuid.uuid4())
-            chat.created_at = str(datetime.now())
-            chat.updated_at = str(datetime.now())
-            self.chat_table.insert(chat.model_dump())
-        else:
-            chat.updated_at = str(datetime.now())
-            self.chat_table.update(chat.model_dump(), where('doc_id') == chat.doc_id)
+# Made with ❤️ by codx-junior

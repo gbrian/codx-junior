@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  image-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: image-cli-service
+    
+    # Volume mappings
+    volumes:
+      # Persistent model cache (survives container restarts)
+      - model-cache:/cache
+      
+      # Input/output directories for images
+      - ./input:/workspace/input:ro
+      - ./output:/workspace/output:rw
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+    
+    # Remove container after execution
+    stdin_open: true
+    tty: true
+    
+    # Default command (override with your prompt)
+    command: >
+      --prompt "Create an AI wallpaper about coding"
+      --max_size 1024
+      --steps 10
+
+# Named volume for persistent model cache
+volumes:
+  model-cache:
+    driver: local

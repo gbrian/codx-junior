@@ -1,0 +1,52 @@
+{
+  "name": "DaisyUI",
+  "url": "",
+  "avatar": "https://daisyui.com/favicon.ico",
+  "description": "",
+  "category": "chat",
+  "file_match": "",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/DaisyUI/DaisyUI.profile",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "8b122b6b-e5dc-4a3d-a3ec-c4f81aa31770",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-09-23T16:24:03.365230",
+      "updated_at": "2026-09-23T16:24:03.365241",
+      "enabled": true
+    },
+    "github_admin": false,
+    "github_only": false,
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": "06cc3dbf-d0e4-4102-aa06-9a0a9405989e"
+}

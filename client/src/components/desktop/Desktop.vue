@@ -1,0 +1,117 @@
+<script setup>
+import { DockviewVue } from 'dockview-vue'
+import { ALL_COMPONENTS } from '../../config/appComponentsMap.js'
+import GroupHeaderActions from './GroupHeaderActions.vue'
+</script>
+
+<template>
+  <div class="w-full h-full relative">
+    <dockview-vue
+      class="w-full h-full"
+      @ready="onReady"
+      @panel-error="onPanelError"
+      rightHeaderActionsComponent="groupHeaderActions"
+    />
+
+    <!-- Error notification for failed panels -->
+    <div v-if="failedPanels.length" class="alert alert-error shadow-lg fixed bottom-4 right-4 max-w-md z-50">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l-2-2m0 0l-2-2m2 2l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ failedPanelsMessage }}</span>
+      </div>
+      <button class="btn btn-sm" @click="clearFailedPanels">Dismiss</button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'Desktop',
+  components: {
+    ...ALL_COMPONENTS,
+    groupHeaderActions: GroupHeaderActions
+  },
+  data() {
+    return {
+      failedPanels: [],
+      panelErrorTimeout: null
+    }
+  },
+  computed: {
+    apps() {
+      const { openApps } = this.$ui
+      return Object.values(openApps)
+    },
+    failedPanelsMessage() {
+      const count = this.failedPanels.length
+      return count === 1
+        ? `Failed to load panel: ${this.failedPanels[0]}`
+        : `Failed to load ${count} panels`
+    }
+  },
+  watch: {
+    apps() {
+      this.syncPanelsWithApps()
+    },
+    '$storex.api.user'() {
+      this.onApiReady()
+    },
+    '$storex.projects.activeProject'() {
+      this.$views.onActiveProjectChanged()
+    }
+  },
+  methods: {
+    syncPanelsWithApps() {
+      this.$storex.views.syncPanelsWithApps(this.$storex.views._desktopApi)
+    },
+    onReady(event) {
+      this.$storex.views.setDesktopApi(event.api)
+      this.onApiReady()
+    },
+    onApiReady() {
+      if (this.$storex.api.user) {
+        this.$views.onActiveProjectChanged()
+      }
+    },
+    onPanelError(event) {
+      const panelId = event?.panelId || event?.id
+      const panelTitle = this.getPanelTitle(panelId)
+      console.error(`Panel error (${panelId}):`, event)
+      this.handlePanelError(panelTitle || panelId)
+      this.$storex.views.removePanelFromDesktop(panelId)
+    },
+    handlePanelError(displayName) {
+      if (!this.failedPanels.includes(displayName)) {
+        this.failedPanels.push(displayName)
+      }
+      this.resetErrorTimeout()
+    },
+    resetErrorTimeout() {
+      if (this.panelErrorTimeout) {
+        clearTimeout(this.panelErrorTimeout)
+      }
+      this.panelErrorTimeout = setTimeout(() => {
+        this.clearFailedPanels()
+      }, 5000)
+    },
+    clearFailedPanels() {
+      this.failedPanels = []
+      if (this.panelErrorTimeout) {
+        clearTimeout(this.panelErrorTimeout)
+        this.panelErrorTimeout = null
+      }
+    },
+    getPanelTitle(panelId) {
+      try {
+        const desktopApi = this.$storex.views._desktopApi
+        const panel = desktopApi?.getPanel(panelId)
+        return panel?.title || panelId
+      } catch (e) {
+        return panelId
+      }
+    }
+  },
+}
+</script>

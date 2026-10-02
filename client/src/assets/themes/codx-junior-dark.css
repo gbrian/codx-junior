@@ -1,0 +1,55 @@
+/* codx-junior Dark DaisyUI Theme */
+/* Brand Colors: #cc0099 (primary), #8f008f (secondary) */
+
+@plugin "daisyui/theme" {
+  name: "codx-junior-dark";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Dark neutral base */
+  --color-base-100: oklch(18% 0.04 240);
+  --color-base-200: oklch(22% 0.04 240);
+  --color-base-300: oklch(26% 0.04 240);
+  --color-base-content: oklch(96% 0.02 240);
+  
+  /* Primary: codx magenta (#cc0099) - boosted lightness for dark background */
+  --color-primary: oklch(65% 0.32 320);
+  --color-primary-content: oklch(18% 0.04 320);
+  
+  /* Secondary: codx purple (#8f008f) - elevated for visibility */
+  --color-secondary: oklch(52% 0.28 300);
+  --color-secondary-content: oklch(96% 0.02 300);
+  
+  /* Accent: Vibrant magenta complement */
+  --color-accent: oklch(72% 0.3 330);
+  --color-accent-content: oklch(18% 0.04 330);
+  
+  /* Neutral grays - dark mode optimized */
+  --color-neutral: oklch(48% 0.04 240);
+  --color-neutral-content: oklch(96% 0.02 240);
+  
+  /* Semantic colors - adjusted for dark backgrounds */
+  --color-info: oklch(75% 0.22 220);
+  --color-info-content: oklch(18% 0.04 220);
+  --color-success: oklch(68% 0.28 140);
+  --color-success-content: oklch(18% 0.04 140);
+  --color-warning: oklch(82% 0.26 70);
+  --color-warning-content: oklch(18% 0.04 70);
+  --color-error: oklch(68% 0.32 25);
+  --color-error-content: oklch(18% 0.04 25);
+
+  /* Border radius harmony */
+  --radius-selector: 0.75rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+
+  /* Sizing */
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  /* Effects */
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}

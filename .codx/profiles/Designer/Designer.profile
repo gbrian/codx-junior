@@ -1,0 +1,50 @@
+{
+  "name": "Designer",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=designer",
+  "description": "An expert designer to assist you with your layouts, fonts, colors, and UI/UX designs.",
+  "category": "assistant",
+  "file_match": "",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/Designer.profile",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "bca06425-b416-45cc-961a-369efb9bdb1d",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-06-26T09:55:08.421520",
+      "updated_at": "2026-06-26T09:55:08.421531",
+      "enabled": true
+    },
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "chat_id": "649177c2-a478-41a7-85a9-f9a1505a3643"
+}

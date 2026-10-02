@@ -1,3 +1,6 @@
+<script setup>
+import Document from '../document/Document.vue';
+</script>
 <template>
   <div class="p-4 flex flex-col gap-2">
     <div class="flex flex-col gap-2" v-if="selectedCategory">
@@ -8,21 +11,22 @@
       </div>
       <div class="text-sm">{{ selectedCategory.description }}</div>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"
-      v-if="showSubCategories"
-    >
-      <div v-for="category in selectedSection" :key="category.title" 
-        class="card bg-base-100 shadow-xl"
-        @click="selectCategory(category)"
-      >
-        <div class="card-body">
-          <h2 class="text-xl">{{ category.title }}</h2>
-          <p class="text-xs h-40 overflow-auto">
-            {{ category.description }}</p>
-          <div class="flex justify-end">
-            <div>
-              <i class="fa-regular fa-file-lines"></i>
-              {{ categoryFileCount(category) }}
+    <div class="flex flex-col gap-2" v-if="showSubCategories">
+      <Document :content="homePage" v-if="homePage" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div v-for="category in selectedSection" :key="category.title" 
+          class="card bg-base-100 shadow-xl click"
+          @click="selectCategory(category)"
+        >
+          <div class="card-body">
+            <h2 class="text-xl">{{ category.title }}</h2>
+            <p class="text-xs h-40 overflow-auto">
+              {{ category.description }}</p>
+            <div class="flex justify-end">
+              <div>
+                <i class="fa-regular fa-file-lines"></i>
+                {{ categoryFileCount(category) }}
+              </div>
             </div>
           </div>
         </div>
@@ -55,7 +59,8 @@ export default {
       selectedFile: null,
       selectedCategory: null,
       fileContent: null,
-      wikiTree: null
+      wikiTree: null,
+      homePage: null
     }
   },
   async created() {
@@ -90,6 +95,7 @@ export default {
     },
     async resetWikiSettings() {
       this.wikiTree = await this.$storex.api.wiki.config()
+      this.loadHomePage()
     },
     selectCategory(category) {
       if (category) {
@@ -109,6 +115,9 @@ export default {
     async showFile(file) {
       this.selectedFile = file
       this.fileContent = file ? await this.$storex.api.files.read(file.wiki_file) : null
+    },
+    async loadHomePage() {
+      this.homePage = await this.$project.$api.wiki.read("")
     }
   }
 }

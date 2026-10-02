@@ -1,6 +1,6 @@
 import logging
 from codx.junior.chat.chat_engine import ChatEngine
-from langchain.schema import HumanMessage
+from langchain.messages import HumanMessage
 from codx.junior.db import Chat
 from codx.junior.settings import CODXJuniorSettings
 

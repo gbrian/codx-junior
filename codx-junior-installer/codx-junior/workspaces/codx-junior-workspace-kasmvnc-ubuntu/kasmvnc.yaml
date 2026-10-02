@@ -1,0 +1,17 @@
+network:
+  protocol: http
+  websocket_port: 6901
+  udp:
+    public_ip: auto
+security:
+  brute_force_protection:
+    blacklist_threshold: 0
+    blacklist_timeout: 0
+desktop:
+  resolution:
+    width: 1920
+    height: 1080
+logging:
+  log_writer_name: all
+  log_dest: logfile
+  level: 100

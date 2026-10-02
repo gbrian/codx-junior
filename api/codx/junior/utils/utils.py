@@ -8,27 +8,52 @@ from pathlib import Path
 import json
 import hashlib
 
-HOST_USER = os.environ.get("HOST_USER")
+from pydantic import BaseModel, Field
+from typing import Optional
+
+from codx.junior.globals import (
+  LANGUAGE_PARSER_MAPPING,
+  HOST_USER,
+  LOGS_FOLDER
+)
+
 logger = logging.getLogger(__name__)
 
 
+class TextBlock(BaseModel):
+    language: Optional[str] = Field(default="")
+    file_path: Optional[str] = Field(default="")
+    content: Optional[str] = Field(default="")
+
 def extract_code_blocks(content):
+    for text_block in extract_text_blocks(content=content):
+        yield text_block.content
+
+def extract_text_blocks(content):
     in_fence = False
     content_lines = []
+    text_block = TextBlock()
     def is_fence_line(line):
         return line.strip().startswith("```")
 
+    
     for line in content.split("\n"):
       if is_fence_line(line=line):
           if in_fence:
-              yield "\n".join(content_lines)
+              text_block.content = "\n".join(content_lines) 
+              yield text_block
               in_fence = False
               content_lines = []
+              text_block = TextBlock()
           else:  
             in_fence = True
+            parts = line.strip()[3:].split(" ")
+            text_block.language = parts[0] if parts else ""
+            text_block.file_path = parts[1] if parts and len(parts) > 1 else ""
           continue
       if in_fence:
           content_lines.append(line)
+
 
 def extract_json_blocks(content):
     for block in extract_code_blocks(content=content):
@@ -52,6 +77,8 @@ def document_to_context(doc):
     source = str(Path(doc.metadata['source']).absolute())
     language = doc.metadata.get('language')
     
+    language = LANGUAGE_PARSER_MAPPING.get(language, language)
+    
     return f"""
     <document keywords="{keywords}" category="{category}" source="{source}" language="{language}">
     {content}
@@ -61,12 +88,15 @@ def document_to_context(doc):
 def document_to_code_block(doc):
 
     content = doc.metadata.get('summary', doc.page_content)
-    source = str(Path(doc.metadata['source']).absolute())
+    source = doc.metadata['source']
     language = doc.metadata.get('language')
     extension = source.split(".")[-1] if "." in source else ""
 
+    language = language or extension
+    language = LANGUAGE_PARSER_MAPPING.get(language, language)
+    
     return "\n".join([
-      f"```{ language or extension } {source}", 
+      f"```{ language } {source}", 
       content,
       "```"
     ])
@@ -111,13 +141,16 @@ def exec_command(command: str, cwd: str=None, env: dict=None):
 
 def set_file_permissions(file_path: str):
     if HOST_USER:
-        exec_command(f"chown {HOST_USER} {file_path}")
+        exec_command(f"sudo chown {HOST_USER} {file_path}")
 
 def write_file(file_path: str, content: str):
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    dir_name = os.path.dirname(file_path)
+    os.makedirs(dir_name, exist_ok=True)
+    set_file_permissions(file_path)
+    # Let's try to add to git
+    exec_command(f"git add {file_path}", cwd=dir_name)
     with open(file_path, 'w') as f:
         f.write(clean_string(content))
-    set_file_permissions(file_path)
     
 def read_file(file_path: str, project_path: str = ""):
     if project_path and not file_path.startswith(project_path):
@@ -151,3 +184,23 @@ async def asyncify(res):
             if not cant_await:
                 raise ex
     return res
+
+
+def create_file_logger(logger_name):
+    # 1. Create a custom logger
+    logger = logging.getLogger('path_logger')
+    logger.setLevel(logging.INFO)
+
+    # 2. Create a file handler
+    file_path = f'{LOGS_FOLDER}/{logger_name}.log'
+    stdout, _ = exec_command(f"mkdir -p $(dirname {file_path})")
+    file_handler = logging.FileHandler(file_path)
+
+    # 3. Add a format (optional but recommended)
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s]\n%(message)s')
+    file_handler.setFormatter(formatter)
+
+    # 4. Add the handler to your logger
+    logger.addHandler(file_handler)
+
+    return logger

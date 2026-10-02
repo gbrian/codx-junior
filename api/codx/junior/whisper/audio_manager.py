@@ -4,7 +4,6 @@
 import logging
 import time
 from typing import List, Dict
-from faster_whisper import WhisperModel
 import requests
 from tempfile import NamedTemporaryFile
 import ffmpeg
@@ -19,16 +18,18 @@ logger = logging.getLogger(__name__)
 SUPPORTED_CONVERSIONS: Dict[str, List[str]] = {'webm': ['wav', 'mp4']}
 SUPPORTED_EXTRACTIONS: set = {'webm', 'wav', 'mp4', 'mp3'}
 
-WHISPER_MODEL = WhisperModel(
-    "small", device="cpu", compute_type="float32"
-)
 
 class AudioManager:
     """Class to manage conversion and transcription of audio/video files."""
 
     def __init__(self) -> None:
         """Initialize the audio manager with model configurations."""
-        self.model: WhisperModel = WHISPER_MODEL
+
+    def _get_model(self):
+        from faster_whisper import WhisperModel
+        return WhisperModel(
+            "small", device="cpu", compute_type="float32"
+        )
 
     def transcribe_from_file(self, file_path: str) -> Dict[str, str or List[Dict[str, str]]]:
         """
@@ -77,7 +78,7 @@ class AudioManager:
             List[Dict[str, str]]: List of transcription segments.
         """
         # Performing the transcription using WhisperModel.
-        segments, _ = self.model.transcribe(
+        segments, _ = self._get_model().transcribe(
             file_path,
             vad_filter=True,
             no_repeat_ngram_size=2,

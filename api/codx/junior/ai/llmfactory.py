@@ -1,7 +1,4 @@
-import ollama
 import logging
-
-from ollama import Client
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.ai_logger import AILogger
@@ -17,9 +14,9 @@ class OllamaAI:
     def __init__(self, ai_settings: AISettings):
         self.ai_settings = ai_settings
         self.host = self.ai_settings.api_url.replace("/v1", "")
-        self.client = Client(
-          host=self.host
-        )
+        # self.client = Client(
+        #   host=self.host
+        # )
 
     def log(self, msg):
         logger.info(msg)
@@ -33,6 +30,7 @@ class OllamaAI:
             return self.client.show(self.ai_settings.model).model_dump()
         except Exception as ex:
             logger.exception(f"Error loading model {model_info}: {ex} {self.ai_settings}")
+            return { "error": str(ex) }
 
     def prune_models(self, active_models:[str]):
         self.log(f"ollama prune model list: {active_models}")

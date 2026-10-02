@@ -8,8 +8,11 @@ import PRFile from './PRFile.vue'
         :file="file" 
         :option="showOption"
         :columns="columns"
+        :prChat="prChat"
+        :fromBranch="fromBranch"
+        :toBranch="toBranch"
         ref="prFiles"
-        class="grow bg-base-200 mb-2"
+        class="bg-base-200 mb-2"
         @new-chat="$emit('new-chat', $event)"
         @chat-column="$emit('chat-column', $event)"
         @scroll-to="scrollToFile"
@@ -19,7 +22,7 @@ import PRFile from './PRFile.vue'
 
 <script>
 export default {
-  props: ['files', 'showOption', 'columns'],
+  props: ['prChat', 'files', 'showOption', 'columns', 'fromBranch', 'toBranch'],
   methods: {
     scrollToFile(fileName) {
       const fileComponent = this.$refs.prFiles.find(file => file.file.fileFullName === fileName)
