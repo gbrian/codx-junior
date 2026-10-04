@@ -8,6 +8,7 @@ import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
+import { meetsModule } from './modules/meets'
 
 /**
  * In-flight request deduplication map.
@@ -464,12 +465,18 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
 
-    // CHANGED: Replace inline chats object with lazy-loaded module getter
     get chats() {
       if (!API._chatsModule) {
         API._chatsModule = chatsModule(API)
       }
       return API._chatsModule
+    },
+
+    get meets() {
+      if (!API._meetsModule) {
+        API._meetsModule = meetsModule(API)
+      }
+      return API._meetsModule
     },
 
     run: {

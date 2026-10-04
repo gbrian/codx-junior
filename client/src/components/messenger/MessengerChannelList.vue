@@ -18,7 +18,7 @@ import moment from 'moment'
         <span class="text-sm font-semibold text-base-content/80 flex-1">Channels</span>
         <button
           class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
-          title="New group channel"
+          title="New channel"
           @click="$emit('new-group')"
         >
           <i class="fas fa-plus text-sm"></i>
@@ -27,7 +27,7 @@ import moment from 'moment'
       <button
         v-else
         class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
-        title="New group channel"
+        title="New channel"
         @click="$emit('new-group')"
       >
         <i class="fas fa-plus text-xs"></i>
@@ -62,7 +62,7 @@ import moment from 'moment'
       <div v-else-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 px-4 gap-3 text-base-content/20">
         <i class="fas fa-hashtag text-3xl"></i>
         <span v-if="!isCollapsed" class="text-xs text-center">
-          {{ searchQuery ? 'No channels match your search' : 'No group channels yet.\nClick + to create one.' }}
+          {{ searchQuery ? 'No channels match your search' : 'No channels yet.\nClick + to create one.' }}
         </span>
       </div>
 
@@ -125,27 +125,6 @@ import moment from 'moment'
           </button>
         </div>
       </template>
-    </div>
-
-    <!-- ── Footer (user info) ── -->
-    <div class="shrink-0 border-t border-base-content/5 px-3 py-3">
-      <div class="flex items-center gap-3" :class="isCollapsed ? 'justify-center' : ''">
-        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-          <i class="fas fa-user text-primary text-xs"></i>
-        </div>
-        <div v-if="!isCollapsed" class="flex-1 min-w-0">
-          <div class="text-xs text-base-content/70 font-medium truncate">{{ userName }}</div>
-          <div class="text-[10px] text-base-content/25">Messenger</div>
-        </div>
-        <button
-          v-if="!isCollapsed"
-          class="p-1.5 text-base-content/25 hover:text-base-content/70 transition-colors"
-          title="Settings"
-          @click="$emit('settings')"
-        >
-          <i class="fas fa-gear text-xs"></i>
-        </button>
-      </div>
     </div>
   </div>
 </template>

@@ -59,7 +59,6 @@ import Collapsible from '../Collapsible.vue'
     <!-- Normal Chat Content -->
     <template v-else>
 
-
       <Collapsible :defaultOpen="false" class="w-full">
         <!-- Icon -->
         <template #icon>
@@ -76,34 +75,34 @@ import Collapsible from '../Collapsible.vue'
 
         <!-- Actions -->
         <template #actions>
-                  <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
-          <ChatProfileSelector
-            :project="chatProject"
-            :selected-profiles="chat.profiles"
-            :use-modal="true"
-            @profiles-changed="onProfilesChanged"
-          />
-          <CheckLists :chat="chat" :readOnly="readOnly" />
-        </div>
-
+          <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+            <ChatProfileSelector
+              :project="chatProject"
+              :selected-profiles="chat.profiles"
+              :use-modal="true"
+              @profiles-changed="onProfilesChanged"
+            />
+            <CheckLists :chat="chat" :readOnly="readOnly" />
+          </div>
         </template>
-      <!-- File list + profile selector header -->
-      <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
-        <div class="w-full" v-if="chatFiles.length || messageFiles.length">
-          <ChatFileList
-            :files="chatFiles"
-            :message-files="messageFiles"
-            :chat-project="chatProject"
-            @remove-file="removeFileFromChat"
-            @add-file="onAddFileToChat"
-            @add-as-message="addFileContentAsMessage"
-            @sync-notebook="syncNotebook"
-            @export-notebook="exportNotebook"
-            @preview-file="openFilePreview"
-            v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
-          />
+
+        <!-- File list + profile selector header -->
+        <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
+          <div class="w-full" v-if="chatFiles.length || messageFiles.length">
+            <ChatFileList
+              :files="chatFiles"
+              :message-files="messageFiles"
+              :chat-project="chatProject"
+              @remove-file="removeFileFromChat"
+              @add-file="onAddFileToChat"
+              @add-as-message="addFileContentAsMessage"
+              @sync-notebook="syncNotebook"
+              @export-notebook="exportNotebook"
+              @preview-file="openFilePreview"
+              v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
+            />
+          </div>
         </div>
-      </div>
       </Collapsible>
 
       <!-- PR View Section -->
@@ -193,6 +192,7 @@ import Collapsible from '../Collapsible.vue'
                 :selected-profiles="selectedProfiles"
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                :chat="chat"
                 @send="sendMessage"
                 @add-message="addNewMessage()"
                 @search-message="addSearchMessage"
@@ -852,8 +852,11 @@ export default {
       })
       this.onResetEdit()
     },
-    toggleHide({ doc_id, hide }) {
-      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+    toggleHide({ doc_id, is_answer, hide }) {
+      // Answer messages can not be hidden.
+      if (!is_answer) {
+        this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+      }
     },
     toggleAnswer({ doc_id, is_answer }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { is_answer: !is_answer } })

@@ -4,6 +4,7 @@ import Navigate from './navigate'
 import QuickChatView from '@/views/QuickChatView.vue'
 import WorkspaceView from '@/views/WorkspaceView.vue'
 import MessengerView from '@/views/MessengerView.vue'
+import MeetView from '@/views/MeetView.vue'
 import MetricsDashboard from '@/components/analytics/MetricsDashboard.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
 import KanbanBoardView from '@/components/kanban/board/KanbanBoardView.vue'
@@ -33,6 +34,17 @@ const router = createRouter({
       path: '/chats/:chatId/:chatName/workspace/:workspaceId/:workspaceName',
       name: 'chat-workspace',
       component: QuickChatView
+    },
+    {
+      // Meet routes: router mode
+      path: '/meet',
+      name: 'meet',
+      component: MeetView
+    },
+    {
+      path: '/meet/:meetId',
+      name: 'meet-session',
+      component: MeetView
     },
     {
       // Workspace routes: router mode

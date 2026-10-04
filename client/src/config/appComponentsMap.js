@@ -29,6 +29,8 @@ import EmptyStateWelcome from '../components/desktop/EmptyStateWelcome.vue'
 import Tab from '../components/desktop/Tab.vue'
 import KanbanBoardView from '../components/kanban/board/KanbanBoardView.vue'
 import BrowserSessionList from '../components/browsers/BrowserSessionList.vue'
+import MessengerView from '../views/MessengerView.vue'
+import MeetView from '../views/MeetView.vue'
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
@@ -50,6 +52,8 @@ export const APP_COMPONENTS_MAP = {
   'account': AccountSettings,
   'file-explorer': FileExplorerPanel,
   'file-viewer': FileViewer,
+  'messenger': MessengerView,
+  'meet': MeetView,
   'projects': ProjectOverview,
   'activity': Wall,
   'chat': ChatView,
@@ -59,7 +63,6 @@ export const APP_COMPONENTS_MAP = {
   'team-dm': TeamDM,
   'team-media-library': TeamMediaLibrary,
   'vibe-coding': VibeCodingView,
-  // CHANGED: WorkspacesManager replaces WorkspacesList as the registered component
   'workspaces': WorkspacesManager
 }
 

@@ -105,6 +105,9 @@ export default {
       showBoardList: false
     }
   },
+  created() {
+    this.showBoardList = !this.activeBoard?.title
+  },
   computed: {
     boards() {
       return this.$storex.kanban.allBoards

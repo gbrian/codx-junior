@@ -61,6 +61,10 @@ import ViewsMenu from './ViewsMenu.vue'
               <i class="fa-solid fa-people-group"></i>
               Team
             </MenubarItem>
+            <MenubarItem @click="$ui.openMeet()">
+              <i class="fa-solid fa-video"></i>
+              Meet
+            </MenubarItem>
             <MenubarItem @click="$ui.setActiveTab('file-explorer')">
               <i class="fa-regular fa-folder-open"></i>
               File explorer

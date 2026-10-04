@@ -50,12 +50,21 @@ export const state = () => ({
     changes: 33,
     preview: 37
   },
+  sidebarCollapsed: false,
   projectLoadingState: {
     isLoading: false,
     projectName: '',
     currentStep: null,
     error: null
-  }
+  },
+  // Call device preferences
+  callDevicePreferences: {
+    microphone: 'default',
+    speaker: 'default',
+    autoMute: false
+  },
+  // Active call panel on chat
+  activeChatCallPanelWidth: 30
 })
 
 export const getters = getterTree(state, {
@@ -284,6 +293,10 @@ export const mutations = mutationTree(state, {
   setAppShowMode(state, mode) {
     state.appShowMode = mode
   },
+  setSidebarCollapsed(state, collapsed) {
+    state.sidebarCollapsed = collapsed
+    $storex.ui.saveState()
+  },
   openChat(_, chat) {
     if (!$storex.ui.isDesktopMode) {
       $storex.$router.push({
@@ -344,6 +357,14 @@ export const mutations = mutationTree(state, {
       ...loadingState
     }
   },
+  setCallDevicePreferences(state, preferences) {
+    state.callDevicePreferences = { ...state.callDevicePreferences, ...preferences }
+    $storex.ui.saveState()
+  },
+  setActiveChatCallPanelWidth(state, width) {
+    state.activeChatCallPanelWidth = width
+    $storex.ui.saveState()
+  }
 })
 
 export const actions = actionTree(
@@ -557,7 +578,22 @@ export const actions = actionTree(
           ...workspace
         })
       } else {
-        $storex.$router.$navigation.workspaces.open(workspaceId, workspaceName)
+        $storex.$navigation.workspaces.open(workspaceId, workspaceName)
+      }
+    },
+
+    openMeet(_, meetId) {
+      if ($storex.ui.isDesktopMode) {
+        $storex.ui.showApp({
+          tabId: 'meet',
+          name: 'Meet',
+          component: 'meet',
+          params: {
+            meetId
+          }
+        })
+      } else {
+        $storex.$router.push({ name: 'meet' })
       }
     },
 
@@ -604,5 +640,26 @@ export const actions = actionTree(
     setProjectLoadingError(_, error) {
       $storex.ui.setProjectLoadingState({ error })
     },
+
+    /**
+     * Update call device preferences and persist to localStorage
+     */
+    updateCallDevicePreferences({ commit }, preferences) {
+      commit('setCallDevicePreferences', preferences)
+    },
+
+    /**
+     * Get saved call device preferences
+     */
+    getCallDevicePreferences({ state }) {
+      return state.callDevicePreferences
+    },
+
+    /**
+     * Set active call panel width
+     */
+    setActiveChatCallPanelWidth({ commit }, width) {
+      commit('setActiveChatCallPanelWidth', width)
+    }
   },
 )

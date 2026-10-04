@@ -5,6 +5,18 @@ import { ENTITY_STATUS } from './entityStatuses'
 
 export const namespaced = true
 
+// ─── Chat Mode Configuration ───────────────────────────────────────────────
+export const CHAT_MODES = {
+  chat: { value: 'chat', label: 'Chat', icon: 'fa-comments' },
+  task: { value: 'task', label: 'Task', icon: 'fa-tasks' },
+  topic: { value: 'topic', label: 'Topic', icon: 'fa-lightbulb' },
+  preview: { value: 'preview', label: 'Preview', icon: 'fa-eye' },
+  browser: { value: 'browser', label: 'Browser', icon: 'fa-globe' },
+  slides: { value: 'slides', label: 'Slides', icon: 'fa-presentation' },
+  tutorial: { value: 'tutorial', label: 'Tutorial', icon: 'fa-graduation-cap' },
+  channel: { value: 'channel', label: 'Channel', icon: 'fa-hashtag' }
+}
+
 // ─── Status Configuration (single source of truth) ───────────────────────────
 export const CHAT_STATUS_CONFIG = {
   todo:     { value: 'todo',     label: 'To Do',    icon: 'fa-solid fa-circle-dot',   textColor: 'text-info/60',    borderColor: 'border-l-info',    btnClass: 'btn-info btn-outline' },
@@ -72,6 +84,24 @@ export const getters = getterTree(state, {
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
   allTemplates: state => Object.values(state.chats || {}).filter(c => c.is_template),
+  
+  // ─── Chat Mode Helpers ────────────────────────────────────────────────────
+  availableChatModes: () => Object.values(CHAT_MODES),
+  chatModeConfig: () => (mode) => CHAT_MODES[mode] || CHAT_MODES.chat,
+  chatModeLabel: () => (mode) => (CHAT_MODES[mode] || CHAT_MODES.chat).label,
+  chatModeIcon: () => (mode) => (CHAT_MODES[mode] || CHAT_MODES.chat).icon,
+
+  // ─── Channel Helpers ──────────────────────────────────────────────────────
+  channels: state => {
+    return Object.values(state.chats || {})
+      .filter(c => c.mode === 'channel')
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || a.updated_at || 0).getTime()
+        const timeB = new Date(b.lastMessageAt || b.updated_at || 0).getTime()
+        return timeB - timeA
+      })
+  },
+
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0 ||
       state.chatLoadingStatus[chatId] === ENTITY_STATUS.LOADING

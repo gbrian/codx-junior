@@ -1,6 +1,7 @@
 <script setup>
 import Chat from '../chat/Chat.vue'
 import Editor from '../monaco/Editor.vue'
+import TagsManager from './TagsManager.vue'
 </script>
 
 <template>
@@ -29,10 +30,7 @@ import Editor from '../monaco/Editor.vue'
       <a role="tab" class="tab" :class="tabIx === 0 && 'tab-active'" @click="tabIx = 0">
         <i class="fa-solid fa-sliders mr-1"></i> Settings
       </a>
-      <a role="tab" class="tab" :class="tabIx === 1 && 'tab-active'" @click="tabIx = 1">
-        <i class="fa-solid fa-file-code mr-1"></i> Modelfile
-      </a>
-      <a role="tab" class="tab" :class="[tabIx === 2 && 'tab-active', model.model_type !== 'llm' && 'tab-disabled opacity-40']" @click="newChat">
+      <a role="tab" class="tab" :class="[tabIx === 1 && 'tab-active', model.model_type !== 'llm' && 'tab-disabled opacity-40']" @click="newChat">
         <i class="fa-solid fa-comment mr-1"></i> Test chat
       </a>
     </div>
@@ -127,36 +125,12 @@ import Editor from '../monaco/Editor.vue'
             <input class="input input-bordered input-sm font-mono text-xs" v-model="model.url" placeholder="https://..." />
           </div>
 
-          <!-- Tags (CSV) -->
+          <!-- Tags manager -->
           <div class="form-control">
             <label class="label py-1">
-              <span class="label-text text-xs"><i class="fa-solid fa-tags mr-1 text-accent"></i> Tags (comma-separated)</span>
+              <span class="label-text text-xs"><i class="fa-solid fa-tags mr-1 text-accent"></i> Tags</span>
             </label>
-            <input
-              class="input input-bordered input-sm font-mono text-xs"
-              v-model="tagsInput"
-              placeholder="e.g. fast, accurate, production"
-              @blur="normalizeTags"
-            />
-            <label class="label py-0.5">
-              <span class="label-text-alt text-xs text-base-content/50">Separate tags with commas. Whitespace is trimmed automatically.</span>
-            </label>
-            <div v-if="parsedTags.length" class="flex flex-wrap gap-2 mt-2">
-              <span
-                v-for="(tag, idx) in parsedTags"
-                :key="idx"
-                class="badge badge-sm badge-outline badge-accent flex items-center gap-1"
-              >
-                {{ tag }}
-                <button
-                  type="button"
-                  @click="removeTag(idx)"
-                  class="text-xs hover:text-error cursor-pointer"
-                >
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </span>
-            </div>
+            <TagsManager v-model="model.tags" :suggestions="tagSuggestions" />
           </div>
         </div>
 
@@ -352,8 +326,7 @@ export default {
       testChat: null,
       testChatError: null,
       selectedIdentityEntry: null,
-      manualOverride: false,
-      tagsInput: ''
+      manualOverride: false
     }
   },
   computed: {
@@ -365,11 +338,11 @@ export default {
       const provider = this.aiProviders.find(p => p.name === this.model.ai_provider)
       return provider?.price_list || []
     },
-    parsedTags() {
-      return this.tagsInput
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0)
+    // Unique tags collected from every model, used as suggestions
+    tagSuggestions() {
+      const models = this.$storex.api.globalSettings?.ai_models || []
+      const tags = models.flatMap(m => m.tags || [])
+      return [...new Set(tags)].sort((a, b) => a.localeCompare(b))
     }
   },
   watch: {
@@ -393,11 +366,9 @@ export default {
   mounted() {
     this.syncSelectedIdentity()
     this.initializeModelFile()
-    this.initializeTags()
   },
   methods: {
     onSave() {
-      this.normalizeTags()
       this.$emit('save', { ...this.model })
     },
     async newChat() {
@@ -449,21 +420,6 @@ export default {
       if (!this.model.model_file) {
         this.model.model_file = this.getDefaultModelfile()
       }
-    },
-    initializeTags() {
-      if (this.model.tags && Array.isArray(this.model.tags)) {
-        this.tagsInput = this.model.tags.join(', ')
-      } else {
-        this.tagsInput = ''
-      }
-    },
-    normalizeTags() {
-      this.model.tags = this.parsedTags
-    },
-    removeTag(index) {
-      const tags = this.parsedTags
-      tags.splice(index, 1)
-      this.tagsInput = tags.join(', ')
     },
     getDefaultModelfile() {
       return `# Modelfile for ${this.model.name || 'AI Model'}

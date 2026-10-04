@@ -16,6 +16,13 @@ export default function Navigate({ $router, $storex }) {
         params: { chatId, chatName, workspaceId, workspaceName }
       })
     },
+    meet: {
+      list: () => ({ name: 'meet' }),
+      open: (meetId) => ({
+        name: 'meet-session',
+        params: { meetId }
+      })
+    },
     workspace: {
       list: () => ({ name: 'workspaces' }),
       open: (workspaceId, workspaceName) => ({
@@ -69,6 +76,11 @@ export default function Navigate({ $router, $storex }) {
       return name === 'chat' || name === 'chat-workspace'
     },
 
+    get isMeetView() {
+      const name = $router.currentRoute.value.name
+      return name === 'meet' || name === 'meet-session'
+    },
+
     get isWorkspaceView() {
       const name = $router.currentRoute.value.name
       return name === 'workspace' || name === 'workspaces'
@@ -103,6 +115,10 @@ export default function Navigate({ $router, $storex }) {
       return $router.currentRoute.value.params.chatName || null
     },
 
+    getMeetId() {
+      return $router.currentRoute.value.params.meetId || null
+    },
+
     getWorkspaceId() {
       return $router.currentRoute.value.params.workspaceId || null
     },
@@ -121,6 +137,10 @@ export default function Navigate({ $router, $storex }) {
 
     get hasChatContext() {
       return this.getChatId() !== null
+    },
+
+    get hasMeetContext() {
+      return this.getMeetId() !== null
     },
 
     get hasWorkspaceContext() {
@@ -248,6 +268,43 @@ export default function Navigate({ $router, $storex }) {
         } else {
           // Router mode: push to chat-workspace route
           $router.push(routes.chat.openWithWorkspace(chatId, chatName_, workspaceId, workspaceName_))
+        }
+      }
+    },
+
+    // ════════════════════════════════════════════════════════════════
+    // MEET NAVIGATION
+    // ════════════════════════════════════════════════════════════════
+
+    meets: {
+      list() {
+        if ($navigation.isDesktopMode) {
+          $storex.ui.showApp({
+            tabId: 'meet',
+            name: 'Meet',
+            component: 'meet',
+            params: {}
+          })
+        } else {
+          $router.push(routes.meet.list())
+        }
+      },
+
+      open(meetId) {
+        if (!meetId) {
+          console.warn('[Navigation] meets.open: invalid meetId', meetId)
+          return
+        }
+
+        if ($navigation.isDesktopMode) {
+          $storex.ui.showApp({
+            tabId: `meet-${meetId}`,
+            name: `Meet ${meetId.slice(0, 8)}`,
+            component: 'meet',
+            params: { meetId }
+          })
+        } else {
+          $router.push(routes.meet.open(meetId))
         }
       }
     },
@@ -385,6 +442,14 @@ export default function Navigate({ $router, $storex }) {
           })
         } else {
           $router.push(routes.messenger.open())
+        }
+      },
+
+      openMeet() {
+        if ($navigation.isDesktopMode) {
+          $storex.ui.openMeet()
+        } else {
+          $router.push(routes.meet.list())
         }
       },
 

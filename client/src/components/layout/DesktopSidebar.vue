@@ -68,6 +68,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
           :is-mobile="true"
           @select-chat="handleSelectChat"
         />
+
       </div>
 
       <!-- Footer -->
@@ -249,14 +250,14 @@ export default {
   emits: ['settings', 'close'],
   data() {
     return {
-      isCollapsed: true,
-      userCollapsed: false,
-      resizeObserver: null,
       dailyLimitStatus: 'normal',
       moreExpanded: false
     }
   },
   computed: {
+    isCollapsed() {
+      return this.$storex.ui.sidebarCollapsed
+    },
     workspaceApps() {
       return this.$projects.projectApps || []
     },
@@ -289,42 +290,17 @@ export default {
   watch: {
     isMobileExpanded(val) {
       if (this.isMobile) {
-        this.isCollapsed = !val
+        this.$storex.ui.setSidebarCollapsed(!val)
       }
     }
   },
-  mounted() {
-    if (!this.isMobile) {
-      this.isCollapsed = false
-      this.$nextTick(() => this.setupResizeObserver())
-    } else {
-      this.isCollapsed = !this.isMobileExpanded
-    }
-  },
-  beforeUnmount() {
-    this.resizeObserver?.disconnect()
-  },
   methods: {
-    setupResizeObserver() {
-      const el = this.$refs.sidebarEl
-      if (!el) return
-      const parent = el.parentElement
-      if (!parent) return
-      this.resizeObserver = new ResizeObserver(([entry]) => {
-        const width = entry.contentRect.width
-        if (!this.userCollapsed) {
-          this.isCollapsed = width < 600
-        }
-      })
-      this.resizeObserver.observe(parent)
-    },
     toggleCollapse() {
-      this.userCollapsed = !this.userCollapsed
-      this.isCollapsed = this.userCollapsed
+      this.$storex.ui.setSidebarCollapsed(!this.isCollapsed)
     },
     handleClose() {
       if (this.isMobile) {
-        this.isCollapsed = true
+        this.$storex.ui.setSidebarCollapsed(true)
       }
       this.$emit('close')
     },

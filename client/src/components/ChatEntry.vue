@@ -101,6 +101,103 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-solid fa-box-archive"></i> Archived
           </span>
 
+
+          <div class="grow"></div>
+          
+          <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
+          <div class="group-hover/entry:opacity-100
+                  transition-all duration-150 translate-y-0
+                  flex items-center gap-0.5"
+          >
+            <!-- Stop generation -->
+            <button
+              v-if="!isDone && cancellationTokenId"
+              class="btn btn-xs btn-error gap-1"
+              @click.stop="cancelMessage"
+            >
+              <span class="loading loading-xs"></span>Stop
+            </button>
+
+            <!-- Core actions -->
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
+              @click.stop="$emit('hide', message)"
+              v-if="isDone"
+            >
+              <i class="fa-solid fa-box-archive text-warning/70"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Thread"
+              @click.stop="$emit('thread', message)"
+            >
+              <i class="fa-solid fa-comment-dots"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Mark as answer"
+              @click.stop="$emit('answer', message)"
+            >
+              <i class="fa-solid fa-check-double text-success/70"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Copy"
+              @click.stop="copyMessageToClipboard"
+            >
+              <i class="fa-solid fa-copy"></i>
+            </button>
+            <button
+              v-if="displayMessage.diffMessage"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showDiff && 'btn-active'"
+              data-tip="Diff"
+              @click.stop="toggleShowDiff"
+            >
+              <i class="fa-regular fa-file-lines"></i>
+            </button>
+            <button
+              v-if="hasCodeBlocksOrFiles"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showFileView && 'btn-active'"
+              data-tip="Files"
+              @click.stop="toggleFileView"
+            >
+              <i class="fa-solid fa-file-code"></i>
+            </button>
+            <button
+              v-if="hasPRViewBlocks"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showPRView && 'btn-active'"
+              data-tip="Review"
+              @click.stop="togglePRView"
+            >
+              <i class="fa-solid fa-code-branch"></i>
+            </button>
+
+            <!-- Divider -->
+            <div class="w-px h-4 bg-base-300 mx-0.5"></div>
+
+            <!-- More dropdown -->
+            <div class="dropdown dropdown-end" @click.stop>
+              <button tabindex="0" class="btn btn-xs btn-ghost">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+              <ul
+                tabindex="0"
+                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
+              >
+                <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
+                <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
+                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
+                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
+                <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
+              </ul>
+            </div>
+          </div>
+
+
           <!-- ── Mobile-only indicators in header ── -->
           <div class="flex md:hidden items-center gap-1 ml-auto">
             <!-- Mobile profile avatars -->
@@ -182,103 +279,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           </div>
         </div>
 
-        <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
-        <div
-          class="absolute right-0 top-0 z-20
-                 opacity-0 group-hover/entry:opacity-100
-                 transition-all duration-150 translate-y-0
-                 flex items-center gap-0.5
-                 bg-base-100/95 backdrop-blur-sm
-                 border border-base-100 rounded-lg shadow-md px-1 py-0.5"
-        >
-          <!-- Stop generation -->
-          <button
-            v-if="!isDone && cancellationTokenId"
-            class="btn btn-xs btn-error gap-1"
-            @click.stop="cancelMessage"
-          >
-            <span class="loading loading-xs"></span>Stop
-          </button>
-
-          <!-- Core actions -->
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
-            @click.stop="$emit('hide', message)"
-            v-if="isDone"
-          >
-            <i class="fa-solid fa-box-archive text-warning/70"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Thread"
-            @click.stop="$emit('thread', message)"
-          >
-            <i class="fa-solid fa-comment-dots"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Mark as answer"
-            @click.stop="$emit('answer', message)"
-          >
-            <i class="fa-solid fa-check-double text-success/70"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Copy"
-            @click.stop="copyMessageToClipboard"
-          >
-            <i class="fa-solid fa-copy"></i>
-          </button>
-          <button
-            v-if="displayMessage.diffMessage"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showDiff && 'btn-active'"
-            data-tip="Diff"
-            @click.stop="toggleShowDiff"
-          >
-            <i class="fa-regular fa-file-lines"></i>
-          </button>
-          <button
-            v-if="hasCodeBlocksOrFiles"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showFileView && 'btn-active'"
-            data-tip="Files"
-            @click.stop="toggleFileView"
-          >
-            <i class="fa-solid fa-file-code"></i>
-          </button>
-          <button
-            v-if="hasPRViewBlocks"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showPRView && 'btn-active'"
-            data-tip="Review"
-            @click.stop="togglePRView"
-          >
-            <i class="fa-solid fa-code-branch"></i>
-          </button>
-
-          <!-- Divider -->
-          <div class="w-px h-4 bg-base-300 mx-0.5"></div>
-
-          <!-- More dropdown -->
-          <div class="dropdown dropdown-end" @click.stop>
-            <button tabindex="0" class="btn btn-xs btn-ghost">
-              <i class="fa-solid fa-ellipsis-vertical"></i>
-            </button>
-            <ul
-              tabindex="0"
-              class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
-            >
-              <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
-              <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
-              <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
-              <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
-              <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
-            </ul>
-          </div>
-        </div>
-
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
         <div
           v-if="threadChat"
@@ -317,16 +317,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           <div class="skeleton h-4 w-2/3 rounded"></div>
         </div>
 
-        <!-- ── Answer / Topic accent bar ── -->
-        <div
-          v-if="displayMessage.is_answer || isTopic"
-          class="absolute left-0 top-0 bottom-0 w-0.5 rounded-full"
-          :class="[
-            displayMessage.is_answer && 'bg-success',
-            isTopic && !displayMessage.is_answer && 'bg-info',
-          ]"
-        ></div>
-
         <!-- ── TOC for long documents ── -->
         <DocumentSummary
           v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents && !showAttachments"
@@ -344,7 +334,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           @mouseup="onContentMouseUp"
           class="min-w-0 w-full notion-content"
           :class="[
-            displayMessage.is_answer && 'pl-3 border-l-2 border-success/30',
+            displayMessage.is_answer && 'pl-3 border-l-4 border-success/30',
             isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
           ]"
         >

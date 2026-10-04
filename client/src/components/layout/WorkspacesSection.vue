@@ -58,7 +58,7 @@ export default {
   },
   data() {
     return {
-      workspacesExpanded: true
+      workspacesExpanded: false
     }
   },
   computed: {

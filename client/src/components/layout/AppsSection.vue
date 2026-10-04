@@ -53,6 +53,13 @@ import ViewModeToggle from './ViewModeToggle.vue';
       />
 
       <NavItem
+        icon="fas fa-video"
+        label="Meet"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToMeet"
+      />
+
+      <NavItem
         icon="fas fa-folder-open"
         label="File Explorer"
         :is-collapsed="isCollapsed"
@@ -92,19 +99,23 @@ export default {
       this.$emit('close')
     },
     handleNavigateToKanban() {
-      this.$storex.$router.$navigation.apps.openKanban()
+      this.$ui.setActiveTab('tasks')
       this.$emit('close')
     },
     handleNavigateToMessenger() {
-      this.$storex.$router.$navigation.apps.openMessenger()
+      this.$ui.setActiveTab('messenger')
+      this.$emit('close')
+    },
+    handleNavigateToMeet() {
+      this.$ui.openMeet()
       this.$emit('close')
     },
     handleNavigateToFileExplorer() {
-      this.$storex.$router.$navigation.apps.openFileExplorer()
+      this.$ui.setActiveTab('file-explorer')
       this.$emit('close')
     },
     handleNavigateToWiki() {
-      this.$storex.$router.$navigation.apps.openWiki()
+      this.$ui.setActiveTab('wiki')
       this.$emit('close')
     },
     toggleCollapse() {
