@@ -1238,8 +1238,12 @@ export default {
     createBlock() {
       this.setEditorText(this.editorText + "```\n\n```")
     },
-    onNewThread(message) {
-      this.$chats.createNewThread({ chat: this.chat, message })
+    async onNewThread(message) {
+      await this.$chats.createNewThread({
+        chat: this.chat,
+        mode: this.chat.mode,
+        message
+      })
     },
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })

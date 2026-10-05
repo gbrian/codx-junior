@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Iterable, Iterator
 
-logger = logging.getLogger("codx.agent")
+logger = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #

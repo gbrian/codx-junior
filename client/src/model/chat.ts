@@ -58,6 +58,11 @@ export interface Chat {
   column_id: string
   board: string
   column: string
+  priority?: string
+  due_date?: string
+  progress?: number
+  assignees?: string[]
+  sort_index?: number
   columns: KanbanColumn[]
   chat_index?: number
   url: string

@@ -218,6 +218,31 @@ class Chat(BaseModel):
     column_id: str = Field(default='')
     board: str = Field(default='')
     column: str = Field(default='')
+
+    # ── Planning / task fields ─────────────────────────────────────────────
+    # Persisted through the existing /api/chats/metadata endpoint
+    # (ChatManager.update_chat_metadata uses setattr for known attributes).
+    priority: Optional[str] = Field(
+        default=None,
+        description="Task priority: 'high' | 'medium' | 'low'"
+    )
+    due_date: Optional[str] = Field(
+        default=None,
+        description="Task due date in ISO format (YYYY-MM-DD)"
+    )
+    progress: int = Field(
+        default=0,
+        description="Task completion percentage (0-100)"
+    )
+    assignees: List[str] = Field(
+        default=[],
+        description="Usernames assigned to this task (distinct from participants in 'users')"
+    )
+    sort_index: Optional[int] = Field(
+        default=None,
+        description="Manual ordering index within a board column"
+    )
+
     columns: List[KanbanColumn] = Field(default=[])
     chat_index: Optional[int] = Field(default=0)
     url: str = Field(default='')

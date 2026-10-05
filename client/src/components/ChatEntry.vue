@@ -29,7 +29,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
       <!-- Avatar column -->
       <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
         
-        <template v-if="isNewSpeaker">
+        <template>
           <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
           <div
             v-for="profile in messageProfiles"
@@ -40,12 +40,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <ProfileAvatar :profile="profile" width="6" />
           </div>
         </template>
-        <!-- Connecting line for grouped messages -->
-        <div
-          v-if="!isNewSpeaker"
-          class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
-        >           
-        </div>
         
         <!-- Events button — desktop only -->
         <div class="flex flex-col gap-1 click"
@@ -69,7 +63,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
       <div class="flex-1 min-w-0 pb-0.5">
 
         <!-- Header row: only shown on first message of a speaker group -->
-        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none flex-wrap">
+        <div class="flex items-center gap-2 mb-1 leading-none flex-wrap">
           
           <!-- Check mark for seen status (only for other users' messages, at top) -->
           <button

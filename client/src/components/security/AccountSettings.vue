@@ -15,10 +15,13 @@ import ThemeSelector from '../ThemeSelector.vue'
         <div class="badge badge-primary">{{ user.role }}</div>
       </div>
       <div class="text-xs">{{ user.token }}</div>
-      <div class="flex justify-between gap-4">
+      <div class="flex justify-between gap-4"
+      >
         <div class="form-control">
           <span class="font-semibold">Theme</span>
-          <ThemeSelector @change="user.theme = $event" />
+          <ThemeSelector @change="user.theme = $event"
+            class=" tooltip" :data-tip="user.theme"
+          />
         </div>
         <div class="form-control grow">
           <span class="font-semibold">Avatar</span>

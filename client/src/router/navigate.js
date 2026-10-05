@@ -38,7 +38,9 @@ export default function Navigate({ $router, $storex }) {
       })
     },
     kanban: {
-      open: () => ({ name: 'kanban' })
+      open: () => ({ name: 'kanban' }),
+      // Opens the Task Manager directly on the Planning view
+      planning: () => ({ name: 'kanban', query: { view: 'planning' } })
     },
     messenger: {
       open: () => ({ name: 'messenger' })
@@ -459,6 +461,11 @@ export default function Navigate({ $router, $storex }) {
         } else {
           $router.push(routes.kanban.open())
         }
+      },
+
+      // Open the Task Manager directly on the Planning view
+      openPlanning() {
+        $storex.ui.openPlanning()
       },
 
       openMobile() {

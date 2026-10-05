@@ -3,78 +3,108 @@ import KanbanBoardSidebar from './KanbanBoardSidebar.vue'
 import KanbanBoardCanvas from './KanbanBoardCanvas.vue'
 import KanbanBoardModals from './KanbanBoardModals.vue'
 import KanbanList from '../KanbanList.vue'
+import PlanningView from './PlanningView.vue'
+import FollowupView from './FollowupView.vue'
 </script>
 
 <template>
-  <div class="kanban-board-view flex h-full overflow-hidden bg-base-100 relative">
+  <div class="kanban-board-view flex flex-col h-full overflow-hidden bg-base-100 relative">
 
-    <!-- Board list overlay (triggered from sidebar search icon) -->
-    <transition name="fade-slide">
-      <div
-        v-if="showBoardList"
-        class="absolute inset-0 z-40 bg-base-100 flex flex-col overflow-hidden"
+    <!-- View switcher -->
+    <div class="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-base-100 bg-base-200 z-20">
+      <button
+        v-for="tab in viewTabs"
+        :key="tab.id"
+        @click="activeView = tab.id"
+        class="btn btn-ghost btn-sm gap-2 rounded-lg transition-all duration-150"
+        :class="activeView === tab.id ? 'bg-primary/15 text-primary' : 'text-base-content/60 hover:bg-base-content/5'"
       >
-        <!-- Back bar -->
-        <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-100 bg-base-200">
-          <button
-            @click="showBoardList = false"
-            class="btn btn-ghost btn-sm gap-1.5 text-base-content/60"
-          >
-            <i class="fa-solid fa-arrow-left text-xs"></i>
-            <span class="text-xs">Back to board</span>
-          </button>
-          <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
-            All Boards
-          </span>
+        <i :class="tab.icon" class="text-xs"></i>
+        <span class="text-xs font-medium">{{ tab.label }}</span>
+        <span
+          v-if="tab.count != null"
+          class="badge badge-xs"
+          :class="activeView === tab.id ? 'badge-primary' : 'badge-ghost text-base-content/40'"
+        >{{ tab.count }}</span>
+      </button>
+    </div>
+
+    <!-- ── Board view ── -->
+    <div v-show="activeView === 'board'" class="flex-1 min-h-0 flex overflow-hidden">
+      <!-- Board list overlay (triggered from sidebar search icon) -->
+      <transition name="fade-slide">
+        <div
+          v-if="showBoardList"
+          class="absolute inset-0 z-40 bg-base-100 flex flex-col overflow-hidden"
+        >
+          <!-- Back bar -->
+          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-100 bg-base-200">
+            <button
+              @click="showBoardList = false"
+              class="btn btn-ghost btn-sm gap-1.5 text-base-content/60"
+            >
+              <i class="fa-solid fa-arrow-left text-xs"></i>
+              <span class="text-xs">Back to board</span>
+            </button>
+            <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
+              All Boards
+            </span>
+          </div>
+
+          <!-- KanbanList -->
+          <div class="flex-1 overflow-auto p-4">
+            <KanbanList
+              @select="onSelectBoardFromList"
+              @new-board="openNewBoardModal"
+              @bookmark="onBookmark"
+            />
+          </div>
         </div>
+      </transition>
 
-        <!-- KanbanList -->
-        <div class="flex-1 overflow-auto p-4">
-          <KanbanList
-            @select="onSelectBoardFromList"
-            @new-board="openNewBoardModal"
-            @bookmark="onBookmark"
-          />
-        </div>
-      </div>
-    </transition>
+      <!-- Sidebar -->
+      <KanbanBoardSidebar
+        :boards="boards"
+        :activeBoard="activeBoard"
+        :columns="activeColumns"
+        :activeColumnFilter="activeColumnFilter"
+        :tasks="sidebarTasks"
+        :selectedTaskId="selectedTaskId"
+        :isCompact="sidebarCompact"
+        :searchQuery="searchQuery"
+        @select-board="onSelectBoard"
+        @toggle-column-filter="onToggleColumnFilter"
+        @select-task="onSelectTask"
+        @new-task="openNewTaskModal"
+        @new-board="openNewBoardModal"
+        @new-column="openNewColumnModal"
+        @update-search="onUpdateSearch"
+        @toggle-compact="sidebarCompact = !sidebarCompact"
+        @show-board-list="showBoardList = true"
+      />
 
-    <!-- Sidebar -->
-    <KanbanBoardSidebar
-      :boards="boards"
-      :activeBoard="activeBoard"
-      :columns="activeColumns"
-      :activeColumnFilter="activeColumnFilter"
-      :tasks="sidebarTasks"
-      :selectedTaskId="selectedTaskId"
-      :isCompact="sidebarCompact"
-      :searchQuery="searchQuery"
-      @select-board="onSelectBoard"
-      @toggle-column-filter="onToggleColumnFilter"
-      @select-task="onSelectTask"
-      @new-task="openNewTaskModal"
-      @new-board="openNewBoardModal"
-      @new-column="openNewColumnModal"
-      @update-search="onUpdateSearch"
-      @toggle-compact="sidebarCompact = !sidebarCompact"
-      @show-board-list="showBoardList = true"
-    />
+      <!-- Main canvas -->
+      <KanbanBoardCanvas
+        :columns="filteredViewColumns"
+        :selectedTaskId="selectedTaskId"
+        :activeBoardTitle="activeBoard?.title"
+        :totalTasks="sidebarTasks.length"
+        :boardBackground="activeBoard?.background || null"
+        @open-task="onSelectTask"
+        @new-task="openNewTaskModal"
+        @new-column="openNewColumnModal"
+        @edit-column="onEditColumn"
+        @move-task="onMoveTask"
+        @reorder-columns="onReorderColumns"
+        @reorder-tasks="onReorderTasks"
+      />
+    </div>
 
-    <!-- Main canvas -->
-    <KanbanBoardCanvas
-      :columns="filteredViewColumns"
-      :selectedTaskId="selectedTaskId"
-      :activeBoardTitle="activeBoard?.title"
-      :totalTasks="sidebarTasks.length"
-      :boardBackground="activeBoard?.background || null"
-      @open-task="onSelectTask"
-      @new-task="openNewTaskModal"
-      @new-column="openNewColumnModal"
-      @edit-column="onEditColumn"
-      @move-task="onMoveTask"
-      @reorder-columns="onReorderColumns"
-      @reorder-tasks="onReorderTasks"
-    />
+    <!-- ── Planning view ── -->
+    <PlanningView v-if="activeView === 'planning'" class="flex-1 min-h-0" />
+
+    <!-- ── Follow-up view ── -->
+    <FollowupView v-if="activeView === 'followup'" class="flex-1 min-h-0" />
 
     <!-- Modals -->
     <KanbanBoardModals
@@ -91,12 +121,19 @@ import KanbanList from '../KanbanList.vue'
 </template>
 
 <script>
+// Views exposed by this component
+const VALID_VIEWS = ['board', 'planning', 'followup']
+
 export default {
   props: {
-    project: { type: Object, default: null }
+    project: { type: Object, default: null },
+    // Dockview/app panels receive the app params (e.g. { view: 'planning' }).
+    // In router mode no prop is passed, so we also read the route query (?view=planning).
+    params: { type: Object, default: () => ({}) }
   },
   data() {
     return {
+      activeView: 'board',
       sidebarCompact: false,
       activeColumnFilter: 'all',
       selectedTaskId: null,
@@ -106,9 +143,22 @@ export default {
     }
   },
   created() {
-    this.showBoardList = !this.activeBoard?.title
+    if (this.requestedView) {
+      this.activeView = this.requestedView
+    }
+    // Fall back to the board list only when the board view has no active board
+    this.showBoardList = this.activeView === 'board' && !this.activeBoard?.title
   },
   computed: {
+    // Resolve a requested initial view from app params (multiple shapes) or the route query
+    requestedView() {
+      const candidates = [
+        this.params?.view,
+        this.params?.params?.view,
+        this.$route?.query?.view
+      ]
+      return candidates.find(v => VALID_VIEWS.includes(v)) || null
+    },
     boards() {
       return this.$storex.kanban.allBoards
     },
@@ -144,8 +194,26 @@ export default {
         return inName || inMessages || inFiles || inProfiles
       })
     },
+    viewTabs() {
+      const planning = this.$storex.planning
+      return [
+        { id: 'board', label: 'Board', icon: 'fa-solid fa-columns', count: this.sidebarTasks.length },
+        { id: 'planning', label: 'Planning', icon: 'fa-solid fa-list-check', count: planning?.allTasks?.length || 0 },
+        { id: 'followup', label: 'Follow-up', icon: 'fa-solid fa-chart-line', count: planning?.metrics?.overdue || 0 }
+      ]
+    }
   },
   watch: {
+    // Apply a view requested through params/route (e.g. /kanban?view=planning)
+    requestedView(view) {
+      this.activeView = view || 'board'
+    },
+    // Switching back to the board view without an active board shows the board list
+    activeView(view) {
+      if (view === 'board' && !this.activeBoard?.title) {
+        this.showBoardList = true
+      }
+    },
     project() {
       this.selectedTaskId = null
       this.searchQuery = ''
@@ -208,7 +276,6 @@ export default {
       if (!name?.trim() || !this.activeBoard) return
       const chat = await this.$storex.kanban.newTask({ name, column, mode, profiles, llm_model })
       if (chat) {
-        // Open the newly created task immediately
         this.onSelectTask(chat)
       }
     },

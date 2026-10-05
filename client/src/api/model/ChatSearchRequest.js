@@ -29,10 +29,21 @@ export class ChatSearchRequest {
   }
 
   /**
-   * Validate search query
+   * Whether this request scopes by a date range.
+   * Used by the planning / follow-up views, which search by range
+   * without a text query.
+   */
+  hasDateRange() {
+    return !!(this.from_date || this.to_date)
+  }
+
+  /**
+   * Validate search query.
+   * A non-empty query OR a date range is required.
    */
   isValid() {
-    return this.query && this.query.trim().length > 0
+    const hasQuery = this.query && this.query.trim().length > 0
+    return hasQuery || this.hasDateRange()
   }
 
   /**
@@ -40,6 +51,12 @@ export class ChatSearchRequest {
    */
   getValidationErrors() {
     const errors = []
+    const hasQuery = !!(this.query && this.query.trim().length > 0)
+
+    // A request is valid when it carries either a query or a date range.
+    if (!hasQuery && !this.hasDateRange()) {
+      errors.push('Query cannot be empty')
+    }
     if (this.page < 1) {
       errors.push('Page must be at least 1')
     }

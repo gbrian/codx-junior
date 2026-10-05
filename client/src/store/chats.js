@@ -308,7 +308,9 @@ export const actions = actionTree(
       if (options instanceof ChatSearchRequest) {
         searchRequest = options
       } else {
-        if (!options.query || options.query.trim() === '') {
+        const hasDateRange = !!(options.from_date || options.to_date)
+        // Allow date-range-only searches (planning/follow-up), not just text queries.
+        if ((!options.query || options.query.trim() === '') && !hasDateRange) {
           $storex.chats.clearSearchResults()
           return null
         }
@@ -876,6 +878,41 @@ export const actions = actionTree(
       } catch (error) {
         console.error('[chats store] Failed to update chat status:', error)
       }
-    }
+    },
+    async createNewThread(_, { chat, mode, message }) {
+      const { files, profiles, doc_id: subtaskMessageId } = message
+      const findChild = $storex.chats.allChats.find(c => c.message_id === subtaskMessageId)
+
+      // Thread already exists -> just open it
+      if (findChild) {
+        await $storex.chats.setActiveChat(findChild)
+        return findChild
+      }
+
+      const boardTitle = chat.board
+      const columnTitle = chat.column
+      const newChat = await $storex.chats.createNewBoardChat({
+        boardTitle, columnTitle,
+        chat: {
+          name: `${subtaskMessageId} - thread`,
+          owner_project_id: chat.owner_project_id || chat.project_id,
+          project_id: chat.project_id || chat.owner_project_id,
+          parent_id: chat.id,
+          message_id: subtaskMessageId,
+          file_list: files,
+          profiles: profiles,
+          mode: mode || chat.mode || 'chat',
+          board: chat.board,
+          column: chat.column,
+          activateChat: true,
+          messages: [{ ...message, doc_id: null }]
+        }
+      })
+
+      // A thread must actually run like a task: without this the new thread
+      // chat is created empty and no task/answer is generated.
+      await $storex.projects.chatWihProject(newChat)
+      return newChat
+    },
   }
 )

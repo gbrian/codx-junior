@@ -15,6 +15,15 @@ Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) car
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
 messages in real time. Tool logs are emitted for forensic audit trail.
 
+Loop-Limit Handling
+When :class:`LoopGuard` stops the run (max rounds, max tool calls or stuck
+loop), the run is **not** aborted. Instead the tool-usage value is summarised
+by the project's knowledge/RAG model and appended to the assistant answer, so
+the findings survive in the persisted message and the next iteration can
+continue without re-running the same tools. The summary request is
+best-effort, does not count towards the loop limits, and its token usage is
+recorded separately with the ``tool-analysis`` tag.
+
 Message Structure
 When tools are used in a conversation, the agent now produces a single final
 answer message that combines all tool user_response outputs (thinking content)
@@ -50,8 +59,15 @@ from codx.junior.ai.wallet_check import check_user_wallet
 from codx.junior.ai.smol.constants import (
     CALLBACK_FLUSH_SECONDS,
     TOOL_RESULT_PREVIEW_MAX_CHARS,
+    TOOL_ANALYSIS_TAG,
+    TOOL_ANALYSIS_RESULT_MAX_CHARS,
+    TOOL_ANALYSIS_TASK_MAX_CHARS,
+    TOOL_ANALYSIS_MAX_TOKENS,
+    TOOL_ANALYSIS_HEADING,
+    TOOL_ANALYSIS_SYSTEM_PROMPT,
+    TOOL_ANALYSIS_FALLBACK_NOTE,
 )
-from codx.junior.ai.smol.loop_guard import LoopGuard
+from codx.junior.ai.smol.loop_guard import LoopGuard, ToolLoopError
 from codx.junior.ai.smol.messages import (
     ToolCallAccumulator,
     make_assistant_tool_calls_message,
@@ -259,9 +275,10 @@ class SmolAgent:
             K3 --> L
             K4 --> L
             L --> F
-            I -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
+            I -->|limit exceeded| M[Summarise tool usage and finish gracefully]
             G -->|stop / length| N[Append final LLM text to final_answer_content]
             N --> O[Emit single final answer AIMessage combining thinking + final]
+            M --> O
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
     ```
@@ -356,6 +373,12 @@ class SmolAgent:
         Tool results are cached within this conversation to avoid re-execution
         if the model requests the same tool with identical arguments.
 
+        Loop limits are handled gracefully: instead of raising, the run is
+        stopped and a summary of the tools used is appended to the assistant
+        answer (see :meth:`_summarize_tool_usage`). This keeps the work in the
+        persisted message so the next iteration can continue without repeating
+        the same tools.
+
         Message Structure
         The response always appends a single final answer AIMessage that
         combines thinking content (tool user_response outputs) with the final
@@ -376,8 +399,6 @@ class SmolAgent:
             Tool results (llm_response, plain outputs) are never included.
 
         Raises:
-            ToolLoopError:  If max tool rounds, max tool calls, or a stuck
-                           loop is detected.
             CancelledError: If the request is cancelled by the caller.
         """
         config = config or {}
@@ -426,6 +447,12 @@ class SmolAgent:
         - Cached ToolResponse results surface user_response to thinking_content
           exactly like uncached ones.
 
+        Loop limits:
+        - When LoopGuard raises, the loop is broken gracefully (no exception
+          propagates) and a summary of the tools used is appended to
+          ``thinking_content`` so it is streamed to the user and persisted in
+          the final answer.
+
         Args:
             messages:    Conversation history as LangChain message objects.
             config:      Chat configuration dict (see :meth:`chat`).
@@ -435,8 +462,6 @@ class SmolAgent:
             Updated *messages* list with the final assistant reply appended.
 
         Raises:
-            ToolLoopError:  If max iterations, max tool calls, or stuck loop
-                           is detected.
             AgentCancelled: If cancellation is requested mid-run.
         """
         chat_id: Optional[str] = config.get("chat_id")
@@ -484,6 +509,10 @@ class SmolAgent:
         # final_answer_content: the final LLM response after all tool calls.
         thinking_content: str = ""
         final_answer_content: str = ""
+
+        # Set when LoopGuard stops the run. The loop is then broken gracefully
+        # and a tool-usage summary is produced so the work is not lost.
+        loop_limit_error: Optional[str] = None
 
         # Extract vision content from config (optional)
         vision_content: Optional[List[Dict[str, Any]]] = config.get("vision_content")
@@ -548,7 +577,22 @@ class SmolAgent:
             # LoopGuard checks entirely (don't count towards max_tool_calls
             # or max_iterations).
             if uncached_calls:
-                loop_guard.check(uncached_calls)
+                try:
+                    loop_guard.check(uncached_calls)
+                except ToolLoopError as ex:
+                    # Limits reached: do NOT let the exception abort the run
+                    # (that would discard every tool result gathered so far).
+                    # Stop the loop and summarise the tools used so the work
+                    # survives in the response message and can be reused in the
+                    # next iteration without re-executing the same tools.
+                    loop_limit_error = str(ex)
+                    logger.warning(
+                        "SmolAgent: tool loop limit reached at round %d (%s); "
+                        "stopping gracefully and summarising tool usage",
+                        loop_guard.rounds,
+                        loop_limit_error,
+                    )
+                    break
 
             total_tools = len(tool_calls)
             cached_count = len(cached_calls)
@@ -744,6 +788,28 @@ class SmolAgent:
             chat_id=chat_id,
             tool_cache=tool_cache,
         )
+
+        # When the run was stopped by LoopGuard, append a summary of the tools
+        # used (findings + useless calls) produced by the knowledge/RAG model.
+        # This preserves the tool context in the response message so the next
+        # iteration can continue without re-executing the same tools, and gives
+        # the user visibility into what was learned before the run stopped.
+        if loop_limit_error:
+            summary_block = self._summarize_tool_usage(
+                openai_messages=openai_messages,
+                loop_error=loop_limit_error,
+                chat_id=chat_id,
+                session_id=session_id,
+            )
+            if summary_block:
+                thinking_content += summary_block
+                # Stream the summary live so the user sees it as it is produced.
+                send_callback(summary_block, True)
+                logger.info(
+                    "SmolAgent: appended tool usage summary (%d chars) after "
+                    "loop limit was reached",
+                    len(summary_block),
+                )
 
         # thinking_content is streamed live via send_callback during tool rounds
         # AND must be included in the final AIMessage so that chat_engine.py
@@ -1282,6 +1348,254 @@ class SmolAgent:
                 error_message=error_message,
                 chat_id=chat_id,
                 request_id=request_id,
+            )
+
+    # ── Tool usage summary (generated only when the tool loop breaks) ──────────
+
+    @staticmethod
+    def _collect_tool_usage(
+        openai_messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, str]]:
+        """
+        Extract the tool calls executed during this run and their results.
+
+        Only messages produced by this run are present in *openai_messages*
+        (the original conversation carries no tool messages), so every
+        ``assistant.tool_calls`` / ``tool`` pair gathered here belongs to the
+        current run, whether it was executed or served from the cache.
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+
+        Returns:
+            List of ``{"name", "args", "result"}`` dicts in execution order.
+        """
+        pending: Dict[Optional[str], Dict[str, str]] = {}
+        usages: List[Dict[str, str]] = []
+
+        for msg in openai_messages:
+            role = msg.get("role")
+            if role == "assistant" and msg.get("tool_calls"):
+                for call in msg["tool_calls"]:
+                    fn = call.get("function") or {}
+                    pending[call.get("id")] = {
+                        "name": fn.get("name", ""),
+                        "args": fn.get("arguments", ""),
+                    }
+            elif role == "tool":
+                info = pending.pop(msg.get("tool_call_id"), None)
+                if info is not None:
+                    info["result"] = msg.get("content", "")
+                    usages.append(info)
+
+        return usages
+
+    def _build_tool_usage_prompt(
+        self,
+        openai_messages: List[Dict[str, Any]],
+        tool_usages: List[Dict[str, str]],
+        loop_error: str,
+    ) -> str:
+        """
+        Build the user prompt for the tool usage summary request.
+
+        Includes the original request, why the run stopped, and a truncated
+        listing of the executed tools with their results.
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+            tool_usages:     Collected tool usages (see :meth:`_collect_tool_usage`).
+            loop_error:      The LoopGuard message that stopped the run.
+
+        Returns:
+            The prompt content for the summary request.
+        """
+        task = ""
+        for msg in openai_messages:
+            content = msg.get("content")
+            if msg.get("role") == "user" and isinstance(content, str) and content.strip():
+                task = content.strip()[:TOOL_ANALYSIS_TASK_MAX_CHARS]
+                break
+
+        lines: List[str] = []
+        for idx, usage in enumerate(tool_usages, start=1):
+            result = (usage.get("result") or "")[:TOOL_ANALYSIS_RESULT_MAX_CHARS]
+            lines.append(
+                f"{idx}. {usage['name']}({usage['args']})\n   -> {result}"
+            )
+        tools_block = "\n".join(lines) if lines else "(no tools were executed)"
+
+        return (
+            "## User request\n"
+            f"{task}\n\n"
+            "## Why the run stopped\n"
+            f"{loop_error}\n\n"
+            "## Tools executed this run (name, arguments, result)\n"
+            f"{tools_block}\n\n"
+            "Write the summary now, following the system instructions."
+        )
+
+    @staticmethod
+    def _tool_usage_fallback(tool_usages: List[Dict[str, str]]) -> str:
+        """
+        Build the deterministic fallback used when no model summary is available.
+
+        Still lists the tools already executed so the next iteration is never
+        worse off than before this feature existed.
+
+        Args:
+            tool_usages: Collected tool usages.
+
+        Returns:
+            Markdown fallback block (without the heading).
+        """
+        lines: List[str] = ["", TOOL_ANALYSIS_FALLBACK_NOTE, ""]
+        for usage in tool_usages:
+            lines.append(f"- `{usage['name']}({usage['args']})`")
+        return "\n".join(lines)
+
+    def _summarize_tool_usage(
+        self,
+        openai_messages: List[Dict[str, Any]],
+        loop_error: str,
+        chat_id: Optional[str],
+        session_id: Optional[str],
+    ) -> str:
+        """
+        Produce a Markdown summary of the value of the tools used this run.
+
+        Runs a single best-effort request against the project's knowledge/RAG
+        model (``settings.get_rag_model()``) — intended for this kind of
+        lightweight analysis and typically smaller/cheaper than the chat model.
+
+        The request does NOT count towards the loop limits and its token usage
+        is recorded separately with the ``tool-analysis`` tag. Any failure is
+        swallowed and a deterministic fallback is returned instead, so this can
+        never turn a graceful stop into a hard error.
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+            loop_error:      The LoopGuard message that stopped the run.
+            chat_id:         Chat identifier for analytics.
+            session_id:      Session identifier for analytics.
+
+        Returns:
+            A ready-to-append Markdown block (heading included), or an empty
+            string when there is nothing to report.
+        """
+        heading = f"\n\n---\n\n{TOOL_ANALYSIS_HEADING}\n\n"
+        tool_usages = self._collect_tool_usage(openai_messages)
+
+        # Resolve the knowledge/RAG model dedicated to analysis-type tasks.
+        try:
+            rag_model = self.settings.get_rag_model()
+            rag_settings = self.settings.get_llm_settings(llm_model=rag_model)
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: tool usage summary skipped, cannot resolve "
+                "analysis model: %s",
+                ex,
+            )
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+        # Nothing was executed (e.g. the breadth guard tripped on round 1):
+        # emit only the deterministic fallback.
+        if not tool_usages:
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+        prompt = self._build_tool_usage_prompt(
+            openai_messages=openai_messages,
+            tool_usages=tool_usages,
+            loop_error=loop_error,
+        )
+
+        try:
+            client = OpenAI(
+                api_key=rag_settings.api_key,
+                base_url=rag_settings.api_url,
+            )
+            analysis_start = time.monotonic()
+            response = client.chat.completions.create(
+                model=rag_settings.model,
+                stream=False,
+                temperature=0,
+                max_tokens=TOOL_ANALYSIS_MAX_TOKENS,
+                messages=[
+                    {"role": "system", "content": TOOL_ANALYSIS_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            summary = (response.choices[0].message.content or "").strip()
+
+            self._record_tool_analysis_usage(
+                rag_settings=rag_settings,
+                usage=getattr(response, "usage", None),
+                duration_seconds=time.monotonic() - analysis_start,
+                chat_id=chat_id,
+                session_id=session_id,
+            )
+
+            if summary:
+                return f"{heading}{summary}\n"
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: tool usage summary failed (non-fatal): %s", ex
+            )
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+    def _record_tool_analysis_usage(
+        self,
+        rag_settings: Any,
+        usage: Any,
+        duration_seconds: float,
+        chat_id: Optional[str],
+        session_id: Optional[str],
+    ) -> None:
+        """
+        Record token usage of the tool usage summary request (non-fatal).
+
+        Tagged with ``tool-analysis`` and attributed to the analysis model so
+        its cost is visible but separable from the main chat run.
+
+        Args:
+            rag_settings:    Resolved AISettings of the analysis model.
+            usage:           Provider-reported usage (may be ``None``).
+            duration_seconds: Wall-clock duration of the request.
+            chat_id:         Chat identifier.
+            session_id:      Session identifier.
+        """
+        try:
+            input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+            output_tokens = getattr(usage, "completion_tokens", 0) or 0
+            if not input_tokens and not output_tokens:
+                return
+
+            _get_analytics().record_token_usage(
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                model=rag_settings.model,
+                provider=rag_settings.provider or "",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_seconds=duration_seconds,
+                session_id=session_id,
+                tags=TOOL_ANALYSIS_TAG,
+                input_k_tokens_cxjcoins=getattr(
+                    rag_settings, "input_k_tokens_cxjcoins", 0.0
+                ) or 0.0,
+                output_k_tokens_cxjcoins=getattr(
+                    rag_settings, "output_k_tokens_cxjcoins", 0.0
+                ) or 0.0,
+                request_id=None,
+                chat_id=chat_id,
+                tokens_from_provider=True,
+            )
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: failed to record tool analysis usage (non-fatal): %s",
+                ex,
             )
 
     @staticmethod

@@ -601,6 +601,22 @@ export const actions = actionTree(
       $storex.ui.setActiveTab('tasks')
     },
 
+    // Open the Task Manager directly on the Planning view.
+    // Desktop mode: opens the tasks app seeded with `view: 'planning'`.
+    // Router mode: navigates to /kanban?view=planning.
+    openPlanning() {
+      if ($storex.ui.isDesktopMode) {
+        $storex.ui.showApp({
+          key: 'planning',
+          name: 'Planning',
+          component: 'tasks',
+          params: { view: 'planning' }
+        })
+      } else {
+        $storex.$router.push({ name: 'kanban', query: { view: 'planning' } })
+      }
+    },
+
     openWiki() {
       $storex.ui.setActiveTab('wiki')
     },

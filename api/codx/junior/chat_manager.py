@@ -59,6 +59,14 @@ CHANGED — chat ID validation:
     The :meth:`ChatManager.load_chat_from_path` method now ensures all loaded
     chats have a valid ID. Missing IDs are extracted from the filename or
     generated fresh, guaranteeing no chat is returned without an ID.
+
+CHANGED — time-range filtering:
+    :meth:`ChatManager.chat_paths` and :meth:`ChatManager.list_chats` now
+    accept an optional **upper bound** (``before_update`` / ``to_date``) in
+    addition to the existing lower bound (``last_update`` / ``from_date``),
+    enabling an explicit ``[from_date, to_date]`` window. Both bounds are
+    applied against the chat file ``mtime``. When a bound is ``None`` it is
+    ignored, so existing callers are unaffected.
 """
 import logging
 import pathlib
@@ -186,11 +194,24 @@ class ChatManager:
             f"/{slugify(chat.name)}.{chat.id}.json"
         )
 
-    def chat_paths(self, last_update: Optional[datetime] = None) -> List[str]:
+    def chat_paths(
+        self,
+        last_update: Optional[datetime] = None,
+        before_update: Optional[datetime] = None,
+    ) -> List[str]:
         """
         Return chat file paths, optionally filtering by last update time.
 
-        :param last_update: Only return paths for chats updated since this date.
+        CHANGED — time-range support:
+            An optional upper bound ``before_update`` was added so callers can
+            request an explicit ``[last_update, before_update]`` window. Both
+            bounds are compared against the chat file ``mtime``. A ``None``
+            bound is ignored, preserving the previous behavior.
+
+        :param last_update: Only return paths for chats updated **after** this
+            date (exclusive lower bound).
+        :param before_update: Only return paths for chats updated **on or
+            before** this date (inclusive upper bound).
         :return: List of file paths.
         """
         all_paths = (
@@ -202,6 +223,12 @@ class ChatManager:
             all_paths = [
                 path for path in all_paths
                 if datetime.fromtimestamp(os.path.getmtime(path)) > last_update
+            ]
+
+        if before_update:
+            all_paths = [
+                path for path in all_paths
+                if datetime.fromtimestamp(os.path.getmtime(path)) <= before_update
             ]
 
         return all_paths
@@ -356,16 +383,33 @@ class ChatManager:
         
         return True
 
-    def list_chats(self, from_date: Optional[str] = None) -> List[Chat]:
+    def list_chats(
+        self,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+    ) -> List[Chat]:
         """
         Return a sorted list of all chats (metadata only, no messages).
 
+        CHANGED — time-range filtering:
+            An optional upper bound ``to_date`` was added, turning the previous
+            single lower-bound filter into a full ``[from_date, to_date]``
+            window. Both bounds are optional; when omitted no filtering is
+            applied on that side (backward compatible). Invalid date strings
+            raise :class:`ValueError` (propagated to the caller).
+
         :param from_date: ISO-format date string; only chats modified after
-            this date are returned.
+            this date are returned (lower bound).
+        :param to_date: ISO-format date string; only chats modified on or
+            before this date are returned (inclusive upper bound).
         :return: List of Chat objects sorted by index/updated_at descending.
         """
         last_update = datetime.fromisoformat(from_date) if from_date else None
-        file_paths = self.chat_paths(last_update=last_update)
+        before_update = datetime.fromisoformat(to_date) if to_date else None
+        file_paths = self.chat_paths(
+            last_update=last_update,
+            before_update=before_update,
+        )
 
         def _load_chat_info(file_path: str) -> Optional[Chat]:
             try:

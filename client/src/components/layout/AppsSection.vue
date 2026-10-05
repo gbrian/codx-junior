@@ -46,6 +46,13 @@ import ViewModeToggle from './ViewModeToggle.vue';
       />
 
       <NavItem
+        icon="fas fa-diagram-project"
+        label="Planning"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToPlanning"
+      />
+
+      <NavItem
         icon="fa-regular fa-comments"
         label="Messenger"
         :is-collapsed="isCollapsed"
@@ -100,6 +107,10 @@ export default {
     },
     handleNavigateToKanban() {
       this.$ui.setActiveTab('tasks')
+      this.$emit('close')
+    },
+    handleNavigateToPlanning() {
+      this.$ui.openPlanning()
       this.$emit('close')
     },
     handleNavigateToMessenger() {

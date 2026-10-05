@@ -96,16 +96,70 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 
       <!-- Chat Children (Subtasks) Section - Now shows ALL nested chats -->
       <div v-if="allNestedChats.length > 0" class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0">
-        <div v-if="!isCompact" class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2 px-1 shrink-0">
-          <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
+        <!-- Header with status filter -->
+        <div v-if="!isCompact" class="flex items-center justify-between gap-2 mb-2 px-1 shrink-0">
+          <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
+            <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
+          </div>
+
+          <!-- Status filter dropdown -->
+          <div class="dropdown dropdown-end" @click.stop>
+            <button
+              tabindex="0"
+              type="button"
+              class="btn btn-xs btn-ghost gap-1 normal-case h-6 min-h-0 px-1.5"
+              :class="statusFilter && $chats.statusTextColor(statusFilter)"
+              :title="statusFilter ? `Filtered by: ${$chats.statusLabel(statusFilter)}` : 'Filter subtasks by status'"
+            >
+              <i :class="statusFilter ? $chats.statusIcon(statusFilter) : 'fa-solid fa-filter'"></i>
+              <span class="text-[10px] font-medium">{{ statusFilter ? $chats.statusLabel(statusFilter) : 'All' }}</span>
+              <i class="fa-solid fa-chevron-down text-[8px] opacity-60"></i>
+            </button>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 w-44 p-1 shadow-lg border border-base-300"
+            >
+              <li>
+                <a
+                  @click.stop="setStatusFilter(null)"
+                  :class="[!statusFilter && 'active', 'flex items-center gap-2']"
+                >
+                  <i class="fa-solid fa-layer-group opacity-60"></i>
+                  <span>All statuses</span>
+                  <span class="ml-auto opacity-50 text-[10px]">{{ allNestedChats.length }}</span>
+                </a>
+              </li>
+              <li v-for="option in $chats.statusList" :key="option.value">
+                <a
+                  @click.stop="setStatusFilter(option.value)"
+                  :class="[statusFilter === option.value && 'active', 'flex items-center gap-2']"
+                >
+                  <i :class="[option.icon, option.textColor]"></i>
+                  <span>{{ option.label }}</span>
+                  <span class="ml-auto opacity-50 text-[10px]">{{ statusCounts[option.value] || 0 }}</span>
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
+
+        <!-- Compact mode: active filter indicator -->
+        <div
+          v-else-if="statusFilter"
+          class="flex justify-center mb-1 shrink-0"
+          :title="`Filtered by: ${$chats.statusLabel(statusFilter)}`"
+        >
+          <i class="text-xs" :class="[$chats.statusIcon(statusFilter), $chats.statusTextColor(statusFilter)]"></i>
+        </div>
+
         <ChatListRenderer
           :class="!isCompact && 'p-1'"
-          :chatList="sortedAllNestedChats"
+          :chatList="filteredNestedChats"
           :selectedChatId="selectedChatId"
           :isCompact="isCompact"
           :allChats="allChats"
           :useExtended="false"
+          :emptyText="statusFilter ? 'No subtasks with this status' : 'No subtasks yet'"
           @select="selectChat"
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
@@ -130,41 +184,58 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           <i class="fa-solid fa-globe text-sm"></i>
         </button>
 
-        <!-- Logs Button -->
-        <button 
-          @click.stop="$emit('action', { type: 'logs' })"
-          :title="'View AI logs'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
-        >
-          <i class="fa-solid fa-file-lines text-sm"></i>
-        </button>
-
-        <!-- Timeline Button -->
-        <button 
-          @click.stop="$emit('action', { type: 'timeline' })"
-          :title="'View timeline'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
-        >
-          <i class="fa-solid fa-timeline text-sm"></i>
-        </button>
-
-        <!-- Export Button -->
-        <button 
-          @click.stop="$emit('action', { type: 'export' })"
-          :title="'Export chat'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
-        >
-          <i class="fa-solid fa-download text-sm"></i>
-        </button>
-
-        <!-- Settings Button -->
-        <button 
-          @click.stop="$emit('action', { type: 'settings' })"
-          :title="'Open settings'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
-        >
-          <i class="fa-solid fa-gear text-sm"></i>
-        </button>
+        <!-- More Actions Dropdown (opens top-right) -->
+        <div class="dropdown dropdown-top dropdown-start flex-1">
+          <div
+            ref="actionsTrigger"
+            tabindex="0"
+            role="button"
+            :title="'More actions'"
+            class="flex items-center justify-center h-9 w-full rounded-lg cursor-pointer text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+          >
+            <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+          </div>
+          <ul
+            tabindex="0"
+            class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300 mb-1"
+          >
+            <li>
+              <a @click.stop="handleFooterAction({ type: 'timeline' })">
+                <i class="fa-solid fa-timeline text-sm opacity-70"></i>
+                View timeline
+              </a>
+            </li>
+            <li>
+              <a @click.stop="handleFooterAction({ type: 'logs' })">
+                <i class="fa-solid fa-file-lines text-sm opacity-70"></i>
+                View AI logs
+              </a>
+            </li>
+            <li></li>
+            <li>
+              <a
+                @click.stop="handleReload"
+                :class="isReloading && 'is-disabled pointer-events-none opacity-50'"
+              >
+                <i class="fa-solid fa-arrows-rotate text-sm opacity-70" :class="isReloading && 'fa-spin'"></i>
+                Reload chat
+              </a>
+            </li>
+            <li>
+              <a @click.stop="handleFooterAction({ type: 'export' })">
+                <i class="fa-solid fa-download text-sm opacity-70"></i>
+                Export chat
+              </a>
+            </li>
+            <li></li>
+            <li>
+              <a @click.stop="handleFooterAction({ type: 'settings' })">
+                <i class="fa-solid fa-gear text-sm opacity-70"></i>
+                Settings
+              </a>
+            </li>
+          </ul>
+        </div>
 
         <!-- Compact Toggle Button -->
         <button 
@@ -271,6 +342,8 @@ export default {
     return {
       showBrowserDialog: false,
       isCreatingSession: false,
+      isReloading: false,
+      statusFilter: null,
       browserSessionForm: {
         name: '',
         description: ''
@@ -288,6 +361,18 @@ export default {
         return timeB - timeA
       })
     },
+    filteredNestedChats() {
+      if (!this.statusFilter) return this.sortedAllNestedChats
+      // Chats without an explicit status default to 'todo' (store DEFAULT_STATUS)
+      return this.sortedAllNestedChats.filter(chat => (chat.status || 'todo') === this.statusFilter)
+    },
+    statusCounts() {
+      return this.allNestedChats.reduce((counts, chat) => {
+        const status = chat.status || 'todo'
+        counts[status] = (counts[status] || 0) + 1
+        return counts
+      }, {})
+    },
     selectedChat() {
       return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat
     },
@@ -300,6 +385,11 @@ export default {
     selectChat(chat) {
       this.$emit('select', chat)
     },
+    setStatusFilter(status) {
+      // Toggle: clicking the active status clears the filter
+      this.statusFilter = this.statusFilter === status ? null : status
+      document.activeElement?.blur()
+    },
     getInitials(name) {
       if (!name) return 'CH'
       const cleanName = name.replace(/[^\w\s-]/g, '').trim()
@@ -308,6 +398,33 @@ export default {
         return (words[0][0] + words[1][0]).toUpperCase()
       }
       return name.substring(0, 2).toUpperCase()
+    },
+    handleFooterAction(action) {
+      this.$emit('action', action)
+      // Close the dropdown after selecting an item
+      this.$refs.actionsTrigger?.blur()
+    },
+    handleReload() {
+      // Close the dropdown, then trigger reload
+      this.$refs.actionsTrigger?.blur()
+      this.reloadActiveChat()
+    },
+    async reloadActiveChat() {
+      const chat = this.workingChat
+      if (!chat?.id || this.isReloading) return
+
+      this.isReloading = true
+      try {
+        await this.$storex.chats.reloadChat({
+          id: chat.id,
+          project_id: chat.project_id,
+          owner_project_id: chat.owner_project_id
+        })
+      } catch (error) {
+        console.error('[ChatSidebar] Error reloading chat:', error)
+      } finally {
+        this.isReloading = false
+      }
     },
     openBrowserSessionDialog() {
       this.browserSessionForm = {

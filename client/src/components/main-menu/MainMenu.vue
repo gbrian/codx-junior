@@ -57,6 +57,10 @@ import ViewsMenu from './ViewsMenu.vue'
               <i class="fa-brands fa-trello"></i>
               Task manager
             </MenubarItem>
+            <MenubarItem @click="$ui.openPlanning()">
+              <i class="fa-solid fa-diagram-project"></i>
+              Planning
+            </MenubarItem>
             <MenubarItem @click="$ui.setActiveTab('team')">
               <i class="fa-solid fa-people-group"></i>
               Team

@@ -1,12 +1,29 @@
-from fastapi import APIRouter, Request, Response, Depends
+from fastapi import APIRouter, Request, Response, Depends, HTTPException
 import logging
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 from codx.junior.ai.cancellation import CANCELLATION_REGISTRY
 from codx.junior.chat_searcher import SearchFilters
 from codx.junior.model.model import CodxUser
+from codx.junior.model.planning import (
+    ActivityEvent,
+    PlanningDashboardResponse,
+    PlanningQuery,
+    PlanningReorderRequest,
+    PlanningReorderResponse,
+    PlanningTaskQueryResponse,
+    PlanningTaskUpdate,
+    PlanningTaskUpdateResponse,
+)
+from codx.junior.planning_manager import PlanningConflictError, PlanningManager
 from codx.junior.security.user_management import get_authenticated_user
 
 logger = logging.getLogger(__name__)
+
+# Default time window (in days) applied by the chat listing endpoint when the
+# caller does not provide an explicit ``date_from``/``date_to`` range.
+DEFAULT_CHAT_HISTORY_DAYS = 30
 
 router = APIRouter()
 
@@ -621,7 +638,12 @@ def api_list_chats(request: Request):
         - file_path: Load a specific chat by file path.
         - id: Load a specific chat by ID.
         - export_format: Export format (markdown, docx, pdf, excel, etc.).
-        - from_date: ISO-format date for filtering (list_chats only).
+        - date_from: ISO-format start date (inclusive) for filtering chats.
+        - date_to: ISO-format end date (inclusive) for filtering chats.
+        - from_date: (legacy) alias of ``date_from``.
+
+    When neither ``date_from`` nor ``date_to`` is provided, the list defaults
+    to chats updated within the last ``DEFAULT_CHAT_HISTORY_DAYS`` (30) days.
 
     Returns:
         Single Chat object if id or file_path is provided.
@@ -634,7 +656,10 @@ def api_list_chats(request: Request):
         file_path = request.query_params.get("file_path")
         chat_id = request.query_params.get("id")
         export_format = request.query_params.get("export_format")
-        from_date = request.query_params.get("from_date")
+        # date_from is the new parameter name; from_date is kept for
+        # backward compatibility with existing clients.
+        date_from = request.query_params.get("date_from") or request.query_params.get("from_date")
+        date_to = request.query_params.get("date_to")
 
         if export_format:
             export = chat_manager.export_chat(chat_id=chat_id, export_format=export_format)
@@ -656,7 +681,29 @@ def api_list_chats(request: Request):
                 logger.error('Chat not found. file_path: %s, project: %s', file_path, codx_junior_session.settings.project_name)
             return chat
 
-        return chat_manager.list_chats(from_date=from_date)
+        # Default to the last 30 days when the caller does not inform a range
+        if not date_from and not date_to:
+            now = datetime.now()
+            date_from = (now - timedelta(days=DEFAULT_CHAT_HISTORY_DAYS)).isoformat()
+            date_to = now.isoformat()
+            logger.info(
+                "api_list_chats: no date range provided, defaulting to last "
+                "%d days (date_from=%s, date_to=%s)",
+                DEFAULT_CHAT_HISTORY_DAYS,
+                date_from,
+                date_to,
+            )
+
+        logger.info(
+            "api_list_chats: listing chats for project=%s date_from=%s date_to=%s",
+            codx_junior_session.settings.project_name,
+            date_from or "all",
+            date_to or "open",
+        )
+        return chat_manager.list_chats(from_date=date_from, to_date=date_to)
+    except ValueError as ex:
+        logger.error("api_list_chats: invalid date format: %s", ex)
+        return {"error": "Invalid date format (use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"}
     except Exception as ex:
         logger.error("api_list_chats: unexpected error: %s", ex)
         return {"error": f"Failed to list chats: {str(ex)}"}
@@ -1102,6 +1149,167 @@ async def api_unmark_message_as_seen(
     except Exception as ex:
         logger.error("api_unmark_message_as_seen: unexpected error: %s", ex)
         return {"error": f"Failed to unmark message as seen: {str(ex)}", "success": False}
+
+
+# ---------------------------------------------------------------------------
+# Planning / task board endpoints
+#
+# All dataset-wide aggregation and filtering happens HERE (server-side) rather
+# than in the browser over a single loaded page, so metrics, board progress,
+# attention queues and group badges are always computed over the *entire*
+# filtered dataset. The computation lives in
+# :class:`codx.junior.planning_manager.PlanningManager`.
+# ---------------------------------------------------------------------------
+
+
+def _get_planning_manager(request: Request, user: Optional[CodxUser] = None) -> PlanningManager:
+    """Build a :class:`PlanningManager` bound to the active project session."""
+    codx_junior_session = request.state.codx_junior_session
+    return PlanningManager(
+        chat_manager=codx_junior_session.get_chat_manager(),
+        settings=codx_junior_session.settings,
+        user=user,
+    )
+
+
+def _planning_actor(user: Optional[CodxUser]) -> tuple:
+    """Resolve the (actor, actor_type) pair recorded in activity events."""
+    if user and getattr(user, "username", None):
+        return user.username, "user"
+    return "system", "user"
+
+
+@router.post("/planning/tasks/query", response_model=PlanningTaskQueryResponse)
+def api_planning_tasks_query(query: PlanningQuery, request: Request) -> PlanningTaskQueryResponse:
+    """
+    Paginated, filtered, sorted planning task rows with true counts.
+
+    Body: :class:`PlanningQuery`.
+
+    Returns task rows for the requested page plus ``total`` and
+    ``group_counts`` computed over *all* tasks matching the filters — never
+    just the loaded page — so the client-side "Showing X of Y" counter and the
+    priority/status badges stay correct at any scroll depth.
+    """
+    manager = _get_planning_manager(request)
+    result = manager.query_tasks(query)
+    logger.info(
+        "api_planning_tasks_query: total=%d page=%d/%d group_by=%s",
+        result.total,
+        result.page,
+        result.total_pages,
+        query.group_by,
+    )
+    return result
+
+
+@router.post("/planning/dashboard", response_model=PlanningDashboardResponse)
+def api_planning_dashboard(query: PlanningQuery, request: Request) -> PlanningDashboardResponse:
+    """
+    Follow-up dashboard aggregates over the *entire* filtered dataset.
+
+    Body: :class:`PlanningQuery` (pagination fields are ignored).
+
+    Returns metrics, per-board progress, a severity-ordered attention queue,
+    the activity feed and priority counts. Everything is aggregated
+    server-side, so the numbers no longer drift with pagination.
+    """
+    manager = _get_planning_manager(request)
+    dashboard = manager.build_dashboard(query)
+    logger.info(
+        "api_planning_dashboard: total=%d overdue=%d attention=%d activity=%d",
+        dashboard.metrics.total,
+        dashboard.metrics.overdue,
+        len(dashboard.attention),
+        len(dashboard.activity),
+    )
+    return dashboard
+
+
+@router.get("/planning/activity", response_model=List[ActivityEvent])
+def api_planning_activity(request: Request, limit: int = 30) -> List[ActivityEvent]:
+    """
+    Standalone, event-sourced activity feed (newest first).
+
+    Query parameters:
+        - limit: Maximum number of events to return (default 30, max 100).
+
+    Events are read from the project's planning event store
+    (``<codx_path>/planning/events.jsonl``), written by the write endpoints.
+    """
+    manager = _get_planning_manager(request)
+    events = manager.read_activity(
+        query=PlanningQuery(),
+        limit=max(1, min(100, limit)),
+    )
+    return events
+
+
+@router.patch("/planning/tasks/{task_id}", response_model=PlanningTaskUpdateResponse)
+async def api_planning_update_task(
+    task_id: str,
+    request: Request,
+    user: CodxUser = Depends(get_authenticated_user),
+) -> PlanningTaskUpdateResponse:
+    """
+    Update a single task (priority / due_date / status / progress / assignees /
+    sort_index) and emit an activity event per changed field.
+
+    Path parameters:
+        - task_id: UUID of the task (chat) to update
+
+    Body: :class:`PlanningTaskUpdate`. Provide ``expected_updated_at`` for
+    optimistic concurrency; a mismatch returns HTTP 409.
+    """
+    body = await request.json()
+    update = PlanningTaskUpdate(**body)
+    manager = _get_planning_manager(request, user=user)
+    actor, actor_type = _planning_actor(user)
+
+    try:
+        task, events = manager.update_task(
+            task_id=task_id,
+            update=update,
+            actor=actor,
+            actor_type=actor_type,
+        )
+    except ValueError as ex:
+        logger.warning("api_planning_update_task: %s", ex)
+        raise HTTPException(status_code=404, detail=str(ex))
+    except PlanningConflictError as ex:
+        logger.warning("api_planning_update_task: conflict: %s", ex)
+        raise HTTPException(status_code=409, detail=str(ex))
+
+    return PlanningTaskUpdateResponse(
+        task=task,
+        activity_event=events[0] if events else None,
+    )
+
+
+@router.post("/planning/tasks/reorder", response_model=PlanningReorderResponse)
+async def api_planning_reorder_tasks(
+    request: Request,
+    user: CodxUser = Depends(get_authenticated_user),
+) -> PlanningReorderResponse:
+    """
+    Persist a manual task ordering in a single request.
+
+    Body: :class:`PlanningReorderRequest` (``ordered_ids``). The server assigns
+    ``sort_index = position`` for each id and emits one activity event per
+    change.
+    """
+    body = await request.json()
+    reorder = PlanningReorderRequest(**body)
+    manager = _get_planning_manager(request, user=user)
+    actor, actor_type = _planning_actor(user)
+
+    updated, events = manager.reorder_tasks(
+        request=reorder,
+        actor=actor,
+        actor_type=actor_type,
+    )
+
+    return PlanningReorderResponse(updated=updated, activity_events=events)
 
 
 # Made with ❤️ by codx-junior

@@ -555,7 +555,8 @@ class ChatEngine:
     def _load_chat_files_content(
         self,
         chat_files: List[str],
-        already_in_messages: Set[str]
+        already_in_messages: Set[str],
+        file_base_paths: Optional[Dict[str, str]] = None
     ) -> Tuple[str, List[Dict[str, str]]]:
         """
         Read and format the content of files explicitly attached to the chat.
@@ -567,21 +568,40 @@ class ChatEngine:
         Files already embedded as code blocks in the message history are skipped
         to avoid duplication.
 
+        ADDED: Chat file references may be RELATIVE and are relative to the
+        project that owns the chat (``project_id`` if present, otherwise
+        ``owner_project_id``) — NOT necessarily the current engine settings.
+        ``file_base_paths`` maps each file path to the project root it must be
+        resolved against; files missing from the map fall back to the current
+        engine project path.
+
         CHANGED: Now returns a tuple of (text_content, binary_files_list).
         Binary files are detected and separated for potential vision API processing.
 
         :param chat_files: List of file paths to load.
         :param already_in_messages: Set of file paths already present in message bodies.
+        :param file_base_paths: Optional mapping of file path -> project root path
+                                used to resolve relative file references.
         :return: Tuple of (formatted_text_content_string, binary_files_list).
         """
         chat_files_content = ""
         binary_files = []
+        file_base_paths = file_base_paths or {}
         
         for chat_file in chat_files:
             if chat_file in already_in_messages:
                 continue
 
-            chat_file_full_path = self._resolve_chat_file_path(chat_file)
+            # Resolve against the owning chat's project (parent files can live
+            # in a different project than the current engine settings).
+            base_project_path = (
+                file_base_paths.get(chat_file) or self.settings.abs_project_path
+            )
+
+            chat_file_full_path = self._resolve_chat_file_path(
+                chat_file=chat_file,
+                base_project_path=base_project_path
+            )
             if not chat_file_full_path:
                 continue
 
@@ -600,7 +620,7 @@ class ChatEngine:
                 
                 with open(chat_file_full_path, "r", encoding="utf-8") as fh:
                     source = chat_file_full_path.replace(
-                        self.settings.abs_project_path + "/", ""
+                        base_project_path + "/", ""
                     )
                     logger.info(
                         "Loading chat_file content from '%s' with source: '%s'",
@@ -654,25 +674,66 @@ class ChatEngine:
             ""
         ])
 
-    def _resolve_chat_file_path(self, chat_file: str) -> Optional[str]:
+    # -------------------------------------------------------------------------
+    # Helper: resolve the project path a chat's files are relative to
+    # -------------------------------------------------------------------------
+    def _resolve_chat_project_path(self, chat: Chat) -> str:
+        """
+        Resolve the absolute project path that a chat's file references are
+        relative to.
+
+        Chat file lists (``chat.file_list``) and message attachments may store
+        *relative* paths. Those paths are relative to the chat's working
+        project: ``project_id`` when present, otherwise ``owner_project_id``.
+
+        This matters especially for parent chats, which can live in a different
+        project than the current engine settings.
+
+        :param chat: The chat whose project base path to resolve (may be None).
+        :return: Absolute project path used as the base for the chat's files.
+        """
+        if chat:
+            for project_id in (chat.project_id, chat.owner_project_id):
+                if not project_id:
+                    continue
+                # Fast path: the engine is already scoped to this project.
+                if project_id == self.settings.project_id:
+                    return self.settings.abs_project_path
+                project_settings = find_project_by_id(project_id=project_id)
+                if project_settings and project_settings.abs_project_path:
+                    return project_settings.abs_project_path
+        return self.settings.abs_project_path
+
+    def _resolve_chat_file_path(
+        self,
+        chat_file: str,
+        base_project_path: Optional[str] = None
+    ) -> Optional[str]:
         """
         Resolve the full filesystem path of a chat-attached file.
+
+        Files may be absolute or relative. Relative paths are resolved against
+        *base_project_path* — the project that owns the chat the file belongs
+        to — falling back to the current engine project when not provided.
 
         Returns None and logs a warning if the file cannot be found.
 
         :param chat_file: Relative or absolute file path.
+        :param base_project_path: Project root the relative path is based on.
         :return: Resolved absolute path, or None if unresolvable.
         """
-        if chat_file.startswith(self.settings.abs_project_path) or os.path.isfile(chat_file):
+        base_project_path = base_project_path or self.settings.abs_project_path
+
+        if chat_file.startswith(base_project_path) or os.path.isfile(chat_file):
             return chat_file
 
         logger.info(
             "Normalizing chat_file '%s' for project path: '%s'",
             chat_file,
-            self.settings.abs_project_path
+            base_project_path
         )
         normalized = chat_file.lstrip("/")
-        full_path = os.path.join(self.settings.abs_project_path, normalized)
+        full_path = os.path.join(base_project_path, normalized)
         return full_path
 
     # -------------------------------------------------------------------------
@@ -1837,6 +1898,12 @@ class ChatEngine:
         ADDED: Binary chat files (PDFs, images) are now detected and passed
         to the vision API if supported by the model.
 
+        ADDED: Chat-attached files (current chat AND parent chat) are resolved
+        against the project that owns the chat (``project_id`` if present,
+        otherwise ``owner_project_id``), so relative file references are read
+        from the correct project even when it differs from the current engine
+        settings.
+
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
           - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
@@ -2097,7 +2164,23 @@ class ChatEngine:
             #    user_message) to ensure context from earlier turns is included.
             #    Files referenced in query_mentions and parent_chat are also
             #    merged in. Duplicates are removed via set union in the helper.
+            #
+            #    CHANGED: chat files are relative to the project that owns the
+            #    chat (``project_id`` when present, otherwise
+            #    ``owner_project_id``). Parent chat files may therefore live in
+            #    a DIFFERENT project than the current engine settings, so we
+            #    track the base project path per file (``file_base_paths``) and
+            #    use it when reading the file content.
             # ------------------------------------------------------------------
+            chat_project_path = self._resolve_chat_project_path(chat=chat)
+            parent_project_path = (
+                self._resolve_chat_project_path(chat=parent_chat)
+                if parent_chat else chat_project_path
+            )
+
+            # Map each file path to the project root it must be resolved against
+            file_base_paths: Dict[str, str] = {}
+
             chat_files: List[str] = self._collect_files_from_visible_messages(
                 valid_messages=valid_messages,
                 chat_base_files=chat.file_list or []
@@ -2105,12 +2188,22 @@ class ChatEngine:
             # Merge in files from query mentions (e.g. @file references)
             if query_mentions.files:
                 chat_files = sorted(set(chat_files + query_mentions.files))
+
+            # All files originating from THIS chat resolve against its project
+            for chat_file in chat_files:
+                file_base_paths[chat_file] = chat_project_path
+
             # Merge in parent chat file list if present and not ignored
             if parent_chat and parent_chat.file_list and not chat.ignore_parent_files:
                 chat_files = sorted(set(chat_files + parent_chat.file_list))
+                # setdefault: a file already provided by this chat keeps its base
+                for parent_file in parent_chat.file_list:
+                    file_base_paths.setdefault(parent_file, parent_project_path)
                 logger.info(
-                    "Merged parent chat files into context for chat '%s'",
+                    "Merged parent chat files into context for chat '%s' "
+                    "(parent project path '%s')",
                     chat.doc_id,
+                    parent_project_path,
                 )
             elif parent_chat and chat.ignore_parent_files:
                 logger.info(
@@ -2208,7 +2301,8 @@ class ChatEngine:
             # ------------------------------------------------------------------
             chat_files_content, binary_files = self._load_chat_files_content(
                 chat_files=chat_files,
-                already_in_messages=all_messages_content_code_block_file_paths
+                already_in_messages=all_messages_content_code_block_file_paths,
+                file_base_paths=file_base_paths
             )
 
             # ------------------------------------------------------------------
