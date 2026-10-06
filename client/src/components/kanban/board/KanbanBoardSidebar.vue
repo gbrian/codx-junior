@@ -57,6 +57,11 @@ import KanbanBoardTaskRow from './KanbanBoardTaskRow.vue'
               class="text-xs flex-1 truncate font-medium"
               :class="activeBoard?.id === board.id ? 'text-primary' : 'text-base-content/60'"
             >{{ board.title }}</span>
+            <span
+              v-if="board.type === 'sprint'"
+              class="badge badge-xs badge-primary badge-outline shrink-0"
+              title="Sprint board"
+            ><i class="fa-solid fa-layer-group text-[8px]"></i></span>
             <span class="text-xs text-base-content/30 bg-base-100 rounded-full px-1.5 shrink-0">
               {{ boardTaskCount(board.id) }}
             </span>
@@ -269,12 +274,12 @@ export default {
     boardActivityMap() {
       const map = {}
       this.allChats.forEach(chat => {
-        if (!chat.board) return
         const ts = chat.updated_at || chat.created_at || null
         if (!ts) return
-        if (!map[chat.board] || ts > map[chat.board]) {
-          map[chat.board] = ts
-        }
+        const keys = [chat.board, ...(chat.sprints || [])].filter(Boolean)
+        keys.forEach(key => {
+          if (!map[key] || ts > map[key]) map[key] = ts
+        })
       })
       return map
     },
@@ -353,7 +358,12 @@ export default {
   },
   methods: {
     boardTaskCount(boardId) {
-      return this.allChats.filter(c => c.board === boardId).length
+      const board = this.boards.find(b => b.id === boardId)
+      const isSprint = board?.type === 'sprint'
+      return this.allChats.filter(c => isSprint
+        ? (c.sprints || []).includes(boardId)
+        : c.board === boardId
+      ).length
     },
     getColumnColor(colTitle) {
       const col = this.columns.find(c => c.title === colTitle)

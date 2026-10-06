@@ -210,6 +210,33 @@ defineExpose({
           New Board
         </h2>
 
+        <!-- Board type -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board type</span>
+          </label>
+          <div class="flex gap-2">
+            <label
+              v-for="bt in boardTypes"
+              :key="bt.value"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all text-xs"
+              :class="newBoard.type === bt.value
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-base-100 text-base-content/50 hover:border-base-content/20'"
+            >
+              <input type="radio" :value="bt.value" v-model="newBoard.type" class="hidden" />
+              <i :class="bt.icon + ' text-xs'"></i>
+              {{ bt.label }}
+            </label>
+          </div>
+          <div v-if="newBoard.type === 'sprint'" class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mt-2">
+            <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
+            <span class="text-xs text-base-content/50">
+              Sprint columns are the task statuses (To Do → Doing → On Hold → Done → Rejected) and cannot be edited.
+            </span>
+          </div>
+        </div>
+
         <!-- Board name -->
         <div class="form-control mb-3">
           <label class="label py-1">
@@ -269,6 +296,11 @@ const TASK_MODES = [
   { value: 'topic',   label: 'Discussion', icon: 'fa-solid fa-comments' },
 ]
 
+const BOARD_TYPES = [
+  { value: 'kanban', label: 'Kanban', icon: 'fa-solid fa-columns' },
+  { value: 'sprint', label: 'Sprint', icon: 'fa-solid fa-layer-group' },
+]
+
 const DEFAULT_NEW_TASK = () => ({
   name: '',
   column: '',
@@ -276,6 +308,12 @@ const DEFAULT_NEW_TASK = () => ({
   parentId: null,
   selectedProfiles: [],
   llm_model: null
+})
+
+const DEFAULT_NEW_BOARD = () => ({
+  title: '',
+  description: '',
+  type: 'kanban'
 })
 
 export default {
@@ -292,10 +330,11 @@ export default {
       showNewBoard: false,
       newTask: DEFAULT_NEW_TASK(),
       newColumn: { title: '', color: '#6366f1' },
-      newBoard: { title: '', description: '' },
+      newBoard: DEFAULT_NEW_BOARD(),
       columnError: null,
       columnColors: COLUMN_COLORS,
-      taskModes: TASK_MODES
+      taskModes: TASK_MODES,
+      boardTypes: BOARD_TYPES
     }
   },
   watch: {
@@ -325,6 +364,7 @@ export default {
         name: this.newTask.name,
         column: this.newTask.column,
         mode: this.newTask.mode,
+        parentId: this.newTask.parentId || null,
         profiles: this.newTask.selectedProfiles.map(p => p.name),
         llm_model: this.newTask.llm_model || null
       })
@@ -378,7 +418,7 @@ export default {
 
     // ── New Board ─────────────────────────────────────────────────────────────
     openNewBoard() {
-      this.newBoard = { title: '', description: '' }
+      this.newBoard = DEFAULT_NEW_BOARD()
       this.showNewBoard = true
       this.$nextTick(() => this.$refs.boardNameInput?.focus())
     },

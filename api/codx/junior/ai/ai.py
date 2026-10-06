@@ -12,10 +12,10 @@ from langchain.messages import (
 from engine.agent_runtime import AgentRunContext
 
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.ai_logger import AILogger
 from codx.junior.ai.cancellation import CancellationToken, CancelledError
 
+from codx.junior.model.agent import AgentRunResult
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.model.model import CodxUser
 
@@ -28,10 +28,15 @@ logger = logging.getLogger(__name__)
 
 class AI:
     """
-    Main class for managing AI interactions with provider routing.
+    Main class for managing AI interactions.
 
-    Routes chat requests to either SmolAgent (async-native) or OpenAI_AI (legacy)
-    based on global settings flag ``use_smol_agent``.
+    All chat requests are handled by :class:`SmolAgent` (async-native). The
+    legacy ``OpenAI_AI`` provider has been removed.
+
+    ``a_chat_run`` returns the typed :class:`AgentRunResult` (including the
+    cost/usage breakdown) so callers can register the cost of a run on the
+    persisted message. ``a_chat`` / ``chat`` keep the historical
+    ``List[Message]`` contract by returning ``result.messages``.
 
     Supports forwarding a ``chat_id`` (for analytics traceability) and a shared
     :class:`AgentRunContext` (for real-time tool/lifecycle event listeners and
@@ -40,11 +45,11 @@ class AI:
     Mermaid Diagram:
     ```mermaid
     classDiagram
-        AI --> OpenAI_AI : use_smol_agent == False
-        AI --> SmolAgent : use_smol_agent == True
+        AI --> SmolAgent : all chat requests
         AI --> AILogger : Logging operations
         AI --> CancellationToken : Cancellation handling
         AI --> AgentRunContext : Event fan-out / run sharing
+        AI --> AgentRunResult : typed run result (cost/usage)
     ```
     """
 
@@ -57,9 +62,9 @@ class AI:
         session: Optional[Any] = None,
     ) -> None:
         """
-        Initialize the AI class with provider routing.
+        Initialize the AI class.
 
-        :param settings: Configuration settings (includes use_smol_agent flag).
+        :param settings: Configuration settings.
         :param llm_model: The specific model to be used.
         :param user: The user interacting with the AI.
         :param system: System level parameters.
@@ -74,16 +79,12 @@ class AI:
         self.ai_logger: AILogger = AILogger(settings=settings)
         self.session: Optional[Any] = session
 
-        # Determine which provider to use
-        self._use_smol_agent: bool = True
-
-        # Initialize the appropriate chat model
+        # Initialize the chat model (SmolAgent, async-native)
         self.llm: Callable = self.create_chat_model(llm_model=llm_model)
         self.a_llm: Callable = self.create_a_chat_model(llm_model=llm_model)
 
         logger.info(
-            "AI initialized with provider: %s (user=%s, model=%s, session=%s)",
-            "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
+            "AI initialized with provider: SmolAgent (user=%s, model=%s, session=%s)",
             user.username if user else "NONE",
             llm_model,
             "present" if session else "absent",
@@ -143,12 +144,8 @@ class AI:
         """
         Synchronous wrapper around asynchronous chat functionality.
 
-        Processes user inputs and returns AI responses using the configured
-        provider (SmolAgent or OpenAI_AI). The sync wrapper delegates to
-        ``a_chat()`` to ensure consistent behavior across providers.
-
-        Note: This method internally uses asyncio to bridge async code.
-        For high-concurrency scenarios, prefer ``a_chat()`` directly.
+        Returns the historical ``List[Message]`` contract. Callers that need the
+        typed run result (cost/usage breakdown) should use ``a_chat_run``.
 
         :param messages: History of messages.
         :param prompt: Prompt to append as a human message.
@@ -229,29 +226,58 @@ class AI:
         vision_content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Message]:
         """
-        Asynchronous chat functionality that processes user inputs and returns AI responses.
+        Asynchronous chat functionality that returns the conversation messages.
 
-        Delegates to the configured provider (SmolAgent or OpenAI_AI) based on
-        the ``use_smol_agent`` settings flag. The ``chat_id`` and
-        ``run_context`` are forwarded in the provider config so tool and
-        lifecycle events can be traced back to the chat and surfaced to any
-        registered listeners in real time. Vision content is also forwarded
-        for models that support image and PDF processing.
+        Delegates to :meth:`a_chat_run` and returns ``result.messages`` so the
+        historical ``List[Message]`` contract is preserved. Callers that need the
+        typed run result (cost/usage breakdown) should call ``a_chat_run``
+        directly.
 
-        :param messages: History of messages.
-        :param prompt: Prompt to append as a human message.
-        :param max_response_length: The max tokens limit.
-        :param callback: An optional callback function.
-        :param tools: A list of tools for function calling.
-        :param headers: Custom headers dict for the LLM request.
-        :param cancellation_token: Optional token to cancel the ongoing completion.
-        :param chat_id: Optional chat identifier for analytics traceability.
-        :param run_context: Optional shared AgentRunContext carrying event
-                            listeners (e.g. ChatEventBridge) and cancellation.
-        :param current_chat: Optional current chat object for tool context.
-        :param vision_content: Optional list of vision content blocks (image_url, file types)
-                               to pass to vision-capable models for multi-modal processing.
         :return: A list of processed messages including the AI reply.
+        :raises CancelledError: If the request is cancelled.
+        :raises RuntimeError: If AI processing fails.
+        """
+        run_result = await self.a_chat_run(
+            messages=messages,
+            prompt=prompt,
+            max_response_length=max_response_length,
+            callback=callback,
+            tools=tools,
+            headers=headers,
+            cancellation_token=cancellation_token,
+            chat_id=chat_id,
+            run_context=run_context,
+            current_chat=current_chat,
+            vision_content=vision_content,
+        )
+        return run_result.messages
+
+    @profile_function
+    async def a_chat_run(
+        self,
+        messages: Optional[List[Message]] = None,
+        prompt: Optional[str] = None,
+        *,
+        max_response_length: Optional[int] = None,
+        callback: Optional[Callable] = None,
+        tools: Optional[List[str]] = None,
+        headers: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+        chat_id: Optional[str] = None,
+        run_context: Optional[AgentRunContext] = None,
+        current_chat: Optional[Any] = None,
+        vision_content: Optional[List[Dict[str, Any]]] = None,
+    ) -> AgentRunResult:
+        """
+        Asynchronous chat functionality returning the typed run result.
+
+        Delegates to :class:`SmolAgent`, which returns an
+        :class:`AgentRunResult` carrying the conversation messages, the per-run
+        cost/usage breakdown and the tool/cache summaries. The ``chat_id`` and
+        ``run_context`` are forwarded so tool and lifecycle events can be traced
+        back to the chat and surfaced to registered listeners in real time.
+
+        :return: The typed :class:`AgentRunResult` for this run.
         :raises CancelledError: If the request is cancelled.
         :raises RuntimeError: If AI processing fails.
         """
@@ -269,14 +295,12 @@ class AI:
         total_words = len("".join([self._extract_message_content(m) for m in messages]))
 
         self.log(
-            "Creating a new a_chat completion. Messages: %d, words: %d, provider: %s",
+            "Creating a new a_chat_run completion. Messages: %d, words: %d, provider: SmolAgent",
             len(messages),
             total_words,
-            "SmolAgent" if self._use_smol_agent else "OpenAI_AI",
         )
 
-        # Delegate to the appropriate provider's async method
-        response_messages: List[Message] = await self.a_llm(
+        response = await self.a_llm(
             messages=messages,
             config={
                 "callbacks": [callback] if callback else [],
@@ -290,66 +314,55 @@ class AI:
             },
         )
 
-        return response_messages
+        # SmolAgent returns AgentRunResult. Any provider returning a plain
+        # message list is wrapped into a typed result with zero-cost metadata so
+        # callers always receive an AgentRunResult.
+        if isinstance(response, AgentRunResult):
+            return response
+
+        response_messages: List[Message] = response or []
+        return AgentRunResult(
+            content=(
+                self._extract_message_content(response_messages[-1])
+                if response_messages else ""
+            ),
+            messages=response_messages,
+        )
 
     def create_chat_model(self, llm_model: Optional[str]) -> Callable:
         """
-        Initialize the correct chat completions target based on settings.
+        Create the synchronous chat callable.
 
-        Routes to SmolAgent or OpenAI_AI based on ``use_smol_agent`` flag.
+        Bridges the async ``a_chat`` (which returns ``List[Message]``) to the
+        legacy sync interface used by older callers.
 
         :param llm_model: Optional model override.
-        :return: A callable chat model function (may be sync or async).
+        :return: A sync callable returning ``List[Message]``.
         """
-        if self._use_smol_agent:
-            from codx.junior.ai.smol.smol_agent import SmolAgent
-
-            agent = SmolAgent(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-                session=self.session,
-            )
-            logger.debug("SmolAgent chat model initialized")
-            # Return a wrapper that bridges SmolAgent.chat (async) to sync interface
-            return self._make_sync_wrapper(agent.chat)
-        else:
-            return OpenAI_AI(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-            ).chat_completions
+        logger.debug("SmolAgent sync chat model initialized")
+        return self._make_sync_wrapper(self.a_chat)
 
     def create_a_chat_model(self, llm_model: Optional[str]) -> Callable:
         """
-        Initialize the correct asynchronous chat completions target based on settings.
+        Create the asynchronous chat callable.
 
-        Routes to SmolAgent or OpenAI_AI based on ``use_smol_agent`` flag.
+        Returns :class:`SmolAgent.chat`, which yields an
+        :class:`AgentRunResult`.
 
         :param llm_model: Optional model override.
-        :return: An async callable chat model function.
+        :return: An async callable returning :class:`AgentRunResult`.
         """
-        if self._use_smol_agent:
-            from codx.junior.ai.smol.smol_agent import SmolAgent
+        from codx.junior.ai.smol.smol_agent import SmolAgent
 
-            agent = SmolAgent(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-                session=self.session,
-            )
-            logger.debug("SmolAgent a_chat model initialized")
-            return agent.chat
-        else:
-            return OpenAI_AI(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-            ).a_chat_completions
+        agent = SmolAgent(
+            settings=self.settings,
+            llm_model=llm_model,
+            user=self.user,
+            system=self.system,
+            session=self.session,
+        )
+        logger.debug("SmolAgent a_chat model initialized")
+        return agent.chat
 
     @staticmethod
     def _make_sync_wrapper(async_func: Callable) -> Callable:
@@ -388,34 +401,21 @@ class AI:
 
     def get_openai_chat_client(self, llm_model: Optional[str] = None) -> Any:
         """
-        Get the underlying OpenAI client (only available with OpenAI_AI provider).
+        Get the underlying OpenAI-compatible client used by SmolAgent.
 
         :param llm_model: Optional model override.
-        :return: The OpenAI client instance.
-        :raises RuntimeError: If using SmolAgent provider (which uses generic client).
+        :return: The OpenAI client instance used by SmolAgent.
         """
-        if self._use_smol_agent:
-            logger.warning(
-                "get_openai_chat_client called with SmolAgent provider. "
-                "Returning generic OpenAI client from SmolAgent."
-            )
-            from codx.junior.ai.smol.smol_agent import SmolAgent
+        from codx.junior.ai.smol.smol_agent import SmolAgent
 
-            agent = SmolAgent(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-                session=self.session,
-            )
-            return agent.client
-        else:
-            return OpenAI_AI(
-                settings=self.settings,
-                llm_model=llm_model,
-                user=self.user,
-                system=self.system,
-            ).client
+        agent = SmolAgent(
+            settings=self.settings,
+            llm_model=llm_model,
+            user=self.user,
+            system=self.system,
+            session=self.session,
+        )
+        return agent.client
 
 
 def messages_md5(messages: List[Message]) -> str:

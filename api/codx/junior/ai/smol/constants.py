@@ -90,4 +90,17 @@ TOOL_ANALYSIS_FALLBACK_NOTE: str = (
     "inputs changed."
 )
 
+# ── Chat cost budget (Chat.estimation_cost) ───────────────────────────────────
+# Appended to the assistant answer when the chat reaches its estimated cost
+# limit. The run is stopped so the chat never spends more than the budget the
+# user set on ``Chat.estimation_cost`` (in cxjcoins). ``spent`` is compared
+# against the chat's ACCUMULATED cost (``Chat.cost``), which is not reduced when
+# messages are deleted.
+ESTIMATION_COST_EXCEEDED_MSG: str = (
+    "\n\n---\n\n### 💸 Chat cost limit reached\n\n"
+    "This chat reached its estimated cost limit "
+    "(spent: {spent:.4f} cxjcoins, limit: {limit:.4f}). "
+    "Execution was stopped to keep the chat within budget.\n"
+)
+
 # Made with ❤️ by codx-junior

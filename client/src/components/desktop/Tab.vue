@@ -2,7 +2,12 @@
 import AppIcon from '../apps/AppIcon.vue'
 </script>
 <template>
-  <div class="codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md">
+  <div
+    class="codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md"
+    :draggable="!!chat"
+    :class="{ 'cursor-grab active:cursor-grabbing': !!chat }"
+    @dragstart="onDragStart"
+  >
     <div class="w-4/5 flex gap-1 items-center truncate overflow-hidden">
       <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
       <AppIcon :app="app" :loading="isUpdating" />
@@ -55,6 +60,12 @@ export default {
     }
   },
   methods: {
+    onDragStart(event) {
+      // Only register a sprint task id when the tab is backed by a chat
+      if (!this.chat) return
+      event.dataTransfer.setData('sprintTaskId', this.chat.id)
+      event.dataTransfer.effectAllowed = 'move'
+    },
     onClose() {
       this.containerApi.removePanel(this.panel)
     }

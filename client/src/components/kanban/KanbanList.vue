@@ -117,6 +117,13 @@ import moment from 'moment'
               <h2 class="font-bold text-sm leading-tight truncate flex-1" :title="board.title">
                 {{ board.title }}
               </h2>
+              <span
+                v-if="board.type === 'sprint'"
+                class="badge badge-xs badge-primary badge-outline gap-0.5 shrink-0 mt-0.5"
+                title="Sprint board"
+              >
+                <i class="fa-solid fa-layer-group text-[8px]"></i> sprint
+              </span>
             </div>
 
             <!-- Description -->
@@ -220,16 +227,16 @@ export default {
       })
       return map
     },
-    // Map board title -> latest task updated_at
+    // Map board title -> latest task updated_at (board for kanban, membership for sprint)
     boardActivityMap() {
       const map = {}
       this.allChats.forEach(chat => {
-        if (!chat.board) return
         const ts = chat.updated_at || chat.created_at || null
         if (!ts) return
-        if (!map[chat.board] || ts > map[chat.board]) {
-          map[chat.board] = ts
-        }
+        const keys = [chat.board, ...(chat.sprints || [])].filter(Boolean)
+        keys.forEach(key => {
+          if (!map[key] || ts > map[key]) map[key] = ts
+        })
       })
       return map
     },
@@ -263,7 +270,11 @@ export default {
       return this.boardActivityMap[board.title] || board.last_update || null
     },
     boardTaskCount(board) {
-      return this.allChats.filter(c => c.board === board.title).length
+      const isSprint = board?.type === 'sprint'
+      return this.allChats.filter(c => isSprint
+        ? (c.sprints || []).includes(board.title)
+        : c.board === board.title
+      ).length
     },
     matchesFilter(board) {
       const filterLower = this.boardFilter.toLowerCase()
@@ -290,6 +301,14 @@ export default {
               }
             }
           }
+        }
+      }
+
+      // Sprint boards: match tasks that belong to the sprint
+      if (board.type === 'sprint') {
+        const sprintChats = this.allChats.filter(c => (c.sprints || []).includes(board.title))
+        if (sprintChats.some(chat => this.chatMatches(chat, filterLower))) {
+          return true
         }
       }
 

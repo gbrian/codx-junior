@@ -1,0 +1,150 @@
+{
+  "id": "22079323-9255-4007-9cca-6a91dfac92fd",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "f924c921-b7cf-4c81-950b-6f4e4595713b",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "onhold",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Add sprintTaskId drag support to tabs",
+  "pinned": false,
+  "is_template": false,
+  "description": "- User requested that chat-backed tabs register their chat id as `sprintTaskId` on drag, readable via `event.dataTransfer.getData('sprintTaskId')`.\n- I recommended making the tab conditionally `draggable=\"true\"` only when a `chat` exists, keeping plain app/tool tabs non-draggable.\n- Added `@dragstart=\"onDragStart\"` and a `cursor-grab active:cursor-grabbing` affordance to the tab root element.\n- The `onDragStart` method guards on `this.chat`, then calls `event.dataTransfer.setData('sprintTaskId', this.chat.id)` with `effectAllowed = 'move'`.\n- Provided full Tab.vue, a specs table, anti-patterns, accessibility notes, and step-by-step implementation, plus the drop-side read instruction.",
+  "messages": [
+    {
+      "doc_id": "0b67fd23-b311-444c-b49d-e09b11e1fd27",
+      "role": "user",
+      "task_item": "",
+      "content": " If the tab has a chat and starts dragging we'll register the chat id as \"sprintTaskId\".\nevent.dataTransfer.getData('sprintTaskId')",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-05 08:48:35.885020",
+      "updated_at": "2026-10-05T08:48:35.885108",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Tab.vue"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "7167247b-597f-4469-9ae0-506dbe50abf1",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll add drag support to the tab so it registers the chat id as `sprintTaskId` in the data transfer when dragged.\n\n## Direct Recommendation\nMake the tab `draggable` only when it carries a chat, and in the `dragstart` handler write the chat id into `event.dataTransfer` under the key `sprintTaskId`. This keeps non-chat tabs (plain apps/tools) non-draggable and avoids polluting the drag payload.\n\n## Changes\n\n- **Template:** Add `:draggable=\"!!chat\"` and `@dragstart=\"onDragStart\"` on the root element. Add a subtle cursor hint (`cursor-grab`) so users know the tab is draggable.\n- **Methods:** Add `onDragStart(event)` that guards on `chat` and writes `sprintTaskId`.\n\n```vue src/components/desktop/Tab.vue\n<script setup>\nimport AppIcon from '../apps/AppIcon.vue'\n</script>\n<template>\n  <div\n    class=\"codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md\"\n    :draggable=\"!!chat\"\n    :class=\"{ 'cursor-grab active:cursor-grabbing': !!chat }\"\n    @dragstart=\"onDragStart\"\n  >\n    <div class=\"w-4/5 flex gap-1 items-center truncate overflow-hidden\">\n      <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->\n      <AppIcon :app=\"app\" :loading=\"isUpdating\" />\n      <div class=\"grow truncate overflow-hidden\">{{ tabName }}</div>\n    </div>\n    <div class=\"click hover:text-warning shrink-0 mr-2\" @click=\"onClose\">\n      <i class=\"fa-solid fa-xmark fa-sm\"></i>\n    </div>\n  </div>\n</template>\n<script>\n\nexport default {\n  props: ['params'],\n  data() {\n    return {\n      project: null,\n    }\n  },\n  async created() {\n    this.project = this.$projects.allProjectsById[this.projectId]\n  },\n  computed: {\n    chat() {\n      const chatId = this.params?.params?.chat?.id\n      return this.$storex.chats.chats[chatId]\n    },\n    app() {\n      return this.params.params.app\n    },\n    tabName() {\n      return this.chat?.name || \n        this.app?.title ||\n        this.params.params.tabName\n    },\n    api() {\n      return this.params.api\n    },\n    containerApi() {\n      return this.params.containerApi\n    },\n    panel() {\n      return this.api.panel\n    },\n    projectId() {\n      return this.params.params.project_id\n    },\n    isUpdating() {\n      return this.$storex.chats.isChatUpdating(this.chat?.id)\n    }\n  },\n  methods: {\n    onDragStart(event) {\n      // Only register a sprint task id when the tab is backed by a chat\n      if (!this.chat) return\n      event.dataTransfer.setData('sprintTaskId', this.chat.id)\n      event.dataTransfer.effectAllowed = 'move'\n    },\n    onClose() {\n      this.containerApi.removePanel(this.panel)\n    }\n  }\n}\n</script>\n```\n\n## Specifications\n\n| Aspect | Value |\n|--------|-------|\n| Draggable condition | `chat` exists (chat-backed tabs only) |\n| Data key | `sprintTaskId` |\n| Data value | `this.chat.id` |\n| Drag effect | `move` |\n| Cursor (idle / dragging) | `cursor-grab` / `active:cursor-grabbing` |\n| Transition | none (native drag handles feedback) |\n\n## Anti-Patterns\n\n- \u274c Always setting `draggable=\"true\"` \u2014 plain app tabs shouldn't be draggable and would emit confusing drop payloads.\n- \u274c Writing the id in `dragend` instead of `dragstart` \u2014 `dataTransfer` is only writable during `dragstart` (and is cleared synchronously after the drag ends).\n- \u274c Using browser-specific types like `text/plain` for your own id \u2014 a custom key (`sprintTaskId`) avoids collision with other drag sources on the page.\n\n## Accessibility Checklist\n\n- [x] Drag is an **enhancement** \u2014 the tab remains fully operable via click/keyboard (`onClose` unaffected).\n- [x] No focus ring regression \u2014 added classes only set `cursor`.\n- [ ] Consider adding a keyboard alternative (e.g. a context menu \"Add to sprint\") for users who can't drag.\n\n## Implementation Steps\n\n1. Add `:draggable=\"!!chat\"` to the root `<div>`.\n2. Add the `cursor-grab active:cursor-grabbing` binding (via `:class`) so the affordance shows only for chat tabs.\n3. Wire `@dragstart=\"onDragStart\"` on the root element.\n4. Add the `onDragStart` method that writes `event.dataTransfer.setData('sprintTaskId', this.chat.id)`.\n5. On the drop target side, read it back with `event.dataTransfer.getData('sprintTaskId')`.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-05 08:48:36.617126",
+      "updated_at": "2026-10-05T08:48:43.548098",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1791190116.5172157,
+        "cancellation_token_id": "4a8739c1-d215-44bf-ab11-3f6dab9c85af",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 6011,
+          "completion_tokens": 1393,
+          "total_tokens": 7404,
+          "tools": {}
+        },
+        "time_taken": 7.030817747116089,
+        "first_chunk_time_taken": 0.7132604122161865,
+        "files": [
+          {
+            "language": "vue",
+            "file_path": "src/components/desktop/Tab.vue",
+            "content": "<script setup>\nimport AppIcon from '../apps/AppIcon.vue'\n</script>\n<template>\n  <div\n    class=\"codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md\"\n    :draggable=\"!!chat\"\n    :class=\"{ 'cursor-grab active:cursor-grabbing': !!chat }\"\n    @dragstart=\"onDragStart\"\n  >\n    <div class=\"w-4/5 flex gap-1 items-center truncate overflow-hidden\">\n      <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->\n      <AppIcon :app=\"app\" :loading=\"isUpdating\" />\n      <div class=\"grow truncate overflow-hidden\">{{ tabName }}</div>\n    </div>\n    <div class=\"click hover:text-warning shrink-0 mr-2\" @click=\"onClose\">\n      <i class=\"fa-solid fa-xmark fa-sm\"></i>\n    </div>\n  </div>\n</template>\n<script>\n\nexport default {\n  props: ['params'],\n  data() {\n    return {\n      project: null,\n    }\n  },\n  async created() {\n    this.project = this.$projects.allProjectsById[this.projectId]\n  },\n  computed: {\n    chat() {\n      const chatId = this.params?.params?.chat?.id\n      return this.$storex.chats.chats[chatId]\n    },\n    app() {\n      return this.params.params.app\n    },\n    tabName() {\n      return this.chat?.name || \n        this.app?.title ||\n        this.params.params.tabName\n    },\n    api() {\n      return this.params.api\n    },\n    containerApi() {\n      return this.params.containerApi\n    },\n    panel() {\n      return this.api.panel\n    },\n    projectId() {\n      return this.params.params.project_id\n    },\n    isUpdating() {\n      return this.$storex.chats.isChatUpdating(this.chat?.id)\n    }\n  },\n  methods: {\n    onDragStart(event) {\n      // Only register a sprint task id when the tab is backed by a chat\n      if (!this.chat) return\n      event.dataTransfer.setData('sprintTaskId', this.chat.id)\n      event.dataTransfer.effectAllowed = 'move'\n    },\n    onClose() {\n      this.containerApi.removePanel(this.panel)\n    }\n  }\n}\n</script>"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "1fc7d33ec39d",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "profiles": [
+        "Designer",
+        "VueDeveloper",
+        "daisyui_components",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-05 08:47:31.176835",
+  "updated_at": "2026-10-05T09:12:47.431109",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "sprints": [
+    "Planing and Sprint features"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/add-sprinttaskid-drag-support-to-tabs.22079323-9255-4007-9cca-6a91dfac92fd.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-05T08:48:45.195223+00:00",
+      "summary": "- User requested that chat-backed tabs register their chat id as `sprintTaskId` on drag, readable via `event.dataTransfer.getData('sprintTaskId')`.\n- I recommended making the tab conditionally `draggable=\"true\"` only when a `chat` exists, keeping plain app/tool tabs non-draggable.\n- Added `@dragstart=\"onDragStart\"` and a `cursor-grab active:cursor-grabbing` affordance to the tab root element.\n- The `onDragStart` method guards on `this.chat`, then calls `event.dataTransfer.setData('sprintTaskId', this.chat.id)` with `effectAllowed = 'move'`.\n- Provided full Tab.vue, a specs table, anti-patterns, accessibility notes, and step-by-step implementation, plus the drop-side read instruction.",
+      "message_ids": [
+        "0b67fd23-b311-444c-b49d-e09b11e1fd27",
+        "7167247b-597f-4469-9ae0-506dbe50abf1"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": true,
+  "ignore_parent_files": true
+}

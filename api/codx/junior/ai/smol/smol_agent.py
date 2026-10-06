@@ -1,7 +1,8 @@
 """
 SmolAgent: a small, async-only OpenAI chat agent.
 
-Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
+Compared to the removed :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this
+implementation:
     * exposes a single async ``chat()`` method (no sync variant),
     * uses an **iterative** tool loop instead of recursion,
     * delegates loop protection to :class:`LoopGuard`,
@@ -9,6 +10,7 @@ Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
       :class:`engine.agent_runtime.AgentRunContext`,
     * keeps streaming, callbacks, cancellation and analytics.
     * caches tool results per conversation to avoid re-execution.
+    * returns a typed :class:`AgentRunResult` (no untyped ``additional_kwargs``).
 
 Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
@@ -23,6 +25,17 @@ the findings survive in the persisted message and the next iteration can
 continue without re-running the same tools. The summary request is
 best-effort, does not count towards the loop limits, and its token usage is
 recorded separately with the ``tool-analysis`` tag.
+
+Cost-Limit Handling
+Every round (iteration) computes its cost in cxjcoins from the provider usage
+and the model price settings, accumulates it into the chat total and reports it
+on the returned :class:`AgentRunResult` (``result.cost``). Tools that report
+their own cost through :attr:`ToolResponse.cost` are summed into both the
+per-run total and the chat total. The chat total is seeded from ``Chat.cost``
+(the accumulated, deletion-safe value maintained by ChatManager) so the budget
+applies to the whole chat and is not reset when messages are deleted. When the
+chat reaches its estimated cost (``Chat.estimation_cost``), the run stops
+gracefully — before executing further tools — to keep the chat within budget.
 
 Message Structure
 When tools are used in a conversation, the agent now produces a single final
@@ -66,6 +79,7 @@ from codx.junior.ai.smol.constants import (
     TOOL_ANALYSIS_HEADING,
     TOOL_ANALYSIS_SYSTEM_PROMPT,
     TOOL_ANALYSIS_FALLBACK_NOTE,
+    ESTIMATION_COST_EXCEEDED_MSG,
 )
 from codx.junior.ai.smol.loop_guard import LoopGuard, ToolLoopError
 from codx.junior.ai.smol.messages import (
@@ -78,6 +92,13 @@ from codx.junior.ai.smol.tool_cache import ToolCache
 from codx.junior.analytics import Analytics
 from codx.junior.analytics.model import ArchivedMessage, ToolCallMessage
 from codx.junior.analytics.token_counter import count_tokens
+from codx.junior.model.agent import (
+    AgentRunResult,
+    CostInfo,
+    RoundCost,
+    ToolCacheStats,
+    ToolRunSummary,
+)
 from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.tools import (
@@ -277,7 +298,7 @@ class SmolAgent:
             L --> F
             I -->|limit exceeded| M[Summarise tool usage and finish gracefully]
             G -->|stop / length| N[Append final LLM text to final_answer_content]
-            N --> O[Emit single final answer AIMessage combining thinking + final]
+            N --> O[Append final AIMessage + return typed AgentRunResult]
             M --> O
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
@@ -362,7 +383,7 @@ class SmolAgent:
         self,
         messages: List[Union[AIMessage, HumanMessage]],
         config: Optional[Dict[str, Any]] = None,
-    ) -> List[Union[AIMessage, HumanMessage]]:
+    ) -> AgentRunResult:
         """
         Run a streaming chat completion with iterative multi-step tool support.
 
@@ -378,6 +399,12 @@ class SmolAgent:
         answer (see :meth:`_summarize_tool_usage`). This keeps the work in the
         persisted message so the next iteration can continue without repeating
         the same tools.
+
+        Cost limits are handled gracefully too: every round's cost (plus any
+        cost reported by tools via :attr:`ToolResponse.cost`) is accumulated and
+        returned in the typed :class:`AgentRunResult`. Once the chat reaches
+        ``Chat.estimation_cost``, the run stops before executing further tools so
+        the chat never exceeds its budget.
 
         Message Structure
         The response always appends a single final answer AIMessage that
@@ -395,8 +422,9 @@ class SmolAgent:
                       ``vision_content`` (optional vision API content blocks).
 
         Returns:
-            Updated *messages* list with the final assistant reply appended.
-            Tool results (llm_response, plain outputs) are never included.
+            The typed :class:`AgentRunResult` for this run. Its ``messages``
+            attribute contains the updated conversation (with the final
+            assistant reply appended); ``cost`` carries the cost breakdown.
 
         Raises:
             CancelledError: If the request is cancelled by the caller.
@@ -405,7 +433,7 @@ class SmolAgent:
         self._preflight_limit_check()
 
         run_context = self._resolve_run_context(config)
-        result: Optional[List[Union[AIMessage, HumanMessage]]] = None
+        result: Optional[AgentRunResult] = None
 
         # run_context.run() emits RUN_* lifecycle events. It swallows
         # AgentCancelled (emitting RUN_CANCELLED), so we translate the
@@ -424,7 +452,7 @@ class SmolAgent:
         messages: List[Union[AIMessage, HumanMessage]],
         config: Dict[str, Any],
         run_context: AgentRunContext,
-    ) -> List[Union[AIMessage, HumanMessage]]:
+    ) -> AgentRunResult:
         """
         Execute the iterative streaming/tool loop for one conversation.
 
@@ -439,7 +467,8 @@ class SmolAgent:
         Message generation:
         - Always emits exactly one AIMessage combining thinking_content and
           final_answer_content so the persisted message contains everything
-          the user saw during streaming.
+          the user saw during streaming. All run information (cost, usage,
+          tool summaries) is returned in the typed :class:`AgentRunResult`.
 
         Tool caching:
         - Identical tool calls (same name + args) are cached per conversation.
@@ -453,13 +482,19 @@ class SmolAgent:
           ``thinking_content`` so it is streamed to the user and persisted in
           the final answer.
 
+        Cost limits:
+        - Every round is priced in cxjcoins from provider usage + model prices
+          and accumulated into the chat total. When the chat reaches its
+          ``estimation_cost``, the loop is broken gracefully (before running
+          more tools) and a notice is appended to the answer.
+
         Args:
             messages:    Conversation history as LangChain message objects.
             config:      Chat configuration dict (see :meth:`chat`).
             run_context: Unified runtime context for this run.
 
         Returns:
-            Updated *messages* list with the final assistant reply appended.
+            The typed :class:`AgentRunResult` for this run.
 
         Raises:
             AgentCancelled: If cancellation is requested mid-run.
@@ -498,6 +533,23 @@ class SmolAgent:
         # Cached results bypass LoopGuard checks and don't count towards limits.
         tool_cache = ToolCache()
 
+        # Chat cost budget: seed the accumulated chat cost from Chat.cost, the
+        # deletion-safe accumulator maintained by ChatManager. Falling back to
+        # summing the message costs keeps this working for chats persisted
+        # before the accumulator existed.
+        chat_cost: float = self._accumulated_chat_cost(current_chat)
+        # Cost of THIS run (this SmolAgent iteration).
+        iteration_cost: float = 0.0
+
+        # Typed run accumulators (replace the previous additional_kwargs contract).
+        # They feed the returned AgentRunResult.cost breakdown.
+        total_input_tokens: int = 0
+        total_output_tokens: int = 0
+        total_input_cost: float = 0.0
+        total_output_cost: float = 0.0
+        total_tool_cost: float = 0.0
+        tool_cost_by_name: Dict[str, float] = {}
+
         request_start = time.monotonic()
 
         # Track whether any tools were used in this conversation.
@@ -514,12 +566,39 @@ class SmolAgent:
         # and a tool-usage summary is produced so the work is not lost.
         loop_limit_error: Optional[str] = None
 
+        # Set when the chat reaches its estimated cost. The loop is then broken
+        # gracefully (before executing more tools) and a notice is appended.
+        cost_limit_error: Optional[str] = None
+
+        # Initialised before the loop so they are always defined for the
+        # post-loop analytics call, even when the very first budget check stops
+        # the run before any completion is performed.
+        request_id: Optional[str] = None
+        usage_info: Any = None
+
         # Extract vision content from config (optional)
         vision_content: Optional[List[Dict[str, Any]]] = config.get("vision_content")
 
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
         while True:
+            # Stop BEFORE spending more when the chat already reached its
+            # estimated cost (covers the case where a previous round pushed the
+            # chat over budget).
+            if self._cost_limit_exceeded(current_chat, chat_cost):
+                cost_limit_error = ESTIMATION_COST_EXCEEDED_MSG.format(
+                    spent=chat_cost,
+                    limit=current_chat.estimation_cost,
+                )
+                logger.warning(
+                    "SmolAgent: chat cost limit reached before round %d "
+                    "(spent=%.4f, limit=%.4f); stopping gracefully",
+                    loop_guard.rounds + 1,
+                    chat_cost,
+                    current_chat.estimation_cost,
+                )
+                break
+
             request_id = str(uuid.uuid4())
             content, tool_calls, usage_info = await self._stream_completion(
                 kwargs=kwargs,
@@ -534,11 +613,48 @@ class SmolAgent:
                 vision_content=vision_content,
             )
 
+            # Register the cost of this round (iteration) in cxjcoins and add
+            # it to both the iteration total and the chat total.
+            round_cost = self._compute_cost(
+                usage_info=usage_info,
+                content=content,
+                openai_messages=openai_messages,
+            )
+            iteration_cost += round_cost.total_cost_cxjcoins
+            chat_cost += round_cost.total_cost_cxjcoins
+            total_input_tokens += round_cost.input_tokens
+            total_output_tokens += round_cost.output_tokens
+            total_input_cost += round_cost.input_cost_cxjcoins
+            total_output_cost += round_cost.output_cost_cxjcoins
+            logger.info(
+                "SmolAgent: round cost %.6f cxjcoins "
+                "(iteration total %.6f, chat total %.6f)",
+                round_cost.total_cost_cxjcoins,
+                iteration_cost,
+                chat_cost,
+            )
+
             if not tool_calls:
                 # Final response (no tool calls): accumulate in final_answer_content
                 # and exit the loop.
                 if content:
                     final_answer_content += content
+                break
+
+            # Enforce the chat cost budget BEFORE executing more tools so the
+            # chat does not spend beyond the estimated cost the user set.
+            if self._cost_limit_exceeded(current_chat, chat_cost):
+                cost_limit_error = ESTIMATION_COST_EXCEEDED_MSG.format(
+                    spent=chat_cost,
+                    limit=current_chat.estimation_cost,
+                )
+                logger.warning(
+                    "SmolAgent: chat cost limit reached at round %d "
+                    "(spent=%.4f, limit=%.4f); stopping before tools",
+                    loop_guard.rounds + 1,
+                    chat_cost,
+                    current_chat.estimation_cost,
+                )
                 break
 
             # Tool calls detected: mark that tools were used and accumulate LLM
@@ -746,6 +862,30 @@ class SmolAgent:
                         )
                     )
 
+                # Register any cost reported by the tool itself (e.g. a tool
+                # that performs its own AI call) into this iteration and the
+                # chat total, so it is billed on the response message and
+                # counted towards the estimation_cost budget. Cached results
+                # are intentionally skipped: no new cost is incurred when a
+                # tool result is reused within the same run.
+                tool_cost = self._tool_cost(tool_result)
+                if tool_cost:
+                    iteration_cost += tool_cost
+                    chat_cost += tool_cost
+                    total_tool_cost += tool_cost
+                    tool_cost_by_name[tool_call["function"]] = (
+                        tool_cost_by_name.get(tool_call["function"], 0.0)
+                        + tool_cost
+                    )
+                    logger.info(
+                        "SmolAgent: tool '%s' reported cost %.6f cxjcoins "
+                        "(iteration total %.6f, chat total %.6f)",
+                        tool_call["function"],
+                        tool_cost,
+                        iteration_cost,
+                        chat_cost,
+                    )
+
                 logger.debug(
                     "SmolAgent: tool '%s' appended to conversation "
                     "(openai_messages now has %d entries)",
@@ -811,6 +951,19 @@ class SmolAgent:
                     len(summary_block),
                 )
 
+        # When the chat reached its estimated cost, append a notice so the user
+        # understands why the run stopped. No extra model request is made here
+        # (that would spend more of the budget).
+        if cost_limit_error:
+            thinking_content += cost_limit_error
+            # Stream the notice live so the user sees it immediately.
+            send_callback(cost_limit_error, True)
+            logger.info(
+                "SmolAgent: appended chat cost limit notice (%d chars) after "
+                "estimation_cost was reached",
+                len(cost_limit_error),
+            )
+
         # thinking_content is streamed live via send_callback during tool rounds
         # AND must be included in the final AIMessage so that chat_engine.py
         # persists it correctly. Without this, response_message.content only
@@ -826,6 +979,8 @@ class SmolAgent:
         # Always emit exactly one final answer AIMessage combining thinking
         # content (tool user_response outputs) and the final LLM answer.
         # This ensures the persisted message matches what was streamed.
+        # NO untyped metadata is attached: the full cost/usage breakdown is
+        # returned in the typed AgentRunResult below.
         combined_content = ""
         if thinking_content:
             combined_content += thinking_content
@@ -835,10 +990,11 @@ class SmolAgent:
         if combined_content:
             logger.info(
                 "SmolAgent: final answer message assembled with %d characters "
-                "(%d thinking + %d final answer)",
+                "(%d thinking + %d final answer, %.6f cxjcoins)",
                 len(combined_content),
                 len(thinking_content),
                 len(final_answer_content),
+                iteration_cost,
             )
             messages.append(AIMessage(content=combined_content))
         elif not tools_were_used:
@@ -846,7 +1002,49 @@ class SmolAgent:
             logger.warning("SmolAgent: no content produced in chat")
             messages.append(AIMessage(content=""))
 
-        return messages
+        # Build the typed run result (replaces the previous untyped
+        # ``additional_kwargs = {"cost": ..., "chat_cost": ...}`` contract).
+        analytics_summary = run_context.analytics.summary()
+        tool_stats: Dict[str, Dict[str, Any]] = analytics_summary.get("tools", {}) or {}
+        cache_stats = tool_cache.stats()
+
+        cost_info = CostInfo(
+            iteration_cost_cxjcoins=iteration_cost,
+            chat_cost_cxjcoins=chat_cost,
+            estimation_cost_cxjcoins=getattr(current_chat, "estimation_cost", None),
+            budget_reached=bool(cost_limit_error),
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
+            total_tokens=total_input_tokens + total_output_tokens,
+            input_cost_cxjcoins=total_input_cost,
+            output_cost_cxjcoins=total_output_cost,
+            tool_cost_cxjcoins=total_tool_cost,
+        )
+
+        return AgentRunResult(
+            content=combined_content,
+            messages=messages,
+            cost=cost_info,
+            iterations=loop_guard.rounds,
+            tools_used=tools_were_used,
+            tools=[
+                ToolRunSummary(
+                    tool=name,
+                    calls=stats.get("count", 0),
+                    errors=stats.get("errors", 0),
+                    duration_ms=stats.get("total_ms", 0.0),
+                    cost_cxjcoins=tool_cost_by_name.get(name, 0.0),
+                )
+                for name, stats in tool_stats.items()
+            ],
+            cache=ToolCacheStats(
+                hits=cache_stats.get("hits", 0),
+                misses=cache_stats.get("misses", 0),
+                size=cache_stats.get("size", 0),
+                hit_rate=cache_stats.get("hit_rate", 0),
+            ),
+            loop_limit_reached=bool(loop_limit_error),
+        )
 
     # ── Runtime context ────────────────────────────────────────────────────────
 
@@ -1169,7 +1367,8 @@ class SmolAgent:
             - str: Traditional single-response (used for LLM context only)
             - ToolResponse: Dual-response; user_response goes to the thinking
               message, llm_response goes to the model only. ToolResponse can
-              include logs for forensic audit trail.
+              include logs for forensic audit trail and a cost (cxjcoins)
+              which is summed into the response/chat cost.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -1597,6 +1796,136 @@ class SmolAgent:
                 "SmolAgent: failed to record tool analysis usage (non-fatal): %s",
                 ex,
             )
+
+    # ── Cost tracking (Chat.estimation_cost) ───────────────────────────────────
+
+    @staticmethod
+    def _accumulated_chat_cost(current_chat: Optional[Any]) -> float:
+        """
+        Return the accumulated cost of the chat in cxjcoins.
+
+        Prefers ``Chat.cost`` — the deletion-safe accumulator maintained by
+        ``ChatManager`` (it is NOT reduced when messages are deleted). Falls
+        back to summing the cost registered on the chat's messages for chats
+        persisted before the accumulator existed.
+
+        Args:
+            current_chat: The Chat object in context (may be ``None``).
+
+        Returns:
+            Total cost in cxjcoins accumulated so far (0.0 when unknown).
+        """
+        if not current_chat:
+            return 0.0
+
+        accumulated = getattr(current_chat, "cost", None)
+        if accumulated is not None and accumulated > 0:
+            return float(accumulated)
+
+        return sum(
+            getattr(message, "cost", 0.0) or 0.0
+            for message in (getattr(current_chat, "messages", None) or [])
+        )
+
+    @staticmethod
+    def _tool_cost(tool_result: Any) -> float:
+        """
+        Return the cost in cxjcoins reported by a tool result.
+
+        Tools that perform their own AI calls (or otherwise incur cost) can
+        report it on the :class:`ToolResponse` ``cost`` field. The cost is
+        summed into the iteration total (billed on the returned message) and
+        the chat total (used to enforce ``Chat.estimation_cost``).
+
+        Args:
+            tool_result: The value returned by a tool (str, ToolResponse, ...).
+
+        Returns:
+            The reported cost in cxjcoins (0.0 when not a ToolResponse or unset).
+        """
+        if isinstance(tool_result, ToolResponse):
+            try:
+                return float(getattr(tool_result, "cost", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "SmolAgent: ignoring invalid ToolResponse.cost value: %r",
+                    getattr(tool_result, "cost", None),
+                )
+                return 0.0
+        return 0.0
+
+    def _compute_cost(
+        self,
+        usage_info: Any,
+        content: str,
+        openai_messages: List[Dict[str, Any]],
+    ) -> RoundCost:
+        """
+        Compute the token usage and cost in cxjcoins of a single completion round.
+
+        Uses the provider-reported usage when available, falling back to a
+        token-count estimate otherwise. Only the input/output token prices of
+        the active model (``AISettings``) are used, matching the pricing model
+        used by the analytics subsystem.
+
+        Args:
+            usage_info:      Provider-reported usage for this round (may be ``None``).
+            content:         Text generated in this round (for output fallback).
+            openai_messages: Conversation history sent in this round (for input fallback).
+
+        Returns:
+            A :class:`RoundCost` with tokens and input/output costs in cxjcoins
+            (zeroed when no pricing is configured).
+        """
+        input_price = getattr(self.llm_settings, "input_k_tokens_cxjcoins", 0.0) or 0.0
+        output_price = getattr(self.llm_settings, "output_k_tokens_cxjcoins", 0.0) or 0.0
+        if not input_price and not output_price:
+            return RoundCost()
+
+        input_tokens = getattr(usage_info, "prompt_tokens", 0) or 0
+        output_tokens = getattr(usage_info, "completion_tokens", 0) or 0
+
+        if not input_tokens:
+            input_text = "\n".join(
+                m.get("content", "")
+                for m in openai_messages
+                if isinstance(m.get("content"), str)
+            )
+            input_tokens = count_tokens(input_text, model=self.model)
+        if not output_tokens and content:
+            output_tokens = count_tokens(content, model=self.model)
+
+        return RoundCost(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            input_cost_cxjcoins=(input_tokens / 1000.0) * input_price,
+            output_cost_cxjcoins=(output_tokens / 1000.0) * output_price,
+        )
+
+    @staticmethod
+    def _cost_limit_exceeded(
+        current_chat: Optional[Any],
+        chat_cost: float,
+    ) -> bool:
+        """
+        Return True when the accumulated chat cost reached ``estimation_cost``.
+
+        A limit is enforced only when ``Chat.estimation_cost`` is set to a
+        positive value; ``None`` or non-positive values disable the limit.
+
+        Args:
+            current_chat: The Chat object in context (may be ``None``).
+            chat_cost:    Accumulated chat cost in cxjcoins.
+
+        Returns:
+            True when the chat budget has been reached or exceeded.
+        """
+        if not current_chat:
+            return False
+        limit = getattr(current_chat, "estimation_cost", None)
+        if limit is None or limit <= 0:
+            return False
+        return chat_cost >= limit
 
     @staticmethod
     def _parse_tool_arguments(raw_arguments: Any, func_name: str) -> Dict[str, Any]:

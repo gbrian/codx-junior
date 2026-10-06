@@ -67,6 +67,14 @@ CHANGED — time-range filtering:
     enabling an explicit ``[from_date, to_date]`` window. Both bounds are
     applied against the chat file ``mtime``. When a bound is ``None`` it is
     ignored, so existing callers are unaffected.
+
+NEW — accumulated chat cost (``Chat.cost``):
+    ``Chat.cost`` accumulates the cxjcoins spent on a chat. It is updated here
+    whenever a message carrying a cost is added or updated, using the persisted
+    version of that message as the baseline (so a cost registered *after* the
+    message was first persisted is still captured exactly once). The value is
+    MONOTONIC — deleting a message never reduces it — so the chat budget stays
+    accurate even when messages are removed.
 """
 import logging
 import pathlib
@@ -160,6 +168,11 @@ class ChatManager:
         * ``add_message`` inserts (idempotent: skips in-memory duplicate by ``doc_id``).
         * ``update_message`` matches by ``doc_id`` (appends if missing).
         * Both merge against the stored chat so concurrent updates are never lost.
+
+    Contract relied upon for the chat budget:
+        * ``add_message`` / ``update_message`` accumulate ``message.cost`` into
+          ``chat.cost`` (monotonic). ``remove_message`` never reduces
+          ``chat.cost``, so deleted messages still count towards the budget.
     """
 
     def __init__(self, settings: CODXJuniorSettings, event_manager: Optional[EventManager] = None):
@@ -681,23 +694,95 @@ class ChatManager:
                 )
         return self.find_by_id(chat_id=chat.id) if chat.id else None
 
-    def _persist_chat_messages(self, chat: Chat) -> Chat:
+    @staticmethod
+    def _accumulate_message_cost(
+        chat: Chat,
+        stored_chat: Optional[Chat],
+        message: Message,
+    ) -> float:
+        """
+        Accumulate the cost of a single *message* into ``chat.cost`` (monotonic).
+
+        The persisted (stored) version of the message is used as the baseline so
+        the cost is counted **exactly once**, while still capturing costs that
+        are registered AFTER the message was first persisted (SmolAgent sets the
+        cost on the response message once the AI call returns, which happens
+        after the message may already have been streamed/saved with cost 0).
+
+        Only POSITIVE deltas are applied, so ``chat.cost`` never decreases. As a
+        result, deleting a message (see :meth:`remove_message`) never reduces the
+        accumulated cost of the chat.
+
+        :param chat: The in-memory chat whose accumulated cost to update.
+        :param stored_chat: The persisted chat (baseline), or ``None``.
+        :param message: The message whose cost to account for.
+        :return: The delta actually added (0.0 when nothing changed).
+        """
+        new_cost = getattr(message, "cost", 0.0) or 0.0
+        if new_cost <= 0:
+            return 0.0
+
+        previous_cost = 0.0
+        if stored_chat:
+            stored_message = next(
+                (m for m in stored_chat.messages if m.doc_id == message.doc_id),
+                None,
+            )
+            if stored_message is not None:
+                previous_cost = getattr(stored_message, "cost", 0.0) or 0.0
+
+        delta = new_cost - previous_cost
+        if delta <= 0:
+            return 0.0
+
+        chat.cost = (getattr(chat, "cost", 0.0) or 0.0) + delta
+        logger.info(
+            "Accumulated chat cost: chat='%s' message='%s' delta=%.6f total=%.6f",
+            chat.id,
+            message.doc_id,
+            delta,
+            chat.cost,
+        )
+        return delta
+
+    def _persist_chat_messages(
+        self,
+        chat: Chat,
+        stored_chat: Optional[Chat] = None,
+        cost_message: Optional[Message] = None,
+    ) -> Chat:
         """
         Merge-safe persistence used by the granular message operations.
 
         Reloads the stored chat (if any), merges message lists so mid-turn
-        saves never clobber concurrent updates, then delegates to
+        saves never clobber concurrent updates, optionally accumulates the cost
+        of *cost_message* into ``chat.cost`` and then delegates to
         :meth:`save_chat`.
 
         :param chat: The in-memory chat to persist.
+        :param stored_chat: Optional pre-loaded stored chat (avoids a second
+            disk read when the caller already loaded it).
+        :param cost_message: Optional message whose cost must be accumulated
+            into ``chat.cost`` before saving.
         :return: The persisted chat (same instance, messages may be merged).
         """
         manager = self._resolve_owner_manager(chat)
-        stored_chat = manager._load_stored_chat(chat)
+        if stored_chat is None:
+            stored_chat = manager._load_stored_chat(chat)
         if stored_chat:
+            # Keep the accumulated cost monotonic: never regress a value that
+            # may already have been persisted by another writer.
+            if (stored_chat.cost or 0.0) > (chat.cost or 0.0):
+                chat.cost = stored_chat.cost
             chat.messages = self._merge_message_lists(
                 stored_messages=stored_chat.messages,
                 incoming_messages=chat.messages,
+            )
+        if cost_message is not None:
+            manager._accumulate_message_cost(
+                chat=chat,
+                stored_chat=stored_chat,
+                message=cost_message,
             )
         return manager.save_chat(chat=chat)
 
@@ -708,6 +793,8 @@ class ChatManager:
         Used to notify events (tool usage, run lifecycle) in real time while
         an AI turn is still running. Idempotent in memory: the message is not
         appended twice if its ``doc_id`` is already on the chat.
+
+        The message's cost (if any) is accumulated into ``chat.cost``.
 
         :param chat: The chat to add the message to (mutated in place).
         :param message: The message to add.
@@ -724,13 +811,18 @@ class ChatManager:
             message.doc_id,
             message.role,
         )
-        return self._persist_chat_messages(chat)
+        return self._persist_chat_messages(chat, cost_message=message)
 
     def update_message(self, chat: Chat, message: Message) -> Chat:
         """
         Update an existing message in *chat* (matched by ``doc_id``) and
         persist immediately (merge-safe). If the message is not found it is
         appended instead.
+
+        The message's cost (if any) is accumulated into ``chat.cost`` — this
+        captures the cost SmolAgent registers on the response message AFTER the
+        AI call completes, even if the message was already persisted with a
+        cost of 0 during streaming.
 
         :param chat: The chat containing the message (mutated in place).
         :param message: The updated message.
@@ -755,7 +847,7 @@ class ChatManager:
             message.doc_id,
             found,
         )
-        return self._persist_chat_messages(chat)
+        return self._persist_chat_messages(chat, cost_message=message)
 
     def update_chat_metadata(self, chat: Chat, metadata: dict) -> Chat:
         """
@@ -785,6 +877,9 @@ class ChatManager:
         Remove the message identified by *message_doc_id* from *chat* and
         persist. The removal is applied on top of the merged (stored +
         in-memory) message list so no other concurrent change is lost.
+
+        The accumulated cost (``chat.cost``) is intentionally NOT changed:
+        deleting a message keeps its cost in the chat budget.
 
         :param chat: The chat containing the message (mutated in place).
         :param message_doc_id: ``doc_id`` of the message to remove.

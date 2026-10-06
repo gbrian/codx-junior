@@ -2,16 +2,51 @@
 import KanbanBoardSidebar from './KanbanBoardSidebar.vue'
 import KanbanBoardCanvas from './KanbanBoardCanvas.vue'
 import KanbanBoardModals from './KanbanBoardModals.vue'
+import SprintBoardView from './SprintBoardView.vue'
 import KanbanList from '../KanbanList.vue'
 import PlanningView from './PlanningView.vue'
 import FollowupView from './FollowupView.vue'
 </script>
 
 <template>
-  <div class="kanban-board-view flex flex-col h-full overflow-hidden bg-base-100 relative">
+  <div class="kanban-board-view flex flex-col h-full overflow-hidden relative">
 
-    <!-- View switcher -->
-    <div class="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-base-100 bg-base-200 z-20">
+    <!-- Board list overlay (available from kanban and sprint views) -->
+    <transition name="fade-slide">
+      <div
+        v-if="showBoardList"
+        class="absolute inset-0 z-40 bg-base-100 flex flex-col overflow-hidden"
+      >
+        <!-- Back bar -->
+        <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-100 bg-base-200">
+          <button
+            @click="showBoardList = false"
+            class="btn btn-ghost btn-sm gap-1.5 text-base-content/60"
+          >
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+            <span class="text-xs">Back to board</span>
+          </button>
+          <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
+            All Boards
+          </span>
+        </div>
+
+        <!-- KanbanList -->
+        <div class="flex-1 overflow-auto p-4">
+          <KanbanList
+            @select="onSelectBoardFromList"
+            @new-board="openNewBoardModal"
+            @bookmark="onBookmark"
+          />
+        </div>
+      </div>
+    </transition>
+
+    <!-- View switcher (kanban boards only — sprint boards render their own toolbar) -->
+    <div
+      v-if="!isSprintBoard"
+      class="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-base-100 bg-base-200 z-20"
+    >
       <button
         v-for="tab in viewTabs"
         :key="tab.id"
@@ -29,39 +64,8 @@ import FollowupView from './FollowupView.vue'
       </button>
     </div>
 
-    <!-- ── Board view ── -->
-    <div v-show="activeView === 'board'" class="flex-1 min-h-0 flex overflow-hidden">
-      <!-- Board list overlay (triggered from sidebar search icon) -->
-      <transition name="fade-slide">
-        <div
-          v-if="showBoardList"
-          class="absolute inset-0 z-40 bg-base-100 flex flex-col overflow-hidden"
-        >
-          <!-- Back bar -->
-          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-100 bg-base-200">
-            <button
-              @click="showBoardList = false"
-              class="btn btn-ghost btn-sm gap-1.5 text-base-content/60"
-            >
-              <i class="fa-solid fa-arrow-left text-xs"></i>
-              <span class="text-xs">Back to board</span>
-            </button>
-            <span class="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
-              All Boards
-            </span>
-          </div>
-
-          <!-- KanbanList -->
-          <div class="flex-1 overflow-auto p-4">
-            <KanbanList
-              @select="onSelectBoardFromList"
-              @new-board="openNewBoardModal"
-              @bookmark="onBookmark"
-            />
-          </div>
-        </div>
-      </transition>
-
+    <!-- ── Kanban board view ── -->
+    <div v-show="activeView === 'board' && !isSprintBoard" class="flex-1 min-h-0 flex overflow-hidden">
       <!-- Sidebar -->
       <KanbanBoardSidebar
         :boards="boards"
@@ -99,6 +103,15 @@ import FollowupView from './FollowupView.vue'
         @reorder-tasks="onReorderTasks"
       />
     </div>
+
+    <!-- ── Sprint board view ── -->
+    <SprintBoardView
+      v-if="isSprintBoard && activeView === 'board'"
+      class="flex-1 min-h-0"
+      @open-task="onSelectTask"
+      @new-board="openNewBoardModal"
+      @browse-boards="showBoardList = true"
+    />
 
     <!-- ── Planning view ── -->
     <PlanningView v-if="activeView === 'planning'" class="flex-1 min-h-0" />
@@ -165,6 +178,10 @@ export default {
     activeBoard() {
       return this.$storex.kanban.activeKanbanBoard
     },
+    // Sprint boards replace the kanban canvas/sidebar with the sprint shell
+    isSprintBoard() {
+      return this.activeBoard?.type === 'sprint'
+    },
     activeColumns() {
       return this.activeBoard?.columns || []
     },
@@ -207,6 +224,12 @@ export default {
     // Apply a view requested through params/route (e.g. /kanban?view=planning)
     requestedView(view) {
       this.activeView = view || 'board'
+    },
+    // Sprint boards only expose the board view — force it when one is selected
+    activeBoard(board) {
+      if (board?.type === 'sprint' && this.activeView !== 'board') {
+        this.activeView = 'board'
+      }
     },
     // Switching back to the board view without an active board shows the board list
     activeView(view) {
@@ -288,9 +311,9 @@ export default {
       await this.$storex.kanban.updateColumn({ id, title, color })
       this.editingColumn = null
     },
-    async onBoardCreated({ title, description }) {
+    async onBoardCreated({ title, description, type }) {
       if (!title?.trim()) return
-      await this.$storex.kanban.addBoard({ title, description })
+      await this.$storex.kanban.addBoard({ title, description, type })
     }
   }
 }

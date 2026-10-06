@@ -757,12 +757,20 @@
     }
   ],
   "created_at": "2026-10-04 12:37:32.813547",
-  "updated_at": "2026-10-04T12:58:52.286113",
+  "updated_at": "2026-10-05T08:58:04.418782",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
   "board": "kanban",
   "column": "tasks",
+  "sprints": [
+    "Planing and Sprint features"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
   "columns": [],
   "chat_index": 0,
   "url": "",

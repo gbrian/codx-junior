@@ -1,0 +1,179 @@
+{
+  "id": "9c392f7e-f952-40fb-bc21-63e1548240b0",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "5a0fb6a6-7abd-473d-971e-d1ef77e08b72",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Tool feedback streaming duplication bug",
+  "pinned": false,
+  "is_template": false,
+  "description": "# Summary\n\n1. Reviewed a bug where tool feedback content is streamed multiple times but absent from the final message.\n2. Root cause: `send_callback` already accumulates internally and emits the full string, expecting only deltas.\n3. The LLM streaming and summary/cost paths correctly pass deltas, but both tool paths pass the entire `thinking_content` snapshot as a delta.\n4. This compounds duplication across tool rounds, so the streamed view diverges from the clean persisted `combined_content`, causing the mismatch.\n5. Fix pointers (not applied): in both cached/uncached tool paths of `_run_chat_loop`, pass only the new block instead of `thinking_content`.",
+  "messages": [
+    {
+      "doc_id": "9053fa85-5b54-479d-b71a-f22a67456d3f",
+      "role": "user",
+      "task_item": "",
+      "content": "  Looks like tools feedback message content is streamed same content multiple times but that content is not in the final message, pointing to an error accumulating content already emitted.\n\nAnalyze and  review, don't make any change, just point out where the problem is",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-06 08:26:55.004218",
+      "updated_at": "2026-10-06T08:26:55.004272",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_event_bridge.py"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "fe45a947-fa6d-4f0f-94b3-742e693c71d3",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Review: tool feedback duplicated in stream, missing from final message\n\nShort version: the bug is a **semantic mismatch between the two callers of `send_callback`**.\n\n`send_callback` (built in `_make_callback_sender`) **already accumulates internally** and always emits the **full accumulated string** on every flush. It therefore expects to receive **only the new chunk/delta**. The streaming code honors that, but the *tool* paths violate it by passing the **entire `thinking_content` snapshot** as if it were a new chunk. Because `thinking_content` already contains everything emitted so far, every tool round re-emits all prior content, and the duplication compounds.\n\n---\n\n## 1. The contract of `send_callback` (accumulating)\n\n```py codx/junior/ai/smol/smol_agent.py\ndef send_callback(chunk_content: str, flush: bool = False) -> None:\n    if not callbacks:\n        return\n    state[\"buffer\"].append(chunk_content or \"\")     # <-- appends\n    elapsed = (datetime.now() - state[\"ts\"]).total_seconds()\n    if flush or elapsed > CALLBACK_FLUSH_SECONDS:\n        state[\"ts\"] = datetime.now()\n        state[\"accumulated\"].extend(state[\"buffer\"])  # <-- accumulates\n        state[\"buffer\"] = []\n        message = \"\".join(state[\"accumulated\"])       # <-- emits FULL content\n        for callback in callbacks:\n            callback(message)\n```\n\nThe docstring confirms it: *\"batches streamed chunks and flushes the FULL ACCUMULATED response to callbacks\"*. So the argument must be a **delta**.\n\nThe delta contract is respected here (correct):\n\n```py codx/junior/ai/smol/smol_agent.py\nif choice.delta.content:\n    cleaned = clean_string(choice.delta.content)\n    content_parts.append(cleaned)\n    send_callback(cleaned, False)   # \u2705 delta only\n```\n\nAnd it is respected for the summary/limit blocks (correct):\n\n```py codx/junior/ai/smol/smol_agent.py\nthinking_content += summary_block\nsend_callback(summary_block, True)   # \u2705 delta only\n\nthinking_content += cost_limit_error\nsend_callback(cost_limit_error, True) # \u2705 delta only\n```\n\n---\n\n## 2. The bug: tool paths pass the full snapshot as a delta\n\n**Uncached tool path** (`_run_chat_loop`):\n\n```py codx/junior/ai/smol/smol_agent.py\nif tool_result.user_response:\n    thinking_content += (\n        f\"\\n```\\n{tool_result.user_response}\\n```\\n\"\n    )\n    # Flush the FULL accumulated thinking content to client\n    send_callback(thinking_content, True)   # \u274c thinking_content, not the new block\n```\n\n**Cached tool path** (`_run_chat_loop`): identical mistake\n\n```py codx/junior/ai/smol/smol_agent.py\nif result.user_response:\n    thinking_content += (\n        f\"\\n```\\n{result.user_response}\\n```\\n\"\n    )\n    send_callback(thinking_content, True)   # \u274c same problem\n```\n\nThe comment *\"Flush the FULL accumulated thinking content to client\"* betrays the wrong mental model: it assumes `send_callback` forwards verbatim, but `send_callback` **further accumulates** it. So `thinking_content` (which already includes the LLM text of the current round that was streamed chunk-by-chunk, plus all earlier rounds and tool blocks) gets appended on top of `state[\"accumulated\"]`.\n\n### Trace of the duplication\n\nLet `LLM1` = round-1 text, `U1` = round-1 tool user_response, etc.\n\n| step | `thinking_content` (final source) | `state[\"accumulated\"]` (streamed source) |\n|---|---|---|\n| round 1 LLM deltas | \u2013 | `LLM1` |\n| `thinking_content += LLM1` | `LLM1` | `LLM1` |\n| `+= U1` then `send_callback(thinking_content, True)` | `LLM1\u00b7U1` | `LLM1` + `LLM1\u00b7U1` \u2192 **`LLM1 LLM1 U1`** |\n| round 2 LLM deltas | `LLM1\u00b7U1` | `LLM1 LLM1 U1 LLM2` |\n| `+= LLM2; += U2` then flush | `LLM1\u00b7U1\u00b7LLM2\u00b7U2` | `\u2026 + LLM1\u00b7U1\u00b7LLM2\u00b7U2` \u2192 `U1` twice, `LLM1` thrice, growing every round |\n\nAdditionally, `_stream_completion` ends each round with `send_callback(\"\", True)`, which re-emits the whole accumulated buffer again on every round.\n\nSo the tool feedback (and all prior content) is streamed **N times**, growing per tool round \u2014 exactly what you observed.\n\n---\n\n## 3. Why the duplicated content is *not* in the final message\n\nThere are **two independent accumulators**:\n\n- **Streamed view** \u2192 `send_callback`'s `state[\"accumulated\"]` (corrupted with duplicates).\n- **Persisted message** \u2192 built at the end from `thinking_content` + `final_answer_content`:\n\n```py codx/junior/ai/smol/smol_agent.py\ncombined_content = \"\"\nif thinking_content:\n    combined_content += thinking_content\nif final_answer_content:\n    combined_content += final_answer_content\n...\nmessages.append(AIMessage(content=combined_content, ...))\n```\n\n`thinking_content` is a **clean** accumulator (each block appended once), while `state[\"accumulated\"]` is the **duplicated** one. They diverge, so:\n\n- What the user sees streamed (with repeats) is **not** what ends up in the saved response message (single occurrence).\n- Conversely, anything that relies on the streamed buffer vs. the final AIMessage will disagree.\n\nThat divergence is the direct consequence of \"accumulating content already emitted\" \u2014 the tool path adds to `thinking_content` *and* re-sends `thinking_content`, duplicating what was already streamed.\n\n---\n\n## 4. Extra inconsistencies worth noting\n\n- **Formatting mismatch:** streamed LLM deltas go through `clean_string(...)`, but the tool flush sends raw `thinking_content` (fences + raw `user_response`). So on top of duplication, the streamed and final shapes differ.\n- **`ChatEventBridge.maybe_persist_stream`** persists `self.response_message` at a throttled rate. Whatever populates `response_message.content` from the callback (the duplicated buffer) vs. the final `combined_content` will disagree, so partial on-disk snapshots taken during the run can contain the duplicated text while the end-of-run message does not \u2014 reinforcing the \"streamed but not in final message\" symptom.\n- **Empty-flush re-emit:** `send_callback(\"\", True)` at the end of `_stream_completion` re-emits the full accumulated buffer each round even when nothing new is added.\n- **Minor, separate:** if tools ran but produced neither `user_response` nor final text (`combined_content == \"\"` and `tools_were_used is True`), no AIMessage is appended at all (`elif not tools_were_used`).\n\n---\n\n## Where to fix (pointers only, no changes made)\n\n- `_run_chat_loop` \u2192 **cached tool path**: `send_callback(thinking_content, True)`\n- `_run_chat_loop` \u2192 **uncached tool path**: `send_callback(thinking_content, True)`\n\nBoth should pass **only the newly produced block** (consistent with the summary/cost usages and with the delta contract of `send_callback`), e.g. the `\\n```\\n{user_response}\\n```\\n` fragment \u2014 not the whole `thinking_content`.\n\nIf instead the intent were to stream full snapshots, then `_make_callback_sender` should stop maintaining `state[\"accumulated\"]` and forward verbatim \u2014 but that would contradict the LLM delta usage, so the correct resolution is to keep `send_callback` accumulating and pass deltas from the tool paths.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-06 08:26:55.890154",
+      "updated_at": "2026-10-06T09:08:16.523820",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1791275215.7575204,
+        "cancellation_token_id": "92147bcc-17c8-48a4-b03b-c01310bb6888",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 23953,
+          "completion_tokens": 14767,
+          "total_tokens": 38720,
+          "tools": {}
+        },
+        "time_taken": 64.73400092124939,
+        "first_chunk_time_taken": 0.370654821395874,
+        "files": [
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "def send_callback(chunk_content: str, flush: bool = False) -> None:\n    if not callbacks:\n        return\n    state[\"buffer\"].append(chunk_content or \"\")     # <-- appends\n    elapsed = (datetime.now() - state[\"ts\"]).total_seconds()\n    if flush or elapsed > CALLBACK_FLUSH_SECONDS:\n        state[\"ts\"] = datetime.now()\n        state[\"accumulated\"].extend(state[\"buffer\"])  # <-- accumulates\n        state[\"buffer\"] = []\n        message = \"\".join(state[\"accumulated\"])       # <-- emits FULL content\n        for callback in callbacks:\n            callback(message)"
+          },
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "if choice.delta.content:\n    cleaned = clean_string(choice.delta.content)\n    content_parts.append(cleaned)\n    send_callback(cleaned, False)   # \u2705 delta only"
+          },
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "thinking_content += summary_block\nsend_callback(summary_block, True)   # \u2705 delta only\n\nthinking_content += cost_limit_error\nsend_callback(cost_limit_error, True) # \u2705 delta only"
+          },
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "if tool_result.user_response:\n    thinking_content += (\n        f\"\\n```\\n{tool_result.user_response}\\n```\\n\"\n    )\n    # Flush the FULL accumulated thinking content to client\n    send_callback(thinking_content, True)   # \u274c thinking_content, not the new block"
+          },
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "if result.user_response:\n    thinking_content += (\n        f\"\\n```\\n{result.user_response}\\n```\\n\"\n    )\n    send_callback(thinking_content, True)   # \u274c same problem"
+          },
+          {
+            "language": "py",
+            "file_path": "codx/junior/ai/smol/smol_agent.py",
+            "content": "combined_content = \"\"\nif thinking_content:\n    combined_content += thinking_content\nif final_answer_content:\n    combined_content += final_answer_content\n...\nmessages.append(AIMessage(content=combined_content, ...))"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "c1aee0d855b7",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [
+        "admin"
+      ],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-06 08:25:00.167373",
+  "updated_at": "2026-10-06T09:08:16.524398",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/tool-feedback-streaming-duplication-bug.9c392f7e-f952-40fb-bc21-63e1548240b0.json",
+  "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-06T08:28:02.087146+00:00",
+      "summary": "# Summary\n\n1. Reviewed a bug where tool feedback content is streamed multiple times but absent from the final message.\n2. Root cause: `send_callback` already accumulates internally and emits the full string, expecting only deltas.\n3. The LLM streaming and summary/cost paths correctly pass deltas, but both tool paths pass the entire `thinking_content` snapshot as a delta.\n4. This compounds duplication across tool rounds, so the streamed view diverges from the clean persisted `combined_content`, causing the mismatch.\n5. Fix pointers (not applied): in both cached/uncached tool paths of `_run_chat_loop`, pass only the new block instead of `thinking_content`.",
+      "message_ids": [
+        "9053fa85-5b54-479d-b71a-f22a67456d3f",
+        "fe45a947-fa6d-4f0f-94b3-742e693c71d3"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": true,
+  "ignore_parent_files": true
+}

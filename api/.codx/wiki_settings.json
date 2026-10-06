@@ -225,6 +225,16 @@
           "path": "/codx/junior/model/planning.py",
           "slug": "planning.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/planning.md"
+        },
+        {
+          "path": "/codx/junior/model/agent.py",
+          "slug": "agent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/agent.md"
+        },
+        {
+          "path": "/codx/junior/knowledge/knowledge_ai_search.py",
+          "slug": "knowledge-ai-search.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/knowledge-ai-search.md"
         }
       ],
       "id": "project-overview",

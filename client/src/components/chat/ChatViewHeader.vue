@@ -52,6 +52,18 @@ import ProjectDetailt from '../ProjectDetailt.vue'
             {{ hiddenCount }}
           </span>
         </button>
+
+        <!-- Cost Badge (spent / budget) -->
+        <div
+          v-if="chat.cost"
+          class="flex items-center gap-1 text-xs rounded px-2 py-1 cursor-default tooltip tooltip-bottom"
+          :class="costClass"
+          :data-tip="costTooltip"
+        >
+          <i class="fa-solid fa-coins text-xs"></i>
+          <span class="tabular-nums font-medium">{{ formatCoins(chat.cost) }}</span>
+          <span v-if="chat.estimation_cost" class="opacity-70">/ {{ formatCoins(chat.estimation_cost) }}</span>
+        </div>
       </div>
     </div>
     
@@ -206,6 +218,30 @@ export default {
       workingChatName: ''
     }
   },
+  computed: {
+    // Ratio of spent cost vs budget (0 when no budget is set)
+    costRatio() {
+      if (!this.chat?.estimation_cost) return 0
+      return (this.chat.cost || 0) / this.chat.estimation_cost
+    },
+    // Chip color reacts to the budget usage
+    costClass() {
+      if (!this.chat?.estimation_cost) return 'bg-amber-400/10 text-amber-400'
+      const r = this.costRatio
+      if (r >= 1) return 'bg-error/10 text-error'
+      if (r >= 0.8) return 'bg-warning/10 text-warning'
+      return 'bg-success/10 text-success'
+    },
+    costTooltip() {
+      const spent = this.formatCoins(this.chat?.cost || 0)
+      if (this.chat?.estimation_cost) {
+        return `Cost: ${spent} of ${this.formatCoins(this.chat.estimation_cost)} cxjcoins (${Math.round(
+          this.costRatio * 100
+        )}%)`
+      }
+      return `Cost: ${spent} cxjcoins`
+    }
+  },
   watch: {
     chat: {
       immediate: true,
@@ -215,6 +251,12 @@ export default {
     }
   },
   methods: {
+    formatCoins(val) {
+      if (val == null) return '-'
+      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
+      if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
+      return Number(val).toFixed(2)
+    },
     saveTitle() {
       if (this.workingChatName.trim()) {
         this.chat.name = this.workingChatName

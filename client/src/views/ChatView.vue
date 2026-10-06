@@ -340,7 +340,6 @@ export default {
     async loadHierarchy() {
       if (!this.theChat) return
       try {
-        await this.$chats.loadChats()
         await this.$chats.ensureChatRoot(this.theChat)
       } catch (error) {
         console.error('Failed to load hierarchy:', error)
@@ -544,10 +543,10 @@ export default {
     onSelectSidebarChat(chat) {
       if (!chat) return
       this.activeChatId = chat.id
-      this.$ui.isMobile && this.$chats.setActiveChat(chat)
-      this.$emit('chat', chat)
-      if (chat && !chat.messages?.length) {
-        this.$chats.reloadChat(chat)
+      if (this.$ui.isMobile) {
+        this.$chats.setActiveChat(chat)
+      } else {
+        this.$chats.loadChat(chat)
       }
     },
     onSelectBreadcrumbChat(chat) {

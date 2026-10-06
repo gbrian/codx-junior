@@ -8,6 +8,7 @@ export const namespaced = true
 // ─── Chat Mode Configuration ───────────────────────────────────────────────
 export const CHAT_MODES = {
   chat: { value: 'chat', label: 'Chat', icon: 'fa-comments' },
+  agent: { value: 'agent', label: 'Agent', icon: 'fa-solid fa-arrows-spin' },
   task: { value: 'task', label: 'Task', icon: 'fa-tasks' },
   topic: { value: 'topic', label: 'Topic', icon: 'fa-lightbulb' },
   preview: { value: 'preview', label: 'Preview', icon: 'fa-eye' },
@@ -33,6 +34,7 @@ export const state = () => ({
   activeChatId: null,
   chatEvents: {},
   chatLoadingStatus: {}, // { [chatId]: ENTITY_STATUS }
+  needsReload: {}, // { [chatId]: true } chat only carries a summary (last message) and must be fully reloaded before display
   searchResults: null,
   recentChatIds: [],
   recentChatsPage: 1,
@@ -56,6 +58,37 @@ function registerChat(state, chat) {
     ...chat,
     lastMessageAt
   }
+}
+
+// Register a chat that only carries a summary (e.g. from list()/search() — the
+// last message only).
+// - If the full history is already loaded, keep its messages and only refresh
+//   the rest of the chat info from the summary.
+// - If a full load is in flight, leave the chat untouched.
+// - Otherwise flag it so the full history is fetched before the chat is shown.
+function registerChatSummary(state, chat) {
+  if (!chat?.id) return
+
+  const status = state.chatLoadingStatus[chat.id]
+
+  // A full load is in flight — the summary would only clobber the incoming
+  // full history, so leave the chat untouched.
+  if (status === ENTITY_STATUS.LOADING) {
+    return
+  }
+
+  // Full history already loaded: keep its messages, refresh the chat info.
+  if (status === ENTITY_STATUS.LOADED) {
+    const existingChat = state.chats[chat.id] || {}
+    registerChat(state, { ...chat, messages: existingChat.messages })
+    return
+  }
+
+  // Summary only (last message) or unknown chat: register it and flag for a
+  // full reload before it is displayed.
+  registerChat(state, chat)
+  $storex.chats.setChatNeedsReload(chat.id)
+  $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
 }
 
 function getChatWorkingProject({ owner_project_id, project_id }) {
@@ -109,6 +142,7 @@ export const getters = getterTree(state, {
   chatLoadingStatus: state => (chatId) => {
     return state.chatLoadingStatus[chatId] || ENTITY_STATUS.UNINITIALIZED
   },
+  chatNeedsReload: state => (chatId) => !!state.needsReload[chatId],
   activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
   chatProject: state => ({ project_id, owner_project_id }) => {
     return $storex.projects.allProjectsById[project_id || owner_project_id]
@@ -195,6 +229,18 @@ export const mutations = mutationTree(state, {
     }
   },
 
+  setChatNeedsReload(state, chatId) {
+    if (!chatId) return
+    state.needsReload = { ...state.needsReload, [chatId]: true }
+  },
+
+  clearChatNeedsReload(state, chatId) {
+    if (!chatId || !state.needsReload[chatId]) return
+    const next = { ...state.needsReload }
+    delete next[chatId]
+    state.needsReload = next
+  },
+
   setChatUpdating(state, { chatId, updating }) {
     const current = state.chatEvents[chatId]?.updatingCount || 0
     const prevTimeoutId = state.chatEvents[chatId]?.timeoutId || null
@@ -234,6 +280,7 @@ export const mutations = mutationTree(state, {
     state.chats = {}
     state.activeChatId = null
     state.chatLoadingStatus = {}
+    state.needsReload = {}
   },
 
   updateChatLastMessageAt(state, { chatId, timestamp }) {
@@ -253,12 +300,7 @@ export const actions = actionTree(
       if (!activeProject?.$api) return
       
       const chats = await activeProject.$api.chats.list()
-      chats.forEach(chat => {
-        if (chat.id && !state.chats[chat.id]) {
-          registerChat(state, chat)
-          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        }
-      })
+      chats.forEach(chat => registerChatSummary(state, chat))
     },
     async loadRecentChats({ state }, { userId, page, pageSize, append = false } = {}) {
       if (state.recentChatsLoading) return
@@ -281,10 +323,7 @@ export const actions = actionTree(
         }
 
         // Register every chat so they are available in state.chats
-        response.chats.forEach(chat => {
-          registerChat(state, chat)
-          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        })
+        response.chats.forEach(chat => registerChatSummary(state, chat))
 
         const ids = response.chats.map(c => c.id)
 
@@ -334,6 +373,12 @@ export const actions = actionTree(
 
       const project = $storex.projects.activeProject
       const results = await project.$api.chats.search(searchRequest)
+
+      // Search returns chat summaries (last message only) — register them so
+      // they get a full reload when opened.
+      if (Array.isArray(results?.results)) {
+        results.results.forEach(chat => registerChatSummary(state, chat))
+      }
 
       $storex.chats.setSearchResults(results)
       return results
@@ -388,16 +433,15 @@ export const actions = actionTree(
       if (!storedChat) return null
 
       const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
-
-      if (status === ENTITY_STATUS.LOADED) {
-        return storedChat
-      }
+      const needsReload = !!state.needsReload[chat.id]
 
       if (status === ENTITY_STATUS.LOADING) {
         return storedChat
       }
 
-      if (status === ENTITY_STATUS.UNINITIALIZED) {
+      // A chat loaded from a summary (list/search) must be fully reloaded before
+      // being shown, even if its record status is already LOADED.
+      if (status === ENTITY_STATUS.UNINITIALIZED || needsReload) {
         return await $storex.chats.loadChat(chat)
       }
 
@@ -438,6 +482,9 @@ export const actions = actionTree(
       }
       const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id })
       registerChat(state, loadedChat)
+      // A full chat was fetched — mark it as loaded so later list/search
+      // summaries keep its messages instead of clobbering them.
+      $storex.chats.setChatLoadingStatus({ chatId: id, status: ENTITY_STATUS.LOADED })
       return state.chats[id] || null
     },
     async loadChat({ state }, chat) {
@@ -447,8 +494,10 @@ export const actions = actionTree(
 
       const existingChat = state.chats[chat.id]
       const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
-      
-      if (existingChat && status === ENTITY_STATUS.LOADED) {
+      const needsReload = !!state.needsReload[chat.id]
+
+      // Reload unless the full history is already loaded and still fresh.
+      if (existingChat && status === ENTITY_STATUS.LOADED && !needsReload) {
         return existingChat
       }
 
@@ -457,6 +506,7 @@ export const actions = actionTree(
       try {
         const loadedChat = await project.$api.chats.loadChat(chat)
         registerChat(state, loadedChat)
+        $storex.chats.clearChatNeedsReload(chat.id)
         $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       } catch (error) {
         $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
@@ -472,6 +522,7 @@ export const actions = actionTree(
       } else {
         registerChat(state, freshChat)
       }
+      $storex.chats.clearChatNeedsReload(chat.id)
       $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       return state.chats[chat.id]
     },
@@ -657,6 +708,7 @@ export const actions = actionTree(
       chatIds.forEach(id => {
         delete state.chats[id]
         delete state.chatLoadingStatus[id]
+        delete state.needsReload[id]
       })
 
       if (chatIds.includes(state.activeChatId)) {

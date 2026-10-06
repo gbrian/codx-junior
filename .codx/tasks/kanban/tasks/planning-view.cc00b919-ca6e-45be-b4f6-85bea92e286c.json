@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "",
+  "status": "doing",
   "tags": [],
   "file_list": [
     "src/components/kanban/board/KanbanBoardView.vue",
@@ -1957,12 +1957,15 @@
     }
   ],
   "created_at": "2026-10-04 08:35:37.414223",
-  "updated_at": "2026-10-05T07:08:29.321759",
+  "updated_at": "2026-10-05T09:09:08.257318",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
   "board": "kanban",
   "column": "tasks",
+  "sprints": [
+    "Planing and Sprint features"
+  ],
   "priority": null,
   "due_date": null,
   "progress": 0,

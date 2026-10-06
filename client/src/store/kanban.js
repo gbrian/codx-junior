@@ -29,7 +29,7 @@ export const getters = getterTree(state, {
   rawBoards: () => {
     const { boards = {} } = getKanban()
     return Object.keys(boards).reduce((acc, id) => {
-      acc[id] = { ...boards[id], id, title: id }
+      acc[id] = { ...boards[id], id, title: id, type: boards[id]?.type || 'kanban' }
       return acc
     }, {})
   },
@@ -41,7 +41,9 @@ export const getters = getterTree(state, {
       .map(title => ({
         ...boards[title],
         id: title,
-        title
+        title,
+        // Boards are 'kanban' unless explicitly created as a 'sprint'
+        type: boards[title]?.type || 'kanban'
       }))
   },
 
@@ -112,6 +114,55 @@ export const getters = getterTree(state, {
     }).sort((a, b) => (a.position < b.position ? -1 : 1))
 
     return builtColumns
+  },
+
+  // ── Sprint boards ──────────────────────────────────────────────────────────
+  // A sprint is a board with type === 'sprint'. Its columns are FIXED and come
+  // from CHAT_STATUS_CONFIG order (see chats store) — they are the task status.
+
+  sprintBoards: (_, getters) =>
+    getters.allBoards.filter(b => b.type === 'sprint'),
+
+  activeBoardType: (state, getters) =>
+    getters.activeKanbanBoard?.type || 'kanban',
+
+  isSprintBoard: (state, getters) =>
+    getters.activeKanbanBoard?.type === 'sprint',
+
+  // Tasks that belong to the active sprint (chat.sprints includes the board id)
+  sprintBoardChats: (state) => {
+    const boardId = state.activeBoard
+    if (!boardId) return []
+    const allChats = Object.values($storex.chats.chats || {})
+    return allChats
+      .filter(c => (c.sprints || []).includes(boardId))
+      .map(c => ({ ...c, status: c.status || 'todo' }))
+  },
+
+  // One column per task status, following the canonical status order
+  sprintColumns: (state, getters) => {
+    const tasks = getters.sprintBoardChats
+    return $storex.chats.statusList.map((status, ix) => {
+      const columnTasks = tasks
+        .filter(t => t.status === status.value)
+        .sort((a, b) => {
+          const ao = a.sort_index ?? Number.MAX_SAFE_INTEGER
+          const bo = b.sort_index ?? Number.MAX_SAFE_INTEGER
+          if (ao !== bo) return ao - bo
+          return (a.updated_at || '') < (b.updated_at || '') ? 1 : -1
+        })
+
+      return {
+        id: status.value,
+        value: status.value,
+        title: status.label,
+        icon: status.icon,
+        textColor: status.textColor,
+        borderColor: status.borderColor,
+        position: ix,
+        tasks: columnTasks
+      }
+    })
   },
 
   childBoards: (state, getters) => {
@@ -388,6 +439,96 @@ export const actions = actionTree(
       return chat
     },
 
+    // ── Sprint actions ───────────────────────────────────────────────────────
+
+    // Create a board of type 'sprint' (columns are implicit statuses)
+    async createSprintBoard({ state }, { title, description } = {}) {
+      return $storex.kanban.addBoard({
+        title,
+        description,
+        type: 'sprint'
+      })
+    },
+
+    // Move a task across sprint columns → writes chat.status (NOT chat.column)
+    async moveSprintStatus({ state }, { taskId, status } = {}) {
+      if (!taskId || !status) return
+      const chat = $storex.chats.chats?.[taskId]
+      if (!chat) return
+      if ((chat.status || 'todo') === status) return
+      await $storex.chats.updateChatInfo({ chat, updates: { status } })
+    },
+
+    // Add existing tasks to the active sprint (adds the board id to chat.sprints)
+    async addTasksToSprint({ state }, { taskIds } = {}) {
+      const sprintId = state.activeBoard
+      if (!sprintId || !taskIds?.length) return
+
+      await Promise.all(taskIds.map(async (id) => {
+        const chat = $storex.chats.chats?.[id]
+        if (!chat) return
+        if ((chat.sprints || []).includes(sprintId)) return
+        const sprints = Array.from(new Set([...(chat.sprints || []), sprintId]))
+        await $storex.chats.updateChatInfo({ chat, updates: { sprints } })
+      }))
+    },
+
+    // Remove a task from the active sprint (keeps the task itself)
+    async removeTaskFromSprint({ state }, { taskId } = {}) {
+      const sprintId = state.activeBoard
+      const chat = $storex.chats.chats?.[taskId]
+      if (!sprintId || !chat) return
+      const sprints = (chat.sprints || []).filter(id => id !== sprintId)
+      await $storex.chats.updateChatInfo({ chat, updates: { sprints } })
+    },
+
+    // Create a task (or subtask) directly on the active sprint, in its first column
+    async newSprintTask({ state, getters }, { name, status, mode, profiles, llm_model, parentId } = {}) {
+      const sprintId = state.activeBoard
+      const activeProject = $storex.projects.activeProject
+      const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
+
+      const taskStatus = status || 'todo'
+
+      // The sprint board's columns are its task statuses; the first column is
+      // the default landing column (To Do). Subtasks inherit board/column from
+      // their parent.
+      const firstColumn = getters.sprintColumns?.[0]
+
+      // `board` and `column` are required by the backend and must be part of the
+      // create payload (before the chat is saved via PUT /api/chats?chat_only=1).
+      // Root tasks fall back to this sprint board and its first column so the
+      // create never sends null.
+      const board = parentChat?.board || sprintId || null
+      const column = parentChat?.column || firstColumn?.title || taskStatus
+
+      const chat = await $storex.chats.createNewChat({
+        id: uuidv4(),
+        mode: mode || parentChat?.mode || 'chat',
+        profiles: profiles || [],
+        messages: [],
+        name: name || null,
+        status: taskStatus,
+        sprints: [sprintId],
+        parent_id: parentChat?.id || null,
+        board,
+        column,
+        llm_model: llm_model || null,
+        owner_project_id: parentChat?.owner_project_id || activeProject?.project_id || null,
+        project_id: parentChat?.project_id || null,
+      })
+
+      // Defensive: guarantee membership/status via the metadata endpoint even if
+      // the create payload path ignored those fields.
+      if (chat?.id) {
+        await $storex.chats.updateChatInfo({
+          chat,
+          updates: { sprints: [sprintId], status: taskStatus, board, column }
+        })
+      }
+      return chat
+    },
+
     async createSubTask({ state }, {
       parent, name, mode, description, project_id, parent_id,
       message_id, file_list, activateChat, child_index, column, profiles
@@ -417,7 +558,7 @@ export const actions = actionTree(
       return chat
     },
 
-    async addBoard({ state }, { title, description, background, parent_id, project_id, columns }) {
+    async addBoard({ state }, { title, description, background, parent_id, project_id, columns, type }) {
       const kanban = getKanban()
       if (!kanban) return
 
@@ -428,6 +569,7 @@ export const actions = actionTree(
       kanban.boards[title] = {
         id: uuidv4(),
         title,
+        type: type || 'kanban',
         description: description || '',
         background: background || '',
         parent_id: parent_id || null,
@@ -447,6 +589,12 @@ export const actions = actionTree(
       const newName = board.title?.trim()
       if (!newName) return
 
+      // Preserve board type (kanban | sprint) across edits and renames
+      const boardType = board.type
+        || kanban.boards?.[oldName]?.type
+        || kanban.boards?.[newName]?.type
+        || 'kanban'
+
       if (oldName && oldName !== newName) {
         const allChats = Object.values($storex.chats.chats || {})
         await Promise.all(
@@ -463,6 +611,7 @@ export const actions = actionTree(
       kanban.boards[newName] = {
         ...kanban.boards[newName],
         title: newName,
+        type: boardType,
         description: board.description || '',
         background: board.background || '',
         parent_id: board.parent_id || null,

@@ -26,6 +26,7 @@ from codx.junior.chat.chat_event_bridge import ChatEventBridge
 from codx.junior.context import AICodeGenerator
 from codx.junior.db import Chat, Message, ChatHistoryEntry, ChatAttachment
 from codx.junior.globals import AGENT_DONE_WORD
+from codx.junior.model.agent import AgentRunResult
 from codx.junior.project.project_discover import (
     find_project_by_id,
     get_project_dependencies,
@@ -107,6 +108,13 @@ class ChatEngine:
     :meth:`ChatEventBridge.persist_message` instead of waiting for the
     end-of-turn chat save.
 
+    COST TRACKING: the AI call returns a typed :class:`AgentRunResult`. Its
+    ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
+    registered on the response message (``Message.cost``) so ``ChatManager``
+    accumulates it into ``Chat.cost`` — the value compared against
+    ``Chat.estimation_cost``. The full breakdown is stored on
+    ``Message.cost_info`` and streamed to clients via ``message-event``.
+
 
     flowchart TD
         A[User Message] --> B{Chat Mode?}
@@ -126,13 +134,14 @@ class ChatEngine:
         H2 --> H3
         H3 --> I[Create response_message]
         I --> J[ChatEventBridge - persists on every event]
-        J --> K[AI Response]
+        J --> K[AI Response - returns AgentRunResult]
+        K -->|cost| K1[Register cost + cost_info on response message]
         K -->|stream flush| K5[Throttled persist of partial content]
         K -->|hidden reasoning| K6[persist_message - immediate]
         K -->|tool events| K3[Events on response_message persisted + streamed]
         K -->|model param error| K7[Catch + inform user]
         K -->|error/cancel| K4[bridge.publish - error persisted immediately]
-        K --> L[Record Chat Session End]
+        K1 --> L[Record Chat Session End]
         L --> M[Return Chat + Documents]
     """
 
@@ -1280,6 +1289,12 @@ class ChatEngine:
 
         Returns a tuple of (think_content, response_content, extra_files, ai_chat_fn).
 
+        COST: the AI returns a typed :class:`AgentRunResult`. Its
+        ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
+        registered on the response message (``Message.cost``) so ``ChatManager``
+        accumulates it into ``Chat.cost``. The full breakdown is stored on
+        ``Message.cost_info`` and streamed to clients via ``message-event``.
+
         CRASH-SAFETY: when an error occurs, ``response_message.error`` is set
         and the response message is persisted IMMEDIATELY via the event bridge
         so the error survives even if a later step crashes.
@@ -1301,15 +1316,17 @@ class ChatEngine:
 
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
-            A -->|No| C[AI Chat with run_context]
+            A -->|No| C[AI Chat with run_context - returns AgentRunResult]
             B --> D[Build search message]
             C --> E[Extract last message content]
+            C -->|cost| E1[Register cost + cost_info on response_message]
             C -->|hidden reasoning| F4[persist_message - immediate]
             C -->|tool events| F2[Events persisted on response_message]
             C -->|error| F3[response_message.error persisted immediately]
             C -->|vision| F5[Merge vision_content into user message]
             D --> F[Return think, content, files]
             E --> F
+            E1 --> F
 
         :param chat: The current chat.
         :param messages: Assembled prompt messages.
@@ -1341,14 +1358,14 @@ class ChatEngine:
         main_content = ""
         extra_files: List[str] = []
 
-        async def ai_chat(messages=None, prompt="", tags="", callback=None, run_context=None, vision_content=None):
+        async def ai_chat(messages=None, prompt="", tags="", callback=None, run_context=None, vision_content=None) -> AgentRunResult:
             """Invoke the AI with the assembled messages, optional prompt, and vision content."""
             if messages is None:
                 messages = []
             headers = ai_headers
             if tags:
                 headers = {**ai_headers, "tags": ai_headers["tags"] + "," + tags}
-            return await ai.a_chat(
+            return await ai.a_chat_run(
                 messages=messages,
                 prompt=prompt,
                 callback=callback,
@@ -1383,12 +1400,13 @@ class ChatEngine:
                 # so tool / lifecycle events are attached to the response.
                 # Auxiliary calls (summary, auto-init) reuse ai_chat without a
                 # run_context.
-                response_messages = await ai_chat(
+                run_result: AgentRunResult = await ai_chat(
                     messages=messages,
                     callback=callback,
                     run_context=run_context,
                     vision_content=vision_content,
                 )
+                response_messages = run_result.messages
                 new_message_count = len(response_messages) - input_messages_count
 
                 if new_message_count > 1:
@@ -1410,7 +1428,18 @@ class ChatEngine:
                 # Read only the final answer from the last message directly.
                 # response_message.think is already set correctly by
                 # send_message_event during streaming — do not touch it here.
-                main_content = response_messages[-1].content
+                main_content = (
+                    response_messages[-1].content if response_messages else ""
+                )
+
+                # Register the FULL processing cost of this run (all LLM rounds
+                # plus any tool cost reported via ToolResponse.cost) on the
+                # response message so ChatManager accumulates it into Chat.cost —
+                # the monotonic, deletion-safe budget accumulator compared
+                # against Chat.estimation_cost. The detailed breakdown is stored
+                # on cost_info and streamed to clients via message-event.
+                response_message.cost = run_result.cost.iteration_cost_cxjcoins
+                response_message.cost_info = run_result.cost
 
         except Exception as ex:
             logger.exception(
@@ -1560,7 +1589,7 @@ class ChatEngine:
         :param chat: The chat to annotate with a description.
         :param messages: Message list used for the conversation.
         :param is_refine: Whether we are in task/refine mode (uses only last message).
-        :param ai_chat_fn: Async callable matching the ai_chat signature.
+        :param ai_chat_fn: Async callable returning an :class:`AgentRunResult`.
         """
         try:
             # Build clean messages without file contents and profile information
@@ -1593,13 +1622,16 @@ class ChatEngine:
                 chat.doc_id
             )
             
-            description_response = await ai_chat_fn(
+            description_run: AgentRunResult = await ai_chat_fn(
                 messages=desc_messages,
                 prompt="Create a 5 lines summary of the conversation",
                 tags="chat-summary"
             )
             
-            new_description = description_response[-1].content.strip()
+            new_description = (
+                description_run.messages[-1].content.strip()
+                if description_run.messages else ""
+            )
             
             # Update current description
             chat.description = new_description
@@ -1662,7 +1694,7 @@ class ChatEngine:
 
         :param chat: The chat whose metadata may be auto-filled.
         :param messages: The assembled message list for the current turn.
-        :param ai_chat_fn: Async callable matching the ai_chat signature.
+        :param ai_chat_fn: Async callable returning an :class:`AgentRunResult`.
         """
         if not chat.auto_initialize:
             return
@@ -1674,12 +1706,15 @@ class ChatEngine:
 
         try:
             init_messages = messages.copy()
-            init_response = await ai_chat_fn(
+            init_run: AgentRunResult = await ai_chat_fn(
                 messages=init_messages,
                 prompt=CHAT_INIT_PROMPT,
                 tags="chat-init"
             )
-            raw = init_response[-1].content.strip()
+            raw = (
+                init_run.messages[-1].content.strip()
+                if init_run.messages else ""
+            )
 
             # Strip possible markdown code fences
             if raw.startswith("```"):
@@ -1904,6 +1939,12 @@ class ChatEngine:
         from the correct project even when it differs from the current engine
         settings.
 
+        COST: the AI call returns a typed :class:`AgentRunResult`. Its cost is
+        registered on the response message so ``ChatManager`` accumulates it
+        into ``Chat.cost`` (compared against ``Chat.estimation_cost`` to stop
+        over-budget chats) and streamed to clients as ``Message.cost`` /
+        ``Message.cost_info``.
+
         External callers can cancel the in-flight request via:
           - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
           - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
@@ -1935,7 +1976,8 @@ class ChatEngine:
             N --> O
             O --> P[Load chat files + detect binary]
             P --> Q[Prepare vision content]
-            Q --> R[AI Chat with vision_content]
+            Q --> R[AI Chat - AgentRunResult]
+            R -->|cost| R1[Register cost + cost_info on response_message]
             R -->|stream flush| R4[Throttled persist of partial content]
             R -->|hidden reasoning| R5[persist_message - immediate]
             R -->|tool events| R2[Events persisted + streamed]
