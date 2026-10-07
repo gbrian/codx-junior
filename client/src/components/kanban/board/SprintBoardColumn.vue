@@ -15,9 +15,12 @@ import SprintTaskCard from './SprintTaskCard.vue'
       class="flex items-center gap-2 px-3 py-2.5 border-b border-base-100 border-l-4 rounded-tl-xl shrink-0"
       :class="column.borderColor"
     >
-      <i :class="[column.icon, column.textColor, 'text-xs']"></i>
-      <span class="text-xs font-semibold text-base-content/70 flex-1 truncate">{{ column.title }}</span>
-      <span class="text-xs text-base-content/30 bg-base-100 rounded-full px-1.5">{{ column.tasks.length }}</span>
+      <div class="flex items-center gap-1">
+        <i :class="[column.icon, column.textColor, 'text-xs']"></i>
+        <span class="text-xs text-base-content/30 bg-base-100 rounded-full">({{ column.tasks.length }})</span>
+        <span class="text-xs font-semibold text-base-content/70 flex-1 truncate">{{ column.title }}</span>
+      </div>
+      <div class="grow"></div>
       <!-- Accumulated cost of the tasks in this column -->
       <span
         v-if="totalCost > 0"
@@ -94,7 +97,7 @@ export default {
     }
   },
   computed: {
-    // Accumulated cost (cxjcoins) of every task in this column
+    // Accumulated cost (cxj) of every task in this column
     totalCost() {
       return (this.column.tasks || []).reduce((sum, t) => sum + (t.cost || 0), 0)
     },
@@ -106,9 +109,9 @@ export default {
       const count = this.column.tasks?.length || 0
       const label = `${count} task${count === 1 ? '' : 's'}`
       if (this.totalBudget > 0) {
-        return `Accumulated cost: ${this.formatCoins(this.totalCost)} of ${this.formatCoins(this.totalBudget)} cxjcoins (${label})`
+        return `Accumulated cost: ${this.formatCoins(this.totalCost)} of ${this.formatCoins(this.totalBudget)} cxj (${label})`
       }
-      return `Accumulated cost: ${this.formatCoins(this.totalCost)} cxjcoins (${label})`
+      return `Accumulated cost: ${this.formatCoins(this.totalCost)} cxj (${label})`
     }
   },
   methods: {

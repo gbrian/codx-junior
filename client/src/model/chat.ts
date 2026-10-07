@@ -20,6 +20,8 @@ export interface Message {
   disable_knowledge?: boolean
   read_by: string[]
   error?: string
+  cost?: number
+  cost_info?: Record<string, any>
 }
 
 export interface ChatId {
@@ -69,6 +71,11 @@ export interface Chat {
   branch: string
   file_path: string
   llm_model?: string
+  // ── Cost budget ──
+  // cost: accumulated cxjcoins spent on this chat (monotonic)
+  // estimation_cost: max cxjcoins allowed; the agent stops when cost reaches it (null = no limit)
+  cost?: number
+  estimation_cost?: number
   visibility?: string
   remote_url?: string
   knowledge_topics: string[]

@@ -171,7 +171,7 @@ export default {
       this.providers = providers || []
     },
 
-    // Resolve pricing (priority: model cxjcoins → provider price list $)
+    // Resolve pricing (priority: model cxj → provider price list $)
     getPriceInfo(model) {
       if (!model) return null
       const input = model.input_k_tokens_cxjcoins
@@ -179,10 +179,10 @@ export default {
       const perK = model.k_tokens_cxjcoins
 
       let price = null
-      // 1) Model-level input/output pricing (cxjcoins)
+      // 1) Model-level input/output pricing (cxj)
       if (input != null || output != null) {
         price = { input, output, currency: 'cxj' }
-      // 2) Model-level single price per 1K tokens (cxjcoins)
+      // 2) Model-level single price per 1K tokens (cxj)
       } else if (perK != null) {
         price = { input: perK, output: perK, currency: 'cxj' }
       } else {

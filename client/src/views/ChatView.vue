@@ -62,6 +62,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @toggle-ignore-parent-knowledge="onIgnoreParentKnowledgeChanged"
         @toggle-ignore-parent-files="onIgnoreParentFilesChanged"
         @status-changed="onStatusChanged"
+        @cost-changed="onCostChanged"
         @select-project="setChatProject"
       />
 
@@ -671,6 +672,11 @@ export default {
     onStatusChanged(newStatus) {
       if (!this.theChat) return
       this.theChat.status = newStatus
+      this.saveChatInfo(this.theChat)
+    },
+    onCostChanged(estimationCost) {
+      if (!this.theChat) return
+      this.theChat.estimation_cost = estimationCost
       this.saveChatInfo(this.theChat)
     }
   }

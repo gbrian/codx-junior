@@ -158,9 +158,9 @@ export default {
     costTooltip() {
       const spent = this.formatCoins(this.task?.cost || 0)
       if (this.task?.estimation_cost) {
-        return `Cost: ${spent} of ${this.formatCoins(this.task.estimation_cost)} cxjcoins`
+        return `Cost: ${spent} of ${this.formatCoins(this.task.estimation_cost)} cxj`
       }
-      return `Cost: ${spent} cxjcoins`
+      return `Cost: ${spent} cxj`
     }
   },
   methods: {

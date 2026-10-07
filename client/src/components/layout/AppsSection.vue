@@ -106,7 +106,7 @@ export default {
       this.$emit('close')
     },
     handleNavigateToKanban() {
-      this.$ui.setActiveTab('tasks')
+      this.$storex.$router.$navigation.apps.openKanban()
       this.$emit('close')
     },
     handleNavigateToPlanning() {

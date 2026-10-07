@@ -38,6 +38,8 @@
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -90,6 +92,8 @@
           "error": null
         }
       ],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [
         "project",
         "store_module"
@@ -121,6 +125,8 @@
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -173,6 +179,8 @@
           "error": null
         }
       ],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [
         "project"
       ],
@@ -187,7 +195,7 @@
     }
   ],
   "created_at": "2026-10-06 06:01:14.436578",
-  "updated_at": "2026-10-06T07:57:00.325271",
+  "updated_at": "2026-10-06T15:07:54.278965",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -207,6 +215,8 @@
   "branch": "",
   "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/load-all-chat-messages.e42d41f2-0ff7-44d9-aea5-96632a1caa9d.json",
   "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0,
   "visibility": "",
   "remote_url": "",
   "attachments": [],

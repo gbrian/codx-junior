@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 1,
   "message_id": null,
-  "status": "doing",
+  "status": "done",
   "tags": [],
   "file_list": [],
   "check_lists": [],
@@ -254,7 +254,7 @@
     }
   ],
   "created_at": "2026-10-06 08:45:43.628557",
-  "updated_at": "2026-10-06T08:56:59.630100",
+  "updated_at": "2026-10-06T09:26:32.633472",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

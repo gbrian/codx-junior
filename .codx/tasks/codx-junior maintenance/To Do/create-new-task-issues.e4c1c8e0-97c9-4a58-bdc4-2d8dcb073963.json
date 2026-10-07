@@ -1,0 +1,174 @@
+{
+  "id": "e4c1c8e0-97c9-4a58-bdc4-2d8dcb073963",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "todo",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Create new task issues",
+  "pinned": false,
+  "is_template": false,
+  "description": "- **Bug reported:** Creating a new task fails to preserve the selected **project** and the **cost** budget.\n- **Root cause:** `SprintBoardView.onTaskCreated()` strips `project_id`, `users`, `deadline` only \u2014 so `estimation_cost` was passed to `newSprintTask()`, which silently discards it.\n- **Fix 1 (`SprintBoardView.vue`):** Also destructure `estimation_cost` from the payload and persist it via `chats.updateChatInfo()` alongside project, users, and deadline.\n- **Fix 2 (`SprintBoardModals.vue`):** Normalize `onProjectSelected` to accept the project object, its `id`, `project_id`, or a raw string so the selection survives.\n- **Verification:** Confirm project and cost persist on create (and subtask inheritance works), with no empty-string writes when unset.",
+  "messages": [
+    {
+      "doc_id": "5bf9f2c7-195b-4a46-b852-7eec60d473d9",
+      "role": "user",
+      "task_item": "",
+      "content": "Create new task fails on:\n - Project selection is not preserved\n - Cost is not preserved\n\nSo new tasks don't have the selected project, nor the cost assigned.\nRevoew all options to make sure all user preferences are past to the chat creation",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-06 16:19:54.095627",
+      "updated_at": "2026-10-06T16:19:54.095697",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/kanban/board/SprintBoardModals.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/kanban/board/SprintBoardCanvas.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/kanban/board/SprintBoardView.vue"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "8cc17bf2-8e71-4c8a-9004-79f2b845cd7a",
+      "role": "assistant",
+      "task_item": "",
+      "content": "## Root cause\n\n`SprintBoardModals.vue` correctly emits **every** preference in the `task-created` payload \u2014 the bug is on the receiving side, in `SprintBoardView.onTaskCreated()`.\n\nThat handler splits the payload and only forwards a hard-coded subset to the metadata endpoint:\n\n```js\nconst { project_id, users, deadline, ...task } = payload   // estimation_cost falls into `task`\nconst chat = await this.$storex.kanban.newSprintTask(task) // \u2026and is silently ignored\n```\n\nPer the handler's own comment, `newSprintTask` **only understands the core fields** (`name`, `mode`, `status`, `parentId`, `profiles`, `llm_model`). So `estimation_cost` is handed to a function that discards it, and \u2014 because it is never re-added to `updates` \u2014 the budget is lost forever.\n\n`project_id` *is* routed through `updateChatInfo`, so the second symptom points upstream at how the selection is captured in the modal.\n\n### Preference audit (form \u2192 chat creation)\n\n| Preference | Modal field | Emitted as | Routed via | Status |\n|---|---|---|---|---|\n| Name | `newTask.name` | `name` | `newSprintTask` | \u2705 |\n| Mode / type | `newTask.mode` | `mode` | `newSprintTask` | \u2705 |\n| Status (column) | `newTask.status` | `status` | `newSprintTask` | \u2705 |\n| Parent | `newTask.parentId` | `parentId` | `newSprintTask` | \u2705 |\n| Profiles | `newTask.selectedProfiles` | `profiles` | `newSprintTask` | \u2705 |\n| LLM model | `newTask.llm_model` | `llm_model` | `newSprintTask` | \u2705 |\n| Project | `newTask.project_id` | `project_id` | `updateChatInfo` | \u26a0\ufe0f capture |\n| Assignees | `newTask.users` | `users` | `updateChatInfo` | \u2705 |\n| Deadline | `newTask.deadline` | `deadline` | `updateChatInfo` | \u2705 |\n| Cost budget | `newTask.estimation_cost` | `estimation_cost` | ~~`newSprintTask`~~ | \u274c **dropped** |\n\n---\n\n## Fix 1 \u2014 cost budget is dropped (`SprintBoardView.vue`)\n\nPull `estimation_cost` out of the payload too, and persist it alongside the other non-core preferences.\n\n```js src/components/kanban/board/SprintBoardView.vue\n    async onTaskCreated(payload) {\n      // `newSprintTask` only understands the core task fields (name, mode,\n      // status, parentId, profiles, llm_model). Every other preference the user\n      // picked in the dialog \u2014 project, assignees, deadline and the cost budget \u2014\n      // is persisted afterwards through the shared metadata endpoint so none of\n      // them are silently dropped.\n      const { project_id, users, deadline, estimation_cost, ...task } = payload\n      const chat = await this.$storex.kanban.newSprintTask(task)\n      if (!chat) return\n\n      const updates = {}\n      if (project_id) updates.project_id = project_id\n      if (users?.length) updates.users = users\n      if (deadline) updates.deadline = deadline\n      if (estimation_cost != null) updates.estimation_cost = estimation_cost\n\n      if (Object.keys(updates).length) {\n        await this.$storex.chats.updateChatInfo({ chat, updates })\n      }\n\n      this.$emit('open-task', chat)\n    },\n```\n\n---\n\n## Fix 2 \u2014 project selection capture (`SprintBoardModals.vue`)\n\n`onProjectSelected` only reads `project.project_id`. `ProjectDetailt` (a generic selector) can emit either the project object or its raw id, so normalize both shapes \u2014 otherwise a perfectly valid selection resolves to `null` and never reaches chat creation.\n\n```js src/components/kanban/board/SprintBoardModals.vue\n    onProjectSelected(project) {\n      // ProjectDetailt may emit the full project (with `project_id` or `id`) or\n      // just the id \u2014 normalize both so the selection survives to chat creation.\n      this.newTask.project_id = project?.project_id\n        ?? project?.id\n        ?? (typeof project === 'string' ? project : null)\n    },\n```\n\nNo change is needed in `confirmNewTask()` \u2014 it already emits `project_id` and a normalized `estimation_cost` (`null` when empty/\u22640), which matches the `!= null` guard added above.\n\n---\n\n## Anti-patterns avoided\n\n- \u274c Spreading the whole payload into `newSprintTask` hoping it ignores unknown fields \u2014 can trigger backend validation errors.\n- \u274c Re-binding `:cost` on `ChatCostSelector` \u2014 `cost` is the *spent* value; the *budget* is `estimation-cost` / `cost-changed`, which is already wired correctly.\n\n## Verification checklist\n\n- [ ] Create a task, pick a **non-default project** \u2192 open it \u2192 project persisted.\n- [ ] Create a task with a **cost budget** (e.g. `500`) \u2192 open it \u2192 `estimation_cost === 500`.\n- [ ] Create with **no** budget / no project \u2192 both stay `null` (no empty-string writes).\n- [ ] Create a **subtask** with a parent that has a project \u2192 project inherits and sticks.\n- [ ] If project *still* doesn't stick, the remaining suspect is `$storex.chats.updateChatInfo({ chat, updates })` \u2014 confirm it (a) accepts `project_id` and (b) mutates the **same** chat reference the kanban column renders, not just the API response.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-06 16:19:54.949012",
+      "updated_at": "2026-10-06T16:20:56.601609",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1791303594.9489064,
+        "cancellation_token_id": "133b10bb-2ce8-448c-b21e-347ae2d5ee4e",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 14103,
+          "completion_tokens": 15235,
+          "total_tokens": 29338,
+          "tools": {}
+        },
+        "time_taken": 61.65261626243591,
+        "first_chunk_time_taken": 1.5537223815917969,
+        "files": [
+          {
+            "language": "js",
+            "file_path": "src/components/kanban/board/SprintBoardView.vue",
+            "content": "    async onTaskCreated(payload) {\n      // `newSprintTask` only understands the core task fields (name, mode,\n      // status, parentId, profiles, llm_model). Every other preference the user\n      // picked in the dialog \u2014 project, assignees, deadline and the cost budget \u2014\n      // is persisted afterwards through the shared metadata endpoint so none of\n      // them are silently dropped.\n      const { project_id, users, deadline, estimation_cost, ...task } = payload\n      const chat = await this.$storex.kanban.newSprintTask(task)\n      if (!chat) return\n\n      const updates = {}\n      if (project_id) updates.project_id = project_id\n      if (users?.length) updates.users = users\n      if (deadline) updates.deadline = deadline\n      if (estimation_cost != null) updates.estimation_cost = estimation_cost\n\n      if (Object.keys(updates).length) {\n        await this.$storex.chats.updateChatInfo({ chat, updates })\n      }\n\n      this.$emit('open-task', chat)\n    },"
+          },
+          {
+            "language": "js",
+            "file_path": "src/components/kanban/board/SprintBoardModals.vue",
+            "content": "    onProjectSelected(project) {\n      // ProjectDetailt may emit the full project (with `project_id` or `id`) or\n      // just the id \u2014 normalize both so the selection survives to chat creation.\n      this.newTask.project_id = project?.project_id\n        ?? project?.id\n        ?? (typeof project === 'string' ? project : null)\n    },"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "78b58c334844",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.011256449999999998,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.011256449999999998,
+        "chat_cost_cxjcoins": 0.011256449999999998,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 14103,
+        "output_tokens": 15235,
+        "total_tokens": 29338,
+        "input_cost_cxjcoins": 0.0021154499999999996,
+        "output_cost_cxjcoins": 0.009140999999999998,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "Designer",
+        "VueDeveloper",
+        "daisyui_components",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-06 16:17:42.949407",
+  "updated_at": "2026-10-06T16:20:58.654345",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/create-new-task-issues.e4c1c8e0-97c9-4a58-bdc4-2d8dcb073963.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.011256449999999998,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-06T16:20:58.652107+00:00",
+      "summary": "- **Bug reported:** Creating a new task fails to preserve the selected **project** and the **cost** budget.\n- **Root cause:** `SprintBoardView.onTaskCreated()` strips `project_id`, `users`, `deadline` only \u2014 so `estimation_cost` was passed to `newSprintTask()`, which silently discards it.\n- **Fix 1 (`SprintBoardView.vue`):** Also destructure `estimation_cost` from the payload and persist it via `chats.updateChatInfo()` alongside project, users, and deadline.\n- **Fix 2 (`SprintBoardModals.vue`):** Normalize `onProjectSelected` to accept the project object, its `id`, `project_id`, or a raw string so the selection survives.\n- **Verification:** Confirm project and cost persist on create (and subtask inheritance works), with no empty-string writes when unset.",
+      "message_ids": [
+        "5bf9f2c7-195b-4a46-b852-7eec60d473d9",
+        "8cc17bf2-8e71-4c8a-9004-79f2b845cd7a"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

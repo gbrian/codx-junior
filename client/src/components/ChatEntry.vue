@@ -25,9 +25,10 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     tabindex="0"
   >
     <!-- ── Row: Avatar + Header + Content ── -->
-    <div class="flex gap-3 items-start w-full">
+    <!-- Compact by default; comfortable once the chat panel reaches @lg (512px+). -->
+    <div class="flex gap-2 items-start w-full @lg/panel:gap-3">
       <!-- Avatar column -->
-      <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+      <div class="w-6 shrink-0 flex flex-col items-center gap-1 pt-0.5 @lg/panel:w-7">
         
         <template>
           <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
@@ -328,8 +329,8 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           @mouseup="onContentMouseUp"
           class="min-w-0 w-full notion-content"
           :class="[
-            displayMessage.is_answer && 'pl-3 border-l-4 border-success/30',
-            isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
+            displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-success/30',
+            isTopic && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
           ]"
         >
 

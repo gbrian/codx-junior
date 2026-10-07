@@ -177,7 +177,7 @@ export default {
     progress() {
       return this.totalTasks ? Math.round((this.doneCount / this.totalTasks) * 100) : 0
     },
-    // Total cost (cxjcoins) spent across every task of the sprint
+    // Total cost (cxj) spent across every task of the sprint
     totalCost() {
       return this.columns.reduce((sum, col) =>
         sum + (col.tasks || []).reduce((s, t) => s + (t.cost || 0), 0), 0)
@@ -190,9 +190,9 @@ export default {
     costTooltip() {
       const label = `${this.totalTasks} task${this.totalTasks === 1 ? '' : 's'}`
       if (this.totalBudget > 0) {
-        return `Total sprint cost: ${this.formatCoins(this.totalCost)} of ${this.formatCoins(this.totalBudget)} cxjcoins (${label})`
+        return `Total sprint cost: ${this.formatCoins(this.totalCost)} of ${this.formatCoins(this.totalBudget)} cxj (${label})`
       }
-      return `Total sprint cost: ${this.formatCoins(this.totalCost)} cxjcoins (${label})`
+      return `Total sprint cost: ${this.formatCoins(this.totalCost)} cxj (${label})`
     }
   },
   methods: {
@@ -213,8 +213,9 @@ export default {
       this.$refs.modals?.openAddExisting()
     },
     onAddSubtask(task) {
-      // "+" on a card → create a subtask linked to that task
-      this.openNewTask({ parentId: task.id })
+      // "+" on a card → create a subtask linked to that task, landing in the
+      // same column (status) as its parent.
+      this.openNewTask({ parentId: task.id, status: task.status })
     },
     async onMoveTask({ taskId, status }) {
       await this.$storex.kanban.moveSprintStatus({ taskId, status })
@@ -223,8 +224,21 @@ export default {
       await this.$storex.kanban.removeTaskFromSprint({ taskId: task.id })
     },
     async onTaskCreated(payload) {
-      const chat = await this.$storex.kanban.newSprintTask(payload)
-      if (chat) this.$emit('open-task', chat)
+      // `newSprintTask` only understands the core fields, so split the assignment
+      // extras out and persist them via the shared metadata endpoint afterwards.
+      const { project_id, users, deadline, ...task } = payload
+      const chat = await this.$storex.kanban.newSprintTask(task)
+      if (!chat) return
+
+      const updates = {}
+      if (project_id) updates.project_id = project_id
+      if (users?.length) updates.users = users
+      if (deadline) updates.deadline = deadline
+      if (Object.keys(updates).length) {
+        await this.$storex.chats.updateChatInfo({ chat, updates })
+      }
+
+      this.$emit('open-task', chat)
     },
     async onTasksAdded({ taskIds }) {
       await this.$storex.kanban.addTasksToSprint({ taskIds })

@@ -291,7 +291,7 @@ class SmolAgent:
             K -->|yes| K1[Append user_response to thinking_content]
             K -->|yes| K2[Send llm_response as tool result to model only]
             K -->|no| K3[Send normalised result as tool result to model only]
-            K1 --> K4[Flush full thinking_content to callback]
+            K1 --> K4[Flush new thinking_content block to callback]
             K2 --> L[Append to openai_messages]
             K3 --> L
             K4 --> L
@@ -766,13 +766,19 @@ class SmolAgent:
                 # into thinking_content exactly like the uncached path does.
                 if isinstance(result, ToolResponse):
                     if result.user_response:
-                        thinking_content += (
-                            f"\n```\n{result.user_response}\n```\n"
-                        )
-                        send_callback(thinking_content, True)
+                        # Build the new block ONCE so it is appended to
+                        # thinking_content and streamed as a DELTA.
+                        user_block = f"\n```\n{result.user_response}\n```\n"
+                        thinking_content += user_block
+                        # send_callback accumulates internally and emits the
+                        # FULL accumulated response on flush. Passing only the
+                        # NEW block avoids re-emitting everything already
+                        # streamed (which previously duplicated content on
+                        # every tool round).
+                        send_callback(user_block, True)
                         logger.debug(
                             "SmolAgent: cached dual-response tool '%s' produced "
-                            "%d bytes of user content; flushed full accumulated thinking",
+                            "%d bytes of user content; flushed new content block",
                             func_name,
                             len(result.user_response),
                         )
@@ -825,15 +831,22 @@ class SmolAgent:
                     #   included in final AIMessage for persistence)
                     # - llm_response → model tool message only (NOT in response)
                     if tool_result.user_response:
-                        thinking_content += (
+                        # Build the new block ONCE so it is appended to
+                        # thinking_content and streamed as a DELTA.
+                        user_block = (
                             f"\n```\n{tool_result.user_response}\n```\n"
                         )
-                        # Flush the FULL accumulated thinking content to client
-                        # immediately so user_response is visible during processing.
-                        send_callback(thinking_content, True)
+                        thinking_content += user_block
+                        # send_callback accumulates internally and emits the
+                        # FULL accumulated response on flush. Passing only the
+                        # NEW block ensures the user_response is visible during
+                        # processing WITHOUT re-emitting everything that was
+                        # already streamed (which previously duplicated content
+                        # across tool rounds).
+                        send_callback(user_block, True)
                         logger.debug(
                             "SmolAgent: dual-response tool '%s' produced %d bytes "
-                            "of user content; flushed full accumulated thinking",
+                            "of user content; flushed new content block",
                             tool_call["function"],
                             len(tool_result.user_response),
                         )
@@ -2120,6 +2133,11 @@ class SmolAgent:
         """
         Return a closure that batches streamed chunks and flushes the FULL
         ACCUMULATED response to callbacks.
+
+        The argument passed to ``send_callback`` is treated as a **delta**
+        (a new chunk). It is appended to the internal buffer/accumulator and
+        the FULL accumulated response is emitted on flush. Callers MUST NOT
+        pass content that has already been sent — doing so would re-emit it.
 
         flowchart TD
             A[chunk arrives] --> B[Append to buffer]

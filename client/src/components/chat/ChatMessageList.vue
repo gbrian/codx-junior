@@ -8,12 +8,12 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
 </script>
 
 <template>
-  <div class="w-full h-full flex gap-0 overflow-hidden">
+  <div class="w-full h-full flex gap-0 overflow-hidden @container/chat">
     
     <!-- Left Column: Events Panel (when open) -->
     <div
       v-if="showEventsPanel && activeMessageData"
-      class="w-96 h-full border-r border-base-100 bg-base-200/50 flex flex-col flex-shrink-0 transition-all duration-300"
+      class="w-64 @3xl/chat:w-96 h-full border-r border-base-100 bg-base-200/50 flex flex-col flex-shrink-0 transition-all duration-300"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-4 py-3 border-b border-base-100 flex-shrink-0 bg-base-100">
@@ -105,14 +105,16 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
     </div>
 
     <!-- Main Chat Column (right side or full width) -->
-    <div class="flex-1 h-full flex flex-col overflow-hidden">
+    <!-- Named container: chat panels can be any width (mobile, split view, dockview),
+         so layout reacts to the panel width instead of the viewport. -->
+    <div class="flex-1 h-full flex flex-col overflow-hidden @container/panel">
       
       <!-- Scrollable Messages Container + MiniMap side by side -->
       <div class="flex-1 flex overflow-hidden min-h-0">
 
         <!-- Scrollable Messages Container -->
         <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref="scrollContainer">
-          <div class="max-w-[860px] mx-auto flex flex-col px-4 py-6">
+          <div class="max-w-[860px] mx-auto flex flex-col px-2 py-4 @lg/panel:px-4 @lg/panel:py-6">
 
             <!-- ── Message Blocks ── -->
             <template v-for="(message, ix) in messages" :key="message.doc_id || message.id">
@@ -120,7 +122,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                 :ref="el => setMessageRef(el, ix)"
                 :class="[
                   'group/block relative rounded-lg transition-all duration-150',
-                  isNewSpeaker(message, ix) ? 'mt-6' : 'mt-0.5',
+                  isNewSpeaker(message, ix) ? 'mt-4 @lg/panel:mt-6' : 'mt-0.5',
                   editMessage
                     ? editMessage.doc_id === message.doc_id
                       ? 'ring-2 ring-warning bg-warning/5'
@@ -168,18 +170,20 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
           </div>
         </div>
 
-        <!-- Right Mini-Map -->
-        <ChatMiniMap
-          :messages="messages"
-          :messageRefs="messageElRefs"
-          :scrollContainer="scrollContainerEl"
-        />
+        <!-- Right Mini-Map (hidden on narrow panels to reclaim horizontal space) -->
+        <div class="hidden @xl/panel:block shrink-0 h-full">
+          <ChatMiniMap
+            :messages="messages"
+            :messageRefs="messageElRefs"
+            :scrollContainer="scrollContainerEl"
+          />
+        </div>
 
       </div>
 
       <!-- Fixed Footer: Composer Section -->
       <div v-if="!readOnly" class="shrink-0">
-        <div class="max-w-[860px] mx-auto px-4 py-4 flex flex-col gap-1.5">
+        <div class="max-w-[860px] mx-auto px-2 py-3 @lg/panel:px-4 @lg/panel:py-4 flex flex-col gap-1.5">
 
           <!-- IntelliSense dropdown — appears above composer -->
           <div class="relative z-50">

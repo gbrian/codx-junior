@@ -745,7 +745,17 @@ export const actions = actionTree(
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
         ...chat
       }
-      
+
+      // A child chat (subtask / thread) belongs to the SAME sprint(s) as its
+      // parent when it does not define its own sprint info. The parent may be
+      // passed inline (chat.parent) or only referenced by parent_id.
+      if (chat.parent_id && !chat.sprints?.length) {
+        const parentChat = chat.parent || state.chats?.[chat.parent_id]
+        if (parentChat?.sprints?.length) {
+          chat.sprints = [...parentChat.sprints]
+        }
+      }
+
       $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
       if (!chat.temp) {
         return await $storex.chats.saveChat(chat)

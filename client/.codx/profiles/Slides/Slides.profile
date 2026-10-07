@@ -1,0 +1,62 @@
+{
+  "name": "Slides",
+  "url": "",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=slides",
+  "description": "Presentation Architect specialized in turning content into polished, self-contained HTML slide decks. Zero dependencies, keyboard-navigable, print-ready. Ships with a base deck shell and a copy-paste catalog of slide archetypes (cover, bullets, metrics, code, timeline, chart, closing). Inherits the codx-junior dark-first design system.",
+  "category": "assistant",
+  "file_match": "\\.html",
+  "content": null,
+  "parsed_content": null,
+  "path": "/home/codx-junior-projects/codx-junior/client/.codx/profiles/Slides/Slides.profile",
+  "profiles": [],
+  "llm_model": "",
+  "use_knowledge": true,
+  "user": {
+    "username": "",
+    "email": "",
+    "avatar": "",
+    "theme": "dim",
+    "projects": [],
+    "role": "user",
+    "token": "",
+    "disabled": false,
+    "github": "",
+    "apps": [],
+    "api_key": "",
+    "env": {},
+    "wallet": {
+      "wallet_id": "8b122b6b-e5dc-4a3d-a3ec-c4f81aa31770",
+      "name": "Default Wallet",
+      "balance_cxjcoins": 0.0,
+      "spending_limits": [],
+      "transactions": [],
+      "created_at": "2026-09-23T16:24:03.365230",
+      "updated_at": "2026-09-23T16:24:03.365241",
+      "enabled": true
+    },
+    "github_admin": false,
+    "github_only": false,
+    "token_limit_rules": [],
+    "token_limit_requests": []
+  },
+  "tools": [],
+  "tags": [
+    "presentations",
+    "slides",
+    "html-deck",
+    "zero-dependency",
+    "keyboard-navigation",
+    "print-to-pdf",
+    "storytelling",
+    "dark-mode",
+    "codx-junior"
+  ],
+  "api_settings": {
+    "active": false,
+    "model_name": null,
+    "description": null
+  },
+  "chat_mode": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "chat_id": "9c2c7d6a-cd6d-4990-99af-34f9a7eb3b00"
+}
