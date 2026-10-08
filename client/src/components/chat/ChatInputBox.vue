@@ -20,13 +20,22 @@ import FindReplaceBox from './FindReplaceBox.vue'
     @drop.prevent="onDrop"        
   >
     <!-- ── Mobile collapsed pill ── -->
+    <!-- .stop: the pill owns its own toggle, the document listener must not duplicate it -->
     <div
       v-if="isMobile && collapsed"
       class="flex items-center gap-3 px-4 py-3 cursor-pointer"
-      @click="$emit('toggle-collapsed')"
+      @click.stop="$emit('toggle-collapsed')"
     >
       <i class="fa-solid fa-pen text-base-content/40 text-sm shrink-0"></i>
       <span class="text-base-content/40 text-sm flex-1 truncate">Write a message...</span>
+      <!-- Pending attachments / files indicator (previews are hidden while collapsed) -->
+      <span
+        v-if="attachmentCount || fileCount"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium shrink-0"
+      >
+        <i class="fa-solid fa-paperclip text-[10px]"></i>
+        {{ (attachmentCount || 0) + (fileCount || 0) }}
+      </span>
       <i class="fa-solid fa-chevron-up text-base-content/30 text-xs"></i>
     </div>
 
@@ -91,6 +100,7 @@ import FindReplaceBox from './FindReplaceBox.vue'
         @remove-image="$emit('remove-image', $event)"
         @preview-image="$emit('preview-image', $event)"
         @profiles-selected="$emit('profiles-selected', $event)"
+        @upload-files="$emit('upload-files', $event)"
       />
     </template>
   </div>
@@ -111,18 +121,23 @@ export default {
     profiles: { type: Array, default: () => [] },
     selectedProfiles: { type: Array, default: () => [] },
     cursorWord: { type: Object, default: () => ({}) },
-    collapsed: { type: Boolean, default: false }
+    collapsed: { type: Boolean, default: false },
+    // Counters shown on the collapsed pill (previews are hidden while collapsed)
+    attachmentCount: { type: Number, default: 0 },
+    fileCount: { type: Number, default: 0 }
   },
   emits: [
     'send', 'add-message', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
-    'drop', 'profiles-selected', 'focus', 'blur', 'toggle-collapsed', 'update:cursor-word'
+    'drop', 'profiles-selected', 'upload-files', 'focus', 'blur', 'toggle-collapsed', 'update:cursor-word'
   ],
   data() {
     return {
       isFocused: false,
       isDraggingOver: false,
-      showFindReplace: false
+      showFindReplace: false,
+      // Draft kept in memory while the composer is collapsed on mobile
+      collapsedDraft: ''
     }
   },
   computed: {
@@ -131,10 +146,56 @@ export default {
     }
   },
   watch: {
-    // Watcher removed for isMobile collapse logic
-    // Watcher removed for waiting collapse logic
+    collapsed(collapsed) {
+      if (collapsed) {
+        // The editor is unmounted while collapsed, keep the draft in memory
+        this.collapsedDraft = this.$refs.editor?.value || ''
+      } else {
+        // Put the draft back as soon as the editor is mounted again
+        this.$nextTick(() => this.restoreCollapsedDraft())
+      }
+    }
+  },
+  mounted() {
+    // Mobile: toggle the composer when the user taps inside (expand) or outside (collapse)
+    document.addEventListener('click', this.onDocumentClick)
+  },
+  unmounted() {
+    document.removeEventListener('click', this.onDocumentClick)
   },
   methods: {
+    // ── Mobile collapse ─────────────────────────────────────
+
+    // Single authority for the inside/outside transitions.
+    // The pill handles its own toggle with `.stop`, so a pill tap never reaches here.
+    onDocumentClick(event) {
+      if (!this.isMobile || this.isEditing) return
+      const insideComposer = this.isInsideComposer(event.target)
+      if (this.collapsed) {
+        // Tapping the composer area (pill, attachment or files preview) expands it
+        if (insideComposer) this.$emit('toggle-collapsed')
+      } else if (!insideComposer) {
+        // Tapping outside while reading the messages collapses it
+        this.$emit('toggle-collapsed')
+      }
+    },
+    isInsideComposer(target) {
+      const container = this.$refs.inputContainer
+      if (!container || !target) return false
+      // The composer also hosts parent rendered items (attachments, message files,
+      // intellisense) inside the wrapper marked with data-chat-composer
+      const composer = container.closest('[data-chat-composer]') || container
+      return composer.contains(target)
+    },
+    restoreCollapsedDraft() {
+      const editor = this.$refs.editor
+      if (!editor) return
+      editor.value = this.collapsedDraft
+      this.autoResize()
+    },
+
+    // ── Focus handling ──────────────────────────────────────
+
     onFocus() {
       this.isFocused = true
       this.$emit('focus')
@@ -182,19 +243,27 @@ export default {
       this.updateCursorWord()
     },
     getEditorText() {
-      return this.$refs.editor?.value || ''
+      // While collapsed on mobile the editor is unmounted, return the kept draft
+      if (!this.$refs.editor) return this.collapsedDraft
+      return this.$refs.editor.value || ''
     },
     setEditorText(text) {
       if (this.$refs.editor) {
         this.$refs.editor.value = text
         this.autoResize()
+        return
       }
+      // Composer is collapsed: keep the text so it is restored when expanded
+      this.collapsedDraft = text || ''
     },
     appendEditorText(text) {
-      if (this.$refs.editor) {
-        this.$refs.editor.value += text
-        this.autoResize()
+      if (!this.$refs.editor) {
+        // Composer is collapsed: keep the text so it is restored when expanded
+        this.collapsedDraft += text || ''
+        return
       }
+      this.$refs.editor.value += text
+      this.autoResize()
     },
     focusEditor() {
       this.$refs.editor?.focus()

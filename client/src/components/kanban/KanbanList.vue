@@ -109,16 +109,30 @@ import moment from 'moment'
 
             <!-- Title row -->
             <div class="flex items-start gap-2">
+              <!-- Virtual board: fixed inbox affordance instead of a bookmark toggle -->
               <i
+                v-if="!board.virtual"
                 class="fa-solid fa-bookmark mt-0.5 shrink-0 cursor-pointer"
                 :class="board.bookmark ? 'text-warning' : 'text-base-content/20'"
                 @click.stop="toggleBookmark(board)"
+              ></i>
+              <i
+                v-else
+                class="fa-solid fa-inbox mt-0.5 shrink-0 text-base-content/40"
+                title="Virtual board"
               ></i>
               <h2 class="font-bold text-sm leading-tight truncate flex-1" :title="board.title">
                 {{ board.title }}
               </h2>
               <span
-                v-if="board.type === 'sprint'"
+                v-if="board.virtual"
+                class="badge badge-xs badge-warning badge-outline gap-0.5 shrink-0 mt-0.5"
+                title="Chats without a board"
+              >
+                <i class="fa-solid fa-inbox text-[8px]"></i> no board
+              </span>
+              <span
+                v-else-if="board.type === 'sprint'"
                 class="badge badge-xs badge-primary badge-outline gap-0.5 shrink-0 mt-0.5"
                 title="Sprint board"
               >
@@ -208,7 +222,7 @@ export default {
   },
   computed: {
     allStoredBoards() {
-      // Use storex.kanban as the source of truth
+      // Use storex.kanban as the source of truth (includes the virtual board)
       return this.$storex.kanban.allBoards || []
     },
     displayBoards() {
@@ -219,6 +233,17 @@ export default {
     },
     allChats() {
       return Object.values(this.$storex.chats.chats || {})
+    },
+    // Chats with no board — sourced from the shared store getter
+    noBoardChats() {
+      return this.$storex.kanban.noBoardChats || []
+    },
+    // Latest activity across the virtual board's chats
+    virtualLastActivity() {
+      return this.noBoardChats.reduce((latest, c) => {
+        const ts = c.updated_at || c.lastMessageAt || null
+        return ts && ts > (latest || '') ? ts : latest
+      }, null)
     },
     chatMap() {
       const map = {}
@@ -241,7 +266,8 @@ export default {
       return map
     },
     bookmarks() {
-      return this.displayBoards.filter(b => b.bookmark && this.matchesFilter(b))
+      // The virtual board is never bookmarked
+      return this.displayBoards.filter(b => b.bookmark && !b.virtual && this.matchesFilter(b))
     },
     rootBoards() {
       if (this.boards && Array.isArray(this.boards)) {
@@ -259,17 +285,19 @@ export default {
         .filter(b => !b.bookmark)
         .sort((a, b) => {
           // Sort by latest task activity first, fallback to board last_update
-          const aTs = this.boardActivityMap[a.title] || a.last_update || ''
-          const bTs = this.boardActivityMap[b.title] || b.last_update || ''
+          const aTs = this.boardLastActivity(a) || ''
+          const bTs = this.boardLastActivity(b) || ''
           return aTs > bTs ? -1 : aTs < bTs ? 1 : 0
         })
     }
   },
   methods: {
     boardLastActivity(board) {
+      if (board.virtual) return this.virtualLastActivity || board.last_update || null
       return this.boardActivityMap[board.title] || board.last_update || null
     },
     boardTaskCount(board) {
+      if (board.virtual) return this.noBoardChats.length
       const isSprint = board?.type === 'sprint'
       return this.allChats.filter(c => isSprint
         ? (c.sprints || []).includes(board.title)
@@ -278,6 +306,13 @@ export default {
     },
     matchesFilter(board) {
       const filterLower = this.boardFilter.toLowerCase()
+      if (!filterLower) return true
+
+      // The virtual board matches on its own title or any of its chats
+      if (board.virtual) {
+        if (board.title.toLowerCase().includes(filterLower)) return true
+        return this.noBoardChats.some(chat => this.chatMatches(chat, filterLower))
+      }
 
       if (board.title && board.title.toLowerCase().includes(filterLower)) {
         return true
@@ -339,6 +374,12 @@ export default {
       const filterLower = this.boardFilter.toLowerCase()
       const matchingColumns = []
       let chatCount = 0
+
+      // The virtual board has no columns — report matching chats instead
+      if (board.virtual) {
+        chatCount = this.noBoardChats.filter(chat => this.chatMatches(chat, filterLower)).length
+        return { columns: [], chatCount }
+      }
 
       if (board.columns && Array.isArray(board.columns)) {
         for (const column of board.columns) {

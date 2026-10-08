@@ -114,7 +114,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
 
         <!-- Scrollable Messages Container -->
         <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref="scrollContainer">
-          <div class="max-w-[860px] mx-auto flex flex-col px-2 py-4 @lg/panel:px-4 @lg/panel:py-6">
+          <div class="max-w-[860px] mx-auto flex flex-col px-3 py-3 @lg/panel:px-4 @lg/panel:py-6">
 
             <!-- ── Message Blocks ── -->
             <template v-for="(message, ix) in messages" :key="message.doc_id || message.id">
@@ -170,8 +170,8 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
           </div>
         </div>
 
-        <!-- Right Mini-Map (hidden on narrow panels to reclaim horizontal space) -->
-        <div class="hidden @xl/panel:block shrink-0 h-full">
+        <!-- Right Mini-Map — pinned to the right of the messages column (desktop only) -->
+        <div v-if="messages.length" class="shrink-0 h-full">
           <ChatMiniMap
             :messages="messages"
             :messageRefs="messageElRefs"
@@ -182,7 +182,8 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
       </div>
 
       <!-- Fixed Footer: Composer Section -->
-      <div v-if="!readOnly" class="shrink-0">
+      <!-- data-chat-composer marks the whole composer area, taps inside it keep the composer open on mobile -->
+      <div v-if="!readOnly" class="shrink-0" data-chat-composer>
         <div class="max-w-[860px] mx-auto px-2 py-3 @lg/panel:px-4 @lg/panel:py-4 flex flex-col gap-1.5">
 
           <!-- IntelliSense dropdown — appears above composer -->
@@ -253,6 +254,9 @@ export default {
   computed: {
     isVibe() {
       return this.chat.mode === 'vibe'
+    },
+    isMobile() {
+      return this.$ui?.isMobile
     }
   },
   watch: {

@@ -27,8 +27,10 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     <!-- ── Row: Avatar + Header + Content ── -->
     <!-- Compact by default; comfortable once the chat panel reaches @lg (512px+). -->
     <div class="flex gap-2 items-start w-full @lg/panel:gap-3">
-      <!-- Avatar column -->
-      <div class="w-6 shrink-0 flex flex-col items-center gap-1 pt-0.5 @lg/panel:w-7">
+      <!-- Avatar column — desktop/wide panel only. On mobile the identity
+           (assistant icon, profile avatars, tools) is rendered inline in the
+           header row to reclaim horizontal space. -->
+      <div v-if="!isMobile" class="w-6 shrink-0 flex flex-col items-center gap-1 pt-0.5 @lg/panel:w-7">
         
         <template>
           <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
@@ -42,7 +44,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           </div>
         </template>
         
-        <!-- Events button — desktop only -->
+        <!-- Events button -->
         <div class="flex flex-col gap-1 click"
           @click.stop="toggleEventsPanel">
           <button
@@ -65,7 +67,37 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
 
         <!-- Header row: only shown on first message of a speaker group -->
         <div class="flex items-center gap-2 mb-1 leading-none flex-wrap">
-          
+
+          <!-- Mobile identity + tools: avatar, profile avatars and events/tools
+               inline as a row (replaces the desktop left column). -->
+          <div v-if="isMobile" class="flex items-center gap-1 shrink-0">
+            <img class="w-5" src="/only_icon.png" v-if="isAssistant" />
+            <ProfileAvatar
+              v-for="profile in messageProfiles"
+              :key="profile.name"
+              :profile="profile"
+              width="5"
+            />
+            <div
+              v-if="!isMyMessage || toolEventCount"
+              class="flex items-center gap-0.5 click"
+              @click.stop="toggleEventsPanel"
+            >
+              <button
+                v-if="!isMyMessage"
+                class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+                :class="eventsOpen && 'btn-active text-warning'"
+                data-tip="Events & Tools"
+              >
+                <i class="fa-solid fa-stream text-info"></i>
+              </button>
+              <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
+                <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
+                <i class="fa-solid fa-wrench"></i>
+              </div>
+            </div>
+          </div>
+
           <!-- Check mark for seen status (only for other users' messages, at top) -->
           <button
             v-if="!isMyMessage && isDone"
@@ -78,9 +110,9 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           </button>
 
 
-          <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
+          <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">{{ displayMessage.user }}</span>
           <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
-          <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
 
           <!-- State badges inline with header -->
           <span v-if="cancellationTime" class="badge badge-xs badge-error">
@@ -99,8 +131,13 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
 
           <div class="grow"></div>
           
-          <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
-          <div class="group-hover/entry:opacity-100
+          <!-- ── Floating Notion Toolbar (desktop: appears on hover / keyboard focus) ── -->
+          <!-- relative + z-20 lifts this (and its dropdown) above the content
+               block. Without a z-index the `translate-y-0` transform creates a
+               stacking context that the following content paints over. -->
+          <div
+            class="relative z-20
+                  focus-within:opacity-100
                   transition-all duration-150 translate-y-0
                   flex items-center gap-0.5"
           >
@@ -181,7 +218,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
               </button>
               <ul
                 tabindex="0"
-                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
+                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
               >
                 <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
                 <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
@@ -192,86 +229,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             </div>
           </div>
 
-
-          <!-- ── Mobile-only indicators in header ── -->
-          <div class="flex md:hidden items-center gap-1 ml-auto">
-            <!-- Mobile profile avatars -->
-            <div
-              v-for="profile in messageProfiles"
-              :key="profile.name"
-              class="flex items-center"
-            >
-              <ProfileAvatar :profile="profile" width="4" />
-            </div>
-
-            <!-- Mobile events indicator -->
-            <button
-              v-if="hasEvents"
-              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
-              :class="eventsOpen && 'btn-active text-warning'"
-              @click.stop="toggleEventsPanel"
-            >
-              <i class="fa-solid fa-stream text-info text-[10px]"></i>
-              <span class="text-[10px]">{{ eventCount }}</span>
-            </button>
-
-            <!-- Mobile attachments indicator -->
-            <button
-              v-if="hasAttachments"
-              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
-              :class="eventsOpen && 'btn-active text-warning'"
-              @click.stop="toggleEventsPanel"
-            >
-              <i class="fa-solid fa-paperclip text-info text-[10px]"></i>
-              <span class="text-[10px]">{{ attachmentCount }}</span>
-            </button>
-
-            <!-- Mobile floating menu button -->
-            <div class="dropdown dropdown-end md:hidden">
-              <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
-                <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
-              </button>
-              <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
-                <li><a @click.stop="$emit('thread', message)">
-                  <i class="fa-solid fa-comment-dots"></i> Thread
-                </a></li>
-                <li><a @click.stop="$emit('hide', message)" :class="!isDone && 'disabled'">
-                  <i class="fa-solid fa-box-archive text-warning/70"></i>
-                  {{ displayMessage.hide ? 'Unarchive' : 'Archive' }}
-                </a></li>
-                <li><a @click.stop="$emit('answer', message)">
-                  <i class="fa-solid fa-check-double text-success/70"></i> Mark as answer
-                </a></li>
-                <li><a @click.stop="copyMessageToClipboard">
-                  <i class="fa-solid fa-copy"></i> Copy
-                </a></li>
-                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'">
-                  <i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}
-                </a></li>
-                <li v-if="displayMessage.diffMessage"><a @click.stop="toggleShowDiff">
-                  <i class="fa-regular fa-file-lines"></i> Diff
-                </a></li>
-                <li v-if="hasCodeBlocksOrFiles"><a @click.stop="toggleFileView">
-                  <i class="fa-solid fa-file-code"></i> Files
-                </a></li>
-                <li v-if="hasPRViewBlocks"><a @click.stop="togglePRView">
-                  <i class="fa-solid fa-code-branch"></i> Review
-                </a></li>
-                <li><a @click.stop="runAgents">
-                  <i class="fa-solid fa-people-group"></i> Run agents
-                </a></li>
-                <li v-if="isDone"><a @click.stop="toggleSrcView()">
-                  <i class="fa-solid fa-code"></i> View source
-                </a></li>
-                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)">
-                  <i class="fa-solid fa-pen"></i> Edit
-                </a></li>
-                <li><a @click.stop="confirmRemove" class="text-error">
-                  <i class="fa-solid fa-trash-can"></i> Delete
-                </a></li>
-              </ul>
-            </div>
-          </div>
         </div>
 
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
@@ -613,6 +570,9 @@ export default {
     this.collapsed = this.displayMessage.hide
   },
   computed: {
+    isMobile() {
+      return this.$ui?.isMobile
+    },
     isDone() {
       return this.displayMessage.done
     },

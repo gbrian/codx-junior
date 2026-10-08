@@ -38,7 +38,7 @@ import AppIcon from '../apps/AppIcon.vue';
 
     <!-- ADDED: Quick new workspace shortcut -->
     <MenubarItem
-      class="flex gap-2 hover:bg-base-300"
+      class="flex gap-2 hover:bg-base-100"
       @click.stop="openWorkspacesManager({ create: true })"
     >
       <i class="fa-solid fa-plus text-success"></i>
@@ -47,7 +47,7 @@ import AppIcon from '../apps/AppIcon.vue';
 
     <!-- CHANGED: Manage workspaces link (was present before, restored + improved) -->
     <MenubarItem
-      class="flex gap-2 hover:bg-base-300"
+      class="flex gap-2 hover:bg-base-100"
       @click.stop="openWorkspacesManager()"
     >
       <i class="fa-solid fa-sliders"></i>

@@ -3,7 +3,7 @@ import ChatIcon from './ChatIcon.vue'
 </script>
 
 <template>
-  <div class="w-full flex gap-2 select select-ghost">
+  <div class="w-full flex gap-2 select select-ghost bg-base-100">
     <ChatIcon :mode="selectedMode" />
     <select 
       :value="selectedMode"

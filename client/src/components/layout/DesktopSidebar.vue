@@ -1,10 +1,9 @@
 <script setup>
-import RecentsSection from './RecentsSection.vue'
 import AppsSection from './AppsSection.vue'
 import WorkspacesSection from './WorkspacesSection.vue'
-import UserInfo from '../UserInfo.vue'
 import Notifications from '../Notifications.vue'
-import MainMenu from '../main-menu/MainMenu.vue'
+import WindowsMenu from '../main-menu/WindowsMenu.vue'
+import RecentsSection from './RecentsSection.vue'
 </script>
 
 <template>
@@ -62,51 +61,24 @@ import MainMenu from '../main-menu/MainMenu.vue'
           @close="handleClose"
         />
 
-        <!-- Recents Section -->
-        <RecentsSection
-          :is-collapsed="false"
-          :is-mobile="true"
-          @select-chat="handleSelectChat"
-        />
-
       </div>
 
       <!-- Footer -->
       <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
-          <div class="grow flex items-center gap-3 flex-1">
-            <UserInfo>
-              <template #trigger="{ togglePanel }">
-                <button
-                  class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-                  @click="togglePanel"
-                  :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-                >
-                  <div class="avatar tooltip" :data-tip="$user.username">
-                    <div class="w-8">
-                      <img :src="$user.avatar">
-                    </div>
-                  </div>
-                </button>
-              </template>
-            </UserInfo>
-            <div class="flex justify-between">
-              <div class="flex-1 min-w-0">
-                <div class="text-sm  truncate">{{ userName }}</div>
-                <div class="text-xs text-base-content/40">{{ userSubtitle }}</div>
+        <WindowsMenu @close="handleClose">
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
+            <div class="avatar tooltip shrink-0" :data-tip="$user.username">
+              <div class="w-8 rounded-full overflow-hidden">
+                <img :src="$user.avatar">
               </div>
-              <button class="p-1 text-base-content/30 hover:text-base-content/80 transition-colors">
-                <i class="fas fa-chevron-down text-xs"></i>
-              </button>
             </div>
-            <MainMenu
-              :is-project-admin="isProjectAdmin"
-              @close="handleClose"
-            >
-              <i class="fa-solid fa-ellipsis-vertical"></i>
-            </MainMenu>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm truncate">{{ userName }}</div>
+              <div class="text-xs text-base-content/40 truncate">{{ userSubtitle }}</div>
+            </div>
+            <i class="fas fa-chevron-down text-xs text-base-content/30 shrink-0"></i>
           </div>
-        </div>
+        </WindowsMenu>
       </div>
     </aside>
   </div>
@@ -169,73 +141,43 @@ import MainMenu from '../main-menu/MainMenu.vue'
         @close="handleClose"
       />
 
-      <!-- Recents Section -->
       <RecentsSection
-        :is-collapsed="isCollapsed"
-        :is-mobile="false"
         @select-chat="handleSelectChat"
       />
+
     </div>
 
     <!-- Footer -->
     <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-      <div v-if="!isCollapsed" class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
-        <UserInfo>
-          <template #trigger="{ togglePanel }">
-            <div class="flex gap-3 items-center flex-1 min-w-0">
-              <button
-                class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0 shrink-0"
-                @click="togglePanel"
-                :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-              >
-                <div class="avatar tooltip" :data-tip="$user.username">
-                  <div class="w-8">
-                    <img :src="$user.avatar">
-                  </div>
-                </div>
-              </button>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm  truncate">{{ userName }}</div>
-                <div class="text-xs"
-                  :class="connected ? 'text-success/60': 'text-error'"
-                >{{ connected ? 'online': 'offline' }}</div>
-              </div>
+      <!-- Expanded Footer - opens the unified Windows-like menu -->
+      <WindowsMenu v-if="!isCollapsed" @close="handleClose">
+        <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
+          <div class="avatar tooltip shrink-0" :data-tip="$user.username">
+            <div class="w-8 rounded-full overflow-hidden">
+              <img :src="$user.avatar">
             </div>
-          </template>
-        </UserInfo>
-        <div class="flex items-center gap-2 shrink-0">
-          <MainMenu
-            :is-project-admin="isProjectAdmin"
-            @close="handleClose"
-          >
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-          </MainMenu>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm truncate">{{ userName }}</div>
+            <div class="text-xs"
+              :class="connected ? 'text-success/60': 'text-error'"
+            >{{ connected ? 'online': 'offline' }}</div>
+          </div>
+          <i class="fas fa-chevron-down text-xs text-base-content/40 shrink-0"></i>
         </div>
-      </div>
+      </WindowsMenu>
 
       <!-- Collapsed Footer - Icon Only -->
-      <div v-else class="flex items-center justify-center gap-3 py-2">
-        <UserInfo>
-          <template #trigger="{ togglePanel }">
-            <button
-              class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-              @click="togglePanel"
-              :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-            >
-              <div class="avatar tooltip tooltip-right" :data-tip="$user.username">
-                <div class="w-8">
-                  <img :src="$user.avatar">
-                </div>
+      <div v-else class="flex items-center justify-center py-2">
+        <WindowsMenu @close="handleClose">
+          <div class="p-1 rounded-full hover:bg-white/5 transition-colors cursor-pointer">
+            <div class="avatar tooltip tooltip-right" :data-tip="$user.username">
+              <div class="w-8 rounded-full overflow-hidden">
+                <img :src="$user.avatar">
               </div>
-            </button>
-          </template>
-        </UserInfo>
-        <MainMenu
-          :is-project-admin="isProjectAdmin"
-          @close="handleClose"
-        >
-          <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
-        </MainMenu>
+            </div>
+          </div>
+        </WindowsMenu>
       </div>
     </div>
   </aside>

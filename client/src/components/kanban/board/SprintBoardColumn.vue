@@ -4,7 +4,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
 
 <template>
   <div
-    class="sprint-board-column flex flex-col rounded-xl border w-64 shrink-0 self-start transition-colors duration-150 bg-base-100"
+    class="sprint-board-column flex flex-col rounded-xl border w-64 shrink-0 self-start max-h-full transition-colors duration-150 bg-base-100"
     :class="isDragOver ? 'border-primary/50 bg-primary/5' : 'border-base-100'"
     @dragover.prevent="onDragOver"
     @dragleave="onDragLeave"
@@ -30,6 +30,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
         <i class="fa-solid fa-coins text-[10px]"></i>{{ formatCoins(totalCost) }}
       </span>
       <button
+        v-if="allowCreate"
         @click="$emit('new-task')"
         class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-primary"
         title="Add task"
@@ -39,7 +40,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
     </div>
 
     <!-- Tasks -->
-    <div class="flex flex-col gap-2 p-2 overflow-y-auto max-h-[calc(100vh-16rem)]">
+    <div class="flex flex-col gap-2 p-2 overflow-y-auto flex-1 min-h-0">
       <div
         v-for="task in column.tasks"
         :key="task.id"
@@ -71,7 +72,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
     </div>
 
     <!-- Footer -->
-    <div class="shrink-0 p-2 border-t border-base-100">
+    <div v-if="allowCreate" class="shrink-0 p-2 border-t border-base-100">
       <button
         @click="$emit('new-task')"
         class="btn btn-ghost btn-xs w-full gap-1.5 text-base-content/30 hover:text-primary border border-dashed border-base-100 hover:border-primary/30 transition-all"
@@ -87,7 +88,10 @@ export default {
   name: 'SprintBoardColumn',
   props: {
     column: { type: Object, required: true },
-    selectedTaskId: { type: String, default: null }
+    selectedTaskId: { type: String, default: null },
+    // When false (virtual board) the column is a read-only container: dragging
+    // between status columns stays enabled, but no task can be created here.
+    allowCreate: { type: Boolean, default: true }
   },
   emits: ['open-task', 'move-task', 'new-task', 'add-subtask', 'remove-task'],
   data() {

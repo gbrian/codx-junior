@@ -14,9 +14,10 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 <template>
   <div class="flex h-full overflow-hidden" v-if="theChat">
     <!-- ─────────────────────────────────────────────────────────────
-         SIDEBAR: Persistent left navigation with hierarchy
+         SIDEBAR: Persistent on desktop, overlay drawer on mobile
          ───────────────────────────────────────────────────────────── -->
     <ChatSidebar
+      v-if="!isMobile"
       :workingChat="theChat"
       :rootChat="rootChat"
       :allChats="hierarchyChats"
@@ -33,10 +34,43 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       @remove-attachment="onSidebarRemoveAttachment"
     />
 
+    <!-- Mobile sidebar drawer -->
+    <template v-if="isMobile">
+      <div
+        v-if="showMobileSidebar"
+        class="fixed inset-0 z-40 bg-base-300/60 backdrop-blur-sm animate-fade-in"
+        @click="closeMobileSidebar"
+      ></div>
+      <div
+        v-if="showMobileSidebar"
+        class="fixed left-0 top-0 bottom-0 z-50 w-64 shadow-xl flex"
+      >
+        <ChatSidebar
+          :workingChat="theChat"
+          :rootChat="rootChat"
+          :allChats="hierarchyChats"
+          :selectedChatId="theChat?.id"
+          :workingChatMode="theChat?.mode"
+          :chatSearch="chatSearch"
+          :isCompact="false"
+          :chatProfiles="chatProfiles"
+          @select="onSelectSidebarChat"
+          @add-subtask="onSidebarAddSubtask"
+          @action="handleSidebarAction"
+          @toggle-compact="compactSidebar = !compactSidebar"
+          @delete-chat="onSidebarDeleteChat"
+          @remove-attachment="onSidebarRemoveAttachment"
+        />
+      </div>
+    </template>
+
     <!-- ─────────────────────────────────────────────────────────────
          MAIN CONTENT AREA: Header + Chat View OR Logs View
          ───────────────────────────────────────────────────────────── -->
-    <div class="flex-1 flex flex-col min-w-0 md:p-2 gap-2">
+    <div
+      class="flex-1 flex flex-col min-w-0"
+      :class="isMobile ? 'p-0 gap-1' : 'md:p-2 gap-2'"
+    >
       
       <!-- MINIMAL HEADER -->
       <ChatViewHeader
@@ -64,6 +98,8 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @status-changed="onStatusChanged"
         @cost-changed="onCostChanged"
         @select-project="setChatProject"
+        @back="onBack"
+        @show-sidebar="toggleMobileSidebar"
       />
 
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
@@ -209,13 +245,17 @@ export default {
       showLogs: false,
       compactSidebar: true,
       chatProfiles: [],
-      activeChatId: null
+      activeChatId: null,
+      showMobileSidebar: false
     }
   },
   created() {
     this.init()
   },
   computed: {
+    isMobile() {
+      return this.$ui?.isMobile
+    },
     theChat() {
       const chatId = this.activeChatId || this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
@@ -392,6 +432,23 @@ export default {
     resetConfirmDelete() {
       this.confirmDelete = false
     },
+    onBack() {
+      const parent = this.parentChat
+      if (parent) {
+        this.activeChatId = parent.id
+        this.$chats.setActiveChat(parent)
+        this.$emit('chat', parent)
+      } else {
+        this.$chats.setActiveChat(null)
+        this.navigateToChats()
+      }
+    },
+    toggleMobileSidebar() {
+      this.showMobileSidebar = !this.showMobileSidebar
+    },
+    closeMobileSidebar() {
+      this.showMobileSidebar = false
+    },
     onSidebarDeleteChat(chat) {
       if (!chat) return
       this.confirmDeleteSubtask = chat
@@ -544,6 +601,7 @@ export default {
     onSelectSidebarChat(chat) {
       if (!chat) return
       this.activeChatId = chat.id
+      this.closeMobileSidebar()
       if (this.$ui.isMobile) {
         this.$chats.setActiveChat(chat)
       } else {

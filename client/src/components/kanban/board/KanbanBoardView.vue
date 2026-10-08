@@ -65,8 +65,17 @@ import FollowupView from './FollowupView.vue'
     </div>
 
     <!-- ── Kanban board view ── -->
-    <div v-show="activeView === 'board' && !isSprintBoard" class="flex-1 min-h-0 flex overflow-hidden">
-      <!-- Sidebar -->
+    <div v-show="activeView === 'board' && !isSprintBoard" class="flex-1 min-h-0 flex overflow-hidden relative">
+      <!-- Mobile scrim: tapping the canvas collapses the sidebar drawer -->
+      <transition name="fade">
+        <div
+          v-if="sidebarOverlay"
+          class="absolute inset-0 z-30 bg-black/50 backdrop-blur-[1px]"
+          @click="sidebarCompact = true"
+        ></div>
+      </transition>
+
+      <!-- Sidebar (overlay drawer on mobile when expanded) -->
       <KanbanBoardSidebar
         :boards="boards"
         :activeBoard="activeBoard"
@@ -76,6 +85,7 @@ import FollowupView from './FollowupView.vue'
         :selectedTaskId="selectedTaskId"
         :isCompact="sidebarCompact"
         :searchQuery="searchQuery"
+        :class="sidebarOverlay ? 'absolute inset-y-0 left-0 z-40 shadow-2xl' : ''"
         @select-board="onSelectBoard"
         @toggle-column-filter="onToggleColumnFilter"
         @select-task="onSelectTask"
@@ -159,6 +169,8 @@ export default {
     if (this.requestedView) {
       this.activeView = this.requestedView
     }
+    // Mobile: start with the board sidebar collapsed to maximise canvas space
+    this.sidebarCompact = this.isMobile
     // Fall back to the board list only when the board view has no active board
     this.showBoardList = this.activeView === 'board' && !this.activeBoard?.title
   },
@@ -171,6 +183,13 @@ export default {
         this.$route?.query?.view
       ]
       return candidates.find(v => VALID_VIEWS.includes(v)) || null
+    },
+    isMobile() {
+      return this.$ui.isMobile
+    },
+    // On mobile the expanded sidebar floats over the canvas instead of pushing it
+    sidebarOverlay() {
+      return this.isMobile && !this.sidebarCompact
     },
     boards() {
       return this.$storex.kanban.allBoards
@@ -224,6 +243,10 @@ export default {
     // Apply a view requested through params/route (e.g. /kanban?view=planning)
     requestedView(view) {
       this.activeView = view || 'board'
+    },
+    // Keep the sidebar collapsed whenever we cross into the mobile breakpoint
+    isMobile(mobile) {
+      this.sidebarCompact = mobile
     },
     // Sprint boards only expose the board view — force it when one is selected
     activeBoard(board) {
@@ -328,5 +351,14 @@ export default {
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateX(-12px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

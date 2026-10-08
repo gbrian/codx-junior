@@ -9,6 +9,7 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
         v-for="col in columns"
         :key="col.value"
         :column="col"
+        :allowCreate="allowCreate"
         :selectedTaskId="selectedTaskId"
         @open-task="$emit('open-task', $event)"
         @move-task="$emit('move-task', $event)"
@@ -25,7 +26,9 @@ export default {
   name: 'SprintBoardCanvas',
   props: {
     columns: { type: Array, default: () => [] },
-    selectedTaskId: { type: String, default: null }
+    selectedTaskId: { type: String, default: null },
+    // When false (virtual board) the columns hide their creation affordances
+    allowCreate: { type: Boolean, default: true }
   },
   emits: ['open-task', 'move-task', 'new-task', 'add-subtask', 'remove-task']
 }

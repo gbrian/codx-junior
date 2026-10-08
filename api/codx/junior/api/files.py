@@ -92,6 +92,59 @@ async def preview_file(request: Request):
         return Response(status_code=status.HTTP_403_FORBIDDEN)
 
 
+@router.get("/files/download")
+async def download_file(request: Request):
+    """
+    Download a file's binary content as an attachment.
+
+    Unlike /files/read (which returns binary content base64-encoded inside a
+    JSON payload), this endpoint streams the raw file bytes with the correct
+    Content-Type header and instructs the browser to save the file.
+
+    Useful for PDFs, documents, archives, images and any other binary file.
+
+    Query params:
+    - path: File path (relative or absolute)
+    - inline: If true, serve the file for inline display instead of forcing a
+      download (default false)
+
+    Returns:
+        FileResponse with the resolved media type and a Content-Disposition
+        header (attachment by default, inline when inline=true).
+    """
+    codx_junior_session = request.state.codx_junior_session
+    file_engine = codx_junior_session.get_file_engine()
+
+    path = request.query_params.get("path")
+    if not path:
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Missing 'path' parameter"
+        )
+
+    inline = request.query_params.get("inline", "").lower() == "true"
+
+    try:
+        abs_file_path = file_engine.get_project_file_path(path)
+
+        if not os.path.isfile(abs_file_path):
+            return Response(status_code=status.HTTP_404_NOT_FOUND)
+
+        media_type = file_engine.get_media_type(abs_file_path)
+
+        return FileResponse(
+            path=abs_file_path,
+            media_type=media_type,
+            filename=os.path.basename(abs_file_path),
+            content_disposition_type="inline" if inline else "attachment",
+        )
+    except FileNotFoundError:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
+    except ValueError as ex:
+        logger.warning("Invalid file path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
+
+
 @router.get("/files/search")
 async def search_files(request: Request):
     """

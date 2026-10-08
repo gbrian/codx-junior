@@ -7,7 +7,7 @@ import Modal from './Modal.vue'
 </script>
 
 <template>
-  <div class="text-wrap overflow-y-auto prose-xs xl:prose max-w-full">
+  <div class="text-wrap overflow-y-auto prose-sm xl:prose max-w-full">
     <!-- Render markdown content with mixed elements -->
     <div class="space-y-4">
       <div 
@@ -18,6 +18,7 @@ import Modal from './Modal.vue'
         <!-- Markdown/HTML content -->
         <div 
           v-if="element.type === 'markdown'"
+          class="overflow-x-auto"
           v-html="element.content"
         ></div>
 
@@ -75,9 +76,10 @@ import Modal from './Modal.vue'
             @update-table="handleTableUpdate"
           />
 
-          <!-- Standard markdown table -->
+          <!-- Standard markdown table (scrolls horizontally on narrow screens) -->
           <div 
             v-else
+            class="overflow-x-auto"
             v-html="element.markdownHtml"
           ></div>
         </div>

@@ -72,6 +72,13 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
             </li>
             <li
               class="btn btn-sm tooltip"
+              data-tip="Upload files from your computer"
+              @click="$refs.fileInput.click()"
+            >
+              <a><i class="fa-solid fa-cloud-arrow-up"></i> Upload files</a>
+            </li>
+            <li
+              class="btn btn-sm tooltip"
               :class="isVoiceSession && 'btn-success'"
               :data-tip="voiceLanguageLabel"
               @click="$emit('toggle-voice')"
@@ -88,6 +95,15 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
       </div>
     </div>
   </div>
+
+  <!-- Hidden input used to upload local files as message attachments -->
+  <input
+    ref="fileInput"
+    type="file"
+    multiple
+    class="hidden"
+    @change="onUploadFilesSelected"
+  />
 
   <!-- File Explorer Modal -->
   <modal v-if="showFileModal" close="true" @close="closeFileModal" class="w-5/6 h-5/6">
@@ -128,7 +144,7 @@ export default {
   emits: [
     'send', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected',
-    'file-selected'
+    'file-selected', 'upload-files'
   ],
   data() {
     return {
@@ -150,6 +166,11 @@ export default {
     onFileSelected(fileData) {
       this.$emit('file-selected', fileData.path)
       this.closeFileModal()
+    },
+    onUploadFilesSelected(event) {
+      const files = Array.from(event.target.files || [])
+      if (files.length) this.$emit('upload-files', files)
+      event.target.value = ''
     }
   }
 }

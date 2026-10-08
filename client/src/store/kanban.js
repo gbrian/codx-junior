@@ -4,6 +4,10 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const namespaced = true
 
+// Reserved id/title of the virtual board that groups every board-less chat.
+// Boards are keyed by title, so the virtual board reuses its title as id.
+export const NO_BOARD_ID = 'No board'
+
 export const state = () => ({
   activeBoard: null,
   filter: null,
@@ -34,9 +38,53 @@ export const getters = getterTree(state, {
     }, {})
   },
 
+  // ── Virtual "No board" board ────────────────────────────────────────────────
+  // Chats that are not associated with any board. Templates and channel-mode
+  // chats are excluded because they are not real work items.
+  noBoardChats: () => {
+    const allChats = Object.values($storex.chats.chats || {})
+    return allChats
+      .filter(c => c?.id && !c.board && !c.is_template && c.mode !== 'channel')
+      // Board-less chats have no column; they are grouped by task status instead
+      .map(c => ({ ...c, status: c.status || 'todo' }))
+  },
+
+  // Synthetic, non-persisted board describing the board-less group. It is typed
+  // as a 'sprint' so the board view renders it with the fixed status columns.
+  virtualBoard: (_, getters) => {
+    const chats = getters.noBoardChats
+    const lastUpdate = chats.reduce((latest, c) => {
+      const ts = c.updated_at || c.lastMessageAt || null
+      return ts && ts > (latest || '') ? ts : latest
+    }, null)
+
+    return {
+      id: NO_BOARD_ID,
+      title: NO_BOARD_ID,
+      type: 'sprint',
+      virtual: true,
+      description: 'Chats not associated with any board',
+      background: '',
+      parent_id: null,
+      project_id: null,
+      bookmark: false,
+      columns: [],
+      last_update: lastUpdate
+    }
+  },
+
+  // Only expose the virtual board while it holds content, or while it is active
+  // (so an empty picker is not cluttered and the open board never disappears).
+  virtualBoards: (state, getters) => {
+    if (!getters.noBoardChats.length && state.activeBoard !== NO_BOARD_ID) {
+      return []
+    }
+    return [getters.virtualBoard]
+  },
+
   allBoards: (_, getters) => {
     const { boards = {} } = getters.kanban
-    return Object.keys(boards)
+    const storedBoards = Object.keys(boards)
       .filter(title => boards[title] !== null)
       .map(title => ({
         ...boards[title],
@@ -45,6 +93,8 @@ export const getters = getterTree(state, {
         // Boards are 'kanban' unless explicitly created as a 'sprint'
         type: boards[title]?.type || 'kanban'
       }))
+    // The virtual "No board" board is always appended last
+    return [...storedBoards, ...getters.virtualBoards]
   },
 
   activeBoard: (state, getters) => {
@@ -120,8 +170,9 @@ export const getters = getterTree(state, {
   // A sprint is a board with type === 'sprint'. Its columns are FIXED and come
   // from CHAT_STATUS_CONFIG order (see chats store) — they are the task status.
 
+  // Real sprint boards only — the virtual board must not be a switch target
   sprintBoards: (_, getters) =>
-    getters.allBoards.filter(b => b.type === 'sprint'),
+    getters.allBoards.filter(b => b.type === 'sprint' && !b.virtual),
 
   activeBoardType: (state, getters) =>
     getters.activeKanbanBoard?.type || 'kanban',
@@ -129,10 +180,17 @@ export const getters = getterTree(state, {
   isSprintBoard: (state, getters) =>
     getters.activeKanbanBoard?.type === 'sprint',
 
-  // Tasks that belong to the active sprint (chat.sprints includes the board id)
-  sprintBoardChats: (state) => {
+  // True when the active board is the synthetic "No board" board
+  isVirtualBoard: (state, getters) =>
+    !!getters.activeKanbanBoard?.virtual,
+
+  // Tasks that belong to the active sprint (chat.sprints includes the board id).
+  // The virtual board instead exposes every board-less chat.
+  sprintBoardChats: (state, getters) => {
     const boardId = state.activeBoard
     if (!boardId) return []
+    if (boardId === NO_BOARD_ID) return getters.noBoardChats
+
     const allChats = Object.values($storex.chats.chats || {})
     return allChats
       .filter(c => (c.sprints || []).includes(boardId))
@@ -174,7 +232,8 @@ export const getters = getterTree(state, {
     return getters.allBoards.find(b => b.id === active?.parent_id) || null
   },
 
-  parentBoardOptions: (_, getters) => getters.allBoards,
+  // The virtual board can never be a parent board
+  parentBoardOptions: (_, getters) => getters.allBoards.filter(b => !b.virtual),
 
   bookmarkedBoards: (_, getters) => getters.allBoards.filter(b => b.bookmark),
 
@@ -296,8 +355,10 @@ export const actions = actionTree(
       if (!kanban || !kanban.boards) {
         await $storex.kanban.loadKanban()
       }
-      const validBoard = boardName && getKanban().boards?.[boardName] ? boardName : null
-      mutations.setActiveBoard(state, validBoard)
+      // The virtual "No board" board is not stored in kanban.boards, so it must
+      // be accepted explicitly as a valid target.
+      const isValid = !!boardName && (boardName === NO_BOARD_ID || !!getKanban().boards?.[boardName])
+      mutations.setActiveBoard(state, isValid ? boardName : null)
     },
 
     async loadKanban({ state }, project) {
@@ -450,7 +511,8 @@ export const actions = actionTree(
       })
     },
 
-    // Move a task across sprint columns → writes chat.status (NOT chat.column)
+    // Move a task across sprint columns → writes chat.status (NOT chat.column).
+    // Works for the virtual board too: it just re-groups the orphan chat.
     async moveSprintStatus({ state }, { taskId, status } = {}) {
       if (!taskId || !status) return
       const chat = $storex.chats.chats?.[taskId]
@@ -462,7 +524,8 @@ export const actions = actionTree(
     // Add existing tasks to the active sprint (adds the board id to chat.sprints)
     async addTasksToSprint({ state }, { taskIds } = {}) {
       const sprintId = state.activeBoard
-      if (!sprintId || !taskIds?.length) return
+      // The virtual board is a catch-all, not a sprint — it cannot be joined
+      if (!sprintId || sprintId === NO_BOARD_ID || !taskIds?.length) return
 
       await Promise.all(taskIds.map(async (id) => {
         const chat = $storex.chats.chats?.[id]
@@ -477,14 +540,21 @@ export const actions = actionTree(
     async removeTaskFromSprint({ state }, { taskId } = {}) {
       const sprintId = state.activeBoard
       const chat = $storex.chats.chats?.[taskId]
-      if (!sprintId || !chat) return
+      // The virtual board has no membership to remove
+      if (!sprintId || sprintId === NO_BOARD_ID || !chat) return
       const sprints = (chat.sprints || []).filter(id => id !== sprintId)
       await $storex.chats.updateChatInfo({ chat, updates: { sprints } })
     },
 
     // Create a task (or subtask) directly on the active sprint, in its first column
-    async newSprintTask({ state, getters }, { name, status, mode, profiles, llm_model, parentId } = {}) {
+    async newSprintTask({ state, getters }, { name, status, mode, profiles, project_id, llm_model, parentId } = {}) {
       const sprintId = state.activeBoard
+
+      // The virtual "No board" board is read-only: it surfaces existing orphan
+      // chats, it must not create sprint tasks. Board/column are required by the
+      // backend, so creation is disabled for it at the UI level too.
+      if (sprintId === NO_BOARD_ID) return null
+
       const activeProject = $storex.projects.activeProject
       const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
 
@@ -515,7 +585,7 @@ export const actions = actionTree(
         column,
         llm_model: llm_model || null,
         owner_project_id: parentChat?.owner_project_id || activeProject?.project_id || null,
-        project_id: parentChat?.project_id || null,
+        project_id: project_id || parentChat?.project_id,
       })
 
       // Defensive: guarantee membership/status via the metadata endpoint even if
@@ -563,7 +633,8 @@ export const actions = actionTree(
       if (!kanban) return
 
       title = title?.trim()
-      if (!title || kanban.boards?.[title]) return
+      // The virtual board id/title is reserved
+      if (!title || title === NO_BOARD_ID || kanban.boards?.[title]) return
 
       if (!kanban.boards) kanban.boards = {}
       kanban.boards[title] = {
@@ -587,7 +658,8 @@ export const actions = actionTree(
       const kanban = getKanban()
       const oldName = originalTitle
       const newName = board.title?.trim()
-      if (!newName) return
+      // The virtual board id/title is reserved and cannot be taken over
+      if (!newName || newName === NO_BOARD_ID) return
 
       // Preserve board type (kanban | sprint) across edits and renames
       const boardType = board.type
@@ -652,6 +724,7 @@ export const actions = actionTree(
     async toggleBookmark({ state }, boardTitle) {
       const kanban = getKanban()
       const board = kanban.boards?.[boardTitle || state.activeBoard]
+      // Guarded: the virtual board is not stored, so this is a no-op for it
       if (!board) return
       board.bookmark = !board.bookmark
       await $storex.kanban.saveKanban()

@@ -1,7 +1,9 @@
 <script setup>
-import ChatProfileSelector from '../../chat/ChatProfileSelector.vue'
-import ChatLLMModelSelector from '../../chat/ChatLLMModelSelector.vue'
 import ChatCostSelector from '../../chat/ChatCostSelector.vue'
+import ChatInputBox from '../../chat/ChatInputBox.vue'
+import ChatIntelliSense from '../../chat/ChatIntelliSense.vue'
+import ChatAttachmentPreview from '../../chat/ChatAttachmentPreview.vue'
+import ChatModeSelector from '../../chat/ChatModeSelector.vue'
 import ProjectDetailt from '../../ProjectDetailt.vue'
 import { getCurrentInstance } from 'vue'
 
@@ -23,106 +25,99 @@ defineExpose({
           {{ newTask.parentId ? 'Add Subtask' : 'New Task' }}
         </h2>
 
-        <!-- Task name -->
-        <div class="form-control mb-3">
-          <label class="label py-1">
-            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Task name</span>
-          </label>
+        <!-- Project (icon only) · Task name · Mode -->
+        <div class="flex items-center gap-2 mb-3">
+          <div class="shrink-0">
+            <ProjectDetailt
+              :iconify="true"
+              :model-value="selectedProject"
+              @update:model-value="onProjectSelected"
+              @select="onProjectSelected"
+            />
+          </div>
           <input
             ref="taskNameInput"
             v-model="newTask.name"
             type="text"
             placeholder="Describe what needs to be done…"
-            class="input input-bordered input-sm w-full"
-            @keydown.enter="confirmNewTask"
+            class="grow input"
+            @keydown.enter="addNewTask"
           />
-        </div>
-
-        <!-- Mode selector -->
-        <div class="form-control mb-3">
-          <label class="label py-1">
-            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Type</span>
-          </label>
-          <div class="flex gap-2">
-            <label
-              v-for="mode in taskModes"
-              :key="mode.value"
-              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all text-xs"
-              :class="newTask.mode === mode.value
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-base-100 text-base-content/50 hover:border-base-content/20'"
-            >
-              <input type="radio" :value="mode.value" v-model="newTask.mode" class="hidden" />
-              <i :class="mode.icon + ' text-xs'"></i>
-              {{ mode.label }}
-            </label>
+          <div class="">
+            <ChatModeSelector
+              :selected-mode="newTask.mode"
+              @mode-changed="newTask.mode = $event"
+            />
           </div>
         </div>
 
-        <!-- Project -->
+        <!-- Initial message, files & images -->
         <div class="form-control mb-3">
           <label class="label py-1">
-            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Project</span>
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Initial message</span>
+            <span class="label-text-alt text-[10px] text-base-content/40">Optional · type @ to find files</span>
           </label>
-          <ProjectDetailt
-            :model-value="selectedProject"
-            @select="onProjectSelected"
-          />
-          <span class="text-[10px] text-base-content/40 mt-1">
-            Defaults to the current project. Pick another to run this task against a different codebase.
-          </span>
-        </div>
 
-        <!-- Profiles & Model -->
-        <div class="form-control mb-3">
-          <label class="label py-1">
-            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Profiles & Model</span>
-          </label>
-          <div class="flex flex-wrap gap-2 items-center">
-            <ChatProfileSelector
-              :selected-profiles="newTask.selectedProfiles"
-              @profiles-changed="onProfilesChanged"
-            />
-            <ChatLLMModelSelector
+          <!-- The chat composer: message, profiles & model selectors, attachments -->
+          <div class="relative">
+            <ChatInputBox
+              ref="composer"
               :selected-model="newTask.llm_model"
+              :ai-models="aiModels"
+              :profiles="profiles"
+              :selected-profiles="selectedProfiles"
+              :cursor-word="cursorWord"
+              @send="runNewTask"
+              @keydown="onComposerKeyDown"
+              @paste="onComposerPaste"
+              @drop.stop="onComposerDrop"
               @model-changed="onModelChanged"
+              @profiles-selected="onProfilesSelected"
+              @upload-files="onUploadFiles"
+              @update:cursor-word="onCursorWord"
+            />
+
+            <!-- File intellisense — same behaviour as the chat composer -->
+            <ChatIntelliSense
+              ref="intelliSense"
+              :suggestions="intelliSenseSuggestions"
+              :active-index="intelliSenseIndex"
+              :query="intelliSenseQuery"
+              :search-controller="searchController"
+              :progress="intelliSenseProgress"
+              :top="true"
+              @select="onIntelliSenseSelect"
+              @hover="intelliSenseIndex = $event"
+              @accept-multi="onIntelliSenseAcceptMulti"
+              @cancel="cancelIntelliSense"
             />
           </div>
 
-          <!-- Recent profiles quick picker -->
-          <div v-if="recentProfiles.length" class="flex items-center gap-2 mt-2">
-            <span class="text-[10px] uppercase tracking-wider text-base-content/40 shrink-0">Recent</span>
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <button
-                v-for="p in recentProfiles"
-                :key="p.name"
-                type="button"
-                class="avatar tooltip"
-                :data-tip="p.name"
-                :aria-label="`Toggle profile ${p.name}`"
-                :aria-pressed="isRecentProfileSelected(p)"
-                @click="toggleRecentProfile(p)"
-              >
-                <div
-                  class="w-7 h-7 rounded-full ring-2 transition-all"
-                  :class="isRecentProfileSelected(p)
-                    ? 'ring-primary'
-                    : 'ring-transparent opacity-60 hover:opacity-100'"
-                >
-                  <img :src="recentProfileAvatar(p)" :alt="p.name" />
-                </div>
-              </button>
-            </div>
-          </div>
+          <!-- Uploaded files / images -->
+          <ChatAttachmentPreview
+            v-if="newTask.attachments.length"
+            :attachments="newTask.attachments"
+            @remove-attachment="removeAttachment"
+          />
 
-          <div v-if="newTask.selectedProfiles.length" class="flex flex-wrap gap-1 mt-2">
+          <!-- Project files: dropped on the composer or referenced with @file.py -->
+          <div v-if="composerFiles.length" class="flex flex-wrap gap-1 mt-1">
             <span
-              v-for="p in newTask.selectedProfiles"
-              :key="p.name"
-              class="badge badge-sm badge-primary gap-1"
+              v-for="file in composerFiles"
+              :key="file"
+              class="badge badge-sm badge-ghost gap-1 max-w-full"
+              :title="file"
             >
-              <i class="fa-solid fa-user text-xs"></i>
-              {{ p.name }}
+              <i class="fa-solid fa-file text-[10px]"></i>
+              <span class="truncate max-w-[12rem]">{{ fileName(file) }}</span>
+              <button
+                type="button"
+                class="hover:text-error"
+                :aria-label="`Remove ${fileName(file)}`"
+                @click.stop="removeComposerFile(file)"
+              >
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+              </button>
             </span>
           </div>
         </div>
@@ -273,14 +268,26 @@ defineExpose({
         </div>
 
         <!-- Actions -->
-        <div class="flex gap-2 justify-end">
-          <button class="btn btn-ghost btn-sm" @click="closeNewTask">Cancel</button>
+        <div class="flex gap-2 justify-end items-center">
+          <span v-if="hasInitialContent" class="text-[10px] text-base-content/40 mr-auto flex items-center gap-1">
+            <i class="fa-solid fa-play text-[8px]"></i> Run creates the task and starts the agent now
+          </span>
+          <button
+            class="btn btn-outline btn-sm gap-1.5"
+            @click="addNewTask"
+            :disabled="!newTask.name?.trim() || creating"
+          >
+            <i class="fa-solid fa-plus text-xs"></i> Add
+          </button>
           <button
             class="btn btn-primary btn-sm gap-1.5"
-            @click="confirmNewTask"
-            :disabled="!newTask.name?.trim()"
+            title="Create the task and process it immediately"
+            @click="runNewTask"
+            :disabled="!newTask.name?.trim() || !hasInitialContent || creating"
           >
-            <i class="fa-solid fa-plus text-xs"></i> Create
+            <span v-if="creating" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-play text-xs"></i>
+            Run
           </button>
         </div>
       </div>
@@ -353,11 +360,10 @@ defineExpose({
 </template>
 
 <script>
-const TASK_MODES = [
-  { value: 'chat',    label: 'Chat',       icon: 'fa-solid fa-message' },
-  { value: 'task',    label: 'Document',   icon: 'fa-solid fa-file-lines' },
-  { value: 'topic',   label: 'Discussion', icon: 'fa-solid fa-comments' },
-]
+import ChatAttachment from '@/api/model/ChatAttachment.js'
+
+// Attachments travel inline as base64 — keep them reasonably small
+const MAX_ATTACHMENT_SIZE_MB = 50
 
 const DEFAULT_NEW_TASK = () => ({
   name: '',
@@ -369,7 +375,10 @@ const DEFAULT_NEW_TASK = () => ({
   project_id: null,
   users: [],
   deadline: null,
-  estimation_cost: null
+  estimation_cost: null,
+  // Files referenced from the message (dropped on the composer or @filename)
+  files: [],
+  attachments: []
 })
 
 export default {
@@ -386,7 +395,21 @@ export default {
       newTask: DEFAULT_NEW_TASK(),
       candidateSearch: '',
       selected: [],
-      taskModes: TASK_MODES
+      // Mirror of the composer text so the "Run" button knows when there is
+      // content. Kept in sync through `update:cursor-word`, which the composer
+      // emits on every keystroke (no extra events needed).
+      composerText: '',
+      cursorWord: {},
+      creating: false,
+      // ── @-mention file intellisense (same shape as the chat composer) ──
+      intelliSenseSuggestions: [],
+      intelliSenseIndex: 0,
+      intelliSenseQuery: '',
+      intelliSenseProgress: '',
+      intelliSenseDebounce: null,
+      intelliSenseDismissed: false,
+      searchController: null,
+      previousQuery: null
     }
   },
   mounted() {
@@ -394,6 +417,10 @@ export default {
     if (!this.$storex.users.users?.length) {
       this.$storex.users.loadUsers().catch(() => {})
     }
+  },
+  unmounted() {
+    clearTimeout(this.intelliSenseDebounce)
+    this.cancelIntelliSense()
   },
   computed: {
     allChats() {
@@ -433,6 +460,29 @@ export default {
       if (!id) return null
       return this.$storex.projects.allProjectsById?.[id] || null
     },
+    // Project the composer works against — same resolution as the chat composer
+    chatProject() {
+      return this.$storex.projects.allProjectsById?.[this.newTask.project_id] || this.$project
+    },
+    // Profiles & models come from the same sources as the chat composer
+    profiles() {
+      return this.chatProject?.$state?.profiles || []
+    },
+    aiModels() {
+      return this.$storex.projects.ai.models || []
+    },
+    // The composer toolbar selects profiles as items, the task stores their names
+    selectedProfiles() {
+      return this.profiles.filter(p => this.newTask.selectedProfiles.includes(p.name))
+    },
+    // Files a task can run with: dropped paths + @file references in the message
+    composerFiles() {
+      return this.resolveFiles(this.composerText)
+    },
+    // A task can only be run when it carries an initial prompt / file / image
+    hasInitialContent() {
+      return !!(this.composerText?.trim() || this.composerFiles.length || this.newTask.attachments.length)
+    },
     // Users available for assignment
     allUsers() {
       return this.$storex.users.users || []
@@ -441,23 +491,16 @@ export default {
       return this.newTask.users.map(name =>
         this.allUsers.find(u => u.username === name) || { username: name, avatar: null }
       )
+    }
+  },
+  watch: {
+    // The composer selectors follow the project picked in the dialog
+    chatProject(project) {
+      if (project && this.showNewTask) this.initComposerProject()
     },
-    // Profiles used by the most recently updated tasks → quick picker
-    recentProfiles() {
-      const chats = [...(this.$storex.chats.allChats || [])]
-        .sort((a, b) => (a.updated_at || '') < (b.updated_at || '') ? 1 : -1)
-
-      const names = []
-      for (const chat of chats) {
-        for (const name of (chat.profiles || [])) {
-          if (!names.includes(name)) names.push(name)
-        }
-        if (names.length >= 8) break
-      }
-
-      const available = this.$storex.projects.profiles || []
-      return names.slice(0, 8)
-        .map(name => available.find(p => p.name === name) || { name })
+    // Every composer keystroke refreshes the @-mention search
+    composerText() {
+      this.scheduleIntelliSense()
     }
   },
   methods: {
@@ -478,6 +521,261 @@ export default {
       }
       return num
     },
+    fileName(path) {
+      return path?.split('/').reverse()[0] || path
+    },
+
+    // ── Initial message: composer wiring ─────────────────────────────────────
+    // The chat composer needs the project's profiles and models to render its
+    // selectors — initialize the project exactly like the chat does.
+    async initComposerProject() {
+      const project = this.chatProject
+      if (!project) return
+      try {
+        await this.$storex.projects.initProjectState(project)
+      } catch (error) {
+        console.error('[SprintBoardModals] Could not initialize the composer project:', error)
+      }
+    },
+    onCursorWord(wordInfo) {
+      this.cursorWord = wordInfo || {}
+      this.composerText = this.$refs.composer?.getEditorText() || ''
+    },
+    onModelChanged(modelName) {
+      this.newTask.llm_model = modelName || null
+    },
+    onProfilesSelected(profiles) {
+      this.newTask.selectedProfiles = (profiles || []).map(p => p.name || p)
+    },
+    // Keys while the mention list is open navigate it; otherwise Ctrl/Cmd+Enter
+    // runs the task right away, like the chat composer.
+    onComposerKeyDown(event) {
+      const hasSuggestions = this.intelliSenseSuggestions.length > 0
+      if (hasSuggestions) {
+        if (event.key === 'Tab') {
+          event.preventDefault(); event.stopPropagation()
+          this.onIntelliSenseSelect(this.intelliSenseSuggestions[this.intelliSenseIndex])
+          return
+        }
+        if (event.key === 'Escape') { this.dismissIntelliSense(); return }
+        if (event.key === ' ' && event.ctrlKey) {
+          event.preventDefault(); event.stopPropagation()
+          this.$refs.intelliSense?.toggleSelected(this.intelliSenseSuggestions[this.intelliSenseIndex])
+          return
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.max(0, this.intelliSenseIndex - 1)
+          return
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.min(this.intelliSenseSuggestions.length - 1, this.intelliSenseIndex + 1)
+          return
+        }
+      }
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        this.runNewTask()
+      }
+    },
+
+    // ── Initial message: file intellisense (@mentions) ───────────────────────
+    // Mirrors the chat composer: typing `@` + 3 chars opens the mention search
+    // so the user can pick project files to attach to the task.
+    scheduleIntelliSense(word = null) {
+      if (this.intelliSenseDismissed) {
+        const currentWord = word || this.cursorWord.word
+        if (currentWord !== this.intelliSenseQuery) this.intelliSenseDismissed = false
+      }
+      clearTimeout(this.intelliSenseDebounce)
+      this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(word), 220)
+    },
+    async runIntelliSense(word = null) {
+      if (this.intelliSenseDismissed) return
+      const searchWord = word || this.cursorWord.word
+      if (!searchWord?.startsWith('@')) { this.cancelIntelliSense(); return }
+      const rawQuery = searchWord.slice(1)
+      if (!rawQuery || rawQuery.trim().length < 3) { this.cancelIntelliSense(); return }
+      if (this.previousQuery !== rawQuery && this.searchController) this.cancelIntelliSense()
+      this.previousQuery = rawQuery
+      this.searchController = await this.$storex.projects.createSearchController()
+      this.intelliSenseQuery = rawQuery
+      this.intelliSenseIndex = 0
+      this.searchController.onProgress = ({ stage, project }) => {
+        this.intelliSenseProgress = `${stage}: ${project}`
+      }
+      try {
+        await this.chatProject?.$state?.searchMentions?.({
+          query: rawQuery,
+          limit: 10,
+          controller: this.searchController,
+          onResults: (results) => {
+            if (!this.searchController?.isCancelled) {
+              if (results.length === 1 && results[0].name === rawQuery) {
+                this.onIntelliSenseSelect(results[0])
+              } else {
+                this.intelliSenseSuggestions = results
+                this.intelliSenseIndex = 0
+              }
+            }
+          }
+        })
+      } catch (error) {
+        if (error.message !== 'Search cancelled') console.error('[IntelliSense] Search error:', error)
+      }
+      this.intelliSenseProgress = ''
+    },
+    cancelIntelliSense() {
+      if (this.searchController) { this.searchController.cancel(); this.searchController = null }
+      this.intelliSenseSuggestions = []
+      this.intelliSenseQuery = ''
+      this.previousQuery = null
+    },
+    onIntelliSenseSelect(suggestion) {
+      const { file, name } = suggestion
+      const { caretIndex, word } = this.cursorWord
+      const text = this.$refs.composer?.getEditorText() || ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      let insert = '@' + name
+      // Files are attached to the task instead of inserted as a mention
+      if (file) {
+        this.addProjectFile(file)
+        insert = ''
+      }
+      this.setComposerText(left + insert + ' ' + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.$refs.composer?.focusEditor())
+    },
+    onIntelliSenseAcceptMulti(items) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.$refs.composer?.getEditorText() || ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      const mentionInserts = []
+      items.forEach(({ file, name }) => {
+        if (file) {
+          this.addProjectFile(file)
+        } else {
+          mentionInserts.push('@' + name)
+        }
+      })
+      const insert = mentionInserts.join(' ')
+      this.setComposerText(left + insert + (insert ? ' ' : '') + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.$refs.composer?.focusEditor())
+    },
+    dismissIntelliSense() {
+      this.intelliSenseDismissed = true
+    },
+
+    // ── Initial message: attachments ─────────────────────────────────────────
+    async onUploadFiles(files) {
+      await this.addAttachments(files)
+    },
+    async onComposerPaste(event) {
+      const imageFile = await this.$service.chat.parseImageFromPaste(event)
+      if (!imageFile) return
+      event.preventDefault()
+      await this.addAttachments([imageFile])
+    },
+    async onComposerDrop(event) {
+      const files = Array.from(event.dataTransfer?.files || [])
+      if (files.length) await this.addAttachments(files)
+      this.addProjectFilesFromDrop(event.dataTransfer)
+    },
+    async addAttachments(files) {
+      for (const file of files || []) {
+        const attachment = await this.prepareAttachment(file)
+        if (attachment) this.newTask.attachments.push(attachment)
+      }
+    },
+    async prepareAttachment(file) {
+      if ((file?.size || 0) > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
+        this.$ui?.addNotification?.({
+          text: `File exceeds maximum size of ${MAX_ATTACHMENT_SIZE_MB}MB`,
+          type: 'error'
+        })
+        return null
+      }
+      try {
+        return await ChatAttachment.fromFile(file)
+      } catch (error) {
+        console.error('[SprintBoardModals] Failed to process attachment:', error)
+        this.$ui?.addNotification?.({ text: 'Failed to process file', type: 'error' })
+        return null
+      }
+    },
+    removeAttachment(index) {
+      this.newTask.attachments.splice(index, 1)
+    },
+
+    // ── Initial message: project files ───────────────────────────────────────
+    // Files referenced from the message as `@file.py`, resolved against the
+    // project file list (the same list the chat mention list is built from).
+    resolveMentionedFiles(text) {
+      const available = this.chatProject?.$state?.files || []
+      const tokens = [...(text || '').matchAll(/@([^\s]+)/g)].map(m => m[1])
+      if (!tokens.length) return []
+      return available.filter(file =>
+        tokens.includes(this.fileName(file)) || tokens.includes(file)
+      )
+    },
+    resolveFiles(text) {
+      return [...new Set([...this.newTask.files, ...this.resolveMentionedFiles(text)])]
+    },
+    isProjectFile(path) {
+      return !!this.$storex.projects.allProjects.find(p => path?.startsWith(p.abs_project_path))
+    },
+    addProjectFile(file) {
+      const path = file?.trim()
+      if (!path || this.newTask.files.includes(path)) return
+      this.newTask.files.push(path)
+    },
+    // A project file dropped on the composer behaves like in the chat: it is
+    // attached to the message instead of being uploaded.
+    addProjectFilesFromDrop(dataTransfer) {
+      if (!dataTransfer) return
+      const candidates = []
+      const plain = dataTransfer.getData('text/plain')
+      if (plain) candidates.push(...decodeURIComponent(plain).split('\n'))
+      const urls = dataTransfer.getData('resourceurls')
+      if (urls) {
+        try {
+          JSON.parse(urls).forEach(url => candidates.push(new URL(url).pathname))
+        } catch (error) {
+          console.error('[SprintBoardModals] Invalid dropped url list:', error)
+        }
+      }
+      const jsonFiles = dataTransfer.getData('application/x-file-list-json')
+      if (jsonFiles) {
+        try {
+          (JSON.parse(jsonFiles).files || []).forEach(f => { if (!f.is_dir) candidates.push(f.path) })
+        } catch (error) {
+          console.error('[SprintBoardModals] Invalid dropped file list:', error)
+        }
+      }
+      candidates
+        .map(path => path?.trim())
+        .filter(path => path && this.isProjectFile(path))
+        .forEach(path => this.addProjectFile(path))
+    },
+    removeComposerFile(file) {
+      this.newTask.files = this.newTask.files.filter(f => f !== file)
+      // The file may also be referenced from the message — drop the reference too
+      const name = this.fileName(file)
+      const text = this.$refs.composer?.getEditorText() || ''
+      if (text.includes(`@${name}`)) {
+        this.setComposerText(text.split(`@${name}`).join(''))
+      }
+    },
+    setComposerText(text) {
+      this.$refs.composer?.setEditorText(text || '')
+      this.composerText = text || ''
+      this.cursorWord = this.$refs.composer?.getCaretWordInfo() ?? {}
+    },
 
     // ── New Task / Subtask ───────────────────────────────────────────────────
     // `status` is the target column, forwarded by the board (a column's "+"
@@ -491,27 +789,61 @@ export default {
         status: status || 'todo',
         project_id: parent?.project_id || null
       }
+      this.composerText = ''
+      this.cursorWord = {}
+      this.intelliSenseDismissed = false
+      this.cancelIntelliSense()
       this.showNewTask = true
-      this.$nextTick(() => this.$refs.taskNameInput?.focus())
+      this.initComposerProject()
+      this.$nextTick(() => {
+        this.$refs.composer?.setEditorText('')
+        this.$refs.taskNameInput?.focus()
+      })
     },
     closeNewTask() {
       this.showNewTask = false
+      this.composerText = ''
+      clearTimeout(this.intelliSenseDebounce)
+      this.cancelIntelliSense()
+      this.$refs.composer?.setEditorText('')
     },
-    confirmNewTask() {
-      if (!this.newTask.name?.trim()) return
-      this.$emit('task-created', {
-        name: this.newTask.name.trim(),
-        mode: this.newTask.mode,
-        status: this.newTask.status || 'todo',
-        parentId: this.newTask.parentId || null,
-        profiles: this.newTask.selectedProfiles.map(p => p.name),
-        llm_model: this.newTask.llm_model || null,
-        project_id: this.newTask.project_id || null,
-        users: [...this.newTask.users],
-        deadline: this.newTask.deadline || null,
-        estimation_cost: this.normalizeCost(this.newTask.estimation_cost)
-      })
-      this.closeNewTask()
+    addNewTask() {
+      return this.submitNewTask(false)
+    },
+    runNewTask() {
+      return this.submitNewTask(true)
+    },
+    // Create the task, optionally seeding it with the initial message (text,
+    // files and attachments) and (when `run` is set) processing it immediately.
+    submitNewTask(run) {
+      if (!this.newTask.name?.trim() || this.creating) return
+      const message = (this.$refs.composer?.getEditorText() || '').trim()
+      const files = this.resolveFiles(message)
+      const attachments = this.newTask.attachments.map(a => a.toJSON?.() || a)
+      const hasContent = !!(message || files.length || attachments.length)
+      this.creating = true
+      try {
+        this.$emit('task-created', {
+          name: this.newTask.name.trim(),
+          mode: this.newTask.mode,
+          status: this.newTask.status || 'todo',
+          parentId: this.newTask.parentId || null,
+          profiles: [...this.newTask.selectedProfiles],
+          llm_model: this.newTask.llm_model || null,
+          project_id: this.newTask.project_id || null,
+          users: [...this.newTask.users],
+          deadline: this.newTask.deadline || null,
+          estimation_cost: this.normalizeCost(this.newTask.estimation_cost),
+          message,
+          files,
+          attachments,
+          // Run is only meaningful when there is something to send
+          run: !!run && hasContent
+        })
+        this.closeNewTask()
+      } finally {
+        this.creating = false
+      }
     },
     // Selecting an existing child adds it to this sprint and closes the dialog
     selectParentChild(child) {
@@ -519,29 +851,16 @@ export default {
       this.$emit('tasks-added', { taskIds: [child.id] })
       this.closeNewTask()
     },
-    onProfilesChanged(profiles) {
-      this.newTask.selectedProfiles = profiles || []
-    },
-    onModelChanged(modelName) {
-      this.newTask.llm_model = modelName || null
-    },
+    // `ProjectDetailt` is a v-model component: the selection is delivered through
+    // `update:modelValue` (its canonical event). `@select` is kept as a legacy
+    // fallback. Native events that fall through to the root element carry no
+    // project id and are ignored.
     onProjectSelected(project) {
-      this.newTask.project_id = project?.project_id || null
-    },
-    isRecentProfileSelected(profile) {
-      return this.newTask.selectedProfiles.some(p => p.name === profile.name)
-    },
-    toggleRecentProfile(profile) {
-      const ix = this.newTask.selectedProfiles.findIndex(p => p.name === profile.name)
-      if (ix > -1) {
-        this.newTask.selectedProfiles.splice(ix, 1)
-      } else {
-        this.newTask.selectedProfiles.push(profile)
-      }
-    },
-    recentProfileAvatar(profile) {
-      return profile.avatar ||
-        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=200&d=robohash&r=${profile.name}`
+      const id = typeof project === 'string'
+        ? project
+        : (project?.project_id || project?.id || null)
+      if (!id) return
+      this.newTask.project_id = id
     },
     setDeadline(preset) {
       const date = new Date()

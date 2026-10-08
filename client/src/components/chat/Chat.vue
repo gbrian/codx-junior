@@ -193,6 +193,9 @@ import Collapsible from '../Collapsible.vue'
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
                 :chat="chat"
+                :collapsed="inputCollapsed"
+                :attachment-count="attachments?.length || 0"
+                :file-count="files?.length || 0"
                 @send="sendMessage"
                 @add-message="addNewMessage()"
                 @search-message="addSearchMessage"
@@ -202,17 +205,21 @@ import Collapsible from '../Collapsible.vue'
                 @drop.stop="onDropInputBox"
                 @model-changed="onLLMModelChanged"
                 @profiles-selected="onProfilesSelected"
+                @upload-files="onUploadFiles"
                 @toggle-voice="toggleVoiceSession"
+                @toggle-collapsed="toggleInputCollapsed"
               />
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatAttachmentPreview
                 :attachments="attachments"
                 @remove-attachment="removeAttachment"
-                v-if="attachments?.length"
+                v-if="attachments?.length && !composerCollapsed"
               />
             </template>
 
             <!-- Per-message files slot (files attached to the current message being composed) -->
             <template #files>
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatFileList
                 :files="files"
                 :message-files="[]"
@@ -220,7 +227,7 @@ import Collapsible from '../Collapsible.vue'
                 @remove-file="removeFileFromFiles"
                 @add-file="addFileContentAsMessage"
                 @preview-file="handleFilePreview"
-                v-if="files?.length"
+                v-if="files?.length && !composerCollapsed"
               />
             </template>
           </ChatMessageList>
@@ -323,13 +330,16 @@ export default {
       uploadPath: '',
       uploadContext: null,
       MAX_IMAGE_SIZE_MB: 50,
-      dragCounter: 0
+      dragCounter: 0,
+      inputCollapsed: false
     }
   },
   created() {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    // Collapse the composer by default on mobile to leave more room for reading
+    this.inputCollapsed = this.$ui.isMobile
     this.initProject()
   },
   mounted() {
@@ -420,6 +430,11 @@ export default {
     mentionList() {
       return (this.chatProject?.$state || this.$projects).mentionList
     },
+    // On mobile the composer collapses while reading the messages; the image/files
+    // previews are hidden too so the reading area stays clean.
+    composerCollapsed() {
+      return this.$ui.isMobile && this.inputCollapsed
+    },
     messageMentions() {
       const mentions = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(w => w[1]) || []
       return [
@@ -464,9 +479,19 @@ export default {
       this.updateCursorWord()
       this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
+    },
+    editMessage(newVal) {
+      // Always expand the composer while editing a message
+      if (newVal) this.inputCollapsed = false
     }
   },
   methods: {
+    toggleInputCollapsed() {
+      this.inputCollapsed = !this.inputCollapsed
+      if (!this.inputCollapsed) {
+        this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+      }
+    },
     initProject() {
       this.$projects.initProjectState(this.chatProject)
     },
@@ -556,7 +581,7 @@ export default {
     validateImageSize(file) {
       const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
       if (file.size > maxSizeBytes) {
-        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        const errorMsg = `File exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
         this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
         return false
       }
@@ -626,6 +651,12 @@ export default {
         }
       }
       return validImageFiles.length > 0
+    },
+    async onUploadFiles(files) {
+      for (const file of files) {
+        const attachment = await this.prepareAttachmentFromFile(file)
+        if (attachment) this.attachments.push(attachment)
+      }
     },
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)

@@ -589,6 +589,26 @@ export const actions = actionTree(
         throw error
       }
     },
+    // Update only the `content` of an existing message (e.g. an edited canva
+    // code block), keeping every other field of the message untouched.
+    async updateMessageContent({ state }, { chat, doc_id, content }) {
+      if (!chat?.id || !doc_id) return null
+
+      const chatState = state.chats[chat.id]
+      const message = chatState?.messages?.find(m => m.doc_id === doc_id)
+        || chat.messages?.find(m => m.doc_id === doc_id)
+      if (!message) return null
+
+      const updated_at = new Date().toISOString()
+      // Optimistic local update so the message refreshes immediately
+      message.content = content
+      message.updated_at = updated_at
+
+      return await $storex.chats.updateMessage({
+        chat,
+        message: { ...message, content, updated_at }
+      })
+    },
     async updateMessages({ state }, { chat, messages }) {
       if (!chat?.id || !messages?.length) return
 

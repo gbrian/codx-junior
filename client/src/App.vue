@@ -6,7 +6,7 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 </script>
 
 <template>
-  <div class="w-full h-full relative bg-base-300" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full relative bg-base-100" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     
     <div class="h-full w-full flex" v-else :class="layoutClasses">
@@ -44,7 +44,7 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 
       <!-- Mobile Bottom Bar (Portrait on mobile) -->
       <MobileBottomBar
-        v-if="isMobilePortrait && showMobileBottomBar"
+        v-if="showMobileBottomBar"
         :user-name="$user?.username || 'User'"
         @show-menu="showMobileSidebarOverlay = true"
       />
@@ -107,8 +107,8 @@ export default {
       return this.$ui.notifications.filter(n => n.type === 'error')
     },
     showMobileBottomBar() {
-      const { name, params } = this.$route
-      return name != 'chat' || !params?.chatId
+      const chatId = this.$storex.$router.$navigation.getChatId()
+      return !chatId && this.$ui.isMobile
     }
   },
   watch: {

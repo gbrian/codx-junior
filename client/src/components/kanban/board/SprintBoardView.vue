@@ -9,10 +9,13 @@ import SprintBoardModals from './SprintBoardModals.vue'
     <!-- ── Sprint header / selector ── -->
     <div class="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-base-100">
       <div class="dropdown">
-        <button tabindex="0" role="button" class="btn btn-sm btn-ghost gap-2" title="Switch sprint">
-          <i class="fa-solid fa-calendar-days text-xs text-primary"></i>
+        <button tabindex="0" role="button" class="btn btn-sm btn-ghost gap-2" :title="isVirtualBoard ? 'No board chats' : 'Switch sprint'">
+          <i :class="['fa-solid text-xs', isVirtualBoard ? 'fa-inbox text-warning' : 'fa-calendar-days text-primary']"></i>
           <span class="font-medium text-sm truncate max-w-[16rem]">{{ activeBoardTitle }}</span>
-          <span class="badge badge-xs badge-primary badge-outline gap-1">
+          <span v-if="isVirtualBoard" class="badge badge-xs badge-warning badge-outline gap-1">
+            <i class="fa-solid fa-inbox text-[8px]"></i> no board
+          </span>
+          <span v-else class="badge badge-xs badge-primary badge-outline gap-1">
             <i class="fa-solid fa-layer-group text-[8px]"></i> sprint
           </span>
           <i class="fa-solid fa-chevron-down text-xs opacity-60"></i>
@@ -46,7 +49,9 @@ import SprintBoardModals from './SprintBoardModals.vue'
 
       <div class="grow"></div>
 
+      <!-- New sprint is only meaningful for real sprint boards -->
       <button
+        v-if="!isVirtualBoard"
         class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
         @click="$emit('new-board')"
       >
@@ -64,6 +69,12 @@ import SprintBoardModals from './SprintBoardModals.vue'
 
       <div class="grow"></div>
 
+      <!-- Virtual board: read-only catch-all hint instead of create actions -->
+      <span v-if="isVirtualBoard" class="badge badge-sm badge-ghost gap-1.5 text-base-content/50">
+        <i class="fa-solid fa-inbox text-xs"></i>
+        chats without a board
+      </span>
+
       <!-- Search -->
       <label class="input input-sm input-bordered flex items-center gap-2 w-52">
         <i class="fa-solid fa-magnifying-glass text-xs text-base-content/40"></i>
@@ -79,13 +90,13 @@ import SprintBoardModals from './SprintBoardModals.vue'
       </label>
 
       <!-- Add existing -->
-      <button class="btn btn-sm btn-ghost border border-base-100 gap-1.5" @click="openAddExisting">
+      <button v-if="!isVirtualBoard" class="btn btn-sm btn-ghost border border-base-100 gap-1.5" @click="openAddExisting">
         <i class="fa-solid fa-folder-plus text-xs"></i>
         <span class="text-xs font-medium">Add existing</span>
       </button>
 
       <!-- New Task (starts in To Do) -->
-      <button class="btn btn-sm btn-primary gap-1.5" @click="openNewTask({ status: 'todo' })">
+      <button v-if="!isVirtualBoard" class="btn btn-sm btn-primary gap-1.5" @click="openNewTask({ status: 'todo' })">
         <i class="fa-solid fa-plus text-xs"></i>
         <span class="text-xs font-medium">New Task</span>
       </button>
@@ -112,6 +123,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
     <SprintBoardCanvas
       class="flex-1 min-h-0"
       :columns="filteredColumns"
+      :allowCreate="!isVirtualBoard"
       :selectedTaskId="selectedTaskId"
       @open-task="$emit('open-task', $event)"
       @move-task="onMoveTask"
@@ -144,6 +156,10 @@ export default {
     activeBoard() {
       return this.$storex.kanban.activeKanbanBoard
     },
+    // True when the synthetic "No board" board is active
+    isVirtualBoard() {
+      return !!this.activeBoard?.virtual
+    },
     activeBoardTitle() {
       return this.activeBoard?.title || 'Sprint'
     },
@@ -153,7 +169,7 @@ export default {
     selectedTaskId() {
       return this.$storex.chats.activeChatId || null
     },
-    // Fixed status columns from the kanban store
+    // Fixed status columns from the kanban store (virtual board includes them)
     columns() {
       return this.$storex.kanban.sprintColumns
     },
@@ -207,14 +223,18 @@ export default {
       document.activeElement?.blur()
     },
     openNewTask(opts = {}) {
+      // The virtual board is read-only — it must not create tasks
+      if (this.isVirtualBoard) return
       this.$refs.modals?.openNewTask(opts)
     },
     openAddExisting() {
+      if (this.isVirtualBoard) return
       this.$refs.modals?.openAddExisting()
     },
     onAddSubtask(task) {
       // "+" on a card → create a subtask linked to that task, landing in the
       // same column (status) as its parent.
+      if (this.isVirtualBoard) return
       this.openNewTask({ parentId: task.id, status: task.status })
     },
     async onMoveTask({ taskId, status }) {
@@ -223,22 +243,56 @@ export default {
     async onRemoveTask(task) {
       await this.$storex.kanban.removeTaskFromSprint({ taskId: task.id })
     },
+    // Fallback content when the task is seeded with files/images but no text.
+    // `addMessage` rejects empty content, so this must always be non-empty.
+    defaultTaskMessage({ files, attachments }) {
+      const names = [
+        ...(files || []).map(f => f.split('/').reverse()[0]),
+        ...(attachments || []).map(a => a.file_name)
+      ].filter(Boolean)
+      return names.length
+        ? `Work on the attached content:\n${names.map(n => `- ${n}`).join('\n')}`
+        : 'Run this task.'
+    },
     async onTaskCreated(payload) {
-      // `newSprintTask` only understands the core fields, so split the assignment
-      // extras out and persist them via the shared metadata endpoint afterwards.
-      const { project_id, users, deadline, ...task } = payload
-      const chat = await this.$storex.kanban.newSprintTask(task)
+      // `newSprintTask` only understands the core task fields (name, mode,
+      // status, parentId, profiles, llm_model). Every other preference the user
+      // picked in the dialog — project, assignees, deadline, cost budget and the
+      // referenced files — is persisted afterwards through the shared metadata
+      // endpoint so none of them are silently dropped.
+      const { project_id, users, deadline, estimation_cost, message, files, attachments, profiles, run } = payload
+      const chat = await this.$storex.kanban.newSprintTask(payload)
       if (!chat) return
 
       const updates = {}
       if (project_id) updates.project_id = project_id
       if (users?.length) updates.users = users
       if (deadline) updates.deadline = deadline
+      if (estimation_cost != null) updates.estimation_cost = estimation_cost
+      if (files?.length) updates.file_list = files
+
       if (Object.keys(updates).length) {
         await this.$storex.chats.updateChatInfo({ chat, updates })
       }
 
-      this.$emit('open-task', chat)
+      // The initial message (text + files + attachments) becomes the task's
+      // first user message so the agent has something to work with.
+      const hasInitialContent = !!(message || files?.length || attachments?.length)
+      if (hasInitialContent) {
+        const userMessage = this.$service.chat.getUserMessage({
+          message: message || this.defaultTaskMessage({ files, attachments }),
+          files: files || [],
+          profiles: profiles || [],
+          attachments: attachments || [],
+          user: this.$user?.username
+        })
+        await this.$storex.chats.addMessage({ chat, message: userMessage })
+
+        // "Run" → create the task and start processing it immediately
+        if (run) {
+          await this.$storex.projects.chatWihProject(chat)
+        }
+      }
     },
     async onTasksAdded({ taskIds }) {
       await this.$storex.kanban.addTasksToSprint({ taskIds })
