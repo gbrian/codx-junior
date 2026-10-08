@@ -26,7 +26,7 @@ import WindowsMenuItems from './WindowsMenuItems.vue'
           :align-offset="0"
           :avoid-collisions="true"
           :data-theme="$ui.theme"
-          class="menubar-windows-content outline-none p-0 rounded-2xl border border-base-content/10 shadow-2xl overflow-hidden bg-base-100 will-change-[transform,opacity]"
+          class="menubar-windows-content relative outline-none p-0 rounded-2xl border border-base-content/10 shadow-2xl overflow-hidden bg-base-100 will-change-[transform,opacity]"
         >
           <div class="flex w-[640px] max-w-[92vw]">
             <!-- LEFT: unified user info panel -->
@@ -62,16 +62,24 @@ import WindowsMenuItems from './WindowsMenuItems.vue'
 
 <script>
 export default {
-  emits: ['close'],
+  emits: ['close', 'open'],
   data() {
     return {
       openMenu: ''
     }
   },
+  watch: {
+    openMenu(val) {
+      if (val) {
+        this.$emit('open')
+      } else {
+        this.$emit('close')
+      }
+    }
+  },
   methods: {
     close() {
       this.openMenu = ''
-      this.$emit('close')
     }
   }
 }
@@ -91,5 +99,8 @@ export default {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+div[data-reka-popper-content-wrapper] {
+  z-index: 150 !important;
 }
 </style>

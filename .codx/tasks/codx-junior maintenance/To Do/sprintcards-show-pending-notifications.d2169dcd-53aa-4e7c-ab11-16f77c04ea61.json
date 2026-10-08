@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "todo",
+  "status": "done",
   "tags": [],
   "file_list": [
     "/home/codx-junior-projects/codx-junior/client/src/components/chat/ChatSidebar.vue",
@@ -70,7 +70,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-08 07:59:56.434941",
-      "updated_at": "2026-10-08T08:01:47.235594",
+      "updated_at": "2026-10-08T11:36:19.745980",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -310,13 +310,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-08 07:59:53.882322",
-  "updated_at": "2026-10-08T08:01:49.507724",
+  "updated_at": "2026-10-08T11:36:26.988355",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

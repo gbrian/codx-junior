@@ -5,7 +5,11 @@ import moment from 'moment'
 <template>
   <article
     class="group/card rounded-xl bg-base-200 border p-2.5 cursor-pointer transition-all duration-150"
-    :class="selected ? 'border-primary/50 bg-primary/5' : 'border-base-100 hover:border-primary/40'"
+    :class="selected
+      ? 'border-primary/50 bg-primary/5'
+      : hasUnread
+        ? 'border-error/30 ring-1 ring-error/20 hover:border-error/70'
+        : 'border-base-100 hover:border-primary/40'"
     @click="$emit('open')"
   >
     <!-- Title row -->
@@ -23,6 +27,18 @@ import moment from 'moment'
         class="flex-1 text-sm font-medium leading-tight"
         :class="task.status === 'done' ? 'line-through opacity-60' : ''"
       >{{ task.name || 'Untitled' }}</span>
+
+      <!-- Unread assistant replies: solid badge so unread cards stand out at a glance -->
+      <span
+        v-if="hasUnread"
+        class="badge badge-sm badge-error badge-outline gap-1 shrink-0 font-bold"
+        :title="unreadTitle"
+        :aria-label="unreadTitle"
+      >
+        <i class="fa-solid fa-check-double text-[9px]" aria-hidden="true"></i>
+        {{ unreadCount > 99 ? '99+' : unreadCount }}
+      </span>
+
       <span
         v-if="priority"
         class="badge badge-xs badge-outline shrink-0"
@@ -222,6 +238,26 @@ export default {
       const notDone = (this.task.messages || []).filter(m => m.done === false).length
       if (notDone > 0) return notDone
       return this.isProcessing ? 1 : 0
+    },
+    // Unread assistant replies addressed to the current user — same rule the
+    // chat sidebar uses: assistant message, not authored by me, not flagged as
+    // read by me, and not hidden.
+    unreadCount() {
+      const currentUsername = this.$user?.username
+      if (!currentUsername) return 0
+      return (this.task.messages || []).filter(msg => {
+        const isAssistantMsg = msg.role === 'assistant'
+        const isOtherUser = msg.user !== currentUsername
+        const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
+        return isAssistantMsg && isOtherUser && isUnread && !msg.hide
+      }).length
+    },
+    hasUnread() {
+      return this.unreadCount > 0
+    },
+    unreadTitle() {
+      const count = this.unreadCount
+      return `${count} unread message${count === 1 ? '' : 's'}`
     },
     updatedFromNow() {
       const ts = this.task.updated_at || this.task.lastMessageAt

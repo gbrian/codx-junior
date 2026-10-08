@@ -81,27 +81,29 @@ export const getters = getterTree(state, {
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
     tab = tab || 'home'
-    if (tab !== 'home') {
-      $storex.ui.showApp({
-        name: tab,
-        component: tab
-      })
-    } else {
+
+    // Home is not an app: it clears the active app on desktop and is just a
+    // route on mobile.
+    if (tab === 'home') {
       state.activeTab = null
       state.activeApp = null
+      if (state.isMobile) {
+        $storex.ui.openApp('home')
+      }
+      $storex.ui.saveState()
+      return
     }
+
+    // Unified opener: every other tab goes through openApp so the same key
+    // works on both modes (dockview panel on desktop, route on mobile),
+    // including aliased apps such as 'planning' → tasks panel w/ planning view.
+    state.activeTab = tab
+    $storex.ui.openApp(tab)
     $storex.ui.saveState()
   },
   showTab(state, tab) {
-    if (tab !== state.activeTab) {
-      $storex.ui.setActiveTab(tab)
-    }
-    if (!state.isMobile) {
-      $storex.ui.showApp({
-        name: tab,
-        component: tab
-      })
-    }
+    // setActiveTab now resolves the correct panel/route for any mode.
+    $storex.ui.setActiveTab(tab)
   },
   closeTab(state) {
     state.activeTab = null
@@ -112,17 +114,11 @@ export const mutations = mutationTree(state, {
   },
   toggleLogs(state) {
     state.showLogs = !state.showLogs
-    $storex.ui.showApp({
-      name: 'Logs',
-      component: 'log-viewer'
-    })
+    $storex.ui.openApp('log-viewer')
   },
   openChatLogs(state) {
     state.showLogs = !state.showLogs
-    $storex.ui.showApp({
-      name: 'Chat logs',
-      component: 'chat-logs'
-    })
+    $storex.ui.openApp('chat-logs')
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
@@ -213,23 +209,23 @@ export const mutations = mutationTree(state, {
     }
     app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
-    
+
     if (state.viewMode !== 'vibe' && !state.isMobile) {
       // Check if app already exists in openApps state
       const existingApp = Object.values(state.openApps).find(openApp => {
         if (app.key && openApp.key) {
           return openApp.key === app.key
         }
-        return openApp.component === app.component && 
+        return openApp.component === app.component &&
               JSON.stringify(openApp.initialParams) === JSON.stringify(app.initialParams)
       })
-      
+
       if (existingApp) {
         state.activeApp = existingApp
         $storex.views.activatePanel(existingApp.tabId)
         return
       }
-      
+
       // Check if panel already exists in Desktop API by checking component and initialParams
       const desktopApi = $storex.views._desktopApi
       if (desktopApi && desktopApi.panels) {
@@ -238,10 +234,10 @@ export const mutations = mutationTree(state, {
             return panel.key === app.key
           }
           const panelParams = panel.params?.params || panel.params || {}
-          return panel.component === app.component && 
+          return panel.component === app.component &&
                 JSON.stringify(panelParams.initialParams || panelParams) === JSON.stringify(app.initialParams)
         })
-        
+
         if (existingPanel) {
           state.activeApp = app
           $storex.views.activatePanel(existingPanel.id)
@@ -249,7 +245,7 @@ export const mutations = mutationTree(state, {
         }
       }
     }
-    
+
     state.openApps = {
       ...state.openApps,
       [app.tabId]: app
@@ -298,37 +294,11 @@ export const mutations = mutationTree(state, {
     $storex.ui.saveState()
   },
   openChat(_, chat) {
-    if (!$storex.ui.isDesktopMode) {
-      $storex.$router.push({
-        name: 'chat',
-        params: {
-          chatId: chat.id,
-          chatName: chat.name
-        }
-      })
-    } else {
-      $storex.ui.showApp({
-        tabId: chat.id,
-        name: chat.name,
-        component: 'chat',
-        params: {
-          chat: {
-            id: chat.id,
-            name: chat.name,
-            owner_project_id: chat.owner_project_id
-          }
-        }
-      })
-    }
+    // Unified: panel on desktop, route on mobile
+    $storex.ui.openApp({ appKey: 'chat', payload: { chat } })
   },
   openFileInViewer(_, filePath) {
-    const fileName = filePath.split('/').pop()
-    $storex.ui.showApp({
-      tabId: `file-viewer-${filePath}`,
-      name: fileName,
-      component: 'file-viewer',
-      params: { filePath }
-    })
+    $storex.ui.openApp({ appKey: 'file-viewer', payload: { filePath } })
   },
   openViewEditor(state, view = null) {
     state.viewEditor = { view: view || null }
@@ -383,8 +353,8 @@ export const actions = actionTree(
         return
       }
       try {
-        const data = { 
-          ...state, 
+        const data = {
+          ...state,
           uiReady: false,
           openApps: {},
           viewEditor: null,
@@ -423,7 +393,7 @@ export const actions = actionTree(
       if (chatId && $storex.projects.activeProject) {
         $storex.projects.setActiveChat({ id: chatId })
       }
-      
+
       $storex.ui.handleResize()
     },
     handleResize({ state }) {
@@ -432,11 +402,36 @@ export const actions = actionTree(
       const isMobile = width <= 1024
       const orientation = width > height ? 'landscape' : 'portrait'
       state.isMobile = isMobile
-      state.orientation = orientation  
+      state.orientation = orientation
     },
     loadTask (_, task) {
       $storex.projects.setActiveChat(task)
     },
+
+    // ════════════════════════════════════════════════════════════════
+    // UNIFIED APP OPENER
+    // ════════════════════════════════════════════════════════════════
+
+    openApp(_, payload) {
+      // Vuex passes the action context as the first argument, so the real
+      // payload arrives here (second). Accept either a bare app key ("wiki")
+      // or an object ({ appKey, payload }) so call sites stay terse.
+      const appKey = typeof payload === 'string' ? payload : payload?.appKey
+      const data = typeof payload === 'string' ? {} : (payload?.payload || {})
+
+      if (!appKey) {
+        console.warn('[UI] openApp: missing app key', payload)
+        return
+      }
+
+      const navigation = $storex.$navigation
+      if (!navigation || typeof navigation.openApp !== 'function') {
+        console.warn('[UI] openApp: navigation not ready for', appKey)
+        return
+      }
+      return navigation.openApp(appKey, data)
+    },
+
     async openFile({ state }, file) {
       if (state.isMobile) {
         state.openedFile = file
@@ -498,67 +493,32 @@ export const actions = actionTree(
     },
 
     openTeamChannel(_, { team, channel }) {
-      $storex.ui.showApp({
-        tabId: `team-channel-${channel.id}`,
-        name: `# ${channel.name}`,
-        component: 'team-channel',
-        params: { team, channel }
-      })
+      $storex.ui.openApp({ appKey: 'team-channel', payload: { team, channel } })
     },
 
     async openTeamDM(_, { team, member }) {
       const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
-      $storex.ui.showApp({
-        tabId: `team-dm-${team.id}-${member.id}`,
-        name: `@ ${member.username}`,
-        component: 'team-dm',
-        params: { team, member, chatId }
-      })
+      $storex.ui.openApp({ appKey: 'team-dm', payload: { team, member, chatId } })
     },
 
     openTeamMediaLibrary(_, { team }) {
-      $storex.ui.showApp({
-        tabId: `team-media-${team.id}`,
-        name: `🖼 ${team.name} Media`,
-        component: 'team-media-library',
-        params: { team }
-      })
+      $storex.ui.openApp({ appKey: 'team-media-library', payload: { team } })
     },
 
     openVibeCoding() {
-      $storex.ui.showApp({
-        key: 'vibe-coding',
-        name: 'Vibe Coding',
-        component: 'vibe-coding',
-        params: {}
-      })
+      $storex.ui.openApp('vibe-coding')
     },
 
     openProjects() {
-      $storex.ui.showApp({
-        tabId: 'projects',
-        name: 'Projects',
-        component: 'projects',
-        params: {}
-      })
+      $storex.ui.openApp('projects')
     },
 
     openTeams() {
-      $storex.ui.showApp({
-        tabId: 'teams',
-        name: 'Teams',
-        component: 'teams',
-        params: {}
-      })
+      $storex.ui.openApp('team')
     },
 
     openWorkspaces() {
-      $storex.ui.showApp({
-        tabId: 'workspaces',
-        name: 'Workspaces',
-        component: 'workspaces',
-        params: {}
-      })
+      $storex.ui.openApp('workspaces')
     },
 
     openWorkspace(_, workspace) {
@@ -566,35 +526,11 @@ export const actions = actionTree(
         console.warn('[UI] openWorkspace: invalid workspace', workspace)
         return
       }
-
-      const workspaceId = workspace.key
-      const workspaceName = workspace.name || `workspace-${workspaceId}`
-
-      if ($storex.ui.isDesktopMode) {
-        $storex.ui.showApp({
-          tabId: `workspace-${workspaceId}`,
-          name: workspaceName,
-          component: 'workspace',
-          ...workspace
-        })
-      } else {
-        $storex.$navigation.workspaces.open(workspaceId, workspaceName)
-      }
+      $storex.ui.openApp({ appKey: 'workspace', payload: { workspace } })
     },
 
     openMeet(_, meetId) {
-      if ($storex.ui.isDesktopMode) {
-        $storex.ui.showApp({
-          tabId: 'meet',
-          name: 'Meet',
-          component: 'meet',
-          params: {
-            meetId
-          }
-        })
-      } else {
-        $storex.$router.push({ name: 'meet' })
-      }
+      $storex.ui.openApp({ appKey: 'meet', payload: { meetId } })
     },
 
     openTasks() {
@@ -602,19 +538,8 @@ export const actions = actionTree(
     },
 
     // Open the Task Manager directly on the Planning view.
-    // Desktop mode: opens the tasks app seeded with `view: 'planning'`.
-    // Router mode: navigates to /kanban?view=planning.
     openPlanning() {
-      if ($storex.ui.isDesktopMode) {
-        $storex.ui.showApp({
-          key: 'planning',
-          name: 'Planning',
-          component: 'tasks',
-          params: { view: 'planning' }
-        })
-      } else {
-        $storex.$router.push({ name: 'kanban', query: { view: 'planning' } })
-      }
+      $storex.ui.openApp('planning')
     },
 
     openWiki() {
@@ -635,12 +560,7 @@ export const actions = actionTree(
     },
 
     openTutorial(_, tutorialId) {
-      $storex.ui.showApp({
-        tabId: `tutorial-${tutorialId}`,
-        name: 'Knowledge',
-        component: 'knowledge',
-        params: { tutorial: tutorialId }
-      })
+      $storex.ui.openApp({ appKey: 'knowledge', payload: { params: { tutorial: tutorialId } } })
     },
 
     setProjectLoading(_, isLoading) {

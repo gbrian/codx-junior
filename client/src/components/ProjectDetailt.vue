@@ -6,7 +6,7 @@ import Modal from './Modal.vue'
   <div class="w-full">
     <!-- Trigger Button showing selected project -->
     <button
-      @click="isModalOpen = true"
+      @click="openModal"
       class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-base-content/10 hover:border-base-content/15 rounded-lg text-base-content/70 hover: text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full tooltip tooltip-right"
       :data-tip="project?.project_name"
     >
@@ -133,7 +133,7 @@ export default {
       default: false
     }
   },
-  emits: ['update:modelValue', 'select'],
+  emits: ['update:modelValue', 'select', 'open', 'close'],
   data() {
     return {
       isModalOpen: false,
@@ -199,18 +199,27 @@ export default {
   },
 
   methods: {
+    openModal() {
+      this.isModalOpen = true
+      this.$emit('open')
+    },
+
+    closeModal() {
+      if (!this.isModalOpen) return
+      this.isModalOpen = false
+      this.showAllProjects = false
+      this.searchQuery = ''
+      this.$emit('close')
+    },
+
     onProjectSelected(project) {
       this.$emit('update:modelValue', project)
       this.$emit('select', project)
-      this.isModalOpen = false
-      this.showAllProjects = false
-      this.searchQuery = ''
+      this.closeModal()
     },
 
     onModalClose() {
-      this.isModalOpen = false
-      this.showAllProjects = false
-      this.searchQuery = ''
+      this.closeModal()
     },
 
     formatLastUpdate(project) {

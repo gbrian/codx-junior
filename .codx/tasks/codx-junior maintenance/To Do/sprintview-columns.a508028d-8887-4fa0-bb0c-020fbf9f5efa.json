@@ -174,7 +174,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-07 11:09:45.545629",
-      "updated_at": "2026-10-07T11:10:08.904153",
+      "updated_at": "2026-10-08T11:38:45.783162",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -227,13 +227,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-07 07:30:06.676399",
-  "updated_at": "2026-10-07T11:10:59.816844",
+  "updated_at": "2026-10-08T11:38:45.784240",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

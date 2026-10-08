@@ -14,6 +14,8 @@ import ViewModeToggle from './ViewModeToggle.vue';
         @click.stop=""
         :options="{ folders: true, showIcon: true }"
         @select="$storex.projects.activeProjectChanged($event)"
+        @open="$emit('overlay-open')"
+        @close="$emit('overlay-close')"
       />
       <ViewModeToggle v-if="!isCollapsed"
        />
@@ -90,15 +92,22 @@ export default {
     isCollapsed: { type: Boolean, default: false },
     moreExpanded: { type: Boolean, default: false }
   },
-  emits: ['update:moreExpanded', 'close'],
+  emits: ['update:moreExpanded', 'close', 'overlay-open', 'overlay-close'],
   data() {
     return {
       primaryNavExpanded: true
     }
   },
   methods: {
+    // Single entry point for opening an app from this menu.
+    // The app key is resolved to a dockview panel on desktop and to its own
+    // route on mobile by the UI store (setActiveTab → openApp).
+    openApp(appKey) {
+      this.$ui.setActiveTab(appKey)
+      this.$emit('close')
+    },
     handleNavigateToNewChat() {
-      if (this.$router.$navigation.isDesktopMode) {
+      if (this.$ui.isDesktopMode) {
         this.$service.chat.newQuickChat()
       } else {
         this.$storex.$router.$navigation.apps.openHome()
@@ -106,28 +115,22 @@ export default {
       this.$emit('close')
     },
     handleNavigateToKanban() {
-      this.$storex.$router.$navigation.apps.openKanban()
-      this.$emit('close')
+      this.openApp('tasks')
     },
     handleNavigateToPlanning() {
-      this.$ui.openPlanning()
-      this.$emit('close')
+      this.openApp('planning')
     },
     handleNavigateToMessenger() {
-      this.$ui.setActiveTab('messenger')
-      this.$emit('close')
+      this.openApp('messenger')
     },
     handleNavigateToMeet() {
-      this.$ui.openMeet()
-      this.$emit('close')
+      this.openApp('meet')
     },
     handleNavigateToFileExplorer() {
-      this.$ui.setActiveTab('file-explorer')
-      this.$emit('close')
+      this.openApp('file-explorer')
     },
     handleNavigateToWiki() {
-      this.$ui.setActiveTab('wiki')
-      this.$emit('close')
+      this.openApp('wiki')
     },
     toggleCollapse() {
       this.$emit('toggle-collapse')

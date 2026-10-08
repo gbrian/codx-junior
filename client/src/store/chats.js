@@ -743,16 +743,24 @@ export const actions = actionTree(
         return
       }
 
+      // Load/reload the chat data without triggering setActiveChat again
       await $storex.chats.reloadChat({ id, project_id, owner_project_id })
+
+      // Set the active chat id — activeChat getter will resolve it from chats map
       $storex.chats.setActiveChatId(id)
 
-      if (!$storex.ui.isDesktopMode) {
-        const chatName = name || `chat-${id}`
-        $storex.$router.$navigation.chats.open(id, chatName)
+      // Desktop "vibe" mode renders its own layout, so it must not force an app
+      // to open on top of it.
+      if (!$storex.ui.isMobile && $storex.ui.viewMode === 'vibe') {
+        return
       }
 
-      if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
-        $storex.ui.openChat($storex.chats.activeChat)
+      // Unified opener: a dockview panel on desktop, its own route on mobile.
+      // `openChat` → `openApp('chat', …)` decides which, so the store no longer
+      // branches on isDesktopMode / navigation.chats.open itself.
+      const chat = $storex.chats.activeChat
+      if (chat) {
+        $storex.ui.openChat({ ...chat, name: name || chat.name })
       }
     },
     async createNewChat({ state }, chat) {

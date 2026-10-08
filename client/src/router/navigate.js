@@ -1,3 +1,5 @@
+import { APPS, setPendingParams } from '../config/apps'
+
 export default function Navigate({ $router, $storex }) {
 
   // ════════════════════════════════════════════════════════════════
@@ -54,6 +56,42 @@ export default function Navigate({ $router, $storex }) {
     home: {
       open: () => ({ name: 'home' })
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // UNIFIED APP OPENER
+  // The single place that decides between a desktop panel and a mobile
+  // route. Everything else (UI store openers, launchers) funnels here.
+  // ════════════════════════════════════════════════════════════════
+
+  function openApp(appKey, payload = {}) {
+    const def = APPS[appKey]
+
+    if (!def) {
+      console.warn(`[Navigation] openApp: unknown app "${appKey}"`)
+      return
+    }
+
+    const params = def.desktopParams ? def.desktopParams(payload) : (payload.params || {})
+
+    // ── Mobile / router mode → one route per app ──────────────────
+    if ($storex.ui.isMobile) {
+      setPendingParams(def.id, params)
+      $router.push(def.route(payload))
+      return
+    }
+
+    // ── Desktop / expert mode → one dockview panel per app ────────
+    const key = def.desktopKey ? def.desktopKey(payload) : appKey
+    const tabId = def.desktopTabId ? def.desktopTabId(payload) : payload.tabId
+
+    $storex.ui.showApp({
+      key,
+      tabId,
+      name: payload.name || def.title,
+      component: def.component,
+      params
+    })
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -204,6 +242,12 @@ export default function Navigate({ $router, $storex }) {
     },
 
     // ════════════════════════════════════════════════════════════════
+    // UNIFIED APP OPEN (exposed to the UI store & components)
+    // ════════════════════════════════════════════════════════════════
+
+    openApp,
+
+    // ════════════════════════════════════════════════════════════════
     // CHAT NAVIGATION
     // ════════════════════════════════════════════════════════════════
 
@@ -219,25 +263,13 @@ export default function Navigate({ $router, $storex }) {
         }
 
         const name = chatName || `chat-${chatId}`
-
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show as app panel
-          $storex.ui.showApp({
-            tabId: chatId,
-            name: name,
-            component: 'chat',
-            params: {
-              chat: {
-                id: chatId,
-                name: name,
-                owner_project_id: $navigation.activeProject?.project_id
-              }
-            }
-          })
-        } else {
-          // Router mode: push to chat route
-          $router.push(routes.chat.open(chatId, name))
-        }
+        openApp('chat', {
+          chat: {
+            id: chatId,
+            name,
+            owner_project_id: $navigation.activeProject?.project_id
+          }
+        })
       },
 
       openWithWorkspace(chatId, chatName, workspaceId, workspaceName) {
@@ -246,31 +278,17 @@ export default function Navigate({ $router, $storex }) {
           return
         }
 
-        const chatName_ = chatName || `chat-${chatId}`
-        const workspaceName_ = workspaceName || `workspace-${workspaceId}`
-
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show chat with workspace context
-          $storex.ui.showApp({
-            tabId: chatId,
-            name: chatName_,
-            component: 'chat',
-            params: {
-              chat: {
-                id: chatId,
-                name: chatName_,
-                owner_project_id: $navigation.activeProject?.project_id
-              },
-              workspace: {
-                id: workspaceId,
-                name: workspaceName_
-              }
-            }
-          })
-        } else {
-          // Router mode: push to chat-workspace route
-          $router.push(routes.chat.openWithWorkspace(chatId, chatName_, workspaceId, workspaceName_))
-        }
+        openApp('chat', {
+          chat: {
+            id: chatId,
+            name: chatName || `chat-${chatId}`,
+            owner_project_id: $navigation.activeProject?.project_id
+          },
+          workspace: {
+            id: workspaceId,
+            name: workspaceName || `workspace-${workspaceId}`
+          }
+        })
       }
     },
 
@@ -280,16 +298,7 @@ export default function Navigate({ $router, $storex }) {
 
     meets: {
       list() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'meet',
-            name: 'Meet',
-            component: 'meet',
-            params: {}
-          })
-        } else {
-          $router.push(routes.meet.list())
-        }
+        openApp('meet', {})
       },
 
       open(meetId) {
@@ -297,17 +306,7 @@ export default function Navigate({ $router, $storex }) {
           console.warn('[Navigation] meets.open: invalid meetId', meetId)
           return
         }
-
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: `meet-${meetId}`,
-            name: `Meet ${meetId.slice(0, 8)}`,
-            component: 'meet',
-            params: { meetId }
-          })
-        } else {
-          $router.push(routes.meet.open(meetId))
-        }
+        openApp('meet', { meetId })
       }
     },
 
@@ -317,18 +316,7 @@ export default function Navigate({ $router, $storex }) {
 
     workspaces: {
       list() {
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show as app panel
-          $storex.ui.showApp({
-            tabId: 'workspaces',
-            name: 'Workspaces',
-            component: 'workspaces',
-            params: {}
-          })
-        } else {
-          // Router mode: navigate to route
-          $router.push(routes.workspace.list())
-        }
+        openApp('workspaces')
       },
 
       open(workspaceId, workspaceName) {
@@ -341,7 +329,6 @@ export default function Navigate({ $router, $storex }) {
 
         // Check if currently in chat view
         if ($navigation.isChatView) {
-          // In chat view: open workspace with chat context
           const chatId = $navigation.getChatId()
           const chatName = $navigation.getChatName()
 
@@ -351,24 +338,7 @@ export default function Navigate({ $router, $storex }) {
           }
         }
 
-        // Not in chat view: open workspace normally
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show as app panel
-          $storex.ui.showApp({
-            tabId: `workspace-${workspaceId}`,
-            name: name,
-            component: 'workspace',
-            params: {
-              workspace: {
-                id: workspaceId,
-                name: name
-              }
-            }
-          })
-        } else {
-          // Router mode: navigate to workspace route
-          $router.push(routes.workspace.open(workspaceId, name))
-        }
+        openApp('workspace', { workspace: { key: workspaceId, name } })
       }
     },
 
@@ -378,18 +348,7 @@ export default function Navigate({ $router, $storex }) {
 
     browsers: {
       list() {
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show as app panel
-          $storex.ui.showApp({
-            tabId: 'browsers',
-            name: 'Browser Sessions',
-            component: 'browsers',
-            params: {}
-          })
-        } else {
-          // Router mode: navigate to route
-          $router.push(routes.browser.list())
-        }
+        openApp('browser-sessions')
       },
 
       open(sessionId, sessionName) {
@@ -399,25 +358,24 @@ export default function Navigate({ $router, $storex }) {
         }
 
         const name = sessionName || `session-${sessionId}`
+        const location = $storex.ui.isMobile
+          ? routes.browser.open(sessionId, name)
+          : null
 
-        if ($navigation.isDesktopMode) {
-          // Desktop mode: show session viewer
-          $storex.ui.showApp({
-            tabId: `browser-${sessionId}`,
-            name: name,
-            component: 'browser-viewer',
-            params: {
-              sessionId: sessionId,
-              session: {
-                id: sessionId,
-                name: name
-              }
-            }
-          })
-        } else {
-          // Router mode: navigate to session route
-          $router.push(routes.browser.open(sessionId, name))
+        if (location) {
+          $router.push(location)
+          return
         }
+
+        $storex.ui.showApp({
+          tabId: `browser-${sessionId}`,
+          name,
+          component: 'browser-viewer',
+          params: {
+            sessionId,
+            session: { id: sessionId, name }
+          }
+        })
       }
     },
 
@@ -426,6 +384,9 @@ export default function Navigate({ $router, $storex }) {
     // ════════════════════════════════════════════════════════════════
 
     apps: {
+      // Generic entry point – used by the UI store (setActiveTab, openers…)
+      openApp,
+
       openHome() {
         $router.push(routes.home.open())
       },
@@ -435,37 +396,20 @@ export default function Navigate({ $router, $storex }) {
       },
 
       openMessenger() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'messenger',
-            name: 'Messenger',
-            component: 'messenger',
-            params: {}
-          })
-        } else {
-          $router.push(routes.messenger.open())
-        }
+        openApp('messenger')
       },
 
-      openMeet() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.openMeet()
-        } else {
-          $router.push(routes.meet.list())
-        }
+      openMeet(meetId) {
+        openApp('meet', { meetId })
       },
 
       openKanban() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showTab('tasks')
-        } else {
-          $router.push(routes.kanban.open())
-        }
+        openApp('tasks')
       },
 
       // Open the Task Manager directly on the Planning view
       openPlanning() {
-        $storex.ui.openPlanning()
+        openApp('planning')
       },
 
       openMobile() {
@@ -473,84 +417,31 @@ export default function Navigate({ $router, $storex }) {
       },
 
       openFileExplorer() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showTab('files')
-        } else {
-          $router.push({ path: '/files' })
-        }
+        openApp('file-explorer')
       },
 
       openWiki() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showTab('wiki')
-        } else {
-          $router.push({ path: '/wiki' })
-        }
+        openApp('wiki')
       },
 
       openTeam() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'team',
-            name: 'Team',
-            component: 'team',
-            params: {}
-          })
-        } else {
-          $router.push({ path: '/team' })
-        }
+        openApp('team')
       },
 
       openViews() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'views',
-            name: 'Views',
-            component: 'views',
-            params: {}
-          })
-        } else {
-          $router.push({ path: '/views' })
-        }
+        console.warn('[Navigation] openViews: no Views route yet')
       },
 
       openProfiles() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'profiles',
-            name: 'Profiles',
-            component: 'profiles',
-            params: {}
-          })
-        } else {
-          $router.push({ path: '/profiles' })
-        }
+        openApp('profiles')
       },
 
       openKnowledge() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'knowledge',
-            name: 'Knowledge',
-            component: 'knowledge',
-            params: {}
-          })
-        } else {
-          $router.push({ path: '/knowledge' })
-        }
+        openApp('knowledge')
       },
 
       openAnalytics() {
-        if ($navigation.isDesktopMode) {
-          $storex.ui.showApp({
-            tabId: 'analytics',
-            name: 'Analytics',
-            component: 'analytics',
-            params: {}
-          })
-        } else {
-          $router.push({ path: '/analytics' })
-        }
+        openApp('analytics')
       }
     },
 
