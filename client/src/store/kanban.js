@@ -9,7 +9,6 @@ export const namespaced = true
 export const NO_BOARD_ID = 'No board'
 
 export const state = () => ({
-  activeBoard: null,
   filter: null,
   loadingChats: 0,
 })
@@ -68,18 +67,17 @@ export const getters = getterTree(state, {
       parent_id: null,
       project_id: null,
       bookmark: false,
+      users: [],
       columns: [],
       last_update: lastUpdate
     }
   },
 
-  // Only expose the virtual board while it holds content, or while it is active
-  // (so an empty picker is not cluttered and the open board never disappears).
+  // Only expose the virtual board while it holds content. The active board now
+  // lives in the components, so the store no longer needs to keep it listed
+  // just because it is selected (boardById resolves it either way).
   virtualBoards: (state, getters) => {
-    if (!getters.noBoardChats.length && state.activeBoard !== NO_BOARD_ID) {
-      return []
-    }
-    return [getters.virtualBoard]
+    return getters.noBoardChats.length ? [getters.virtualBoard] : []
   },
 
   allBoards: (_, getters) => {
@@ -91,47 +89,59 @@ export const getters = getterTree(state, {
         id: title,
         title,
         // Boards are 'kanban' unless explicitly created as a 'sprint'
-        type: boards[title]?.type || 'kanban'
+        type: boards[title]?.type || 'kanban',
+        // Board participants (user list) — optional
+        users: boards[title]?.users || []
       }))
     // The virtual "No board" board is always appended last
     return [...storedBoards, ...getters.virtualBoards]
   },
 
-  activeBoard: (state, getters) => {
-    return getters.rawBoards[state.activeBoard] || null
+  // Resolve a board by its id/title. The virtual "No board" board always
+  // resolves (even with no chats) so a component can keep it selected.
+  boardById: (state, getters) => (boardId) => {
+    if (!boardId) return null
+    if (boardId === NO_BOARD_ID) return getters.virtualBoard
+    return getters.allBoards.find(b => b.id === boardId) || null
   },
 
-  activeKanbanBoard: (state, getters) => {
-    if (!state.activeBoard) return null
-    return getters.allBoards.find(b => b.id === state.activeBoard) || null
-  },
+  isVirtualBoard: (state, getters) => (boardId) => boardId === NO_BOARD_ID,
 
-  boardChats: (state) => {
+  isSprintBoard: (state, getters) => (boardId) =>
+    getters.boardById(boardId)?.type === 'sprint',
+
+  boardType: (state, getters) => (boardId) =>
+    getters.boardById(boardId)?.type || 'kanban',
+
+  // Tasks that belong to a board (chat.board === boardId). The virtual board
+  // instead exposes every board-less chat.
+  boardChats: (state, getters) => (boardId) => {
+    if (!boardId) return []
+    if (boardId === NO_BOARD_ID) {
+      return getters.noBoardChats.map(c => ({ ...c, column: c.column || '--none--' }))
+    }
     const allChats = Object.values($storex.chats.chats || {})
     return allChats
-      .filter(c => c.board === state.activeBoard)
+      .filter(c => c.board === boardId)
       .map(c => ({ ...c, column: c.column || '--none--' }))
   },
 
-  columnList: (state, getters) => {
-    const kanbanColumns = getters.activeKanbanBoard?.columns?.map(c => c.title) || []
-    const chatColumns = getters.boardChats.map(c => c.column)
+  columnList: (state, getters) => (boardId) => {
+    const kanbanColumns = getters.boardById(boardId)?.columns?.map(c => c.title) || []
+    const chatColumns = getters.boardChats(boardId).map(c => c.column)
     return [...new Set([...kanbanColumns, ...chatColumns])]
   },
 
-  viewColumns: (state, getters) => {
-    return getters.buildViewColumns(null)
-  },
-
-  buildViewColumns: (state, getters) => (filterText) => {
-    const board = getters.activeKanbanBoard
+  // Build the kanban columns (with their tasks) for a board.
+  buildViewColumns: (state, getters) => (boardId, filterText) => {
+    const board = getters.boardById(boardId)
     const columnChats = board?.columns?.chats || []
 
     const getChatIndex = (c) => columnChats.findIndex(kc => kc.id === c.id)
 
-    const builtColumns = getters.columnList.map((col, ix) => {
+    const builtColumns = getters.columnList(boardId).map((col, ix) => {
       const storeColumn = board?.columns?.find(bc => bc.title === col) || {}
-      const tasks = getters.boardChats
+      const tasks = getters.boardChats(boardId)
         .filter(t => t.column === col)
         .sort((a, b) => {
           // Respect explicit sort_index if present, then fall back to pinned / chat index
@@ -174,20 +184,8 @@ export const getters = getterTree(state, {
   sprintBoards: (_, getters) =>
     getters.allBoards.filter(b => b.type === 'sprint' && !b.virtual),
 
-  activeBoardType: (state, getters) =>
-    getters.activeKanbanBoard?.type || 'kanban',
-
-  isSprintBoard: (state, getters) =>
-    getters.activeKanbanBoard?.type === 'sprint',
-
-  // True when the active board is the synthetic "No board" board
-  isVirtualBoard: (state, getters) =>
-    !!getters.activeKanbanBoard?.virtual,
-
-  // Tasks that belong to the active sprint (chat.sprints includes the board id).
-  // The virtual board instead exposes every board-less chat.
-  sprintBoardChats: (state, getters) => {
-    const boardId = state.activeBoard
+  // Tasks that belong to a sprint (chat.sprints includes the board id).
+  sprintBoardChats: (state, getters) => (boardId) => {
     if (!boardId) return []
     if (boardId === NO_BOARD_ID) return getters.noBoardChats
 
@@ -198,8 +196,8 @@ export const getters = getterTree(state, {
   },
 
   // One column per task status, following the canonical status order
-  sprintColumns: (state, getters) => {
-    const tasks = getters.sprintBoardChats
+  sprintColumns: (state, getters) => (boardId) => {
+    const tasks = getters.sprintBoardChats(boardId)
     return $storex.chats.statusList.map((status, ix) => {
       const columnTasks = tasks
         .filter(t => t.status === status.value)
@@ -223,13 +221,13 @@ export const getters = getterTree(state, {
     })
   },
 
-  childBoards: (state, getters) => {
-    return getters.allBoards.filter(b => b.parent_id === state.activeBoard)
-  },
+  childBoards: (state, getters) => (boardId) =>
+    getters.allBoards.filter(b => b.parent_id === boardId),
 
-  parentBoard: (state, getters) => {
-    const active = getters.activeKanbanBoard
-    return getters.allBoards.find(b => b.id === active?.parent_id) || null
+  parentBoard: (state, getters) => (boardId) => {
+    const board = getters.boardById(boardId)
+    if (!board?.parent_id) return null
+    return getters.allBoards.find(b => b.id === board.parent_id) || null
   },
 
   // The virtual board can never be a parent board
@@ -237,23 +235,12 @@ export const getters = getterTree(state, {
 
   bookmarkedBoards: (_, getters) => getters.allBoards.filter(b => b.bookmark),
 
-  lastUpdatedTask: (_, getters) => {
-    const tasks = getters.viewColumns.reduce((a, col) => a.concat(col.tasks || []), [])
-    return tasks.sort((a, b) =>
-      (a.updated_at || new Date(1900, 1, 1)) > (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1
-    )[0] || {}
-  },
-
   isLoading: (state) => state.loadingChats > 0,
 })
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export const mutations = mutationTree(state, {
-  setActiveBoard(state, boardName) {
-    state.activeBoard = boardName || null
-  },
-
   setFilter(state, filter) {
     state.filter = filter || null
   },
@@ -345,20 +332,8 @@ export const actions = actionTree(
 
     async onActiveProjectChanged() {
       // Called by projects store when activeProject changes
-      mutations.setActiveBoard(state, null)
       mutations.setFilter(state, null)
       await $storex.kanban.loadKanban()
-    },
-
-    async setActiveBoard({ state }, boardName) {
-      const kanban = getKanban()
-      if (!kanban || !kanban.boards) {
-        await $storex.kanban.loadKanban()
-      }
-      // The virtual "No board" board is not stored in kanban.boards, so it must
-      // be accepted explicitly as a valid target.
-      const isValid = !!boardName && (boardName === NO_BOARD_ID || !!getKanban().boards?.[boardName])
-      mutations.setActiveBoard(state, isValid ? boardName : null)
     },
 
     async loadKanban({ state }, project) {
@@ -377,8 +352,8 @@ export const actions = actionTree(
       await targetProject.$api.chats.kanban.save(data)
     },
 
-    async addColumn({ state }, { title, color, project_id }) {
-      const board = getKanban().boards?.[state.activeBoard]
+    async addColumn({ state }, { boardId, title, color, project_id }) {
+      const board = getKanban().boards?.[boardId]
       if (!board) return
       title = title?.trim()
       if (!title) return
@@ -387,7 +362,7 @@ export const actions = actionTree(
       if (exists) return
 
       mutations.addColumn(state, {
-        boardId: state.activeBoard,
+        boardId,
         column: {
           id: uuidv4(),
           title,
@@ -399,12 +374,12 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    async updateColumn({ state }, { id, title, color, project_id }) {
-      const board = getKanban().boards?.[state.activeBoard]
+    async updateColumn({ state }, { boardId, id, title, color, project_id }) {
+      const board = getKanban().boards?.[boardId]
       if (!board) return
 
       mutations.updateColumn(state, {
-        boardId: state.activeBoard,
+        boardId,
         columnId: id,
         updates: {
           title: title?.trim(),
@@ -415,30 +390,30 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    async deleteColumn({ state, getters }, { title }) {
-      const board = getKanban().boards?.[state.activeBoard]
+    async deleteColumn({ state, getters }, { boardId, title }) {
+      const board = getKanban().boards?.[boardId]
       if (!board) return
 
-      const col = getters.viewColumns.find(c => c.title === title)
+      const col = getters.buildViewColumns(boardId, null).find(c => c.title === title)
       if (col?.tasks?.length) {
         await Promise.all(col.tasks.map(chat => $storex.chats.deleteChat(chat)))
       }
 
       mutations.removeColumn(state, {
-        boardId: state.activeBoard,
+        boardId,
         columnTitle: title
       })
       await $storex.kanban.saveKanban()
     },
 
-    async syncColumnOrder({ state, getters }, viewColumns) {
+    async syncColumnOrder({ state, getters }, { boardId, viewColumns }) {
       const kanban = getKanban()
-      const board = kanban.boards?.[state.activeBoard]
+      const board = kanban.boards?.[boardId]
       if (!board) return
 
       const newColumns = await Promise.all(
         viewColumns.map(async (viewCol) => {
-          const storeCol = getters.activeKanbanBoard?.columns?.find(
+          const storeCol = getters.boardById(boardId)?.columns?.find(
             c => c.id === viewCol.id || c.title === viewCol.title
           ) || {}
 
@@ -460,21 +435,21 @@ export const actions = actionTree(
       )
 
       mutations.reorderColumns(state, {
-        boardId: state.activeBoard,
+        boardId,
         columns: newColumns
       })
       await $storex.kanban.saveKanban()
     },
 
-    async moveTask({ state, getters }, { taskId, toColumn }) {
-      const task = getters.boardChats.find(t => t.id === taskId)
+    async moveTask({ state }, { taskId, toColumn }) {
+      const task = $storex.chats.chats?.[taskId]
       if (!task) return
       await $storex.chats.saveChatInfo({ ...task, column: toColumn })
     },
 
     // Persist a new task order within a column using sort_index on each chat
-    async reorderTasksInColumn({ state, getters }, { columnTitle, taskIds }) {
-      const tasks = getters.boardChats.filter(t => t.column === columnTitle)
+    async reorderTasksInColumn({ state, getters }, { boardId, columnTitle, taskIds }) {
+      const tasks = getters.boardChats(boardId).filter(t => t.column === columnTitle)
       await Promise.all(
         taskIds.map((id, index) => {
           const task = tasks.find(t => t.id === id)
@@ -484,16 +459,19 @@ export const actions = actionTree(
       )
     },
 
-    async newTask({ state }, { mode, column, name, profiles, board, llm_model }) {
+    async newTask({ state }, { mode, column, name, profiles, board, llm_model, parentId, project_id }) {
       const activeProject = $storex.projects.activeProject
+      const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
       const chat = await $storex.chats.createNewChat({
         id: uuidv4(),
-        mode: mode || 'chat',
+        mode: mode || parentChat?.mode || 'chat',
         profiles: profiles || [],
         messages: [],
         name: name || null,
-        board: board || state.activeBoard,
-        column: column || null,
+        board: board || parentChat?.board || null,
+        column: column || parentChat?.column || null,
+        parent_id: parentChat?.id || null,
+        project_id: project_id || parentChat?.project_id || null,
         llm_model: llm_model || null,
         owner_project_id: activeProject?.project_id || null,
       })
@@ -521,9 +499,8 @@ export const actions = actionTree(
       await $storex.chats.updateChatInfo({ chat, updates: { status } })
     },
 
-    // Add existing tasks to the active sprint (adds the board id to chat.sprints)
-    async addTasksToSprint({ state }, { taskIds } = {}) {
-      const sprintId = state.activeBoard
+    // Add existing tasks to a sprint (adds the board id to chat.sprints)
+    async addTasksToSprint({ state }, { taskIds, sprintId } = {}) {
       // The virtual board is a catch-all, not a sprint — it cannot be joined
       if (!sprintId || sprintId === NO_BOARD_ID || !taskIds?.length) return
 
@@ -536,9 +513,8 @@ export const actions = actionTree(
       }))
     },
 
-    // Remove a task from the active sprint (keeps the task itself)
-    async removeTaskFromSprint({ state }, { taskId } = {}) {
-      const sprintId = state.activeBoard
+    // Remove a task from a sprint (keeps the task itself)
+    async removeTaskFromSprint({ state }, { taskId, sprintId } = {}) {
       const chat = $storex.chats.chats?.[taskId]
       // The virtual board has no membership to remove
       if (!sprintId || sprintId === NO_BOARD_ID || !chat) return
@@ -546,14 +522,12 @@ export const actions = actionTree(
       await $storex.chats.updateChatInfo({ chat, updates: { sprints } })
     },
 
-    // Create a task (or subtask) directly on the active sprint, in its first column
-    async newSprintTask({ state, getters }, { name, status, mode, profiles, project_id, llm_model, parentId } = {}) {
-      const sprintId = state.activeBoard
-
+    // Create a task (or subtask) directly on a sprint, in its first column
+    async newSprintTask({ state, getters }, { name, status, mode, profiles, project_id, llm_model, parentId, sprintId } = {}) {
       // The virtual "No board" board is read-only: it surfaces existing orphan
       // chats, it must not create sprint tasks. Board/column are required by the
       // backend, so creation is disabled for it at the UI level too.
-      if (sprintId === NO_BOARD_ID) return null
+      if (!sprintId || sprintId === NO_BOARD_ID) return null
 
       const activeProject = $storex.projects.activeProject
       const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
@@ -563,7 +537,7 @@ export const actions = actionTree(
       // The sprint board's columns are its task statuses; the first column is
       // the default landing column (To Do). Subtasks inherit board/column from
       // their parent.
-      const firstColumn = getters.sprintColumns?.[0]
+      const firstColumn = getters.sprintColumns(sprintId)?.[0]
 
       // `board` and `column` are required by the backend and must be part of the
       // create payload (before the chat is saved via PUT /api/chats?chat_only=1).
@@ -628,7 +602,7 @@ export const actions = actionTree(
       return chat
     },
 
-    async addBoard({ state }, { title, description, background, parent_id, project_id, columns, type }) {
+    async addBoard({ state }, { title, description, background, parent_id, project_id, columns, type, users }) {
       const kanban = getKanban()
       if (!kanban) return
 
@@ -645,12 +619,12 @@ export const actions = actionTree(
         background: background || '',
         parent_id: parent_id || null,
         project_id: project_id || null,
+        users: users || [],
         columns: columns || [],
         last_update: new Date().toISOString()
       }
 
       await $storex.kanban.saveKanban()
-      mutations.setActiveBoard(state, title)
       return kanban.boards[title]
     },
 
@@ -668,6 +642,8 @@ export const actions = actionTree(
         || 'kanban'
 
       if (oldName && oldName !== newName) {
+        // Do not silently overwrite an existing board
+        if (kanban.boards?.[newName]) return
         const allChats = Object.values($storex.chats.chats || {})
         await Promise.all(
           allChats
@@ -680,21 +656,19 @@ export const actions = actionTree(
           .forEach(b => (b.parent_id = newName))
       }
 
+      const existing = kanban.boards[newName] || {}
       kanban.boards[newName] = {
-        ...kanban.boards[newName],
+        ...existing,
         title: newName,
         type: boardType,
-        description: board.description || '',
-        background: board.background || '',
-        parent_id: board.parent_id || null,
-        project_id: board.project_id || null
+        description: board.description !== undefined ? board.description : (existing.description || ''),
+        background: board.background !== undefined ? board.background : (existing.background || ''),
+        parent_id: board.parent_id !== undefined ? board.parent_id : (existing.parent_id || null),
+        project_id: board.project_id !== undefined ? board.project_id : (existing.project_id || null),
+        users: board.users !== undefined ? board.users : (existing.users || [])
       }
 
       await $storex.kanban.saveKanban()
-
-      if (oldName && oldName !== newName && state.activeBoard === oldName) {
-        mutations.setActiveBoard(state, newName)
-      }
     },
 
     async deleteBoard({ state }, board) {
@@ -715,15 +689,13 @@ export const actions = actionTree(
       mutations.deleteBoard(state, boardTitle)
       await $storex.kanban.saveKanban()
 
-      if (state.activeBoard === boardTitle) {
-        const fallback = board.parent_id || Object.keys(kanban.boards).find(k => kanban.boards[k] !== null) || null
-        mutations.setActiveBoard(state, fallback)
-      }
+      // Return the board the caller should fall back to (parent or any other)
+      return board.parent_id || Object.keys(kanban.boards).find(k => kanban.boards[k] !== null) || null
     },
 
-    async toggleBookmark({ state }, boardTitle) {
+    async toggleBookmark({ state }, boardId) {
       const kanban = getKanban()
-      const board = kanban.boards?.[boardTitle || state.activeBoard]
+      const board = kanban.boards?.[boardId]
       // Guarded: the virtual board is not stored, so this is a no-op for it
       if (!board) return
       board.bookmark = !board.bookmark

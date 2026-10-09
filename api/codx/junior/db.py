@@ -217,6 +217,23 @@ class ChatHistoryEntry(BaseModel):
     message_ids: List[str] = Field(default=[], description="List of message IDs associated with this history entry")
 
 
+class ChatStatusEvent(BaseModel):
+    """
+    Append-only record of a single chat status transition.
+
+    Registered by :class:`codx.junior.chat_manager.ChatManager` whenever
+    ``Chat.status`` changes, so task-performance metrics (cycle time,
+    throughput, reliability...) can be derived from a complete transition
+    history instead of the single mutable ``Chat.status`` value.
+    """
+    doc_id: Optional[str] = Field(default=None, description="Unique identifier of this transition record")
+    from_status: Optional[str] = Field(default=None, description="Previous status, None on the first record")
+    to_status: str = Field(default='', description="New status")
+    user: Optional[str] = Field(default=None, description="User that triggered the change, if any")
+    at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp of the transition")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (source, reason...)")
+
+
 class ChatId(BaseModel):
     """Represents a reference to a chat in another project."""
     chat_id: str = Field(default=None, description="Chat id")
@@ -236,6 +253,14 @@ class Chat(BaseModel):
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
+    status_history: List[ChatStatusEvent] = Field(
+        default=[],
+        description=(
+            "Append-only log of status transitions (from_status -> to_status) "
+            "used to build performance metrics like cycle time and throughput. "
+            "Maintained by ChatManager.save_chat whenever status changes."
+        )
+    )
     tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])

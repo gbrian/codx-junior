@@ -172,7 +172,9 @@ import RecentsSection from './RecentsSection.vue'
       <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
         <!-- Expanded Footer - opens the unified Windows-like menu -->
         <WindowsMenu v-if="!sidebarCollapsed" @open="onOverlayOpen" @close="onOverlayClose">
-          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full"
+            :class="!connected && 'bg-error/20'"
+          >
             <div class="avatar tooltip shrink-0" :data-tip="$user.username">
               <div class="w-8 rounded-full overflow-hidden">
                 <img :src="$user.avatar">

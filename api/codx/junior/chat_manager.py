@@ -75,6 +75,16 @@ NEW — accumulated chat cost (``Chat.cost``):
     message was first persisted is still captured exactly once). The value is
     MONOTONIC — deleting a message never reduces it — so the chat budget stays
     accurate even when messages are removed.
+
+NEW — chat status history (``Chat.status_history``):
+    ``Chat.status`` was previously a single mutable field ("last writer wins"),
+    making it impossible to reconstruct when a task moved between statuses. This
+    module now appends a :class:`codx.junior.db.ChatStatusEvent` to
+    ``Chat.status_history`` every time ``status`` actually changes (detected in
+    :meth:`ChatManager.save_chat` via :meth:`ChatManager._register_status_change`).
+    The log is append-only and merge-safe (dedup by ``doc_id``), giving future
+    task-performance metrics (cycle time, throughput, error rate) the raw
+    transition feed they need.
 """
 import logging
 import pathlib
@@ -90,7 +100,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
-from codx.junior.db import Chat, Message
+from codx.junior.db import Chat, Message, ChatStatusEvent
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -173,6 +183,12 @@ class ChatManager:
         * ``add_message`` / ``update_message`` accumulate ``message.cost`` into
           ``chat.cost`` (monotonic). ``remove_message`` never reduces
           ``chat.cost``, so deleted messages still count towards the budget.
+
+    Contract relied upon for task-performance metrics:
+        * Every real ``Chat.status`` transition is appended to
+          ``Chat.status_history`` by :meth:`save_chat` (via
+          :meth:`_register_status_change`), producing an append-only,
+          merge-safe transition log.
     """
 
     def __init__(self, settings: CODXJuniorSettings, event_manager: Optional[EventManager] = None):
@@ -902,6 +918,66 @@ class ChatManager:
     # Full-chat persistence
     # -------------------------------------------------------------------------
 
+    def _register_status_change(
+        self,
+        chat: Chat,
+        current_chat: Optional[Chat],
+        user: Optional[str] = None,
+    ) -> bool:
+        """
+        Detect and record a ``Chat.status`` transition into ``chat.status_history``.
+
+        The history is APPEND-ONLY: persisted entries (from ``current_chat``) are
+        merged with any in-memory entries (dedup by ``doc_id``) so concurrent
+        writers never lose a transition. A new :class:`ChatStatusEvent` is only
+        appended when the status actually changed.
+
+        This produces the raw transition feed required by the task-performance
+        metrics (cycle time, throughput, error rate) that cannot be derived from
+        the single mutable ``Chat.status`` field.
+
+        :param chat: The in-memory chat being persisted (mutated in place).
+        :param current_chat: The previously persisted chat, or ``None`` if new.
+        :param user: Optional user that triggered the change.
+        :return: ``True`` when a new transition was registered.
+        """
+        # Merge persisted (source of truth) + in-memory history, dedup by doc_id
+        merged: Dict[str, ChatStatusEvent] = {}
+        stored_history = current_chat.status_history if current_chat else []
+        for event in list(stored_history) + list(chat.status_history):
+            if not event.doc_id:
+                event.doc_id = str(uuid.uuid4())
+            merged[event.doc_id] = event
+
+        history = sorted(merged.values(), key=lambda e: _parse_timestamp(e.at))
+
+        previous_status = (current_chat.status if current_chat else None) or None
+        new_status = chat.status or None
+
+        if previous_status == new_status:
+            # No real transition — keep merged history and bail out
+            chat.status_history = history
+            return False
+
+        history.append(
+            ChatStatusEvent(
+                doc_id=str(uuid.uuid4()),
+                from_status=previous_status,
+                to_status=new_status or "",
+                user=user,
+                at=datetime.now().isoformat(),
+            )
+        )
+        chat.status_history = history
+        logger.info(
+            "Chat status change: chat='%s' '%s' -> '%s' (history=%d)",
+            chat.id,
+            previous_status,
+            new_status,
+            len(history),
+        )
+        return True
+
     def save_chat(self, chat: Chat, chat_only: bool = False) -> Chat:
         """
         Persist *chat* to disk, handling board/column defaults, ID assignment,
@@ -909,6 +985,10 @@ class ChatManager:
 
         When ``chat.owner_project_id`` points to a different project the call
         is transparently forwarded to the correct :class:`ChatManager`.
+
+        Status transitions are registered into ``chat.status_history`` before
+        the chat is written, using the previously persisted chat as the
+        ``from_status`` baseline.
 
         :param chat: The chat to save.
         :param chat_only: If ``True`` and the chat already exists, preserve
@@ -934,6 +1014,10 @@ class ChatManager:
         current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
+
+        # Detect and register chat status transitions (performance metrics).
+        # Runs before store_chat so the new record is persisted with the chat.
+        self._register_status_change(chat=chat, current_chat=current_chat)
 
         chat.file_path = self.get_chat_file(chat)
 

@@ -163,7 +163,10 @@ import moment from 'moment'
       </div>
 
       <!-- Card actions (revealed on hover / focus-within) -->
-      <div class="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+      <div
+        v-if="showActions"
+        class="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 focus-within:opacity-100 transition-opacity shrink-0"
+      >
         <button
           class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-primary"
           title="Create subtask"
@@ -190,7 +193,9 @@ export default {
   name: 'SprintTaskCard',
   props: {
     task: { type: Object, required: true },
-    selected: { type: Boolean, default: false }
+    selected: { type: Boolean, default: false },
+    // Kanban hides the sprint-specific hover actions (add subtask / remove from sprint)
+    showActions: { type: Boolean, default: true }
   },
   emits: ['open', 'add-subtask', 'remove'],
   computed: {

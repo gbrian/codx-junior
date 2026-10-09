@@ -81,9 +81,32 @@ export default function Navigate({ $router, $storex }) {
   }
 
   // ════════════════════════════════════════════════════════════════
+  // MODE DETECTION - Single vs Desktop
+  //
+  // The ACTIVE ROUTE defines the mode (never the screen width or a ui
+  // store flag):
+  //
+  //   • Desktop mode → the URL ends with ".../desktop" (route name
+  //     "codx-junior-split"). The dockview workspace is mounted, so MANY
+  //     apps can stay open at once as side-by-side panels.
+  //
+  //   • Single mode  → EVERY other route (chats, kanban, messenger, wiki,
+  //     file-explorer, mobile…). ONE app at a time, addressed only by its
+  //     route path: opening an app replaces the current one.
+  //
+  // openApp() reads this to decide between creating a panel and pushing a
+  // route, so app links behave the same from any screen.
+  // ════════════════════════════════════════════════════════════════
+
+  function isDesktopMode() {
+    return $router.currentRoute.value.name === 'codx-junior-split'
+  }
+
+  // ════════════════════════════════════════════════════════════════
   // UNIFIED APP OPENER
-  // The single place that decides between a desktop panel and a mobile
-  // route. Everything else (UI store openers, launchers) funnels here.
+  // The single place that decides between a dockview panel and a route,
+  // based on the current mode (Desktop vs Single - see above).
+  // Everything else (UI store openers, launchers) funnels here.
   // ════════════════════════════════════════════════════════════════
 
   function openApp(appKey, payload = {}) {
@@ -96,15 +119,18 @@ export default function Navigate({ $router, $storex }) {
 
     const params = def.desktopParams ? def.desktopParams(payload) : (payload.params || {})
 
-    // ── Mobile / router mode → one route per app ──────────────────
-    if ($storex.ui.isMobile) {
+    // ── Single mode (any route but ".../desktop") → update the route ──
+    // One app at a time: the app lives in the URL (plus a transient
+    // payload hand-off for rich objects that can't be encoded there).
+    if (!isDesktopMode()) {
       setPendingParams(def.id, params)
       // The project prefix is injected centrally by the router's push wrapper.
       $router.push(def.route(payload))
       return
     }
 
-    // ── Desktop / expert mode → one dockview panel per app ────────
+    // ── Desktop mode (".../desktop") → open a dockview panel ─────────
+    // Panels are additive: opening an app never closes the others.
     const key = def.desktopKey ? def.desktopKey(payload) : appKey
     const tabId = def.desktopTabId ? def.desktopTabId(payload) : payload.tabId
 
@@ -127,7 +153,8 @@ export default function Navigate({ $router, $storex }) {
     },
 
     get isDesktopMode() {
-      return $router.currentRoute.value.name === 'codx-junior-split'
+      // Mode is derived from the route - single source of truth.
+      return isDesktopMode()
     },
 
     get isMobileMode() {

@@ -35,18 +35,33 @@ export default {
       const chatId = this.params?.params?.chat?.id
       return this.$storex.chats.chats[chatId]
     },
+    // Read the app from the live store (not the static panel snapshot) so
+    // runtime app-info updates — such as the active board name — are reflected
+    // in the tab without recreating the panel.
+    app() {
+      const app = this.params?.params?.app
+      return (app?.tabId && this.$storex.ui.openApps[app.tabId]) || app
+    },
     // Workspace panels carry the raw workspace (name, path, …) in params under
     // the `workspace` key; fall back to the legacy `app` slot for old payloads.
     workspace() {
-      return this.params?.params?.workspace || this.params?.params?.app
+      return this.params?.params?.workspace || this.app
     },
-    app() {
-      return this.params?.params?.app
+    // Name of the board the panel is currently showing. The board view
+    // publishes it into the app params when the active board changes.
+    boardName() {
+      return this.app?.params?.boardName || null
     },
     tabName() {
+      // Precedence matters: chats and boards keep their name first, then the
+      // workspace object, then the app name/title. Adding `app?.name` lets a
+      // workspace opened with a name-only payload (no `workspace` in params)
+      // still surface the workspace `name` instead of the generic title.
       return this.chat?.name ||
+        this.boardName ||
         this.workspace?.name ||
         this.workspace?.title ||
+        this.app?.name ||
         this.app?.title ||
         this.params?.params?.tabName
     },

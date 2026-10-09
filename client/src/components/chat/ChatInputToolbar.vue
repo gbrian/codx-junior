@@ -105,17 +105,66 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
     @change="onUploadFilesSelected"
   />
 
-  <!-- File Explorer Modal -->
-  <modal v-if="showFileModal" close="true" @close="closeFileModal" class="w-5/6 h-5/6">
-    <h2 class="font-bold text-lg mb-4 flex items-center gap-2">
-      <i class="fa-solid fa-folder-open text-primary"></i>
-      Select Files to Attach
-    </h2>
-    <FileExplorerPanel
-      :root-path="projectRootPath"
-      @open="onFileSelected"
-    />
-  </modal>
+  <!-- File Explorer Modal.
+       Rendered with Vue's built-in <Teleport> so the overlay is placed at the end
+       of <body> (outside the composer's [data-chat-composer] region) while still
+       being mounted/unmounted by v-if.
+
+       The shared <modal> component moves its own DOM with a manual
+       `$root.$el.appendChild(this.$el)` inside mounted(). Combined with v-if that
+       leaks the moved node, leaving the dialog visible after it is closed. Teleport
+       is Vue's supported way to relocate content and unmounts it cleanly.
+
+       `@click.stop` on the overlay keeps the mobile composer's click-outside
+       listener from collapsing it (which would unmount this toolbar + dialog
+       mid-browse). `@close` is a Vue emit, not a DOM event, so stopping the DOM
+       propagation does not prevent the dialog from closing.
+
+       Sizing is scoped to `md:` — on mobile the dialog is a full-width bottom
+       sheet, matching the rest of the app. -->
+  <Teleport to="body">
+    <div
+      v-if="showFileModal"
+      class="fixed inset-0 z-50 flex items-end justify-center p-0 md:items-center md:p-4"
+      @click.stop
+    >
+      <!-- Backdrop -->
+      <div
+        class="absolute inset-0 bg-base-100/60 backdrop-blur-sm animate-in fade-in duration-200"
+        @click="closeFileModal"
+      ></div>
+
+      <!-- Dialog -->
+      <div
+        class="relative z-10 bg-base-300 border border-base-content/10 flex flex-col w-full h-[85%] rounded-t-2xl pb-[env(safe-area-inset-bottom)] md:h-5/6 md:w-5/6 md:max-h-[90vh] md:pb-0 md:rounded-lg shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+        role="dialog"
+        aria-modal="true"
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-base-content/5 shrink-0">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <i class="fa-solid fa-folder-open text-primary"></i>
+            Select Files to Attach
+          </h2>
+          <button
+            class="btn btn-sm btn-ghost btn-circle"
+            @click="closeFileModal"
+            aria-label="Close modal"
+          >
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 min-h-0 overflow-hidden p-2">
+          <FileExplorerPanel
+            :root-path="projectRootPath"
+            @open="onFileSelected"
+          />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script>
@@ -156,12 +205,22 @@ export default {
       return this.$project?.abs_project_path || '/'
     }
   },
+  beforeUnmount() {
+    // Never leak the Escape listener if the composer unmounts while open
+    // (e.g. the mobile composer collapses and unmounts this toolbar).
+    document.removeEventListener('keydown', this.onModalKeydown)
+  },
   methods: {
     openFileModal() {
       this.showFileModal = true
+      document.addEventListener('keydown', this.onModalKeydown)
     },
     closeFileModal() {
       this.showFileModal = false
+      document.removeEventListener('keydown', this.onModalKeydown)
+    },
+    onModalKeydown(event) {
+      if (event.key === 'Escape') this.closeFileModal()
     },
     onFileSelected(fileData) {
       this.$emit('file-selected', fileData.path)

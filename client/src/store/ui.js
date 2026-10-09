@@ -255,16 +255,28 @@ export const mutations = mutationTree(state, {
   updateAppParams(state, { tabId, params }) {
     const app = state.openApps[tabId]
     if (!app) return
-    state.openApps = {
-      ...state.openApps,
-      [tabId]: {
-        ...app,
-        params: {
-          ...app.params,
-          ...params
-        }
-      }
+
+    // Skip no-op updates so we don't persist the layout for nothing
+    const changed = Object.keys(params || {}).some(key => app.params?.[key] !== params[key])
+    if (!changed) return
+
+    // Merge into the *same* app object instead of replacing it: dockview panels
+    // keep a reference to it (`panel.params.app`), so replacing the object would
+    // leave the panel — and the layout that gets persisted — with a stale
+    // snapshot (e.g. the active board would be lost on reload).
+    app.params = { ...app.params, ...params }
+
+    // Keep the hosting dockview panel params in sync too. They are the values
+    // serialized into the saved layout, so a reload restores the last board and
+    // params instead of the ones captured when the panel was first opened.
+    const panel = $storex.views._desktopApi?.getPanel?.(tabId)
+    const panelParams = panel?.params || panel?.api?.params
+    if (panelParams) {
+      Object.assign(panelParams, params)
     }
+
+    // Persist the updated layout so the change survives a reload.
+    $storex.views.onLayoutChanged()
   },
   closeApp(state, app) {
     if (!app) return

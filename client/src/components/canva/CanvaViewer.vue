@@ -14,13 +14,14 @@ import CanvaEditor from './CanvaEditor.vue'
                updates the code block (and the chat message).
     - Discard: reloads the last saved definition and drops the pending edits.
 
-    A fixed (resizable) height is required because chat blocks are inline and
-    <CanvaEditor> itself expands to `h-full`.
+    By default a fixed (resizable) height is used because chat blocks are inline
+    and <CanvaEditor> itself expands to `h-full`. Set `full-height` when the
+    viewer is placed in a sized container (e.g. a modal) so it fills it instead.
   -->
-  <div class="w-full rounded-lg border border-base-100 bg-base-300 overflow-hidden">
+  <div :class="containerClass">
     <!-- Unsaved changes toolbar -->
     <div
-      class="flex items-center gap-2 px-3 py-2 border-b border-base-100 bg-base-200"
+      class="flex items-center gap-2 px-3 py-2 border-b border-base-100 bg-base-200 shrink-0"
       v-if="dirty"
     >
       <span class="text-xs opacity-60 mr-auto flex items-center gap-1.5">
@@ -36,7 +37,7 @@ import CanvaEditor from './CanvaEditor.vue'
       </button>
     </div>
 
-    <div class="w-full h-96 min-h-64 max-h-[80vh] resize-y overflow-hidden">
+    <div :class="editorWrapperClass">
       <CanvaEditor
         class="w-full h-full"
         :modelValue="nodes"
@@ -55,6 +56,11 @@ export default {
     text: {
       type: String,
       default: ''
+    },
+    // Fill the parent container instead of using the inline fixed height.
+    fullHeight: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['change'],
@@ -73,6 +79,16 @@ export default {
     // There are canvas edits that were not committed yet.
     dirty() {
       return this.pendingText !== null && this.pendingText !== this.savedText
+    },
+    containerClass() {
+      return this.fullHeight
+        ? 'w-full h-full flex flex-col rounded-lg border border-base-100 bg-base-300 overflow-hidden'
+        : 'w-full rounded-lg border border-base-100 bg-base-300 overflow-hidden'
+    },
+    editorWrapperClass() {
+      return this.fullHeight
+        ? 'w-full flex-1 min-h-0 overflow-hidden'
+        : 'w-full h-96 min-h-64 max-h-[80vh] resize-y overflow-hidden'
     }
   },
   created() {

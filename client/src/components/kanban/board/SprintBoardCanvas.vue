@@ -28,7 +28,7 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
       <div
         v-for="(col, colIndex) in localColumns"
         :key="col.id || col.title || col.value"
-        class="relative shrink-0 self-start"
+        class="relative shrink-0 h-full"
         :class="draggingColIndex === colIndex ? 'opacity-40' : ''"
         @dragover.prevent="onColumnDragOver($event, colIndex)"
         @drop.prevent="onColumnDrop($event, colIndex)"

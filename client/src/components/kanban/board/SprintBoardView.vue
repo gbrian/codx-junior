@@ -49,6 +49,16 @@ import SprintBoardModals from './SprintBoardModals.vue'
 
       <div class="grow"></div>
 
+      <!-- Edit the board: name, description, background & participants -->
+      <button
+        v-if="!isVirtualBoard"
+        class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
+        @click="$emit('edit-board')"
+      >
+        <i class="fa-solid fa-gear text-xs"></i>
+        <span class="hidden sm:inline text-xs">Board settings</span>
+      </button>
+
       <!-- New sprint is only meaningful for real sprint boards -->
       <button
         v-if="!isVirtualBoard"
@@ -125,6 +135,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
       :columns="filteredColumns"
       :allowCreate="!isVirtualBoard"
       :selectedTaskId="selectedTaskId"
+      :background="activeBoard?.background || null"
       @open-task="$emit('open-task', $event)"
       @move-task="onMoveTask"
       @new-task="openNewTask"
@@ -135,7 +146,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
     <!-- ── Modals ── -->
     <SprintBoardModals
       ref="modals"
-      :sprintId="activeBoard?.id"
+      :sprintId="boardId"
       :sprintTitle="activeBoardTitle"
       @task-created="onTaskCreated"
       @tasks-added="onTasksAdded"
@@ -146,7 +157,12 @@ import SprintBoardModals from './SprintBoardModals.vue'
 <script>
 export default {
   name: 'SprintBoardView',
-  emits: ['new-board', 'open-task', 'browse-boards'],
+  props: {
+    // The board shown by this view is owned by the parent component so several
+    // boards can be open at once.
+    boardId: { type: String, default: null }
+  },
+  emits: ['new-board', 'open-task', 'browse-boards', 'edit-board', 'select-board'],
   data() {
     return {
       searchQuery: ''
@@ -154,7 +170,7 @@ export default {
   },
   computed: {
     activeBoard() {
-      return this.$storex.kanban.activeKanbanBoard
+      return this.$storex.kanban.boardById(this.boardId)
     },
     // True when the synthetic "No board" board is active
     isVirtualBoard() {
@@ -171,7 +187,7 @@ export default {
     },
     // Fixed status columns from the kanban store (virtual board includes them)
     columns() {
-      return this.$storex.kanban.sprintColumns
+      return this.$storex.kanban.sprintColumns(this.boardId)
     },
     filteredColumns() {
       const q = this.searchQuery?.trim().toLowerCase()
@@ -219,7 +235,8 @@ export default {
       return Number(val).toFixed(2)
     },
     onSelectSprint(boardId) {
-      this.$storex.kanban.setActiveBoard(boardId)
+      // The active board lives in the parent component — ask it to switch
+      this.$emit('select-board', boardId)
       document.activeElement?.blur()
     },
     openNewTask(opts = {}) {
@@ -241,7 +258,7 @@ export default {
       await this.$storex.kanban.moveSprintStatus({ taskId, status })
     },
     async onRemoveTask(task) {
-      await this.$storex.kanban.removeTaskFromSprint({ taskId: task.id })
+      await this.$storex.kanban.removeTaskFromSprint({ taskId: task.id, sprintId: this.boardId })
     },
     // Fallback content when the task is seeded with files/images but no text.
     // `addMessage` rejects empty content, so this must always be non-empty.
@@ -261,7 +278,7 @@ export default {
       // referenced files — is persisted afterwards through the shared metadata
       // endpoint so none of them are silently dropped.
       const { project_id, users, deadline, estimation_cost, message, files, attachments, profiles, run } = payload
-      const chat = await this.$storex.kanban.newSprintTask(payload)
+      const chat = await this.$storex.kanban.newSprintTask({ ...payload, sprintId: this.boardId })
       if (!chat) return
 
       const updates = {}
@@ -295,7 +312,7 @@ export default {
       }
     },
     async onTasksAdded({ taskIds }) {
-      await this.$storex.kanban.addTasksToSprint({ taskIds })
+      await this.$storex.kanban.addTasksToSprint({ taskIds, sprintId: this.boardId })
     }
   }
 }

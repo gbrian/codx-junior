@@ -14,7 +14,9 @@ import {
   removeEntity,
   defineQuery,
   createEntity,
-  RankBounds
+  RankBounds,
+  Controls,
+  Cursor
 } from '@woven-canvas/core'
 </script>
 
@@ -91,7 +93,22 @@ export default {
         this.publishCanvas()
       })
       this.ready = true
+      this.setDefaultTool()
       this.loadJsonToCanvas(this.modelValue)
+    },
+    // Woven Canvas boots with the "select" tool. Canvases in codx-junior are
+    // meant to be panned around, so start in the "hand" tool instead. We mirror
+    // what <Toolbar>'s setTool() does: keep the visible tool name, the
+    // left-mouse mapping and the cursor in sync, otherwise the toolbar would
+    // highlight "select" while the pointer is already in pan mode.
+    setDefaultTool() {
+      if (!this.editor) return
+      this.editor.nextTick((ctx) => {
+        const controls = Controls.write(ctx)
+        controls.activeToolName = 'hand'
+        controls.leftMouseTool = 'hand'
+        Cursor.setCursor(ctx, 'hand')
+      })
     },
     async publishCanvas() {
       if (this.assetProvider) {

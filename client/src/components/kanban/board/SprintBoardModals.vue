@@ -11,6 +11,9 @@ const instance = getCurrentInstance()
 defineExpose({
   openNewTask: (...args) => instance.proxy.openNewTask(...args),
   openAddExisting: (...args) => instance.proxy.openAddExisting(...args),
+  openNewColumn: (...args) => instance.proxy.openNewColumn(...args),
+  openNewBoard: (...args) => instance.proxy.openNewBoard(...args),
+  openEditBoard: (...args) => instance.proxy.openEditBoard(...args),
 })
 </script>
 
@@ -48,6 +51,39 @@ defineExpose({
               :selected-mode="newTask.mode"
               @mode-changed="newTask.mode = $event"
             />
+          </div>
+        </div>
+
+        <!-- Column selector — kanban boards (sprint columns are the task status) -->
+        <div v-if="isKanban" class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Column</span>
+          </label>
+          <div class="flex flex-col gap-1.5">
+            <label
+              v-for="col in columns"
+              :key="col.id || col.title"
+              class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all duration-150"
+              :class="newTask.column === col.title
+                ? 'border-primary/40 bg-primary/10'
+                : 'border-base-100 hover:border-base-content/20'"
+            >
+              <input
+                type="radio"
+                :value="col.title"
+                v-model="newTask.column"
+                class="radio radio-xs radio-primary"
+              />
+              <span
+                class="w-2 h-2 rounded-full shrink-0"
+                :style="col.color ? `background: ${col.color}` : ''"
+                :class="!col.color ? 'bg-base-content/20' : ''"
+              ></span>
+              <span class="text-sm text-base-content/80">{{ col.title }}</span>
+            </label>
+            <div v-if="!columns.length" class="text-xs text-base-content/30 px-2 py-1 italic">
+              No columns yet — task will be added uncategorized
+            </div>
           </div>
         </div>
 
@@ -255,14 +291,27 @@ defineExpose({
         <div class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mb-4">
           <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
           <span class="text-xs text-base-content/50">
-            <template v-if="newTask.parentId">
-              Subtask of <b>{{ parentName || 'parent task' }}</b>. It is linked to its parent and added to
-              <b>{{ sprintTitle }}</b> in the
-              <span :class="newTaskStatus.textColor">{{ newTaskStatus.label }}</span> column.
+            <!-- Kanban: destination is a board column (chat.column) -->
+            <template v-if="isKanban">
+              <template v-if="newTask.parentId">
+                Subtask of <b>{{ parentName || 'parent task' }}</b>, linked to its parent and added to
+                <b>{{ boardName }}</b> in the <b>{{ currentColumnLabel }}</b> column.
+              </template>
+              <template v-else>
+                The task is added to <b>{{ boardName }}</b> in the <b>{{ currentColumnLabel }}</b> column.
+              </template>
             </template>
+            <!-- Sprint: destination is a task status -->
             <template v-else>
-              The task is added to <b>{{ sprintTitle }}</b> and starts in the
-              <span :class="newTaskStatus.textColor">{{ newTaskStatus.label }}</span> column.
+              <template v-if="newTask.parentId">
+                Subtask of <b>{{ parentName || 'parent task' }}</b>. It is linked to its parent and added to
+                <b>{{ sprintTitle }}</b> in the
+                <span :class="newTaskStatus.textColor">{{ newTaskStatus.label }}</span> column.
+              </template>
+              <template v-else>
+                The task is added to <b>{{ sprintTitle }}</b> and starts in the
+                <span :class="newTaskStatus.textColor">{{ newTaskStatus.label }}</span> column.
+              </template>
             </template>
           </span>
         </div>
@@ -356,6 +405,302 @@ defineExpose({
       </div>
     </modal>
 
+    <!-- ── New / Edit Column Modal (kanban boards) ── -->
+    <modal close @close="closeNewColumn" v-if="showNewColumn">
+      <div class="p-1">
+        <h2 class="font-bold text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-table-columns text-primary text-sm"></i>
+          {{ editingColumn ? 'Edit Column' : 'New Column' }}
+        </h2>
+
+        <!-- Column name -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Column name</span>
+          </label>
+          <input
+            ref="colNameInput"
+            v-model="newColumn.title"
+            type="text"
+            placeholder="e.g. Review, Blocked, Testing…"
+            class="input input-bordered input-sm w-full"
+            @keydown.enter="confirmNewColumn"
+          />
+          <label class="label py-0.5" v-if="columnError">
+            <span class="label-text-alt text-error">{{ columnError }}</span>
+          </label>
+        </div>
+
+        <!-- Color picker -->
+        <div class="form-control mb-4">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Color</span>
+          </label>
+          <div class="flex gap-2.5 flex-wrap">
+            <span
+              v-for="color in columnColors"
+              :key="color"
+              @click="newColumn.color = color"
+              class="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110"
+              :style="`background: ${color}`"
+              :class="newColumn.color === color ? 'ring-2 ring-offset-2 ring-base-content/50' : ''"
+            ></span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost btn-sm" @click="closeNewColumn">Cancel</button>
+          <button
+            class="btn btn-primary btn-sm gap-1.5"
+            @click="confirmNewColumn"
+            :disabled="!newColumn.title?.trim()"
+          >
+            <i class="fa-solid fa-check text-xs"></i>
+            {{ editingColumn ? 'Save' : 'Create' }}
+          </button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- ── New Board Modal ── -->
+    <modal close @close="closeNewBoard" v-if="showNewBoard">
+      <div class="p-1">
+        <h2 class="font-bold text-base mb-4 flex items-center gap-2">
+          <i class="fa-brands fa-trello text-primary text-sm"></i>
+          New Board
+        </h2>
+
+        <!-- Board type -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board type</span>
+          </label>
+          <div class="flex gap-2">
+            <label
+              v-for="bt in boardTypes"
+              :key="bt.value"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all text-xs"
+              :class="newBoard.type === bt.value
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-base-100 text-base-content/50 hover:border-base-content/20'"
+            >
+              <input type="radio" :value="bt.value" v-model="newBoard.type" class="hidden" />
+              <i :class="bt.icon + ' text-xs'"></i>
+              {{ bt.label }}
+            </label>
+          </div>
+          <div v-if="newBoard.type === 'sprint'" class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mt-2">
+            <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
+            <span class="text-xs text-base-content/50">
+              Sprint columns are the task statuses (To Do → Doing → On Hold → Done → Rejected) and cannot be edited.
+            </span>
+          </div>
+          <div v-else class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mt-2">
+            <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
+            <span class="text-xs text-base-content/50">
+              Kanban columns can be freely created, renamed and reordered on the board.
+            </span>
+          </div>
+        </div>
+
+        <!-- Board name -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board name</span>
+          </label>
+          <input
+            ref="boardNameInput"
+            v-model="newBoard.title"
+            type="text"
+            placeholder="e.g. Sprint Q4, Roadmap 2026…"
+            class="input input-bordered input-sm w-full"
+            @keydown.enter="confirmNewBoard"
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Description <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <textarea
+            v-model="newBoard.description"
+            rows="2"
+            placeholder="What is this board for?"
+            class="textarea textarea-bordered textarea-sm w-full resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Background image -->
+        <div class="form-control mb-4">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Background image <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <input
+            v-model="newBoard.background"
+            type="text"
+            placeholder="https://example.com/image.jpg"
+            class="input input-bordered input-sm w-full"
+          />
+          <div
+            v-if="newBoard.background"
+            class="mt-3 h-24 rounded bg-cover bg-center opacity-60"
+            :style="{ backgroundImage: `url(${newBoard.background})` }"
+          ></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost btn-sm" @click="closeNewBoard">Cancel</button>
+          <button
+            class="btn btn-primary btn-sm gap-1.5"
+            @click="confirmNewBoard"
+            :disabled="!newBoard.title?.trim()"
+          >
+            <i class="fa-solid fa-plus text-xs"></i> Create Board
+          </button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- ── Board settings Modal (name · description · background · participants) ── -->
+    <modal close @close="closeEditBoard" v-if="showEditBoard">
+      <div class="p-1">
+        <h2 class="font-bold text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-gear text-primary text-sm"></i>
+          Board settings
+        </h2>
+
+        <!-- Name -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board name</span>
+          </label>
+          <input
+            ref="editBoardNameInput"
+            v-model="editBoardForm.title"
+            type="text"
+            placeholder="Board name"
+            class="input input-bordered input-sm w-full"
+            @keydown.enter="confirmEditBoard"
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Description <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <textarea
+            v-model="editBoardForm.description"
+            rows="2"
+            placeholder="What is this board for?"
+            class="textarea textarea-bordered textarea-sm w-full resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Background image -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Background image <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <input
+            v-model="editBoardForm.background"
+            type="text"
+            placeholder="https://example.com/image.jpg"
+            class="input input-bordered input-sm w-full"
+          />
+          <div
+            v-if="editBoardForm.background"
+            class="mt-3 h-24 rounded bg-cover bg-center opacity-60"
+            :style="{ backgroundImage: `url(${editBoardForm.background})` }"
+          ></div>
+        </div>
+
+        <!-- Participants (user list) -->
+        <div class="form-control mb-4">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Participants</span>
+            <span class="label-text-alt text-[10px] text-base-content/40">Optional</span>
+          </label>
+          <div class="dropdown">
+            <button
+              type="button"
+              tabindex="0"
+              class="btn btn-sm btn-ghost border border-base-100 w-full justify-start gap-1.5"
+            >
+              <i class="fa-solid fa-users text-xs"></i>
+              <span class="text-xs font-medium">
+                {{ editBoardForm.users.length ? `${editBoardForm.users.length} participants` : 'Add participants' }}
+              </span>
+            </button>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu bg-base-200 border border-base-100 rounded-box z-40 w-56 max-h-56 overflow-y-auto p-1 mt-1 shadow-lg"
+            >
+              <li v-for="u in allUsers" :key="u.username">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-xs checkbox-primary"
+                    :value="u.username"
+                    v-model="editBoardForm.users"
+                  />
+                  <div class="avatar placeholder">
+                    <div class="w-5 h-5 rounded-full bg-base-300 text-[9px] text-base-content/60">
+                      <img v-if="u.avatar" :src="u.avatar" :alt="u.username" />
+                      <span v-else>{{ initial(u) }}</span>
+                    </div>
+                  </div>
+                  <span class="text-xs truncate">{{ u.username }}</span>
+                </label>
+              </li>
+              <li v-if="!allUsers.length" class="menu-title text-xs opacity-40">No users</li>
+            </ul>
+          </div>
+          <!-- Selected participants -->
+          <div v-if="editBoardForm.users.length" class="flex flex-wrap gap-1 mt-2">
+            <span
+              v-for="name in editBoardForm.users"
+              :key="name"
+              class="badge badge-sm badge-ghost gap-1"
+            >
+              <i class="fa-solid fa-user text-[10px]"></i>{{ name }}
+              <button
+                type="button"
+                class="hover:text-error"
+                :aria-label="`Remove ${name}`"
+                @click.stop="toggleBoardUser(name)"
+              >
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost btn-sm" @click="closeEditBoard">Cancel</button>
+          <button
+            class="btn btn-primary btn-sm gap-1.5"
+            @click="confirmEditBoard"
+            :disabled="!editBoardForm.title?.trim()"
+          >
+            <i class="fa-solid fa-check text-xs"></i> Save
+          </button>
+        </div>
+      </div>
+    </modal>
+
   </div>
 </template>
 
@@ -365,10 +710,22 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 // Attachments travel inline as base64 — keep them reasonably small
 const MAX_ATTACHMENT_SIZE_MB = 50
 
+const COLUMN_COLORS = [
+  '#6366f1', '#f59e0b', '#10b981', '#ef4444',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'
+]
+
+const BOARD_TYPES = [
+  { value: 'kanban', label: 'Kanban', icon: 'fa-solid fa-columns' },
+  { value: 'sprint', label: 'Sprint', icon: 'fa-solid fa-layer-group' },
+]
+
 const DEFAULT_NEW_TASK = () => ({
   name: '',
   mode: 'chat',
   status: 'todo',
+  // Kanban destination column (chat.column). Ignored by sprint boards.
+  column: '',
   parentId: null,
   selectedProfiles: [],
   llm_model: null,
@@ -381,18 +738,51 @@ const DEFAULT_NEW_TASK = () => ({
   attachments: []
 })
 
+const DEFAULT_NEW_BOARD = () => ({
+  title: '',
+  description: '',
+  background: '',
+  type: 'kanban'
+})
+
+const DEFAULT_EDIT_BOARD = () => ({
+  originalTitle: null,
+  title: '',
+  description: '',
+  background: '',
+  users: []
+})
+
 export default {
   name: 'SprintBoardModals',
   props: {
+    // Sprint membership id (add-existing filter). Also used as board id for kanban.
     sprintId: { type: String, default: null },
-    sprintTitle: { type: String, default: 'Sprint' }
+    sprintTitle: { type: String, default: 'Sprint' },
+    // 'kanban' | 'sprint' — drives the column picker & context copy
+    boardType: { type: String, default: 'sprint' },
+    // Display name of the active board (kanban uses it instead of sprintTitle)
+    boardTitle: { type: String, default: null },
+    // Kanban custom columns ({ title, color, id })
+    columns: { type: Array, default: () => [] },
+    // Column being edited (opens the column dialog in "edit" mode)
+    editingColumn: { type: Object, default: null }
   },
-  emits: ['task-created', 'tasks-added'],
+  emits: ['task-created', 'tasks-added', 'column-created', 'column-updated', 'board-created', 'board-updated'],
   data() {
     return {
       showNewTask: false,
       showAddExisting: false,
+      showNewColumn: false,
+      showNewBoard: false,
+      showEditBoard: false,
       newTask: DEFAULT_NEW_TASK(),
+      newColumn: { title: '', color: COLUMN_COLORS[0] },
+      newBoard: DEFAULT_NEW_BOARD(),
+      editBoardForm: DEFAULT_EDIT_BOARD(),
+      columnError: null,
+      columnColors: COLUMN_COLORS,
+      boardTypes: BOARD_TYPES,
       candidateSearch: '',
       selected: [],
       // Mirror of the composer text so the "Run" button knows when there is
@@ -413,7 +803,7 @@ export default {
     }
   },
   mounted() {
-    // Users are needed by the assignee picker
+    // Users are needed by the assignee picker and the board participants list
     if (!this.$storex.users.users?.length) {
       this.$storex.users.loadUsers().catch(() => {})
     }
@@ -423,6 +813,17 @@ export default {
     this.cancelIntelliSense()
   },
   computed: {
+    // ── Board flavour ────────────────────────────────────────────────────────
+    isKanban() {
+      return this.boardType === 'kanban'
+    },
+    boardName() {
+      return this.boardTitle || this.sprintTitle || 'Board'
+    },
+    currentColumnLabel() {
+      return this.newTask.column || 'uncategorized'
+    },
+
     allChats() {
       return Object.values(this.$storex.chats.chats || {})
     },
@@ -483,7 +884,7 @@ export default {
     hasInitialContent() {
       return !!(this.composerText?.trim() || this.composerFiles.length || this.newTask.attachments.length)
     },
-    // Users available for assignment
+    // Users available for assignment / board participants
     allUsers() {
       return this.$storex.users.users || []
     },
@@ -501,6 +902,12 @@ export default {
     // Every composer keystroke refreshes the @-mention search
     composerText() {
       this.scheduleIntelliSense()
+    },
+    // Board view sets the column to edit before opening the dialog
+    editingColumn(col) {
+      if (col) {
+        this.newColumn = { title: col.title, color: col.color || COLUMN_COLORS[0], id: col.id }
+      }
     }
   },
   methods: {
@@ -778,15 +1185,17 @@ export default {
     },
 
     // ── New Task / Subtask ───────────────────────────────────────────────────
-    // `status` is the target column, forwarded by the board (a column's "+"
-    // button passes its own status). Falls back to the default column.
-    openNewTask({ parentId, status } = {}) {
+    // `status` is the target sprint column, `column` the target kanban column.
+    // A column's "+" button passes its own value; otherwise the first column is
+    // used. Sprint boards ignore `column` (their columns are the task statuses).
+    openNewTask({ parentId, status, column } = {}) {
       // A subtask inherits its parent's project by default
       const parent = parentId ? this.$storex.chats.chats?.[parentId] : null
       this.newTask = {
         ...DEFAULT_NEW_TASK(),
         parentId: parentId || null,
         status: status || 'todo',
+        column: column || this.columns[0]?.title || '',
         project_id: parent?.project_id || null
       }
       this.composerText = ''
@@ -827,6 +1236,8 @@ export default {
           name: this.newTask.name.trim(),
           mode: this.newTask.mode,
           status: this.newTask.status || 'todo',
+          // Kanban destination column (ignored by sprint boards)
+          column: this.newTask.column || null,
           parentId: this.newTask.parentId || null,
           profiles: [...this.newTask.selectedProfiles],
           llm_model: this.newTask.llm_model || null,
@@ -886,6 +1297,104 @@ export default {
       if (!this.selected.length) return
       this.$emit('tasks-added', { taskIds: [...this.selected] })
       this.closeAddExisting()
+    },
+
+    // ── New / Edit Column (kanban boards) ────────────────────────────────────
+    openNewColumn() {
+      if (this.editingColumn) {
+        this.newColumn = {
+          id: this.editingColumn.id,
+          title: this.editingColumn.title,
+          color: this.editingColumn.color || COLUMN_COLORS[0]
+        }
+      } else {
+        this.newColumn = { title: '', color: COLUMN_COLORS[0] }
+      }
+      this.columnError = null
+      this.showNewColumn = true
+      this.$nextTick(() => this.$refs.colNameInput?.focus())
+    },
+    closeNewColumn() {
+      this.showNewColumn = false
+      this.columnError = null
+    },
+    confirmNewColumn() {
+      const title = this.newColumn.title?.trim()
+      if (!title) return
+
+      const duplicate = this.columns.find(
+        c => c.title === title && c.id !== this.newColumn.id
+      )
+      if (duplicate) {
+        this.columnError = 'A column with this name already exists'
+        return
+      }
+
+      if (this.editingColumn) {
+        this.$emit('column-updated', { ...this.newColumn, title })
+      } else {
+        this.$emit('column-created', { title, color: this.newColumn.color })
+      }
+      this.closeNewColumn()
+    },
+
+    // ── New Board ────────────────────────────────────────────────────────────
+    openNewBoard({ type } = {}) {
+      this.newBoard = { ...DEFAULT_NEW_BOARD(), type: type || 'kanban' }
+      this.showNewBoard = true
+      this.$nextTick(() => this.$refs.boardNameInput?.focus())
+    },
+    closeNewBoard() {
+      this.showNewBoard = false
+    },
+    confirmNewBoard() {
+      if (!this.newBoard.title?.trim()) return
+      this.$emit('board-created', {
+        title: this.newBoard.title.trim(),
+        description: this.newBoard.description?.trim() || '',
+        background: this.newBoard.background?.trim() || '',
+        type: this.newBoard.type || 'kanban'
+      })
+      this.closeNewBoard()
+    },
+
+    // ── Board settings (name · description · background · participants) ───────
+    // Works for both sprint and kanban boards.
+    openEditBoard(board) {
+      if (!board) return
+      this.editBoardForm = {
+        ...DEFAULT_EDIT_BOARD(),
+        originalTitle: board.id || board.title,
+        title: board.title || '',
+        description: board.description || '',
+        background: board.background || '',
+        users: [...(board.users || [])]
+      }
+      this.showEditBoard = true
+      this.$nextTick(() => this.$refs.editBoardNameInput?.focus())
+    },
+    closeEditBoard() {
+      this.showEditBoard = false
+    },
+    toggleBoardUser(username) {
+      const users = this.editBoardForm.users
+      this.editBoardForm.users = users.includes(username)
+        ? users.filter(u => u !== username)
+        : [...users, username]
+    },
+    confirmEditBoard() {
+      const title = this.editBoardForm.title?.trim()
+      if (!title) return
+      this.$emit('board-updated', {
+        originalTitle: this.editBoardForm.originalTitle,
+        board: {
+          title,
+          description: this.editBoardForm.description?.trim() || '',
+          background: this.editBoardForm.background?.trim() || '',
+          users: [...this.editBoardForm.users]
+        }
+      })
+      this.closeEditBoard()
     }
   }
 }
