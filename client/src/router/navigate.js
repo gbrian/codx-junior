@@ -3,6 +3,28 @@ import { APPS, setPendingParams } from '../config/apps'
 export default function Navigate({ $router, $storex }) {
 
   // ════════════════════════════════════════════════════════════════
+  // PROJECT BASE PATH HELPERS
+  // Routes are mounted under the active project name, e.g.
+  //   /codx-junior/chats   /my.project/desktop   /my-project/settings
+  // ════════════════════════════════════════════════════════════════
+
+  // Return the RAW active project name. vue-router percent-encodes route
+  // params when it builds the URL, so pre-encoding here would double-encode
+  // names with special characters (e.g. "my project" → "my%2520project").
+  function activeProjectSegment() {
+    return $storex.projects.activeProject?.project_name || ''
+  }
+
+  // Location for the project-scoped home, or the unscoped root while no
+  // project is active yet (the guard/store scope it once one loads).
+  function homeLocation() {
+    const projectName = activeProjectSegment()
+    return projectName
+      ? { name: 'home', params: { projectName } }
+      : { name: 'root' }
+  }
+
+  // ════════════════════════════════════════════════════════════════
   // ROUTE BUILDERS - Centralized route path generation
   // ════════════════════════════════════════════════════════════════
 
@@ -54,7 +76,7 @@ export default function Navigate({ $router, $storex }) {
       open: () => ({ name: 'mobile' })
     },
     home: {
-      open: () => ({ name: 'home' })
+      open: () => homeLocation()
     }
   }
 
@@ -77,6 +99,7 @@ export default function Navigate({ $router, $storex }) {
     // ── Mobile / router mode → one route per app ──────────────────
     if ($storex.ui.isMobile) {
       setPendingParams(def.id, params)
+      // The project prefix is injected centrally by the router's push wrapper.
       $router.push(def.route(payload))
       return
     }
@@ -140,7 +163,12 @@ export default function Navigate({ $router, $storex }) {
     },
 
     get isHomeView() {
-      return $router.currentRoute.value.name === 'home'
+      const name = $router.currentRoute.value.name
+      return name === 'home' || name === 'root'
+    },
+
+    getProjectName() {
+      return $storex.projects.activeProject?.project_name || null
     },
 
     getCurrentRoute() {
@@ -211,16 +239,25 @@ export default function Navigate({ $router, $storex }) {
 
         if (!provider || !code) {
           $storex.session.onError('Missing OAuth provider or code')
-          return '/'
+          return homeLocation()
         }
 
         try {
           await $storex.users.oauthLogin({ provider, code, state })
-          return '/'
+          return homeLocation()
         } catch (error) {
           $storex.session.onError('Failed to complete OAuth login')
-          return '/'
+          return homeLocation()
         }
+      }
+
+      // ── Unscoped root → project-scoped home ───────────────────────
+      if (to.name === 'root') {
+        const projectName = activeProjectSegment()
+        if (projectName) {
+          return { name: 'home', params: { projectName }, replace: true }
+        }
+        return true
       }
 
       // ── Standalone routes with name (opt-out of mobile/desktop redirect) ─
@@ -235,7 +272,7 @@ export default function Navigate({ $router, $storex }) {
 
       // ── Desktop: redirect /mobile → home ─────────────────────────
       if (!$storex.ui.isMobile && to.name === 'mobile') {
-        return { name: 'home', replace: true }
+        return { ...homeLocation(), replace: true }
       }
 
       return true
@@ -319,13 +356,19 @@ export default function Navigate({ $router, $storex }) {
         openApp('workspaces')
       },
 
-      open(workspaceId, workspaceName) {
-        if (!workspaceId) {
-          console.warn('[Navigation] workspaces.open: invalid workspaceId', workspaceId)
+      open(workspaceOrId, workspaceName) {
+        // Accept either a full workspace object (preferred: it carries name,
+        // path and any other metadata) or a legacy (id, name) pair.
+        const workspace = (workspaceOrId && typeof workspaceOrId === 'object')
+          ? workspaceOrId
+          : { key: workspaceOrId, name: workspaceName }
+
+        if (!workspace?.key) {
+          console.warn('[Navigation] workspaces.open: invalid workspace', workspaceOrId)
           return
         }
 
-        const name = workspaceName || `workspace-${workspaceId}`
+        const name = workspace.name || `workspace-${workspace.key}`
 
         // Check if currently in chat view
         if ($navigation.isChatView) {
@@ -333,12 +376,14 @@ export default function Navigate({ $router, $storex }) {
           const chatName = $navigation.getChatName()
 
           if (chatId) {
-            $navigation.chats.openWithWorkspace(chatId, chatName, workspaceId, name)
+            $navigation.chats.openWithWorkspace(chatId, chatName, workspace.key, name)
             return
           }
         }
 
-        openApp('workspace', { workspace: { key: workspaceId, name } })
+        // Forward the whole workspace under the `workspace` key (same
+        // convention as `chat`) so name/path reach the panel params.
+        openApp('workspace', { workspace })
       }
     },
 

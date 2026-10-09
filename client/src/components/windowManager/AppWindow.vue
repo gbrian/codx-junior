@@ -33,7 +33,12 @@ export default {
   },
   computed: {
     theApp() {
-      return this.app || this.params?.params?.app || this.params?.app
+      // Prefer the explicit prop, then the workspace payload (name + path +
+      // metadata), then the app definition and the legacy params slot.
+      return this.app ||
+        this.params?.params?.workspace ||
+        this.params?.params?.app ||
+        this.params?.app
     },
     tabId() {
       return this.theApp?.tabId

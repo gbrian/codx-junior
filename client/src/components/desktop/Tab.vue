@@ -10,7 +10,7 @@ import AppIcon from '../apps/AppIcon.vue'
   >
     <div class="w-4/5 flex gap-1 items-center truncate overflow-hidden">
       <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
-      <AppIcon :app="app" :loading="isUpdating" />
+      <AppIcon :app="app || workspace" :loading="isUpdating" />
       <div class="grow truncate overflow-hidden">{{ tabName }}</div>
     </div>
     <div class="click hover:text-warning shrink-0 mr-2" @click="onClose">
@@ -35,13 +35,20 @@ export default {
       const chatId = this.params?.params?.chat?.id
       return this.$storex.chats.chats[chatId]
     },
+    // Workspace panels carry the raw workspace (name, path, …) in params under
+    // the `workspace` key; fall back to the legacy `app` slot for old payloads.
+    workspace() {
+      return this.params?.params?.workspace || this.params?.params?.app
+    },
     app() {
-      return this.params.params.app
+      return this.params?.params?.app
     },
     tabName() {
-      return this.chat?.name || 
+      return this.chat?.name ||
+        this.workspace?.name ||
+        this.workspace?.title ||
         this.app?.title ||
-        this.params.params.tabName
+        this.params?.params?.tabName
     },
     api() {
       return this.params.api
@@ -53,7 +60,7 @@ export default {
       return this.api.panel
     },
     projectId() {
-      return this.params.params.project_id
+      return this.params?.params?.project_id
     },
     isUpdating() {
       return this.$storex.chats.isChatUpdating(this.chat?.id)

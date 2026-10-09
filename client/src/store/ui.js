@@ -382,18 +382,6 @@ export const actions = actionTree(
         console.error('Failed to parse saved UI state:', error)
       }
 
-      const {
-        activeProject: project_id,
-        activeChat: chatId
-      } = state
-
-      if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
-        await $storex.projects.activeProjectChanged({ project_id })
-      }
-      if (chatId && $storex.projects.activeProject) {
-        $storex.projects.setActiveChat({ id: chatId })
-      }
-
       $storex.ui.handleResize()
     },
     handleResize({ state }) {
@@ -526,6 +514,8 @@ export const actions = actionTree(
         console.warn('[UI] openWorkspace: invalid workspace', workspace)
         return
       }
+      // Forward the whole workspace under the `workspace` key so the app's
+      // desktopParams can lift name/path into the panel params.
       $storex.ui.openApp({ appKey: 'workspace', payload: { workspace } })
     },
 

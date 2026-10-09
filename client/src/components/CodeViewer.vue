@@ -403,6 +403,40 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </button>
         </div>
     </modal>
+
+    <!-- Heavy change confirmation modal -->
+    <modal v-if="showHeavyChangeConfirmModal">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+          Confirm Heavy Changes
+        </h3>
+        <div class="flex flex-col gap-2 py-2">
+          <p>
+            This save will apply a significant modification to
+            <strong>{{ fileName }}</strong>. Please review before continuing.
+          </p>
+          <div class="flex items-center gap-2 p-2 rounded bg-warning/10 text-warning text-sm">
+            <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+            <span>{{ changeRiskMessage }}</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs opacity-70">
+            <span class="text-error inline-flex items-center gap-1">
+              <i class="fa-solid fa-minus"></i> {{ deletionCount }} deletions
+            </span>
+            <span class="text-success inline-flex items-center gap-1">
+              <i class="fa-solid fa-plus"></i> {{ additionCount }} additions
+            </span>
+          </div>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost" @click="cancelHeavyChangeSave">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </button>
+          <button class="btn btn-warning" @click="confirmHeavyChangeSave">
+            <i class="fa-solid fa-check"></i> Save Anyway
+          </button>
+        </div>
+    </modal>
   </Collapsible>
 </template>
 
@@ -439,6 +473,7 @@ export default {
       localCode: null,
       showConfirmModal: false,
       showRollbackModal: false,
+      showHeavyChangeConfirmModal: false,
       isRollingBack: false,
       pendingViewSwitch: null,
       changesetErrors: [],
@@ -643,7 +678,8 @@ export default {
         await this.loadDiffInfo()
       }
       if (this.chat?.mode === 'vibe') {
-        this.saveToFile()
+        // Automatic save in vibe mode - bypass heavy change prompt
+        this.saveToFile(true)
       }
     },
     last_modification() {
@@ -1040,7 +1076,20 @@ export default {
       }
     },
 
-    async saveToFile() {
+    /**
+     * Entry point for saving. Guards against accidentally persisting a heavy
+     * modification by asking for explicit confirmation first.
+     * Pass `skipConfirm = true` for automated flows (e.g. vibe mode).
+     */
+    saveToFile(skipConfirm = false) {
+      if (!skipConfirm && this.isDangerousChange) {
+        this.showHeavyChangeConfirmModal = true
+        return
+      }
+      this.performSave()
+    },
+
+    async performSave() {
       this.triggerActionFeedback('save')
       let content
       if (this.editMode && this.editContent) {
@@ -1059,6 +1108,15 @@ export default {
       this.diffEditContent = null
       this.diffBaseContent = null
       await this.loadDiffInfo()
+    },
+
+    confirmHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
+      this.performSave()
+    },
+
+    cancelHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
     },
 
     triggerActionFeedback(action) {

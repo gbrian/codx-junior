@@ -162,7 +162,8 @@ import RecentsSection from './RecentsSection.vue'
         />
 
         <RecentsSection
-          @select-chat="handleSelectChat"
+          :isCollapsed="isCollapsed && !isHoverExpanded"
+          @select-chat="handleSelectChat"        
         />
 
       </div>

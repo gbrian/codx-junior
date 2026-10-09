@@ -233,7 +233,11 @@ export default {
       return this.isMobile && !this.chatId
     },
     isHomePage() {
-      return this.$route.path === '/'
+      // Home now lives at "/:projectName" (name 'home'); "/" is the unscoped
+      // bootstrap route (name 'root') used before a project is active.
+      return this.$route.name === 'home'
+        || this.$route.name === 'root'
+        || this.$route.path === '/'
     },
     activeChat() {
       if (!this.activeChatId) return null

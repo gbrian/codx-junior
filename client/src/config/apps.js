@@ -83,7 +83,10 @@ export const APPS = {
     id: 'workspace', title: 'Workspace', component: 'workspace', icon: 'fa-regular fa-window-maximize',
     desktopKey: p => `workspace-${p.workspace?.key}`,
     desktopTabId: p => `workspace-${p.workspace?.key}`,
-    desktopParams: p => ({ app: p.workspace }),
+    // Expose the workspace under the semantic `workspace` key (same convention
+    // as `chat`) so name / path reach the Tab and AppWindow readers, which look
+    // up `params.params.workspace` directly.
+    desktopParams: p => ({ workspace: p.workspace }),
     route: p => ({ name: 'workspace', params: { workspaceId: p.workspace?.key, workspaceName: p.workspace?.name } })
   },
 

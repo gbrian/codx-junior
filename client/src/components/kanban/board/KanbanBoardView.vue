@@ -1,6 +1,6 @@
 <script setup>
 import KanbanBoardSidebar from './KanbanBoardSidebar.vue'
-import KanbanBoardCanvas from './KanbanBoardCanvas.vue'
+import SprintBoardCanvas from './SprintBoardCanvas.vue'
 import KanbanBoardModals from './KanbanBoardModals.vue'
 import SprintBoardView from './SprintBoardView.vue'
 import KanbanList from '../KanbanList.vue'
@@ -97,21 +97,59 @@ import FollowupView from './FollowupView.vue'
         @show-board-list="showBoardList = true"
       />
 
-      <!-- Main canvas -->
-      <KanbanBoardCanvas
-        :columns="filteredViewColumns"
-        :selectedTaskId="selectedTaskId"
-        :activeBoardTitle="activeBoard?.title"
-        :totalTasks="sidebarTasks.length"
-        :boardBackground="activeBoard?.background || null"
-        @open-task="onSelectTask"
-        @new-task="openNewTaskModal"
-        @new-column="openNewColumnModal"
-        @edit-column="onEditColumn"
-        @move-task="onMoveTask"
-        @reorder-columns="onReorderColumns"
-        @reorder-tasks="onReorderTasks"
-      />
+      <!-- Main canvas column -->
+      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <!-- Top bar (moved out of the canvas so the canvas stays reusable) -->
+        <div class="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-base-100 bg-base-200">
+          <div class="flex flex-col min-w-0 flex-1">
+            <span class="font-semibold text-sm text-base-content truncate">
+              {{ activeBoard?.title || 'Select a board' }}
+            </span>
+            <span class="text-xs text-base-content/40">
+              {{ activeColumns.length }} columns · {{ sidebarTasks.length }} tasks
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+              title="Filter"
+            >
+              <i class="fa-solid fa-filter text-xs"></i>
+              <span class="hidden sm:inline text-xs">Filter</span>
+            </button>
+
+            <button
+              @click="openNewTaskModal({})"
+              class="btn btn-primary btn-sm gap-1.5"
+            >
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span class="hidden sm:inline text-xs font-medium">New Task</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Shared canvas (SprintBoardCanvas), configured for the kanban board -->
+        <SprintBoardCanvas
+          class="flex-1 min-h-0"
+          :columns="filteredViewColumns"
+          :selectedTaskId="selectedTaskId"
+          :background="activeBoard?.background || null"
+          :allowCreate="true"
+          :allowReorderColumns="true"
+          :allowNewColumn="true"
+          :allowEditColumn="true"
+          :allowActions="false"
+          :reorderable="true"
+          @open-task="onSelectTask"
+          @new-task="openNewTaskModal"
+          @new-column="openNewColumnModal"
+          @edit-column="onEditColumn"
+          @move-task="onMoveTask"
+          @reorder-columns="onReorderColumns"
+          @reorder-tasks="onReorderTasks"
+        />
+      </div>
     </div>
 
     <!-- ── Sprint board view ── -->
