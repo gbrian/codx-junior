@@ -192,7 +192,10 @@ import RecentsSection from './RecentsSection.vue'
 
         <!-- Collapsed Footer - Icon Only -->
         <div v-else class="flex items-center justify-center py-2">
-          <WindowsMenu @open="onOverlayOpen" @close="onOverlayClose">
+          <WindowsMenu 
+            :class="!connected && 'bg-error/20 rounded-xl animate-pulse'"
+            @open="onOverlayOpen" 
+            @close="onOverlayClose">
             <div class="p-1 rounded-full hover:bg-white/5 transition-colors cursor-pointer">
               <div class="avatar tooltip tooltip-right" :data-tip="$user.username">
                 <div class="w-8 rounded-full overflow-hidden">

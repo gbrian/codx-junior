@@ -31,7 +31,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
            (assistant icon, profile avatars, tools) is rendered inline in the
            header row to reclaim horizontal space. -->
       <div v-if="!isMobile" class="w-6 shrink-0 flex flex-col items-center gap-1 pt-0.5 @lg/panel:w-7">
-        
+
         <template>
           <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
           <div
@@ -43,7 +43,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <ProfileAvatar :profile="profile" width="6" />
           </div>
         </template>
-        
+
         <!-- Events button -->
         <div class="flex flex-col gap-1 click"
           @click.stop="toggleEventsPanel">
@@ -130,7 +130,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
 
 
           <div class="grow"></div>
-          
+
           <!-- ── Floating Notion Toolbar (desktop: appears on hover / keyboard focus) ── -->
           <!-- relative + z-20 lifts this (and its dropdown) above the content
                block. Without a z-index the `translate-y-0` transform creates a
@@ -462,6 +462,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           <ChatAttachmentPreview
             v-if="displayMessage.attachments?.length"
             :attachments="displayMessage.attachments"
+            @update-attachment="onAttachmentUpdated"
           />
         </div>
 
@@ -536,7 +537,8 @@ export default {
     'code-file-shown',
     'message-changed',
     'show-events',
-    'preview-file'
+    'preview-file',
+    'update-attachment'
   ],
   data() {
     return {
@@ -874,6 +876,12 @@ export default {
     openFile(file) {
       this.$emit('preview-file', file)
     },
+    onAttachmentUpdated({ index, attachment }) {
+      const message = this.displayMessage
+      if (!message?.attachments) return
+      message.attachments.splice(index, 1, attachment)
+      this.$emit('update-attachment', { message, index, attachment })
+    },
     openThread() {
       this.$chats.setActiveChat(this.threadChat)
     },
@@ -988,13 +996,13 @@ export default {
     startSeenTracking() {
       if (this.hasSeen || this.isMessageSeen || !this.isDone) return
       this.seenProgressValue = 0
-      
+
       const startTime = Date.now()
-      
+
       this.progressInterval = setInterval(() => {
         const elapsed = Date.now() - startTime
         this.seenProgressValue = (elapsed / this.seenDuration) * 100
-        
+
         if (elapsed >= this.seenDuration) {
           this.stopProgressTracking()
           this.submitMessageSeen()
@@ -1012,21 +1020,21 @@ export default {
       try {
         const currentUsername = this.$user?.username
         if (!currentUsername) return
-        
+
         const chatId = this.chat?.doc_id || this.chat?.id
         const messageId = this.message?.doc_id || this.message?.id
-        
+
         if (!chatId || !messageId) {
           console.error('Missing chat_id or message_id', { chatId, messageId })
           return
         }
-        
+
         const readByList = this.message.read_by || []
         if (readByList.includes(currentUsername)) {
           this.hasSeen = true
           return
         }
-        
+
         await this.$storex.api.chats.markMessageAsSeen({
           chat_id: chatId,
           message_id: messageId,
@@ -1046,17 +1054,17 @@ export default {
     async toggleUnseenStatus() {
       if (this.unseenToggling) return
       this.unseenToggling = true
-      
+
       try {
         const chatId = this.chat?.doc_id || this.chat?.id
         const messageId = this.message?.doc_id || this.message?.id
         const currentUsername = this.$user?.username
-        
+
         if (!chatId || !messageId || !currentUsername) {
           console.error('Missing required IDs', { chatId, messageId, currentUsername })
           return
         }
-        
+
         if (this.isMessageSeen) {
           await this.$storex.api.chats.unmarkMessageAsSeen({
             chat_id: chatId,

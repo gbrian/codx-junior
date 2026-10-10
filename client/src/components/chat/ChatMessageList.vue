@@ -9,7 +9,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
 
 <template>
   <div class="w-full h-full flex gap-0 overflow-hidden @container/chat">
-    
+
     <!-- Left Column: Events Panel (when open) -->
     <div
       v-if="showEventsPanel && activeMessageData"
@@ -40,7 +40,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
             @remove-attachment="removeAttachment"
           />
         </div>
-        
+
         <!-- Summary section -->
         <div class="px-4 py-3 border-b border-base-100 flex-shrink-0">
           <h4 class="text-xs font-semibold text-base-content/70 mb-3 flex items-center gap-2">
@@ -108,7 +108,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
     <!-- Named container: chat panels can be any width (mobile, split view, dockview),
          so layout reacts to the panel width instead of the viewport. -->
     <div class="flex-1 h-full flex flex-col overflow-hidden @container/panel">
-      
+
       <!-- Scrollable Messages Container + MiniMap side by side -->
       <div class="flex-1 flex overflow-hidden min-h-0">
 
@@ -161,6 +161,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   @preview-file="$emit('preview-file', $event)"
                   @search-files="$emit('search-files', $event)"
                   @show-events="onShowEvents"
+                  @update-attachment="$emit('update-attachment', $event)"
                 />
               </div>
             </template>
@@ -241,6 +242,7 @@ export default {
     'run-agents',
     'search-files',
     'preview-file',
+    'update-attachment',
   ],
   data() {
     return {

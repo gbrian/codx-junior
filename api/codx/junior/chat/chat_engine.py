@@ -309,12 +309,22 @@ class ChatEngine:
         If include_parent_messages is True and chat has a parent and
         ignore_parent_knowledge is False, prepends parent chat history.
 
+        Parent history is RESTRICTED to messages that are visible
+        (``hide == False``) AND flagged as ``is_answer``; every other parent
+        message is ignored. Each included parent message is rendered from its
+        own ``content``, ``files`` and ``attachments`` (see
+        :meth:`_build_parent_message_history` and
+        :meth:`_format_parent_message`).
+
         Tool and lifecycle events live on the response messages themselves
         (``tool_events`` / ``lifecycle_events``) and are never converted to
         prompt content, so no role-based filtering is needed.
 
         FIXED: Now includes parent visible messages respecting the
         ignore_parent_knowledge flag.
+
+        CHANGED: Parent messages are now filtered to ``is_answer`` only and
+        built from content, files and attachments.
 
         :param chat: The chat whose history to convert.
         :param include_parent_messages: Whether to include parent messages
@@ -323,33 +333,9 @@ class ChatEngine:
         """
         messages = []
 
-        # FIXED: Add parent messages if applicable
+        # Add parent messages if applicable (is_answer + visible only)
         if include_parent_messages and chat.parent_id and not chat.ignore_parent_knowledge:
-            chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
-            parent_chat = chat_manager.find_by_id(chat.parent_id)
-
-            if parent_chat:
-                logger.info(
-                    "Including parent chat messages for chat '%s' "
-                    "(parent_id='%s', ignore_parent_knowledge=%s)",
-                    chat.doc_id,
-                    chat.parent_id,
-                    chat.ignore_parent_knowledge,
-                )
-                # Recursively include parent's parent messages
-                parent_messages = self._build_message_history(
-                    chat=parent_chat,
-                    include_parent_messages=True
-                )
-                messages.extend(parent_messages)
-            else:
-                logger.warning(
-                    "Parent chat '%s' not found for chat '%s' "
-                    "(owner_project_id='%s')",
-                    chat.parent_id,
-                    chat.doc_id,
-                    chat.owner_project_id,
-                )
+            messages.extend(self._build_parent_message_history(chat=chat))
         elif chat.parent_id and chat.ignore_parent_knowledge:
             logger.info(
                 "Skipping parent chat messages for chat '%s' "
@@ -358,11 +344,132 @@ class ChatEngine:
             )
 
         # Add current chat messages (excluding the last one, which is the
-        # current user message)
+        # current user message). The current chat keeps ALL visible messages —
+        # the ``is_answer`` restriction applies to PARENT content only.
         for message in chat.messages[0:-1]:
             if message.hide or message.improvement:
                 continue
             messages.append(self.convert_message(message))
+
+        return messages
+
+    # -------------------------------------------------------------------------
+    # Helper: is a parent message usable as parent content?
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _is_answer_parent_message(message: Message) -> bool:
+        """
+        Decide whether a parent chat message should be loaded as parent content.
+
+        Only messages that are VISIBLE (``hide == False``) AND explicitly
+        flagged as ``is_answer`` qualify; every other message is ignored.
+
+        :param message: The parent chat message to evaluate.
+        :return: True when the message should be included, False otherwise.
+        """
+        return not message.hide and message.is_answer
+
+    # -------------------------------------------------------------------------
+    # Helper: render a parent message (content + files + attachments)
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _format_parent_message(message: Message) -> str:
+        """
+        Render a parent message using its content, files and attachments.
+
+        Attachments are included as human-readable references (file name and
+        type) rather than raw base64 payloads so prompts stay compact.
+
+        Callers are expected to filter messages beforehand with
+        :meth:`_is_answer_parent_message`.
+
+        :param message: The parent chat message to render.
+        :return: A text block combining content, file references and attachments.
+        """
+        parts: List[str] = []
+
+        if message.content:
+            parts.append(message.content)
+
+        if message.files:
+            files_block = "\n".join(
+                f"- {file_path}" for file_path in message.files
+            )
+            parts.append(f"Files:\n{files_block}")
+
+        if message.attachments:
+            attachments_block = "\n".join(
+                f"- {attachment.file_name} ({attachment.file_type})"
+                for attachment in message.attachments
+            )
+            parts.append(f"Attachments:\n{attachments_block}")
+
+        return concat_content(parts)
+
+    # -------------------------------------------------------------------------
+    # Helper: build LangChain messages from the ancestor chain
+    # -------------------------------------------------------------------------
+    def _build_parent_message_history(self, chat: Chat) -> List:
+        """
+        Build LangChain messages from a chat's ancestor chain.
+
+        Only ancestor messages that are VISIBLE (``hide == False``) AND flagged
+        as ``is_answer`` are included; every other message is ignored. Each
+        included message is rendered from its ``content``, ``files`` and
+        ``attachments`` via :meth:`_format_parent_message`.
+
+        ``ignore_parent_knowledge`` is respected: when a chat sets it, the
+        traversal stops and no further ancestors are loaded.
+
+        :param chat: The chat whose ancestors to load.
+        :return: List of LangChain message objects (grandparents first).
+        """
+        messages: List = []
+
+        if not chat.parent_id or chat.ignore_parent_knowledge:
+            return messages
+
+        chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+
+        if not parent_chat:
+            logger.warning(
+                "Parent chat '%s' not found for chat '%s' "
+                "(owner_project_id='%s')",
+                chat.parent_id,
+                chat.doc_id,
+                chat.owner_project_id,
+            )
+            return messages
+
+        logger.info(
+            "Including parent chat messages for chat '%s' "
+            "(parent_id='%s', ignore_parent_knowledge=%s)",
+            chat.doc_id,
+            chat.parent_id,
+            chat.ignore_parent_knowledge,
+        )
+
+        # Grandparents first so the conversation flows from root downwards.
+        messages.extend(self._build_parent_message_history(chat=parent_chat))
+
+        for message in parent_chat.messages:
+            if not self._is_answer_parent_message(message):
+                continue
+
+            formatted_content = self._format_parent_message(message)
+            if not formatted_content:
+                continue
+
+            messages.append(
+                self.convert_message(
+                    Message(
+                        role=message.role,
+                        content=formatted_content,
+                        attachments=message.attachments,
+                    )
+                )
+            )
 
         return messages
 
@@ -2326,8 +2433,9 @@ class ChatEngine:
             # 12. Build message history from prior turns (FIXED)
             #
             #     Now includes parent chat messages if ignore_parent_knowledge
-            #     is False. Parent messages are prepended to ensure proper
-            #     context hierarchy.
+            #     is False. Parent content is restricted to visible (not hidden)
+            #     messages flagged as ``is_answer`` and is built from each
+            #     message's content, files and attachments.
             # ------------------------------------------------------------------
             messages = self._build_message_history(
                 chat=chat,
@@ -2813,7 +2921,12 @@ class ChatEngine:
 
     def get_chat_analysis_parents(self, chat: Chat) -> str:
         """
-        Traverse all parent chats and return concatenated non-hidden message content.
+        Traverse all parent chats and return concatenated parent content.
+
+        Only messages that are VISIBLE (``hide == False``) AND flagged as
+        ``is_answer`` are collected; every other message is ignored. Each
+        collected message is rendered from its ``content``, ``files`` and
+        ``attachments`` via :meth:`_format_parent_message`.
 
         Respects the ignore_parent_knowledge flag at each level during traversal.
 
@@ -2844,14 +2957,14 @@ class ChatEngine:
                 break
 
             messages = [
-                message.content
+                self._format_parent_message(message)
                 for message in parent_chat.messages
-                if not message.hide
+                if self._is_answer_parent_message(message)
             ]
             if messages:
                 parent_content.append(concat_content(messages))
                 logger.info(
-                    "Collected %d messages from parent chat '%s'",
+                    "Collected %d answer messages from parent chat '%s'",
                     len(messages),
                     parent_chat.doc_id,
                 )

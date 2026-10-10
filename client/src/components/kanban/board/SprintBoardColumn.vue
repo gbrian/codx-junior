@@ -11,7 +11,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
     affordances are opt-in through props.
   -->
   <div
-    class="kanban-board-column flex flex-col rounded-xl border w-64 shrink-0 self-start max-h-full transition-colors duration-150"
+    class="kanban-board-column flex flex-col rounded-xl border-1 border-base-content/30 w-64 shrink-0 self-start max-h-full transition-colors duration-150"
     :class="columnClasses"
     @dragover.prevent="onDragOver"
     @dragleave="onDragLeave"

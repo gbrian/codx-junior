@@ -69,7 +69,7 @@ import Collapsible from '../Collapsible.vue'
         <template #title>
           <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
             <i class="fa-solid fa-file"></i>
-            Files: {{ allfiles.length }} +  
+            Files: {{ allfiles.length }} +
           </div>
         </template>
 
@@ -152,6 +152,7 @@ import Collapsible from '../Collapsible.vue'
             @run-agents="onMessageRunAgents"
             @preview-file="handleFilePreview"
             @search-files="onSelectionSearchFiles"
+            @update-attachment="onMessageAttachmentUpdated"
           >
             <!-- IntelliSense slot — floats above the composer -->
             <template #intellisense>
@@ -213,6 +214,7 @@ import Collapsible from '../Collapsible.vue'
               <ChatAttachmentPreview
                 :attachments="attachments"
                 @remove-attachment="removeAttachment"
+                @update-attachment="onAttachmentUpdated"
                 v-if="attachments?.length && !composerCollapsed"
               />
             </template>
@@ -587,14 +589,6 @@ export default {
       }
       return true
     },
-    async fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result.split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-    },
     async prepareAttachmentFromFile(file) {
       if (!this.validateImageSize(file)) return null
       try {
@@ -930,7 +924,7 @@ export default {
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
-        attachments: this.attachments.map(a => a.toJSON()),
+        attachments: this.attachments.map(a => a.toJSON?.() || a),
         metadata: this.metadata,
         user: this.$user.username,
         task_item
@@ -1078,7 +1072,7 @@ export default {
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
       if (imageFile) {
         const attachment = await this.prepareAttachmentFromFile(imageFile)
-        this.attachments.push(attachment)
+        if (attachment) this.attachments.push(attachment)
         return stop()
       }
       const textContent = await this.chatSvc.parseTextFromPaste(e)
@@ -1116,6 +1110,31 @@ export default {
     },
     removeAttachment(idx) {
       this.attachments = this.attachments.filter((_, ix) => ix !== idx)
+    },
+    onAttachmentUpdated({ index, attachment }) {
+      this.attachments.splice(index, 1, attachment)
+      if (this.editMessage) {
+        this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id: this.editMessage.doc_id,
+          update: {
+            attachments: this.attachments.map(a => a.toJSON?.() || a),
+            updated_at: new Date().toISOString()
+          }
+        })
+      }
+    },
+    onMessageAttachmentUpdated({ message, index, attachment }) {
+      const attachments = (message.attachments || []).map(a => a.toJSON?.() || a)
+      attachments.splice(index, 1, attachment.toJSON?.() || attachment)
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat,
+        doc_id: message.doc_id || message.id,
+        update: {
+          attachments,
+          updated_at: new Date().toISOString()
+        }
+      })
     },
     removeAttachmentByIndex(idx) {
       this.removeAttachment(idx)
