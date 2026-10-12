@@ -59,7 +59,7 @@ import parser from '@/utils/markdownParser'
     <!-- View mode: Render blocks within chapter -->
     <div v-else class="space-y-4">
       <div v-for="block in blocks" :key="block.hash">
-        <!-- Code block: has fileName or has type with synthetic fileName -->
+        <!-- Code block: has fileName or comes from CODX file syntax -->
         <Code
           v-if="isCodeBlock(block)"
           :text="block.content"
@@ -170,7 +170,9 @@ export default {
       return parser.parseChildBlocks(contentWithoutHeader, parser.getRenderer)
     },
     isCodeBlock(block) {
-      return !!block.fileName
+      // Legacy fenced blocks expose a fileName, CODX sentinel blocks are
+      // flagged with isFileBlock so they always render as code.
+      return !!block.fileName || block.isFileBlock === true
     },
     startEditing() {
       this.isEditing = true

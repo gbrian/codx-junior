@@ -687,6 +687,21 @@ defineExpose({
           </div>
         </div>
 
+        <!-- Danger zone — delete the whole board -->
+        <div class="form-control mb-4 pt-3 border-t border-base-100">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-error">Danger zone</span>
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline btn-error w-full justify-start gap-2"
+            @click="openDeleteBoard"
+          >
+            <i class="fa-solid fa-trash-can text-xs"></i>
+            Delete board
+          </button>
+        </div>
+
         <!-- Actions -->
         <div class="flex gap-2 justify-end">
           <button class="btn btn-ghost btn-sm" @click="closeEditBoard">Cancel</button>
@@ -696,6 +711,70 @@ defineExpose({
             :disabled="!editBoardForm.title?.trim()"
           >
             <i class="fa-solid fa-check text-xs"></i> Save
+          </button>
+        </div>
+      </div>
+    </modal>
+
+    <!-- ── Delete Board confirmation Modal ── -->
+    <modal close @close="closeDeleteBoard" v-if="showDeleteBoard">
+      <div class="p-1 flex flex-col gap-3">
+        <div class="flex items-center gap-2 text-error">
+          <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+          <h2 class="font-bold text-base">Delete board</h2>
+        </div>
+
+        <p class="text-sm text-base-content/70 leading-relaxed">
+          Are you sure you want to delete <b>{{ boardName }}</b>? This action cannot be undone.
+        </p>
+
+        <!-- Kanban only: ask whether the tasks should be deleted too -->
+        <label
+          v-if="isKanban"
+          class="flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors"
+          :class="deleteBoardChats ? 'border-error/40 bg-error/5' : 'border-base-100 hover:border-base-content/20'"
+        >
+          <input
+            type="checkbox"
+            class="checkbox checkbox-xs checkbox-error mt-0.5"
+            v-model="deleteBoardChats"
+          />
+          <span class="flex flex-col gap-0.5">
+            <span class="text-sm text-base-content/80">
+              Also delete its {{ deleteTaskCount }} task{{ deleteTaskCount === 1 ? '' : 's' }}
+            </span>
+            <span class="text-xs text-base-content/40">
+              <template v-if="deleteBoardChats">
+                The tasks and all their messages will be permanently removed.
+              </template>
+              <template v-else>
+                The tasks are kept and moved out of the board — they will show under “No board”.
+              </template>
+            </span>
+          </span>
+        </label>
+
+        <!-- Sprint: tasks are never deleted, they just leave the sprint -->
+        <div v-else class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15">
+          <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
+          <span class="text-xs text-base-content/60">
+            The {{ deleteTaskCount }} task{{ deleteTaskCount === 1 ? '' : 's' }} are kept and only removed
+            from this sprint — nothing else is deleted.
+          </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-2 justify-end">
+          <button type="button" class="btn btn-ghost btn-sm" @click="closeDeleteBoard">Cancel</button>
+          <button
+            type="button"
+            class="btn btn-error btn-sm gap-1.5"
+            :disabled="deletingBoard"
+            @click="confirmDeleteBoard"
+          >
+            <span v-if="deletingBoard" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-trash-can text-xs"></i>
+            Delete board
           </button>
         </div>
       </div>
@@ -768,7 +847,7 @@ export default {
     // Column being edited (opens the column dialog in "edit" mode)
     editingColumn: { type: Object, default: null }
   },
-  emits: ['task-created', 'tasks-added', 'column-created', 'column-updated', 'board-created', 'board-updated'],
+  emits: ['task-created', 'tasks-added', 'column-created', 'column-updated', 'board-created', 'board-updated', 'board-delete'],
   data() {
     return {
       showNewTask: false,
@@ -776,10 +855,15 @@ export default {
       showNewColumn: false,
       showNewBoard: false,
       showEditBoard: false,
+      showDeleteBoard: false,
       newTask: DEFAULT_NEW_TASK(),
       newColumn: { title: '', color: COLUMN_COLORS[0] },
       newBoard: DEFAULT_NEW_BOARD(),
       editBoardForm: DEFAULT_EDIT_BOARD(),
+      // Delete-board dialog state. `deleteBoardChats` is the kanban-only choice
+      // of also deleting the board's tasks.
+      deleteBoardChats: true,
+      deletingBoard: false,
       columnError: null,
       columnColors: COLUMN_COLORS,
       boardTypes: BOARD_TYPES,
@@ -822,6 +906,18 @@ export default {
     },
     currentColumnLabel() {
       return this.newTask.column || 'uncategorized'
+    },
+    // Board id/title of the board being edited/deleted. Boards are keyed by
+    // title, so the sprint id and the board title are the same value.
+    boardId() {
+      return this.sprintId || this.boardTitle || this.editBoardForm.originalTitle || null
+    },
+    // Number of tasks affected by deleting this board (kanban vs sprint)
+    deleteTaskCount() {
+      if (!this.boardId) return 0
+      return this.isKanban
+        ? (this.$storex.kanban.boardChats(this.boardId)?.length || 0)
+        : (this.$storex.kanban.sprintBoardChats(this.boardId)?.length || 0)
     },
 
     allChats() {
@@ -1395,6 +1491,34 @@ export default {
         }
       })
       this.closeEditBoard()
+    },
+
+    // ── Delete board (kanban & sprint) ───────────────────────────────────────
+    // Opens the confirmation dialog. The settings dialog is closed so the two
+    // modals never stack. Kanban boards let the user choose whether the tasks
+    // are deleted too; sprint tasks are always kept (only leave the sprint).
+    openDeleteBoard() {
+      this.deleteBoardChats = true
+      this.showEditBoard = false
+      this.showDeleteBoard = true
+    },
+    closeDeleteBoard() {
+      this.showDeleteBoard = false
+    },
+    confirmDeleteBoard() {
+      if (this.deletingBoard) return
+      this.deletingBoard = true
+      try {
+        this.$emit('board-delete', {
+          boardId: this.boardId,
+          // Only kanban boards offer the "delete tasks too" choice
+          deleteChats: this.isKanban ? this.deleteBoardChats : false
+        })
+        this.closeDeleteBoard()
+      } finally {
+        // The parent owns the async deletion; the dialog closes right away.
+        this.deletingBoard = false
+      }
     }
   }
 }

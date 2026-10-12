@@ -3,6 +3,7 @@ import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
 import DesktopSidebar from './components/layout/DesktopSidebar.vue'
 import MobileBottomBar from './components/layout/MobileBottomBar.vue'
+import NewProject from './components/project/NewProject.vue'
 </script>
 
 <template>
@@ -51,6 +52,17 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 
       <!-- Toast Notifications -->
       <Toast ref="toastComponent" />
+
+      <!-- Global "New project" modal — opened from any launcher
+           (sidebar AppsSection, MainMenuItems, WindowsMenuItems, QuickBar)
+           through the ui store flag `newProject`. -->
+      <modal
+        v-if="$ui.newProject"
+        close="true"
+        @close="$ui.showNewProject(false)"
+      >
+        <NewProject />
+      </modal>
     </div>
   </div>
   

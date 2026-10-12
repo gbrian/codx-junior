@@ -130,6 +130,7 @@ import Collapsible from '../Collapsible.vue'
             :read-only="readOnly"
             :users-list="usersList"
             :children-chats="childrenChats"
+            :processing="isProcessing"
             @edited="onMessageEdited"
             @remove="removeMessage"
             @remove-file="removeFileFromMessage($event.message, $event.file)"
@@ -359,6 +360,12 @@ export default {
     },
     isChatLoading() {
       return !this.chat?.id || this.chat?.status === ENTITY_STATUS.LOADING
+    },
+    // True while the chat is being processed (waiting for the server's first
+    // chunk or streaming). Driven by the shared chats store flag, which is set
+    // immediately on send and auto-resets on a timeout if the server never replies.
+    isProcessing() {
+      return !!this.chat?.id && this.$chats.isChatUpdating(this.chat.id)
     },
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []
@@ -979,6 +986,14 @@ export default {
     },
     async sendChatMessage(chat) {
       this.waiting = true
+
+      // Notify the UI immediately that the chat is processing, before the
+      // server streams its first chunk back (which can take several seconds).
+      // The store auto-resets this after a timeout if the server never replies.
+      if (chat?.id) {
+        this.$chats.startChatProcessing({ chatId: chat.id })
+      }
+
       try {
         return await this.$storex.projects.chatWihProject(chat)
       } finally {

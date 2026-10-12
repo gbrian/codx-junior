@@ -10,7 +10,7 @@ import moment from 'moment'
       : hasUnread
         ? 'border-error/30 ring-1 ring-error/20 hover:border-error/70'
         : 'border-base-100 hover:border-primary/40'"
-    @click="$emit('open')"
+    @click="onCardClick"
   >
     <!-- Title row -->
     <div class="flex items-start gap-2">
@@ -164,25 +164,37 @@ import moment from 'moment'
 
       <!-- Card actions (revealed on hover / focus-within) -->
       <div
-        v-if="showActions"
         class="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 focus-within:opacity-100 transition-opacity shrink-0"
       >
+        <!-- Open in a new window (desktop only) -->
         <button
-          class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-primary"
-          title="Create subtask"
-          aria-label="Create subtask"
-          @click.stop="$emit('add-subtask')"
+          v-if="isDesktop"
+          class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-primary"
+          title="Open in a new window"
+          aria-label="Open in a new window"
+          @click.stop="$emit('open-window')"
         >
-          <i class="fa-solid fa-plus text-xs"></i>
+          <i class="fa-solid fa-up-right-from-square text-xs"></i>
         </button>
-        <button
-          class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-error"
-          title="Remove from sprint"
-          aria-label="Remove from sprint"
-          @click.stop="$emit('remove')"
-        >
-          <i class="fa-solid fa-xmark text-xs"></i>
-        </button>
+
+        <template v-if="showActions">
+          <button
+            class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-primary"
+            title="Create subtask"
+            aria-label="Create subtask"
+            @click.stop="$emit('add-subtask')"
+          >
+            <i class="fa-solid fa-plus text-xs"></i>
+          </button>
+          <button
+            class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-error"
+            title="Remove from sprint"
+            aria-label="Remove from sprint"
+            @click.stop="$emit('remove')"
+          >
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </template>
       </div>
     </div>
   </article>
@@ -197,8 +209,12 @@ export default {
     // Kanban hides the sprint-specific hover actions (add subtask / remove from sprint)
     showActions: { type: Boolean, default: true }
   },
-  emits: ['open', 'add-subtask', 'remove'],
+  emits: ['open', 'open-window', 'add-subtask', 'remove'],
   computed: {
+    // The "open in a new window" affordance is desktop-only
+    isDesktop() {
+      return !this.$ui.isMobile
+    },
     modeIcon() {
       return this.$storex.chats.chatModeIcon(this.task.mode) || 'fa-solid fa-message'
     },
@@ -306,6 +322,15 @@ export default {
     }
   },
   methods: {
+    // Plain click opens the task inline (right pane); Ctrl/Cmd+click keeps the
+    // original behaviour and opens it in its own window.
+    onCardClick(event) {
+      if (event?.ctrlKey || event?.metaKey) {
+        this.$emit('open-window')
+        return
+      }
+      this.$emit('open')
+    },
     initial(user) {
       return (user.name || user.username || '?')[0].toUpperCase()
     },

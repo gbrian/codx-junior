@@ -101,6 +101,21 @@ function getChatProject({ owner_project_id }) {
             $storex.projects.activeProject
 }
 
+// Whether a chat is owned by the CURRENTLY ACTIVE project. The chats store is
+// scoped to the active project (it is cleared whenever the project changes), so
+// chats owned by another project must never be cached here. Doing so would leak
+// their cards into the current board whenever a board is copied/moved to another
+// project, because boards are keyed by title and an imported board keeps the
+// same title until the next reload.
+// When the owner cannot be determined, previous behaviour is preserved (true).
+function isActiveProjectChat(chat) {
+  if (!chat) return false
+  const ownerProjectId = chat.owner_project_id || chat.project_id
+  const activeProjectId = $storex.projects.activeProject?.project_id
+  if (!ownerProjectId || !activeProjectId) return true
+  return ownerProjectId === activeProjectId
+}
+
 function getRootChat(state, chatId) {
   let current = state.chats?.[chatId]
   if (!current) return null
@@ -519,7 +534,12 @@ export const actions = actionTree(
       const freshChat = await project.$api.chats.loadChat(chat)
       if (freshChat && state.chats[chat.id]) {
         Object.assign(state.chats[chat.id], freshChat)
-      } else {
+      } else if (freshChat && isActiveProjectChat(freshChat)) {
+        // Only cache chats owned by the ACTIVE project. The chats store is
+        // scoped to it, so caching another project's chat would leak its card
+        // into the current board — boards are keyed by title and a board that
+        // is copied/moved to another project keeps its title — until the next
+        // project reload (that is what produced the transient duplicated cards).
         registerChat(state, freshChat)
       }
       $storex.chats.clearChatNeedsReload(chat.id)
@@ -819,6 +839,32 @@ export const actions = actionTree(
 
       return await $storex.chats.createNewChat(newChat)
     },
+    // Persist a fully-populated chat (used by board import) in a SINGLE request
+    // and register it in the store. Unlike `createNewChat` — which saves the
+    // metadata first and then writes each message with its own request — this
+    // sends the whole message history inline (PUT /api/chats?chat_only=0), so
+    // importing a board with hundreds of tasks stays fast.
+    async importChat({ state }, chat) {
+      if (!chat?.id) return null
+      const project = getChatProject(chat) || $storex.projects.activeProject
+      if (!project?.$api) return null
+
+      const savedChat = await project.$api.chats.save(chat)
+      const saved = savedChat || chat
+
+      // Only cache chats that belong to the ACTIVE project: the chats store is
+      // scoped to it (it is cleared on project change), so caching another
+      // project's chats would leak the imported cards into the current
+      // project's board views — and let `deleteBoard` destroy them on a move.
+      if (project.project_id !== $storex.projects.activeProject?.project_id) {
+        return saved
+      }
+
+      registerChat(state, saved)
+      $storex.chats.clearChatNeedsReload(saved.id)
+      $storex.chats.setChatLoadingStatus({ chatId: saved.id, status: ENTITY_STATUS.LOADED })
+      return state.chats[saved.id]
+    },
     async createNewChatFromUrl({ state }, chat) {
       chat = {
         mode: 'chat',
@@ -898,6 +944,15 @@ export const actions = actionTree(
         await $storex.chats.setActiveChat(findChild)
       }
     },
+    // Mark a chat as "processing" the moment the user sends a message, before
+    // the server streams its first chunk back. This gives immediate UI feedback
+    // and is shared by the chat list, kanban and tab indicators. The underlying
+    // `setChatUpdating` mutation schedules an auto-reset timeout, so a
+    // non-responsive server falls back to the idle state automatically.
+    startChatProcessing(_, { chatId }) {
+      if (!chatId) return
+      $storex.chats.setChatUpdating({ chatId, updating: true })
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
@@ -915,6 +970,17 @@ export const actions = actionTree(
       }
 
       if (chatId) {
+        // Socket events are broadcast for EVERY project. Ignore chats that do
+        // not belong to the active project: the chats store is scoped to it, so
+        // caching a foreign chat would inject duplicate cards into the current
+        // board. This happens while copying/moving a board to another project —
+        // each imported chat is saved there and emits a "changed" event, and
+        // `importChat` already refuses to cache it, but this event path used to
+        // re-register it (transient duplicates that vanish after a reload).
+        if (!state.chats[chatId] && !isActiveProjectChat({ owner_project_id })) {
+          return
+        }
+
         if (type === 'changed' || !state.chats[chatId]) {
           await $storex.chats.reloadChat({ id: chatId, owner_project_id })
         }

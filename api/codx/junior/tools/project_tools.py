@@ -28,6 +28,7 @@ BULK_OPERATION_THRESHOLD = 3
 FILE_READ_ERROR_TEMPLATE = "error [%s]\nERROR: %s %s"
 MAX_FILES_BULK_OP = 10
 MAX_QUERIES_BULK_OP = 5
+GLOB_PATTERN_CHARS = ("*", "?", "[")
 
 
 def get_ai(settings: CODXJuniorSettings, tool_name: str) -> AI:
@@ -116,6 +117,70 @@ def path_to_absolute_project_path(
     return file_path
 
 
+def _is_glob_pattern(path: str) -> bool:
+    """
+    Check whether a path string contains glob wildcard characters.
+
+    Args:
+        path: The path string to inspect.
+
+    Returns:
+        bool: True if the path contains glob wildcards ('*', '?' or '[').
+    """
+    return isinstance(path, str) and any(char in path for char in GLOB_PATTERN_CHARS)
+
+
+def _expand_glob_pattern(settings: CODXJuniorSettings, pattern: str) -> List[str]:
+    """
+    Expand a glob pattern into the list of matching absolute file paths.
+
+    The pattern may be relative or absolute, but only matches that resolve
+    inside the project root are returned. Directories and paths outside the
+    project are ignored.
+
+    Args:
+        settings: The project settings.
+        pattern: A relative or absolute glob pattern (e.g. ``src/**/*.py``).
+
+    Returns:
+        List[str]: Sorted list of matching absolute file paths within the project.
+
+    Example:
+        >>> _expand_glob_pattern(settings, "web/src/components/**/*.vue")
+        ['/project/web/src/components/Button.vue', ...]
+    """
+    rel_pattern = pattern
+    if os.path.isabs(rel_pattern):
+        rel_pattern = os.path.relpath(rel_pattern, settings.abs_project_path)
+    rel_pattern = rel_pattern.lstrip("/")
+
+    # Reject patterns that escape the project root
+    if rel_pattern.startswith(".."):
+        logger.warning("Glob pattern outside project root: %s", pattern)
+        return []
+
+    matches = glob.glob(
+        rel_pattern,
+        root_dir=settings.abs_project_path,
+        recursive=True,
+        include_hidden=True,
+    )
+
+    project_root = os.path.realpath(settings.abs_project_path)
+    expanded = []
+    for match in matches:
+        abs_match = os.path.normpath(os.path.join(settings.abs_project_path, match))
+        # Keep results inside the project and limited to files
+        if not os.path.realpath(abs_match).startswith(project_root):
+            continue
+        if not os.path.isfile(abs_match):
+            continue
+        expanded.append(abs_match)
+
+    logger.debug("Glob '%s' expanded to %d file(s)", pattern, len(expanded))
+    return sorted(expanded)
+
+
 def _read_single_file(settings: CODXJuniorSettings, file_path: str) -> tuple[str, Optional[str]]:
     """
     Read a single file and return its content or error.
@@ -168,6 +233,11 @@ def project_read_file(
     Supports bulk file reading to reduce tool calls. For optimal performance,
     read multiple related files in a single call instead of multiple individual calls.
 
+    Glob patterns are supported for each path: any path containing glob
+    wildcards ('*', '?', '[') is expanded and every matching file is read.
+    Example: ``/project/web/src/components/**/*.vue`` reads all matching
+    ``.vue`` files.
+
     Args:
         file_path: Single file path (str) or list of file paths to read.
                    Supports relative and absolute paths, and glob patterns.
@@ -187,6 +257,10 @@ def project_read_file(
         Read multiple files at once:
         >>> project_read_file(["src/main.py", "config/settings.py"])
         # Returns ToolResponse with both files and summary
+
+        Read every file matching a glob pattern:
+        >>> project_read_file("web/src/components/**/*.vue")
+        # Returns ToolResponse with all matching .vue files and summary
     """
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if not settings:
@@ -209,12 +283,37 @@ def project_read_file(
             MAX_FILES_BULK_OP,
         )
 
-    # Read all files
+    # Read all files (expanding glob patterns into their matching files)
     contents = []
     successful_reads = []
     failed_reads = []
 
     for fp in file_paths:
+        # Expand glob patterns to all matching files
+        if _is_glob_pattern(fp):
+            matched_files = _expand_glob_pattern(settings=settings, pattern=fp)
+            if not matched_files:
+                error_msg = "No files match pattern"
+                error_block = FILE_READ_ERROR_TEMPLATE % (fp, fp, error_msg)
+                contents.append(error_block)
+                failed_reads.append((fp, error_msg))
+                logger.warning("Glob pattern matched no files: %s", fp)
+                continue
+
+            for matched_path in matched_files:
+                content, error = _read_single_file(
+                    settings=settings, file_path=matched_path
+                )
+                contents.append(content)
+
+                if error:
+                    failed_reads.append((matched_path, error))
+                else:
+                    successful_reads.append(
+                        _to_relative_path(settings=settings, abs_path=matched_path)
+                    )
+            continue
+
         content, error = _read_single_file(settings=settings, file_path=fp)
         contents.append(content)
 

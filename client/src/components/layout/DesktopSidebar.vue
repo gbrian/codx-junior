@@ -65,7 +65,9 @@ import RecentsSection from './RecentsSection.vue'
 
       <!-- Footer -->
       <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-        <WindowsMenu @close="handleClose">
+        <WindowsMenu 
+          :class="!connected && 'bg-error/20'"
+          @close="handleClose">
           <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
             <div class="avatar tooltip shrink-0" :data-tip="$user.username">
               <div class="w-8 rounded-full overflow-hidden">
@@ -142,6 +144,9 @@ import RecentsSection from './RecentsSection.vue'
 
       <!-- Scrollable Content Area -->
       <div class="flex-1 overflow-y-auto flex flex-col">
+        <!-- Pinned projects quick switcher -->
+        <PinnedProjectsSwitcher :is-collapsed="sidebarCollapsed" />
+
         <!-- Apps Section -->
         <AppsSection
           :is-collapsed="sidebarCollapsed"

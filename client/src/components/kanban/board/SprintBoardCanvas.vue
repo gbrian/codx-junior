@@ -43,6 +43,7 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
           :draggable="allowReorderColumns"
           :hasBackground="!!background"
           @open-task="$emit('open-task', $event)"
+          @open-task-window="$emit('open-task-window', $event)"
           @move-task="$emit('move-task', $event)"
           @new-task="$emit('new-task', { column: col.title, status: col.value || null })"
           @edit-column="$emit('edit-column', col.title)"
@@ -114,8 +115,8 @@ export default {
     background: { type: String, default: null }
   },
   emits: [
-    'open-task', 'move-task', 'new-task', 'new-column', 'edit-column',
-    'reorder-columns', 'reorder-tasks', 'add-subtask', 'remove-task'
+    'open-task', 'open-task-window', 'move-task', 'new-task', 'new-column',
+    'edit-column', 'reorder-columns', 'reorder-tasks', 'add-subtask', 'remove-task'
   ],
   data() {
     return {

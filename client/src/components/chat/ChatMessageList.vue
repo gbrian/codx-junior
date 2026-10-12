@@ -113,7 +113,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
       <div class="flex-1 flex overflow-hidden min-h-0">
 
         <!-- Scrollable Messages Container -->
-        <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref="scrollContainer">
+        <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref="scrollContainer" @scroll="onScroll">
           <div class="max-w-[860px] mx-auto flex flex-col px-3 py-3 @lg/panel:px-4 @lg/panel:py-6">
 
             <!-- ── Message Blocks ── -->
@@ -137,6 +137,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   :menu-less="readOnly"
                   :usersList="usersList"
                   :isNewSpeaker="isNewSpeaker(message, ix)"
+                  :events-open="showEventsPanel && activeEventsMessageKey === (message.doc_id || message.id)"
                   @edited="$emit('edited', $event)"
                   @enhance="$emit('enhance', message)"
                   @remove="$emit('remove', message)"
@@ -165,6 +166,33 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                 />
               </div>
             </template>
+
+            <!-- ── Processing placeholder ── -->
+            <!-- Immediate feedback that the server is working on the request.
+                 Shown right after sending, until the first streamed chunk
+                 arrives (then the real assistant bubble takes over). -->
+            <div
+              v-if="showProcessingPlaceholder"
+              role="status"
+              aria-live="polite"
+              class="group/block relative rounded-lg mt-4 @lg/panel:mt-6"
+            >
+              <div class="flex gap-2 items-start w-full @lg/panel:gap-3">
+                <div class="w-6 shrink-0 flex flex-col items-center pt-0.5 @lg/panel:w-7">
+                  <img class="w-6" src="/only_icon.png" alt="Assistant" />
+                </div>
+                <div class="flex-1 min-w-0 pb-0.5">
+                  <div class="flex items-center gap-2 mb-1 leading-none">
+                    <span class="font-semibold text-sm text-base-content/80">Assistant</span>
+                    <span class="text-[11px] text-base-content/40">Working…</span>
+                  </div>
+                  <div class="inline-flex items-center gap-2 rounded-lg px-4 py-3 bg-base-200/70 border border-base-100 text-base-content/60">
+                    <span class="loading loading-dots loading-sm text-primary"></span>
+                    <span class="text-xs">Waiting for the server to respond…</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <!-- Scroll anchor -->
             <div class="h-4" ref="anchor"></div>
@@ -216,6 +244,7 @@ export default {
     'readOnly',
     'usersList',
     'childrenChats',
+    'processing',
   ],
   emits: [
     'edited',
@@ -247,10 +276,19 @@ export default {
   data() {
     return {
       showEventsPanel: false,
-      activeMessageData: null,
+      activeEventsMessageKey: null,
       expandedId: null,
       messageElRefs: [],
       scrollContainerEl: null,
+      // ─── Auto-scroll state ────────────────────────────────────────────────
+      // True while the view should keep following new/streamed messages. Set to
+      // false the moment the user scrolls away from the bottom, and back to true
+      // when they scroll back down (or send a new message).
+      autoScroll: true,
+      lastMessageCount: 0,
+      // Distance (px) from the bottom still considered "at the bottom". Handles
+      // fractional scroll positions and short-content rounding.
+      bottomThreshold: 80,
     }
   },
   computed: {
@@ -259,19 +297,124 @@ export default {
     },
     isMobile() {
       return this.$ui?.isMobile
+    },
+    // True while an assistant message is still streaming — in that case the
+    // assistant's own bubble already shows the loading state, so the
+    // processing placeholder must stay hidden.
+    hasStreamingAssistantMessage() {
+      return (this.messages || []).some(m => m.role === 'assistant' && !m.done)
+    },
+    // Show the placeholder only while the chat is processing and the assistant
+    // has not started streaming yet.
+    showProcessingPlaceholder() {
+      return !!this.processing && !this.hasStreamingAssistantMessage
+    },
+    // Lightweight fingerprint of the conversation used to trigger auto-scroll.
+    // Changes when a message is added, when the last message's content grows
+    // (streaming) or when its `done`/`think` state flips.
+    messagesSignal() {
+      const list = this.messages || []
+      const last = list[list.length - 1]
+      return [
+        list.length,
+        last?.doc_id || last?.id || '',
+        (last?.content || '').length,
+        (last?.think || '').length,
+        last?.done ? 1 : 0,
+      ].join(':')
+    },
+    // Live data for the events panel. It is derived from the reactive `messages`
+    // prop (looked up by the active message key), so newly streamed tools/events
+    // appear immediately without having to close and reopen the panel.
+    activeMessageData() {
+      const key = this.activeEventsMessageKey
+      if (!key) return null
+      const message = this.messages?.find(m => (m.doc_id || m.id) === key)
+      if (!message) return null
+
+      const toolEvents = message.tool_events || []
+      const lifecycleEvents = message.lifecycle_events || []
+      const attachments = message.attachments || []
+
+      return {
+        toolEvents,
+        lifecycleEvents,
+        attachments,
+        metadata: message.meta_data,
+        toolCount: toolEvents.length,
+        lifecycleCount: lifecycleEvents.length,
+        attachmentCount: attachments.length,
+        totalEvents: toolEvents.length + lifecycleEvents.length + attachments.length,
+      }
     }
   },
   watch: {
     'chat.id': function() {
-      this.scrollToTop()
+      this.closeEventsPanel()
+      // Opening a different chat: start pinned to the bottom so the latest
+      // messages are visible.
+      this.autoScroll = true
+      this.lastMessageCount = (this.messages || []).length
+      this.scrollToBottom(false)
+    },
+    // React to any change in the conversation (new message or streaming update).
+    messagesSignal() {
+      const count = (this.messages || []).length
+      const grew = count !== this.lastMessageCount
+      this.lastMessageCount = count
+
+      if (grew) {
+        // A brand new message (user send or assistant start) always pulls the
+        // view back to the bottom, even if the user had scrolled up.
+        this.autoScroll = true
+        this.scrollToBottom(false)
+        return
+      }
+
+      // Content is updating in place (streaming) — keep following only while
+      // the user is still pinned to the bottom.
+      if (this.autoScroll) {
+        this.scrollToBottom(false)
+      }
+    },
+    // Keep the placeholder visible right after sending.
+    showProcessingPlaceholder(val) {
+      if (val && this.autoScroll) {
+        this.scrollToBottom(false)
+      }
     }
   },
   mounted() {
     this.scrollContainerEl = this.$refs.scrollContainer
+    this.lastMessageCount = (this.messages || []).length
+    // Land at the bottom on first render.
+    this.scrollToBottom(false)
   },
   methods: {
-    scrollToBottom() {
-      setTimeout(() => this.$refs.anchor?.scrollIntoView({ behavior: 'smooth' }), 200)
+    // Whether the scroll container is currently at (or very near) the bottom.
+    isAtBottom() {
+      const el = this.scrollContainerEl
+      if (!el) return true
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight
+      return distance <= this.bottomThreshold
+    },
+    // User scrolled: refresh the pinned state. Scrolling to the bottom re-pins
+    // (so new data keeps coming into view); scrolling up un-pins.
+    onScroll() {
+      this.autoScroll = this.isAtBottom()
+    },
+    // Scroll to the bottom of the conversation. Automatic follow uses instant
+    // scrolling so intermediate scroll events can't accidentally un-pin the view.
+    scrollToBottom(smooth = false) {
+      this.$nextTick(() => {
+        const el = this.scrollContainerEl
+        if (!el) return
+        if (smooth) {
+          el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+        } else {
+          el.scrollTop = el.scrollHeight
+        }
+      })
     },
     scrollToTop() {
       if (this.scrollContainerEl) {
@@ -289,14 +432,22 @@ export default {
         this.messageElRefs[ix] = el
       }
     },
-    onShowEvents(eventData) {
-      this.activeMessageData = eventData
+    // Single source of truth for the events panel: pick the message to watch, or
+    // toggle the panel closed when the same message is clicked again.
+    onShowEvents(message) {
+      const key = message?.doc_id || message?.id
+      if (!key) return
+      if (this.showEventsPanel && this.activeEventsMessageKey === key) {
+        this.closeEventsPanel()
+        return
+      }
+      this.activeEventsMessageKey = key
       this.showEventsPanel = true
       this.expandedId = null
     },
     closeEventsPanel() {
       this.showEventsPanel = false
-      this.activeMessageData = null
+      this.activeEventsMessageKey = null
     },
     toggleExpanded(eventId) {
       this.expandedId = this.expandedId === eventId ? null : eventId

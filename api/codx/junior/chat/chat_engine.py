@@ -23,6 +23,12 @@ from codx.junior.ai import AI
 from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCELLATION_REGISTRY
 from codx.junior.chat_manager import ChatManager
 from codx.junior.chat.chat_event_bridge import ChatEventBridge
+from codx.junior.chat.chat_prompt_builder import (
+    CONVERSATION_GUARDRAIL_SYSTEM_PROMPT,
+    ChatPromptBuilder,
+    concat_content,
+    new_chat_message,
+)
 from codx.junior.context import AICodeGenerator
 from codx.junior.db import Chat, Message, ChatHistoryEntry, ChatAttachment
 from codx.junior.globals import AGENT_DONE_WORD
@@ -72,9 +78,6 @@ Return a JSON object with these keys (omit a key if you cannot determine a good 
 Return ONLY a valid JSON object, no extra text.
 Example: {"name": "Fix login bug", "board": "Backend", "column": "In Progress"}
 """
-
-def concat_content(arr):
-    return "\n".join(filter(lambda el: True if el else False, arr))
 
 class ChatEngine:
     """
@@ -168,6 +171,11 @@ class ChatEngine:
         self.user = user
         # ADDED: Initialize analytics instance for chat session tracking
         self.analytics = Analytics()
+        # ADDED: Extracted prompt/message building into a dedicated builder.
+        self.prompt_builder = ChatPromptBuilder(
+            get_chat_manager=self.get_chat_manager,
+            get_chat_analysis_parents=self.get_chat_analysis_parents,
+        )
 
     def get_profile_manager(self) -> ProfileManager:
         """Return a ProfileManager instance for the current settings."""
@@ -223,12 +231,7 @@ class ChatEngine:
         :param content: Optional initial content string.
         :return: A new Message instance.
         """
-        return Message(
-            role=role,
-            content=content,
-            files=[],
-            doc_id=str(uuid.uuid4())
-        )
+        return new_chat_message(role=role, content=content)
 
     # -------------------------------------------------------------------------
     # Helper: append message avoiding duplicates (ADDED for crash-safety)
@@ -293,185 +296,6 @@ class ChatEngine:
             "is_search": is_search,
             "needs_pre_search": needs_pre_search,
         }
-
-    # -------------------------------------------------------------------------
-    # Helper: build LangChain message history with optional parent messages
-    # -------------------------------------------------------------------------
-    def _build_message_history(
-        self,
-        chat: Chat,
-        include_parent_messages: bool = True
-    ) -> List:
-        """
-        Convert all non-hidden, non-improvement chat messages (excluding the
-        last) into LangChain message objects.
-
-        If include_parent_messages is True and chat has a parent and
-        ignore_parent_knowledge is False, prepends parent chat history.
-
-        Parent history is RESTRICTED to messages that are visible
-        (``hide == False``) AND flagged as ``is_answer``; every other parent
-        message is ignored. Each included parent message is rendered from its
-        own ``content``, ``files`` and ``attachments`` (see
-        :meth:`_build_parent_message_history` and
-        :meth:`_format_parent_message`).
-
-        Tool and lifecycle events live on the response messages themselves
-        (``tool_events`` / ``lifecycle_events``) and are never converted to
-        prompt content, so no role-based filtering is needed.
-
-        FIXED: Now includes parent visible messages respecting the
-        ignore_parent_knowledge flag.
-
-        CHANGED: Parent messages are now filtered to ``is_answer`` only and
-        built from content, files and attachments.
-
-        :param chat: The chat whose history to convert.
-        :param include_parent_messages: Whether to include parent messages
-                                        (default True).
-        :return: List of LangChain message objects.
-        """
-        messages = []
-
-        # Add parent messages if applicable (is_answer + visible only)
-        if include_parent_messages and chat.parent_id and not chat.ignore_parent_knowledge:
-            messages.extend(self._build_parent_message_history(chat=chat))
-        elif chat.parent_id and chat.ignore_parent_knowledge:
-            logger.info(
-                "Skipping parent chat messages for chat '%s' "
-                "(ignore_parent_knowledge=True)",
-                chat.doc_id,
-            )
-
-        # Add current chat messages (excluding the last one, which is the
-        # current user message). The current chat keeps ALL visible messages —
-        # the ``is_answer`` restriction applies to PARENT content only.
-        for message in chat.messages[0:-1]:
-            if message.hide or message.improvement:
-                continue
-            messages.append(self.convert_message(message))
-
-        return messages
-
-    # -------------------------------------------------------------------------
-    # Helper: is a parent message usable as parent content?
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _is_answer_parent_message(message: Message) -> bool:
-        """
-        Decide whether a parent chat message should be loaded as parent content.
-
-        Only messages that are VISIBLE (``hide == False``) AND explicitly
-        flagged as ``is_answer`` qualify; every other message is ignored.
-
-        :param message: The parent chat message to evaluate.
-        :return: True when the message should be included, False otherwise.
-        """
-        return not message.hide and message.is_answer
-
-    # -------------------------------------------------------------------------
-    # Helper: render a parent message (content + files + attachments)
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _format_parent_message(message: Message) -> str:
-        """
-        Render a parent message using its content, files and attachments.
-
-        Attachments are included as human-readable references (file name and
-        type) rather than raw base64 payloads so prompts stay compact.
-
-        Callers are expected to filter messages beforehand with
-        :meth:`_is_answer_parent_message`.
-
-        :param message: The parent chat message to render.
-        :return: A text block combining content, file references and attachments.
-        """
-        parts: List[str] = []
-
-        if message.content:
-            parts.append(message.content)
-
-        if message.files:
-            files_block = "\n".join(
-                f"- {file_path}" for file_path in message.files
-            )
-            parts.append(f"Files:\n{files_block}")
-
-        if message.attachments:
-            attachments_block = "\n".join(
-                f"- {attachment.file_name} ({attachment.file_type})"
-                for attachment in message.attachments
-            )
-            parts.append(f"Attachments:\n{attachments_block}")
-
-        return concat_content(parts)
-
-    # -------------------------------------------------------------------------
-    # Helper: build LangChain messages from the ancestor chain
-    # -------------------------------------------------------------------------
-    def _build_parent_message_history(self, chat: Chat) -> List:
-        """
-        Build LangChain messages from a chat's ancestor chain.
-
-        Only ancestor messages that are VISIBLE (``hide == False``) AND flagged
-        as ``is_answer`` are included; every other message is ignored. Each
-        included message is rendered from its ``content``, ``files`` and
-        ``attachments`` via :meth:`_format_parent_message`.
-
-        ``ignore_parent_knowledge`` is respected: when a chat sets it, the
-        traversal stops and no further ancestors are loaded.
-
-        :param chat: The chat whose ancestors to load.
-        :return: List of LangChain message objects (grandparents first).
-        """
-        messages: List = []
-
-        if not chat.parent_id or chat.ignore_parent_knowledge:
-            return messages
-
-        chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
-        parent_chat = chat_manager.find_by_id(chat.parent_id)
-
-        if not parent_chat:
-            logger.warning(
-                "Parent chat '%s' not found for chat '%s' "
-                "(owner_project_id='%s')",
-                chat.parent_id,
-                chat.doc_id,
-                chat.owner_project_id,
-            )
-            return messages
-
-        logger.info(
-            "Including parent chat messages for chat '%s' "
-            "(parent_id='%s', ignore_parent_knowledge=%s)",
-            chat.doc_id,
-            chat.parent_id,
-            chat.ignore_parent_knowledge,
-        )
-
-        # Grandparents first so the conversation flows from root downwards.
-        messages.extend(self._build_parent_message_history(chat=parent_chat))
-
-        for message in parent_chat.messages:
-            if not self._is_answer_parent_message(message):
-                continue
-
-            formatted_content = self._format_parent_message(message)
-            if not formatted_content:
-                continue
-
-            messages.append(
-                self.convert_message(
-                    Message(
-                        role=message.role,
-                        content=formatted_content,
-                        attachments=message.attachments,
-                    )
-                )
-            )
-
-        return messages
 
     # -------------------------------------------------------------------------
     # Helper: collect all files referenced across visible messages
@@ -1040,234 +864,6 @@ class ChatEngine:
         return rag_documents, file_list, context
 
     # -------------------------------------------------------------------------
-    # Helper: build the final AI prompt messages list
-    # -------------------------------------------------------------------------
-    def _build_ai_prompt_messages(
-        self,
-        chat: Chat,
-        messages: List,
-        user_message: Message,
-        last_ai_message: Optional[Message],
-        context: str,
-        chat_files_content: str,
-        is_refine: bool,
-        is_agent: bool,
-        iterations_left: int
-    ) -> List:
-        """
-        Assemble the final list of LangChain messages to send to the AI.
-
-        This appends context, working-file content, and the mode-specific prompt
-        (refine / agent / standard) to the history. Profile instructions are now
-        handled via the system prompt.
-
-        flowchart TD
-            A[Start] --> B{Context?}
-            B -->|Yes| C[Append context message]
-            B -->|No| D{is_refine?}
-            C --> D
-            D -->|Yes| E[Build refine message]
-            D -->|No| F{is_agent?}
-            F -->|Yes| G[Build agent message]
-            F -->|No| H[Append user message directly]
-            E --> I{chat_files_content?}
-            G --> I
-            H --> I
-            I -->|Yes| J[Prepend working files header]
-            I -->|No| K[Return messages]
-            J --> K
-
-        :param chat: The current chat object.
-        :param messages: LangChain message history (will be mutated by appending).
-        :param user_message: The latest user message.
-        :param last_ai_message: The most recent AI message in history, or None.
-        :param context: RAG / pre-search context string.
-        :param chat_files_content: Content of explicitly attached files.
-        :param is_refine: Whether we are in task/refine mode.
-        :param is_agent: Whether we are in agent mode.
-        :param iterations_left: Remaining agent iterations.
-        :return: Mutated messages list ready for AI invocation.
-        """
-        def _get_msg_content(msg) -> str:
-            """Safely extract content string from a LangChain message or dict."""
-            if isinstance(msg, dict):
-                raw = msg.get("content", "")
-                # content may be a JSON-encoded list (image message)
-                if isinstance(raw, list):
-                    # Extract text parts only
-                    return " ".join(
-                        part.get("text", "") for part in raw
-                        if isinstance(part, dict) and part.get("type") == "text"
-                    )
-                return str(raw) if raw else ""
-            return str(msg.content) if hasattr(msg, "content") else str(msg)
-
-        def _set_msg_content(msg, value: str) -> None:
-            """Safely set content on a LangChain message or dict."""
-            if isinstance(msg, dict):
-                # Preserve existing list structure (image + text blocks)
-                existing = msg.get("content", "")
-                if isinstance(existing, list):
-                    # Update the text block in the list
-                    for part in existing:
-                        if isinstance(part, dict) and part.get("type") == "text":
-                            part["text"] = value
-                            return
-                    # No text block found — prepend one
-                    existing.insert(0, {"type": "text", "text": value})
-                else:
-                    msg["content"] = value
-            else:
-                msg.content = value
-
-        if context:
-            messages.append(
-                self.convert_message(
-                    self._new_chat_message(
-                        role="user",
-                        content=f"<project_files>{context}</project_files>"
-                    )
-                )
-            )
-
-        if is_refine:
-            messages = self._append_refine_message(
-                chat=chat,
-                messages=messages,
-                user_message=user_message,
-                last_ai_message=last_ai_message
-            )
-        elif is_agent:
-            messages = self._append_agent_message(
-                chat=chat,
-                messages=messages,
-                user_message=user_message,
-                iterations_left=iterations_left
-            )
-        else:
-            messages.append(self.convert_message(user_message))
-
-        if chat_files_content:
-            last_msg = messages[-1]
-            current_content = _get_msg_content(last_msg)
-            new_content = (
-                f"\n## Working Files:\n"
-                f"{chat_files_content}\n"
-                f"\n## User request\n"
-                f"{current_content}"
-            )
-            _set_msg_content(last_msg, new_content)
-
-        return messages
-
-    def _append_refine_message(
-        self,
-        chat: Chat,
-        messages: List,
-        user_message: Message,
-        last_ai_message: Optional[Message]
-    ) -> List:
-        """
-        Append a task-refinement prompt to the message list.
-
-        If a previous AI document exists, it asks the model to apply comments to it.
-        Otherwise it simply uses the raw user message content.
-
-        Incorporates parent context if available and not ignored.
-
-        :param chat: The current chat object.
-        :param messages: Existing message list.
-        :param user_message: The latest user message.
-        :param last_ai_message: The most recent AI message, or None.
-        :return: Updated messages list.
-        """
-        existing_document = last_ai_message.content if last_ai_message else ""
-        parent_task = ""
-        
-        # FIXED: Resolve parent context internally based on ignore_parent_knowledge flag
-        if not chat.ignore_parent_knowledge:
-            parent_task = self.get_chat_analysis_parents(chat=chat)
-        
-        task_content = ""
-
-        answer_messages = [
-            message.content for message in chat.messages if message.is_answer
-        ]
-        if answer_messages:
-            task_content += "Task Document Header:\n"
-            task_content += concat_content(answer_messages)
-            task_content += "\n\n"
-
-        if parent_task:
-            task_content += (
-                f"\nYou are writing a child document.\n"
-                f"This information comes from the parent document for your information:\n"
-                f"<parent_document>\n{parent_task}\n</parent_document>\n"
-            )
-
-        if existing_document:
-            task_content += (
-                f"\n<document>\n{existing_document}\n</document>\n\n"
-                f"<comments>\n{user_message.content}\n</comments>\n\n"
-                f"INSTRUCTIONS:\n"
-                f" * Read comments and update document content based on them\n"
-                f" * Leave all parts of the document not affected by the comments untouched\n"
-                f" * Output the final document content\n"
-            )
-        else:
-            task_content += user_message.content
-
-        refine_message = self._new_chat_message(role="user", content=task_content)
-        messages.append(self.convert_message(refine_message))
-        return messages
-
-    def _append_agent_message(
-        self,
-        chat: Chat,
-        messages: List,
-        user_message: Message,
-        iterations_left: int
-    ) -> List:
-        """
-        Append an agent-style prompt that instructs the model to complete a task.
-
-        Incorporates parent context if available and not ignored.
-
-        :param chat: The current chat object.
-        :param messages: Existing message list.
-        :param user_message: The latest user message.
-        :param iterations_left: How many iterations remain.
-        :return: Updated messages list.
-        """
-        parent_context = ""
-        
-        # FIXED: Resolve parent context internally based on ignore_parent_knowledge flag
-        if not chat.ignore_parent_knowledge:
-            parent_context = self.get_chat_analysis_parents(chat=chat)
-        
-        agent_content = (
-            f"You are responsible to end this task.\n"
-            f"Follow instructions and try to solve it with the minimum iterations needed.\n"
-            f"<task>\n{chat.name}\n</task>\n\n"
-        )
-
-        if parent_context:
-            agent_content += (
-                f"You are writing a child document based on prior context:\n"
-                f"<parent_context>\n{parent_context}\n</parent_context>\n\n"
-            )
-
-        agent_content += (
-            f"<user_request>\n{user_message.content}\n</user_request>\n\n"
-            f"You still have {iterations_left} attempts more to finish the task.\n"
-            f"Return {AGENT_DONE_WORD} when the task is done.\n"
-        )
-        
-        agent_message = self._new_chat_message(role="user", content=agent_content)
-        messages.append(self.convert_message(agent_message))
-        return messages
-
-    # -------------------------------------------------------------------------
     # Helper: extract code blocks with filenames from response content
     # -------------------------------------------------------------------------
     def _extract_files_from_response(self, content: str) -> List[Dict[str, str]]:
@@ -1284,51 +880,7 @@ class ChatEngine:
         :param content: The response content string to parse.
         :return: List of file dicts extracted from code blocks.
         """
-        files: List[Dict[str, str]] = []
-        lines = content.split('\n')
-        i = 0
-
-        while i < len(lines):
-            line = lines[i]
-            # Match opening code fence with language and filename
-            open_match = re.match(r'^```(\w+)\s+(.+)$', line)
-
-            if open_match:
-                language = open_match.group(1)
-                file_path = open_match.group(2).strip()
-                code_lines: List[str] = []
-                i += 1
-                nesting_depth = 1
-
-                # Collect code content until closing fence
-                while i < len(lines) and nesting_depth > 0:
-                    current_line = lines[i]
-
-                    # Check for nested code fences
-                    if re.match(r'^```(\w+)', current_line):
-                        nesting_depth += 1
-                        code_lines.append(current_line)
-                    elif current_line == '```':
-                        nesting_depth -= 1
-                        if nesting_depth > 0:
-                            code_lines.append(current_line)
-                    else:
-                        code_lines.append(current_line)
-
-                    i += 1
-
-                # Only add if we have a filename
-                if file_path:
-                    files.append({
-                        "language": language,
-                        "file_path": file_path,
-                        "content": '\n'.join(code_lines)
-                    })
-            else:
-                i += 1
-
-        logger.info("Extracted %d files from response content", len(files))
-        return files
+        return self.prompt_builder.extract_files_from_response(content=content)
 
     # -------------------------------------------------------------------------
     # ADDED: Helper to build user-friendly error message from API response
@@ -2437,9 +1989,10 @@ class ChatEngine:
             #     messages flagged as ``is_answer`` and is built from each
             #     message's content, files and attachments.
             # ------------------------------------------------------------------
-            messages = self._build_message_history(
+            messages = self.prompt_builder.build_message_history(
                 chat=chat,
-                include_parent_messages=True
+                include_parent_messages=True,
+                only_answers=(is_refine or is_vibe),
             )
 
             ignore_documents = chat_files.copy()
@@ -2472,6 +2025,13 @@ class ChatEngine:
                     final_system_prompt += "\n\n" + system
                 else:
                     final_system_prompt = system
+
+            # PHASE 1: guardrail so the model treats prior turns as inert
+            # context and acts only on the wrapped <current_request>.
+            if final_system_prompt:
+                final_system_prompt += "\n\n" + CONVERSATION_GUARDRAIL_SYSTEM_PROMPT
+            else:
+                final_system_prompt = CONVERSATION_GUARDRAIL_SYSTEM_PROMPT
             
             ai = self.get_ai(llm_model=ai_settings.model, system=final_system_prompt)
 
@@ -2595,7 +2155,7 @@ class ChatEngine:
                     """Default streaming callback that emits partial response events."""
                     send_message_event(content=content, done=False)
 
-            messages = self._build_ai_prompt_messages(
+            messages = self.prompt_builder.build_ai_prompt_messages(
                 chat=chat,
                 messages=messages,
                 user_message=user_message,
@@ -2706,7 +2266,7 @@ class ChatEngine:
             # ------------------------------------------------------------------
             # 22. Extract files from response and finalize response metadata
             # ------------------------------------------------------------------
-            extracted_files = self._extract_files_from_response(
+            extracted_files = self.prompt_builder.extract_files_from_response(
                 content=response_message.content
             )
 
@@ -2926,7 +2486,7 @@ class ChatEngine:
         Only messages that are VISIBLE (``hide == False``) AND flagged as
         ``is_answer`` are collected; every other message is ignored. Each
         collected message is rendered from its ``content``, ``files`` and
-        ``attachments`` via :meth:`_format_parent_message`.
+        ``attachments`` via :meth:`ChatPromptBuilder.format_parent_message`.
 
         Respects the ignore_parent_knowledge flag at each level during traversal.
 
@@ -2957,9 +2517,9 @@ class ChatEngine:
                 break
 
             messages = [
-                self._format_parent_message(message)
+                self.prompt_builder.format_parent_message(message)
                 for message in parent_chat.messages
-                if self._is_answer_parent_message(message)
+                if self.prompt_builder.is_answer_parent_message(message)
             ]
             if messages:
                 parent_content.append(concat_content(messages))
@@ -2984,64 +2544,12 @@ class ChatEngine:
         """
         Convert a DB Message object into a LangChain message type.
 
-        Handles text-only messages, image messages, and role-based conversion.
-
-        FIXED: Always returns a proper LangChain message type (HumanMessage or
-        AIMessage), never a bare dict. This ensures consistent role-based filtering
-        in message history building and prevents type confusion that can cause
-        repeated tool calls when attachments are present.
+        Delegates to :class:`ChatPromptBuilder` (extracted for size).
 
         :param message: The Message object to convert.
         :return: A LangChain HumanMessage or AIMessage (never a dict).
         """
-        def parse_image(image) -> dict:
-            """
-            Parse an image into a dict with src and alt fields.
-            
-            Handles both ChatAttachment objects (new format) and legacy JSON strings.
-            """
-            # Handle ChatAttachment objects (new format)
-            if isinstance(image, ChatAttachment):
-                return {
-                    "src": f"data:{image.file_type};base64,{image.base64_data}",
-                    "alt": image.file_name
-                }
-            
-            # Handle legacy JSON string format
-            if isinstance(image, str):
-                try:
-                    return json.loads(image)
-                except (json.JSONDecodeError, TypeError):
-                    return {"src": image, "alt": ""}
-            
-            # Fallback for other types
-            return {"src": str(image), "alt": ""}
-
-        # FIXED: Build proper LangChain content structure
-        if message.attachments:
-            images = [parse_image(image) for image in message.attachments]
-            content = [
-                {
-                    "type": "text",
-                    "text": message.content
-                }
-            ] + [
-                {
-                    "type": "image_url",
-                    "image_url": {"url": image["src"]}
-                }
-                for image in images
-            ]
-            # FIXED: Return proper LangChain message type, not bare dict
-            # This preserves role-based filtering in message history
-            if message.role == "user":
-                return HumanMessage(content=content)
-            else:
-                return AIMessage(content=content)
-        elif message.role == "user":
-            return HumanMessage(content=message.content)
-        else:
-            return AIMessage(content=message.content)
+        return ChatPromptBuilder.convert_message(message)
 
     def get_all_search_projects(self) -> List[CODXJuniorSettings]:
         """

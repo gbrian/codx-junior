@@ -49,6 +49,18 @@ import SprintBoardModals from './SprintBoardModals.vue'
 
       <div class="grow"></div>
 
+      <!-- Export / import this sprint (with all its tasks) -->
+      <button
+        v-if="!isVirtualBoard"
+        class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
+        title="Export or import board"
+        aria-label="Export or import board"
+        @click="$emit('transfer')"
+      >
+        <i class="fa-solid fa-right-left text-xs"></i>
+        <span class="hidden sm:inline text-xs">Transfer</span>
+      </button>
+
       <!-- Edit the board: name, description, background & participants -->
       <button
         v-if="!isVirtualBoard"
@@ -134,9 +146,10 @@ import SprintBoardModals from './SprintBoardModals.vue'
       class="flex-1 min-h-0"
       :columns="filteredColumns"
       :allowCreate="!isVirtualBoard"
-      :selectedTaskId="selectedTaskId"
+      :selectedTaskId="activeSelectionId"
       :background="activeBoard?.background || null"
       @open-task="$emit('open-task', $event)"
+      @open-task-window="$emit('open-task-window', $event)"
       @move-task="onMoveTask"
       @new-task="openNewTask"
       @add-subtask="onAddSubtask"
@@ -160,9 +173,12 @@ export default {
   props: {
     // The board shown by this view is owned by the parent component so several
     // boards can be open at once.
-    boardId: { type: String, default: null }
+    boardId: { type: String, default: null },
+    // Task highlighted by the parent (inline detail pane selection). Falls back
+    // to the globally active chat when not provided.
+    selectedTaskId: { type: String, default: null }
   },
-  emits: ['new-board', 'open-task', 'browse-boards', 'edit-board', 'select-board'],
+  emits: ['new-board', 'open-task', 'open-task-window', 'browse-boards', 'edit-board', 'select-board', 'transfer'],
   data() {
     return {
       searchQuery: ''
@@ -182,8 +198,9 @@ export default {
     sprintBoards() {
       return this.$storex.kanban.sprintBoards
     },
-    selectedTaskId() {
-      return this.$storex.chats.activeChatId || null
+    // Task to highlight: the parent-provided selection wins over the global one
+    activeSelectionId() {
+      return this.selectedTaskId || this.$storex.chats.activeChatId || null
     },
     // Fixed status columns from the kanban store (virtual board includes them)
     columns() {
@@ -258,7 +275,7 @@ export default {
       await this.$storex.kanban.moveSprintStatus({ taskId, status })
     },
     async onRemoveTask(task) {
-      await this.$storex.kanban.removeTaskFromSprint({ taskId: task.id, sprintId: this.boardId })
+      await $storex.kanban.removeTaskFromSprint({ taskId: task.id, sprintId: this.boardId })
     },
     // Fallback content when the task is seeded with files/images but no text.
     // `addMessage` rejects empty content, so this must always be non-empty.

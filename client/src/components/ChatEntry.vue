@@ -10,7 +10,6 @@ import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
-import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
@@ -24,81 +23,37 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     ]"
     tabindex="0"
   >
-    <!-- ── Row: Avatar + Header + Content ── -->
+    <!-- ── Row: Header + Content ── -->
     <!-- Compact by default; comfortable once the chat panel reaches @lg (512px+). -->
     <div class="flex gap-2 items-start w-full @lg/panel:gap-3">
-      <!-- Avatar column — desktop/wide panel only. On mobile the identity
-           (assistant icon, profile avatars, tools) is rendered inline in the
-           header row to reclaim horizontal space. -->
-      <div v-if="!isMobile" class="w-6 shrink-0 flex flex-col items-center gap-1 pt-0.5 @lg/panel:w-7">
-
-        <template>
-          <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
-          <div
-            v-for="profile in messageProfiles"
-            :key="profile.name"
-            class="tooltip tooltip-right"
-            :data-tip="profile.name || profile.username"
-          >
-            <ProfileAvatar :profile="profile" width="6" />
-          </div>
-        </template>
-
-        <!-- Events button -->
-        <div class="flex flex-col gap-1 click"
-          @click.stop="toggleEventsPanel">
-          <button
-            v-if="!isMyMessage"
-            class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
-            :class="eventsOpen && 'btn-active text-warning'"
-            data-tip="Events & Tools"
-          >
-            <i class="fa-solid fa-stream text-info"></i>
-          </button>
-          <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
-            <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
-            <i class="fa-solid fa-wrench"></i>
-          </div>
-        </div>
-      </div>
 
       <!-- Main block column -->
       <div class="flex-1 min-w-0 pb-0.5">
 
         <!-- Header row: only shown on first message of a speaker group -->
-        <div class="flex items-center gap-2 mb-1 leading-none flex-wrap">
+        <!-- Sticky: stays pinned to the top of the messages viewport while a long
+             message scrolls, so author/actions are always reachable. -->
+        <!-- Layout: LEFT = identity + state (archive, time, seen, events/tools,
+             avatars, badges) · RIGHT = actions. -->
+        <div class="sticky top-0 z-20 -mt-1 flex items-center gap-2 leading-none flex-wrap bg-base-100 px-1 pb-3 border-b border-base-content/30">
 
-          <!-- Mobile identity + tools: avatar, profile avatars and events/tools
-               inline as a row (replaces the desktop left column). -->
-          <div v-if="isMobile" class="flex items-center gap-1 shrink-0">
-            <img class="w-5" src="/only_icon.png" v-if="isAssistant" />
-            <ProfileAvatar
-              v-for="profile in messageProfiles"
-              :key="profile.name"
-              :profile="profile"
-              width="5"
-            />
-            <div
-              v-if="!isMyMessage || toolEventCount"
-              class="flex items-center gap-0.5 click"
-              @click.stop="toggleEventsPanel"
-            >
-              <button
-                v-if="!isMyMessage"
-                class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-                :class="eventsOpen && 'btn-active text-warning'"
-                data-tip="Events & Tools"
-              >
-                <i class="fa-solid fa-stream text-info"></i>
-              </button>
-              <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
-                <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
-                <i class="fa-solid fa-wrench"></i>
-              </div>
-            </div>
-          </div>
+          <!-- ─────────────────────────── LEFT: identity + state ─────────────────────────── -->
 
-          <!-- Check mark for seen status (only for other users' messages, at top) -->
+          <!-- Archive toggle -->
+          <button
+            v-if="isDone"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
+            @click.stop="$emit('hide', message)"
+          >
+            <i class="fa-solid fa-box-archive text-warning/70"></i>
+          </button>
+
+          <!-- Timestamp -->
+          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
+          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+
+          <!-- Seen double-check (other users' messages only) -->
           <button
             v-if="!isMyMessage && isDone"
             class="h-5 w-5 min-h-0 tooltip tooltip-bottom flex items-center justify-center transition-all"
@@ -109,12 +64,55 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-solid fa-check-double text-sm"></i>
           </button>
 
+          <!-- Events drawer trigger (assistant only).
+               - Hidden on mobile (*) — reachable from the ⋯ menu.
+               - Hidden when there are tools, since the tools button opens the same drawer. -->
+          <button
+            v-if="isAssistant && !toolEventCount"
+            class="hidden @lg/panel:flex btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Events & Tools"
+            @click.stop="toggleEventsPanel"
+          >
+            <i class="fa-solid fa-stream text-info"></i>
+          </button>
 
-          <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">{{ displayMessage.user }}</span>
-          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
-          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+          <!-- Tools counter — shows the icon + count and opens the same drawer -->
+          <button
+            v-if="isAssistant && toolEventCount"
+            class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Tools"
+            @click.stop="toggleEventsPanel"
+          >
+            <i class="fa-solid fa-wrench text-info"></i>
+            <span class="text-[11px] tabular-nums">x{{ toolEventCount }}</span>
+          </button>
 
-          <!-- State badges inline with header -->
+          <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">
+            {{ displayMessage.user }}
+          </span>
+
+
+          <!-- Avatars — DaisyUI overlapping avatar group to save space -->
+          <div
+            v-if="isAssistant || messageProfiles.length"
+            class="avatar-group -space-x-3 rtl:space-x-reverse shrink-0"
+          >
+            <div v-if="isAssistant" class="avatar">
+              <div class="w-5">
+                <img src="/only_icon.png" alt="Assistant" />
+              </div>
+            </div>
+            <ProfileAvatar
+              v-for="profile in messageProfiles"
+              :key="profile.name"
+              :profile="profile"
+              width="5"
+            />
+          </div>
+
+          <!-- Status badges -->
           <span v-if="cancellationTime" class="badge badge-xs badge-error">
             <i class="fa-solid fa-ban mr-0.5"></i>Cancelled
           </span>
@@ -128,13 +126,10 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-solid fa-box-archive"></i> Archived
           </span>
 
-
           <div class="grow"></div>
 
-          <!-- ── Floating Notion Toolbar (desktop: appears on hover / keyboard focus) ── -->
-          <!-- relative + z-20 lifts this (and its dropdown) above the content
-               block. Without a z-index the `translate-y-0` transform creates a
-               stacking context that the following content paints over. -->
+          <!-- ─────────────────────────── RIGHT: actions ─────────────────────────── -->
+          <!-- relative + z-20 lifts this (and its dropdown) above the content block. -->
           <div
             class="relative z-20
                   focus-within:opacity-100
@@ -151,14 +146,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             </button>
 
             <!-- Core actions -->
-            <button
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-              :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
-              @click.stop="$emit('hide', message)"
-              v-if="isDone"
-            >
-              <i class="fa-solid fa-box-archive text-warning/70"></i>
-            </button>
             <button
               class="btn btn-xs btn-ghost tooltip tooltip-bottom"
               data-tip="Thread"
@@ -220,6 +207,9 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
                 tabindex="0"
                 class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
               >
+                <!-- Events & Tools — the desktop drawer button is hidden on
+                     mobile (*), so it lives here for narrow panels. -->
+                <li v-if="isAssistant" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
                 <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
                 <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
                 <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
@@ -499,20 +489,11 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
       </div>
     </div>
   </div>
-
-  <!-- ── Events/Tools Drawer ── -->
-  <ChatEntryDrawer
-    :isOpen="eventsOpen"
-    :lifecycleEvents="message?.lifecycle_events || []"
-    :toolEvents="message?.tool_events || []"
-    :metadata="message?.meta_data"
-    @close="eventsOpen = false"
-  />
 </template>
 
 <script>
 export default {
-  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker', 'eventsOpen'],
   emits: [
     'generate-code',
     'reload-file',
@@ -556,7 +537,6 @@ export default {
       selectedText: '',
       selectionPosition: { top: 0, left: 0 },
       collapsed: false,
-      eventsOpen: false,
       hasSeen: false,
       unseenToggling: false,
       isFocused: false,
@@ -927,20 +907,11 @@ export default {
     onCreateTask(taskData) {
       this.$emit('sub-task', { content: taskData.content, title: taskData.title })
     },
+    // The events/tools panel is rendered once, by ChatMessageList, which owns the
+    // panel open state. Here we only notify it which message to show; the button's
+    // active state comes back through the `eventsOpen` prop.
     toggleEventsPanel() {
-      this.eventsOpen = !this.eventsOpen
-      if (this.eventsOpen) {
-        this.$emit('show-events', {
-          toolEvents: this.message?.tool_events || [],
-          lifecycleEvents: this.message?.lifecycle_events || [],
-          attachments: this.message?.attachments || [],
-          metadata: this.message?.meta_data,
-          toolCount: this.toolEventCount,
-          lifecycleCount: this.lifecycleEventCount,
-          attachmentCount: this.attachmentCount,
-          totalEvents: this.toolEventCount + this.lifecycleEventCount + this.attachmentCount
-        })
-      }
+      this.$emit('show-events', this.message)
     },
     onBlockEdited(data) {
       const { blockHash, originalContent, newContent, block } = data

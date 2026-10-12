@@ -51,6 +51,9 @@ export const state = () => ({
     preview: 37
   },
   sidebarCollapsed: false,
+  // Projects pinned by the user for quick switching. Persisted in localStorage
+  // through the uiState snapshot (saveState/loadState), so it survives reloads.
+  pinnedProjects: [],
   projectLoadingState: {
     isLoading: false,
     projectName: '',
@@ -76,6 +79,16 @@ export const getters = getterTree(state, {
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
   isDesktopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
+  // Pinned projects resolved to full project objects (keeps only pins that still exist)
+  pinnedProjectsList: state => (state.pinnedProjects || [])
+    .map(id => $storex.projects.allProjectsById?.[id] ||
+                $storex.projects.allProjects?.find(p => p.project_id === id))
+    .filter(Boolean),
+  // Whether the currently active project is pinned
+  isActiveProjectPinned: state => {
+    const projectId = $storex.projects.activeProject?.project_id
+    return !!projectId && (state.pinnedProjects || []).includes(projectId)
+  },
 })
 
 export const mutations = mutationTree(state, {
@@ -305,6 +318,31 @@ export const mutations = mutationTree(state, {
     state.sidebarCollapsed = collapsed
     $storex.ui.saveState()
   },
+  // ════════════════════════════════════════════════════════════════
+  // PINNED PROJECTS (quick project switcher)
+  // ════════════════════════════════════════════════════════════════
+  setPinnedProjects(state, projectIds) {
+    state.pinnedProjects = Array.isArray(projectIds) ? projectIds : []
+    $storex.ui.saveState()
+  },
+  pinProject(state, projectId) {
+    if (!projectId || (state.pinnedProjects || []).includes(projectId)) return
+    state.pinnedProjects = [...(state.pinnedProjects || []), projectId]
+    $storex.ui.saveState()
+  },
+  unpinProject(state, projectId) {
+    state.pinnedProjects = (state.pinnedProjects || []).filter(id => id !== projectId)
+    $storex.ui.saveState()
+  },
+  togglePinProject(state, projectId) {
+    if (!projectId) return
+    if ((state.pinnedProjects || []).includes(projectId)) {
+      state.pinnedProjects = state.pinnedProjects.filter(id => id !== projectId)
+    } else {
+      state.pinnedProjects = [...(state.pinnedProjects || []), projectId]
+    }
+    $storex.ui.saveState()
+  },
   openChat(_, chat) {
     // Unified: panel on desktop, route on mobile
     $storex.ui.openApp({ appKey: 'chat', payload: { chat } })
@@ -393,7 +431,7 @@ export const actions = actionTree(
       } catch (error) {
         console.error('Failed to parse saved UI state:', error)
       }
-
+      $storex.ui.showNewProject(false)
       $storex.ui.handleResize()
     },
     handleResize({ state }) {

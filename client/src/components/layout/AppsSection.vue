@@ -1,7 +1,8 @@
 <script setup>
 import NavItem from './NavItem.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
-import ViewModeToggle from './ViewModeToggle.vue';
+import ViewModeToggle from './ViewModeToggle.vue'
+import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
 </script>
 
 <template>
@@ -17,10 +18,28 @@ import ViewModeToggle from './ViewModeToggle.vue';
         @open="$emit('overlay-open')"
         @close="$emit('overlay-close')"
       />
+
+      <!-- Pin / unpin the active project (quick switcher) -->
+      <button
+        v-if="!isCollapsed"
+        class="btn tooltip tooltip-right"
+        :class="isActiveProjectPinned ? 'click text-primary' : 'click text-base-content/50'"
+        :data-tip="isActiveProjectPinned ? 'Unpin project' : 'Pin project'"
+        :aria-pressed="isActiveProjectPinned"
+        aria-label="Pin project"
+        @click.stop="togglePinCurrentProject"
+      >
+        <i class="fa-solid fa-thumbtack text-xs"></i>
+      </button>
+
       <ViewModeToggle v-if="!isCollapsed"
        />
           
     </div>
+
+    <!-- Pinned projects quick switcher -->
+    <PinnedProjectsSwitcher :is-collapsed="false" />
+
     <button
       v-if="!isCollapsed"
       class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-base-content/60 hover:text-base-content/80 transition-colors"
@@ -38,6 +57,13 @@ import ViewModeToggle from './ViewModeToggle.vue';
         :is-collapsed="isCollapsed"
         :is-primary="true"
         @click="handleNavigateToNewChat"
+      />
+
+      <NavItem
+        icon="fas fa-folder-plus"
+        label="New Project"
+        :is-collapsed="isCollapsed"
+        @click="handleNewProject"
       />
 
       <NavItem
@@ -98,12 +124,39 @@ export default {
       primaryNavExpanded: true
     }
   },
+  computed: {
+    // True when the active project is in the UI store's pinned list
+    isActiveProjectPinned() {
+      return this.$storex.ui.isActiveProjectPinned
+    }
+  },
   methods: {
     // Single entry point for opening an app from this menu.
     // The app key is resolved to a dockview panel on desktop and to its own
     // route on mobile by the UI store (setActiveTab → openApp).
     openApp(appKey) {
       this.$ui.setActiveTab(appKey)
+      this.$emit('close')
+    },
+    // Pin/unpin the currently active project. Pins live in the UI store and are
+    // persisted in localStorage (uiState), then surfaced by PinnedProjectsSwitcher.
+    togglePinCurrentProject() {
+      const project = this.$storex.projects.activeProject
+      if (!project?.project_id) {
+        this.$ui.addNotification({ text: 'No active project to pin', type: 'warning' })
+        return
+      }
+      this.$ui.togglePinProject(project.project_id)
+      this.$ui.addNotification({
+        text: this.isActiveProjectPinned
+          ? `Pinned ${project.project_name}`
+          : `Unpinned ${project.project_name}`
+      })
+    },
+    // Opens the global "New project" modal. The modal itself is rendered once
+    // at the app root and driven by the ui store flag `newProject`.
+    handleNewProject() {
+      this.$ui.showNewProject(true)
       this.$emit('close')
     },
     handleNavigateToNewChat() {

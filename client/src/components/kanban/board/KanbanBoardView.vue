@@ -6,6 +6,10 @@ import SprintBoardView from './SprintBoardView.vue'
 import KanbanList from '../KanbanList.vue'
 import PlanningView from './PlanningView.vue'
 import FollowupView from './FollowupView.vue'
+import BoardTransferModal from './BoardTransferModal.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
+import ChatView from '@/views/ChatView.vue'
+import ChatIcon from '@/components/chat/ChatIcon.vue'
 </script>
 
 <template>
@@ -66,112 +70,245 @@ import FollowupView from './FollowupView.vue'
 
     <!-- ── Kanban board view ── -->
     <div v-show="activeView === 'board' && !isSprintBoard" class="flex-1 min-h-0 flex overflow-hidden relative">
-      <!-- Mobile scrim: tapping the canvas collapses the sidebar drawer -->
-      <transition name="fade">
-        <div
-          v-if="sidebarOverlay"
-          class="absolute inset-0 z-30 bg-black/50 backdrop-blur-[1px]"
-          @click="sidebarCompact = true"
-        ></div>
-      </transition>
+      <!-- Board (left) + inline task detail (right) split — desktop only -->
+      <VerticalSplitter
+        class="flex-1 min-h-0"
+        :panels="boardSplitterPanels"
+        :split="!isMobile"
+        :show-handle="!isMobile"
+      >
 
-      <!-- Sidebar (overlay drawer on mobile when expanded) -->
-      <KanbanBoardSidebar
-        :boards="boards"
-        :activeBoard="activeBoard"
-        :columns="activeColumns"
-        :activeColumnFilter="activeColumnFilter"
-        :tasks="sidebarTasks"
-        :selectedTaskId="selectedTaskId"
-        :isCompact="sidebarCompact"
-        :searchQuery="searchQuery"
-        :class="sidebarOverlay ? 'absolute inset-y-0 left-0 z-40 shadow-2xl' : ''"
-        @select-board="onSelectBoard"
-        @toggle-column-filter="onToggleColumnFilter"
-        @select-task="onSelectTask"
-        @new-task="openNewTaskModal"
-        @new-board="openNewBoardModal"
-        @new-column="openNewColumnModal"
-        @update-search="onUpdateSearch"
-        @toggle-compact="sidebarCompact = !sidebarCompact"
-        @show-board-list="showBoardList = true"
-      />
+        <!-- Left: board canvas -->
+        <template #left>
+          <div class="relative flex h-full min-h-0 w-full overflow-hidden">
+            <!-- Mobile scrim: tapping the canvas collapses the sidebar drawer -->
+            <transition name="fade">
+              <div
+                v-if="sidebarOverlay"
+                class="absolute inset-0 z-30 bg-black/50 backdrop-blur-[1px]"
+                @click="sidebarCompact = true"
+              ></div>
+            </transition>
 
-      <!-- Main canvas column -->
-      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <!-- Top bar (moved out of the canvas so the canvas stays reusable) -->
-        <div class="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-base-100 bg-base-200">
-          <div class="flex flex-col min-w-0 flex-1">
-            <span class="font-semibold text-sm text-base-content truncate">
-              {{ activeBoard?.title || 'Select a board' }}
-            </span>
-            <span class="text-xs text-base-content/40">
-              {{ activeColumns.length }} columns · {{ sidebarTasks.length }} tasks
-            </span>
+            <!-- Sidebar (overlay drawer on mobile when expanded) -->
+            <KanbanBoardSidebar
+              :boards="boards"
+              :activeBoard="activeBoard"
+              :columns="activeColumns"
+              :activeColumnFilter="activeColumnFilter"
+              :tasks="sidebarTasks"
+              :selectedTaskId="selectedTaskId"
+              :isCompact="sidebarCompact"
+              :searchQuery="searchQuery"
+              :class="sidebarOverlay ? 'absolute inset-y-0 left-0 z-40 shadow-2xl' : ''"
+              @select-board="onSelectBoard"
+              @toggle-column-filter="onToggleColumnFilter"
+              @select-task="onSelectTask"
+              @new-task="openNewTaskModal"
+              @new-board="openNewBoardModal"
+              @new-column="openNewColumnModal"
+              @update-search="onUpdateSearch"
+              @toggle-compact="sidebarCompact = !sidebarCompact"
+              @show-board-list="showBoardList = true"
+            />
+
+            <!-- Main canvas column -->
+            <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+              <!-- Top bar (moved out of the canvas so the canvas stays reusable) -->
+              <div class="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-base-100 bg-base-200">
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="font-semibold text-sm text-base-content truncate">
+                    {{ activeBoard?.title || 'Select a board' }}
+                  </span>
+                  <span class="text-xs text-base-content/40">
+                    {{ activeColumns.length }} columns · {{ sidebarTasks.length }} tasks
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    @click="openEditBoardModal"
+                    class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+                    title="Board settings"
+                  >
+                    <i class="fa-solid fa-gear text-xs"></i>
+                    <span class="hidden sm:inline text-xs">Board</span>
+                  </button>
+
+                  <!-- Export / import this board (with all tasks) -->
+                  <button
+                    @click="showTransfer = true"
+                    class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+                    title="Export or import board"
+                    aria-label="Export or import board"
+                  >
+                    <i class="fa-solid fa-right-left text-xs"></i>
+                    <span class="hidden sm:inline text-xs">Transfer</span>
+                  </button>
+
+                  <button
+                    class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+                    title="Filter"
+                  >
+                    <i class="fa-solid fa-filter text-xs"></i>
+                    <span class="hidden sm:inline text-xs">Filter</span>
+                  </button>
+
+                  <button
+                    @click="openNewTaskModal({})"
+                    class="btn btn-primary btn-sm gap-1.5"
+                  >
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span class="hidden sm:inline text-xs font-medium">New Task</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Shared canvas (SprintBoardCanvas), configured for the kanban board -->
+              <SprintBoardCanvas
+                class="flex-1 min-h-0"
+                :columns="filteredViewColumns"
+                :selectedTaskId="selectedTaskId"
+                :background="activeBoard?.background || null"
+                :allowCreate="true"
+                :allowReorderColumns="true"
+                :allowNewColumn="true"
+                :allowEditColumn="true"
+                :allowActions="false"
+                :reorderable="true"
+                @open-task="onSelectTask"
+                @open-task-window="onOpenTaskWindow"
+                @new-task="openNewTaskModal"
+                @new-column="openNewColumnModal"
+                @edit-column="onEditColumn"
+                @move-task="onMoveTask"
+                @reorder-columns="onReorderColumns"
+                @reorder-tasks="onReorderTasks"
+              />
+            </div>
           </div>
+        </template>
 
-          <div class="flex items-center gap-2 shrink-0">
-            <button
-              @click="openEditBoardModal"
-              class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
-              title="Board settings"
-            >
-              <i class="fa-solid fa-gear text-xs"></i>
-              <span class="hidden sm:inline text-xs">Board</span>
-            </button>
+        <!-- Right: inline task detail rendered with ChatView (desktop only) -->
+        <template #right v-if="sideTask && !isSprintBoard && !isMobile">
+          <div class="flex flex-col h-full min-h-0 w-full bg-base-100">
 
-            <button
-              class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
-              title="Filter"
-            >
-              <i class="fa-solid fa-filter text-xs"></i>
-              <span class="hidden sm:inline text-xs">Filter</span>
-            </button>
+            <!-- Slim pane toolbar: task name + window/close actions -->
+            <div class="shrink-0 flex items-center gap-2 px-2 py-1.5 border-b border-base-100">
+              <ChatIcon :mode="sideTask.mode" class="text-xs shrink-0" />
+              <span class="flex-1 min-w-0 text-sm font-semibold truncate" :title="sideTask.name">
+                {{ sideTask.name || 'Task' }}
+              </span>
 
-            <button
-              @click="openNewTaskModal({})"
-              class="btn btn-primary btn-sm gap-1.5"
-            >
-              <i class="fa-solid fa-plus text-xs"></i>
-              <span class="hidden sm:inline text-xs font-medium">New Task</span>
-            </button>
+              <!-- Open in a new window (desktop only) -->
+              <button
+                v-if="!isMobile"
+                class="btn btn-ghost btn-xs gap-1.5 text-base-content/50 hover:text-primary"
+                title="Open in a new window"
+                aria-label="Open in a new window"
+                @click="onOpenTaskWindow(sideTask)"
+              >
+                <i class="fa-solid fa-up-right-from-square text-xs"></i>
+              </button>
+
+              <button
+                class="btn btn-ghost btn-xs text-base-content/50 hover:text-error"
+                title="Close"
+                aria-label="Close task detail"
+                @click="closeSideTask"
+              >
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+
+            <!-- Chat rendered through the shared ChatView (its own load/init) -->
+            <div class="flex-1 min-h-0 overflow-hidden">
+              <ChatView
+                :key="sideTask.id"
+                :chat="sideTask"
+                class="h-full"
+                @chats="closeSideTask"
+              />
+            </div>
           </div>
-        </div>
-
-        <!-- Shared canvas (SprintBoardCanvas), configured for the kanban board -->
-        <SprintBoardCanvas
-          class="flex-1 min-h-0"
-          :columns="filteredViewColumns"
-          :selectedTaskId="selectedTaskId"
-          :background="activeBoard?.background || null"
-          :allowCreate="true"
-          :allowReorderColumns="true"
-          :allowNewColumn="true"
-          :allowEditColumn="true"
-          :allowActions="false"
-          :reorderable="true"
-          @open-task="onSelectTask"
-          @new-task="openNewTaskModal"
-          @new-column="openNewColumnModal"
-          @edit-column="onEditColumn"
-          @move-task="onMoveTask"
-          @reorder-columns="onReorderColumns"
-          @reorder-tasks="onReorderTasks"
-        />
-      </div>
+        </template>
+      </VerticalSplitter>
     </div>
 
     <!-- ── Sprint board view ── -->
-    <SprintBoardView
+    <div
       v-if="isSprintBoard && activeView === 'board'"
-      class="flex-1 min-h-0"
-      :boardId="activeBoardId"
-      @open-task="onSelectTask"
-      @new-board="openNewBoardModal"
-      @edit-board="openEditBoardModal"
-      @select-board="onSelectBoard"
-      @browse-boards="showBoardList = true"
-    />
+      class="flex-1 min-h-0 flex overflow-hidden"
+    >
+      <!-- Board (left) + inline task detail (right) split — desktop only -->
+      <VerticalSplitter
+        class="flex-1 min-h-0"
+        :panels="boardSplitterPanels"
+        :split="!isMobile"
+        :show-handle="!isMobile"
+      >
+
+        <!-- Left: sprint board -->
+        <template #left>
+          <SprintBoardView
+            class="h-full w-full"
+            :boardId="activeBoardId"
+            :selectedTaskId="selectedTaskId"
+            @open-task="onSelectTask"
+            @open-task-window="onOpenTaskWindow"
+            @new-board="openNewBoardModal"
+            @edit-board="openEditBoardModal"
+            @select-board="onSelectBoard"
+            @browse-boards="showBoardList = true"
+            @transfer="showTransfer = true"
+          />
+        </template>
+
+        <!-- Right: inline task detail rendered with ChatView (desktop only) -->
+        <template #right v-if="sideTask && !isMobile">
+          <div class="flex flex-col h-full min-h-0 w-full bg-base-100">
+
+            <!-- Slim pane toolbar: task name + window/close actions -->
+            <div class="shrink-0 flex items-center gap-2 px-2 py-1.5 border-b border-base-100">
+              <ChatIcon :mode="sideTask.mode" class="text-xs shrink-0" />
+              <span class="flex-1 min-w-0 text-sm font-semibold truncate" :title="sideTask.name">
+                {{ sideTask.name || 'Task' }}
+              </span>
+
+              <!-- Open in a new window (desktop only) -->
+              <button
+                v-if="!isMobile"
+                class="btn btn-ghost btn-xs gap-1.5 text-base-content/50 hover:text-primary"
+                title="Open in a new window"
+                aria-label="Open in a new window"
+                @click="onOpenTaskWindow(sideTask)"
+              >
+                <i class="fa-solid fa-up-right-from-square text-xs"></i>
+              </button>
+
+              <button
+                class="btn btn-ghost btn-xs text-base-content/50 hover:text-error"
+                title="Close"
+                aria-label="Close task detail"
+                @click="closeSideTask"
+              >
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+
+            <!-- Chat rendered through the shared ChatView (its own load/init) -->
+            <div class="flex-1 min-h-0 overflow-hidden">
+              <ChatView
+                :key="sideTask.id"
+                :chat="sideTask"
+                class="h-full"
+                @chats="closeSideTask"
+              />
+            </div>
+          </div>
+        </template>
+      </VerticalSplitter>
+    </div>
 
     <!-- ── Planning view ── -->
     <PlanningView v-if="activeView === 'planning'" class="flex-1 min-h-0" />
@@ -193,6 +330,16 @@ import FollowupView from './FollowupView.vue'
       @column-updated="onColumnUpdated"
       @board-created="onBoardCreated"
       @board-updated="onBoardUpdated"
+      @board-delete="onBoardDelete"
+    />
+
+    <!-- Export / import board (kanban & sprint) -->
+    <BoardTransferModal
+      v-if="showTransfer"
+      :boardId="activeBoardId"
+      :project="project"
+      @close="showTransfer = false"
+      @imported="onBoardImported"
     />
   </div>
 </template>
@@ -222,9 +369,14 @@ export default {
       sidebarCompact: false,
       activeColumnFilter: 'all',
       selectedTaskId: null,
+      // Task shown in the inline detail pane (right side). Separate from
+      // `selectedTaskId` so the pane can be closed without losing highlight.
+      sideTaskId: null,
       searchQuery: '',
       editingColumn: null,
-      showBoardList: false
+      showBoardList: false,
+      // Export / import board modal (kanban & sprint share it)
+      showTransfer: false
     }
   },
   created() {
@@ -289,6 +441,20 @@ export default {
     activeBoard() {
       return this.$storex.kanban.boardById(this.activeBoardId)
     },
+    // Chat record shown in the inline detail pane (null hides the pane)
+    sideTask() {
+      if (!this.sideTaskId) return null
+      return (this.$storex.chats.chats || {})[this.sideTaskId] || null
+    },
+    // Splitter sizing: the board takes the full width until the detail pane
+    // (ChatView) opens, then board + inline task share the space. Only used on
+    // desktop — on mobile the splitter is disabled (see `:split`).
+    boardSplitterPanels() {
+      return {
+        left: { defaultSize: this.sideTask ? 60 : 100, minSize: 30 },
+        right: { defaultSize: 40, minSize: 25 }
+      }
+    },
     // Sprint boards replace the kanban canvas/sidebar with the sprint shell
     isSprintBoard() {
       return this.activeBoard?.type === 'sprint'
@@ -351,6 +517,10 @@ export default {
         this.activeView = 'board'
       }
       this.syncAppInfo()
+    },
+    // Switching boards invalidates the inline task detail pane
+    activeBoardId() {
+      this.sideTaskId = null
     },
     // If the selected board disappears (deleted / renamed / project change),
     // fall back to the first available board. Also applies a board requested
@@ -436,11 +606,40 @@ export default {
     onToggleColumnFilter(colTitle) {
       this.activeColumnFilter = this.activeColumnFilter === colTitle ? 'all' : colTitle
     },
+    // Default task selection: open it inline in the right-side detail pane
+    // (rendered with ChatView inside the VerticalSplitter). Clicking the card
+    // that is already open toggles the pane closed. Mobile has no room for the
+    // pane (and no splitter), so it keeps the previous behaviour.
     onSelectTask(task) {
-      this.selectedTaskId = task?.id || null
-      if (task) {
-        this.$chats.setActiveChat(task)
+      if (!task) {
+        this.selectedTaskId = null
+        this.sideTaskId = null
+        return
       }
+      // Card already shown in the pane → toggle it closed
+      if (this.sideTaskId === task.id) {
+        this.selectedTaskId = null
+        this.sideTaskId = null
+        return
+      }
+      this.selectedTaskId = task.id
+      if (this.isMobile) {
+        this.$chats.setActiveChat(task)
+        return
+      }
+      this.sideTaskId = task.id
+      // Make sure the full history is loaded before ChatView renders it
+      this.$storex.chats.loadUninitialized(task)
+    },
+    // Ctrl/Cmd+click or the "open in a new window" icon: original behaviour,
+    // the task is opened in its own window / panel.
+    onOpenTaskWindow(task) {
+      if (!task) return
+      this.selectedTaskId = task.id
+      this.$chats.setActiveChat(task)
+    },
+    closeSideTask() {
+      this.sideTaskId = null
     },
     onUpdateSearch(query) {
       this.searchQuery = query
@@ -480,6 +679,36 @@ export default {
         columnTitle,
         taskIds
       })
+    },
+    // Focus the freshly imported board so the user lands on it right away.
+    // Boards copied/moved into ANOTHER project are not part of this project's
+    // kanban (`boardById` resolves per active project), so they must not clear
+    // the current selection — the source board (or its fallback) stays open.
+    onBoardImported({ boardId }) {
+      this.showTransfer = false
+      if (!boardId || !this.$storex.kanban.boardById(boardId)) {
+        return
+      }
+      this.boardAppliedFromParams = true
+      this.activeBoardId = boardId
+      this.selectedTaskId = null
+      this.sideTaskId = null
+      this.activeColumnFilter = 'all'
+      this.showBoardList = false
+    },
+    // Delete a board (kanban or sprint). Invoked from the shared board settings
+    // modal. Kanban boards can optionally delete their tasks; sprint tasks are
+    // always kept and only leave the sprint. The `boards` watcher re-selects a
+    // fallback board when the active one is gone.
+    async onBoardDelete({ boardId, deleteChats } = {}) {
+      const board = this.$storex.kanban.boardById(boardId)
+      if (!board || board.virtual) return
+      const boardTitle = board.title
+      await this.$storex.kanban.deleteBoard({ board, deleteChats })
+      this.selectedTaskId = null
+      this.sideTaskId = null
+      this.activeColumnFilter = 'all'
+      this.$ui?.addNotification?.({ text: `Board "${boardTitle}" deleted` })
     },
     // Fallback content when the task is seeded with files/images but no text.
     // `addMessage` rejects empty content, so this must always be non-empty.

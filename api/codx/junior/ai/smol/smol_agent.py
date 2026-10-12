@@ -123,20 +123,36 @@ TOOL_SCOPE_CHAT: str = "chat"
 # An empty or None tool message causes the model to re-issue the same call.
 _TOOL_NO_OUTPUT: str = "(tool returned no output)"
 
+# Replace the GLOBAL_CHAT_INSTRUCTIONS constant (also mirrored in engine/session.py)
 
-HARDCODED_SYSTEM_RULES = "\n".join([
-    "## Working with files",
-    "When working with files always use a 'code blocks' and add the file name after the code block language.",
-    "See an example:",
-    "```js folder/file_name.js",
-    "  import dummy from 'module'",
-    "```"
-    "### Observe this rules when working with files",
-    "* Use valid file path (absolute or relative) based on the project and conversation context.",
-    "* New file changes must follow original file formating and identation.",
-    "* Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.",
-    "* Keep changes simple and easy to review by the user."
-])
+HARDCODED_SYSTEM_RULES = """
+CRITICAL INFORMATION — FILE CHANGES:
+Never wrap a file change inside a plain markdown code fence. Propose file changes only as follows.
+
+1) Prefer calling the `code_block_generator` tool once per file with:
+   file_path (project-relative), language, content (the FULL new content), change_type (new|update|delete).
+
+2) If tools are unavailable, emit one envelope per file with the sentinels on their own lines:
+
+@@ CODX_FILE @@
+path: <project-relative path>
+language: <language id>
+change_type: <new|update|delete>
+encoding: text
+@@ CODX_CONTENT @@
+<full file content, verbatim — markdown/fences allowed here>
+@@ CODX_END @@
+
+Content between the CONTENT and END sentinels is taken verbatim. If the content contains a
+line equal to one of the sentinels, use `encoding: base64` instead. Use valid project paths.
+
+### Observe this rules when working with files
+ * Use valid file path (absolute or relative) based on the project and conversation context.
+ * New file changes must follow original file formating and identation.
+ * Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
+ * Keep changes simple and easy to review by the user.
+"""
+
 
 
 def _get_analytics() -> Analytics:

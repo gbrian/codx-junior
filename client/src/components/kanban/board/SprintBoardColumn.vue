@@ -105,6 +105,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
           class="transition-all duration-150"
           :class="draggingTaskId === task.id ? 'opacity-40' : ''"
           @open="$emit('open-task', task)"
+          @open-window="$emit('open-task-window', task)"
           @add-subtask="$emit('add-subtask', task)"
           @remove="$emit('remove-task', task)"
         />
@@ -154,8 +155,8 @@ export default {
     hasBackground: { type: Boolean, default: false }
   },
   emits: [
-    'open-task', 'move-task', 'new-task', 'edit-column', 'reorder-tasks',
-    'remove-task', 'add-subtask', 'column-drag-start', 'column-drag-end'
+    'open-task', 'open-task-window', 'move-task', 'new-task', 'edit-column',
+    'reorder-tasks', 'remove-task', 'add-subtask', 'column-drag-start', 'column-drag-end'
   ],
   data() {
     return {

@@ -21,7 +21,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
       <div v-if="!isCompact" class="px-2 md:px-3 py-2">
         <ChatSidebarNode
           :chat="rootChat"
-          :allChats="allChats"
+          :allChats="[]"
           :selectedChatId="selectedChatId"
           :isCompact="false"
           @select="selectChat"

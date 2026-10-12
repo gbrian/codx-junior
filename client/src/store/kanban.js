@@ -8,6 +8,10 @@ export const namespaced = true
 // Boards are keyed by title, so the virtual board reuses its title as id.
 export const NO_BOARD_ID = 'No board'
 
+// Portable board document contract used by export/import.
+export const BOARD_EXPORT_FORMAT = 'codx-junior-board'
+export const BOARD_EXPORT_VERSION = 1
+
 export const state = () => ({
   filter: null,
   loadingChats: 0,
@@ -22,6 +26,143 @@ function getKanban(project) {
 
 function getActiveProject(project) {
   return project || $storex.projects.activeProject
+}
+
+// ─── Board export / import helpers ────────────────────────────────────────────
+
+// Normalize a filesystem path (drop a trailing slash) for prefix comparison.
+function normalizeProjectPath(path) {
+  if (!path) return path
+  return path.endsWith('/') ? path.slice(0, -1) : path
+}
+
+/**
+ * Rewrite an absolute path that points inside the *source* project so it points
+ * inside the *target* project instead. Paths outside the source project are
+ * returned untouched, so shared/external references survive the import.
+ */
+function remapProjectPath(path, sourcePath, targetPath) {
+  if (!path || !sourcePath || !targetPath) return path
+  const source = normalizeProjectPath(sourcePath)
+  const target = normalizeProjectPath(targetPath)
+  if (path === source) return target
+  if (path.startsWith(`${source}/`)) return `${target}${path.slice(source.length)}`
+  return path
+}
+
+function remapPathList(list, sourcePath, targetPath) {
+  if (!Array.isArray(list)) return []
+  return list.map(path => remapProjectPath(path, sourcePath, targetPath))
+}
+
+// A board key/title that is free in the target project ("Title", "Title (2)"…).
+function findFreeBoardTitle(kanban, baseTitle) {
+  const boards = kanban.boards || {}
+  const clean = (baseTitle || 'Imported board').trim() || 'Imported board'
+  if (clean !== NO_BOARD_ID && !boards[clean]) return clean
+  let index = 2
+  let candidate = `${clean} (${index})`
+  while (boards[candidate]) {
+    index += 1
+    candidate = `${clean} (${index})`
+  }
+  return candidate
+}
+
+/**
+ * Adapt one exported chat to the import target project.
+ *
+ * EVERY field that is bound to the project the chat was created in is
+ * retargeted here:
+ *  - owner_project_id / project_id                 -> target project
+ *  - parent_id / linked_chat_ids / chat_links       -> remapped new chat ids
+ *  - absolute file paths (file_list + message files)-> target project root
+ *  - board / sprint membership                      -> the imported board
+ *  - session_id (AI log link of the source project) -> cleared
+ */
+function adaptImportedChat({
+  sourceChat,
+  idMap,
+  boardTitle,
+  boardType,
+  projectId,
+  columnTitles,
+  sourcePath,
+  targetPath
+}) {
+  // Deep clone so in-memory store objects are never mutated by the import.
+  const chat = JSON.parse(JSON.stringify(sourceChat))
+
+  delete chat.file_path
+  chat.session_id = null
+
+  chat.id = idMap[sourceChat.id]
+  chat.owner_project_id = projectId
+  chat.project_id = projectId
+
+  // Inter-task links (parent/child + threads) between imported chats only.
+  chat.parent_id = sourceChat.parent_id ? (idMap[sourceChat.parent_id] || null) : null
+  chat.parent_owner_project_id = sourceChat.parent_id ? projectId : null
+  chat.parent_project_id = sourceChat.parent_id ? projectId : null
+  chat.message_id = sourceChat.message_id || null
+
+  // Board / sprint membership.
+  chat.board = boardTitle
+  if (boardType === 'sprint') {
+    chat.sprints = [boardTitle]
+    chat.status = sourceChat.status || 'todo'
+  } else {
+    // Kanban tasks drop foreign sprint membership (only this board is imported)
+    chat.sprints = []
+    // Resolve the destination column to one that exists on the imported board.
+    chat.column = columnTitles.includes(sourceChat.column)
+      ? sourceChat.column
+      : (columnTitles[0] || 'tasks')
+  }
+
+  // Cross-chat links.
+  chat.linked_chat_ids = (sourceChat.linked_chat_ids || [])
+    .map(id => idMap[id])
+    .filter(Boolean)
+  chat.chat_links = (sourceChat.chat_links || [])
+    .map(link => ({ chat_id: idMap[link.chat_id], project_id: projectId }))
+    .filter(link => link.chat_id)
+
+  // Project-bound file references.
+  chat.file_list = remapPathList(sourceChat.file_list, sourcePath, targetPath)
+  chat.messages = (sourceChat.messages || []).map(message => ({
+    ...message,
+    files: remapPathList(message.files, sourcePath, targetPath)
+  }))
+
+  return chat
+}
+
+// Link imported kanban tasks into their board column. Sprint membership is
+// already carried on the chat (`sprints`), so sprint boards are skipped.
+function linkChatsToColumns(board, imported) {
+  if (!board) return
+  const columnByTitle = {}
+  ;(board.columns || []).forEach(col => { columnByTitle[col.title] = col })
+
+  imported.forEach(({ chat }) => {
+    const columnTitle = chat.column || 'tasks'
+    let column = columnByTitle[columnTitle]
+    if (!column) {
+      column = {
+        id: uuidv4(),
+        title: columnTitle,
+        color: null,
+        project_id: board.project_id,
+        chats: []
+      }
+      board.columns = [...(board.columns || []), column]
+      columnByTitle[columnTitle] = column
+    }
+    if (!(column.chats || []).includes(chat.id)) {
+      column.chats = [...(column.chats || []), chat.id]
+    }
+  })
 }
 
 // ─── Getters ─────────────────────────────────────────────────────────────────
@@ -671,26 +812,63 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    async deleteBoard({ state }, board) {
+    /**
+     * Delete a board (kanban or sprint).
+     *
+     * @param {object} payload
+     * @param {object|string} payload.board  Board object (or its id/title).
+     * @param {boolean} [payload.deleteChats=true]  When true, the board's tasks
+     *   are deleted from the project. When false they are kept and DETACHED
+     *   from the board:
+     *     - kanban: `board` and `column` are cleared (they fall back to the
+     *       virtual "No board" board);
+     *     - sprint: the board id is removed from each task's `sprints`.
+     *   The UI only offers this choice for kanban boards; moving a board always
+     *   deletes the source tasks (they were copied to the target project).
+     * @returns {Promise<string|null>} The board id to fall back to.
+     */
+    async deleteBoard({ state }, { board, deleteChats = true } = {}) {
       const kanban = getKanban()
-      const boardTitle = board?.title || board
+      const boardTitle = board?.title || board?.id || board
       if (!boardTitle || !kanban.boards?.[boardTitle]) return
 
-      const boardChats = Object.values($storex.chats.chats || {})
-        .filter(c => c.board === boardTitle)
-      await Promise.all(boardChats.map(c => $storex.chats.deleteChat(c)))
+      const boardType = board?.type || kanban.boards[boardTitle]?.type || 'kanban'
+      const allChats = Object.values($storex.chats.chats || {})
+      // Kanban tasks carry `chat.board`; sprint tasks carry the id in `sprints`.
+      const boardChats = boardType === 'sprint'
+        ? allChats.filter(c => (c.sprints || []).includes(boardTitle))
+        : allChats.filter(c => c.board === boardTitle)
+
+      if (deleteChats) {
+        await Promise.all(boardChats.map(c => $storex.chats.deleteChat(c)))
+      } else if (boardType === 'sprint') {
+        // Keep the tasks, only remove this sprint from their membership.
+        await Promise.all(boardChats.map(c => $storex.chats.updateChatInfo({
+          chat: c,
+          updates: { sprints: (c.sprints || []).filter(id => id !== boardTitle) }
+        })))
+      } else {
+        // Keep the tasks but detach them from the board (board + column cleared)
+        // so they fall back to the virtual "No board" board.
+        await Promise.all(boardChats.map(c => $storex.chats.updateChatInfo({
+          chat: c,
+          updates: { board: '', column: '' }
+        })))
+      }
 
       const childBoardsList = Object.values(kanban.boards)
         .filter(b => b && b.parent_id === boardTitle)
       for (const child of childBoardsList) {
-        await $storex.kanban.deleteBoard(child)
+        await $storex.kanban.deleteBoard({ board: child, deleteChats })
       }
 
       mutations.deleteBoard(state, boardTitle)
       await $storex.kanban.saveKanban()
 
       // Return the board the caller should fall back to (parent or any other)
-      return board.parent_id || Object.keys(kanban.boards).find(k => kanban.boards[k] !== null) || null
+      return board?.parent_id ||
+        Object.keys(kanban.boards).find(k => kanban.boards[k] !== null) ||
+        null
     },
 
     async toggleBookmark({ state }, boardId) {
@@ -700,6 +878,229 @@ export const actions = actionTree(
       if (!board) return
       board.bookmark = !board.bookmark
       await $storex.kanban.saveKanban()
+    },
+
+    // ── Board export / import ─────────────────────────────────────────────────
+
+    /**
+     * Serialize a board (kanban or sprint) and ALL its tasks into a portable
+     * document that can be imported into any project.
+     *
+     * The chat list endpoints only return a summary (last message), so every
+     * task is force-loaded here to guarantee the full message history travels
+     * with the export.
+     *
+     * @returns {object|null} the board document, or null when there is no board.
+     */
+    async exportBoard({ getters }, { boardId } = {}) {
+      const board = getters.boardById(boardId)
+      if (!board || board.virtual) return null
+
+      const activeProject = $storex.projects.activeProject
+      const tasks = board.type === 'sprint'
+        ? getters.sprintBoardChats(boardId)
+        : getters.boardChats(boardId)
+
+      const chats = []
+      for (const task of tasks) {
+        if (!task?.id) continue
+        const full = await $storex.chats.loadUninitialized(task)
+        chats.push(JSON.parse(JSON.stringify(full || task)))
+      }
+
+      return {
+        format: BOARD_EXPORT_FORMAT,
+        version: BOARD_EXPORT_VERSION,
+        exported_at: new Date().toISOString(),
+        source: {
+          project_id: activeProject?.project_id || null,
+          project_name: activeProject?.project_name || null,
+          abs_project_path: activeProject?.abs_project_path || null
+        },
+        board: {
+          title: board.title,
+          type: board.type || 'kanban',
+          description: board.description || '',
+          background: board.background || '',
+          parent_id: board.parent_id || null,
+          users: [...(board.users || [])],
+          columns: (board.columns || []).map(col => ({
+            id: col.id || null,
+            title: col.title,
+            color: col.color || null,
+            project_id: col.project_id || null,
+            showSubTasks: col.showSubTasks,
+            chats: [...(col.chats || [])]
+          }))
+        },
+        chats
+      }
+    },
+
+    /**
+     * Import a board document into a project (the active one by default),
+     * adapting every project-bound setting to the target project.
+     *
+     * Steps:
+     *  1. Resolve a free board title and create the board shell.
+     *  2. Make sure every task column exists on the board.
+     *  3. Persist each task with a NEW id (parents/links remapped to the new ids).
+     *  4. Link the kanban tasks into their board columns and save the board.
+     *
+     * @returns {{ boardId: string, board: object, importedCount: number }}
+     */
+    async importBoard({ getters }, { document: doc, project, title } = {}) {
+      const payload = typeof doc === 'string' ? JSON.parse(doc) : doc
+      if (!payload || payload.format !== BOARD_EXPORT_FORMAT || !payload.board) {
+        throw new Error('Invalid board file')
+      }
+
+      const targetProject = project || $storex.projects.activeProject
+      if (!targetProject?.project_id) {
+        throw new Error('No target project selected')
+      }
+
+      // Ensure the target project kanban lives in the store (supports importing
+      // into a project that is not currently active).
+      if (!targetProject.$state?.kanban) {
+        await $storex.projects.loadKanban(targetProject)
+      }
+      const kanban = getKanban(targetProject)
+      if (!kanban.boards) kanban.boards = {}
+
+      const boardType = payload.board.type || 'kanban'
+      const boardTitle = findFreeBoardTitle(kanban, title || payload.board.title)
+
+      // 1. Board shell (columns kept, tasks linked afterwards).
+      kanban.boards[boardTitle] = {
+        id: uuidv4(),
+        title: boardTitle,
+        type: boardType,
+        description: payload.board.description || '',
+        background: payload.board.background || '',
+        // The parent board is NOT part of the export — the imported board is a root.
+        parent_id: null,
+        project_id: targetProject.project_id,
+        users: [...(payload.board.users || [])],
+        columns: (payload.board.columns || []).map(col => ({
+          id: uuidv4(),
+          title: col.title,
+          color: col.color || null,
+          project_id: targetProject.project_id,
+          showSubTasks: col.showSubTasks,
+          chats: []
+        })),
+        last_update: new Date().toISOString()
+      }
+      const board = kanban.boards[boardTitle]
+
+      const sourceChats = Array.isArray(payload.chats) ? payload.chats : []
+
+      // 2. Guarantee every referenced column exists (kanban only).
+      if (boardType !== 'sprint') {
+        const known = new Set(board.columns.map(c => c.title))
+        sourceChats.forEach(sourceChat => {
+          const title = sourceChat?.column
+          if (title && !known.has(title)) {
+            known.add(title)
+            board.columns = [...board.columns, {
+              id: uuidv4(),
+              title,
+              color: null,
+              project_id: targetProject.project_id,
+              chats: []
+            }]
+          }
+        })
+      }
+      await $storex.projects.saveKanban({ project: targetProject })
+
+      // 3. Allocate the new chat ids first, so inter-task links can be remapped.
+      const idMap = {}
+      sourceChats.forEach(sourceChat => {
+        if (sourceChat?.id) idMap[sourceChat.id] = uuidv4()
+      })
+
+      const sourcePath = payload.source?.abs_project_path || null
+      const targetPath = targetProject.abs_project_path || null
+      const columnTitles = (board.columns || []).map(c => c.title)
+
+      const imported = []
+      for (const sourceChat of sourceChats) {
+        if (!sourceChat?.id || !idMap[sourceChat.id]) continue
+        const chat = adaptImportedChat({
+          sourceChat,
+          idMap,
+          boardTitle,
+          boardType,
+          projectId: targetProject.project_id,
+          columnTitles,
+          sourcePath,
+          targetPath
+        })
+        const created = await $storex.chats.importChat(chat)
+        if (created) imported.push({ source: sourceChat, chat: created })
+      }
+
+      // 4. Link the kanban tasks into their columns (sprint uses `sprints`).
+      if (boardType !== 'sprint') {
+        linkChatsToColumns(board, imported)
+      }
+      await $storex.projects.saveKanban({ project: targetProject })
+
+      return {
+        boardId: boardTitle,
+        board,
+        importedCount: imported.length,
+        // The project the board now lives in (used by the caller to decide
+        // whether the imported board can be focused in the current project).
+        project: targetProject
+      }
+    },
+
+    /**
+     * Copy a board (with all its tasks) into another project.
+     *
+     * Reuses the same project-adapting pipeline as the file export/import: the
+     * board is serialized (full message history included) and re-created in the
+     * target project with NEW ids, retargeted projects, links, columns and file
+     * references. The source board is left untouched.
+     *
+     * @returns {Promise<{ boardId: string, board: object, importedCount: number }>}
+     */
+    async copyBoardToProject(_, { boardId, project, title } = {}) {
+      if (!boardId) throw new Error('No board selected')
+
+      const targetProject = project || $storex.projects.activeProject
+      if (!targetProject?.project_id) throw new Error('No target project selected')
+
+      const document = await $storex.kanban.exportBoard({ boardId })
+      if (!document) throw new Error('Nothing to copy')
+
+      return await $storex.kanban.importBoard({
+        document,
+        project: targetProject,
+        title
+      })
+    },
+
+    /**
+     * Move a board to another project: copy it (adapting every project-bound
+     * setting) and only THEN remove it from the source project, so a failed
+     * transfer never loses data. The virtual "No board" board cannot be moved.
+     *
+     * @returns {Promise<{ boardId: string, board: object, importedCount: number }>}
+     */
+    async moveBoardToProject({ getters }, { boardId, project, title } = {}) {
+      const sourceBoard = getters.boardById(boardId)
+      if (!sourceBoard || sourceBoard.virtual) {
+        throw new Error('This board cannot be moved')
+      }
+
+      const result = await $storex.kanban.copyBoardToProject({ boardId, project, title })
+      // Copy succeeded — now it is safe to drop the source board and its tasks.
+      await $storex.kanban.deleteBoard({ board: sourceBoard, deleteChats: true })
+      return result
     },
   }
 )

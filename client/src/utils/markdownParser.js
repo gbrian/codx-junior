@@ -157,14 +157,148 @@ function isNestedAnonymousFence(lines, index, currentType, currentFence) {
 }
 
 /**
- * Check if position is inside a code fence (any nesting level)
+ * CODX file block syntax
+ * -------------------------------------------------------------------------
+ * In addition to legacy ```lang path fences, markdown may carry code blocks
+ * using sentinel lines:
+ *
+ *   @@ CODX_FILE @@
+ *   path: <project-relative path>
+ *   language: <language id>
+ *   change_type: <new|update|delete>
+ *   encoding: text
+ *   @@ CODX_CONTENT @@
+ *   <full file content, verbatim - may itself contain code fences>
+ *   @@ CODX_END @@
+ *
+ * The body between CONTENT and END is taken verbatim, so nested ``` fences
+ * (and even heading-looking lines) never leak out of the block.
+ */
+
+/**
+ * Detect one of the sentinel markers on a single line.
+ * Returns 'file' | 'content' | 'end' | null
+ */
+function getCodedFileMarkers(line) {
+  if (line?.indexOf('@') !== 0) return null
+  const match = line.trim().match(/^@{2}\s+CODX_(FILE|CONTENT|END)\s+@{2}$/)
+  if (!match) return null
+  if (match[1] === 'FILE') return 'file'
+  if (match[1] === 'CONTENT') return 'content'
+  return 'end'
+}
+
+/**
+ * Parse a single "key: value" metadata line found between FILE and CONTENT
+ */
+function parseCodedFileMetaLine(line) {
+  const match = line.match(/^\s*([A-Za-z_][\w-]*)\s*:\s*(.*?)\s*$/)
+  if (!match) return null
+  return { key: match[1].toLowerCase().replace(/-/g, '_'), value: match[2] }
+}
+
+/**
+ * Parse a full CODX file block starting at `startIndex` (the FILE marker).
+ *
+ * Returns { block, endIndex } where `endIndex` is the last consumed line so
+ * the caller can resume right after it. Returns null when the start marker is
+ * immediately followed by another FILE marker (malformed nested start).
+ *
+ * Streaming friendly: when CONTENT/END markers are missing the block is
+ * emitted as unfinished with whatever content has arrived so far.
+ */
+function parseCodedFileBlock(lines, startIndex, getRendererFn = getRenderer) {
+  const meta = {}
+  let i = startIndex + 1
+  let contentStart = -1
+  let contentEnd = -1
+
+  // Read metadata until the CONTENT or END marker
+  while (i < lines.length) {
+    const marker = getCodedFileMarkers(lines[i])
+    if (marker === 'content') {
+      contentStart = i + 1
+      break
+    }
+    if (marker === 'end') {
+      // Empty body: the CONTENT marker was omitted
+      contentStart = i
+      contentEnd = i
+      break
+    }
+    if (marker === 'file') {
+      // Malformed: a new block opened before this one closed
+      return null
+    }
+    const parsed = parseCodedFileMetaLine(lines[i])
+    if (parsed) meta[parsed.key] = parsed.value
+    i++
+  }
+
+  if (contentStart === -1) {
+    // Metadata still streaming - no CONTENT marker yet
+    contentStart = lines.length
+    contentEnd = lines.length
+  } else if (contentEnd === -1) {
+    // Find the END marker from the content start
+    for (let j = contentStart; j < lines.length; j++) {
+      if (getCodedFileMarkers(lines[j]) === 'end') {
+        contentEnd = j
+        break
+      }
+    }
+    if (contentEnd === -1) contentEnd = lines.length
+  }
+
+  const finished = contentEnd < lines.length
+  const content = lines.slice(contentStart, contentEnd).join('\n')
+  const language = meta.language || 'text'
+  const fileName = meta.path || generateFileName(language)
+
+  const block = {
+    type: language,
+    content,
+    hash: generateHash(content),
+    fileName,
+    renderer: getRendererFn(language, fileName),
+    finished,
+    // Marks a block that came from the sentinel syntax (always rendered as code)
+    isFileBlock: true,
+    fileChangeType: meta.change_type || '',
+    encoding: meta.encoding || 'text'
+  }
+
+  return { block, endIndex: finished ? contentEnd : lines.length - 1 }
+}
+
+/**
+ * Check if position is inside a code fence (any nesting level) OR inside a
+ * CODX file block (whose body is verbatim and must not be re-parsed).
  */
 function isInsideCodeFence(lines, lineIndex) {
   let currentFence = null
   let nestStack = []
+  let inCodedFile = false
 
   for (let i = 0; i < lineIndex; i++) {
-    const fence = getFence(lines[i])
+    const line = lines[i]
+    const marker = getCodedFileMarkers(line)
+
+    if (inCodedFile) {
+      // Inside a CODX block everything is verbatim until the END marker,
+      // including nested fences and heading-looking lines.
+      if (marker === 'end') inCodedFile = false
+      continue
+    }
+
+    // A CODX FILE marker only opens a block when we are not already inside a
+    // legacy fence (mirrors parseBlocks, where fences win inside code blocks).
+    if (marker === 'file' && !currentFence) {
+      inCodedFile = true
+      continue
+    }
+
+    const fence = getFence(line)
     if (!fence) continue
 
     if (!currentFence) {
@@ -189,7 +323,7 @@ function isInsideCodeFence(lines, lineIndex) {
     }
   }
 
-  return !!currentFence
+  return !!currentFence || inCodedFile
 }
 
 /**
@@ -201,6 +335,9 @@ function isInsideCodeFence(lines, lineIndex) {
  *   plain content. Only the matching closing fence ends the block.
  * - Markdown blocks (type='markdown') also treat inner fences as content.
  * - A closing fence must match the OUTER opening fence character and length.
+ * - CODX sentinel blocks (@@ CODX_FILE @@ ... @@ CODX_END @@) are
+ *   parsed as verbatim file blocks: their body may contain fences and headings
+ *   without affecting the surrounding markdown.
  *
  * NESTED BLOCK DEPTH TRACKING:
  * - When a named inner fence opens inside a code block, nestDepth increases.
@@ -272,6 +409,22 @@ function parseBlocks(content, getRendererFn = getRenderer) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+
+    // CODX file block takes priority when not already inside a legacy fence
+    if (!inCodeBlock && getCodedFileMarkers(line) === 'file') {
+      const coded = parseCodedFileBlock(lines, i, getRendererFn)
+      if (coded) {
+        if (blocks.length > 0) {
+          blocks[blocks.length - 1].finished = true
+        }
+        if (currentContent.length) addBlock(true)
+        blocks.push(coded.block)
+        blockIndex++
+        i = coded.endIndex
+        continue
+      }
+    }
+
     const fence = getFence(line)
 
     if (inCodeBlock && fence) {
@@ -329,9 +482,13 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     addBlock(false)
   }
 
-  // All blocks except the last are finished
+  // All blocks except the last are finished. CODX file blocks keep the
+  // finished flag resolved during parsing so an open (streaming) file block
+  // is not force-completed.
   for (let i = 0; i < blocks.length - 1; i++) {
-    blocks[i].finished = true
+    if (!blocks[i].isFileBlock) {
+      blocks[i].finished = true
+    }
   }
 
   return blocks
@@ -496,6 +653,9 @@ export default {
   isClosingFence,
   countClosingFencesAhead,
   isNestedAnonymousFence,
+  getCodedFileMarkers,
+  parseCodedFileMetaLine,
+  parseCodedFileBlock,
   isInsideCodeFence,
   parseBlocks,
   collectAllChildContent,
