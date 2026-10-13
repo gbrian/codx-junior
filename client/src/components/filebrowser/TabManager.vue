@@ -55,6 +55,8 @@ import FileViewer from './FileViewer.vue'
 <script>
 export default {
   name: 'TabManager',
+  // Let the parent react when a file is opened or when the last one is closed
+  emits: ['tab-open', 'tabs-empty'],
   data() {
     return {
       tabs: [],
@@ -81,6 +83,7 @@ export default {
       }
       this.tabs.push(tab)
       this.setActiveTab(tabId)
+      this.$emit('tab-open', tab)
     },
     closeTab(tabId) {
       const index = this.tabs.findIndex(t => t.id === tabId)
@@ -97,10 +100,16 @@ export default {
           this.activeTabId = null
         }
       }
+
+      // Notify when no file is left open (mobile: show the tree again)
+      if (this.tabs.length === 0) {
+        this.$emit('tabs-empty')
+      }
     },
     closeAllTabs() {
       this.tabs = []
       this.activeTabId = null
+      this.$emit('tabs-empty')
     },
     setActiveTab(tabId) {
       this.activeTabId = tabId

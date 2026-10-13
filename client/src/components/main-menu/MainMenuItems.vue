@@ -40,6 +40,9 @@ import MenuDivider from './MenuDivider.vue'
   <MenubarItem @click="$ui.setActiveTab('browser-sessions')">
     <i class="fa-regular fa-compass"></i> Browser sessions
   </MenubarItem>
+  <MenubarItem @click="$ui.openGitView()">
+    <i class="fa-solid fa-code-branch"></i> Git
+  </MenubarItem>
   <MenubarItem @click="$ui.setActiveTab('profiles')"
     v-if="$users.isProjectAdmin">
     <i class="fa-solid fa-id-badge"></i>

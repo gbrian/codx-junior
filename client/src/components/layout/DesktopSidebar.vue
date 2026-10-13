@@ -3,7 +3,6 @@ import AppsSection from './AppsSection.vue'
 import WorkspacesSection from './WorkspacesSection.vue'
 import Notifications from '../Notifications.vue'
 import WindowsMenu from '../main-menu/WindowsMenu.vue'
-import RecentsSection from './RecentsSection.vue'
 </script>
 
 <template>
@@ -87,30 +86,29 @@ import RecentsSection from './RecentsSection.vue'
 
   <!-- Desktop Sidebar -->
   <!-- The WRAPPER lives in normal flow and owns the layout width:
-       w-20 when collapsed (rail), w-64 when pinned (expanded).
-       The <aside> inside is absolute, so on hover it can float to w-64 and
-       overlap the neighbour WITHOUT shifting it. When pinned, the wrapper is
-       also w-64 so the aside occupies real flow space. -->
+       w-16 when collapsed (icon rail), w-64 when pinned (expanded).
+       Expansion is ALWAYS explicit (click the rail indicator or the header
+       toggle) — there is no hover-to-expand, so the rail stays put while the
+       user clicks quick icons. While a launcher overlay is open the aside
+       temporarily floats to w-64 and overlaps the neighbour WITHOUT shifting it. -->
   <div
     v-else
     ref="sidebarEl"
     class="relative h-full shrink-0 transition-all duration-200"
-    :class="[isCollapsed ? 'w-20' : 'w-64']"
-    @mouseenter="onSidebarMouseEnter"
-    @mouseleave="onSidebarMouseLeave"
+    :class="[isCollapsed ? 'w-16' : 'w-64']"
   >
     <aside
       class="absolute left-0 top-0 bottom-0 h-full flex flex-col shrink-0 bg-base-100 border-r border-base-content/5 transition-all duration-200"
       :class="[
-        sidebarCollapsed ? 'w-20' : 'w-64',
+        sidebarCollapsed ? 'w-16' : 'w-64',
         isFloating && 'z-50 shadow-2xl'
       ]"
     >
       <!-- Header Section -->
-      <div class="px-3 py-4 shrink-0 border-b border-base-content/5">
+      <div class="px-2 py-4 shrink-0 border-b border-base-content/5">
         <div class="flex items-center justify-between gap-2">
           <div v-if="!sidebarCollapsed" class="flex items-center shrink-0 gap-2 flex-1">
-            <!-- Floating: Pin (keep open) · Pinned: Collapse (back to rail) -->
+            <!-- Expanded: Collapse back to the icon rail -->
             <button
               class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
               @click="onHeaderToggle"
@@ -126,13 +124,16 @@ import RecentsSection from './RecentsSection.vue'
               <span class="text-codx-secondary">junior</span>
             </span>
           </div>
+          <!-- Collapsed: logo + chevron indicator inviting the user to expand -->
           <div v-else class="flex justify-center w-full">
             <button
-              class="click w-6 h-6 flex items-center justify-center hover:bg-white/5 transition-colors"
+              class="click group w-10 flex flex-col items-center gap-1 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               title="Expand sidebar"
+              aria-label="Expand sidebar"
               @click="toggleCollapse()"
             >
-              <img class="w-full" src="/only_icon.png" />
+              <img class="w-6 h-6" src="/only_icon.png" alt="codx-junior" />
+              <i class="fa-solid fa-chevron-right text-[10px] text-base-content/40 group-hover:text-primary transition-colors"></i>
             </button>
           </div>
 
@@ -144,10 +145,7 @@ import RecentsSection from './RecentsSection.vue'
 
       <!-- Scrollable Content Area -->
       <div class="flex-1 overflow-y-auto flex flex-col">
-        <!-- Pinned projects quick switcher -->
-        <PinnedProjectsSwitcher :is-collapsed="sidebarCollapsed" />
-
-        <!-- Apps Section -->
+        <!-- Apps Section (renders the pinned projects quick switcher) -->
         <AppsSection
           :is-collapsed="sidebarCollapsed"
           :more-expanded="moreExpanded"
@@ -164,11 +162,6 @@ import RecentsSection from './RecentsSection.vue'
           :is-collapsed="sidebarCollapsed"
           :current-workspace-id="currentWorkspaceId"
           @close="handleClose"
-        />
-
-        <RecentsSection
-          :isCollapsed="isCollapsed && !isHoverExpanded"
-          @select-chat="handleSelectChat"        
         />
 
       </div>
@@ -226,8 +219,6 @@ export default {
     return {
       dailyLimitStatus: 'normal',
       moreExpanded: false,
-      // True while hovering a collapsed desktop sidebar (temporary float, not persisted)
-      isHoverExpanded: false,
       // Number of overlays (modal/menu) launched from the sidebar that are currently open.
       // While > 0 the sidebar stays expanded so the launcher (and its state) is not unmounted.
       overlayInteractions: 0
@@ -241,14 +232,14 @@ export default {
     isInteracting() {
       return this.overlayInteractions > 0
     },
-    // Content of the aside is "expanded" when pinned, hovering the collapsed rail,
-    // or while an overlay launched from it is still open.
+    // Content of the aside is "expanded" only when pinned, or while an overlay
+    // launched from it is still open. There is no hover expansion.
     sidebarCollapsed() {
-      return this.isCollapsed && !this.isHoverExpanded && !this.isInteracting
+      return this.isCollapsed && !this.isInteracting
     },
-    // Collapsed rail that is temporarily floated open (hover or active overlay)
+    // Collapsed rail that is temporarily floated open because an overlay is active
     isFloating() {
-      return this.isCollapsed && (this.isHoverExpanded || this.isInteracting)
+      return this.isCollapsed && this.isInteracting
     },
     workspaceApps() {
       return this.$projects.projectApps || []
@@ -302,16 +293,6 @@ export default {
         this.toggleCollapse()
       }
     },
-    // Only float-expand on hover when the sidebar is actually collapsed,
-    // so a user-pinned (expanded) sidebar is never disturbed.
-    onSidebarMouseEnter() {
-      if (this.isCollapsed) {
-        this.isHoverExpanded = true
-      }
-    },
-    onSidebarMouseLeave() {
-      this.isHoverExpanded = false
-    },
     // Called when an overlay launched from the sidebar opens/closes.
     // Keeps the sidebar expanded while any such overlay is open.
     onOverlayOpen() {
@@ -325,12 +306,6 @@ export default {
         this.$storex.ui.setSidebarCollapsed(true)
       }
       this.$emit('close')
-    },
-    handleSelectChat(chat) {
-      this.$chats.setActiveChat(chat)
-      if (this.isMobile) {
-        this.handleClose()
-      }
     }
   }
 }

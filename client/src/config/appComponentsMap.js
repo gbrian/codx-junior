@@ -31,6 +31,7 @@ import KanbanBoardView from '../components/kanban/board/KanbanBoardView.vue'
 import BrowserSessionList from '../components/browsers/BrowserSessionList.vue'
 import MessengerView from '../views/MessengerView.vue'
 import MeetView from '../views/MeetView.vue'
+import GitView from '../components/repo/GitView.vue'
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
@@ -52,6 +53,7 @@ export const APP_COMPONENTS_MAP = {
   'account': AccountSettings,
   'file-explorer': FileExplorerPanel,
   'file-viewer': FileViewer,
+  'git-view': GitView,
   'messenger': MessengerView,
   'meet': MeetView,
   'projects': ProjectOverview,

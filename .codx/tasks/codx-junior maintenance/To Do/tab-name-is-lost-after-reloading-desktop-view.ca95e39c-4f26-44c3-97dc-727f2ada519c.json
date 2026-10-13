@@ -1,0 +1,108 @@
+{
+  "id": "ca95e39c-4f26-44c3-97dc-727f2ada519c",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "doing",
+  "status_history": [
+    {
+      "doc_id": "86a2fd3f-b900-4a87-87b1-b4ad375a97d1",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-13T11:04:33.747346",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+    "/home/codx-junior-projects/codx-junior/client/src/store/views.js",
+    "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Tab.vue"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "TAB name is lost after reloading desktop view",
+  "pinned": false,
+  "is_template": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "430376e5-653a-4ec2-8bda-c222a8fa1365",
+      "role": "user",
+      "task_item": "",
+      "content": "TAB name is lost after reloading desktop view",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-13 11:04:37.108477",
+      "updated_at": "2026-10-13T11:04:37.108548",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/views.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Tab.vue"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-13 11:04:33.665099",
+  "updated_at": "2026-10-13T11:04:37.108943",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/tab-name-is-lost-after-reloading-desktop-view.ca95e39c-4f26-44c3-97dc-727f2ada519c.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

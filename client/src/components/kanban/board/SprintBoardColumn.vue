@@ -5,7 +5,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
 <template>
   <!--
     Shared board column. Serves both:
-      • Sprint status columns (column.value / icon / borderColor / textColor)
+      • Sprint status columns (column.status / icon / borderColor / textColor)
       • Kanban custom columns  (column.title / color, editable, reorderable)
     The sprint implementation (latest behaviour) is the base; kanban-only
     affordances are opt-in through props.
@@ -30,15 +30,38 @@ import SprintTaskCard from './SprintTaskCard.vue'
     >
       <i v-if="draggable" class="fa-solid fa-grip-vertical text-xs text-base-content/20 shrink-0"></i>
 
-      <!-- Status icon (sprint) -->
-      <i v-if="column.icon" :class="[column.icon, column.textColor, 'text-xs shrink-0']"></i>
-      <!-- Color dot (kanban) -->
+      <!--
+        Column icon — a single rendering for every column: a circle filled with
+        the column colour and the icon centred inside. Canonical statuses take
+        the colour from the status tokens, custom/kanban columns from the colour
+        picked in the column dialog (applied inline below). A column without an
+        icon keeps its colour dot, centred in the same circle.
+      -->
       <span
-        v-else
-        class="w-2 h-2 rounded-full shrink-0"
-        :style="column.color ? `background: ${column.color}` : ''"
-        :class="!column.color ? 'bg-base-content/20' : ''"
-      ></span>
+        class="relative w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+        :class="columnBadgeClass"
+      >
+        <!-- Explicit colour layer (custom/kanban columns) -->
+        <span
+          v-if="column.color"
+          class="absolute inset-0 rounded-full opacity-20"
+          :style="{ backgroundColor: column.color }"
+        ></span>
+
+        <!-- Column icon, centred -->
+        <i
+          v-if="column.icon"
+          :class="[column.icon, 'relative text-[10px] leading-none']"
+          :style="column.color ? { color: column.color } : null"
+        ></i>
+
+        <!-- Colour dot, for columns that define no icon -->
+        <span
+          v-else
+          class="relative w-1.5 h-1.5 rounded-full bg-current"
+          :style="column.color ? { backgroundColor: column.color } : null"
+        ></span>
+      </span>
 
       <span class="text-xs text-base-content/30 bg-base-100 rounded-full px-1.5 shrink-0">
         {{ localTasks.length }}
@@ -136,6 +159,17 @@ import SprintTaskCard from './SprintTaskCard.vue'
 </template>
 
 <script>
+// Circle colours of the canonical sprint statuses. They mirror the shared chat
+// status config (todo / doing / onhold / done / rejected) so the column badge
+// matches the status colours used everywhere else in the app.
+const STATUS_BADGE_CLASSES = {
+  todo: 'bg-info/20 text-info',
+  doing: 'bg-primary/20 text-primary',
+  onhold: 'bg-warning/20 text-warning',
+  done: 'bg-success/20 text-success',
+  rejected: 'bg-error/20 text-error'
+}
+
 export default {
   name: 'SprintBoardColumn',
   props: {
@@ -180,6 +214,13 @@ export default {
         : 'border-base-100 bg-base-100'
       return this.isDragOver ? 'border-primary/50 bg-primary/5' : surface
     },
+    // Background of the column icon badge. A colour picked for the column is
+    // applied inline (tint layer + icon colour, see the template); canonical
+    // statuses use the shared status tokens; anything else stays neutral.
+    columnBadgeClass() {
+      if (this.column.color) return ''
+      return STATUS_BADGE_CLASSES[this.column.status] || 'bg-base-content/10 text-base-content/60'
+    },
     // Accumulated cost (cxj) of every task in this column
     totalCost() {
       return this.tasks.reduce((sum, t) => sum + (t.cost || 0), 0)
@@ -223,7 +264,7 @@ export default {
       this.$emit('move-task', {
         taskId,
         toColumn: this.column.title,
-        status: this.column.value || null
+        status: this.column.status || null
       })
     },
     onDragOver(event) {

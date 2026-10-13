@@ -37,8 +37,8 @@ import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
           
     </div>
 
-    <!-- Pinned projects quick switcher -->
-    <PinnedProjectsSwitcher :is-collapsed="false" />
+    <!-- Pinned projects quick switcher (icons only while the rail is collapsed) -->
+    <PinnedProjectsSwitcher :is-collapsed="isCollapsed" />
 
     <button
       v-if="!isCollapsed"
@@ -99,6 +99,13 @@ import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
         label="File Explorer"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToFileExplorer"
+      />
+
+      <NavItem
+        icon="fas fa-code-branch"
+        label="Git"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToGitView"
       />
 
       <NavItem
@@ -181,6 +188,9 @@ export default {
     },
     handleNavigateToFileExplorer() {
       this.openApp('file-explorer')
+    },
+    handleNavigateToGitView() {
+      this.openApp('git-view')
     },
     handleNavigateToWiki() {
       this.openApp('wiki')

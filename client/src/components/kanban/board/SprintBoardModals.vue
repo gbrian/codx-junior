@@ -4,6 +4,7 @@ import ChatInputBox from '../../chat/ChatInputBox.vue'
 import ChatIntelliSense from '../../chat/ChatIntelliSense.vue'
 import ChatAttachmentPreview from '../../chat/ChatAttachmentPreview.vue'
 import ChatModeSelector from '../../chat/ChatModeSelector.vue'
+import IconSelector from '../../ui/IconSelector.vue'
 import ProjectDetailt from '../../ProjectDetailt.vue'
 import { getCurrentInstance } from 'vue'
 
@@ -405,15 +406,15 @@ defineExpose({
       </div>
     </modal>
 
-    <!-- ── New / Edit Column Modal (kanban boards) ── -->
+    <!-- ── New / Edit Column Modal (kanban & sprint boards) ── -->
     <modal close @close="closeNewColumn" v-if="showNewColumn">
       <div class="p-1">
         <h2 class="font-bold text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-table-columns text-primary text-sm"></i>
-          {{ editingColumn ? 'Edit Column' : 'New Column' }}
+          {{ newColumn.id ? 'Edit Column' : 'New Column' }}
         </h2>
 
-        <!-- Column name -->
+        <!-- Column name (UI title) -->
         <div class="form-control mb-3">
           <label class="label py-1">
             <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Column name</span>
@@ -429,6 +430,40 @@ defineExpose({
           <label class="label py-0.5" v-if="columnError">
             <span class="label-text-alt text-error">{{ columnError }}</span>
           </label>
+        </div>
+
+        <!-- Status value — sprint boards only: the chat.status a task takes here -->
+        <div v-if="!isKanban" class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Status <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <input
+            v-model="newColumn.status"
+            type="text"
+            placeholder="Defaults to the column name"
+            class="input input-bordered input-sm w-full"
+            @keydown.enter="confirmNewColumn"
+          />
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i>
+            Chat status assigned to the tasks placed in this column. Defaults to the column name.
+          </p>
+        </div>
+
+        <!-- Icon — sprint boards only: a Font Awesome icon shown in the column header -->
+        <div v-if="!isKanban" class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Icon <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+          </label>
+          <IconSelector v-model="newColumn.icon" label="Column icon" />
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i>
+            Shown at the start of the column header. Leave empty to fall back to the colour dot.
+          </p>
         </div>
 
         <!-- Color picker -->
@@ -448,6 +483,31 @@ defineExpose({
           </div>
         </div>
 
+        <!-- Danger zone — remove the column (sprint boards opt in) -->
+        <div v-if="allowColumnDelete && newColumn.id" class="form-control mb-4 pt-3 border-t border-base-100">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-error">Danger zone</span>
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline btn-error w-full justify-start gap-2"
+            :disabled="columns.length <= 1"
+            @click="deleteColumn"
+          >
+            <i class="fa-solid fa-trash-can text-xs"></i>
+            Delete column
+          </button>
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i>
+            <template v-if="columns.length <= 1">
+              A board must keep at least one column.
+            </template>
+            <template v-else>
+              The tasks of this column are moved to the first remaining column.
+            </template>
+          </p>
+        </div>
+
         <!-- Actions -->
         <div class="flex gap-2 justify-end">
           <button class="btn btn-ghost btn-sm" @click="closeNewColumn">Cancel</button>
@@ -457,7 +517,7 @@ defineExpose({
             :disabled="!newColumn.title?.trim()"
           >
             <i class="fa-solid fa-check text-xs"></i>
-            {{ editingColumn ? 'Save' : 'Create' }}
+            {{ newColumn.id ? 'Save' : 'Create' }}
           </button>
         </div>
       </div>
@@ -493,7 +553,8 @@ defineExpose({
           <div v-if="newBoard.type === 'sprint'" class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mt-2">
             <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
             <span class="text-xs text-base-content/50">
-              Sprint columns are the task statuses (To Do → Doing → On Hold → Done → Rejected) and cannot be edited.
+              Sprint columns map a name, an icon and a color to a chat status (starting from the task statuses).
+              Add, rename, recolor or remove them directly on the board.
             </span>
           </div>
           <div v-else class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mt-2">
@@ -817,6 +878,18 @@ const DEFAULT_NEW_TASK = () => ({
   attachments: []
 })
 
+const DEFAULT_NEW_COLUMN = () => ({
+  // `id` is set only while editing an existing column
+  id: null,
+  // UI label
+  title: '',
+  // Chat status the column writes (sprint only; falls back to the title)
+  status: '',
+  // Font Awesome icon shown in the header (sprint only; optional)
+  icon: '',
+  color: COLUMN_COLORS[0]
+})
+
 const DEFAULT_NEW_BOARD = () => ({
   title: '',
   description: '',
@@ -842,12 +915,17 @@ export default {
     boardType: { type: String, default: 'sprint' },
     // Display name of the active board (kanban uses it instead of sprintTitle)
     boardTitle: { type: String, default: null },
-    // Kanban custom columns ({ title, color, id })
+    // Board columns ({ id, title, icon?, color, status? })
     columns: { type: Array, default: () => [] },
     // Column being edited (opens the column dialog in "edit" mode)
-    editingColumn: { type: Object, default: null }
+    editingColumn: { type: Object, default: null },
+    // Show the "Delete column" action inside the column dialog (sprint boards)
+    allowColumnDelete: { type: Boolean, default: false }
   },
-  emits: ['task-created', 'tasks-added', 'column-created', 'column-updated', 'board-created', 'board-updated', 'board-delete'],
+  emits: [
+    'task-created', 'tasks-added', 'column-created', 'column-updated', 'column-deleted',
+    'board-created', 'board-updated', 'board-delete'
+  ],
   data() {
     return {
       showNewTask: false,
@@ -857,7 +935,7 @@ export default {
       showEditBoard: false,
       showDeleteBoard: false,
       newTask: DEFAULT_NEW_TASK(),
-      newColumn: { title: '', color: COLUMN_COLORS[0] },
+      newColumn: DEFAULT_NEW_COLUMN(),
       newBoard: DEFAULT_NEW_BOARD(),
       editBoardForm: DEFAULT_EDIT_BOARD(),
       // Delete-board dialog state. `deleteBoardChats` is the kanban-only choice
@@ -945,10 +1023,20 @@ export default {
       if (!this.newTask.parentId) return null
       return this.$storex.chats.chats?.[this.newTask.parentId]?.name || null
     },
-    // Column (status) the new task will be created in — resolved from the
-    // canonical status config so the label/colour always match the board.
+    // Column (status) the new task will be created in. The sprint column is
+    // resolved from the board columns (its status, or its title when no status
+    // was defined) so the label matches the board; otherwise the canonical
+    // status config is used.
     newTaskStatus() {
-      return this.$storex.chats.statusConfig(this.newTask.status)
+      const value = this.newTask.status
+      const column = this.columns.find(c => (c.status || c.title) === value)
+      if (column) {
+        return {
+          label: column.title,
+          textColor: column.textColor || 'text-base-content/60'
+        }
+      }
+      return this.$storex.chats.statusConfig(value)
     },
 
     // Currently selected project (null ⇒ ProjectDetailt falls back to $project)
@@ -1002,7 +1090,15 @@ export default {
     // Board view sets the column to edit before opening the dialog
     editingColumn(col) {
       if (col) {
-        this.newColumn = { title: col.title, color: col.color || COLUMN_COLORS[0], id: col.id }
+        this.newColumn = {
+          id: col.id || col.status || col.title || null,
+          title: col.title || '',
+          // Prefill with the effective status (the title when none was defined)
+          status: col.status || col.title || '',
+          // Prefill with the column's icon (may be the canonical status icon)
+          icon: col.icon || '',
+          color: col.color || COLUMN_COLORS[0]
+        }
       }
     }
   },
@@ -1281,17 +1377,19 @@ export default {
     },
 
     // ── New Task / Subtask ───────────────────────────────────────────────────
-    // `status` is the target sprint column, `column` the target kanban column.
-    // A column's "+" button passes its own value; otherwise the first column is
-    // used. Sprint boards ignore `column` (their columns are the task statuses).
+    // `status` is the target sprint column's status, `column` the target kanban
+    // column. A column's "+" button passes its own values; otherwise the first
+    // column is used (so a custom first column always receives the new task).
     openNewTask({ parentId, status, column } = {}) {
       // A subtask inherits its parent's project by default
       const parent = parentId ? this.$storex.chats.chats?.[parentId] : null
+      const firstColumn = this.columns[0] || null
       this.newTask = {
         ...DEFAULT_NEW_TASK(),
         parentId: parentId || null,
-        status: status || 'todo',
-        column: column || this.columns[0]?.title || '',
+        // The first column is the default landing status for a new task
+        status: status || firstColumn?.status || 'todo',
+        column: column || firstColumn?.title || '',
         project_id: parent?.project_id || null
       }
       this.composerText = ''
@@ -1395,16 +1493,23 @@ export default {
       this.closeAddExisting()
     },
 
-    // ── New / Edit Column (kanban boards) ────────────────────────────────────
-    openNewColumn() {
-      if (this.editingColumn) {
+    // ── New / Edit / Delete Column (kanban & sprint boards) ──────────────────
+    // `column` lets the caller open the dialog in "edit" mode without relying on
+    // the `editingColumn` prop being flushed (kanban still uses the prop).
+    openNewColumn(column = null) {
+      const target = column || this.editingColumn
+      if (target) {
         this.newColumn = {
-          id: this.editingColumn.id,
-          title: this.editingColumn.title,
-          color: this.editingColumn.color || COLUMN_COLORS[0]
+          id: target.id || target.status || target.title || null,
+          title: target.title || '',
+          // Prefill with the effective status (the title when none was defined)
+          status: target.status || target.title || '',
+          // Prefill with the column's icon (may be the canonical status icon)
+          icon: target.icon || '',
+          color: target.color || COLUMN_COLORS[0]
         }
       } else {
-        this.newColumn = { title: '', color: COLUMN_COLORS[0] }
+        this.newColumn = DEFAULT_NEW_COLUMN()
       }
       this.columnError = null
       this.showNewColumn = true
@@ -1418,19 +1523,52 @@ export default {
       const title = this.newColumn.title?.trim()
       if (!title) return
 
-      const duplicate = this.columns.find(
+      // Sprint columns map a UI title to the chat.status they write. When no
+      // status is defined the title is used instead.
+      const status = this.newColumn.status?.trim() || title
+      // Optional Font Awesome icon shown in the column header
+      const icon = this.newColumn.icon || null
+
+      const duplicateTitle = this.columns.find(
         c => c.title === title && c.id !== this.newColumn.id
       )
-      if (duplicate) {
+      if (duplicateTitle) {
         this.columnError = 'A column with this name already exists'
         return
       }
 
-      if (this.editingColumn) {
-        this.$emit('column-updated', { ...this.newColumn, title })
-      } else {
-        this.$emit('column-created', { title, color: this.newColumn.color })
+      // Two columns must not write the same chat status (the tasks would be
+      // listed twice)
+      const duplicateStatus = this.columns.find(
+        c => (c.status || c.title) === status && c.id !== this.newColumn.id
+      )
+      if (duplicateStatus) {
+        this.columnError = `The status "${status}" is already used by "${duplicateStatus.title}"`
+        return
       }
+
+      // `id` is only set while editing
+      if (this.newColumn.id) {
+        this.$emit('column-updated', {
+          id: this.newColumn.id,
+          title,
+          status,
+          icon,
+          color: this.newColumn.color
+        })
+      } else {
+        this.$emit('column-created', { title, status, icon, color: this.newColumn.color })
+      }
+      this.closeNewColumn()
+    },
+    // Remove the edited column. The parent/store moves its tasks to another
+    // column; the last remaining column cannot be removed.
+    deleteColumn() {
+      if (!this.newColumn.id || this.columns.length <= 1) return
+      this.$emit('column-deleted', {
+        id: this.newColumn.id,
+        status: this.newColumn.status || null
+      })
       this.closeNewColumn()
     },
 

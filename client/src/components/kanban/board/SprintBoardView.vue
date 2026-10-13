@@ -49,6 +49,18 @@ import SprintBoardModals from './SprintBoardModals.vue'
 
       <div class="grow"></div>
 
+      <!-- Add a column to the sprint (a task status) -->
+      <button
+        v-if="!isVirtualBoard"
+        class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
+        title="Add column"
+        aria-label="Add column"
+        @click="openNewColumn"
+      >
+        <i class="fa-solid fa-table-columns text-xs"></i>
+        <span class="hidden sm:inline text-xs">New column</span>
+      </button>
+
       <!-- Export / import this sprint (with all its tasks) -->
       <button
         v-if="!isVirtualBoard"
@@ -117,8 +129,8 @@ import SprintBoardModals from './SprintBoardModals.vue'
         <span class="text-xs font-medium">Add existing</span>
       </button>
 
-      <!-- New Task (starts in To Do) -->
-      <button v-if="!isVirtualBoard" class="btn btn-sm btn-primary gap-1.5" @click="openNewTask({ status: 'todo' })">
+      <!-- New Task (starts in the first column) -->
+      <button v-if="!isVirtualBoard" class="btn btn-sm btn-primary gap-1.5" @click="openNewTask()">
         <i class="fa-solid fa-plus text-xs"></i>
         <span class="text-xs font-medium">New Task</span>
       </button>
@@ -146,12 +158,16 @@ import SprintBoardModals from './SprintBoardModals.vue'
       class="flex-1 min-h-0"
       :columns="filteredColumns"
       :allowCreate="!isVirtualBoard"
+      :allowNewColumn="!isVirtualBoard"
+      :allowEditColumn="!isVirtualBoard"
       :selectedTaskId="activeSelectionId"
       :background="activeBoard?.background || null"
       @open-task="$emit('open-task', $event)"
       @open-task-window="$emit('open-task-window', $event)"
       @move-task="onMoveTask"
       @new-task="openNewTask"
+      @new-column="openNewColumn"
+      @edit-column="onEditColumn"
       @add-subtask="onAddSubtask"
       @remove-task="onRemoveTask"
     />
@@ -159,10 +175,16 @@ import SprintBoardModals from './SprintBoardModals.vue'
     <!-- ── Modals ── -->
     <SprintBoardModals
       ref="modals"
+      boardType="sprint"
       :sprintId="boardId"
       :sprintTitle="activeBoardTitle"
+      :columns="columns"
+      :allowColumnDelete="!isVirtualBoard"
       @task-created="onTaskCreated"
       @tasks-added="onTasksAdded"
+      @column-created="onColumnCreated"
+      @column-updated="onColumnUpdated"
+      @column-deleted="onColumnDeleted"
     />
   </div>
 </template>
@@ -202,7 +224,8 @@ export default {
     activeSelectionId() {
       return this.selectedTaskId || this.$storex.chats.activeChatId || null
     },
-    // Fixed status columns from the kanban store (virtual board includes them)
+    // Sprint columns. Real boards expose their own (editable) columns; the
+    // virtual board and unedited boards fall back to the canonical statuses.
     columns() {
       return this.$storex.kanban.sprintColumns(this.boardId)
     },
@@ -220,7 +243,7 @@ export default {
       return this.columns.reduce((n, col) => n + col.tasks.length, 0)
     },
     doneCount() {
-      const done = this.columns.find(c => c.value === 'done')
+      const done = this.columns.find(c => c.status === 'done')
       return done ? done.tasks.length : 0
     },
     progress() {
@@ -264,6 +287,33 @@ export default {
     openAddExisting() {
       if (this.isVirtualBoard) return
       this.$refs.modals?.openAddExisting()
+    },
+    // ── Sprint columns ───────────────────────────────────────────────────────
+    // A column maps a UI title + color to the chat status it groups. Adding a
+    // column defines a new status; removing one migrates its tasks to another
+    // column (see the kanban store). The virtual board and unedited fallback
+    // boards are handled by the store.
+    openNewColumn() {
+      if (this.isVirtualBoard) return
+      this.$refs.modals?.openNewColumn()
+    },
+    onEditColumn(columnTitle) {
+      if (this.isVirtualBoard) return
+      const column = this.columns.find(c =>
+        c.title === columnTitle || c.id === columnTitle || c.status === columnTitle)
+      this.$refs.modals?.openNewColumn(column || null)
+    },
+    async onColumnCreated({ title, status, icon, color }) {
+      if (this.isVirtualBoard || !title?.trim()) return
+      await this.$storex.kanban.addSprintColumn({ boardId: this.boardId, title, status, icon, color })
+    },
+    async onColumnUpdated({ id, title, status, icon, color }) {
+      if (this.isVirtualBoard || !id) return
+      await this.$storex.kanban.updateSprintColumn({ boardId: this.boardId, id, title, status, icon, color })
+    },
+    async onColumnDeleted({ id }) {
+      if (this.isVirtualBoard || !id) return
+      await this.$storex.kanban.removeSprintColumn({ boardId: this.boardId, id })
     },
     onAddSubtask(task) {
       // "+" on a card → create a subtask linked to that task, landing in the

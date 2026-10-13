@@ -165,6 +165,29 @@ function linkChatsToColumns(board, imported) {
   })
 }
 
+// ─── Sprint column helpers ────────────────────────────────────────────────────
+
+// Default sprint columns mirror the canonical task statuses. They are the
+// fallback for boards that were never customized (and for the virtual
+// "No board" board). Once a board's columns are edited they are persisted on
+// `board.columns`, each one carrying the chat `status` it groups (and an
+// optional Font Awesome `icon`).
+function defaultSprintColumns() {
+  return $storex.chats.statusList.map(status => ({
+    id: status.value,
+    title: status.label,
+    icon: status.icon,
+    color: null,
+    status: status.value
+  }))
+}
+
+// The chat status a sprint column writes: the explicit `status`, or the UI
+// `title` when no status was defined.
+function sprintColumnStatus(column) {
+  return column?.status || column?.title
+}
+
 // ─── Getters ─────────────────────────────────────────────────────────────────
 
 export const getters = getterTree(state, {
@@ -318,8 +341,9 @@ export const getters = getterTree(state, {
   },
 
   // ── Sprint boards ──────────────────────────────────────────────────────────
-  // A sprint is a board with type === 'sprint'. Its columns are FIXED and come
-  // from CHAT_STATUS_CONFIG order (see chats store) — they are the task status.
+  // A sprint is a board with type === 'sprint'. Its columns map a UI `title`, an
+  // `icon` and a `color` to the chat `status` they group; boards that were never
+  // edited (and the virtual board) fall back to the canonical status order.
 
   // Real sprint boards only — the virtual board must not be a switch target
   sprintBoards: (_, getters) =>
@@ -336,12 +360,28 @@ export const getters = getterTree(state, {
       .map(c => ({ ...c, status: c.status || 'todo' }))
   },
 
-  // One column per task status, following the canonical status order
+  // The sprint columns for a board. Customized boards persist their columns on
+  // `board.columns` ({ id, title, icon, color, status }); boards that were never
+  // edited (and the virtual board) fall back to the canonical statuses.
+  //
+  // Sprint boards work by changing a task's `status` field, so each column
+  // groups every task whose `status` matches the column `status` (or its
+  // `title` when no status was defined).
   sprintColumns: (state, getters) => (boardId) => {
+    const board = getters.boardById(boardId)
     const tasks = getters.sprintBoardChats(boardId)
-    return $storex.chats.statusList.map((status, ix) => {
+
+    const custom = board?.columns?.length ? board.columns : null
+    const columns = custom || defaultSprintColumns()
+
+    return columns.map((col, ix) => {
+      // The chat status this column groups (falls back to the UI title)
+      const status = sprintColumnStatus(col)
+      const isStatus = $storex.chats.statusList.some(s => s.value === status)
+      const config = $storex.chats.statusConfig(status)
+
       const columnTasks = tasks
-        .filter(t => t.status === status.value)
+        .filter(t => t.status === status)
         .sort((a, b) => {
           const ao = a.sort_index ?? Number.MAX_SAFE_INTEGER
           const bo = b.sort_index ?? Number.MAX_SAFE_INTEGER
@@ -350,12 +390,15 @@ export const getters = getterTree(state, {
         })
 
       return {
-        id: status.value,
-        value: status.value,
-        title: status.label,
-        icon: status.icon,
-        textColor: status.textColor,
-        borderColor: status.borderColor,
+        id: col.id || status,
+        status,
+        title: col.title || config.label,
+        // A custom icon wins; canonical statuses otherwise keep their icon.
+        // Columns without an icon fall back to the colour dot (board column).
+        icon: col.icon || (isStatus ? config.icon : null),
+        textColor: isStatus ? config.textColor : null,
+        borderColor: isStatus ? config.borderColor : null,
+        color: col.color || null,
         position: ix,
         tasks: columnTasks
       }
@@ -673,12 +716,11 @@ export const actions = actionTree(
       const activeProject = $storex.projects.activeProject
       const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
 
-      const taskStatus = status || 'todo'
-
       // The sprint board's columns are its task statuses; the first column is
-      // the default landing column (To Do). Subtasks inherit board/column from
-      // their parent.
+      // the default landing column. Subtasks inherit board/column from the
+      // parent, root tasks fall back to the first column's status.
       const firstColumn = getters.sprintColumns(sprintId)?.[0]
+      const taskStatus = status || firstColumn?.status || 'todo'
 
       // `board` and `column` are required by the backend and must be part of the
       // create payload (before the chat is saved via PUT /api/chats?chat_only=1).
@@ -712,6 +754,131 @@ export const actions = actionTree(
         })
       }
       return chat
+    },
+
+    // ── Sprint columns (add / edit / remove) ─────────────────────────────────
+    // Sprint columns are stored on `board.columns` as
+    // { id, title, icon, color, status } where `status` is the chat.status the
+    // column groups (it falls back to the title when omitted) and `icon` is an
+    // optional Font Awesome class. Boards without stored columns fall back to the
+    // canonical statuses, so the defaults are materialized before any edit.
+
+    async materializeSprintColumns({ state }, { boardId } = {}) {
+      const board = getKanban().boards?.[boardId]
+      if (!board || board.columns?.length) return board
+
+      // `id` mirrors the status value so a column's identity is stable across
+      // the fallback → persisted transition (keeps canvas reorder in sync).
+      board.columns = defaultSprintColumns().map(col => ({
+        id: col.id,
+        title: col.title,
+        icon: col.icon || null,
+        color: col.color || null,
+        status: col.status,
+        chats: []
+      }))
+      board.last_update = new Date().toISOString()
+      await $storex.kanban.saveKanban()
+      return board
+    },
+
+    // Add a column: `title` labels it in the UI, `status` is the chat status its
+    // tasks get (defaults to the title when omitted) and `icon` is optional.
+    async addSprintColumn({ state }, { boardId, title, status, icon, color } = {}) {
+      const board = getKanban().boards?.[boardId]
+      if (!board) return
+      title = title?.trim()
+      if (!title) return
+      const columnStatus = status?.trim() || title
+
+      // Keep the existing (default) columns before appending the new one
+      await $storex.kanban.materializeSprintColumns({ boardId })
+
+      // Two columns must not write the same chat status (the same tasks would
+      // be listed twice). The dialog validates this too — this is the guard.
+      if (board.columns.some(c => sprintColumnStatus(c) === columnStatus)) return
+
+      board.columns = [
+        ...(board.columns || []),
+        {
+          id: uuidv4(),
+          title,
+          icon: icon || null,
+          color: color || null,
+          status: columnStatus,
+          chats: []
+        }
+      ]
+      board.last_update = new Date().toISOString()
+      await $storex.kanban.saveKanban()
+    },
+
+    // Update a column (title / status / icon / color). Changing the status a
+    // column writes migrates its tasks so the cards follow the column.
+    async updateSprintColumn({ state, getters }, { boardId, id, title, icon, color, status } = {}) {
+      const board = getKanban().boards?.[boardId]
+      if (!board) return
+
+      // Default columns are persisted on first edit (boards start column-less)
+      await $storex.kanban.materializeSprintColumns({ boardId })
+
+      const column = board.columns.find(c =>
+        c.id === id || sprintColumnStatus(c) === id || c.title === id)
+      if (!column) return
+
+      const previousStatus = sprintColumnStatus(column)
+      const nextTitle = title !== undefined ? (title?.trim() || column.title) : column.title
+      // An explicit status wins; otherwise fall back to the (new) title
+      const nextStatus = status !== undefined
+        ? (status?.trim() || nextTitle)
+        : (column.status || nextTitle)
+
+      // Changing the status re-groups the column, so move its tasks along
+      if (nextStatus !== previousStatus) {
+        const tasks = getters.sprintBoardChats(boardId)
+          .filter(t => (t.status || 'todo') === previousStatus)
+        await Promise.all(tasks.map(t =>
+          $storex.chats.updateChatInfo({ chat: t, updates: { status: nextStatus } })
+        ))
+      }
+
+      column.title = nextTitle
+      column.status = nextStatus
+      if (icon !== undefined) column.icon = icon || null
+      if (color !== undefined) column.color = color || null
+      board.last_update = new Date().toISOString()
+      await $storex.kanban.saveKanban()
+    },
+
+    async removeSprintColumn({ state, getters }, { boardId, id, reassignTo } = {}) {
+      const board = getKanban().boards?.[boardId]
+      if (!board) return
+
+      // Default columns are persisted on first edit (boards start column-less)
+      await $storex.kanban.materializeSprintColumns({ boardId })
+      // A board must keep at least one column
+      if (board.columns.length <= 1) return
+
+      const column = board.columns.find(c =>
+        c.id === id || sprintColumnStatus(c) === id || c.title === id)
+      if (!column) return
+
+      const status = sprintColumnStatus(column)
+      const remaining = board.columns.filter(c => c !== column)
+      // Where the column's tasks go: the requested target or the first column left
+      const target = remaining.find(c => sprintColumnStatus(c) === reassignTo) || remaining[0]
+      const targetStatus = sprintColumnStatus(target)
+
+      // Move the tasks so the removed column never loses them
+      const tasks = getters.sprintBoardChats(boardId)
+        .filter(t => (t.status || 'todo') === status)
+      await Promise.all(tasks.map(t =>
+        $storex.chats.updateChatInfo({ chat: t, updates: { status: targetStatus } })
+      ))
+
+      board.columns = remaining
+      board.last_update = new Date().toISOString()
+      await $storex.kanban.saveKanban()
     },
 
     async createSubTask({ state }, {
@@ -927,9 +1094,11 @@ export const actions = actionTree(
           columns: (board.columns || []).map(col => ({
             id: col.id || null,
             title: col.title,
+            icon: col.icon || null,
             color: col.color || null,
             project_id: col.project_id || null,
             showSubTasks: col.showSubTasks,
+            status: col.status || null,
             chats: [...(col.chats || [])]
           }))
         },
@@ -985,9 +1154,12 @@ export const actions = actionTree(
         columns: (payload.board.columns || []).map(col => ({
           id: uuidv4(),
           title: col.title,
+          icon: col.icon || null,
           color: col.color || null,
           project_id: targetProject.project_id,
           showSubTasks: col.showSubTasks,
+          // Sprint columns carry the task status they group
+          status: col.status || null,
           chats: []
         })),
         last_update: new Date().toISOString()

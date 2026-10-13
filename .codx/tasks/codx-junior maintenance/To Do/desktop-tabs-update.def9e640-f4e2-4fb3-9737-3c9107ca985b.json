@@ -1,0 +1,106 @@
+{
+  "id": "def9e640-f4e2-4fb3-9737-3c9107ca985b",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "doing",
+  "status_history": [
+    {
+      "doc_id": "ca77b4cc-66a7-4d47-b75a-fa88d70375ea",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-13T10:51:09.456653",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+    "/home/codx-junior-projects/codx-junior/client/src/store/views.js"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Desktop tabs update",
+  "pinned": false,
+  "is_template": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "fb3edb9d-6058-4881-95de-637863ab4360",
+      "role": "user",
+      "task_item": "",
+      "content": "When an open app updates its params we must save the view to keep that change for next time",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-13 10:51:12.049313",
+      "updated_at": "2026-10-13T10:51:12.049389",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+        "/home/codx-junior-projects/codx-junior/client/src/store/views.js"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-13 10:51:09.375280",
+  "updated_at": "2026-10-13T10:51:41.097159",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/desktop-tabs-update.def9e640-f4e2-4fb3-9737-3c9107ca985b.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

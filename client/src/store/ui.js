@@ -551,6 +551,11 @@ export const actions = actionTree(
       $storex.ui.openApp('projects')
     },
 
+    // Open the Git view (repository changes / history).
+    openGitView() {
+      $storex.ui.openApp('git-view')
+    },
+
     openTeams() {
       $storex.ui.openApp('team')
     },

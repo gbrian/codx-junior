@@ -20,7 +20,7 @@ import Modal from './Modal.vue'
       <i v-if="!iconify" class="fa-solid fa-right-left text-xs ml-auto"></i>
     </button>
 
-    <!-- Modal: Recent Projects with Search & More -->
+    <!-- Modal: Project hierarchy (Parent / Children) + More projects -->
     <Modal v-if="isModalOpen" :close="true" @close="onModalClose">
       <template #header>
         <div class="flex items-center justify-between w-full gap-4">
@@ -44,71 +44,85 @@ import Modal from './Modal.vue'
 
       <!-- Content -->
       <div class="flex flex-col gap-4">
-        <!-- Section Header -->
-        <h3 class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-          {{ sectionLabel }}
-        </h3>
-
-        <!-- Unified Results List -->
-        <div class="flex flex-col gap-2 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-2">
-          <button
-            v-for="project in displayedProjects"
-            :key="project.project_id"
-            @click="onProjectSelected(project)"
-            class="group flex items-start gap-3 p-3 bg-base-300 border border-base-content/5 rounded-lg hover:border-primary/30 hover:bg-[#1f1f1f] transition-all duration-200 text-left"
+        <!-- Ordered sections: Parent Project -> Child Projects -> More/Recent (or Search Results) -->
+        <div class="flex flex-col gap-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-2">
+          <div
+            v-for="section in sections"
+            :key="section.key"
+            class="flex flex-col gap-2"
           >
-            <!-- Icon -->
-            <img
-              v-if="project.project_icon"
-              :src="project.project_icon"
-              :alt="project.project_name"
-              class="w-6 h-6 rounded-md flex-shrink-0 mt-0.5"
-            />
-            <i v-else class="fa-solid fa-folder text-base flex-shrink-0 mt-1"></i>
-
-            <!-- Info -->
-            <div class="flex-1 min-w-0">
-              <div class="font-medium  transition-colors truncate">
-                {{ project.project_name }}
-              </div>
-              <div class="text-xs text-base-content/40 truncate">{{ project.abs_project_path }}</div>
-              <div class="flex gap-2 mt-2 text-xs text-base-content/50">
-                <span v-if="project.metrics?.file_count" class="flex items-center gap-1">
-                  <i class="fa-solid fa-file-lines text-primary/60"></i>
-                  {{ project.metrics.file_count }}
-                </span>
-                <span v-if="project.metrics?.number_of_chats" class="flex items-center gap-1 text-info/70">
-                  <i class="fa-brands fa-trello"></i>
-                  {{ project.metrics.number_of_chats }}
-                </span>
-                <span class="ml-auto text-base-content/30">{{ formatLastUpdate(project) }}</span>
-              </div>
+            <!-- Section Header -->
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold text-base-content/60 uppercase tracking-wide flex items-center gap-2">
+                <i :class="section.icon" class="text-[10px]"></i>
+                {{ section.label }}
+              </h3>
+              <span class="text-[10px] font-medium text-base-content/30">{{ section.projects.length }}</span>
             </div>
-          </button>
+
+            <!-- Section Items -->
+            <button
+              v-for="project in section.projects"
+              :key="project.project_id"
+              @click="onProjectSelected(project)"
+              class="group flex items-start gap-3 p-3 bg-base-300 border rounded-lg hover:border-primary/30 hover:bg-[#1f1f1f] transition-all duration-200 text-left"
+              :class="section.key === 'parent'
+                ? 'border-primary/30 ring-1 ring-primary/20'
+                : 'border-base-content/5'"
+            >
+              <!-- Icon -->
+              <img
+                v-if="project.project_icon"
+                :src="project.project_icon"
+                :alt="project.project_name"
+                class="w-6 h-6 rounded-md flex-shrink-0 mt-0.5"
+              />
+              <i v-else class="fa-solid fa-folder text-base flex-shrink-0 mt-1"></i>
+
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <div class="font-medium  transition-colors truncate">
+                  {{ project.project_name }}
+                </div>
+                <div class="text-xs text-base-content/40 truncate">{{ project.abs_project_path }}</div>
+                <div class="flex gap-2 mt-2 text-xs text-base-content/50">
+                  <span v-if="project.metrics?.file_count" class="flex items-center gap-1">
+                    <i class="fa-solid fa-file-lines text-primary/60"></i>
+                    {{ project.metrics.file_count }}
+                  </span>
+                  <span v-if="project.metrics?.number_of_chats" class="flex items-center gap-1 text-info/70">
+                    <i class="fa-brands fa-trello"></i>
+                    {{ project.metrics.number_of_chats }}
+                  </span>
+                  <span class="ml-auto text-base-content/30">{{ formatLastUpdate(project) }}</span>
+                </div>
+              </div>
+            </button>
+          </div>
 
           <!-- Empty state -->
-          <div v-if="displayedProjects.length === 0" class="py-8 text-center">
+          <div v-if="totalVisibleCount === 0" class="py-8 text-center">
             <i class="fa-solid fa-inbox text-base-content/20 text-2xl mb-2 block"></i>
             <p class="text-xs text-base-content/40">{{ emptyStateMessage }}</p>
           </div>
         </div>
 
-        <!-- Load More / Back to Recent Button -->
+        <!-- More Projects / Show less -->
         <button
-          v-if="showLoadMoreButton"
+          v-if="showMoreButton"
           @click="showAllProjects = true"
-          class="px-3 py-2 text-sm font-medium border border-primary/20 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          class="px-3 py-2 w-full text-sm font-medium border border-primary/20 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 hover:bg-primary/10"
         >
           <i class="fa-solid fa-ellipsis"></i>
-          More Projects ({{ totalProjectsCount - displayLimit }})
+          More Projects ({{ otherProjectsCount - displayLimit }})
         </button>
 
         <button
-          v-if="showBackButton"
+          v-if="showLessButton"
           @click="showAllProjects = false"
           class="px-3 py-2 w-full text-xs font-medium text-base-content/50 hover:text-base-content/80 bg-white/5 hover:bg-white/10 border border-base-content/5 rounded-lg transition-all duration-200"
         >
-          Back to Recent
+          Show less
         </button>
       </div>
     </Modal>
@@ -151,50 +165,129 @@ export default {
       return this.$projects?.allProjects || []
     },
 
-    // Total count of all projects
-    totalProjectsCount() {
-      return this.allProjects.length
+    // Parent of the current project (path based), if any
+    parentProject() {
+      const current = this.project
+      const childPath = current?.abs_project_path
+      if (!childPath) return null
+      return this.allProjects.find(p => {
+        if (p.project_id === current.project_id) return false
+        if (p.abs_project_path === childPath) return false
+        const parentPath = p.abs_project_path?.endsWith('/')
+          ? p.abs_project_path
+          : `${p.abs_project_path}/`
+        return childPath.startsWith(parentPath)
+      }) || null
     },
 
-    // When filtering: use all projects, otherwise use paginated recent
-    baseProjects() {
-      if (this.searchQuery) {
-        // When searching, filter ALL projects
-        return this.allProjects.filter(p => this.matchesSearch(p))
+    // Child projects of the current project (path based)
+    childProjects() {
+      const current = this.project
+      const parentPath = current?.abs_project_path
+      if (!parentPath) return []
+      const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`
+      return this.allProjects.filter(p =>
+        p.project_id !== current.project_id &&
+        p.abs_project_path !== parentPath &&
+        p.abs_project_path?.startsWith(normalizedParentPath)
+      )
+    },
+
+    // Every project that is not the current one, its parent nor its children
+    otherProjects() {
+      const excluded = new Set(
+        [this.project?.project_id, this.parentProject?.project_id]
+          .concat(this.childProjects.map(p => p.project_id))
+          .filter(Boolean)
+      )
+      return this.allProjects.filter(p => !excluded.has(p.project_id))
+    },
+
+    // Total count of "other" projects (used by the More option)
+    otherProjectsCount() {
+      return this.otherProjects.length
+    },
+
+    // Limited list of the other projects (fully expanded when More is used)
+    otherProjectsToDisplay() {
+      if (this.showAllProjects) return this.otherProjects
+      return this.otherProjects.slice(0, this.displayLimit)
+    },
+
+    isSearching() {
+      return !!this.searchQuery.trim()
+    },
+
+    // When searching, filter ALL projects
+    searchResults() {
+      return this.allProjects.filter(p => this.matchesSearch(p))
+    },
+
+    // Ordered sections shown top down: Parent -> Children -> More (or Search Results)
+    sections() {
+      if (this.isSearching) {
+        return [{
+          key: 'search',
+          label: 'Search Results',
+          icon: 'fa-solid fa-magnifying-glass',
+          projects: this.searchResults
+        }]
       }
-      // When not searching, show paginated recent projects
-      if (this.showAllProjects) {
-        return this.allProjects
+
+      const sections = []
+
+      // 1) Current project parent (if any)
+      if (this.parentProject) {
+        sections.push({
+          key: 'parent',
+          label: 'Parent Project',
+          icon: 'fa-solid fa-arrow-up',
+          projects: [this.parentProject]
+        })
       }
-      return this.allProjects.slice(0, this.displayLimit)
+
+      // 2) Current project children (if any)
+      if (this.childProjects.length) {
+        sections.push({
+          key: 'children',
+          label: 'Child Projects',
+          icon: 'fa-solid fa-sitemap',
+          projects: this.childProjects
+        })
+      }
+
+      // 3) More option (remaining projects)
+      if (this.otherProjectsToDisplay.length) {
+        sections.push({
+          key: 'more',
+          label: this.showAllProjects ? 'Other Projects' : 'More',
+          icon: 'fa-solid fa-folder',
+          projects: this.otherProjectsToDisplay
+        })
+      }
+
+      return sections
     },
 
-    // Display projects (baseProjects is already filtered if searching)
-    displayedProjects() {
-      return this.baseProjects
-    },
-
-    // Section label based on current state
-    sectionLabel() {
-      if (this.searchQuery) return 'Search Results'
-      if (this.showAllProjects) return 'All Recent'
-      return 'Recent'
+    // Total projects currently visible (used for the empty state)
+    totalVisibleCount() {
+      return this.sections.reduce((total, section) => total + section.projects.length, 0)
     },
 
     // Empty state message based on current state
     emptyStateMessage() {
-      if (this.searchQuery) return 'No projects match your search'
-      return 'No recent projects'
+      if (this.isSearching) return 'No projects match your search'
+      return 'No projects available'
     },
 
-    // Show "Load More" button: only when not searching and on Recent view and more projects exist
-    showLoadMoreButton() {
-      return !this.searchQuery && !this.showAllProjects && this.totalProjectsCount > this.displayLimit
+    // Show "More Projects" only when not searching, collapsed and more projects exist
+    showMoreButton() {
+      return !this.isSearching && !this.showAllProjects && this.otherProjectsCount > this.displayLimit
     },
 
-    // Show "Back to Recent" button: only when expanded to All Recent and not searching
-    showBackButton() {
-      return !this.searchQuery && this.showAllProjects
+    // Show "Show less" only when the list has been expanded
+    showLessButton() {
+      return !this.isSearching && this.showAllProjects && this.otherProjectsCount > this.displayLimit
     }
   },
 

@@ -109,6 +109,12 @@ export const APPS = {
     route: p => ({ name: 'file-viewer', params: { filePath: p.filePath } })
   },
 
+  // ── Git ───────────────────────────────────────────────────────────────────
+  'git-view': {
+    id: 'git-view', title: 'Git', component: 'git-view', icon: 'fa-solid fa-code-branch',
+    route: () => ({ name: 'git-view' })
+  },
+
   // ── Knowledge / docs ──────────────────────────────────────────────────────
   wiki: {
     id: 'wiki', title: 'Wiki', component: 'wiki', icon: 'fa-solid fa-graduation-cap',

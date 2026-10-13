@@ -27,7 +27,7 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
       <!-- Column components with optional drag-to-reorder -->
       <div
         v-for="(col, colIndex) in localColumns"
-        :key="col.id || col.title || col.value"
+        :key="col.id || col.title || col.status"
         class="relative shrink-0 h-full"
         :class="draggingColIndex === colIndex ? 'opacity-40' : ''"
         @dragover.prevent="onColumnDragOver($event, colIndex)"
@@ -45,7 +45,7 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
           @open-task="$emit('open-task', $event)"
           @open-task-window="$emit('open-task-window', $event)"
           @move-task="$emit('move-task', $event)"
-          @new-task="$emit('new-task', { column: col.title, status: col.value || null })"
+          @new-task="$emit('new-task', { column: col.title, status: col.status || null })"
           @edit-column="$emit('edit-column', col.title)"
           @reorder-tasks="onReorderTasks(col, $event)"
           @add-subtask="$emit('add-subtask', $event)"

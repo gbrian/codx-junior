@@ -56,6 +56,15 @@ import CreateFileDialog from './CreateFileDialog.vue'
         <i :class="searchAllFiles ? 'fa-solid fa-asterisk text-warning' : 'fa-solid fa-code-branch text-info'"></i>
       </button>
 
+      <!-- View mode toggle (list / icon grid) -->
+      <button
+        class="btn btn-sm btn-ghost"
+        :title="viewMode === 'list' ? 'Icon view' : 'List view'"
+        @click="toggleViewMode"
+      >
+        <i :class="viewMode === 'list' ? 'fa-solid fa-grip' : 'fa-solid fa-list'"></i>
+      </button>
+
       <button class="btn btn-sm btn-ghost" title="Refresh" @click="refresh">
         <i class="fa-solid fa-arrows-rotate" :class="loading && 'animate-spin'"></i>
       </button>
@@ -100,7 +109,9 @@ import CreateFileDialog from './CreateFileDialog.vue'
       <div class="flex items-center justify-center h-32" v-if="loading">
         <span class="loading loading-spinner loading-md"></span>
       </div>
-      <div class="flex flex-col divide-y divide-base-300" v-else>
+
+      <!-- List view -->
+      <div class="flex flex-col divide-y divide-base-300" v-else-if="viewMode === 'list'">
         <!-- Parent folder row -->
         <div
           class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-base-200"
@@ -170,6 +181,60 @@ import CreateFileDialog from './CreateFileDialog.vue'
           {{ isSearching ? 'No files found matching your search' : 'No files found' }}
         </div>
       </div>
+
+      <!-- Icon / grid view -->
+      <div class="p-3" v-else>
+        <div class="grid gap-2 grid-cols-[repeat(auto-fill,minmax(96px,1fr))]">
+          <!-- Parent folder tile -->
+          <div
+            class="flex flex-col items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-base-200 transition-colors"
+            @click="goUp"
+            v-if="currentPath !== '.' && !isSearching"
+          >
+            <i class="fa-solid fa-folder text-warning text-4xl"></i>
+            <span class="text-xs font-mono w-full text-center truncate">..</span>
+          </div>
+
+          <!-- Entries: folders and files -->
+          <div
+            v-for="entry in visibleEntries"
+            :key="getEntryKey(entry)"
+            class="flex flex-col items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-base-200 group transition-colors"
+            :class="[
+              isEntrySelected(entry) && 'bg-blue-100 dark:bg-blue-900',
+              entry.is_ignored && 'opacity-50',
+              isDragOverFolder === entryPath(entry) && entry.is_dir && 'bg-blue-50 dark:bg-blue-900 ring-2 ring-blue-400'
+            ]"
+            @click="handleEntryClick(entry, $event)"
+            @contextmenu.prevent.stop="onEntryContextMenu($event, entry)"
+            @dragstart="onDragStart($event, entry)"
+            @dragend="onDragEnd"
+            @dragover.prevent="onDragOverEntry($event, entry)"
+            @dragleave.prevent="onDragLeaveEntry"
+            @drop.prevent="onDropEntry($event, entry)"
+            draggable="true"
+            :data-folder-path="entry.is_dir ? entryPath(entry) : null"
+            :title="entry.name"
+          >
+            <i class="text-4xl" :class="getFileIcon(entry)"></i>
+            <span class="text-xs font-mono w-full text-center truncate">{{ entry.name }}</span>
+
+            <span class="text-[10px] opacity-60" v-if="!entry.is_dir && !isContentSearching">
+              {{ formatSize(entry.size) }}
+            </span>
+
+            <!-- Content search match count badge -->
+            <span class="badge badge-xs badge-warning" v-if="isContentSearching && entry.matches">
+              {{ entry.matches.length }}
+            </span>
+          </div>
+
+          <!-- Empty state -->
+          <div class="col-span-full text-center opacity-50 py-8 text-sm" v-if="!visibleEntries.length">
+            {{ isSearching ? 'No files found matching your search' : 'No files found' }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Pagination controls (search results only) -->
@@ -235,6 +300,8 @@ export default {
       filter: '',
       searchMode: 'filename',
       searchAllFiles: false,
+      // File navigation presentation: 'list' | 'grid'
+      viewMode: 'grid',
       loading: false,
       error: null,
       draggedEntry: null,
@@ -491,6 +558,10 @@ export default {
       if (this.isSearching) {
         this.performSearch(this.filter)
       }
+    },
+    // Switch between list and icon/grid navigation views
+    toggleViewMode() {
+      this.viewMode = this.viewMode === 'list' ? 'grid' : 'list'
     },
     clearFilter() {
       this.filter = ''
