@@ -15,7 +15,9 @@ implementation:
 Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
-messages in real time. Tool logs are emitted for forensic audit trail.
+messages in real time. ``TOOL_END`` additionally carries the dual-response tool's
+user-facing ``output`` (see Message Structure below). Tool logs are emitted for
+forensic audit trail.
 
 Loop-Limit Handling
 When :class:`LoopGuard` stops the run (max rounds, max tool calls or stuck
@@ -38,16 +40,30 @@ chat reaches its estimated cost (``Chat.estimation_cost``), the run stops
 gracefully — before executing further tools — to keep the chat within budget.
 
 Message Structure
-When tools are used in a conversation, the agent now produces a single final
-answer message that combines all tool user_response outputs (thinking content)
-with the final LLM answer. This ensures that all tool-generated user-facing
-content is preserved in the persisted message. The thinking content is also streamed
-live to the client via send_callback during tool rounds for real-time feedback.
+A single final assistant message is always produced. Its ``content`` holds only
+the model's own text: reasoning emitted between tool rounds plus the final
+answer. Tool output is NO LONGER merged into the message content. For
+dual-response tools, ``ToolResponse.user_response`` is emitted on the ``TOOL_END``
+event and attached to the response message as a collapsible property
+(``ToolEvent.output``), so the client decides how to render it (collapsed or
+hidden) and the chat stays clean.
 
 Vision API Support
 Binary files (PDFs, images) are passed as vision content when models support it.
 The content is merged into the final user message to enable vision-capable models
 to process images and documents alongside text.
+
+Error Visibility
+Every AI provider interaction (the completion request, the streaming of its
+response and the tool-usage summary request) is guarded so failures are logged
+VERBATIM: phase, model, provider, endpoint, whether an API key is configured,
+message/tool counts, request/chat/run identifiers, HTTP status, provider
+``code``/``param``/``request_id``, provider request-id header, response body
+(truncated) and the chained root cause (``httpx.ConnectError``, DNS, TLS,
+timeout, proxy, ...) — always followed by a full traceback. A short Markdown
+notice with the same details is also streamed to the client, because previously
+a failed connection surfaced as nothing more than the provider's generic
+``"Connection error."`` string in both the logs and the chat.
 """
 import json
 import logging
@@ -123,6 +139,11 @@ TOOL_SCOPE_CHAT: str = "chat"
 # An empty or None tool message causes the model to re-issue the same call.
 _TOOL_NO_OUTPUT: str = "(tool returned no output)"
 
+# Maximum characters of an AI provider error body (HTTP response) included in
+# AI error log lines. Keeps the (verbose) log line readable while still
+# capturing the provider's error detail.
+AI_ERROR_BODY_MAX_CHARS: int = 2000
+
 # Replace the GLOBAL_CHAT_INSTRUCTIONS constant (also mirrored in engine/session.py)
 
 HARDCODED_SYSTEM_RULES = """
@@ -148,7 +169,7 @@ line equal to one of the sentinels, use `encoding: base64` instead. Use valid pr
 
 ### Observe this rules when working with files
  * Use valid file path (absolute or relative) based on the project and conversation context.
- * New file changes must follow original file formating and identation.
+ * New file changes must follow original file formating and indentation.
  * Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
  * Keep changes simple and easy to review by the user.
 """
@@ -275,6 +296,68 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
         return serialized
 
 
+def _format_ai_error(ex: BaseException) -> str:
+    """
+    Build a verbose, single-line description of an AI provider error.
+
+    Connection failures against the LLM provider previously reached the logs
+    only as ``str(ex)`` (e.g. ``"Connection error."``), which made them
+    impossible to diagnose. This helper extracts every diagnostic the
+    the OpenAI/httpx clients expose — HTTP status, error code/param, provider
+    request id, response body — plus the chained root cause
+    (``httpx.ConnectError``, ``socket.gaierror``, ``ReadTimeout``, TLS/proxy
+    failures, ...) so the origin of the failure is visible from the log line
+    alone.
+
+    Args:
+        ex: The exception raised while talking to the AI provider.
+
+    Returns:
+        A pipe-separated description of the error, safe for logging.
+    """
+    parts: List[str] = [f"type={type(ex).__name__}", f"message={ex}"]
+
+    # Provider errors (openai.APIStatusError / APIConnectionError) may carry
+    # an HTTP response with status code, headers and body.
+    response = getattr(ex, "response", None)
+    if response is not None:
+        parts.append(f"http_status={getattr(response, 'status_code', '?')}")
+        headers = getattr(response, "headers", None) or {}
+        provider_request_id = None
+        try:
+            provider_request_id = (
+                headers.get("x-request-id")
+                or headers.get("request-id")
+                or headers.get("x-litellm-call-id")
+            )
+        except (AttributeError, TypeError):
+            # Defensive: unusual header container — request id is optional.
+            provider_request_id = None
+        if provider_request_id:
+            parts.append(f"provider_request_id={provider_request_id}")
+        body = ""
+        try:
+            body = response.text or ""
+        except Exception:  # pragma: no cover - defensive: unreadable body
+            body = ""
+        if body:
+            parts.append(f"body={body[:AI_ERROR_BODY_MAX_CHARS]}")
+
+    # Attributes exposed directly by the provider client errors.
+    for attr in ("code", "param", "status_code", "request_id", "body"):
+        value = getattr(ex, attr, None)
+        if value is not None:
+            parts.append(f"{attr}={value}")
+
+    # The real root cause (DNS, connection refused, timeout, TLS, proxy, ...)
+    # is usually chained on the provider error.
+    cause = ex.__cause__ or ex.__context__
+    if cause is not None:
+        parts.append(f"cause={type(cause).__name__}: {cause}")
+
+    return " | ".join(str(part) for part in parts)
+
+
 class SmolAgent:
     """
     Async-only streaming chat agent with multi-step tool support.
@@ -299,18 +382,17 @@ class SmolAgent:
             G -->|tool_calls| H[Check ToolCache]
             H -->|HIT| H1[Skip _execute_tool - use cached]
             H -->|HIT| H2[Emit TOOL_END with cached=true]
-            H -->|HIT - ToolResponse| H3[Surface user_response to thinking_content]
+            H -->|HIT - ToolResponse| H3[No output re-emitted - first run delivered it]
             H -->|MISS| I[LoopGuard.check - depth & breadth & stuck]
-            I -->|ok| J[Execute tool - TOOL_START/END/ERROR/LOGS]
+            I -->|ok| J[Execute tool - TOOL_START/END/ERROR/LOGS + output]
             H1 --> K{Dual-response tool?}
             J --> K
-            K -->|yes| K1[Append user_response to thinking_content]
+            K -->|yes| K1[user_response - collapsible TOOL_END output property]
             K -->|yes| K2[Send llm_response as tool result to model only]
             K -->|no| K3[Send normalised result as tool result to model only]
-            K1 --> K4[Flush new thinking_content block to callback]
-            K2 --> L[Append to openai_messages]
+            K1 --> L[Append to openai_messages]
+            K2 --> L
             K3 --> L
-            K4 --> L
             L --> F
             I -->|limit exceeded| M[Summarise tool usage and finish gracefully]
             G -->|stop / length| N[Append final LLM text to final_answer_content]
@@ -318,6 +400,7 @@ class SmolAgent:
             M --> O
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
+            F -->|provider error| R[Verbose AI error log + client notice - raise]
     ```
     """
 
@@ -422,11 +505,15 @@ class SmolAgent:
         ``Chat.estimation_cost``, the run stops before executing further tools so
         the chat never exceeds its budget.
 
+        Provider errors (connection refused, DNS, timeout, TLS, bad request,
+        ...) are logged verbosely with a traceback and mirrored to the client
+        before being re-raised (see :meth:`_log_ai_error`).
+
         Message Structure
-        The response always appends a single final answer AIMessage that
-        combines thinking content (tool user_response outputs) with the final
-        LLM answer. This ensures all tool-generated user-facing content is
-        persisted correctly.
+        The response always appends a single final answer AIMessage containing
+        the model's own text. Tool output is delivered separately as a
+        collapsible message property (``ToolEvent.output``) instead of being
+        merged into the content, so the client can decide how to render it.
 
         Args:
             messages: Conversation history as LangChain message objects.
@@ -473,24 +560,28 @@ class SmolAgent:
         Execute the iterative streaming/tool loop for one conversation.
 
         Response accumulation strategy:
-        - ``thinking_content``: Accumulates LLM text and dual-response
-          user_response strings during tool-calling rounds. Streamed live
-          to the client via send_callback. ALSO included in the final AIMessage
-          so all tool-generated user-facing content is persisted correctly.
+        - ``thinking_content``: Accumulates the model's OWN text (reasoning)
+          produced during tool-calling rounds. Streamed live to the client via
+          send_callback and included in the final AIMessage. Tool output is NOT
+          added here: dual-response tool ``user_response`` values are emitted on
+          the ``TOOL_END`` event and attached to the response message as a
+          collapsible property (``ToolEvent.output``).
         - ``final_answer_content``: Accumulates LLM text during the final
           round (after the model stops making tool calls).
 
         Message generation:
-        - Always emits exactly one AIMessage combining thinking_content and
-          final_answer_content so the persisted message contains everything
-          the user saw during streaming. All run information (cost, usage,
-          tool summaries) is returned in the typed :class:`AgentRunResult`.
+        - Always emits exactly one AIMessage containing thinking_content and
+          final_answer_content. Since tool output is no longer merged into the
+          content, the message may legitimately be empty (a run that only
+          executed tools); the assistant message is still appended so callers
+          can rely on ``messages[-1]``. All run information (cost, usage, tool
+          summaries) is returned in the typed :class:`AgentRunResult`.
 
         Tool caching:
         - Identical tool calls (same name + args) are cached per conversation.
         - Cached results bypass LoopGuard checks (don't count towards limits).
-        - Cached ToolResponse results surface user_response to thinking_content
-          exactly like uncached ones.
+        - Cached tool results are only reused for the model message; they do NOT
+          re-emit tool output (the first execution already delivered it).
 
         Loop limits:
         - When LoopGuard raises, the loop is broken gracefully (no exception
@@ -571,9 +662,10 @@ class SmolAgent:
         # Track whether any tools were used in this conversation.
         tools_were_used: bool = False
 
-        # thinking_content: accumulates tool user_response outputs and LLM text
-        # during tool-calling rounds. Streamed live to client AND included in
-        # the final AIMessage so persisted content matches what was streamed.
+        # thinking_content: accumulates the model's OWN text (reasoning) during
+        # tool-calling rounds. Streamed live to client AND included in the final
+        # AIMessage. Tool output is NOT added here — it is delivered via the
+        # TOOL_END event as a collapsible message property (ToolEvent.output).
         # final_answer_content: the final LLM response after all tool calls.
         thinking_content: str = ""
         final_answer_content: str = ""
@@ -778,26 +870,13 @@ class SmolAgent:
                         logs=result.logs,
                     )
 
-                # FIX Issue 1: cached ToolResponse must surface user_response
-                # into thinking_content exactly like the uncached path does.
+                # Tool output is NOT merged into the chat content anymore: it is
+                # delivered as a collapsible message property
+                # (``ResponseMessage.tool_events[].output``) via the TOOL_END
+                # event emitted when the tool actually executed. Cache hits only
+                # reuse the tool result sent to the model, so no output is
+                # re-emitted here (avoids duplicating the same output block).
                 if isinstance(result, ToolResponse):
-                    if result.user_response:
-                        # Build the new block ONCE so it is appended to
-                        # thinking_content and streamed as a DELTA.
-                        user_block = f"\n```\n{result.user_response}\n```\n"
-                        thinking_content += user_block
-                        # send_callback accumulates internally and emits the
-                        # FULL accumulated response on flush. Passing only the
-                        # NEW block avoids re-emitting everything already
-                        # streamed (which previously duplicated content on
-                        # every tool round).
-                        send_callback(user_block, True)
-                        logger.debug(
-                            "SmolAgent: cached dual-response tool '%s' produced "
-                            "%d bytes of user content; flushed new content block",
-                            func_name,
-                            len(result.user_response),
-                        )
                     llm_response = _normalise_tool_result(
                         result.llm_response, func_name
                     )
@@ -843,29 +922,11 @@ class SmolAgent:
 
                 if isinstance(tool_result, ToolResponse):
                     # Dual-response tool:
-                    # - user_response → thinking_content (streamed live AND
-                    #   included in final AIMessage for persistence)
+                    # - user_response → delivered as a collapsible message
+                    #   property (``ResponseMessage.tool_events[].output``) via
+                    #   the TOOL_END event emitted by ``_execute_tool``; it is
+                    #   NOT merged into the chat content.
                     # - llm_response → model tool message only (NOT in response)
-                    if tool_result.user_response:
-                        # Build the new block ONCE so it is appended to
-                        # thinking_content and streamed as a DELTA.
-                        user_block = (
-                            f"\n```\n{tool_result.user_response}\n```\n"
-                        )
-                        thinking_content += user_block
-                        # send_callback accumulates internally and emits the
-                        # FULL accumulated response on flush. Passing only the
-                        # NEW block ensures the user_response is visible during
-                        # processing WITHOUT re-emitting everything that was
-                        # already streamed (which previously duplicated content
-                        # across tool rounds).
-                        send_callback(user_block, True)
-                        logger.debug(
-                            "SmolAgent: dual-response tool '%s' produced %d bytes "
-                            "of user content; flushed new content block",
-                            tool_call["function"],
-                            len(tool_result.user_response),
-                        )
                     # Normalise LLM feedback – the model must never receive
                     # an empty tool message or it will repeat the same call.
                     llm_response = _normalise_tool_result(
@@ -880,7 +941,7 @@ class SmolAgent:
                 else:
                     # Traditional single-response tool: normalise and send to
                     # the model only. Plain tool results are NOT added to any
-                    # response (thinking or final).
+                    # response (thinking, final or tool output).
                     normalised = _normalise_tool_result(
                         tool_result, tool_call["function"]
                     )
@@ -993,11 +1054,10 @@ class SmolAgent:
                 len(cost_limit_error),
             )
 
-        # thinking_content is streamed live via send_callback during tool rounds
-        # AND must be included in the final AIMessage so that chat_engine.py
-        # persists it correctly. Without this, response_message.content only
-        # gets final_answer_content and all tool user_response outputs are lost
-        # from the saved message even though they were streamed to the client.
+        # thinking_content (the model's own reasoning text) is streamed live via
+        # send_callback during tool rounds AND is included in the final AIMessage
+        # so that chat_engine.py persists it correctly. Tool output is NOT part
+        # of it anymore (it lives on the response message tool_events).
         if tools_were_used and thinking_content:
             logger.info(
                 "SmolAgent: thinking content assembled with %d characters "
@@ -1005,31 +1065,27 @@ class SmolAgent:
                 len(thinking_content),
             )
 
-        # Always emit exactly one final answer AIMessage combining thinking
-        # content (tool user_response outputs) and the final LLM answer.
-        # This ensures the persisted message matches what was streamed.
-        # NO untyped metadata is attached: the full cost/usage breakdown is
-        # returned in the typed AgentRunResult below.
+        # Always emit exactly one final answer AIMessage containing the model's
+        # own text (thinking content + final answer). Tool output is delivered
+        # separately via the response message tool_events.
+        # The message is ALWAYS appended — even when empty — because a run that
+        # only executed tools legitimately produces no content and callers rely
+        # on ``messages[-1]`` being the assistant reply.
         combined_content = ""
         if thinking_content:
             combined_content += thinking_content
         if final_answer_content:
             combined_content += final_answer_content
 
-        if combined_content:
-            logger.info(
-                "SmolAgent: final answer message assembled with %d characters "
-                "(%d thinking + %d final answer, %.6f cxjcoins)",
-                len(combined_content),
-                len(thinking_content),
-                len(final_answer_content),
-                iteration_cost,
-            )
-            messages.append(AIMessage(content=combined_content))
-        elif not tools_were_used:
-            # Edge case: no tools used and no content (shouldn't happen, but handle it)
-            logger.warning("SmolAgent: no content produced in chat")
-            messages.append(AIMessage(content=""))
+        logger.info(
+            "SmolAgent: final answer message assembled with %d characters "
+            "(%d thinking + %d final answer, %.6f cxjcoins)",
+            len(combined_content),
+            len(thinking_content),
+            len(final_answer_content),
+            iteration_cost,
+        )
+        messages.append(AIMessage(content=combined_content))
 
         # Build the typed run result (replaces the previous untyped
         # ``additional_kwargs = {"cost": ..., "chat_cost": ...}`` contract).
@@ -1164,6 +1220,91 @@ class SmolAgent:
 
         return True
 
+    def _log_ai_error(
+        self,
+        ex: BaseException,
+        phase: str,
+        request_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        message_count: Optional[int] = None,
+        tool_count: Optional[int] = None,
+        run_id: Optional[str] = None,
+    ) -> str:
+        """
+        Log an AI provider failure with full diagnostics AND a traceback.
+
+        MUST be called from inside an ``except`` block so ``logger.exception``
+        captures the stack trace. This is the single place where AI errors
+        become verbose: model, provider, endpoint, API-key presence, message
+        and tool counts, request/chat/run identifiers and the provider's own
+        diagnostics (HTTP status, ``code``, ``param``, request id, response
+        body) plus the chained root cause.
+
+        Args:
+            ex:            The exception raised by the AI provider.
+            phase:         Where the failure happened: ``"request"`` (completion
+                           call), ``"stream"`` (reading the stream) or
+                           ``"tool-analysis"`` (tool usage summary request).
+            request_id:    Identifier of the triggering LLM request.
+            chat_id:       Chat identifier.
+            message_count: Number of messages sent to the model.
+            tool_count:    Number of tools sent to the model.
+            run_id:        Agent run identifier.
+
+        Returns:
+            The verbose error description (see :func:`_format_ai_error`) so
+            callers can also surface it to the client.
+        """
+        details = _format_ai_error(ex)
+        logger.error(
+            "SmolAgent: AI %s FAILED. model=%s provider=%s base_url=%s "
+            "api_key_set=%s messages=%s tools=%s request_id=%s chat_id=%s "
+            "run=%s | %s",
+            phase,
+            self.model,
+            self.llm_settings.provider or "?",
+            self.base_url,
+            bool(self.api_key),
+            message_count if message_count is not None else "?",
+            tool_count if tool_count is not None else "?",
+            request_id,
+            chat_id,
+            run_id,
+            details,
+        )
+        # Separate call so the traceback is always emitted, even when the
+        # verbose line above is truncated by the log formatter.
+        logger.exception(
+            "SmolAgent: AI %s traceback (model=%s, request_id=%s)",
+            phase,
+            self.model,
+            request_id,
+        )
+        return details
+
+    def _ai_error_notice(self, details: str) -> str:
+        """
+        Build the client-facing notice for an AI provider failure.
+
+        The owning chat engine reports failures with the provider's generic
+        message only (e.g. ``"Connection error."``), which left the client with
+        no actionable information. This notice mirrors the verbose log line so
+        the user sees model, provider and endpoint — it is streamed through the
+        normal callback, therefore it is also persisted on the response message.
+
+        Args:
+            details: Verbose description produced by :func:`_format_ai_error`.
+
+        Returns:
+            A Markdown block ready to be streamed to the client.
+        """
+        return (
+            "\n\n> ⚠️ **AI request failed** — "
+            f"model `{self.model}`, provider `{self.llm_settings.provider or '?'}`, "
+            f"endpoint `{self.base_url}`\n>\n"
+            f"> `{details}`\n\n"
+        )
+
     async def _stream_completion(
         self,
         kwargs: Dict[str, Any],
@@ -1187,6 +1328,13 @@ class SmolAgent:
 
         ADDED: vision_content (images, PDFs) can be merged into the final
         user message for models that support vision APIs.
+
+        ADDED — verbose AI error logging: BOTH failure points (creating the
+        completion and reading its stream) are guarded. On failure the error is
+        logged verbatim with a traceback (see :meth:`_log_ai_error`) and a short
+        notice is streamed to the client before the exception is re-raised.
+        Cancellation handling is unchanged (``AgentCancelled`` is never wrapped
+        or re-logged as a provider error).
 
         Args:
             kwargs:             Base OpenAI request kwargs.
@@ -1259,11 +1407,44 @@ class SmolAgent:
             model=self.model,
             message_count=len(openai_messages),
         )
-        response_stream = self.client.chat.completions.create(
-            **kwargs,
-            messages=openai_messages,
-            extra_headers=headers,
+        # Verbose request trace: makes it possible to correlate a later failure
+        # (or a hung request) with the exact model, endpoint and payload size.
+        logger.info(
+            "SmolAgent: LLM request -> model=%s provider=%s base_url=%s "
+            "messages=%d tools=%d stream=%s request_id=%s chat_id=%s run=%s",
+            self.model,
+            self.llm_settings.provider or "?",
+            self.base_url,
+            len(openai_messages),
+            len(kwargs.get("tools") or []),
+            kwargs.get("stream"),
+            request_id,
+            chat_id,
+            run_context.run_id,
         )
+        try:
+            response_stream = self.client.chat.completions.create(
+                **kwargs,
+                messages=openai_messages,
+                extra_headers=headers,
+            )
+        except Exception as ex:
+            # VERBOSE AI ERROR LOGGING (request phase): without this a failed
+            # connection produced nothing diagnosable — the raised message is a
+            # generic "Connection error." and the httpx/openai loggers are
+            # muted in app.py.
+            details = self._log_ai_error(
+                ex,
+                phase="request",
+                request_id=request_id,
+                chat_id=chat_id,
+                message_count=len(openai_messages),
+                tool_count=len(kwargs.get("tools") or []),
+                run_id=run_context.run_id,
+            )
+            # Mirror the details to the client (also persisted on the message).
+            send_callback(self._ai_error_notice(details), True)
+            raise
 
         content_parts: List[str] = []
         accumulator = ToolCallAccumulator()
@@ -1307,6 +1488,34 @@ class SmolAgent:
             except OSError:
                 pass
             send_callback("", True)
+            raise
+        except Exception as ex:
+            # VERBOSE AI ERROR LOGGING (stream phase): connection dropped,
+            # read timeout, malformed stream payload, etc. Log the full context
+            # + traceback, notify the client, then let the error propagate.
+            details = self._log_ai_error(
+                ex,
+                phase="stream",
+                request_id=request_id,
+                chat_id=chat_id,
+                message_count=len(openai_messages),
+                tool_count=len(kwargs.get("tools") or []),
+                run_id=run_context.run_id,
+            )
+            # Mirror the details to the client (also persisted on the message).
+            send_callback(self._ai_error_notice(details), True)
+            try:
+                response_stream.close()
+            except OSError:
+                pass
+            if content_parts:
+                logger.warning(
+                    "SmolAgent: stream failed after %d chunk(s) (%d chars "
+                    "received) — partial content is discarded (run=%s)",
+                    len(content_parts),
+                    len("".join(content_parts)),
+                    run_context.run_id,
+                )
             raise
 
         send_callback("", True)
@@ -1383,21 +1592,24 @@ class SmolAgent:
         Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS`` 
         events on the run context. Event payloads carry the ``tool_call_id``,
         the parsed JSON request args (``args``) and a truncated ``result`` 
-        preview so listeners can render tool executions as chat messages. 
-        Tool logs are emitted for forensic audit trail. Errors never propagate 
-        to the caller: ALL exceptions are caught and returned as error strings 
-        so the model can react to failed tool invocations and never receives 
-        an empty tool message that would cause it to repeat the same call.
+        preview so listeners can render tool executions as chat messages. The
+        ``TOOL_END`` event also carries the dual-response tool's user-facing
+        ``output`` (``ToolResponse.user_response``) which listeners attach to the
+        response message as a collapsible property instead of merging it into the
+        chat content. Tool logs are emitted for forensic audit trail. Errors never
+        propagate to the caller: ALL exceptions are caught and returned as error
+        strings so the model can react to failed tool invocations and never
+        receives an empty tool message that would cause it to repeat the same call.
 
         Results are cached by tool name + parameters hash for reuse within
         the conversation.
 
         Tools can return either:
             - str: Traditional single-response (used for LLM context only)
-            - ToolResponse: Dual-response; user_response goes to the thinking
-              message, llm_response goes to the model only. ToolResponse can
-              include logs for forensic audit trail and a cost (cxjcoins)
-              which is summed into the response/chat cost.
+            - ToolResponse: Dual-response; user_response is surfaced as the
+              collapsible ``TOOL_END`` output property, llm_response goes to the
+              model only. ToolResponse can include logs for forensic audit trail
+              and a cost (cxjcoins) which is summed into the response/chat cost.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -1505,12 +1717,23 @@ class SmolAgent:
             duration_seconds = time.monotonic() - tool_start
 
             if success:
+                # Surface the dual-response tool's user-facing output on the
+                # TOOL_END event. The ChatEventBridge stores it on the response
+                # message as a collapsible property (``ToolEvent.output``)
+                # instead of merging it into the chat content, so clients decide
+                # how to render it.
+                tool_output: Optional[str] = (
+                    result.user_response
+                    if isinstance(result, ToolResponse) and result.user_response
+                    else None
+                )
                 run_context.emit(
                     AgentEventType.TOOL_END,
                     tool=func_name,
                     tool_call_id=tool_call_id,
                     duration_ms=duration_ms,
                     result=result_preview,
+                    output=tool_output,
                 )
                 
                 # Emit tool logs if ToolResponse has any
@@ -1699,7 +1922,8 @@ class SmolAgent:
         The request does NOT count towards the loop limits and its token usage
         is recorded separately with the ``tool-analysis`` tag. Any failure is
         swallowed and a deterministic fallback is returned instead, so this can
-        never turn a graceful stop into a hard error.
+        never turn a graceful stop into a hard error. Failures ARE logged
+        verbosely (model, endpoint, provider diagnostics and traceback).
 
         Args:
             openai_messages: Current OpenAI-format conversation history.
@@ -1767,8 +1991,11 @@ class SmolAgent:
                 return f"{heading}{summary}\n"
             return heading + self._tool_usage_fallback(tool_usages) + "\n"
         except Exception as ex:
-            logger.warning(
-                "SmolAgent: tool usage summary failed (non-fatal): %s", ex
+            # Best-effort request: log verbosely but never fail the run.
+            self._log_ai_error(
+                ex,
+                phase="tool-analysis",
+                chat_id=chat_id,
             )
             return heading + self._tool_usage_fallback(tool_usages) + "\n"
 

@@ -2,6 +2,7 @@ import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
 import moment from 'moment'
+import { isMultiInstance } from '../config/apps'
 
 export const namespaced = true
 
@@ -89,7 +90,55 @@ export const getters = getterTree(state, {
     const projectId = $storex.projects.activeProject?.project_id
     return !!projectId && (state.pinnedProjects || []).includes(projectId)
   },
+  // Whether the sidebar is expanded (desktop icon rail / mobile overlay).
+  // `sidebarCollapsed` is the single, persisted source of truth shared by
+  // App.vue (mobile overlay) and DesktopSidebar.vue (desktop rail).
+  isSidebarExpanded: state => !state.sidebarCollapsed,
 })
+
+// ══════════════════════════════════════════════════════════════════════════
+// APP PARAMS PERSISTENCE
+//
+// An open app may update its own params at runtime (the project it points at,
+// the last file/URL an embedded app was browsing, the active board, …). Those
+// params live in two places:
+//
+//   • the store app object (`state.openApps[tabId].params`), which components
+//     read through the `$app` mixin, and
+//   • the hosting dockview panel params, which are what gets serialized into
+//     the saved layout (dockview's `toJSON()` returns `panel.params` by
+//     reference, so mutating that object updates both the live panel and the
+//     serialized layout).
+//
+// Applying an update to both keeps the UI in sync, and persisting the layout
+// afterwards is what makes the change survive a reload. Without it the panel
+// would be restored with the params captured when it was first opened.
+// ══════════════════════════════════════════════════════════════════════════
+function applyAppParams(app, params, panel = null) {
+  if (!app || !params) return
+
+  // Skip no-op updates so we don't persist the layout for nothing
+  const changed = Object.keys(params).some(key => app.params?.[key] !== params[key])
+  if (!changed) return
+
+  // Merge into the *same* app object instead of replacing it: dockview panels
+  // keep a reference to it (`panel.params.app`), so replacing the object would
+  // leave the panel — and the layout that gets persisted — with a stale
+  // snapshot (e.g. the active board would be lost on reload).
+  app.params = { ...(app.params || {}), ...params }
+
+  // Keep the hosting dockview panel params in sync too. They are the values
+  // serialized into the saved layout, so a reload restores the last params
+  // instead of the ones captured when the panel was first opened.
+  const targetPanel = panel || $storex.views._desktopApi?.getPanel?.(app.tabId)
+  const panelParams = targetPanel?.params || targetPanel?.api?.params
+  if (panelParams) {
+    Object.assign(panelParams, params)
+  }
+
+  // Save the view so the change is kept for next time.
+  $storex.views.onLayoutChanged()
+}
 
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
@@ -207,13 +256,30 @@ export const mutations = mutationTree(state, {
     state.newProject = show
   },
   cloneApp(state, app) {
-    $storex.ui.showApp({ ...app, tabId: null })
+    // "Duplicate" only makes sense for apps declared as multi-instance in
+    // config/apps.js (e.g. the Task Manager, one panel per board). For every
+    // other app we just focus the panel that is already open — showApp
+    // de-duplicates by `key` — so the menu item never spawns a second,
+    // indistinguishable panel.
+    if (!isMultiInstance(app)) {
+      $storex.ui.showApp({ ...app })
+      return
+    }
+    // `newInstance` tells showApp to skip its "same key is already open"
+    // de-duplication, so a brand-new panel is created for this instance.
+    $storex.ui.showApp({ ...app, tabId: null, newInstance: true })
   },
   resetOpenApps(state) {
     state.openApps = {}
     state.activeApp = null
   },
   showApp(state, app) {
+    // A duplicate/clone explicitly asks for a new instance. Consume the flag
+    // here so it is neither stored on the app object nor persisted in the saved
+    // layout.
+    const forceNewInstance = app.newInstance === true
+    delete app.newInstance
+
     app.tabId = app.tabId || `${app.key || app.name}-${Date.now()}`
     app.params = app.params || {}
     // Auto-inject project_id if not present
@@ -223,7 +289,11 @@ export const mutations = mutationTree(state, {
     app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
 
-    if (state.viewMode !== 'vibe' && !state.isMobile) {
+    // De-duplication focuses an already-open instance of the SAME app (matching
+    // `key`). A duplicate opts out via `newInstance` so an app that allows
+    // multiple instances (e.g. the Task Manager, one panel per board) can be
+    // opened side by side. Regular opens keep focusing the existing panel.
+    if (!forceNewInstance && state.viewMode !== 'vibe' && !state.isMobile) {
       // Check if app already exists in openApps state
       const existingApp = Object.values(state.openApps).find(openApp => {
         if (app.key && openApp.key) {
@@ -234,6 +304,9 @@ export const mutations = mutationTree(state, {
       })
 
       if (existingApp) {
+        // The app is already open: keep the params it just received (and save
+        // them) instead of discarding them.
+        applyAppParams(existingApp, app.params)
         state.activeApp = existingApp
         $storex.views.activatePanel(existingApp.tabId)
         return
@@ -252,6 +325,9 @@ export const mutations = mutationTree(state, {
         })
 
         if (existingPanel) {
+          // The panel may belong to an app the store tracks (panels keep a
+          // reference at `panel.params.app`): apply & save the new params.
+          applyAppParams(existingPanel.params?.app, app.params, existingPanel)
           state.activeApp = app
           $storex.views.activatePanel(existingPanel.id)
           return
@@ -266,30 +342,9 @@ export const mutations = mutationTree(state, {
     state.activeApp = app
   },
   updateAppParams(state, { tabId, params }) {
-    const app = state.openApps[tabId]
-    if (!app) return
-
-    // Skip no-op updates so we don't persist the layout for nothing
-    const changed = Object.keys(params || {}).some(key => app.params?.[key] !== params[key])
-    if (!changed) return
-
-    // Merge into the *same* app object instead of replacing it: dockview panels
-    // keep a reference to it (`panel.params.app`), so replacing the object would
-    // leave the panel — and the layout that gets persisted — with a stale
-    // snapshot (e.g. the active board would be lost on reload).
-    app.params = { ...app.params, ...params }
-
-    // Keep the hosting dockview panel params in sync too. They are the values
-    // serialized into the saved layout, so a reload restores the last board and
-    // params instead of the ones captured when the panel was first opened.
-    const panel = $storex.views._desktopApi?.getPanel?.(tabId)
-    const panelParams = panel?.params || panel?.api?.params
-    if (panelParams) {
-      Object.assign(panelParams, params)
-    }
-
-    // Persist the updated layout so the change survives a reload.
-    $storex.views.onLayoutChanged()
+    // The app owns the params; the helper keeps the dockview panel (i.e. the
+    // saved layout) in sync and persists the view.
+    applyAppParams(state.openApps[tabId], params)
   },
   closeApp(state, app) {
     if (!app) return
@@ -317,6 +372,20 @@ export const mutations = mutationTree(state, {
   setSidebarCollapsed(state, collapsed) {
     state.sidebarCollapsed = collapsed
     $storex.ui.saveState()
+  },
+  // ── Sidebar collapse controls ────────────────────────────────────────────
+  // Clicking the arrow on DesktopSidebar.vue flips these; App.vue drives the
+  // mobile overlay with them too. They all funnel through the persisted
+  // `sidebarCollapsed` flag (via setSidebarCollapsed) so the shell and the
+  // sidebar share a single source of truth.
+  expandSidebar() {
+    $storex.ui.setSidebarCollapsed(false)
+  },
+  collapseSidebar() {
+    $storex.ui.setSidebarCollapsed(true)
+  },
+  toggleSidebar(state) {
+    $storex.ui.setSidebarCollapsed(!state.sidebarCollapsed)
   },
   // ════════════════════════════════════════════════════════════════
   // PINNED PROJECTS (quick project switcher)

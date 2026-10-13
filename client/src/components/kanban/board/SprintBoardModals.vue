@@ -4,6 +4,7 @@ import ChatInputBox from '../../chat/ChatInputBox.vue'
 import ChatIntelliSense from '../../chat/ChatIntelliSense.vue'
 import ChatAttachmentPreview from '../../chat/ChatAttachmentPreview.vue'
 import ChatModeSelector from '../../chat/ChatModeSelector.vue'
+import ChatProfileSelector from '../../chat/ChatProfileSelector.vue'
 import IconSelector from '../../ui/IconSelector.vue'
 import ProjectDetailt from '../../ProjectDetailt.vue'
 import { getCurrentInstance } from 'vue'
@@ -81,6 +82,14 @@ defineExpose({
                 :class="!col.color ? 'bg-base-content/20' : ''"
               ></span>
               <span class="text-sm text-base-content/80">{{ col.title }}</span>
+              <!-- Profiles this column applies to new tasks -->
+              <span
+                v-if="col.profiles?.length"
+                class="badge badge-xs badge-ghost gap-1 shrink-0 ml-auto tooltip tooltip-left"
+                :data-tip="`Profiles: ${col.profiles.join(', ')}`"
+              >
+                <i class="fa-solid fa-user text-[8px]"></i>{{ col.profiles.length }}
+              </span>
             </label>
             <div v-if="!columns.length" class="text-xs text-base-content/30 px-2 py-1 italic">
               No columns yet — task will be added uncategorized
@@ -467,7 +476,7 @@ defineExpose({
         </div>
 
         <!-- Color picker -->
-        <div class="form-control mb-4">
+        <div class="form-control mb-3">
           <label class="label py-1">
             <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Color</span>
           </label>
@@ -481,6 +490,28 @@ defineExpose({
               :class="newColumn.color === color ? 'ring-2 ring-offset-2 ring-base-content/50' : ''"
             ></span>
           </div>
+        </div>
+
+        <!-- Default profiles inherited by tasks created in this column -->
+        <div class="form-control mb-4">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Profiles <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+            <span
+              v-if="newColumn.profiles.length"
+              class="label-text-alt text-[10px] text-base-content/40"
+            >{{ newColumn.profiles.length }} selected</span>
+          </label>
+          <ChatProfileSelector
+            :project="$project"
+            :selected-profiles="newColumn.profiles"
+            @update:selected-profiles="onColumnProfilesSelected"
+          />
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i>
+            Pre-selected on tasks created in this column.
+          </p>
         </div>
 
         <!-- Danger zone — remove the column (sprint boards opt in) -->
@@ -887,7 +918,9 @@ const DEFAULT_NEW_COLUMN = () => ({
   status: '',
   // Font Awesome icon shown in the header (sprint only; optional)
   icon: '',
-  color: COLUMN_COLORS[0]
+  color: COLUMN_COLORS[0],
+  // Profiles pre-selected on tasks created in this column
+  profiles: []
 })
 
 const DEFAULT_NEW_BOARD = () => ({
@@ -915,7 +948,7 @@ export default {
     boardType: { type: String, default: 'sprint' },
     // Display name of the active board (kanban uses it instead of sprintTitle)
     boardTitle: { type: String, default: null },
-    // Board columns ({ id, title, icon?, color, status? })
+    // Board columns ({ id, title, icon?, color, status?, profiles? })
     columns: { type: Array, default: () => [] },
     // Column being edited (opens the column dialog in "edit" mode)
     editingColumn: { type: Object, default: null },
@@ -1087,6 +1120,12 @@ export default {
     composerText() {
       this.scheduleIntelliSense()
     },
+    // Kanban: switching the destination column re-applies the profiles it defines
+    'newTask.column'(title) {
+      if (!this.isKanban) return
+      const column = this.findColumn({ title })
+      if (column) this.newTask.selectedProfiles = [...(column.profiles || [])]
+    },
     // Board view sets the column to edit before opening the dialog
     editingColumn(col) {
       if (col) {
@@ -1097,7 +1136,8 @@ export default {
           status: col.status || col.title || '',
           // Prefill with the column's icon (may be the canonical status icon)
           icon: col.icon || '',
-          color: col.color || COLUMN_COLORS[0]
+          color: col.color || COLUMN_COLORS[0],
+          profiles: [...(col.profiles || [])]
         }
       }
     }
@@ -1122,6 +1162,13 @@ export default {
     },
     fileName(path) {
       return path?.split('/').reverse()[0] || path
+    },
+    // Resolve the board column that matches a kanban title and/or a sprint status
+    findColumn({ title, status } = {}) {
+      return (this.columns || []).find(c =>
+        (title && c.title === title) ||
+        (status && (c.status || c.title) === status)
+      ) || null
     },
 
     // ── Initial message: composer wiring ─────────────────────────────────────
@@ -1380,17 +1427,22 @@ export default {
     // `status` is the target sprint column's status, `column` the target kanban
     // column. A column's "+" button passes its own values; otherwise the first
     // column is used (so a custom first column always receives the new task).
+    // The destination column also seeds the task's default profiles.
     openNewTask({ parentId, status, column } = {}) {
       // A subtask inherits its parent's project by default
       const parent = parentId ? this.$storex.chats.chats?.[parentId] : null
       const firstColumn = this.columns[0] || null
+      // Resolve the destination column: kanban by title, sprint by status
+      const targetColumn = this.findColumn({ title: column, status }) || firstColumn
       this.newTask = {
         ...DEFAULT_NEW_TASK(),
         parentId: parentId || null,
         // The first column is the default landing status for a new task
         status: status || firstColumn?.status || 'todo',
         column: column || firstColumn?.title || '',
-        project_id: parent?.project_id || null
+        project_id: parent?.project_id || null,
+        // Default profiles inherited from the destination column
+        selectedProfiles: [...(targetColumn?.profiles || [])]
       }
       this.composerText = ''
       this.cursorWord = {}
@@ -1506,7 +1558,9 @@ export default {
           status: target.status || target.title || '',
           // Prefill with the column's icon (may be the canonical status icon)
           icon: target.icon || '',
-          color: target.color || COLUMN_COLORS[0]
+          color: target.color || COLUMN_COLORS[0],
+          // Profiles tasks created in this column inherit by default
+          profiles: [...(target.profiles || [])]
         }
       } else {
         this.newColumn = DEFAULT_NEW_COLUMN()
@@ -1519,6 +1573,12 @@ export default {
       this.showNewColumn = false
       this.columnError = null
     },
+    // The profile picker delivers full profile objects; the column stores names
+    onColumnProfilesSelected(profiles) {
+      this.newColumn.profiles = (profiles || [])
+        .map(p => p?.name || p)
+        .filter(Boolean)
+    },
     confirmNewColumn() {
       const title = this.newColumn.title?.trim()
       if (!title) return
@@ -1528,6 +1588,8 @@ export default {
       const status = this.newColumn.status?.trim() || title
       // Optional Font Awesome icon shown in the column header
       const icon = this.newColumn.icon || null
+      // Profiles pre-selected on tasks created in this column
+      const profiles = [...this.newColumn.profiles]
 
       const duplicateTitle = this.columns.find(
         c => c.title === title && c.id !== this.newColumn.id
@@ -1554,10 +1616,11 @@ export default {
           title,
           status,
           icon,
-          color: this.newColumn.color
+          color: this.newColumn.color,
+          profiles
         })
       } else {
-        this.$emit('column-created', { title, status, icon, color: this.newColumn.color })
+        this.$emit('column-created', { title, status, icon, color: this.newColumn.color, profiles })
       }
       this.closeNewColumn()
     },

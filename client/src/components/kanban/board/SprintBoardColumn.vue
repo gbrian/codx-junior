@@ -63,6 +63,54 @@ import SprintTaskCard from './SprintTaskCard.vue'
         ></span>
       </span>
 
+      <!--
+        Profiles pre-selected on tasks created in this column, shown as a DaisyUI
+        avatar group right after the status icon so the column's defaults are
+        visible at a glance (no color-only signalling). Each avatar renders the
+        profile's `avatar` image URL; the initial is only a fallback for profiles
+        without an avatar (or when the image fails to load).
+      -->
+      <div
+        v-if="columnProfiles.length"
+        class="avatar-group -space-x-2 rtl:space-x-reverse shrink-0"
+      >
+        <div
+          v-for="profile in visibleProfiles"
+          :key="profile.name"
+          class="avatar placeholder tooltip"
+          :data-tip="profileTitle(profile)"
+          :title="profileTitle(profile)"
+        >
+          <div
+            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center text-[9px] font-medium text-base-content/60"
+            :style="profileAvatarStyle(profile)"
+          >
+            <!-- Profile avatar image URL (falls back to the initial on error) -->
+            <img
+              v-if="profileAvatar(profile) && !failedAvatars[profile.name]"
+              :src="profileAvatar(profile)"
+              :alt="profile.name"
+              class="w-full h-full rounded-full object-cover"
+              @error="onAvatarError(profile.name)"
+            />
+            <span v-else>{{ initial(profile.name) }}</span>
+          </div>
+        </div>
+
+        <!-- Overflow: profiles that do not fit in the group -->
+        <div
+          v-if="overflowProfiles.length"
+          class="avatar placeholder tooltip tooltip-bottom"
+          :data-tip="overflowProfilesTitle"
+        >
+          <div
+            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-100 flex items-center justify-center text-[9px] font-semibold text-base-content/50"
+          >
+            <span>+{{ overflowProfiles.length }}</span>
+          </div>
+        </div>
+      </div>
+
       <span class="text-xs text-base-content/30 bg-base-100 rounded-full px-1.5 shrink-0">
         {{ localTasks.length }}
       </span>
@@ -170,6 +218,9 @@ const STATUS_BADGE_CLASSES = {
   rejected: 'bg-error/20 text-error'
 }
 
+// Maximum number of profiles rendered before the "+N" overflow avatar
+const MAX_VISIBLE_PROFILES = 4
+
 export default {
   name: 'SprintBoardColumn',
   props: {
@@ -201,7 +252,11 @@ export default {
       localTasks: [],
       // Prevents the store-driven watcher from reverting a local reorder while
       // the save round-trip is in flight
-      pendingReorder: false
+      pendingReorder: false,
+      maxVisibleProfiles: MAX_VISIBLE_PROFILES,
+      // Profiles whose avatar URL failed to load (falls back to the initial)
+      failedAvatars: {},
+      columnProfiles: []
     }
   },
   computed: {
@@ -221,6 +276,16 @@ export default {
       if (this.column.color) return ''
       return STATUS_BADGE_CLASSES[this.column.status] || 'bg-base-content/10 text-base-content/60'
     },
+    visibleProfiles() {
+      return this.columnProfiles.slice(0, this.maxVisibleProfiles)
+    },
+    overflowProfiles() {
+      return this.columnProfiles.slice(this.maxVisibleProfiles)
+    },
+    overflowProfilesTitle() {
+      return this.overflowProfiles.map(p => p.name).join(', ')
+    },
+
     // Accumulated cost (cxj) of every task in this column
     totalCost() {
       return this.tasks.reduce((sum, t) => sum + (t.cost || 0), 0)
@@ -245,6 +310,7 @@ export default {
         // Skip sync while actively dragging or while a reorder save is pending
         if (this.draggingTaskIndex !== null || this.pendingReorder) return
         this.localTasks = [...newTasks]
+        this.loadColumnProfiles()
       }
     }
   },
@@ -254,6 +320,29 @@ export default {
       if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
       if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
       return Number(val).toFixed(2)
+    },
+
+    // ── Profile avatars ─────────────────────────────────────────────────────
+    // Initial shown when a profile defines no avatar image (or it fails to load)
+    initial(name) {
+      return (name || '?').trim().charAt(0).toUpperCase() || '?'
+    },
+    // The profile's avatar image URL (`avatar_url` wins, mirroring ProfileAvatar)
+    profileAvatar(profile) {
+      return profile?.avatar_url || profile?.avatar || null
+    },
+    // Broken avatar URL → remember it so the initial is rendered instead
+    onAvatarError(name) {
+      if (!name) return
+      this.failedAvatars = { ...this.failedAvatars, [name]: true }
+    },
+    // Tooltip: the profile name (falls back gracefully for name-only profiles)
+    profileTitle(profile) {
+      return profile?.name || ''
+    },
+    // Tint the initial with the profile colour, when it defines one
+    profileAvatarStyle(profile) {
+      return profile?.color ? { color: profile.color } : null
     },
 
     // ── Cross-column move (both boards) ─────────────────────────────────────
@@ -380,11 +469,32 @@ export default {
       }
     },
 
+    // Resolve `column.profiles` to full profile objects. Entries may be names
+    // OR objects; either way the resolved object (with its `avatar`) is
+    // preferred, and a name-only fallback guarantees something always renders.
+    async loadColumnProfiles() {
+      const entries = this.column.profiles || []
+      const profiles = await this.loadAvailableProfiles()
+
+      this.columnProfiles = entries.map(entry => {
+        const name = entry && typeof entry === 'object' ? entry.name : entry
+        return profiles.find(p => p.name === name)
+          || (entry && typeof entry === 'object' ? entry : { name })
+      })
+    },
+
     // Read a dragged task id from either board's dataTransfer key
     readTaskId(event) {
       return event.dataTransfer.getData('taskId')
         || event.dataTransfer.getData('sprintTaskId')
         || event.dataTransfer.getData('text/plain')
+    },
+    // ── Column profiles (avatar group in the header) ─────────────────────────
+    // Columns store the NAMES of the profiles pre-selected on new tasks; the
+    // header resolves them to full profile objects (which carry the `avatar`
+    // image URL) to render their avatar.
+    async loadAvailableProfiles() {
+      return await this.$project.$api.profiles.list()
     }
   }
 }

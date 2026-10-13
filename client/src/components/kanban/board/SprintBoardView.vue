@@ -160,6 +160,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
       :allowCreate="!isVirtualBoard"
       :allowNewColumn="!isVirtualBoard"
       :allowEditColumn="!isVirtualBoard"
+      :allowReorderColumns="!isVirtualBoard"
       :selectedTaskId="activeSelectionId"
       :background="activeBoard?.background || null"
       @open-task="$emit('open-task', $event)"
@@ -168,6 +169,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
       @new-task="openNewTask"
       @new-column="openNewColumn"
       @edit-column="onEditColumn"
+      @reorder-columns="onReorderColumns"
       @add-subtask="onAddSubtask"
       @remove-task="onRemoveTask"
     />
@@ -303,13 +305,37 @@ export default {
         c.title === columnTitle || c.id === columnTitle || c.status === columnTitle)
       this.$refs.modals?.openNewColumn(column || null)
     },
-    async onColumnCreated({ title, status, icon, color }) {
-      if (this.isVirtualBoard || !title?.trim()) return
-      await this.$storex.kanban.addSprintColumn({ boardId: this.boardId, title, status, icon, color })
+    // Persist a new column order. Sprint columns group tasks by `status`, so
+    // only the column order changes — no task is moved between statuses.
+    async onReorderColumns(reorderedColumns) {
+      if (this.isVirtualBoard || !reorderedColumns?.length) return
+      await this.$storex.kanban.syncSprintColumnOrder({
+        boardId: this.boardId,
+        columns: reorderedColumns
+      })
     },
-    async onColumnUpdated({ id, title, status, icon, color }) {
+    async onColumnCreated({ title, status, icon, color, profiles }) {
+      if (this.isVirtualBoard || !title?.trim()) return
+      await this.$storex.kanban.addSprintColumn({
+        boardId: this.boardId,
+        title,
+        status,
+        icon,
+        color,
+        profiles
+      })
+    },
+    async onColumnUpdated({ id, title, status, icon, color, profiles }) {
       if (this.isVirtualBoard || !id) return
-      await this.$storex.kanban.updateSprintColumn({ boardId: this.boardId, id, title, status, icon, color })
+      await this.$storex.kanban.updateSprintColumn({
+        boardId: this.boardId,
+        id,
+        title,
+        status,
+        icon,
+        color,
+        profiles
+      })
     },
     async onColumnDeleted({ id }) {
       if (this.isVirtualBoard || !id) return
@@ -356,7 +382,7 @@ export default {
       if (files?.length) updates.file_list = files
 
       if (Object.keys(updates).length) {
-        await this.$storex.chats.updateChatInfo({ chat, updates })
+        await $storex.chats.updateChatInfo({ chat, updates })
       }
 
       // The initial message (text + files + attachments) becomes the task's
@@ -374,7 +400,7 @@ export default {
 
         // "Run" → create the task and start processing it immediately
         if (run) {
-          await this.$storex.projects.chatWihProject(chat)
+          await $storex.projects.chatWihProject(chat)
         }
       }
     },

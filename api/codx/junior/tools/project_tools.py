@@ -8,6 +8,7 @@ Made with ❤️ by codx-junior
 """
 
 import os
+import re
 import logging
 import glob
 from typing import List, Optional, Union
@@ -15,7 +16,7 @@ from typing import List, Optional, Union
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.engine import CODXJuniorSession
 from codx.junior.knowledge.knowledge_milvus import Knowledge
-from codx.junior.utils.utils import document_to_code_block
+from codx.junior.utils.utils import document_to_code_block, exec_command
 from codx.junior.ai import AI
 from codx.junior.model.model import CodxUser
 from .model import ToolResponse
@@ -29,6 +30,10 @@ FILE_READ_ERROR_TEMPLATE = "error [%s]\nERROR: %s %s"
 MAX_FILES_BULK_OP = 10
 MAX_QUERIES_BULK_OP = 5
 GLOB_PATTERN_CHARS = ("*", "?", "[")
+# Lists tracked and untracked (non-ignored) files, honoring the repo .gitignore
+GIT_FILE_LIST_COMMAND = "git ls-files --cached --others --exclude-standard --full-name"
+# Maximum number of matching project files returned by project_search
+MAX_FILE_MATCHES = 100
 
 
 def get_ai(settings: CODXJuniorSettings, tool_name: str) -> AI:
@@ -341,11 +346,159 @@ def project_read_file(
     return ToolResponse(user_response=user_response, llm_response=llm_response)
 
 
+def _list_git_files(project_root: str) -> Optional[List[str]]:
+    """
+    List absolute file paths tracked by git, honoring the repository ``.gitignore``.
+
+    Uses ``git ls-files`` so that every folder and file ignored through
+    ``.gitignore`` (and its nested ignore files) is discarded automatically.
+
+    Args:
+        project_root: Absolute path of the project root.
+
+    Returns:
+        Optional[List[str]]: Absolute file paths inside ``project_root``, or
+        ``None`` when ``project_root`` is not inside a git repository.
+
+    Example:
+        >>> _list_git_files("/project")
+        ['/project/src/main.py', '/project/README.md', ...]
+    """
+    top_level, _ = exec_command("git rev-parse --show-toplevel", cwd=project_root)
+    top_level = (top_level or "").strip()
+    if not top_level or not os.path.isdir(top_level):
+        logger.debug("Not a git repository: %s", project_root)
+        return None
+
+    stdout, _ = exec_command(GIT_FILE_LIST_COMMAND, cwd=top_level)
+    if not stdout:
+        return None
+
+    project_root = os.path.abspath(project_root)
+    project_prefix = project_root + os.sep
+    git_files = []
+    for rel_path in stdout.split("\n"):
+        rel_path = rel_path.strip()
+        if not rel_path:
+            continue
+        abs_path = os.path.normpath(os.path.join(top_level, rel_path))
+        if not abs_path.startswith(project_prefix):
+            continue
+        if not os.path.isfile(abs_path):
+            continue
+        git_files.append(abs_path)
+    return git_files
+
+
+def _list_walk_files(project_root: str, ignore_patterns: List[str]) -> List[str]:
+    """
+    Fallback file listing that walks the filesystem when git is unavailable.
+
+    Ignored folders are pruned before being traversed, so directories such as
+    ``.git`` or ``node_modules`` are never explored.
+
+    Args:
+        project_root: Absolute path of the project root.
+        ignore_patterns: Custom ignore patterns from the project settings.
+
+    Returns:
+        List[str]: Absolute file paths inside the project root.
+
+    Example:
+        >>> _list_walk_files("/project", ["node_modules"])
+        ['/project/src/main.py', '/project/README.md', ...]
+    """
+    walk_files = []
+    for current_root, dirs, files in os.walk(project_root):
+        dirs[:] = [
+            d for d in dirs
+            if not any(p and p in os.path.join(current_root, d) for p in ignore_patterns)
+        ]
+        for file_name in files:
+            walk_files.append(os.path.join(current_root, file_name))
+    return walk_files
+
+
+def list_project_files(settings: CODXJuniorSettings) -> List[str]:
+    """
+    List the project files, honoring ``.gitignore`` and custom project ignores.
+
+    Files and folders matched by the repository's ``.gitignore`` are discarded
+    by querying git directly. In addition, every path matched by the custom
+    ignore patterns defined in the project settings (``knowledge_file_ignore``,
+    sub-projects, wiki path, ``.git``, ``node_modules``, ...) is filtered out.
+
+    Args:
+        settings: The project settings.
+
+    Returns:
+        List[str]: Sorted list of project-relative file paths.
+
+    Example:
+        >>> list_project_files(settings)
+        ['README.md', 'codx/junior/settings.py', 'codx/junior/tools/project_tools.py']
+    """
+    project_root = os.path.abspath(settings.abs_project_path)
+    ignore_patterns = settings.get_ignore_patterns()
+
+    abs_files = _list_git_files(project_root)
+    if abs_files is None:
+        logger.debug("Falling back to filesystem walk for project files")
+        abs_files = _list_walk_files(project_root, ignore_patterns)
+
+    valid_files = [
+        abs_path for abs_path in abs_files
+        if not any(p and p in abs_path for p in ignore_patterns)
+    ]
+
+    return sorted({os.path.relpath(abs_path, project_root) for abs_path in valid_files})
+
+
+def find_project_files(
+    settings: CODXJuniorSettings, query: str, limit: int = MAX_FILE_MATCHES
+) -> List[str]:
+    """
+    Find project files whose path matches every term in a query.
+
+    Matching is case-insensitive and requires each whitespace-separated token of
+    the query to be present in the project-relative path. Files are filtered with
+    ``.gitignore`` and the project's custom ignore patterns (see
+    :func:`list_project_files`).
+
+    Args:
+        settings: The project settings.
+        query: Space separated terms matched against the file paths.
+        limit: Maximum number of matching files to return.
+
+    Returns:
+        List[str]: Matching project-relative file paths.
+
+    Example:
+        >>> find_project_files(settings, "settings.py")
+        ['codx/junior/settings.py']
+    """
+    tokens = [token for token in re.split(r"\s+", (query or "").strip().lower()) if token]
+    if not tokens:
+        return []
+
+    matches = [
+        rel_path for rel_path in list_project_files(settings=settings)
+        if all(token in rel_path.lower() for token in tokens)
+    ]
+    return matches[:limit]
+
+
 def project_search(
     search: Union[str, List[str]], validation: Optional[str] = None, **kwargs
 ) -> ToolResponse:
     """
-    Search for documents within a project using one or more search queries.
+    Search for documents and files within a project.
+
+    Searches the project's knowledge base for documents relevant to one or more
+    queries. In addition, it finds files in the project folder whose path matches
+    the query. The repository's ``.gitignore`` rules are honored so ignored
+    folders and files are discarded, and the custom ignore patterns defined in the
+    project settings are applied as well.
 
     Supports bulk searching to reduce tool calls. For optimal performance,
     search for multiple related concepts in a single call.
@@ -360,7 +513,8 @@ def project_search(
     Returns:
         ToolResponse: Contains:
             - user_response: Formatted search results with code blocks.
-            - llm_response: Summary of search queries and results found.
+            - llm_response: Summary of search queries, results found and the list
+              of project files matching the query.
 
     Raises:
         ValueError: If search argument is not provided or is empty.
@@ -368,7 +522,8 @@ def project_search(
     Example:
         Search for multiple concepts at once:
         >>> project_search(["authentication", "user session", "login"])
-        # Returns ToolResponse with results for all queries and summary
+        # Returns ToolResponse with results for all queries, the matching project
+        # files and a summary
     """
     if not search:
         raise ValueError("The search argument must be provided and cannot be empty.")
@@ -446,23 +601,43 @@ def project_search(
 
             all_results.append(document_to_code_block(doc))
 
+    # Find project files whose path matches the query.
+    # The repository .gitignore and the project's custom ignore patterns are honored.
+    file_matches: List[str] = []
+    try:
+        file_matches = find_project_files(
+            settings=settings, query=" ".join(search_queries)
+        )
+    except Exception as ex:
+        logger.warning("Error finding project files: %s", ex)
+
+    file_section = ""
+    if file_matches:
+        file_section = "\n".join(
+            [f"\n### Matching files ({len(file_matches)})"]
+            + [f"- `{rel_path}`" for rel_path in file_matches]
+        )
+
     # Build responses
-    if not all_results:
+    if not all_results and not file_matches:
         llm_response = (
             f"> No results found for: '{', '.join(search_queries)}' "
             f"in project: '{settings.project_name}'"
         )
-        user_response = f"Search completed: 0 queries executed, 0 documents found"
+        user_response = (
+            "Search completed: 0 queries executed, 0 documents found, 0 files matched"
+        )
     else:
         llm_response = "\n".join(
-            [
+            part for part in [
                 f"> {settings.project_name} results for: '{', '.join(search_queries)}'",
                 "\n".join(all_results),
-            ]
+                file_section,
+            ] if part
         )
         user_response = (
             f"Search completed: {queries_executed} queries executed, "
-            f"{total_documents_found} documents found"
+            f"{total_documents_found} documents found, {len(file_matches)} files matched"
         )
 
     logger.info("Search operation completed: %s", llm_response)

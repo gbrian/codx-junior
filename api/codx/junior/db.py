@@ -77,12 +77,27 @@ class ToolEvent(BaseModel):
     
     Used to track tool calls, their execution status, and results.
     Attached to the assistant response message that triggered the tool call.
+
+    Tool output handling
+    --------------------
+    ``output`` carries the tool's user-facing content (``ToolResponse.user_response``).
+    It is deliberately kept OUT of ``Message.content`` so the chat is not polluted:
+    clients read it from this property and render it collapsed or hidden at their
+    discretion.
     """
     tool: str = Field(description="Name of the tool that was executed")
     tool_call_id: str = Field(description="Unique identifier for this tool call from the provider")
     status: str = Field(description="Execution status: 'running', 'done', or 'error'")
     request: Optional[Dict[str, Any]] = Field(default=None, description="Parsed JSON arguments sent to the tool")
     response: Optional[str] = Field(default=None, description="Truncated tool result preview")
+    output: Optional[str] = Field(
+        default=None,
+        description=(
+            "User-facing output produced by the tool (ToolResponse.user_response). "
+            "Kept OUT of Message.content so clients can render tool output collapsed "
+            "or hidden. Only dual-response tools populate this field."
+        )
+    )
     duration_ms: Optional[float] = Field(default=None, description="Execution time in milliseconds")
     error: Optional[str] = Field(default=None, description="Error details when status is 'error'")
 
@@ -110,12 +125,23 @@ class Message(BaseModel):
 
     - ``tool_events``:      one :class:`ToolEvent` per tool call executed
                             during this response, updated in place
-                            (running → done/error).
+                            (running → done/error). Each event carries the
+                            tool's user-facing ``output`` (see below) so clients
+                            can render tool output collapsed/hidden without it
+                            polluting ``content``.
     - ``lifecycle_events``: one :class:`LifeCycleEvent` per agent run
                             performed to produce this response.
 
     Both lists are streamed in real time together with the message and are
     persisted with the chat.
+
+    **Tool output (`tool_events[].output`)**
+
+    Tool output (``ToolResponse.user_response``) is NOT merged into
+    ``content``. It is attached to the response message as the
+    :attr:`ToolEvent.output` property (streamed live with every message event
+    and persisted with the chat) so the client decides whether to show it
+    inline, collapsed, or hidden.
 
     **Cost Tracking (`cost` / `cost_info` fields)**
 

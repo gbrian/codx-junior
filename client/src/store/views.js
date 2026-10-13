@@ -90,16 +90,23 @@ function extractAppsFromLayout(layout) {
   if (!layout.panels) return apps
 
   for (const panel of Object.values(layout.panels)) {
-    if (panel.params) {
-      apps.push({
-        tabId: panel.id || panel.tabId,
-        name: panel.name || panel.componentName || 'Unknown',
-        component: panel.componentName || 'unknown',
-        key: panel.key,
-        params: panel.params,
-        openedAt: panel.openedAt || Date.now()
-      })
-    }
+    // Dockview persists each panel's `params` verbatim. We always embed the
+    // originating app snapshot under `params.app` when the panel is created
+    // (see addPanelToDesktop / syncPanelsWithApps), so read the tab's display
+    // name/component/key from there. Dockview's serialized panel only exposes
+    // `title` and `contentComponent` - reading `panel.name`/`panel.componentName`
+    // restored every tab as "Unknown", which is why the tab name was lost.
+    const params = panel.params || {}
+    const app = params.app || {}
+
+    apps.push({
+      tabId: panel.id || panel.tabId,
+      name: app.name || params.tabName || panel.title || app.title || 'Unknown',
+      component: app.component || panel.contentComponent || 'unknown',
+      key: app.key || panel.key,
+      params,
+      openedAt: panel.openedAt || Date.now()
+    })
   }
 
   return apps

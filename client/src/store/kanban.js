@@ -153,6 +153,8 @@ function linkChatsToColumns(board, imported) {
         id: uuidv4(),
         title: columnTitle,
         color: null,
+        // Profiles tasks created in this column should inherit
+        profiles: [],
         project_id: board.project_id,
         chats: []
       }
@@ -178,6 +180,7 @@ function defaultSprintColumns() {
     title: status.label,
     icon: status.icon,
     color: null,
+    profiles: [],
     status: status.value
   }))
 }
@@ -328,6 +331,8 @@ export const getters = getterTree(state, {
         id: storeColumn.id || col,
         title: col,
         color: storeColumn.color || null,
+        // Profiles tasks created in this column inherit by default
+        profiles: storeColumn.profiles || [],
         showSubTasks: storeColumn.showSubTasks,
         project_id: storeColumn.project_id || null,
         valid: !!storeColumn.id,
@@ -399,6 +404,8 @@ export const getters = getterTree(state, {
         textColor: isStatus ? config.textColor : null,
         borderColor: isStatus ? config.borderColor : null,
         color: col.color || null,
+        // Profiles tasks created in this column inherit by default
+        profiles: col.profiles || [],
         position: ix,
         tasks: columnTasks
       }
@@ -536,7 +543,7 @@ export const actions = actionTree(
       await targetProject.$api.chats.kanban.save(data)
     },
 
-    async addColumn({ state }, { boardId, title, color, project_id }) {
+    async addColumn({ state }, { boardId, title, color, project_id, profiles }) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
       title = title?.trim()
@@ -551,6 +558,8 @@ export const actions = actionTree(
           id: uuidv4(),
           title,
           color: color || null,
+          // Profiles tasks created in this column inherit by default
+          profiles: profiles || [],
           project_id: project_id || null,
           chats: []
         }
@@ -558,18 +567,23 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    async updateColumn({ state }, { boardId, id, title, color, project_id }) {
+    async updateColumn({ state }, { boardId, id, title, color, project_id, profiles }) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
+
+      const updates = {
+        title: title?.trim(),
+        color: color !== undefined ? color : undefined,
+        project_id: project_id !== undefined ? project_id : undefined
+      }
+      // Only touch `profiles` when the caller provides it, so an unrelated
+      // column update never wipes the profiles the column defines.
+      if (profiles !== undefined) updates.profiles = profiles
 
       mutations.updateColumn(state, {
         boardId,
         columnId: id,
-        updates: {
-          title: title?.trim(),
-          color: color !== undefined ? color : undefined,
-          project_id: project_id !== undefined ? project_id : undefined
-        }
+        updates
       })
       await $storex.kanban.saveKanban()
     },
@@ -611,6 +625,8 @@ export const actions = actionTree(
             id: storeCol.id || viewCol.id,
             title: viewCol.title,
             color: storeCol.color || viewCol.color || null,
+            // Keep the profiles tasks created in this column inherit
+            profiles: storeCol.profiles || viewCol.profiles || [],
             project_id: storeCol.project_id || viewCol.project_id || null,
             showSubTasks: storeCol.showSubTasks,
             chats: (viewCol.tasks || []).map(t => t.id)
@@ -622,6 +638,49 @@ export const actions = actionTree(
         boardId,
         columns: newColumns
       })
+      await $storex.kanban.saveKanban()
+    },
+
+    // Persist a new column ORDER for a SPRINT board.
+    //
+    // Sprint columns live on `board.columns` ({ id, title, icon, color, status })
+    // and group their tasks by the chat `status` they map to, so the kanban
+    // `syncColumnOrder` cannot be reused here: no task has to move between
+    // columns, only the column order itself changes.
+    async syncSprintColumnOrder({ state }, { boardId, columns } = {}) {
+      const board = getKanban().boards?.[boardId]
+      if (!board || !columns?.length) return
+
+      // Boards that were never customized keep their columns in code, so the
+      // canonical statuses are materialized first (this gives them stable ids
+      // and makes the chosen order survive a reload).
+      if (!board.columns?.length) {
+        await $storex.kanban.materializeSprintColumns({ boardId })
+      }
+
+      const stored = board.columns || []
+      const reordered = []
+      // Map the reordered view columns (id / status / title) back to their
+      // persisted configuration, keeping every extra stored field.
+      columns.forEach(col => {
+        const storedCol = stored.find(c =>
+          (col.id && c.id === col.id) ||
+          (col.status && sprintColumnStatus(c) === col.status) ||
+          (col.title && c.title === col.title)
+        )
+        if (storedCol && !reordered.includes(storedCol)) reordered.push(storedCol)
+      })
+      // Never drop a column: anything missing from the view keeps its position
+      stored.forEach(col => {
+        if (!reordered.includes(col)) reordered.push(col)
+      })
+      if (!reordered.length) return
+
+      // The mutation signature is (state, payload), so `state` MUST be passed as
+      // the first argument. Omitting it makes the payload land in `state` and the
+      // destructuring of `{ boardId, columns }` throw, aborting the action before
+      // the board is written and saved (the reorder then reverts on reload).
+      mutations.reorderColumns(state, { boardId, columns: reordered })
       await $storex.kanban.saveKanban()
     },
 
@@ -774,6 +833,8 @@ export const actions = actionTree(
         title: col.title,
         icon: col.icon || null,
         color: col.color || null,
+        // Profiles tasks created in this column inherit by default
+        profiles: col.profiles || [],
         status: col.status,
         chats: []
       }))
@@ -784,7 +845,7 @@ export const actions = actionTree(
 
     // Add a column: `title` labels it in the UI, `status` is the chat status its
     // tasks get (defaults to the title when omitted) and `icon` is optional.
-    async addSprintColumn({ state }, { boardId, title, status, icon, color } = {}) {
+    async addSprintColumn({ state }, { boardId, title, status, icon, color, profiles } = {}) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
       title = title?.trim()
@@ -805,6 +866,8 @@ export const actions = actionTree(
           title,
           icon: icon || null,
           color: color || null,
+          // Profiles tasks created in this column inherit by default
+          profiles: profiles || [],
           status: columnStatus,
           chats: []
         }
@@ -813,9 +876,9 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    // Update a column (title / status / icon / color). Changing the status a
-    // column writes migrates its tasks so the cards follow the column.
-    async updateSprintColumn({ state, getters }, { boardId, id, title, icon, color, status } = {}) {
+    // Update a column (title / status / icon / color / profiles). Changing the
+    // status a column writes migrates its tasks so the cards follow the column.
+    async updateSprintColumn({ state, getters }, { boardId, id, title, icon, color, status, profiles } = {}) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
 
@@ -846,6 +909,8 @@ export const actions = actionTree(
       column.status = nextStatus
       if (icon !== undefined) column.icon = icon || null
       if (color !== undefined) column.color = color || null
+      // Only touch `profiles` when the caller provides it
+      if (profiles !== undefined) column.profiles = profiles || []
       board.last_update = new Date().toISOString()
       await $storex.kanban.saveKanban()
     },
@@ -1096,6 +1161,8 @@ export const actions = actionTree(
             title: col.title,
             icon: col.icon || null,
             color: col.color || null,
+            // Profiles tasks created in this column inherit by default
+            profiles: [...(col.profiles || [])],
             project_id: col.project_id || null,
             showSubTasks: col.showSubTasks,
             status: col.status || null,
@@ -1156,6 +1223,8 @@ export const actions = actionTree(
           title: col.title,
           icon: col.icon || null,
           color: col.color || null,
+          // Profiles tasks created in this column inherit by default
+          profiles: [...(col.profiles || [])],
           project_id: targetProject.project_id,
           showSubTasks: col.showSubTasks,
           // Sprint columns carry the task status they group
@@ -1179,6 +1248,7 @@ export const actions = actionTree(
               id: uuidv4(),
               title,
               color: null,
+              profiles: [],
               project_id: targetProject.project_id,
               chats: []
             }]

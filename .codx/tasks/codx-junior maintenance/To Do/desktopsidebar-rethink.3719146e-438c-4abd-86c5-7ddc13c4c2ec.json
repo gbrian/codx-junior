@@ -26,6 +26,22 @@
       "user": null,
       "at": "2026-10-13T07:26:26.208422",
       "meta_data": null
+    },
+    {
+      "doc_id": "b76a19c3-66b7-4fbe-be2b-2c8e34ea2100",
+      "from_status": "done",
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-13T11:53:16.523132",
+      "meta_data": null
+    },
+    {
+      "doc_id": "31af40dd-0256-41d1-91c4-837a181ec105",
+      "from_status": "doing",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-13T11:59:07.650856",
+      "meta_data": null
     }
   ],
   "tags": [],
@@ -880,7 +896,7 @@
     }
   ],
   "created_at": "2026-10-13 06:00:18.512898",
-  "updated_at": "2026-10-13T07:26:26.165480",
+  "updated_at": "2026-10-13T11:59:07.589966",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

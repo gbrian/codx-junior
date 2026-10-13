@@ -186,6 +186,9 @@ TOOLS = [
                 "name": "project_search",
                 "description": (
                     "Search for documents within a project using one or more search queries. "
+                    "Also finds project files whose path matches the query; the repository's "
+                    ".gitignore and the project's custom ignore patterns are honored so ignored "
+                    "folders and files are discarded. "
                     "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
                     "as a list instead of making separate calls. "
                     "Example: search=[\"authentication\", \"user session\"] instead of two separate calls."

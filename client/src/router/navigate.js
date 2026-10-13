@@ -139,7 +139,12 @@ export default function Navigate({ $router, $storex }) {
       tabId,
       name: payload.name || def.title,
       component: def.component,
-      params
+      params,
+      // Forward an explicit "new instance" request (set by launchers such as
+      // the sidebar Task Manager button) so showApp skips its per-key
+      // de-duplication and opens a brand-new panel. Only apps declared
+      // `multiInstance` in config/apps.js are launched this way.
+      newInstance: payload.newInstance === true
     })
   }
 

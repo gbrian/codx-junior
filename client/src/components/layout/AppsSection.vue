@@ -3,6 +3,7 @@ import NavItem from './NavItem.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
 import ViewModeToggle from './ViewModeToggle.vue'
 import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
+import { isMultiInstance } from '@/config/apps'
 </script>
 
 <template>
@@ -139,10 +140,19 @@ export default {
   },
   methods: {
     // Single entry point for opening an app from this menu.
-    // The app key is resolved to a dockview panel on desktop and to its own
-    // route on mobile by the UI store (setActiveTab → openApp).
+    // On desktop a multi-instance app (declared in config/apps.js) opens a NEW
+    // tab each time so several instances can coexist — e.g. the Task Manager,
+    // where each tab is a board. Every other case keeps the original behaviour:
+    // setActiveTab focuses/creates the single desktop panel, or switches to the
+    // app's own route in single/mobile mode.
     openApp(appKey) {
-      this.$ui.setActiveTab(appKey)
+      if (this.$ui.isDesktopMode && isMultiInstance(appKey)) {
+        // newInstance tells showApp to skip its per-key de-duplication and
+        // create a brand-new panel (see store/ui.js → showApp).
+        this.$ui.openApp({ appKey, payload: { newInstance: true } })
+      } else {
+        this.$ui.setActiveTab(appKey)
+      }
       this.$emit('close')
     },
     // Pin/unpin the currently active project. Pins live in the UI store and are

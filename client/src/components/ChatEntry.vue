@@ -10,6 +10,7 @@ import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
+import ChatMessageEvents from './chat/ChatMessageEvents.vue'
 </script>
 
 <template>
@@ -220,6 +221,17 @@ import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
           </div>
 
         </div>
+
+        <!-- ── Tool & run events (collapsible, live-updated while streaming) ──
+             Rendered inline, directly under the header so it is discoverable and
+             contextual. Driven by the existing `eventsOpen` prop (parent owns the
+             open state). Per-tool details and the dual-response `output` are opt-in
+             and never merged into the message body. -->
+        <ChatMessageEvents
+          v-if="eventsOpen"
+          :message="displayMessage"
+          class="mt-2"
+        />
 
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
         <div
@@ -907,9 +919,9 @@ export default {
     onCreateTask(taskData) {
       this.$emit('sub-task', { content: taskData.content, title: taskData.title })
     },
-    // The events/tools panel is rendered once, by ChatMessageList, which owns the
-    // panel open state. Here we only notify it which message to show; the button's
-    // active state comes back through the `eventsOpen` prop.
+    // The events/tools panel is rendered INLINE inside this component (see the
+    // <ChatMessageEvents> block under the header). We still notify the parent
+    // which message was toggled so it can own the `eventsOpen` flag.
     toggleEventsPanel() {
       this.$emit('show-events', this.message)
     },

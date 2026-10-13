@@ -27,6 +27,22 @@ export function clearPendingParams(appId) {
   delete PENDING[appId]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-INSTANCE APPS
+//
+// By default an app is SINGLE-INSTANCE: opening it again focuses the panel that
+// is already open (the UI store de-duplicates by the app's `key`).
+//
+// Apps that may legitimately live in more than one panel at a time opt in with:
+//
+//     multiInstance: true
+//
+// Their per-instance identity is described with the same helpers used by every
+// other app — `desktopKey` / `desktopTabId` / `desktopParams`. For example a
+// Task Manager instance is a single BOARD, so several boards can be open side by
+// side while re-opening the same board just focuses its existing panel.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const APPS = {
   // ── Primary apps ──────────────────────────────────────────────────────────
   home: {
@@ -36,6 +52,14 @@ export const APPS = {
 
   tasks: {
     id: 'tasks', title: 'Task Manager', component: 'tasks', icon: 'fa-brands fa-trello',
+    // Several Task Managers can be open at once — one per board. The board is
+    // what identifies each instance, so different boards become independent
+    // panels while re-opening the same board (or opening with no board at all)
+    // just focuses the panel that is already showing it.
+    multiInstance: true,
+    desktopKey: p => (p.board ? `tasks-${p.board}` : 'tasks'),
+    desktopTabId: p => (p.board ? `tasks-${p.board}` : undefined),
+    desktopParams: p => ({ board: p.board }),
     route: () => ({ name: 'kanban' })
   },
 
@@ -224,6 +248,20 @@ export const APPS = {
 
 export function isKnownApp(appKey) {
   return !!APPS[appKey]
+}
+
+// Whether an app may be open in more than one place at a time (several panels /
+// instances). Apps opt in with `multiInstance: true` (see the note above) and
+// derive each instance's identity from `desktopKey`/`desktopTabId`/`desktopParams`
+// — e.g. one Task Manager per board. Accepts an app key, a registry id or a full
+// app object, and matches per-instance keys such as "tasks-My board" through
+// their component.
+export function isMultiInstance(appOrKey) {
+  if (!appOrKey) return false
+  const def = typeof appOrKey === 'string'
+    ? (APPS[appOrKey] || Object.values(APPS).find(app => app.component === appOrKey))
+    : (APPS[appOrKey.id] || Object.values(APPS).find(app => app.component === appOrKey.component))
+  return !!def?.multiInstance
 }
 
 export default APPS

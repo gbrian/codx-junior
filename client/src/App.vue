@@ -21,9 +21,9 @@ import NewProject from './components/project/NewProject.vue'
 
       <!-- Mobile Sidebar Overlay (Mobile only, slides from left) -->
       <div
-        v-if="isMobile && showMobileSidebarOverlay"
+        v-if="isMobile && $ui.isSidebarExpanded"
         class="fixed inset-0 z-100 transition-opacity duration-200 md:hidden"
-        @click="showMobileSidebarOverlay = false"
+        @click="closeMobileSidebar"
       ></div>
 
       <!-- Mobile Sidebar (Slides from left on mobile) -->
@@ -32,9 +32,8 @@ import NewProject from './components/project/NewProject.vue'
         :user-name="$user?.username || 'User'"
         :user-subtitle="'Pro'"
         :is-mobile="true"
-        :is-mobile-expanded="showMobileSidebarOverlay"
         class="z-150"
-        @close="showMobileSidebarOverlay = false"
+        @close="closeMobileSidebar"
         @settings="openAccountSettings"
       />
 
@@ -47,7 +46,7 @@ import NewProject from './components/project/NewProject.vue'
       <MobileBottomBar
         v-if="showMobileBottomBar"
         :user-name="$user?.username || 'User'"
-        @show-menu="showMobileSidebarOverlay = true"
+        @show-menu="openMobileSidebar"
       />
 
       <!-- Toast Notifications -->
@@ -77,8 +76,7 @@ export default {
     return {
       pendingProjectSwitch: null,
       windowWidth: 0,
-      windowHeight: 0,
-      showMobileSidebarOverlay: false
+      windowHeight: 0
     }
   },
   computed: {
@@ -123,6 +121,14 @@ export default {
       return !chatId && this.$ui.isMobile
     }
   },
+  created() {
+    // Resolve the viewport before the first paint so the mobile sidebar starts
+    // collapsed (the ui store default is expanded for desktop).
+    this.updateDimensions()
+    if (this.isMobile) {
+      this.closeMobileSidebar()
+    }
+  },
   watch: {
     '$ui.projectLoadingState': {
       handler(newState) {
@@ -135,7 +141,10 @@ export default {
       deep: true
     },
     '$route'() {
-      this.showMobileSidebarOverlay = false
+      // Mobile sidebar is an overlay: close it when navigating away.
+      if (this.isMobile) {
+        this.closeMobileSidebar()
+      }
     }
   },
   mounted() {
@@ -149,6 +158,15 @@ export default {
     updateDimensions() {
       this.windowWidth = window.innerWidth
       this.windowHeight = window.innerHeight
+    },
+    // The mobile sidebar open/close state is owned by the ui store
+    // (`sidebarCollapsed`) instead of a local flag, so the sidebar and its
+    // backdrop stay in sync through a single source of truth.
+    openMobileSidebar() {
+      this.$storex.ui.expandSidebar()
+    },
+    closeMobileSidebar() {
+      this.$storex.ui.collapseSidebar()
     },
     retryProjectLoad() {
       if (this.pendingProjectSwitch) {
