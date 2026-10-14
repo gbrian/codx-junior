@@ -1,4 +1,4 @@
-<img width="100%" src="assets/images/NOV2025/codx-junior-banner.png" style="margin-bottom:10px;border-radius:20px" />
+<img width="1024" height="542" alt="image" src="https://github.com/user-attachments/assets/a8a79076-3c77-481e-9891-7885b8c6e822" />
 
 ![Status](https://img.shields.io/badge/status-active%20beta-brightgreen)
 ![Open source](https://img.shields.io/badge/open%20source-AGPL--3.0-blue)
@@ -95,18 +95,16 @@ Prefer to focus on the product? Our managed team of senior developers can run co
 
 ## Screenshots
 
-<img src="assets/images/NOV2025/codx-junior-kanban.png" />
-<img src="assets/images/NOV2025/codx-junior-profiles.png" />
-<img src="assets/images/NOV2025/codx-junior-pull-request.png" />
-<img src="assets/images/NOV2025/codx-junior-rag-knowledge.png" />
-<img src="assets/images/NOV2025/codx-junior-task-manager.png" />
+<img width="1800" height="977" alt="image" src="https://github.com/user-attachments/assets/74abbb98-a6c3-4c97-9632-2714a7e6b4c6" />
 
-## Contributing
+<img width="1280" height="647" alt="image" src="https://github.com/user-attachments/assets/f103de18-d520-4cc4-b53e-22fc71587768" />
 
-Help is wanted! Open an issue or a pull request on [GitHub](https://github.com/gbrian/codx-junior).
+<img width="1280" height="761" alt="image" src="https://github.com/user-attachments/assets/68ac9cff-5d7b-42e5-8a7a-e96367ad9f4d" />
 
-## License
+<img width="1830" height="997" alt="image" src="https://github.com/user-attachments/assets/c10bcd4d-ab15-42b2-b76a-f816f088a68c" />
 
-codx-junior is released under the [GNU Affero General Public License v3.0](LICENSE.md).
+<img width="1830" height="997" alt="image" src="https://github.com/user-attachments/assets/f9fd340c-dbb1-4091-b541-e3331b928f52" />
 
-> You'll never code alone! ❤️
+> Thanks for watching!
+<img width="1141" height="257" alt="image" src="https://github.com/user-attachments/assets/04b46484-4813-4bf3-8184-55f2d804dcbb" />
+
