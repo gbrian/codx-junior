@@ -75,6 +75,7 @@ class CODXJuniorSettings(BaseModel):
     llm_model: str = Field(default="")
     rag_model: str = Field(default="")
     wiki_model: str = Field(default="")
+    guardrail_model: str = Field(default="")
 
     # Image generation and vision settings
     image_generation_model: Optional[str] = Field(default="")
@@ -287,6 +288,9 @@ class CODXJuniorSettings(BaseModel):
 
     def get_rag_model(self):
         return self.rag_model or get_global_settings().rag_model
+
+    def get_guardrail_model(self):
+        return self.guardrail_model or get_global_settings().guardrail_model
 
     def get_project_ai_models(self):
         return get_global_settings().ai_models

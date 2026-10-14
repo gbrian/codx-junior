@@ -419,6 +419,36 @@ class ChatEngine:
         }
 
     # -------------------------------------------------------------------------
+    # Helper: resolve guardrail service for all active profiles (UPDATED)
+    # -------------------------------------------------------------------------
+    def _resolve_guardrail_service(self, query_mentions: QueryMentions):
+        """
+        Return a GuardrailService aggregating the guardrail policies of every
+        profile active in the current turn.
+
+        Each profile now carries its own ``guardrails`` policy (not tied to
+        ``api_settings``). When several profiles work together in one chat,
+        their policies are combined so input, output and tool checks are
+        enforced for all of them.
+
+        :param query_mentions: Resolved mentions for the current user query.
+        :return: GuardrailService instance or None when no profile enables guardrails.
+        """
+        profiles = [
+            p for p in query_mentions.profiles
+            if p.guardrails and p.guardrails.enabled
+        ]
+        if not profiles:
+            return None
+
+        from codx.junior.guardrails.service import GuardrailService
+
+        return GuardrailService(
+            policies=[p.guardrails for p in profiles],
+            settings=self.settings,
+        )
+
+    # -------------------------------------------------------------------------
     # Helper: evaluate knowledge-disable conditions
     # -------------------------------------------------------------------------
     def _evaluate_knowledge_flags(
@@ -1958,6 +1988,49 @@ class ChatEngine:
                 )
             
             # ------------------------------------------------------------------
+            # 9.6 ADDED: Guardrail input check for externally exposed profiles.
+            #      Detects prompt injection / scope escape and applies severity-
+            #      based actions: BLOCK (refuse immediately) or REFUSE (disable
+            #      tools + inject scope guardrail into the system prompt).
+            # ------------------------------------------------------------------
+            guardrail_service = self._resolve_guardrail_service(query_mentions)
+            guardrail_scope_instructions: Optional[str] = None
+
+            if guardrail_service:
+                guardrail_input = guardrail_service.check_input(query)
+                response_message.meta_data = {
+                    **(response_message.meta_data or {}),
+                    "guardrail": guardrail_input.to_dict(),
+                }
+
+                if guardrail_input.blocked:
+                    documents: List[Document] = []
+                    response_message.content = guardrail_input.refusal_message
+                    response_message.done = True
+                    self._append_message_if_missing(chat=chat, message=response_message)
+                    event_bridge.publish()
+                    if iteration == 0:
+                        self._record_chat_session_end(
+                            chat=chat,
+                            mode=chat_mode,
+                            profiles=chat_profile_names,
+                            files=chat_files,
+                            iteration=iteration,
+                            max_iterations=max_iterations,
+                            llm_model=chat_model or (self.settings.get_llm_settings().model),
+                            start_time=session_start_time,
+                            parent_chat_id=chat.parent_id if parent_chat else None,
+                            cancelled=False,
+                            error="Guardrail blocked request",
+                        )
+                    return chat, documents
+
+                if guardrail_input.disable_tools:
+                    chat_tools = guardrail_service.filter_tools(chat_tools)
+
+                guardrail_scope_instructions = guardrail_input.scope_instructions
+            
+            # ------------------------------------------------------------------
             # 10. Resolve search projects
             # ------------------------------------------------------------------
             query_mention_projects: List[CODXJuniorSettings] = [
@@ -2025,6 +2098,13 @@ class ChatEngine:
                     final_system_prompt += "\n\n" + system
                 else:
                     final_system_prompt = system
+
+            # ADDED: scope guardrail for externally exposed profiles.
+            if guardrail_scope_instructions:
+                if final_system_prompt:
+                    final_system_prompt += "\n\n" + guardrail_scope_instructions
+                else:
+                    final_system_prompt = guardrail_scope_instructions
 
             # PHASE 1: guardrail so the model treats prior turns as inert
             # context and acts only on the wrapped <current_request>.
@@ -2248,6 +2328,16 @@ class ChatEngine:
                     )
                 
                 return chat, documents
+
+            # ADDED: output guardrail for externally exposed profiles.
+            if guardrail_service:
+                guardrail_output = guardrail_service.check_output(main_content)
+                if guardrail_output.blocked:
+                    response_message.meta_data = {
+                        **(response_message.meta_data or {}),
+                        "guardrail_output": guardrail_output.to_dict(),
+                    }
+                    main_content = guardrail_output.refusal_message
 
             # FIX Issue 3: think_content returned from _execute_ai_response is
             # always None (detection was removed). response_message.think is

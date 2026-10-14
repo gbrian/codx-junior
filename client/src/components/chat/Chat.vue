@@ -13,6 +13,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 import { ENTITY_STATUS } from '@/store/entityStatuses'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 import Collapsible from '../Collapsible.vue'
+import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
 </script>
 
 <template>
@@ -504,20 +505,13 @@ export default {
     initProject() {
       this.$projects.initProjectState(this.chatProject)
     },
+    // Detect files referenced by a message using the shared extractor so that
+    // BOTH legacy ```lang /path/to/file fences and CODX sentinel file blocks
+    // (@@ CODX_FILE @@ … @@ CODX_END @@) are recognized.
     extractFilesFromCodeBlocks(content) {
-      if (!content) return []
-      const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
-      const files = []
-      let match
-      while ((match = codeBlockRegex.exec(content)) !== null) {
-        const filePath = match[2].trim()
-        if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
-          if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
-            files.push(filePath.split(' ')[0])
-          }
-        }
-      }
-      return files
+      return extractCodeBlocks(content)
+        .map(block => block.filePath)
+        .filter(Boolean)
     },
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]

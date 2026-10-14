@@ -398,6 +398,8 @@ export default {
     // Publish the board to the app info so the tab shows its name. If the boards
     // were not loaded yet, this re-runs once they arrive (see `boards` watcher).
     this.syncAppInfo()
+    // Single mode: mirror the open board in the route so a refresh reopens it.
+    this.syncRouteParams()
   },
   computed: {
     // Resolve a requested initial view from app params (multiple shapes) or the route query
@@ -511,16 +513,30 @@ export default {
       this.sidebarCompact = mobile
     },
     // Sprint boards only expose the board view — force it when one is selected.
-    // Also keep the app info (tab title) in sync with the active board.
+    // Also keep the app info (tab title) and the single-mode route in sync.
     activeBoard(board) {
       if (board?.type === 'sprint' && this.activeView !== 'board') {
         this.activeView = 'board'
       }
       this.syncAppInfo()
+      this.syncRouteParams()
     },
     // Switching boards invalidates the inline task detail pane
     activeBoardId() {
       this.sideTaskId = null
+    },
+    // Single (non-desktop) mode: reopen the board addressed by the URL whenever
+    // the route changes (refresh, back/forward, deep link or a link to another
+    // board).
+    '$route.params.board'(boardId) {
+      if (this.$route?.name !== 'kanban') return
+      if (!boardId || boardId === this.activeBoardId) return
+      if (!this.$storex.kanban.boardById(boardId)) return
+      this.boardAppliedFromParams = true
+      this.activeBoardId = boardId
+      this.selectedTaskId = null
+      this.activeColumnFilter = 'all'
+      this.showBoardList = false
     },
     // If the selected board disappears (deleted / renamed / project change),
     // fall back to the first available board. Also applies a board requested
@@ -584,6 +600,30 @@ export default {
           boardName: this.activeBoard?.title || null
         }
       })
+    },
+    // Single (non-desktop) mode only: keep the route in sync with the open board
+    // (id + name) so a refresh or a back-navigation reopens the same board.
+    // Desktop mode tracks the board through the panel params (`syncAppInfo`)
+    // instead, so this is a no-op whenever the kanban route is not active.
+    syncRouteParams() {
+      if (this.$route?.name !== 'kanban') return
+      const boardId = this.activeBoardId
+      const board = this.activeBoard
+      if (!boardId || !board) return
+
+      const boardName = board.title || null
+      const params = this.$route.params || {}
+      const settled = params.board === boardId &&
+        (params.boardName || null) === (boardName || null)
+      if (settled) return
+
+      const nextParams = { ...params, board: boardId }
+      if (boardName) nextParams.boardName = boardName
+      else delete nextParams.boardName
+
+      this.$router
+        .replace({ name: 'kanban', params: nextParams, query: this.$route.query })
+        .catch(() => {})
     },
     onSelectBoard(boardId) {
       // A manual selection wins over the board requested through params

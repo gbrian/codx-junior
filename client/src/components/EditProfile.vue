@@ -21,6 +21,15 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
       <span class="text-lg">Profile</span>
       <span class="badge badge-warning badge-sm" v-if="isInherit">Inherited</span>
       <span class="badge badge-info badge-sm" v-if="isProjectProfile">Built-in</span>
+      <span
+        class="tooltip tooltip-bottom"
+        :data-tip="guardrailsEnabled ? 'Guardrails enabled' : 'Guardrails disabled'"
+      >
+        <i
+          class="fa-solid fa-shield-halved"
+          :class="guardrailsEnabled ? 'text-info' : 'text-base-content/30'"
+        ></i>
+      </span>
       <div class="grow"></div>
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="isInherit || loading">
@@ -267,6 +276,153 @@ import ChatProfileSelector from './chat/ChatProfileSelector.vue'
                 <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300 textarea-sm w-full" rows="2"></textarea>
               </div>
             </div>
+
+            <!-- Guardrails (conditional) -->
+            <div class="divider my-1"></div>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <i
+                  class="fa-solid fa-shield-halved text-sm"
+                  :class="guardrailsEnabled ? 'text-info' : 'text-base-content/40'"
+                ></i>
+                <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Guardrails</span>
+                <span class="badge badge-xs" :class="guardrailsEnabled ? 'badge-info' : 'badge-ghost'">
+                  {{ guardrailsEnabled ? 'Enabled' : 'Disabled' }}
+                </span>
+                <input
+                  type="checkbox"
+                  v-model="editProfile.guardrails.enabled"
+                  class="toggle toggle-xs checked:border-info checked:bg-info ml-auto"
+                  title="Enable guardrails for this profile"
+                />
+              </div>
+
+              <div v-if="guardrailsEnabled" class="flex flex-col gap-3">
+                <!-- Scope description -->
+                <div>
+                  <label class="label label-text text-xs pb-1">
+                    <i class="fa-solid fa-bullseye mr-1 text-info"></i> Scope description
+                  </label>
+                  <textarea
+                    v-model="editProfile.guardrails.scope"
+                    placeholder="Describe what this profile is allowed to help with..."
+                    class="bg-base-300 textarea textarea-bordered w-full textarea-sm resize-none"
+                    rows="2"
+                  ></textarea>
+                </div>
+
+                <!-- Scope keywords -->
+                <div>
+                  <label class="label label-text text-xs pb-1">
+                    <i class="fa-solid fa-key mr-1 text-info"></i> Scope keywords
+                  </label>
+                  <input
+                    v-model="scopeKeywordsText"
+                    type="text"
+                    placeholder="keyword1, keyword2, keyword3"
+                    class="bg-base-300 input input-sm input-bordered w-full"
+                  />
+                  <p class="text-[10px] text-base-content/50 mt-1">Comma separated. Keywords that indicate an on-scope request.</p>
+                  <div v-if="editProfile.guardrails.scope_keywords?.length" class="flex flex-wrap gap-1 mt-1">
+                    <span
+                      v-for="keyword in editProfile.guardrails.scope_keywords"
+                      :key="keyword"
+                      class="badge badge-xs badge-outline"
+                    >{{ keyword }}</span>
+                  </div>
+                </div>
+
+                <!-- Scope similarity threshold -->
+                <div>
+                  <label class="label label-text text-xs pb-1 flex justify-between">
+                    <span><i class="fa-solid fa-percent mr-1 text-info"></i> Scope similarity threshold</span>
+                    <span class="font-mono">{{ editProfile.guardrails.scope_similarity_threshold }}</span>
+                  </label>
+                  <input
+                    v-model.number="editProfile.guardrails.scope_similarity_threshold"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    class="range range-xs range-info"
+                  />
+                </div>
+
+                <!-- Refusal message -->
+                <div>
+                  <label class="label label-text text-xs pb-1">
+                    <i class="fa-solid fa-comment-slash mr-1 text-info"></i> Refusal message
+                  </label>
+                  <textarea
+                    v-model="editProfile.guardrails.refusal_message"
+                    placeholder="I can only answer questions within my configured scope."
+                    class="bg-base-300 textarea textarea-bordered w-full textarea-sm resize-none"
+                    rows="2"
+                  ></textarea>
+                </div>
+
+                <!-- Risk threshold -->
+                <div>
+                  <label class="label label-text text-xs pb-1 flex justify-between">
+                    <span><i class="fa-solid fa-triangle-exclamation mr-1 text-info"></i> Risk score threshold</span>
+                    <span class="font-mono">{{ editProfile.guardrails.risk_threshold }}</span>
+                  </label>
+                  <input
+                    v-model.number="editProfile.guardrails.risk_threshold"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    class="range range-xs range-info"
+                  />
+                </div>
+
+                <!-- Allowed tools -->
+                <div>
+                  <label class="label label-text text-xs pb-1">
+                    <i class="fa-solid fa-wrench mr-1 text-info"></i> Allowed tools
+                  </label>
+                  <p class="text-[10px] text-base-content/50 mb-1">
+                    No tools selected means this profile cannot use any tool.
+                  </p>
+                  <div
+                    v-if="availableToolNames.length"
+                    class="flex flex-wrap gap-1 max-h-40 overflow-y-auto p-2 rounded-md bg-base-300"
+                  >
+                    <button
+                      v-for="toolName in availableToolNames"
+                      :key="toolName"
+                      type="button"
+                      @click="toggleGuardrailTool(toolName)"
+                      class="badge badge-sm cursor-pointer transition-colors"
+                      :class="isGuardrailToolAllowed(toolName) ? 'badge-info' : 'badge-ghost'"
+                    >
+                      <i
+                        class="fa-solid mr-1"
+                        :class="isGuardrailToolAllowed(toolName) ? 'fa-check' : 'fa-plus'"
+                      ></i>
+                      {{ toolName }}
+                    </button>
+                  </div>
+                  <p v-else class="text-xs text-base-content/50">No tools available.</p>
+                </div>
+
+                <!-- LLM classifier -->
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-robot text-info text-sm"></i>
+                  <span class="text-xs">Use LLM classifier</span>
+                  <input
+                    type="checkbox"
+                    v-model="editProfile.guardrails.use_llm_classifier"
+                    class="toggle toggle-xs checked:border-info checked:bg-info ml-auto"
+                  />
+                </div>
+              </div>
+
+              <p v-else class="text-xs text-base-content/50 pl-3">
+                Guardrails are off. Enable to restrict this profile's scope, refusal behavior and tool usage.
+              </p>
+            </div>
           </div>
 
           <!-- Tools tab -->
@@ -436,6 +592,7 @@ export default {
     }
   },
   created() {
+    this.ensureGuardrails()
     this.loadTools()
     this.initializeEditorChat()
   },
@@ -466,6 +623,27 @@ export default {
       } catch (e) {
         return false
       }
+    },
+    guardrailsEnabled() {
+      return !!this.editProfile.guardrails?.enabled
+    },
+    scopeKeywordsText: {
+      get() {
+        return (this.editProfile.guardrails?.scope_keywords || []).join(', ')
+      },
+      set(value) {
+        if (!this.editProfile.guardrails) return
+        this.editProfile.guardrails.scope_keywords = value
+          .split(',')
+          .map(keyword => keyword.trim())
+          .filter(Boolean)
+      }
+    },
+    availableToolNames() {
+      return this.tools
+        .map(tool => tool?.tool_json?.function?.name)
+        .filter(Boolean)
+        .sort()
     },
     availableTags() {
       const tagsSet = new Set()
@@ -512,6 +690,29 @@ export default {
     cancelEdit() {
       this.$emit('cancel')
     },
+    ensureGuardrails() {
+      const defaults = {
+        enabled: false,
+        scope: '',
+        scope_keywords: [],
+        scope_similarity_threshold: 0.35,
+        allowed_tools: [],
+        refusal_message: 'I can only answer questions within my configured scope.',
+        risk_threshold: 10.0,
+        use_llm_classifier: false
+      }
+      // Reassign to a new object so the source profile is never mutated
+      this.editProfile.guardrails = { ...defaults, ...(this.editProfile.guardrails || {}) }
+    },
+    isGuardrailToolAllowed(toolName) {
+      return this.editProfile.guardrails?.allowed_tools?.includes(toolName)
+    },
+    toggleGuardrailTool(toolName) {
+      const allowed = this.editProfile.guardrails.allowed_tools || []
+      this.editProfile.guardrails.allowed_tools = allowed.includes(toolName)
+        ? allowed.filter(name => name !== toolName)
+        : [...allowed, toolName]
+    },
     onDeleteProfile() {
       this.confirmDelete = true
     },
@@ -546,6 +747,7 @@ export default {
     },
     reloadProfile() {
       this.editProfile = { ...this.profile }
+      this.ensureGuardrails()
       this.contentMode = 'view'
     },
     switchProject() {

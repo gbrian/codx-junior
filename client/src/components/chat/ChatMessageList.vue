@@ -137,7 +137,8 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   :menu-less="readOnly"
                   :usersList="usersList"
                   :isNewSpeaker="isNewSpeaker(message, ix)"
-                  :events-open="showEventsPanel && activeEventsMessageKey === (message.doc_id || message.id)"
+                  :events-open="eventsOpenKey === (message.doc_id || message.id)"
+                  :events-drawer-open="showEventsPanel && activeEventsMessageKey === (message.doc_id || message.id)"
                   @edited="$emit('edited', $event)"
                   @enhance="$emit('enhance', message)"
                   @remove="$emit('remove', message)"
@@ -162,6 +163,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   @preview-file="$emit('preview-file', $event)"
                   @search-files="$emit('search-files', $event)"
                   @show-events="onShowEvents"
+                  @show-events-drawer="onShowEventsDrawer"
                   @update-attachment="$emit('update-attachment', $event)"
                 />
               </div>
@@ -275,8 +277,11 @@ export default {
   ],
   data() {
     return {
+      // Full "Processing Details" drawer (one message at a time).
       showEventsPanel: false,
       activeEventsMessageKey: null,
+      // Inline tools list, toggled from each message header.
+      eventsOpenKey: null,
       expandedId: null,
       messageElRefs: [],
       scrollContainerEl: null,
@@ -323,9 +328,9 @@ export default {
         last?.done ? 1 : 0,
       ].join(':')
     },
-    // Live data for the events panel. It is derived from the reactive `messages`
-    // prop (looked up by the active message key), so newly streamed tools/events
-    // appear immediately without having to close and reopen the panel.
+    // Live data for the events drawer. It is derived from the reactive `messages`
+    // prop (looked up by the active drawer message key), so newly streamed
+    // tools/events appear immediately without having to close and reopen it.
     activeMessageData() {
       const key = this.activeEventsMessageKey
       if (!key) return null
@@ -351,6 +356,7 @@ export default {
   watch: {
     'chat.id': function() {
       this.closeEventsPanel()
+      this.eventsOpenKey = null
       // Opening a different chat: start pinned to the bottom so the latest
       // messages are visible.
       this.autoScroll = true
@@ -432,9 +438,17 @@ export default {
         this.messageElRefs[ix] = el
       }
     },
-    // Single source of truth for the events panel: pick the message to watch, or
-    // toggle the panel closed when the same message is clicked again.
+    // Inline tools list (rendered inside the message bubble). The parent only
+    // tracks which message's inline panel is expanded; clicking the same message
+    // again collapses it. The drawer is handled separately (see onShowEventsDrawer).
     onShowEvents(message) {
+      const key = message?.doc_id || message?.id
+      if (!key) return
+      this.eventsOpenKey = this.eventsOpenKey === key ? null : key
+    },
+    // Dedicated side drawer with the full processing details. Toggles closed
+    // when the same message is requested again.
+    onShowEventsDrawer(message) {
       const key = message?.doc_id || message?.id
       if (!key) return
       if (this.showEventsPanel && this.activeEventsMessageKey === key) {

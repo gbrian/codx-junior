@@ -23,22 +23,32 @@ export const actions = actionTree(
   {
     async init ({ state }, $storex) {
     },
-    async loadProjectProfiles({ state, commit }, project) {
+    async loadProjectProfiles({ state, commit }, payload) {
+      // Accept either a raw project or an options object { project, force }
+      const project = payload?.project || payload
+      const force = payload?.force || false
       if (!project) return []
-      
+
       const projectId = project.project_id
-      
-      // Check if profiles already loaded for this project
-      if (state.profilesByProject[projectId] && state.profilesByProject[projectId].length > 0) {
+
+      // Return cached profiles unless a forced reload was requested
+      if (!force && state.profilesByProject[projectId] && state.profilesByProject[projectId].length > 0) {
         return state.profilesByProject[projectId]
       }
 
       try {
         const api = project.$api || $storex.api
         if (!api) return []
-        
+
         const profiles = await api.profiles.list()
         commit('setProjectProfiles', { projectId, profiles: profiles || [] })
+
+        // Keep the per-project state in sync so getters and mentions stay fresh
+        if (project.$state) {
+          project.$state.profiles = profiles || []
+          project.$state._mentionList = null
+        }
+
         return profiles || []
       } catch (err) {
         console.error(`Failed to load profiles for project ${projectId}:`, err)
@@ -47,20 +57,17 @@ export const actions = actionTree(
       }
     },
     async saveProfile({ state, commit }, { project, profile }) {
-      const projectId = project.project_id
       const data = await project.$api.profiles.save(profile)
-      
-      // Reload profiles after save
-      const profiles = await this.dispatch('profiles/loadProjectProfiles', project, { root: true })
+
+      // Force a reload so the saved changes are reflected in the store
+      const profiles = await $storex.profiles.loadProjectProfiles({ project, force: true })
       return profiles.find(p => p.name === data.name)
     },
     async deleteProfile({ state, commit }, { project, profile }) {
-      const projectId = project.project_id
       await project.$api.profiles.delete(profile.name)
-      
-      // Reload profiles after delete
-      const profiles = await this.dispatch('profiles/loadProjectProfiles', project, { root: true })
-      return profiles
+
+      // Force a reload so the removed profile disappears from the store
+      return await $storex.profiles.loadProjectProfiles({ project, force: true })
     }
   }
 )

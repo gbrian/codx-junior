@@ -1,5 +1,6 @@
 <script setup>
 import AppIcon from '../apps/AppIcon.vue'
+import MicIndicator from '../meet/MicIndicator.vue'
 </script>
 <template>
   <div
@@ -12,6 +13,19 @@ import AppIcon from '../apps/AppIcon.vue'
       <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
       <AppIcon :app="app || workspace" :loading="isUpdating" />
       <div class="grow truncate overflow-hidden">{{ tabName }}</div>
+      <!-- Live camera indicator: shown on the Meet tab while the camera is on -->
+      <i
+        v-if="showCameraIcon"
+        class="fa-solid fa-video fa-sm text-success shrink-0"
+        title="Camera on"
+        aria-label="Camera on"
+      ></i>
+      <!-- Live mic indicator: shown on the Meet tab while the mic is on; it
+           pulses (via the shared component) when audio is being detected -->
+      <MicIndicator
+        v-if="showMicIcon"
+        size="sm"
+      />
     </div>
     <div class="click hover:text-warning shrink-0 mr-2" @click="onClose">
       <i class="fa-solid fa-xmark fa-sm"></i>
@@ -79,6 +93,43 @@ export default {
     },
     isUpdating() {
       return this.$storex.chats.isChatUpdating(this.chat?.id)
+    },
+    // Identify the Meet app panel — the app registry declares it with both an
+    // `id`/`key` and a `component` named "meet".
+    isMeet() {
+      return this.app?.key === 'meet' || this.app?.component === 'meet'
+    },
+    // The meet this panel is bound to. Prefer the live app params, then the raw
+    // panel params for restored/legacy layouts.
+    meetId() {
+      return this.app?.params?.meetId || this.params?.params?.meetId
+    },
+    // Whether the local camera is currently on.
+    //
+    // The global flag is authoritative: the Meet view sets it whenever the
+    // camera stream starts/stops, so it also covers the pre-join lobby where no
+    // meet exists in `activeMeets` yet (which is why the icon used to be missing
+    // on the Meet home page). As a fallback we still inspect the active meet's
+    // published local stream for a live video track.
+    cameraOn() {
+      if (this.$storex.meets.isLocalCameraOn) return true
+      const meet = this.meetId && this.$storex.meets.activeMeets?.[this.meetId]
+      const stream = meet?.localStream
+      return !!(stream && stream.getVideoTracks && stream.getVideoTracks().length)
+    },
+    // Show the camera indicator only on the Meet tab while the camera is on.
+    showCameraIcon() {
+      return this.isMeet && this.cameraOn
+    },
+    // Whether the local microphone is currently capturing. Read straight from the
+    // global meets store so it also works in the pre-join lobby.
+    micOn() {
+      return this.$storex.meets.isLocalMicOn
+    },
+    // Show the mic indicator only on the Meet tab while the mic is on. The
+    // component adds the pulse automatically while audio is detected.
+    showMicIcon() {
+      return this.isMeet && this.micOn
     }
   },
   methods: {

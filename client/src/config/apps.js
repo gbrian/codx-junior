@@ -60,7 +60,16 @@ export const APPS = {
     desktopKey: p => (p.board ? `tasks-${p.board}` : 'tasks'),
     desktopTabId: p => (p.board ? `tasks-${p.board}` : undefined),
     desktopParams: p => ({ board: p.board }),
-    route: () => ({ name: 'kanban' })
+    // Single (non-desktop) mode keeps the open board in the ROUTE (id + name), so
+    // refreshing the page or coming back from another route reopens that board
+    // (see router/index.ts: "/:projectName/kanban/:board?/:boardName?").
+    route: p => ({
+      name: 'kanban',
+      params: {
+        ...(p.board ? { board: p.board } : {}),
+        ...(p.boardName ? { boardName: p.boardName } : {})
+      }
+    })
   },
 
   planning: {

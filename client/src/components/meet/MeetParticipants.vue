@@ -1,4 +1,5 @@
 <script setup>
+import MicIndicator from './MicIndicator.vue'
 </script>
 
 <template>
@@ -34,16 +35,16 @@
 
         <!-- Status indicators -->
         <div class="flex items-center gap-1.5 shrink-0">
-          <!-- Microphone status -->
+          <!-- Microphone status (pulses while the user is speaking) -->
           <div
             class="w-7 h-7 rounded-lg flex items-center justify-center"
             :class="isMuted(username) ? 'bg-base-content/10' : 'bg-success/20'"
-            :title="isMuted(username) ? 'Muted' : 'Microphone on'"
           >
-            <i
-              class="fa-solid text-xs"
-              :class="isMuted(username) ? 'fa-microphone-slash text-base-content/40' : 'fa-microphone text-success'"
-            ></i>
+            <MicIndicator
+              :enabled="!isMuted(username)"
+              :speaking="isSpeaking(username)"
+              size="sm"
+            />
           </div>
 
           <!-- Speaker volume (placeholder) -->
@@ -90,8 +91,16 @@ export default {
       return username === currentUser
     },
     isMuted(username) {
-      // Mock implementation - would come from actual audio state
+      // The current user reflects the real local microphone; other participants
+      // fall back to the (placeholder) per-participant map.
+      if (this.isYou(username)) {
+        return !this.$storex.meets.isLocalMicOn
+      }
       return this.mutedParticipants[username] || false
+    },
+    isSpeaking(username) {
+      // Only the local user's audio can be detected today.
+      return this.isYou(username) && this.$storex.meets.isMicSpeaking
     }
   }
 }

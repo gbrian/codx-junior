@@ -18,15 +18,16 @@
       <!-- Content -->
       <div class="px-6 py-4 space-y-4">
 
-        <!-- Meet info -->
+        <!-- Meeting code -->
         <div class="p-3 rounded-lg bg-base-content/5 border border-base-content/10 space-y-2">
-          <div class="text-xs font-semibold text-base-content/60 uppercase">Meet ID</div>
+          <div class="text-xs font-semibold text-base-content/60 uppercase">Meeting code</div>
           <div class="flex items-center gap-2">
-            <code class="flex-1 text-sm font-mono bg-base-300 px-3 py-2 rounded text-center">{{ meetId }}</code>
-            <button @click="copyMeetId" class="btn btn-ghost btn-sm btn-square">
+            <code class="flex-1 text-lg font-mono tracking-[0.25em] bg-base-300 px-3 py-2 rounded text-center">{{ meetCode }}</code>
+            <button @click="copyMeetId" class="btn btn-ghost btn-sm btn-square" title="Copy code">
               <i :class="copied ? 'fa-solid fa-check text-success' : 'fa-regular fa-copy'"></i>
             </button>
           </div>
+          <div class="text-[11px] text-base-content/40">Share this code — anyone can join with it.</div>
         </div>
 
         <!-- Copy invite link -->
@@ -39,7 +40,7 @@
               readonly
               class="input input-bordered input-sm flex-1 text-xs"
             />
-            <button @click="copyInviteLink" class="btn btn-ghost btn-sm btn-square">
+            <button @click="copyInviteLink" class="btn btn-ghost btn-sm btn-square" title="Copy link">
               <i :class="copiedLink ? 'fa-solid fa-check text-success' : 'fa-regular fa-copy'"></i>
             </button>
           </div>
@@ -121,6 +122,8 @@
 </template>
 
 <script>
+import { formatMeetCode } from '@/utils/meetCode'
+
 export default {
   name: 'MeetInviteModal',
   props: {
@@ -136,9 +139,16 @@ export default {
     }
   },
   computed: {
+    // Human-friendly code (grouped xxx-xxxx-xxx) derived from the meet id.
+    meetCode() {
+      return formatMeetCode(this.meetId)
+    },
     inviteLink() {
       const { origin } = window.location
-      return `${origin}/meet/${this.meetId}`
+      // Meet routes are project-scoped: /:projectName/meet/:meetId
+      const projectName = this.$storex.projects.activeProject?.project_name
+      const base = projectName ? `${origin}/${projectName}` : origin
+      return `${base}/meet/${this.meetId}`
     },
     onlineUsers() {
       const onlineMap = this.$storex.users.onlineUsers || {}
@@ -161,7 +171,7 @@ export default {
       return this.selectedUsers.includes(username)
     },
     copyMeetId() {
-      navigator.clipboard.writeText(this.meetId)
+      navigator.clipboard.writeText(this.meetCode)
       this.copied = true
       clearTimeout(this.copyTimeout)
       this.copyTimeout = setTimeout(() => {
@@ -177,7 +187,7 @@ export default {
       }, 2000)
     },
     shareViaClipboard() {
-      const text = `Join my meet: ${this.inviteLink}`
+      const text = `Join my meet: ${this.inviteLink}\nCode: ${this.meetCode}`
       navigator.clipboard.writeText(text)
       this.$storex.session.onInfo('Invite link copied to clipboard')
     },
@@ -189,21 +199,23 @@ export default {
       if (this.selectedUsers.length === 0) return
 
       try {
-        for (const username of this.selectedUsers) {
-          // Mock: in real implementation, would emit socket event
-          if (!this.$storex.meets._mockMode) {
-            this.$storex.session.emit({
-              event: 'meet-invitation',
-              data: {
-                meetId: this.meetId,
-                to: username,
-                from: this.$storex.users.user?.username,
-                inviteLink: this.inviteLink,
-                timestamp: new Date().getTime()
-              }
-            })
-          }
-        }
+        const from = this.$storex.users.user?.username
+        // Best-effort targeted invite (the meets API currently has no invite
+        // endpoint) — the broadcast `initiated` event and the shared code/link
+        // are the primary invitation paths.
+        this.selectedUsers.forEach(username => {
+          this.$storex.session.emit({
+            event: 'meet-invitation',
+            data: {
+              meetId: this.meetId,
+              code: this.meetCode,
+              to: username,
+              from,
+              inviteLink: this.inviteLink,
+              timestamp: new Date().getTime()
+            }
+          })
+        })
 
         this.$storex.session.onInfo(`Invite sent to ${this.selectedUsers.length} user(s)`)
         this.$emit('invites-sent', this.selectedUsers)

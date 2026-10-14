@@ -65,9 +65,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             <i class="fa-solid fa-check-double text-sm"></i>
           </button>
 
-          <!-- Events drawer trigger (assistant only).
+          <!-- Inline events trigger (assistant only).
                - Hidden on mobile (*) — reachable from the ⋯ menu.
-               - Hidden when there are tools, since the tools button opens the same drawer. -->
+               - Hidden when there are tools, since the tools button toggles the same inline list. -->
           <button
             v-if="isAssistant && !toolEventCount"
             class="hidden @lg/panel:flex btn btn-xs btn-ghost tooltip tooltip-bottom"
@@ -78,7 +78,8 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             <i class="fa-solid fa-stream text-info"></i>
           </button>
 
-          <!-- Tools counter — shows the icon + count and opens the same drawer -->
+          <!-- Tools counter — shows the icon + count and toggles the inline tools list
+               rendered inside this message (see <ChatMessageEvents> below). -->
           <button
             v-if="isAssistant && toolEventCount"
             class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
@@ -208,7 +209,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
                 tabindex="0"
                 class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
               >
-                <!-- Events & Tools — the desktop drawer button is hidden on
+                <!-- Inline Events & Tools — the desktop trigger is hidden on
                      mobile (*), so it lives here for narrow panels. -->
                 <li v-if="isAssistant" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
                 <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
@@ -225,12 +226,14 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
         <!-- ── Tool & run events (collapsible, live-updated while streaming) ──
              Rendered inline, directly under the header so it is discoverable and
              contextual. Driven by the existing `eventsOpen` prop (parent owns the
-             open state). Per-tool details and the dual-response `output` are opt-in
-             and never merged into the message body. -->
+             open state). The "more details" drawer trigger lives INSIDE this panel
+             (see <ChatMessageEvents>), which re-emits `show-events-drawer`. -->
         <ChatMessageEvents
           v-if="eventsOpen"
           :message="displayMessage"
+          :drawerOpen="eventsDrawerOpen"
           class="mt-2"
+          @show-events-drawer="$emit('show-events-drawer', message)"
         />
 
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
@@ -505,7 +508,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
 
 <script>
 export default {
-  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker', 'eventsOpen'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker', 'eventsOpen', 'eventsDrawerOpen'],
   emits: [
     'generate-code',
     'reload-file',
@@ -530,6 +533,7 @@ export default {
     'code-file-shown',
     'message-changed',
     'show-events',
+    'show-events-drawer',
     'preview-file',
     'update-attachment'
   ],

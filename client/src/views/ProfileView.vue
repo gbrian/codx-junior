@@ -306,11 +306,16 @@ export default {
     async saveSelectedProfile(profile) {
       this.loadingProfile = true
       try {
-        this.$projects.saveProfile({ ...profile, project: null })
-      } catch {}
-      this.loadProfiles()
-      this.loadingProfile = false
-      this.$ui.addNotification({ text: `Profile '${profile.name}' saved` })
+        // Await the save; the store forces a fresh reload afterwards so the
+        // list reflects the changes instead of the stale cached profiles.
+        await this.$projects.saveProfile({ ...profile, project: null })
+        this.$ui.addNotification({ text: `Profile '${profile.name}' saved` })
+      } catch (error) {
+        console.error('Failed to save profile:', error)
+        this.$ui.addNotification({ text: `Failed to save profile '${profile.name}'`, type: 'error' })
+      } finally {
+        this.loadingProfile = false
+      }
     },
     createNewProfile() {
       this.$projects.createNewProfile({ 

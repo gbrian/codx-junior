@@ -16,6 +16,19 @@ import Markdown from '../Markdown.vue'
       <span v-if="lifecycleEvents.length" class="badge badge-xs badge-ghost gap-1">
         <i class="fa-solid fa-play text-[9px]"></i>{{ lifecycleEvents.length }}
       </span>
+
+      <!-- Processing-details drawer trigger.
+           Opens the dedicated side drawer with the full "Processing Details" for
+           this message. Lives here (inside the inline tools panel) so the tools
+           icon only expands this compact list, while "more" opens the drawer. -->
+      <button
+        class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+        :class="drawerOpen && 'btn-active text-warning'"
+        data-tip="More details"
+        @click.stop="$emit('show-events-drawer', message)"
+      >
+        <i class="fa-solid fa-ellipsis"></i>
+      </button>
     </div>
 
     <!-- ── Tool executions ── -->
@@ -119,7 +132,8 @@ import Markdown from '../Markdown.vue'
 
 <script>
 export default {
-  props: ['message'],
+  props: ['message', 'drawerOpen'],
+  emits: ['show-events-drawer'],
   data() {
     return {
       openTools: {},

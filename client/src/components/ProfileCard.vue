@@ -16,6 +16,15 @@ import ChatIcon from './chat/ChatIcon.vue'
       }">
     </div>
 
+    <!-- Guardrails indicator -->
+    <div
+      v-if="profile.guardrails?.enabled"
+      class="absolute top-4 right-3 z-20 tooltip tooltip-left"
+      data-tip="Guardrails enabled"
+    >
+      <i class="fa-solid fa-shield-halved text-info text-sm"></i>
+    </div>
+
     <!-- Background avatar blur -->
     <div class="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity bg-cover bg-center blur-sm"
       :style="`background-image: url(${useAvatar})`">
@@ -78,6 +87,12 @@ import ChatIcon from './chat/ChatIcon.vue'
           </div>
         </div>
         <div class="stat p-2 text-center">
+          <div class="stat-title text-xs">Guardrails</div>
+          <div class="stat-value text-base">
+            <i class="fa-solid fa-shield-halved" :class="profile.guardrails?.enabled ? 'text-info' : 'text-base-content/30'"></i>
+          </div>
+        </div>
+        <div class="stat p-2 text-center">
           <div class="stat-title text-xs">Profiles</div>
           <div class="stat-value text-base">{{ profile.profiles?.length || 0 }}</div>
         </div>
@@ -124,6 +139,9 @@ import ChatIcon from './chat/ChatIcon.vue'
 
     <!-- Quick indicators -->
     <div class="flex items-center gap-2 flex-shrink-0">
+      <div v-if="profile.guardrails?.enabled" class="tooltip" data-tip="Guardrails enabled">
+        <i class="fa-solid fa-shield-halved text-info text-xs"></i>
+      </div>
       <div v-if="profile.use_knowledge" class="tooltip" data-tip="Uses Knowledge">
         <i class="fa-solid fa-book text-info text-xs"></i>
       </div>

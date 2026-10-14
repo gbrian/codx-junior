@@ -97,7 +97,10 @@ const router = createRouter({
       component: BrowsersSessionManager
     },
     {
-      path: '/:projectName/kanban',
+      // The optional board id + name segments let the URL carry the open board,
+      // so a refresh or a back-navigation (non-desktop / single mode) reopens it.
+      // Both are optional: the plain "/:projectName/kanban" still works.
+      path: '/:projectName/kanban/:board?/:boardName?',
       name: 'kanban',
       component: KanbanBoardView
     },

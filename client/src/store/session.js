@@ -99,6 +99,10 @@ export const actions = actionTree(
       API.initSocket({
         onConnect(socketId) {
           console.log('[session] socket connected', socketId)
+          // Expose the live socket id on the API connection so REST requests
+          // carry the `x-sid` header (used by the meets API to target
+          // signaling at this session).
+          if (API.connection) API.connection.sid = socketId
           $storex.session.setConnected(true)
           $storex.session.login()
         },
@@ -134,53 +138,15 @@ export const actions = actionTree(
       if (event === 'codx-junior-online-users') {
         $storex.users.setOnlineUsers(data.users)
       }
-      
-      // ──── VOICE CALL EVENTS ────────────────────────────────
-      if (event === 'voice-call-initiate') {
-        // Incoming call notification
-        $storex.calls.handleIncomingCall({
-          chatId: data.chatId,
-          from: data.from,
-          fromName: data.fromName,
-          fromAvatar: data.fromAvatar,
-          timestamp: data.timestamp
-        })
-        console.log('[session] Incoming call from:', data.from, 'for chat:', data.chatId)
+
+      // ──── MEET EVENTS (WebRTC calls) ───────────────────────
+      // Lifecycle delivered as `codx-junior-meet` and WebRTC signalling as
+      // `codx-junior-meet-signal` (see the meets API integration guide).
+      if (event === 'codx-junior-meet') {
+        $storex.meets.handleMeetEvent(data)
       }
-      
-      if (event === 'voice-call-accept') {
-        // Call was accepted
-        $storex.calls.updateCallStatus({
-          chatId: data.chatId,
-          status: 'active'
-        })
-        console.log('[session] Call accepted by:', data.acceptedBy)
-      }
-      
-      if (event === 'voice-call-reject') {
-        // Call was rejected
-        $storex.calls.endActiveCall(data.chatId)
-        console.log('[session] Call rejected by:', data.rejectedBy)
-      }
-      
-      if (event === 'voice-call-end') {
-        // Call ended
-        $storex.calls.endActiveCall(data.chatId)
-        console.log('[session] Call ended by:', data.endedBy)
-      }
-      
-      if (event === 'voice-call-participant-added') {
-        // New participant joined
-        $storex.calls.addParticipantToCall({
-          chatId: data.chatId,
-          userId: data.userId
-        })
-        console.log('[session] Participant joined:', data.userId)
-      }
-      
-      if (event === 'voice-call-mute-toggle') {
-        // Participant muted/unmuted
-        console.log('[session] Participant mute toggled:', data.userId, 'muted:', data.muted)
+      if (event === 'codx-junior-meet-signal') {
+        $storex.meets.handleMeetSignal(data)
       }
     },
 

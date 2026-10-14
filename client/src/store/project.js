@@ -711,7 +711,9 @@ export const actions = actionTree(
       state.knowledge = data
     },
     async loadProfiles({ state }) {
-      await $storex.profiles.loadProjectProfiles(state.activeProject)
+      // Always fetch fresh profiles for the active project (used by the
+      // "reload profiles" action and after saving/deleting a profile).
+      await $storex.profiles.loadProjectProfiles({ project: state.activeProject, force: true })
     },
     async loadBranches({ state }, project) {
       const projectState = project?.$state || state
@@ -921,13 +923,13 @@ export const actions = actionTree(
         state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
       }      
     },
-    deleteProfile({ state }, profile) {
+    async deleteProfile({ state }, profile) {
       const project = state.allProjectsById[profile.project_id] || state.activeProject
       if (profile.name === state.selectedProfile?.name) {
         state.selectedProfile = null
       }
-      $storex.profiles.deleteProfile({ profile, project })
-      $storex.profiles.loadProjectProfiles(state.activeProject)
+      // The profiles store forces a reload after deleting, so the list is refreshed here.
+      await $storex.profiles.deleteProfile({ profile, project })
     },
     createNewProfile({ state }, profile) {
       state.selectedProfile = profile

@@ -117,8 +117,10 @@ export default {
       return this.$ui.notifications.filter(n => n.type === 'error')
     },
     showMobileBottomBar() {
-      const chatId = this.$storex.$router.$navigation.getChatId()
-      return !chatId && this.$ui.isMobile
+      const navigation = this.$storex.$router.$navigation
+      // Hide the bottom bar inside a chat or the Meet tool, which take over
+      // the full screen (the bar would otherwise cover their content).
+      return !navigation.getChatId() && !navigation.isMeetView && this.$ui.isMobile
     }
   },
   created() {
