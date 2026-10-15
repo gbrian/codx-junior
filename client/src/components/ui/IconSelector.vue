@@ -3,8 +3,24 @@
 
 <template>
   <div class="icon-selector relative" @click.stop>
-    <!-- Trigger -->
+    <!-- Trigger — single compact button (icon only) when `buttonOnly`, else the
+         full-width labelled button used across the app. -->
     <button
+      v-if="buttonOnly"
+      type="button"
+      class="btn btn-sm btn-square shrink-0"
+      :aria-expanded="open"
+      aria-haspopup="true"
+      :aria-label="`Choose ${label}`"
+      :title="currentLabel"
+      @click="toggleOpen"
+    >
+      <i v-if="currentClass" :class="currentClass" class="text-sm" aria-hidden="true"></i>
+      <i v-else class="fa-regular fa-circle text-sm opacity-40" aria-hidden="true"></i>
+    </button>
+
+    <button
+      v-else
       type="button"
       class="btn btn-sm btn-ghost border border-base-100 w-full justify-start gap-2 font-normal"
       :aria-expanded="open"
@@ -23,7 +39,8 @@
     <!-- Panel -->
     <div
       v-if="open"
-      class="absolute left-0 right-0 top-full z-50 mt-1 rounded-box border border-base-100 bg-base-200 shadow-xl p-2"
+      class="absolute top-full z-50 mt-1 rounded-box border border-base-100 bg-base-200 shadow-xl p-2"
+      :class="buttonOnly ? 'right-0 w-72' : 'left-0 right-0'"
     >
       <!-- Search -->
       <div class="flex items-center gap-1.5">
@@ -201,7 +218,10 @@ export default {
     modelValue: { type: String, default: '' },
     // Label used for the trigger's accessible name
     label: { type: String, default: 'Icon' },
-    placeholder: { type: String, default: 'Search icons…' }
+    placeholder: { type: String, default: 'Search icons…' },
+    // When true the trigger is a compact square icon-only button (used inline,
+    // e.g. next to an input) instead of the full-width labelled button.
+    buttonOnly: { type: Boolean, default: false }
   },
   emits: ['update:modelValue'],
   data() {

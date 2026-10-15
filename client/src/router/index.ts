@@ -5,6 +5,7 @@ import QuickChatView from '@/views/QuickChatView.vue'
 import WorkspaceView from '@/views/WorkspaceView.vue'
 import MessengerView from '@/views/MessengerView.vue'
 import MeetView from '@/views/MeetView.vue'
+import TeamView from '@/views/TeamView.vue'
 import MetricsDashboard from '@/components/analytics/MetricsDashboard.vue'
 import Desktop from '@/components/desktop/Desktop.vue'
 import KanbanBoardView from '@/components/kanban/board/KanbanBoardView.vue'
@@ -109,13 +110,13 @@ const router = createRouter({
       component: MessengerView
     },
     {
-      // Team view (used by setActiveTab('team') / openTeam()).
+      // Team view (used by setActiveTab('team') / openTeam() / openTeams()).
       // The optional :teamId makes an individual team deep-linkable
-      // ("/:projectName/team/<teamId>"); without it the view opens the last
-      // selected / first team (see views/TeamView.vue).
+      // ("/:projectName/team/<teamId>"); without it the view opens every team
+      // (see views/TeamView.vue).
       path: '/:projectName/team/:teamId?',
       name: 'team',
-      component: null
+      component: TeamView
     },
 
     // ── Generic app routes ────────────────────────────────────────────────

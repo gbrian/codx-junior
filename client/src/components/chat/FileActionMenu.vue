@@ -3,13 +3,14 @@ import { computed } from 'vue'
 </script>
 
 <template>
-  <div class="flex gap-2">
+  <div class="flex items-center gap-0.5">
     <!-- Add to chat (for conversation files) -->
     <button
       v-if="fileType === 'conversation'"
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('add-file')"
       title="Add to chat"
+      aria-label="Add to chat"
     >
       <i class="fa-solid fa-plus text-success text-xs"></i>
     </button>
@@ -17,27 +18,30 @@ import { computed } from 'vue'
     <!-- Remove from chat (for chat files) -->
     <button
       v-if="fileType === 'chat'"
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('remove-file')"
       title="Remove from chat"
+      aria-label="Remove from chat"
     >
       <i class="fa-solid fa-minus text-error text-xs"></i>
     </button>
 
     <!-- Copy path -->
     <button
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('copy-path')"
       title="Copy path"
+      aria-label="Copy path"
     >
       <i class="fa-solid fa-copy text-accent text-xs"></i>
     </button>
 
     <!-- Add as message -->
     <button
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('add-as-message')"
       title="Add as message"
+      aria-label="Add as message"
     >
       <i class="fa-regular fa-comment-dots text-info text-xs"></i>
     </button>
@@ -45,9 +49,10 @@ import { computed } from 'vue'
     <!-- Sync notebook (conditional) -->
     <button
       v-if="isNotebook"
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('sync-notebook')"
       title="Sync notebook"
+      aria-label="Sync notebook"
     >
       <i class="fa-solid fa-book-open text-warning text-xs"></i>
     </button>
@@ -55,9 +60,10 @@ import { computed } from 'vue'
     <!-- Export notebook (conditional) -->
     <button
       v-if="isNotebook"
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('export-notebook')"
       title="Export notebook"
+      aria-label="Export notebook"
     >
       <i class="fa-solid fa-file-export text-success text-xs"></i>
     </button>
@@ -65,9 +71,10 @@ import { computed } from 'vue'
     <!-- Preview file (conditional) -->
     <button
       v-if="fileType === 'conversation'"
-      class="click rounded hover:bg-base-200 transition-colors flex-shrink-0"
+      class="p-1 rounded hover:bg-base-content/10 transition-colors flex-shrink-0"
       @click.stop="$emit('preview-file')"
       title="Preview"
+      aria-label="Preview"
     >
       <i class="fa-regular fa-eye text-primary text-xs"></i>
     </button>

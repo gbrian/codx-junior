@@ -31,10 +31,8 @@ export const teamsModule = (API) => ({
   },
 
   /**
-   * Create a team.
-   *
-   * `id` is always assigned server-side (any supplied value is ignored), and
-   * the team is bound to the active project. `name` is required.
+   * Create a team. `id` is always assigned server-side (any supplied value is
+   * ignored) and the team is bound to the active project. `name` is required.
    * @param {Object} team
    * @returns {Promise<Object>}
    */
@@ -64,7 +62,6 @@ export const teamsModule = (API) => ({
 
   /**
    * Add AI profiles and/or human users to a team (duplicates are ignored).
-   *
    * @param {string} teamId
    * @param {{ profiles?: string[], users?: string[] }} members
    * @returns {Promise<Object>} The updated team.
@@ -79,10 +76,9 @@ export const teamsModule = (API) => ({
   /**
    * Remove AI profiles and/or human users from a team.
    *
-   * Members are sent as comma-separated query parameters. The backend accepts
-   * a body OR query params; query params are used because a DELETE body is not
-   * reliably forwarded by proxies/interceptors.
-   *
+   * Members are sent as comma-separated query parameters because a DELETE body
+   * is not reliably forwarded by proxies/interceptors. The backend accepts a
+   * body OR query params.
    * @param {string} teamId
    * @param {{ profiles?: string[], users?: string[] }} members
    * @returns {Promise<Object>} The updated team.

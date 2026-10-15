@@ -1,0 +1,24 @@
+{
+  "id": "9690e2e9-6a98-4c82-91ef-1dbd54d49ee6",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "name": "Developers",
+  "description": "",
+  "color": "#ec4899",
+  "logo": "",
+  "icon": "fa-solid fa-code",
+  "profiles": [
+    "coding_agent",
+    "file_editor",
+    "git",
+    "py_senior",
+    "software_developer",
+    "VueDeveloper",
+    "web_master"
+  ],
+  "users": [],
+  "tags": [],
+  "created_by": "admin",
+  "updated_by": "admin",
+  "created_at": "2026-10-15T09:51:32.598035",
+  "updated_at": "2026-10-15T09:55:30.863279"
+}

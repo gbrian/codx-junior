@@ -6,6 +6,7 @@ import { analyticsModule } from './modules/analytics'
 import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
+import { teamsModule } from './modules/teams'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
@@ -470,6 +471,13 @@ const initializeAPI = ({ project, user } = {}) => {
         API._chatsModule = chatsModule(API)
       }
       return API._chatsModule
+    },
+
+    get teams() {
+      if (!API._teamsModule) {
+        API._teamsModule = teamsModule(API)
+      }
+      return API._teamsModule
     },
 
     get meets() {

@@ -5,6 +5,7 @@ import LogViewer from '../components/LogViewer.vue'
 import KnowledgeViewVue from '../views/KnowledgeView.vue'
 import KnowledgeSettingsVue from '../views/KnowledgeSettings.vue'
 import ProfileViewVue from '../views/ProfileView.vue'
+import TeamViewVue from '../views/TeamView.vue'
 import CodxWelcomeView from '../views/CodxWelcomeView.vue'
 import ProjectSettingsVue from '../views/ProjectSettings.vue'
 import WikiViewVue from '../views/WikiView.vue'
@@ -43,6 +44,7 @@ export const APP_COMPONENTS_MAP = {
   'knowledge': KnowledgeViewVue,
   'knowledge_settings': KnowledgeSettingsVue,
   'profiles': ProfileViewVue,
+  'team': TeamViewVue,
   'home': CodxWelcomeView,
   'settings': ProjectSettingsVue,
   'wiki': WikiViewVue,

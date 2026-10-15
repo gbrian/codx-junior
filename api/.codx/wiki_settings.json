@@ -305,6 +305,26 @@
           "path": "/codx/junior/meets/meet_manager.py",
           "slug": "meet-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/meet-manager.md"
+        },
+        {
+          "path": "/codx/junior/teams/team_manager.py",
+          "slug": "team-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/team-manager.md"
+        },
+        {
+          "path": "/codx/junior/teams/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/api/teams.py",
+          "slug": "teams.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/teams.md"
+        },
+        {
+          "path": "/codx/junior/teams/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
         }
       ],
       "id": "project-overview",

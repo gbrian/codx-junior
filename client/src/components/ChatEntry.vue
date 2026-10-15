@@ -44,10 +44,11 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           <button
             v-if="isDone"
             class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="displayMessage.hide ? 'text-warning/70' : '' "
             :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
             @click.stop="$emit('hide', message)"
           >
-            <i class="fa-solid fa-box-archive text-warning/70"></i>
+            <i class="fa-solid fa-box-archive"></i>
           </button>
 
           <!-- Timestamp -->
