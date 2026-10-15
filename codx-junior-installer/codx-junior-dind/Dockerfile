@@ -1,8 +1,13 @@
-# Use the official Docker-in-Docker image as base
-FROM docker:27-dind
+# Use the official Docker-in-Docker image as base (tracks the latest Docker release)
+FROM docker:dind
 
-# Install bash (used by the init scripts) and the packages Coolify needs
-RUN apk add --no-cache bash curl wget git jq openssl
+# Install bash (used by the init scripts) and the packages Coolify needs.
+# openrc/openssh let Coolify manage its "localhost" server over SSH from inside
+# the DIND. The `service` shim maps SysV calls used by Coolify's installer onto
+# OpenRC (Alpine has no systemctl/service).
+RUN apk add --no-cache bash curl wget git jq openssl openssh openrc \
+ && printf '#!/bin/sh\n# Minimal SysV "service" shim mapping to OpenRC (used by the Coolify installer).\nexec rc-service "$@"\n' > /usr/local/bin/service \
+ && chmod +x /usr/local/bin/service
 
 # Copy custom entrypoint wrapper
 COPY ./codx-junior-installer/codx-junior-dind/entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
@@ -19,11 +24,6 @@ COPY ./codx-junior-installer/codx-junior-dind/coolify-install.sh /custom-cont-in
 
 EXPOSE 80
 EXPOSE 443
-# Coolify (dashboard / realtime / remapped proxy)
-EXPOSE 8000
-EXPOSE 6001
-EXPOSE 8080
-EXPOSE 8443
 
 # Use the wrapper as the entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint-wrapper.sh"]

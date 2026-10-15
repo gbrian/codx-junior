@@ -4,6 +4,14 @@ DockerFirefoxManager — manages Firefox Docker container lifecycle.
 Handles container creation, connection setup, and cleanup with Traefik routing.
 Uses linuxserver/firefox image, connects to codx-junior_default network,
 and configures Traefik labels for routing without explicit port mappings.
+
+Lifecycle semantics
+-------------------
+- ``stop_container(session, remove=True)``  : stop + remove (full teardown).
+- ``stop_container(session, remove=False)`` : stop only — the container is kept
+  so it can be started again with ``restart_container`` (state preserved).
+- ``restart_container(session)``            : starts an existing (stopped)
+  container, or recreates it if the container no longer exists.
 """
 
 import logging
@@ -28,13 +36,14 @@ class DockerFirefoxManager:
     - Connected to codx-junior_default network
     - Persistent profile volume for session state
 
-    Docker image: linuxserver/firefox
+    Docker image: lscr.io/linuxserver/firefox:latest
     Network: codx-junior_default (shared with codx-junior)
     """
 
     DOCKER_IMAGE = "lscr.io/linuxserver/firefox:latest"
     DOCKER_NETWORK = "codx-junior_default"
     MAX_SESSIONS = 10
+    AUTH_MIDDLEWARE = "codx-junior-auth"
 
     def __init__(self, browser_sessions_path: str, traefik_domain: Optional[str] = None):
         """
@@ -50,7 +59,7 @@ class DockerFirefoxManager:
         logger.debug(
             "DockerFirefoxManager initialized at '%s' (domain: %s)",
             browser_sessions_path,
-            self.traefik_domain
+            self.traefik_domain,
         )
 
     # -------------------------------------------------------------------------
@@ -86,7 +95,7 @@ class DockerFirefoxManager:
             traefik_labels = self._build_traefik_labels(
                 router_name=router_name,
                 session_id=session.id,
-                path_prefix=traefik_path_prefix
+                path_prefix=traefik_path_prefix,
             )
 
             # Build docker run command
@@ -113,7 +122,7 @@ class DockerFirefoxManager:
                 "Starting Firefox container: %s (network: %s, path: %s)",
                 container_name,
                 self.DOCKER_NETWORK,
-                traefik_path_prefix
+                traefik_path_prefix,
             )
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
@@ -133,7 +142,7 @@ class DockerFirefoxManager:
             session.traefik_domain = self.traefik_domain
             session.traefik_path_prefix = traefik_path_prefix
             session.vnc_url = f"http://{self.traefik_domain}{traefik_path_prefix}"
-            session.debug_url = f"ws://localhost:9222"  # Local development; adjust for production
+            session.debug_url = "ws://localhost:9222"  # Local development; adjust for production
             session.status = "running"
             session.error = None
             session.mark_active()
@@ -146,42 +155,57 @@ class DockerFirefoxManager:
             session.error = str(e)
             raise
 
-    def stop_container(self, session: BrowserSession) -> None:
+    def stop_container(self, session: BrowserSession, remove: bool = True) -> None:
         """
-        Stop and remove a Firefox container.
+        Stop a Firefox container, optionally removing it.
 
         Args:
             session: BrowserSession with container_id set
+            remove: When True (default) the container is stopped **and removed**
+                (full teardown). When False the container is only stopped so it
+                can be started again with :meth:`restart_container`.
         """
-        if not session.container_id:
-            logger.warning("Cannot stop session %s: no container_id", session.id[:8])
+        if not session or not session.container_id:
+            logger.warning(
+                "Cannot stop session %s: no container_id",
+                session.id[:8] if session else "?",
+            )
             return
 
         try:
-            logger.info("Stopping container: %s", session.container_id[:12])
+            logger.info(
+                "Stopping container: %s (remove=%s)", session.container_id[:12], remove
+            )
             subprocess.run(
                 ["docker", "stop", session.container_id],
                 capture_output=True,
-                timeout=10,
+                timeout=15,
             )
-            subprocess.run(
-                ["docker", "rm", session.container_id],
-                capture_output=True,
-                timeout=10,
-            )
+            if remove:
+                subprocess.run(
+                    ["docker", "rm", session.container_id],
+                    capture_output=True,
+                    timeout=10,
+                )
+                session.container_id = None
             session.status = "stopped"
-            logger.info("Container stopped: %s", session.container_id[:12])
+            logger.info("Container stopped: %s", session.container_id)
         except Exception as e:
-            logger.exception("Error stopping container %s: %s", session.container_id[:12], e)
+            logger.exception("Error stopping container: %s", e)
             session.status = "error"
             session.error = f"Stop failed: {e}"
 
     def restart_container(self, session: BrowserSession) -> BrowserSession:
         """
-        Restart an existing container (preserves profile).
+        Restart a stopped session, recreating the container if needed.
+
+        If the container still exists (previously stopped with
+        ``stop_container(remove=False)``) it is simply started again, preserving
+        the profile. If the container was removed, a fresh container is created
+        from the same session folder (profile is preserved on disk).
 
         Args:
-            session: BrowserSession with container_id set
+            session: BrowserSession to restart
 
         Returns:
             Updated BrowserSession
@@ -189,30 +213,50 @@ class DockerFirefoxManager:
         Raises:
             RuntimeError: If restart fails
         """
-        if not session.container_id:
-            raise RuntimeError("Cannot restart: no container_id")
+        if session.container_id and self._container_exists(session.container_id):
+            try:
+                logger.info("Restarting container: %s", session.container_id[:12])
+                subprocess.run(
+                    ["docker", "start", session.container_id],
+                    capture_output=True,
+                    timeout=15,
+                )
+                self._wait_for_container_ready(session.container_id, timeout=15)
+                session.status = "running"
+                session.error = None
+                session.mark_active()
+                return session
+            except Exception as e:
+                logger.exception("Failed to restart existing container")
+                session.status = "error"
+                session.error = str(e)
+                raise
 
-        try:
-            logger.info("Restarting container: %s", session.container_id[:12])
-            subprocess.run(
-                ["docker", "start", session.container_id],
-                capture_output=True,
-                timeout=10,
-            )
-            self._wait_for_container_ready(session.container_id, timeout=15)
-            session.status = "running"
-            session.error = None
-            session.mark_active()
-            return session
-        except Exception as e:
-            logger.exception("Failed to restart container")
-            session.status = "error"
-            session.error = str(e)
-            raise
+        # Container gone → recreate it (profile on disk is preserved)
+        logger.info("Container missing for session %s; recreating", session.id[:8])
+        session.container_id = None
+        return self.start_container(session)
+
+    def remove_container(self, session: BrowserSession) -> None:
+        """Stop and remove the container (alias of stop_container(remove=True))."""
+        self.stop_container(session, remove=True)
 
     # -------------------------------------------------------------------------
     # Utilities
     # -------------------------------------------------------------------------
+
+    def _container_exists(self, container_id: str) -> bool:
+        """Return True when the given container (id or name) still exists."""
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", "--format", "{{.Id}}", container_id],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return result.returncode == 0 and bool(result.stdout.strip())
+        except Exception:
+            return False
 
     def _get_session_folder(self, session_id: str) -> str:
         """Get the folder path for a session."""
@@ -226,7 +270,7 @@ class DockerFirefoxManager:
         self,
         router_name: str,
         session_id: str,
-        path_prefix: str
+        path_prefix: str,
     ) -> List[str]:
         """
         Build Traefik Docker labels for routing.
@@ -247,7 +291,7 @@ class DockerFirefoxManager:
             f"traefik.http.services.{router_name}-service.loadbalancer.server.scheme=http",
             f"traefik.http.middlewares.{router_name}-path.replacepathregex.regex=^{path_prefix}/(.*)",
             f"traefik.http.middlewares.{router_name}-path.replacepathregex.replacement=/$1",
-            f"traefik.http.routers.{router_name}.middlewares={router_name}-path",
+            f"traefik.http.routers.{router_name}.middlewares={router_name}-path,{self.AUTH_MIDDLEWARE}",
         ]
         return labels
 

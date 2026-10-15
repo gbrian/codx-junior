@@ -161,7 +161,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               data-tip="Mark as answer"
               @click.stop="$emit('answer', message)"
             >
-              <i class="fa-solid fa-check-double text-success/70"></i>
+              <i class="fa-solid fa-circle-info text-info/70"></i>
             </button>
             <button
               class="btn btn-xs btn-ghost tooltip tooltip-bottom"
@@ -292,7 +292,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           @mouseup="onContentMouseUp"
           class="min-w-0 w-full notion-content"
           :class="[
-            displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-success/30',
+            displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-info/30',
             isTopic && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
           ]"
         >

@@ -177,11 +177,6 @@ export const APPS = {
   },
 
   // ── Project & user ────────────────────────────────────────────────────────
-  profiles: {
-    id: 'profiles', title: 'Profiles', component: 'profiles', icon: 'fa-solid fa-id-badge',
-    route: () => ({ name: 'profiles' })
-  },
-
   projects: {
     id: 'projects', title: 'Projects', component: 'projects', icon: 'fa-solid fa-cubes',
     route: () => ({ name: 'projects' })

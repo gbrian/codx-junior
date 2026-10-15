@@ -47,11 +47,6 @@ import MenuDivider from './MenuDivider.vue'
   <MenubarItem @click="$ui.openGitView()">
     <i class="fa-solid fa-code-branch"></i> Git
   </MenubarItem>
-  <MenubarItem @click="$ui.setActiveTab('profiles')"
-    v-if="$users.isProjectAdmin">
-    <i class="fa-solid fa-id-badge"></i>
-    Profiles
-  </MenubarItem>
   <MenubarItem @click="$ui.setActiveTab('knowledge')"
     v-if="$users.isProjectAdmin">
     <i class="fa-solid fa-magnifying-glass"></i>

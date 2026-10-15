@@ -446,7 +446,10 @@ export default {
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
-      showDiff: this.diffOption,
+      // When no explicit `diff-option` prop is given, start on the content view.
+      // The default (diff vs. content) is resolved in applyDefaultDiffView()
+      // once we know whether the on-disk file actually changed.
+      showDiff: this.diffOption != undefined ? this.diffOption : false,
       orgContent: null,
       diffEditContent: null,
       diffBaseContent: null,
@@ -926,6 +929,20 @@ export default {
       this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
     },
 
+    /**
+     * Resolves the default view (diff vs. plain content).
+     * - If the `diff-option` prop is set, the user's choice always wins.
+     * - Otherwise show the diff only when the on-disk file actually changed:
+     *   new/empty files and unchanged files fall back to the content view.
+     */
+    applyDefaultDiffView() {
+      if (this.diffOption != undefined) {
+        this.showDiff = this.diffOption
+        return
+      }
+      this.showDiff = !!this.orgContent && !this.isNewFile && !this.isNoChange && !this.isMarkdown
+    },
+
     async loadDiffInfo() {
       const diffRequest = {
         path: this.file,
@@ -961,6 +978,8 @@ export default {
       this.diffEditContent = this.effectiveCode
       this.diffBaseContent = this.effectiveCode
       this.calculateDiffPercentages()
+      // Decide default view now that orgContent / isNewFile are known
+      this.applyDefaultDiffView()
     },
     async showDiffInfo() {
       try {
@@ -969,10 +988,6 @@ export default {
         
         if (this.file) {
           await this.loadDiffInfo()
-    
-          if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
-            this.showDiff = true
-          }
 
           if (this.isJSONChangeset) {
             this.applyChangeset()

@@ -8,11 +8,12 @@ import { isMultiInstance } from '@/config/apps'
 
 <template>
   <div class="px-2 py-3 shrink-0 border-b border-base-content/5">
-    <div class="flex gap-2 pb-1">  
+    <div class="flex gap-2 pb-1 min-w-0">  
       
       <!-- Project selector -->
       <ProjectDetailt 
         v-if="!isCollapsed"
+        class="flex-1 min-w-0"
         @click.stop=""
         :options="{ folders: true, showIcon: true }"
         @select="$storex.projects.activeProjectChanged($event)"
@@ -23,7 +24,7 @@ import { isMultiInstance } from '@/config/apps'
       <!-- Pin / unpin the active project (quick switcher) -->
       <button
         v-if="!isCollapsed"
-        class="btn tooltip tooltip-right"
+        class="btn tooltip tooltip-right shrink-0"
         :class="isActiveProjectPinned ? 'click text-primary' : 'click text-base-content/50'"
         :data-tip="isActiveProjectPinned ? 'Unpin project' : 'Pin project'"
         :aria-pressed="isActiveProjectPinned"
@@ -34,7 +35,7 @@ import { isMultiInstance } from '@/config/apps'
       </button>
 
       <ViewModeToggle v-if="!isCollapsed"
-       />
+        class="shrink-0" />
           
     </div>
 

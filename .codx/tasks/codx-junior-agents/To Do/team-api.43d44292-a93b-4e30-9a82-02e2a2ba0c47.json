@@ -9,8 +9,17 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "",
-  "status_history": [],
+  "status": "done",
+  "status_history": [
+    {
+      "doc_id": "6b8cdbab-a9e0-4ad5-b8a4-1dd5a3093d2c",
+      "from_status": null,
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-15T10:59:49.095155",
+      "meta_data": null
+    }
+  ],
   "tags": [],
   "file_list": [
     "codx/junior/teams/model.py",
@@ -88,7 +97,7 @@
     }
   ],
   "created_at": "2026-10-15 07:53:41.756058",
-  "updated_at": "2026-10-15T08:41:11.875697",
+  "updated_at": "2026-10-15T10:59:49.036768",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

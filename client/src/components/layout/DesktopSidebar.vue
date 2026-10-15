@@ -42,7 +42,7 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
       </div>
 
       <!-- Scrollable Content Area -->
-      <div class="flex-1 overflow-y-auto flex flex-col">
+      <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
         <!-- Apps Section -->
         <AppsSection
           :is-collapsed="false"
@@ -138,7 +138,7 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
       </div>
 
       <!-- Scrollable Content Area -->
-      <div class="flex-1 overflow-y-auto flex flex-col">
+      <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
         <!-- Apps Section (renders the pinned projects quick switcher) -->
         <AppsSection
           :is-collapsed="isCollapsed"

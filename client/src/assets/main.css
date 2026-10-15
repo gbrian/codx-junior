@@ -30,8 +30,18 @@ html, body {
   background-color: #8f008f;
 }
 
+/* Reka UI teleports every floating surface (menu, submenu, popover, tooltip,
+   combobox) into a `div[data-reka-popper-content-wrapper]` appended to <body>.
+   That wrapper is `position: fixed`, so it forms its OWN stacking context and
+   its z-index — not the inner content's — decides the paint order.
+   It must sit ABOVE the app chrome, otherwise menus/submenus render behind it
+   and appear "missing":
+     - App.vue mobile backdrop        -> z-100
+     - App.vue / sidebar mobile panel -> z-150
+     - DesktopSidebar aside/backdrop  -> z-50 / z-40
+   200 clears all of them (the app currently tops out at z-150). */
 div[data-reka-popper-content-wrapper] {
-  z-index: 2 !important;
+  z-index: 200 !important;
 }
 
 .scroller * {

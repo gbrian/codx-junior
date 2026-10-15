@@ -325,6 +325,11 @@
           "path": "/codx/junior/teams/__init__.py",
           "slug": "init.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/tools/browser_tools.py",
+          "slug": "browser-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/browser-tools.md"
         }
       ],
       "id": "project-overview",

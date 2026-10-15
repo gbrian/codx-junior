@@ -43,7 +43,7 @@
       >
         <i v-if="app.icon" :class="app.icon" class="w-5 text-center shrink-0"></i>
         <i v-else class="fa-solid fa-cube w-5 text-center shrink-0"></i>
-        <span v-if="!isCollapsed" class="truncate">{{ app.name }}</span>
+        <span v-if="!isCollapsed" class="truncate min-w-0">{{ app.name }}</span>
       </button>
     </div>
   </div>

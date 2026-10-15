@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "Teams",
+  "status": "done",
   "status_history": [
     {
       "doc_id": "0d768f3a-5818-4a7c-b22b-75b09142b1c5",
@@ -33,6 +33,14 @@
       "to_status": "Teams",
       "user": null,
       "at": "2026-10-14T16:04:13.349022",
+      "meta_data": null
+    },
+    {
+      "doc_id": "957c4e48-7212-4743-917e-891b5d079e2d",
+      "from_status": "Teams",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-15T10:59:40.738184",
       "meta_data": null
     }
   ],
@@ -3127,7 +3135,7 @@
     }
   ],
   "created_at": "2026-10-14 15:37:16.603970",
-  "updated_at": "2026-10-15T10:27:26.056256",
+  "updated_at": "2026-10-15T10:59:40.678315",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

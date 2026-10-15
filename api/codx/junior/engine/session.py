@@ -196,10 +196,28 @@ class CODXJuniorSession:
         from codx.junior.wiki.wiki_manager import WikiManager
         return WikiManager(settings=self.settings)
 
+    def get_browser_manager(self):
+        """
+        Return a BrowserManager for this session.
+
+        This is the preferred entry point for browser-session lifecycle
+        operations (create / stop / restart / delete). ``get_browser`` is kept
+        for backward compatibility and now delegates here.
+        """
+        from codx.junior.browser.browser_manager import BrowserManager
+        return BrowserManager(settings=self.settings)
+
     def get_browser(self):
-        """Return a Browser for this session."""
-        from codx.junior.browser.browser import Browser
-        return Browser(session=self)
+        """
+        DEPRECATED — kept for backward compatibility.
+
+        Previously returned a ``Browser`` instance; a ``Browser`` now requires a
+        concrete ``BrowserSession`` + ``DockerFirefoxManager``, so this returns
+        the :class:`BrowserManager` instead. Use ``get_browser_manager()`` and
+        ``BrowserManager.connect_browser(session)`` to obtain a connected
+        ``Browser``.
+        """
+        return self.get_browser_manager()
 
     def get_git_engine(self):
         return self._git_engine

@@ -577,18 +577,15 @@ function parseChapter(lines, startIndex) {
 
       if (nextLevel <= level) break
 
-      if (nextLevel === level + 1) {
-        const childChapter = parseChapter(lines, i)
-        children.push(childChapter)
-        i = childChapter.endIndex
-        continue
-      }
-
-      if (nextLevel > level + 1) {
-        content.push(line)
-        i++
-        continue
-      }
+      // Any deeper heading becomes a child chapter, even when levels are
+      // skipped (e.g. "## A" followed by "#### B"). This guarantees EVERY
+      // heading renders as its own ChapterBlock, so it always exposes the
+      // copy / create-task / edit menu instead of being flattened into the
+      // parent markdown content (which has no copy UI).
+      const childChapter = parseChapter(lines, i)
+      children.push(childChapter)
+      i = childChapter.endIndex
+      continue
     }
 
     content.push(line)

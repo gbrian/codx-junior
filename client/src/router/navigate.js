@@ -81,9 +81,6 @@ export default function Navigate({ $router, $storex }) {
     desktop: {
       open: () => ({ name: 'codx-junior-split' })
     },
-    mobile: {
-      open: () => ({ name: 'mobile' })
-    },
     home: {
       open: () => homeLocation()
     }
@@ -100,7 +97,7 @@ export default function Navigate({ $router, $storex }) {
   //     apps can stay open at once as side-by-side panels.
   //
   //   • Single mode  → EVERY other route (chats, kanban, messenger, wiki,
-  //     file-explorer, mobile…). ONE app at a time, addressed only by its
+  //     file-explorer, activity…). ONE app at a time, addressed only by its
   //     route path: opening an app replaces the current one.
   //
   // openApp() reads this to decide between creating a panel and pushing a
@@ -169,10 +166,6 @@ export default function Navigate({ $router, $storex }) {
     get isDesktopMode() {
       // Mode is derived from the route - single source of truth.
       return isDesktopMode()
-    },
-
-    get isMobileMode() {
-      return $router.currentRoute.value.name === 'mobile'
     },
 
     get isChatView() {
@@ -332,21 +325,11 @@ export default function Navigate({ $router, $storex }) {
         return true
       }
 
-      // ── Standalone routes with name (opt-out of mobile/desktop redirect) ─
-      if (!!to.name) {
-        return true
-      }
-
-      // ── Mobile redirect ──────────────────────────────────────────
-      if ($storex.ui.isMobile && to.name !== 'mobile') {
-        return { name: 'mobile', replace: true }
-      }
-
-      // ── Desktop: redirect /mobile → home ─────────────────────────
-      if (!$storex.ui.isMobile && to.name === 'mobile') {
-        return { ...homeLocation(), replace: true }
-      }
-
+      // ── Any other named route renders as-is ──────────────────────
+      // Single mode (every route except ".../desktop") shows one app at a
+      // time; desktop mode is the dockview workspace. The active route is the
+      // single source of truth for which mode we are in (see isDesktopMode
+      // above), so there is nothing left to redirect here.
       return true
     },
 
@@ -549,10 +532,6 @@ export default function Navigate({ $router, $storex }) {
         openApp('planning')
       },
 
-      openMobile() {
-        $router.push(routes.mobile.open())
-      },
-
       openFileExplorer() {
         openApp('file-explorer')
       },
@@ -569,10 +548,6 @@ export default function Navigate({ $router, $storex }) {
 
       openViews() {
         console.warn('[Navigation] openViews: no Views route yet')
-      },
-
-      openProfiles() {
-        openApp('profiles')
       },
 
       openKnowledge() {

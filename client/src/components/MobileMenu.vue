@@ -30,14 +30,6 @@ import ProjectDetailt from './ProjectDetailt.vue'
         </a>
 
         <a class="click flex items-center gap-4 py-2 hover:bg-base-100 w-full"
-          v-if="$users.isProjectAdmin"
-          :class="!$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'text-primary': '')"
-          @click="handleProjectToolClick('profiles')">
-          <i class="fa-solid fa-user-group"></i>
-          <span>Profiles</span>
-        </a>
-
-        <a class="click flex items-center gap-4 py-2 hover:bg-base-100 w-full"
           :class="!$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'text-primary': '')"
           @click="handleProjectToolClick('file-finder')">
           <i class="fa-solid fa-folder"></i>

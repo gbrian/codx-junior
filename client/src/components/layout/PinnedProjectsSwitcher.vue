@@ -37,7 +37,7 @@
         <i v-else class="fa-solid fa-cube w-5 text-center shrink-0"></i>
 
         <template v-if="!isCollapsed">
-          <span class="truncate flex-1 text-left">{{ project.project_name }}</span>
+          <span class="truncate flex-1 min-w-0 text-left">{{ project.project_name }}</span>
 
           <!-- Unpin (kept out of the layout flow of the icon rail) -->
           <span

@@ -39,13 +39,15 @@ const router = createRouter({
       // project-scoped home ("/:projectName") as soon as a project is active.
       path: '/',
       name: 'root',
-      component: QuickChatView
+      component: AppRouteView,
+      meta: { app: 'activity' }
     },
     {
       // Home (project launcher)
       path: '/:projectName',
       name: 'home',
-      component: QuickChatView
+      component: AppRouteView,
+      meta: { app: 'activity' }
     },
     {
       // Chat routes: router mode
@@ -127,9 +129,7 @@ const router = createRouter({
     { path: '/:projectName/docs', name: 'docs', component: AppRouteView, meta: { app: 'docs' } },
     { path: '/:projectName/knowledge', name: 'knowledge', component: AppRouteView, meta: { app: 'knowledge' } },
     { path: '/:projectName/knowledge-settings', name: 'knowledge-settings', component: AppRouteView, meta: { app: 'knowledge_settings' } },
-    { path: '/:projectName/profiles', name: 'profiles', component: AppRouteView, meta: { app: 'profiles' } },
     { path: '/:projectName/projects', name: 'projects', component: AppRouteView, meta: { app: 'projects' } },
-    { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity' } },
     { path: '/:projectName/settings', name: 'settings', component: AppRouteView, meta: { app: 'settings' } },
     { path: '/:projectName/global-settings', name: 'global-settings', component: AppRouteView, meta: { app: 'global-settings' } },
     { path: '/:projectName/account', name: 'account', component: AppRouteView, meta: { app: 'account' } },

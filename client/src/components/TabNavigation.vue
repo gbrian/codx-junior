@@ -23,12 +23,6 @@
       <i class="fa-solid fa-folder"></i> 
       <span class="hidden lg:inline">Files</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', 
-      disableProjectTabs && 'tab-disabled',
-      ($ui.activeTab === 'profiles') ? 'tab-active font-bold' : '']" 
-      @click="setActiveTab('profiles')">
-      <i class="fa-solid fa-circle-user"></i> <span class="hidden lg:inline">Profiles</span>
-    </a>
     
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',

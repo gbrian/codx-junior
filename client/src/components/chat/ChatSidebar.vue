@@ -8,7 +8,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 
 <template>
   <div :class="[
-    'border-r-2 border-base-300 flex flex-col h-full overflow-hidden relative transition-all duration-200',
+    'border-r-2 border-l-2 border-base-300 flex flex-col h-full overflow-hidden relative transition-all duration-200',
     isCompact ? 'w-16 md:w-16' : 'w-64 md:w-64',
     $ui?.isMobile && !isCompact ? 'shadow-lg z-40' : ''
   ]"

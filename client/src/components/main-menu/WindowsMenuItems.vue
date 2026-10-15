@@ -22,7 +22,10 @@ import SettingsMenu from './SettingsMenu.vue'
   </div>
 
   <!-- Apps grid -->
-  <div class="p-2 overflow-y-auto max-h-[360px] grid grid-cols-2 gap-1 text-sm">
+  <div
+    class="p-2 grid grid-cols-2 gap-1 text-sm"
+    :class="mobile ? '' : 'overflow-y-auto max-h-[360px]'"
+  >
     <MenubarItem
       v-for="item in filteredItems"
       :key="item.action"
@@ -57,6 +60,11 @@ import SettingsMenu from './SettingsMenu.vue'
 
 <script>
 export default {
+  props: {
+    // Mobile layout: drop the internal max-height/scroll so the whole
+    // WindowsMenu sheet scrolls as a single unit instead of nested areas.
+    mobile: { type: Boolean, default: false }
+  },
   emits: ['close'],
   data() {
     return {

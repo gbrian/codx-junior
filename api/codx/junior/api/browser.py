@@ -8,23 +8,24 @@ REST Endpoints:
     POST   /api/browsers              - Create new session
     GET    /api/browsers/<session_id> - Get session details
     DELETE /api/browsers/<session_id> - Stop & delete session
-    POST   /api/browsers/<session_id>/action    - Execute browser action
+    POST   /api/browsers/<session_id>/action     - Execute browser action
     POST   /api/browsers/<session_id>/screenshot - Take screenshot
     GET    /api/browsers/<session_id>/source     - Get page source
     POST   /api/browsers/<session_id>/restart    - Restart session
+    POST   /api/browsers/<session_id>/stop       - Stop session (keep container)
 
-Socket.IO Events (Real-time operations with status updates):
+Socket.IO Events (real-time status updates for long-running operations):
     codx-junior-browser-create   - Create session with progress
     codx-junior-browser-delete   - Delete session with progress
     codx-junior-browser-restart  - Restart session with progress
     codx-junior-browser-stop     - Stop session with progress
-    
+
     Emits: codx-junior-browser-status with {status, session_id, message, error, session}
 """
 
 import logging
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Request, status
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Request, status
 
 from codx.junior.engine.session import CODXJuniorSession
 from codx.junior.sio.sio import sio, sio_api_endpoint
@@ -44,20 +45,40 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/browsers", tags=["browser"])
 
+BROWSER_STATUS_EVENT = "codx-junior-browser-status"
 
 # ============================================================================
-# Dependencies
+# Helpers
 # ============================================================================
 
 async def get_session_context(request: Request) -> CODXJuniorSession:
-    """Dependency: get current session context from request state."""
+    """Dependency: get the current session context from request state."""
     session = getattr(request.state, 'codx_junior_session', None)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No active session"
+            detail="No active session",
         )
     return session
+
+
+def _browser_manager(session: CODXJuniorSession):
+    """
+    Return a BrowserManager for the session.
+
+    Reuses ``session.browser_manager`` when present so a long-lived manager can
+    be injected, otherwise constructs one from the project settings.
+    """
+    manager = getattr(session, "browser_manager", None)
+    if manager:
+        return manager
+    from codx.junior.browser.browser_manager import BrowserManager
+    return BrowserManager(session.settings)
+
+
+def _emit(channel: SessionChannel, payload: dict) -> None:
+    """Send a browser status event (keeps the ts-stamping in one place)."""
+    channel.send_event(BROWSER_STATUS_EVENT, payload)
 
 
 # ============================================================================
@@ -72,27 +93,16 @@ async def get_session_context(request: Request) -> CODXJuniorSession:
         200: {"description": "List of browser sessions"},
         401: {"description": "Unauthorized"},
         500: {"description": "Server error"},
-    }
+    },
 )
 async def list_sessions(request: Request):
-    """
-    List all browser sessions for the current project.
-
-    Returns:
-        BrowserSessionListResponse with count and list of sessions
-    """
+    """List all browser sessions for the current project."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         sessions = browser_manager.list_sessions()
-        responses = [
-            BrowserSessionResponse(**s.to_dict())
-            for s in sessions
-        ]
+        responses = [BrowserSessionResponse(**s.to_dict()) for s in sessions]
         logger.info("list_sessions: returned %d browser sessions", len(sessions))
         return BrowserSessionListResponse(count=len(responses), sessions=responses)
     except HTTPException:
@@ -112,50 +122,38 @@ async def list_sessions(request: Request):
         400: {"description": "Invalid request"},
         401: {"description": "Unauthorized"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def create_session(
-    request: Request,
-    req: BrowserSessionCreateRequest,
-):
+async def create_session(request: Request, req: BrowserSessionCreateRequest):
     """
     Create and start a new browser session.
 
-    Starts a Firefox Docker container with Traefik routing and persistent profile.
-
-    Args:
-        req: BrowserSessionCreateRequest with chat_id
-
-    Returns:
-        BrowserSessionResponse with session details or error dict
+    Starts a Firefox Docker container with Traefik routing and a persistent profile.
+    The session is named (``req.name``) and optionally connected to ``req.chat_id``.
+    Multiple chats may connect to the same session.
     """
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
-        # Validate chat exists
-        chat_manager = ChatManager(session.settings)
-        chat = chat_manager.find_by_id(req.chat_id)
-        if not chat:
-            logger.error("create_session: chat not found: %s", req.chat_id)
-            raise HTTPException(status_code=404, detail="Chat not found")
+        browser_manager = _browser_manager(session)
 
-        # Create browser session
-        browser_session = browser_manager.create_session(req.chat_id)
+        browser_session = browser_manager.create_session(name=req.name, chat_id=req.chat_id)
 
-        # Sync to chat metadata
-        browser_manager.save_session_to_chat(browser_session, chat)
-        chat_manager.save_chat(chat)
+        if req.chat_id:
+            chat_manager = ChatManager(session.settings)
+            chat = chat_manager.find_by_id(req.chat_id)
+            if not chat:
+                logger.error("create_session: chat not found: %s", req.chat_id)
+                raise HTTPException(status_code=404, detail="Chat not found")
+
+            browser_manager.save_session_to_chat(browser_session, chat)
+            chat_manager.save_chat(chat)
 
         logger.info(
-            "create_session: created browser session %s for chat %s",
+            "create_session: created browser session %s ('%s') for chat %s",
             browser_session.id[:8],
-            req.chat_id
+            browser_session.name,
+            req.chat_id,
         )
-
         return BrowserSessionResponse(**browser_session.to_dict())
 
     except HTTPException:
@@ -174,28 +172,14 @@ async def create_session(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def get_session(
-    request: Request,
-    session_id: str,
-):
-    """
-    Get details for a specific browser session.
-
-    Args:
-        session_id: Session ID
-
-    Returns:
-        BrowserSessionResponse with session details or error dict
-    """
+async def get_session(request: Request, session_id: str):
+    """Get details for a specific browser session."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             logger.error("get_session: session not found: %s", session_id)
@@ -220,28 +204,14 @@ async def get_session(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def delete_session(
-    request: Request,
-    session_id: str,
-):
-    """
-    Stop Docker container and delete a browser session.
-
-    Args:
-        session_id: Session ID to delete
-
-    Returns:
-        Empty response on success, error dict on failure
-    """
+async def delete_session(request: Request, session_id: str):
+    """Stop the Docker container and delete a browser session."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             logger.error("delete_session: session not found: %s", session_id)
@@ -266,33 +236,19 @@ async def delete_session(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def restart_session(
-    request: Request,
-    session_id: str,
-):
-    """
-    Restart a stopped browser session (preserves Firefox profile).
-
-    Args:
-        session_id: Session ID to restart
-
-    Returns:
-        Updated BrowserSessionResponse or error dict
-    """
+async def restart_session(request: Request, session_id: str):
+    """Restart a stopped browser session (preserves the Firefox profile)."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = await browser_manager.restart_session(session_id)
         if not browser_session:
             logger.error("restart_session: session not found: %s", session_id)
             raise HTTPException(status_code=404, detail="Session not found")
-        
+
         logger.info("restart_session: restarted session %s", session_id[:8])
         return BrowserSessionResponse(**browser_session.to_dict())
 
@@ -300,6 +256,38 @@ async def restart_session(
         raise
     except Exception as e:
         logger.exception("restart_session: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/stop",
+    response_model=BrowserSessionResponse,
+    summary="Stop a session (keep container)",
+    responses={
+        200: {"description": "Session stopped"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Session not found"},
+        500: {"description": "Server error"},
+    },
+)
+async def stop_session(request: Request, session_id: str):
+    """Stop the container but keep it so it can be restarted later."""
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+
+        browser_session = browser_manager.stop_session(session_id)
+        if not browser_session:
+            logger.error("stop_session: session not found: %s", session_id)
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        logger.info("stop_session: stopped session %s", session_id[:8])
+        return BrowserSessionResponse(**browser_session.to_dict())
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("stop_session: unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -313,30 +301,14 @@ async def restart_session(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def execute_action(
-    request: Request,
-    session_id: str,
-    req: BrowserSessionActionRequest,
-):
-    """
-    Execute a browser action (navigate, click, fill, execute script).
-
-    Args:
-        session_id: Session ID
-        req: BrowserSessionActionRequest with action details
-
-    Returns:
-        BrowserActionResponse with result or error dict
-    """
+async def execute_action(request: Request, session_id: str, req: BrowserSessionActionRequest):
+    """Execute a browser action (navigate, click, fill, execute, text)."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             logger.error("execute_action: session not found: %s", session_id)
@@ -345,92 +317,52 @@ async def execute_action(
         if browser_session.status != "running":
             logger.error(
                 "execute_action: session not running: %s (status=%s)",
-                session_id,
-                browser_session.status
+                session_id, browser_session.status,
             )
             raise HTTPException(
                 status_code=400,
-                detail=f"Session not running (status: {browser_session.status})"
+                detail=f"Session not running (status: {browser_session.status})",
             )
 
-        # Connect to browser
         browser = await browser_manager.connect_browser(browser_session)
-
         try:
-            if req.action == "navigate":
+            action = (req.action or "").lower()
+
+            if action == "navigate":
                 if not req.url:
-                    logger.error("execute_action: navigate action missing URL")
                     raise HTTPException(400, "URL required for navigate action")
                 title = await browser.navigate(req.url)
-                browser_session.mark_active()
-                browser_manager.save_session(browser_session)
-                logger.info(
-                    "execute_action: navigate action completed for session %s to %s",
-                    session_id[:8],
-                    req.url
-                )
-                return BrowserActionResponse(
-                    success=True,
-                    message=f"Navigated to {req.url}",
-                    data={"title": title, "url": req.url}
-                )
+                message, data = f"Navigated to {req.url}", {"title": title, "url": req.url}
 
-            elif req.action == "click":
+            elif action == "click":
                 if not req.selector:
-                    logger.error("execute_action: click action missing selector")
                     raise HTTPException(400, "Selector required for click action")
                 await browser.click(req.selector)
-                browser_session.mark_active()
-                browser_manager.save_session(browser_session)
-                logger.info(
-                    "execute_action: click action completed for session %s on %s",
-                    session_id[:8],
-                    req.selector
-                )
-                return BrowserActionResponse(
-                    success=True,
-                    message=f"Clicked {req.selector}",
-                    data={"selector": req.selector}
-                )
+                message, data = f"Clicked {req.selector}", {"selector": req.selector}
 
-            elif req.action == "fill":
-                if not req.selector or not req.value:
-                    logger.error("execute_action: fill action missing selector or value")
+            elif action == "fill":
+                if not req.selector or req.value is None:
                     raise HTTPException(400, "Selector and value required for fill action")
                 await browser.fill(req.selector, req.value)
-                browser_session.mark_active()
-                browser_manager.save_session(browser_session)
-                logger.info(
-                    "execute_action: fill action completed for session %s on %s",
-                    session_id[:8],
-                    req.selector
-                )
-                return BrowserActionResponse(
-                    success=True,
-                    message=f"Filled {req.selector}",
-                    data={"selector": req.selector, "value": req.value}
-                )
+                message, data = f"Filled {req.selector}", {"selector": req.selector, "value": req.value}
 
-            elif req.action == "execute":
+            elif action == "execute":
                 if not req.script:
-                    logger.error("execute_action: execute action missing script")
                     raise HTTPException(400, "Script required for execute action")
                 result = await browser.execute_script(req.script)
-                browser_session.mark_active()
-                browser_manager.save_session(browser_session)
-                logger.info(
-                    "execute_action: execute action completed for session %s",
-                    session_id[:8]
-                )
-                return BrowserActionResponse(
-                    success=True,
-                    message="Script executed",
-                    data={"result": result}
-                )
+                message, data = "Script executed", {"result": result}
+
+            elif action in ("text", "read"):
+                text = await browser.get_text()
+                message, data = "Page text read", {"text": text}
 
             else:
-                logger.error("execute_action: unknown action: %s", req.action)
                 raise HTTPException(400, f"Unknown action: {req.action}")
+
+            browser_session.mark_active()
+            browser_manager.save_session(browser_session)
+            logger.info("execute_action: '%s' completed for session %s", action, session_id[:8])
+            return BrowserActionResponse(success=True, message=message, data=data)
 
         finally:
             await browser.close()
@@ -451,45 +383,27 @@ async def execute_action(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def take_screenshot(
-    request: Request,
-    session_id: str,
-):
-    """
-    Take a screenshot of the current page.
-
-    Args:
-        session_id: Session ID
-
-    Returns:
-        BrowserScreenshotResponse with base64 PNG data or error response
-    """
+async def take_screenshot(request: Request, session_id: str):
+    """Take a screenshot of the current page."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             logger.error("take_screenshot: session not found: %s", session_id)
-            return BrowserScreenshotResponse(
-                success=False,
-                error="Session not found"
-            )
+            return BrowserScreenshotResponse(success=False, error="Session not found")
 
         if browser_session.status != "running":
             logger.error(
                 "take_screenshot: session not running: %s (status=%s)",
-                session_id,
-                browser_session.status
+                session_id, browser_session.status,
             )
             return BrowserScreenshotResponse(
                 success=False,
-                error=f"Session not running (status: {browser_session.status})"
+                error=f"Session not running (status: {browser_session.status})",
             )
 
         browser = await browser_manager.connect_browser(browser_session)
@@ -516,45 +430,27 @@ async def take_screenshot(
         401: {"description": "Unauthorized"},
         404: {"description": "Session not found"},
         500: {"description": "Server error"},
-    }
+    },
 )
-async def get_source(
-    request: Request,
-    session_id: str,
-):
-    """
-    Get the current page HTML source code.
-
-    Args:
-        session_id: Session ID
-
-    Returns:
-        BrowserSourceResponse with HTML content or error response
-    """
+async def get_source(request: Request, session_id: str):
+    """Get the current page HTML source code."""
     try:
         session = await get_session_context(request)
-        browser_manager = session.browser_manager if hasattr(session, 'browser_manager') else None
-        if not browser_manager:
-            from codx.junior.browser.browser_manager import BrowserManager
-            browser_manager = BrowserManager(session.settings)
-        
+        browser_manager = _browser_manager(session)
+
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             logger.error("get_source: session not found: %s", session_id)
-            return BrowserSourceResponse(
-                success=False,
-                error="Session not found"
-            )
+            return BrowserSourceResponse(success=False, error="Session not found")
 
         if browser_session.status != "running":
             logger.error(
                 "get_source: session not running: %s (status=%s)",
-                session_id,
-                browser_session.status
+                session_id, browser_session.status,
             )
             return BrowserSourceResponse(
                 success=False,
-                error=f"Session not running (status: {browser_session.status})"
+                error=f"Session not running (status: {browser_session.status})",
             )
 
         browser = await browser_manager.connect_browser(browser_session)
@@ -574,318 +470,185 @@ async def get_source(
 
 
 # ============================================================================
-# Socket.IO Events (Long-running operations with real-time updates)
+# Socket.IO Events (long-running operations with real-time updates)
 # ============================================================================
 
 @sio.on("codx-junior-browser-create")
 @sio_api_endpoint
 async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJuniorSession):
     """
-    Create a new browser session via Socket.IO.
-    Sends real-time status updates as the session starts.
-    
-    Socket.IO Event: codx-junior-browser-create
-    
-    Request data:
-        - chat_id: str - Associated chat ID
-    
-    Emits events:
-        - codx-junior-browser-status: {status, session_id, message, error, session}
+    Create a new browser session via Socket.IO, emitting status updates.
+
+    Request data: ``name`` (str, required) · ``chat_id`` (str, optional) ·
+    ``codx_path`` (str, injected by the client).
+    Emits: ``codx-junior-browser-status`` {status, session_id, message, error, session}.
     """
     channel = SessionChannel(sio=sio, sid=sid)
     chat_id = data.get("chat_id")
-    
-    if not chat_id:
-        logger.error("sio_browser_create: chat_id is required")
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "message": "chat_id is required",
-            "error": "Missing chat_id"
-        })
+    name = data.get("name")
+
+    if not codxjunior_session:
+        _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
         return
-    
+    if not name:
+        _emit(channel, {"status": "error", "message": "name is required", "error": "Missing name"})
+        return
+
     try:
-        from codx.junior.browser.browser_manager import BrowserManager
-        
-        # Validate chat exists
-        chat_manager = ChatManager(codxjunior_session.settings)
-        chat = chat_manager.find_by_id(chat_id)
-        if not chat:
-            logger.error("sio_browser_create: chat not found: %s", chat_id)
-            channel.send_event("codx-junior-browser-status", {
-                "status": "error",
-                "message": "Chat not found",
-                "error": f"Chat {chat_id} not found"
-            })
-            return
-        
-        # Emit starting event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "starting",
-            "message": "Creating browser session...",
-            "chat_id": chat_id
-        })
-        
-        # Create browser session
-        browser_manager = BrowserManager(codxjunior_session.settings)
-        browser_session = browser_manager.create_session(chat_id)
-        
-        # Emit creation event
-        channel.send_event("codx-junior-browser-status", {
+        chat = None
+        if chat_id:
+            chat_manager = ChatManager(codxjunior_session.settings)
+            chat = chat_manager.find_by_id(chat_id)
+            if not chat:
+                _emit(channel, {"status": "error", "message": "Chat not found", "error": f"Chat {chat_id} not found"})
+                return
+
+        _emit(channel, {"status": "starting", "message": "Creating browser session...", "name": name, "chat_id": chat_id})
+
+        browser_manager = codxjunior_session.get_browser_manager()
+        browser_session = browser_manager.create_session(name=name, chat_id=chat_id)
+
+        _emit(channel, {
             "status": "created",
             "session_id": browser_session.id,
-            "message": f"Browser session {browser_session.id[:8]} created",
-            "session": browser_session.to_dict()
+            "name": browser_session.name,
+            "message": f"Browser session '{browser_session.name}' ({browser_session.id[:8]}) created",
+            "session": browser_session.to_dict(),
         })
-        
-        # Emit starting container event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "starting_container",
-            "session_id": browser_session.id,
-            "message": "Starting Docker container...",
-            "container_id": browser_session.container_id
-        })
-        
-        # Sync to chat metadata
-        browser_manager.save_session_to_chat(browser_session, chat)
-        chat_manager.save_chat(chat)
-        
-        # Emit ready event
-        channel.send_event("codx-junior-browser-status", {
+
+        if chat:
+            browser_manager.save_session_to_chat(browser_session, chat)
+            ChatManager(codxjunior_session.settings).save_chat(chat)
+
+        _emit(channel, {
             "status": "ready",
             "session_id": browser_session.id,
-            "message": f"Browser session ready",
-            "session": browser_session.to_dict()
+            "name": browser_session.name,
+            "message": "Browser session ready",
+            "session": browser_session.to_dict(),
         })
-        
-        logger.info(
-            "sio_browser_create: created session %s for chat %s",
-            browser_session.id[:8],
-            chat_id
-        )
-        
+        logger.info("sio_browser_create: created session %s for chat %s", browser_session.id[:8], chat_id)
+
     except Exception as e:
         logger.exception("sio_browser_create: unexpected error: %s", e)
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "message": "Failed to create browser session",
-            "error": str(e)
-        })
+        _emit(channel, {"status": "error", "message": "Failed to create browser session", "error": str(e)})
 
 
 @sio.on("codx-junior-browser-delete")
 @sio_api_endpoint
 def sio_browser_delete(sid: str, data: dict, codxjunior_session: CODXJuniorSession):
     """
-    Delete a browser session via Socket.IO.
-    Sends real-time status updates as the session stops.
-    
-    Socket.IO Event: codx-junior-browser-delete
-    
-    Request data:
-        - session_id: str - Session ID to delete
-    
-    Emits events:
-        - codx-junior-browser-status: {status, session_id, message, error}
+    Delete a browser session via Socket.IO, emitting status updates.
+
+    Request data: ``session_id`` (str).
+    Emits: ``codx-junior-browser-status``.
     """
     channel = SessionChannel(sio=sio, sid=sid)
     session_id = data.get("session_id")
-    
-    if not session_id:
-        logger.error("sio_browser_delete: session_id is required")
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "message": "session_id is required",
-            "error": "Missing session_id"
-        })
+
+    if not codxjunior_session:
+        _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
         return
-    
+    if not session_id:
+        _emit(channel, {"status": "error", "message": "session_id is required", "error": "Missing session_id"})
+        return
+
     try:
-        from codx.junior.browser.browser_manager import BrowserManager
-        
-        browser_manager = BrowserManager(codxjunior_session.settings)
-        
-        # Emit stopping event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "stopping",
-            "session_id": session_id,
-            "message": "Stopping browser session..."
-        })
-        
-        browser_session = browser_manager.get_session(session_id)
-        if not browser_session:
-            logger.error("sio_browser_delete: session not found: %s", session_id)
-            channel.send_event("codx-junior-browser-status", {
-                "status": "error",
-                "session_id": session_id,
-                "message": "Session not found",
-                "error": f"Session {session_id} not found"
-            })
+        browser_manager = codxjunior_session.get_browser_manager()
+
+        _emit(channel, {"status": "stopping", "session_id": session_id, "message": "Stopping browser session..."})
+
+        if not browser_manager.get_session(session_id):
+            _emit(channel, {"status": "error", "session_id": session_id, "message": "Session not found", "error": f"Session {session_id} not found"})
             return
-        
-        # Delete session
+
         browser_manager.delete_session(session_id)
-        
-        # Emit deleted event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "deleted",
-            "session_id": session_id,
-            "message": f"Browser session {session_id[:8]} deleted"
-        })
-        
+        _emit(channel, {"status": "deleted", "session_id": session_id, "message": f"Browser session {session_id[:8]} deleted"})
         logger.info("sio_browser_delete: deleted session %s", session_id[:8])
-        
+
     except Exception as e:
         logger.exception("sio_browser_delete: unexpected error: %s", e)
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "session_id": session_id,
-            "message": "Failed to delete browser session",
-            "error": str(e)
-        })
+        _emit(channel, {"status": "error", "session_id": session_id, "message": "Failed to delete browser session", "error": str(e)})
 
 
 @sio.on("codx-junior-browser-restart")
 @sio_api_endpoint
 async def sio_browser_restart(sid: str, data: dict, codxjunior_session: CODXJuniorSession):
     """
-    Restart a browser session via Socket.IO.
-    Sends real-time status updates as the session restarts.
-    
-    Socket.IO Event: codx-junior-browser-restart
-    
-    Request data:
-        - session_id: str - Session ID to restart
-    
-    Emits events:
-        - codx-junior-browser-status: {status, session_id, message, error, session}
+    Restart a browser session via Socket.IO, emitting status updates.
+
+    Request data: ``session_id`` (str).
+    Emits: ``codx-junior-browser-status``.
     """
     channel = SessionChannel(sio=sio, sid=sid)
     session_id = data.get("session_id")
-    
-    if not session_id:
-        logger.error("sio_browser_restart: session_id is required")
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "message": "session_id is required",
-            "error": "Missing session_id"
-        })
+
+    if not codxjunior_session:
+        _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
         return
-    
+    if not session_id:
+        _emit(channel, {"status": "error", "message": "session_id is required", "error": "Missing session_id"})
+        return
+
     try:
-        from codx.junior.browser.browser_manager import BrowserManager
-        
-        browser_manager = BrowserManager(codxjunior_session.settings)
-        
-        # Emit restarting event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "restarting",
-            "session_id": session_id,
-            "message": "Restarting browser session..."
-        })
-        
+        browser_manager = codxjunior_session.get_browser_manager()
+
+        _emit(channel, {"status": "restarting", "session_id": session_id, "message": "Restarting browser session..."})
+
         browser_session = await browser_manager.restart_session(session_id)
         if not browser_session:
-            logger.error("sio_browser_restart: session not found: %s", session_id)
-            channel.send_event("codx-junior-browser-status", {
-                "status": "error",
-                "session_id": session_id,
-                "message": "Session not found",
-                "error": f"Session {session_id} not found"
-            })
+            _emit(channel, {"status": "error", "session_id": session_id, "message": "Session not found", "error": f"Session {session_id} not found"})
             return
-        
-        # Emit ready event
-        channel.send_event("codx-junior-browser-status", {
+
+        _emit(channel, {
             "status": "ready",
             "session_id": session_id,
+            "name": browser_session.name,
             "message": f"Browser session {session_id[:8]} restarted",
-            "session": browser_session.to_dict()
+            "session": browser_session.to_dict(),
         })
-        
         logger.info("sio_browser_restart: restarted session %s", session_id[:8])
-        
+
     except Exception as e:
         logger.exception("sio_browser_restart: unexpected error: %s", e)
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "session_id": session_id,
-            "message": "Failed to restart browser session",
-            "error": str(e)
-        })
+        _emit(channel, {"status": "error", "session_id": session_id, "message": "Failed to restart browser session", "error": str(e)})
 
 
 @sio.on("codx-junior-browser-stop")
 @sio_api_endpoint
 def sio_browser_stop(sid: str, data: dict, codxjunior_session: CODXJuniorSession):
     """
-    Stop a browser session (without deleting) via Socket.IO.
-    Sends real-time status updates as the session stops.
-    
-    Socket.IO Event: codx-junior-browser-stop
-    
-    Request data:
-        - session_id: str - Session ID to stop
-    
-    Emits events:
-        - codx-junior-browser-status: {status, session_id, message, error}
+    Stop a browser session (without deleting) via Socket.IO, emitting status updates.
+
+    Request data: ``session_id`` (str).
+    Emits: ``codx-junior-browser-status``.
     """
     channel = SessionChannel(sio=sio, sid=sid)
     session_id = data.get("session_id")
-    
-    if not session_id:
-        logger.error("sio_browser_stop: session_id is required")
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "message": "session_id is required",
-            "error": "Missing session_id"
-        })
+
+    if not codxjunior_session:
+        _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
         return
-    
+    if not session_id:
+        _emit(channel, {"status": "error", "message": "session_id is required", "error": "Missing session_id"})
+        return
+
     try:
-        from codx.junior.browser.browser_manager import BrowserManager
-        
-        browser_manager = BrowserManager(codxjunior_session.settings)
-        
-        # Emit stopping event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "stopping",
-            "session_id": session_id,
-            "message": "Stopping browser session..."
-        })
-        
-        browser_session = browser_manager.get_session(session_id)
+        browser_manager = codxjunior_session.get_browser_manager()
+
+        _emit(channel, {"status": "stopping", "session_id": session_id, "message": "Stopping browser session..."})
+
+        browser_session = browser_manager.stop_session(session_id)
         if not browser_session:
-            logger.error("sio_browser_stop: session not found: %s", session_id)
-            channel.send_event("codx-junior-browser-status", {
-                "status": "error",
-                "session_id": session_id,
-                "message": "Session not found",
-                "error": f"Session {session_id} not found"
-            })
+            _emit(channel, {"status": "error", "session_id": session_id, "message": "Session not found", "error": f"Session {session_id} not found"})
             return
-        
-        # Stop the browser container
-        if hasattr(browser_manager, 'stop_session'):
-            browser_manager.stop_session(session_id)
-        
-        # Emit stopped event
-        channel.send_event("codx-junior-browser-status", {
-            "status": "stopped",
-            "session_id": session_id,
-            "message": f"Browser session {session_id[:8]} stopped"
-        })
-        
+
+        _emit(channel, {"status": "stopped", "session_id": session_id, "message": f"Browser session {session_id[:8]} stopped"})
         logger.info("sio_browser_stop: stopped session %s", session_id[:8])
-        
+
     except Exception as e:
         logger.exception("sio_browser_stop: unexpected error: %s", e)
-        channel.send_event("codx-junior-browser-status", {
-            "status": "error",
-            "session_id": session_id,
-            "message": "Failed to stop browser session",
-            "error": str(e)
-        })
+        _emit(channel, {"status": "error", "session_id": session_id, "message": "Failed to stop browser session", "error": str(e)})
 
 
 # Made with ❤️ by codx-junior

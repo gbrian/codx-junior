@@ -17,7 +17,6 @@ const createState = () => ({
   selectedLog: null,
   autoRefresh: false,
   changesSummary: null,
-  selectedProfile: null,
   project_branches: {},
   projectLoading: false,
   knowledge: null,
@@ -407,9 +406,6 @@ export const mutations = mutationTree(state, {
   setFormatedLogs(state, formatedLogs) {
     state.formatedLogs = formatedLogs
   },
-  setSelectedProfile(state, profile) {
-    state.selectedProfile = profile
-  },
   setProjectLoading(state, value) {
     state.projectLoading = value
   },
@@ -710,11 +706,6 @@ export const actions = actionTree(
       const data = await API.knowledge.status()
       state.knowledge = data
     },
-    async loadProfiles({ state }) {
-      // Always fetch fresh profiles for the active project (used by the
-      // "reload profiles" action and after saving/deleting a profile).
-      await $storex.profiles.loadProjectProfiles({ project: state.activeProject, force: true })
-    },
     async loadBranches({ state }, project) {
       const projectState = project?.$state || state
       const api = project?.$api || $storex.api
@@ -915,25 +906,6 @@ export const actions = actionTree(
       targetProject.$state.kanban = dataToSave
     },
     
-    async saveProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      const data = await $storex.profiles.saveProfile({ profile, project })
-      await $storex.projects.loadProfiles()
-      if (state.selectedProfile.name === data.name) {
-        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
-      }      
-    },
-    async deleteProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      if (profile.name === state.selectedProfile?.name) {
-        state.selectedProfile = null
-      }
-      // The profiles store forces a reload after deleting, so the list is refreshed here.
-      await $storex.profiles.deleteProfile({ profile, project })
-    },
-    createNewProfile({ state }, profile) {
-      state.selectedProfile = profile
-    },
     async addBoard({ _ }, { title, parent_id, description, columns }) {
       if (!$storex.projects.kanban) {
         await $storex.projects.loadKanban()

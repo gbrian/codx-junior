@@ -2,7 +2,7 @@ import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
 import moment from 'moment'
-import { isMultiInstance } from '../config/apps'
+import { APPS, isMultiInstance } from '../config/apps'
 
 export const namespaced = true
 
@@ -138,6 +138,37 @@ function applyAppParams(app, params, panel = null) {
 
   // Save the view so the change is kept for next time.
   $storex.views.onLayoutChanged()
+}
+
+// Resolve the app registry definition for an app object. Apps are looked up by
+// their registry id first, then by the plain `key` (e.g. "tasks", "planning"),
+// and only then by the shared component — which is how derived, per-instance
+// keys such as "tasks-<board>" or "chat-<id>" find their definition.
+function appDefinition(app) {
+  if (!app) return null
+  return APPS[app.id] ||
+    APPS[app.key] ||
+    Object.values(APPS).find(def => def.component === app.component) ||
+    null
+}
+
+// Identity used to decide whether two app objects refer to the SAME open panel.
+//
+//   • Single-instance apps → their `key` (one app = one panel).
+//   • Multi-instance apps → the per-instance key the registry derives from the
+//     params (e.g. Task Manager → "tasks-<board>", one panel per board).
+//
+// Using the registry's per-instance key instead of the stored `key` is what
+// keeps several panels of the same app apart: duplicated Task Manager panels
+// all carry `key: 'tasks'` (only the board differs in their params), so
+// matching on `key` collapsed every board but one on reload.
+function appInstanceKey(app) {
+  if (!app) return null
+  const def = appDefinition(app)
+  if (def?.multiInstance && typeof def.desktopKey === 'function') {
+    return def.desktopKey(app.params || {}) || app.key
+  }
+  return app.key
 }
 
 export const mutations = mutationTree(state, {
@@ -289,15 +320,24 @@ export const mutations = mutationTree(state, {
     app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
 
-    // De-duplication focuses an already-open instance of the SAME app (matching
-    // `key`). A duplicate opts out via `newInstance` so an app that allows
-    // multiple instances (e.g. the Task Manager, one panel per board) can be
-    // opened side by side. Regular opens keep focusing the existing panel.
+    // De-duplication focuses an already-open instance of the SAME app.
+    //
+    // For single-instance apps the identity is `key`. For multi-instance apps
+    // (e.g. the Task Manager, one panel per board) the identity is the
+    // per-instance key derived from the params — matching on `key` alone
+    // collapsed every board but one when a layout holding several Task Manager
+    // panels was restored (syncAppsFromLayout passes each restored panel
+    // through here).
+    const multiInstance = !!appDefinition(app)?.multiInstance
+
     if (!forceNewInstance && state.viewMode !== 'vibe' && !state.isMobile) {
-      // Check if app already exists in openApps state
+      const instanceKey = appInstanceKey(app)
+
+      // Check if the same app instance already exists in openApps state
       const existingApp = Object.values(state.openApps).find(openApp => {
-        if (app.key && openApp.key) {
-          return openApp.key === app.key
+        const existingInstanceKey = appInstanceKey(openApp)
+        if (instanceKey && existingInstanceKey) {
+          return existingInstanceKey === instanceKey
         }
         return openApp.component === app.component &&
               JSON.stringify(openApp.initialParams) === JSON.stringify(app.initialParams)
@@ -312,9 +352,11 @@ export const mutations = mutationTree(state, {
         return
       }
 
-      // Check if panel already exists in Desktop API by checking component and initialParams
+      // Check if panel already exists in Desktop API by checking component and initialParams.
+      // Only meaningful for single-instance apps: a multi-instance app legitimately owns
+      // several panels, so we must never collapse them here.
       const desktopApi = $storex.views._desktopApi
-      if (desktopApi && desktopApi.panels) {
+      if (!multiInstance && desktopApi && desktopApi.panels) {
         const existingPanel = desktopApi.panels.find(panel => {
           if (app.key && panel.key) {
             return panel.key === app.key

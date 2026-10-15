@@ -257,9 +257,21 @@ export const actions = actionTree(
         const desktopApi = $storex.views._desktopApi
         if (!desktopApi) return
 
-        const panel = desktopApi.getPanel(panelId)
-        if (panel) {
+        const panel = desktopApi.getPanel?.(panelId)
+        if (!panel) return
+
+        // A dockview panel is focused through its OWN api (`panel.api.setActive()`);
+        // there is no top-level `desktopApi.setActivePanel`. We try the panel APIs
+        // first and keep the old top-level call as a guarded last resort so this
+        // keeps working regardless of the desktop api version in use.
+        if (typeof panel.api?.setActive === 'function') {
+          panel.api.setActive()
+        } else if (typeof panel.setActive === 'function') {
+          panel.setActive()
+        } else if (typeof desktopApi.setActivePanel === 'function') {
           desktopApi.setActivePanel(panel)
+        } else {
+          console.warn(`[Views] Unable to activate panel ${panelId}: no setActive API available`)
         }
       } catch (error) {
         console.error(`Error activating panel ${panelId}:`, error)

@@ -109,6 +109,18 @@ import SprintBoardModals from './SprintBoardModals.vue'
         chats without a board
       </span>
 
+      <!-- Stats toggle (stats panel is hidden by default) -->
+      <button
+        class="btn btn-ghost btn-xs gap-1.5"
+        :class="showStats ? 'text-primary' : 'text-base-content/40 hover:text-primary'"
+        :aria-pressed="showStats"
+        title="Toggle sprint stats"
+        @click="showStats = !showStats"
+      >
+        <i class="fa-solid fa-chart-simple text-xs"></i>
+        <span class="hidden sm:inline text-xs">Stats</span>
+      </button>
+
       <!-- Search -->
       <label class="input input-sm input-bordered flex items-center gap-2 w-52">
         <i class="fa-solid fa-magnifying-glass text-xs text-base-content/40"></i>
@@ -151,6 +163,93 @@ import SprintBoardModals from './SprintBoardModals.vue'
         {{ formatCoins(totalCost) }}
         <span v-if="totalBudget > 0" class="opacity-60 font-normal">/ {{ formatCoins(totalBudget) }}</span>
       </span>
+    </div>
+
+    <!-- ── Stats panel (hidden by default; toggle in the toolbar) ── -->
+    <div
+      v-if="showStats"
+      class="shrink-0 flex flex-wrap items-stretch gap-3 px-4 py-3 border-b border-base-100 bg-base-200/30"
+    >
+      <!-- Total days (oldest → newest task) -->
+      <div class="flex flex-col justify-center rounded-lg bg-base-200 border border-base-100 px-4 py-2.5 min-w-[8.5rem]">
+        <span class="text-[10px] uppercase tracking-wider text-base-content/40 flex items-center gap-1.5">
+          <i class="fa-solid fa-calendar-day text-primary text-xs"></i> Duration
+        </span>
+        <div class="flex items-baseline gap-1 mt-1">
+          <span class="text-2xl font-bold tabular-nums leading-none">{{ totalDays }}</span>
+          <span class="text-xs text-base-content/40">{{ totalDays === 1 ? 'day' : 'days' }}</span>
+        </div>
+        <span class="text-[10px] text-base-content/40 mt-1" :title="createdRangeTooltip">{{ createdRangeLabel }}</span>
+      </div>
+
+      <!-- Average ticket cost -->
+      <div class="flex flex-col justify-center rounded-lg bg-base-200 border border-base-100 px-4 py-2.5 min-w-[8.5rem]">
+        <span class="text-[10px] uppercase tracking-wider text-base-content/40 flex items-center gap-1.5">
+          <i class="fa-solid fa-coins text-amber-400 text-xs"></i> Avg ticket
+        </span>
+        <div class="flex items-baseline gap-1 mt-1">
+          <span
+            class="text-2xl font-bold tabular-nums leading-none"
+            :class="averageCost > 0 ? 'text-amber-400' : 'text-base-content/30'"
+          >
+            {{ formatCoins(averageCost) }}
+          </span>
+          <span class="text-xs text-base-content/40">cxj</span>
+        </div>
+        <span class="text-[10px] text-base-content/40 mt-1">
+          over {{ totalTasks }} {{ totalTasks === 1 ? 'task' : 'tasks' }}
+        </span>
+      </div>
+
+      <!-- Tasks per user -->
+      <div class="flex flex-col rounded-lg bg-base-200 border border-base-100 px-3 py-2.5 min-w-[15rem] flex-1">
+        <span class="text-[10px] uppercase tracking-wider text-base-content/40 flex items-center gap-1.5">
+          <i class="fa-solid fa-user text-info text-xs"></i> Tasks per user
+          <span class="ml-auto normal-case tracking-normal text-base-content/30">done / total</span>
+        </span>
+        <div v-if="tasksByUser.length" class="flex flex-col gap-1.5 mt-2 max-h-28 overflow-y-auto pr-1">
+          <div v-for="entry in tasksByUser" :key="entry.name" class="flex items-center gap-2">
+            <span
+              class="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-semibold flex items-center justify-center shrink-0"
+            >{{ initial(entry.name) }}</span>
+            <span class="text-xs truncate flex-1 min-w-0" :title="entry.name">{{ entry.name }}</span>
+            <progress
+              class="progress progress-success h-1 w-12 shrink-0"
+              :value="entry.total ? (entry.done / entry.total) * 100 : 0"
+              max="100"
+            ></progress>
+            <span class="text-[10px] tabular-nums text-base-content/50 shrink-0 w-8 text-right">
+              {{ entry.done }}/{{ entry.total }}
+            </span>
+          </div>
+        </div>
+        <span v-else class="text-[11px] text-base-content/30 mt-2 italic">No assignees</span>
+      </div>
+
+      <!-- Tasks per profile -->
+      <div class="flex flex-col rounded-lg bg-base-200 border border-base-100 px-3 py-2.5 min-w-[15rem] flex-1">
+        <span class="text-[10px] uppercase tracking-wider text-base-content/40 flex items-center gap-1.5">
+          <i class="fa-solid fa-user-gear text-secondary text-xs"></i> Tasks per profile
+          <span class="ml-auto normal-case tracking-normal text-base-content/30">done / total</span>
+        </span>
+        <div v-if="tasksByProfile.length" class="flex flex-col gap-1.5 mt-2 max-h-28 overflow-y-auto pr-1">
+          <div v-for="entry in tasksByProfile" :key="entry.name" class="flex items-center gap-2">
+            <span
+              class="w-4 h-4 rounded-full bg-secondary/20 text-secondary text-[9px] font-semibold flex items-center justify-center shrink-0"
+            >{{ initial(entry.name) }}</span>
+            <span class="text-xs truncate flex-1 min-w-0" :title="entry.name">{{ entry.name }}</span>
+            <progress
+              class="progress progress-success h-1 w-12 shrink-0"
+              :value="entry.total ? (entry.done / entry.total) * 100 : 0"
+              max="100"
+            ></progress>
+            <span class="text-[10px] tabular-nums text-base-content/50 shrink-0 w-8 text-right">
+              {{ entry.done }}/{{ entry.total }}
+            </span>
+          </div>
+        </div>
+        <span v-else class="text-[11px] text-base-content/30 mt-2 italic">No profiles</span>
+      </div>
     </div>
 
     <!-- ── Canvas ── -->
@@ -205,7 +304,10 @@ export default {
   emits: ['new-board', 'open-task', 'open-task-window', 'browse-boards', 'edit-board', 'select-board', 'transfer'],
   data() {
     return {
-      searchQuery: ''
+      searchQuery: '',
+      // Sprint stats panel (duration · avg cost · tasks per user/profile).
+      // Hidden by default — the toolbar "Stats" button reveals/hides it.
+      showStats: false
     }
   },
   computed: {
@@ -267,6 +369,56 @@ export default {
         return `Total sprint cost: ${this.formatCoins(this.totalCost)} of ${this.formatCoins(this.totalBudget)} cxj (${label})`
       }
       return `Total sprint cost: ${this.formatCoins(this.totalCost)} cxj (${label})`
+    },
+
+    // ── Stats ────────────────────────────────────────────────────────────────
+    // Every task of the sprint (columns are the single source of grouping)
+    allTasks() {
+      return this.columns.reduce((acc, col) => acc.concat(col.tasks || []), [])
+    },
+    // Task creation dates, oldest first
+    taskDates() {
+      return this.allTasks
+        .map(t => t.created_at)
+        .filter(Boolean)
+        .map(d => new Date(d))
+        .filter(d => !Number.isNaN(d.getTime()))
+        .sort((a, b) => a - b)
+    },
+    oldestTaskDate() {
+      return this.taskDates[0] || null
+    },
+    newestTaskDate() {
+      return this.taskDates[this.taskDates.length - 1] || null
+    },
+    // Total days spanned by the sprint: from the oldest task to the newest one
+    totalDays() {
+      if (!this.oldestTaskDate || !this.newestTaskDate) return 0
+      return Math.max(0, Math.round((this.newestTaskDate - this.oldestTaskDate) / 86400000))
+    },
+    createdRangeLabel() {
+      if (!this.oldestTaskDate) return 'No tasks yet'
+      const fmt = date => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      if (this.totalDays === 0) return `since ${fmt(this.oldestTaskDate)}`
+      return `${fmt(this.oldestTaskDate)} → ${fmt(this.newestTaskDate)}`
+    },
+    createdRangeTooltip() {
+      if (!this.oldestTaskDate) return 'No tasks yet'
+      const fmt = date => date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      return `Oldest task: ${fmt(this.oldestTaskDate)} · Newest task: ${fmt(this.newestTaskDate)}`
+    },
+    // Average cost of a ticket (total spent ÷ number of tasks)
+    averageCost() {
+      if (!this.totalTasks) return 0
+      return this.totalCost / this.totalTasks
+    },
+    // Tasks grouped by assignee (a task counts once per user it carries)
+    tasksByUser() {
+      return this.groupTasks(this.allTasks, 'users', 'Unassigned')
+    },
+    // Tasks grouped by profile (a task counts once per profile it carries)
+    tasksByProfile() {
+      return this.groupTasks(this.allTasks, 'profiles', 'No profile')
     }
   },
   methods: {
@@ -275,6 +427,27 @@ export default {
       if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
       if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
       return Number(val).toFixed(2)
+    },
+    // First letter of a name, used as the avatar fallback in the stats lists
+    initial(name) {
+      return (name || '?').trim().charAt(0).toUpperCase() || '?'
+    },
+    // Group tasks by the values of an array field (`users` / `profiles`), keeping
+    // a done and total count per value. Sorted by "done" so whoever closes more
+    // tickets comes first. A task with no value is counted under `fallback`.
+    groupTasks(tasks, field, fallback) {
+      const map = {}
+      tasks.forEach(task => {
+        const names = task[field]?.length ? task[field] : [fallback]
+        names.forEach(name => {
+          if (!map[name]) map[name] = { name, total: 0, done: 0 }
+          map[name].total += 1
+          if (task.status === 'done') map[name].done += 1
+        })
+      })
+      return Object.values(map)
+        .sort((a, b) =>
+          (b.done - a.done) || (b.total - a.total) || a.name.localeCompare(b.name))
     },
     onSelectSprint(boardId) {
       // The active board lives in the parent component — ask it to switch

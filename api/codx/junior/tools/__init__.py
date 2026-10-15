@@ -84,6 +84,19 @@ from .docker_tools import (
     DOCKER_COMPOSE_SERVICE_TOOL_JSON,
 )
 from .duckduckgo_search import duckduckgo_search, DUCKDUCKGO_SEARCH_TOOL_JSON
+from .browser_tools import (
+    start_session,
+    browse_action,
+    get_screenshot,
+    get_source_code,
+    finish_session,
+    START_SESSION_TOOL_JSON,
+    BROWSE_ACTION_TOOL_JSON,
+    GET_SCREENSHOT_TOOL_JSON,
+    GET_SOURCE_CODE_TOOL_JSON,
+    FINISH_SESSION_TOOL_JSON,
+    BROWSER_TOOL_SETTINGS,
+)
 from .model import ToolResponse, ToolSettings
 
 # Configure logging
@@ -128,6 +141,11 @@ __all__ = [
     "docker_container",
     "docker_compose_service",
     "duckduckgo_search",
+    "start_session",
+    "browse_action",
+    "get_screenshot",
+    "get_source_code",
+    "finish_session",
     "test_tool",
 ]
 
@@ -690,6 +708,36 @@ TOOLS = [
         "settings": ToolSettings(scope="chat", dual_response=True).dict(),
         "tags": ["web", "search", "external-data", "research"],
         "tool_call": duckduckgo_search
+    },
+    {
+        "tool_json": START_SESSION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "session"],
+        "tool_call": start_session
+    },
+    {
+        "tool_json": BROWSE_ACTION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "navigation"],
+        "tool_call": browse_action
+    },
+    {
+        "tool_json": GET_SCREENSHOT_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "vision"],
+        "tool_call": get_screenshot
+    },
+    {
+        "tool_json": GET_SOURCE_CODE_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "content"],
+        "tool_call": get_source_code
+    },
+    {
+        "tool_json": FINISH_SESSION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "cleanup"],
+        "tool_call": finish_session
     },
 ]
 

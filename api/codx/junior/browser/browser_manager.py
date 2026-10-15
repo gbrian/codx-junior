@@ -6,6 +6,16 @@ Handles persistence in Chat.meta_data and Docker container management.
 
 Follows the workspace pattern:
     .codx/browser_sessions/<session_id>/<session_id>.session
+
+A session is created with a human-readable ``name`` and may be shared by several
+chats (``session.chat_ids``).
+
+Lifecycle primitives
+--------------------
+- ``create_session(name, chat_id)`` : start a new container + persist metadata.
+- ``stop_session(session_id)``      : stop the container but KEEP it (restartable).
+- ``restart_session(session_id)``   : start an existing/recreate a stopped session.
+- ``delete_session(session_id)``    : stop the container, remove it and the folder.
 """
 
 import logging
@@ -43,7 +53,7 @@ class BrowserManager:
     Session metadata is also synchronized with Chat.meta_data["browser"].
 
     Responsibilities:
-    - Create/list/get/delete browser sessions
+    - Create/list/get/stop/restart/delete browser sessions
     - Persist session state to Chat.meta_data
     - Docker container orchestration via DockerFirefoxManager
     """
@@ -62,7 +72,7 @@ class BrowserManager:
         traefik_domain = os.environ.get("CODX_JUNIOR_DOMAIN", "localhost")
         self.docker_manager = DockerFirefoxManager(
             self.sessions_path,
-            traefik_domain=traefik_domain
+            traefik_domain=traefik_domain,
         )
         logger.debug("BrowserManager initialized at '%s'", self.sessions_path)
 
@@ -78,7 +88,7 @@ class BrowserManager:
         """Get metadata file path for session (inside its folder)."""
         return os.path.join(
             self._session_folder_path(session_id),
-            f"{session_id}{SESSION_FILE_EXTENSION}"
+            f"{session_id}{SESSION_FILE_EXTENSION}",
         )
 
     def _session_file_paths(self) -> List[str]:
@@ -112,18 +122,38 @@ class BrowserManager:
         Returns:
             BrowserSession or None
         """
+        if not session_id:
+            return None
         file_path = self._session_file_path(session_id)
         if os.path.isfile(file_path):
             return self._load_session_from_file(file_path)
         # Fallback: scan all files (covers edge cases)
         return next((s for s in self.list_sessions() if s.id == session_id), None)
 
-    def create_session(self, chat_id: str) -> BrowserSession:
+    def get_session_for_chat(self, chat_id: str) -> Optional[BrowserSession]:
+        """
+        Return the most recent session connected to a chat, or None.
+
+        A session may be shared by several chats, so this matches any session
+        whose ``chat_ids`` list contains *chat_id*.
+
+        Args:
+            chat_id: Chat ID
+
+        Returns:
+            BrowserSession or None
+        """
+        if not chat_id:
+            return None
+        return next((s for s in self.list_sessions() if s.has_chat(chat_id)), None)
+
+    def create_session(self, name: str, chat_id: Optional[str] = None) -> BrowserSession:
         """
         Create and start a new browser session.
 
         Args:
-            chat_id: Associated chat ID (for logging)
+            name: Human-readable session name given at creation.
+            chat_id: Optional chat to connect to the session immediately.
 
         Returns:
             Created BrowserSession
@@ -131,11 +161,20 @@ class BrowserManager:
         Raises:
             RuntimeError: If container startup fails
         """
-        session = BrowserSession(chat_id=chat_id)
+        session = BrowserSession(
+            name=name,
+            chat_ids=[chat_id] if chat_id else [],
+        )
+        if not session.name:
+            session.name = f"Browser {session.id[:8]}"
+
         session_folder = self._session_folder_path(session.id)
         os.makedirs(session_folder, exist_ok=True)
 
-        logger.info("Creating browser session %s for chat %s", session.id[:8], chat_id)
+        logger.info(
+            "Creating browser session %s ('%s') for chat %s",
+            session.id[:8], session.name, chat_id,
+        )
 
         # Start Docker container
         session = self.docker_manager.start_container(session)
@@ -158,22 +197,62 @@ class BrowserManager:
         session_folder = self._session_folder_path(session.id)
         os.makedirs(session_folder, exist_ok=True)
 
-        logger.info("Saving session '%s'", session.id[:8])
+        logger.debug("Saving session '%s'", session.id[:8])
         self._save_session_file(session)
 
         return session
 
+    def connect_chat(self, session_id: str, chat_id: str) -> Optional[BrowserSession]:
+        """
+        Connect an additional chat to an existing session.
+
+        Args:
+            session_id: Session to connect the chat to.
+            chat_id: Chat ID to connect.
+
+        Returns:
+            The updated BrowserSession, or None when the session is not found.
+        """
+        session = self.get_session(session_id)
+        if not session:
+            logger.warning("connect_chat: session not found: %s", session_id)
+            return None
+        session.add_chat(chat_id)
+        self._save_session_file(session)
+        logger.info("Connected chat %s to session %s", chat_id, session.id[:8])
+        return session
+
+    def stop_session(self, session_id: str) -> Optional[BrowserSession]:
+        """
+        Stop a session's container but KEEP it so it can be restarted.
+
+        Args:
+            session_id: Session ID to stop
+
+        Returns:
+            The updated BrowserSession, or None when not found.
+        """
+        session = self.get_session(session_id)
+        if not session:
+            logger.warning("stop_session: session not found: %s", session_id)
+            return None
+
+        self.docker_manager.stop_container(session, remove=False)
+        self._save_session_file(session)
+        logger.info("Stopped session %s", session_id[:8])
+        return session
+
     def delete_session(self, session_id: str) -> None:
         """
-        Stop container and remove session.
+        Stop container, remove it and delete the session folder.
 
         Args:
             session_id: Session ID to delete
         """
         session = self.get_session(session_id)
         if session:
-            # Stop Docker container
-            self.docker_manager.stop_container(session)
+            # Stop & remove Docker container
+            self.docker_manager.stop_container(session, remove=True)
             logger.info("Stopped container for session %s", session_id[:8])
 
         # Remove session folder
@@ -200,7 +279,7 @@ class BrowserManager:
         Returns:
             BrowserSession or None if not in chat metadata
         """
-        if not chat.meta_data or "browser" not in chat.meta_data:
+        if not getattr(chat, "meta_data", None) or "browser" not in chat.meta_data:
             return None
 
         try:
@@ -212,14 +291,23 @@ class BrowserManager:
 
     def save_session_to_chat(self, session: BrowserSession, chat: "Chat") -> None:
         """
-        Save session to Chat.meta_data["browser"].
+        Save session to Chat.meta_data["browser"] and connect the chat to it.
+
+        Several chats can be connected to the same session: every call registers
+        the chat in ``session.chat_ids`` (persisted to the session file) in
+        addition to storing the session snapshot in the chat metadata.
 
         Args:
             session: BrowserSession to save
             chat: Chat to update
         """
-        if not chat.meta_data:
+        if getattr(chat, "meta_data", None) is None:
             chat.meta_data = {}
+
+        # Register this chat as a consumer of the shared session
+        if getattr(chat, "id", None):
+            session.add_chat(chat.id)
+            self._save_session_file(session)
 
         chat.meta_data["browser"] = session.to_dict()
         logger.debug("Saved session %s to chat %s", session.id[:8], chat.id)
@@ -245,7 +333,7 @@ class BrowserManager:
         await browser.connect()
         return browser
 
-    async def restart_session(self, session_id: str) -> BrowserSession:
+    async def restart_session(self, session_id: str) -> Optional[BrowserSession]:
         """
         Restart a stopped session (preserves profile).
 
@@ -253,14 +341,14 @@ class BrowserManager:
             session_id: Session ID to restart
 
         Returns:
-            Updated BrowserSession
+            Updated BrowserSession, or None when not found.
 
         Raises:
             RuntimeError: If restart fails
         """
         session = self.get_session(session_id)
         if not session:
-            raise RuntimeError(f"Session not found: {session_id}")
+            return None
 
         logger.info("Restarting session %s", session_id[:8])
         session = self.docker_manager.restart_container(session)

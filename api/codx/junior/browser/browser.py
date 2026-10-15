@@ -14,12 +14,20 @@ from codx.junior.browser.docker_firefox_manager import DockerFirefoxManager
 logger = logging.getLogger(__name__)
 
 
+def _short_id(value: Optional[str]) -> str:
+    """Safely shorten an id for logging (never raises on None/short ids)."""
+    return (value or "?")[:8]
+
+
 class Browser:
     """
     High-level browser automation interface using Playwright.
 
     Manages Playwright context lifecycle and provides methods
     for page interaction (navigate, execute JS, take screenshots, etc.).
+
+    ``connect()`` attaches to the *existing* page of the remote browser when one
+    is available, so consecutive tool calls act on the same shared page.
     """
 
     def __init__(self, session: BrowserSession, docker_manager: DockerFirefoxManager):
@@ -39,7 +47,10 @@ class Browser:
 
     async def connect(self) -> None:
         """
-        Connect to Firefox via Chrome DevTools Protocol.
+        Connect to the remote browser via the DevTools Protocol.
+
+        Reuses the first existing context/page when present so that the shared
+        browser state (current URL, DOM) is preserved across calls.
 
         Raises:
             RuntimeError: If connection fails
@@ -49,16 +60,23 @@ class Browser:
 
             self.playwright = await async_playwright().start()
 
-            # Connect to the running Firefox container via CDP
             debug_url = self.session.debug_url
             logger.info("Connecting to browser at: %s", debug_url)
 
-            # Use connect_over_cdp to attach to existing browser
+            # Attach to the running browser
             self.browser = await self.playwright.chromium.connect_over_cdp(debug_url)
-            self.context = await self.browser.new_context()
-            self.page = await self.context.new_page()
 
-            logger.info("Browser connected: session %s", self.session.id[:8])
+            # Reuse an existing context/page when available (shared browser)
+            contexts = self.browser.contexts
+            if contexts:
+                self.context = contexts[0]
+            else:
+                self.context = await self.browser.new_context()
+
+            pages = self.context.pages
+            self.page = pages[0] if pages else await self.context.new_page()
+
+            logger.info("Browser connected: session %s", _short_id(self.session.id))
             self.session.mark_active()
 
         except Exception as e:
@@ -99,7 +117,7 @@ class Browser:
         Execute JavaScript in the page context.
 
         Args:
-            script: JavaScript code to execute
+            script: JavaScript code to execute (use ``return ...`` to return a value)
 
         Returns:
             Result of script execution
@@ -132,7 +150,7 @@ class Browser:
             raise RuntimeError("Browser not connected")
 
         try:
-            screenshot_bytes = await self.page.screenshot()
+            screenshot_bytes = await self.page.screenshot(full_page=True)
             b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
             self.session.mark_active()
             return f"data:image/png;base64,{b64}"
@@ -160,6 +178,27 @@ class Browser:
         except Exception as e:
             logger.exception("get_content failed")
             raise RuntimeError(f"get_content failed: {e}")
+
+    async def get_text(self) -> str:
+        """
+        Get the visible text of the current page (``document.body.innerText``).
+
+        Returns:
+            Visible text
+
+        Raises:
+            RuntimeError: If page not connected
+        """
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+
+        try:
+            text = await self.page.evaluate("return document.body ? document.body.innerText : ''")
+            self.session.mark_active()
+            return text
+        except Exception as e:
+            logger.exception("get_text failed")
+            raise RuntimeError(f"get_text failed: {e}")
 
     async def click(self, selector: str) -> None:
         """
@@ -226,18 +265,20 @@ class Browser:
 
     async def close(self) -> None:
         """
-        Close browser context and disconnect.
+        Detach from the remote browser (the container keeps running).
+
+        Closes only the Playwright connection — the remote Firefox page/state
+        survives so it can be reused by the next call.
         """
         try:
-            if self.context:
-                await self.context.close()
-            if self.browser:
-                await self.browser.close()
+            if self.context and self.browser and self.browser.contexts:
+                # Do NOT close the shared context; only stop the local driver.
+                pass
             if self.playwright:
                 await self.playwright.stop()
-            logger.info("Browser closed: session %s", self.session.id[:8])
+            logger.info("Browser disconnected: session %s", _short_id(self.session.id))
         except Exception as e:
             logger.exception("Error closing browser: %s", e)
 
     def __repr__(self) -> str:
-        return f"Browser(session={self.session.id[:8]}, connected={self.page is not None})"
+        return f"Browser(session={_short_id(self.session.id)}, connected={self.page is not None})"
