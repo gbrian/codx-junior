@@ -103,7 +103,13 @@ export const APPS = {
 
   team: {
     id: 'team', title: 'Team', component: 'team', icon: 'fa-solid fa-people-group',
-    route: () => ({ name: 'team' })
+    // A single, project-scoped screen. When a team id is supplied it becomes
+    // part of the URL ("/:projectName/team/<teamId>") so the selected team
+    // survives a refresh / back-navigation (see router/index.ts + TeamView).
+    desktopParams: p => ({ teamId: p.teamId }),
+    route: p => (p.teamId
+      ? { name: 'team', params: { teamId: p.teamId } }
+      : { name: 'team' })
   },
 
   // ── Workspaces & browsers ─────────────────────────────────────────────────

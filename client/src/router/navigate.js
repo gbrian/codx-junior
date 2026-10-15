@@ -61,6 +61,15 @@ export default function Navigate({ $router, $storex }) {
         params: { sessionId, sessionName }
       })
     },
+    // Team view. The optional team id makes an individual team addressable at
+    // "/:projectName/team/:teamId" (see router/index.ts + views/TeamView.vue).
+    team: {
+      list: () => ({ name: 'team' }),
+      open: (teamId) => ({
+        name: 'team',
+        params: teamId ? { teamId } : {}
+      })
+    },
     kanban: {
       open: () => ({ name: 'kanban' }),
       // Opens the Task Manager directly on the Planning view
@@ -176,6 +185,10 @@ export default function Navigate({ $router, $storex }) {
       return name === 'meet' || name === 'meet-session'
     },
 
+    get isActivityView() {
+      return $router.currentRoute.value.name === 'activity'
+    },
+
     get isWorkspaceView() {
       const name = $router.currentRoute.value.name
       return name === 'workspace' || name === 'workspaces'
@@ -192,6 +205,10 @@ export default function Navigate({ $router, $storex }) {
 
     get isMessengerView() {
       return $router.currentRoute.value.name === 'messenger'
+    },
+
+    get isTeamView() {
+      return $router.currentRoute.value.name === 'team'
     },
 
     get isHomeView() {
@@ -233,6 +250,11 @@ export default function Navigate({ $router, $storex }) {
 
     getSessionName() {
       return $router.currentRoute.value.params.sessionName || null
+    },
+
+    // Team id carried by the team route ("/:projectName/team/:teamId"), or null
+    getTeamId() {
+      return $router.currentRoute.value.params.teamId || null
     },
 
     get hasChatContext() {
@@ -281,6 +303,24 @@ export default function Navigate({ $router, $storex }) {
           $storex.session.onError('Failed to complete OAuth login')
           return homeLocation()
         }
+      }
+
+      // ── Mobile home → Activity Wall ───────────────────────────────
+      // On mobile the Activity Wall (the "activity" app, see config/apps.js)
+      // is the DEFAULT landing screen: both the unscoped root ("/") and the
+      // project-scoped home ("/:projectName") resolve to it.
+      //
+      // This lives here — in the route guard — rather than swapping
+      // <RouterView> for the wall inside App.vue, so the router stays the
+      // single source of truth for what gets rendered (App.vue just keeps
+      // rendering <RouterView> for every screen).
+      if ($storex.ui.isMobile && (to.name === 'root' || to.name === 'home')) {
+        const projectName = activeProjectSegment()
+        if (projectName) {
+          return { name: 'activity', params: { projectName }, replace: true }
+        }
+        // No active project yet: let the root/home bootstrap load one. Once a
+        // project becomes active the next guard pass will redirect to the wall.
       }
 
       // ── Unscoped root → project-scoped home ───────────────────────
@@ -358,6 +398,26 @@ export default function Navigate({ $router, $storex }) {
             name: workspaceName || `workspace-${workspaceId}`
           }
         })
+      }
+    },
+
+    // ════════════════════════════════════════════════════════════════
+    // TEAM NAVIGATION
+    // ════════════════════════════════════════════════════════════════
+
+    teams: {
+      // Open the team view (last selected / first team)
+      list() {
+        openApp('team')
+      },
+
+      // Open the team view focused on a specific team
+      open(teamId) {
+        if (!teamId) {
+          console.warn('[Navigation] teams.open: invalid teamId', teamId)
+          return
+        }
+        openApp('team', { teamId })
       }
     },
 
@@ -501,8 +561,10 @@ export default function Navigate({ $router, $storex }) {
         openApp('wiki')
       },
 
-      openTeam() {
-        openApp('team')
+      // Open the team view. An optional team id opens that specific team
+      // ("/:projectName/team/:teamId"); without it the last team is shown.
+      openTeam(teamId) {
+        openApp('team', teamId ? { teamId } : {})
       },
 
       openViews() {

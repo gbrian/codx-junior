@@ -57,7 +57,8 @@
       <button class="btn btn-sm" @click="$emit('close')">Cancel</button>
       <button
         class="btn btn-sm btn-primary"
-        :disabled="!form.name?.trim()"
+        :disabled="!form.name?.trim() || loading"
+        :class="loading ? 'loading' : ''"
         @click="submit"
       >
         Create
@@ -72,6 +73,7 @@ export default {
   emits: ['created', 'close'],
   data() {
     return {
+      loading: false,
       form: {
         name: '',
         description: '',
@@ -88,14 +90,20 @@ export default {
     this.$nextTick(() => this.$refs.nameInput?.focus())
   },
   methods: {
-    submit() {
-      if (!this.form.name?.trim()) return
-      const team = this.$storex.teams.createTeam({
-        name: this.form.name.trim(),
-        description: this.form.description.trim(),
-        color: this.form.color
-      })
-      this.$emit('created', team)
+    async submit() {
+      if (!this.form.name?.trim() || this.loading) return
+      this.loading = true
+      try {
+        // createTeam persists through the API (server assigns the id).
+        const team = await this.$storex.teams.createTeam({
+          name: this.form.name.trim(),
+          description: this.form.description.trim(),
+          color: this.form.color
+        })
+        this.$emit('created', team)
+      } finally {
+        this.loading = false
+      }
     }
   }
 }

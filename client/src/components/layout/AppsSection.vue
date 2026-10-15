@@ -68,6 +68,13 @@ import { isMultiInstance } from '@/config/apps'
       />
 
       <NavItem
+        icon="fas fa-clock-rotate-left"
+        label="Activity"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToActivity"
+      />
+
+      <NavItem
         icon="fas fa-list-check"
         label="Task Manager"
         :is-collapsed="isCollapsed"
@@ -93,6 +100,13 @@ import { isMultiInstance } from '@/config/apps'
         label="Meet"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToMeet"
+      />
+
+      <NavItem
+        icon="fas fa-people-group"
+        label="Team"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToTeam"
       />
 
       <NavItem
@@ -184,6 +198,11 @@ export default {
       }
       this.$emit('close')
     },
+    // Opens the project Activity Wall. The wall is registered as the home of
+    // the mobile view (see App.vue) and as the "activity" app everywhere else.
+    handleNavigateToActivity() {
+      this.openApp('activity')
+    },
     handleNavigateToKanban() {
       this.openApp('tasks')
     },
@@ -195,6 +214,12 @@ export default {
     },
     handleNavigateToMeet() {
       this.openApp('meet')
+    },
+    // Open the Team screen via the UI store opener, which routes through the
+    // unified openApp() (dockview panel on desktop / route in single mode).
+    handleNavigateToTeam() {
+      this.$storex.ui.openTeams()
+      this.$emit('close')
     },
     handleNavigateToFileExplorer() {
       this.openApp('file-explorer')

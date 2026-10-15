@@ -413,6 +413,12 @@ export const mutations = mutationTree(state, {
     $storex.ui.saveState()
   },
   openChat(_, chat) {
+    if (!chat?.id) return
+    // Mark the chat active BEFORE opening it, so the panel/route that opens
+    // shows THIS chat (e.g. when navigating here from an activity card).
+    // `setActiveChatId` is a plain mutation, so it never re-enters openChat —
+    // only the `chats.setActiveChat` action calls back into this helper.
+    $storex.chats.setActiveChatId(chat.id)
     // Unified: panel on desktop, route on mobile
     $storex.ui.openApp({ appKey: 'chat', payload: { chat } })
   },
@@ -625,8 +631,12 @@ export const actions = actionTree(
       $storex.ui.openApp('git-view')
     },
 
-    openTeams() {
-      $storex.ui.openApp('team')
+    // Open the Team screen. Pass an optional team id to focus a specific team
+    // ("/:projectName/team/:teamId"); without it the Team view opens with every
+    // team visible. Routed through the unified openApp() so the same call works
+    // as a dockview panel on desktop and as a route in single/mobile mode.
+    openTeams(_, teamId) {
+      $storex.ui.openApp({ appKey: 'team', payload: teamId ? { teamId } : {} })
     },
 
     openWorkspaces() {

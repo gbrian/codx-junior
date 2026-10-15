@@ -1,5 +1,6 @@
 <script setup>
 import moment from 'moment'
+import { countUnreadMessages } from '@/utils/chatUnread'
 </script>
 
 <template>
@@ -260,22 +261,12 @@ export default {
       if (notDone > 0) return notDone
       return this.isProcessing ? 1 : 0
     },
-    // Unread assistant replies addressed to the current user — same rule the
-    // chat sidebar uses: assistant message, not authored by me, not flagged as
-    // read by me, not hidden, AND already finished (done !== false). Messages
-    // that are still being processed must not count as unread: the badge (and
-    // the unread card highlight) may only appear once the reply is done.
+    // Unread assistant replies addressed to the current user — shared rule with
+    // the activity wall (src/utils/chatUnread.js): assistant message, not
+    // authored by me, not flagged as read by me, finished (done !== false) and
+    // not hidden. Still-streaming replies never count.
     unreadCount() {
-      const currentUsername = this.$user?.username
-      if (!currentUsername) return 0
-      return (this.task.messages || []).filter(msg => {
-        const isAssistantMsg = msg.role === 'assistant'
-        const isOtherUser = msg.user !== currentUsername
-        const isUnread = !msg.read_by || !msg.read_by.includes(currentUsername)
-        // Skip messages still not done (streaming / pending)
-        const isDone = msg.done !== false
-        return isAssistantMsg && isOtherUser && isUnread && isDone && !msg.hide
-      }).length
+      return countUnreadMessages(this.task.messages, this.$user?.username)
     },
     hasUnread() {
       return this.unreadCount > 0

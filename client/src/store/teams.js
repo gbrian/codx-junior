@@ -1,8 +1,10 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
+import { $storex } from '.'
 
 export const namespaced = true
 
 const STORAGE_KEY = 'codx-teams-store'
+const DEFAULT_TEAM_COLOR = '#6366f1'
 
 // ── Data type factories ───────────────────────────────────────────────────────
 
@@ -11,7 +13,9 @@ export const createTeam = (overrides = {}) => ({
   name: '',
   description: '',
   icon: null,
-  color: '#6366f1',
+  color: DEFAULT_TEAM_COLOR,
+  profiles: [], // AI profiles (backend: `profiles`)
+  tags: [], // free-form labels (backend: `tags`)
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   categories: [],
@@ -49,6 +53,81 @@ export const createMember = (overrides = {}) => ({
   joinedAt: new Date().toISOString(),
   ...overrides
 })
+
+// ── Backend API mapping ───────────────────────────────────────────────────────
+// The backend team model (codx/junior/teams/model.py) is intentionally small:
+//   { id, project_id, name, description, avatar, profiles, users, tags, ... }
+// while the UI team also carries view-only state (colour, categories, channels,
+// direct-message links and per-member role/status). The helpers below translate
+// between the two so the API stays the source of truth for team identity and
+// membership, while the local view state survives reloads.
+
+/** Default categories, used when a team (e.g. created elsewhere) has none. */
+function defaultCategories() {
+  return [
+    createCategory({ name: 'General' }),
+    createCategory({ name: 'Topics' })
+  ]
+}
+
+/** Serialise a UI team into the payload accepted by the backend. */
+function toApiTeam(team) {
+  return {
+    id: team.id,
+    name: team.name,
+    description: team.description || '',
+    avatar: team.icon || '',
+    profiles: team.profiles || [],
+    users: (team.members || []).map(m => m.username).filter(Boolean),
+    tags: team.tags || []
+  }
+}
+
+/**
+ * Rebuild the human members for an API team, preserving the local role/status
+ * (the backend only stores usernames, so those attributes stay local).
+ */
+function membersFromApi(apiTeam, localMembers = []) {
+  const localByUsername = new Map((localMembers || []).map(m => [m.username, m]))
+  return (apiTeam.users || []).map(username => {
+    const local = localByUsername.get(username) || {}
+    return {
+      id: local.id || crypto.randomUUID(),
+      username,
+      role: local.role || 'member',
+      status: local.status || 'offline',
+      joinedAt: local.joinedAt || new Date().toISOString()
+    }
+  })
+}
+
+/** Build a UI team from an API team, preserving local view-only state. */
+function fromApiTeam(apiTeam, localTeam = null) {
+  const local = localTeam || {}
+  return createTeam({
+    id: apiTeam.id,
+    name: apiTeam.name || '',
+    description: apiTeam.description || '',
+    icon: apiTeam.avatar || local.icon || null,
+    color: local.color || DEFAULT_TEAM_COLOR,
+    profiles: apiTeam.profiles || [],
+    tags: apiTeam.tags || [],
+    createdAt: apiTeam.created_at || local.createdAt || new Date().toISOString(),
+    updatedAt: apiTeam.updated_at || local.updatedAt || new Date().toISOString(),
+    categories: local.categories?.length ? local.categories : defaultCategories(),
+    members: membersFromApi(apiTeam, local.members),
+    directMessages: local.directMessages || {}
+  })
+}
+
+/** The teams API bound to the active project, or `null` when unavailable. */
+function getTeamsApi() {
+  try {
+    return $storex.projects?.activeProject?.$api?.teams || null
+  } catch {
+    return null
+  }
+}
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
 
@@ -242,7 +321,8 @@ export const mutations = mutationTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    init({ state }) {
+    async init({ state }) {
+      // Restore the locally cached view state first (instant, works offline)…
       const saved = load()
       if (saved.teams?.length) {
         state.teams = saved.teams
@@ -250,20 +330,61 @@ export const actions = actionTree(
         state.activeChannelId = saved.activeChannelId || null
         state.activeDmMemberId = saved.activeDmMemberId || null
       }
+      // …then refresh teams from the backend (best effort).
+      await $storex.teams.loadTeams()
+    },
+
+    /**
+     * Load teams for the active project from the backend and merge them with
+     * the locally cached view state (colour, categories, channels, DMs…).
+     * A no-op when no project/API is available yet, so the local cache keeps
+     * working offline.
+     */
+    async loadTeams({ state }) {
+      const api = getTeamsApi()
+      if (!api) return state.teams
+
+      const localById = new Map(state.teams.map(t => [t.id, t]))
+      try {
+        const apiTeams = await api.list()
+        state.teams = (apiTeams || []).map(apiTeam => fromApiTeam(apiTeam, localById.get(apiTeam.id)))
+
+        if (!state.teams.some(t => t.id === state.activeTeamId)) {
+          state.activeTeamId = state.teams[0]?.id || null
+          state.activeChannelId = null
+          state.activeDmMemberId = null
+        }
+        persist(state)
+      } catch (error) {
+        console.error('[teams] Failed to load teams:', error)
+      }
+      return state.teams
     },
 
     // ── Teams ─────────────────────────────────────────────────────────────────
-    createTeam({ state }, overrides = {}) {
-      const team = createTeam({
+    async createTeam({ state }, overrides = {}) {
+      const draft = createTeam({
         name: 'New Team',
-        categories: [
-          createCategory({ name: 'General', channels: [] }),
-          createCategory({ name: 'Topics', channels: [] })
-        ],
+        categories: defaultCategories(),
         members: [],
         directMessages: {},
+        profiles: [],
         ...overrides
       })
+
+      // Persist through the API (the server assigns the real id); fall back to
+      // the local draft when the API is unavailable.
+      let team = draft
+      const api = getTeamsApi()
+      if (api) {
+        try {
+          const saved = await api.create(toApiTeam(draft))
+          team = fromApiTeam(saved, draft)
+        } catch (error) {
+          console.error('[teams] Failed to create team:', error)
+        }
+      }
+
       state.teams = [...state.teams, team]
       state.activeTeamId = team.id
       state.activeChannelId = null
@@ -272,12 +393,36 @@ export const actions = actionTree(
       return team
     },
 
-    updateTeam({ commit }, team) {
+    async updateTeam({ state, commit }, team) {
+      // Optimistic local update for instant feedback…
       commit('upsertTeam', team)
+
+      const api = getTeamsApi()
+      if (!api || !team.id) return team
+
+      // …then persist and reconcile with the server response.
+      try {
+        const saved = await api.update(toApiTeam(team))
+        const local = state.teams.find(t => t.id === team.id) || team
+        const merged = fromApiTeam(saved, local)
+        commit('upsertTeam', merged)
+        return merged
+      } catch (error) {
+        console.error('[teams] Failed to update team:', error)
+        return team
+      }
     },
 
-    deleteTeam({ commit }, teamId) {
+    async deleteTeam({ commit }, teamId) {
       commit('removeTeam', teamId)
+
+      const api = getTeamsApi()
+      if (!api || !teamId) return
+      try {
+        await api.delete(teamId)
+      } catch (error) {
+        console.error('[teams] Failed to delete team:', error)
+      }
     },
 
     selectTeam({ state }, teamId) {
@@ -365,19 +510,106 @@ export const actions = actionTree(
       return chat.id
     },
 
-    // ── Members ───────────────────────────────────────────────────────────────
-    addMember({ commit }, { teamId, memberData }) {
+    // ── Members (human users) ─────────────────────────────────────────────────
+    async addMember({ state, commit }, { teamId, memberData }) {
       const member = createMember(memberData)
       commit('upsertMember', { teamId, member })
+
+      const api = getTeamsApi()
+      if (api && teamId && member.username) {
+        try {
+          const saved = await api.addMembers(teamId, { users: [member.username] })
+          const local = state.teams.find(t => t.id === teamId)
+          if (local) commit('upsertTeam', fromApiTeam(saved, local))
+        } catch (error) {
+          console.error('[teams] Failed to add member:', error)
+        }
+      }
       return member
     },
 
-    updateMember({ commit }, { teamId, member }) {
+    async updateMember({ state, commit }, { teamId, member }) {
+      const team = state.teams.find(t => t.id === teamId)
+      const previous = (team?.members || []).find(m => m.id === member.id)
+
       commit('upsertMember', { teamId, member })
+
+      const api = getTeamsApi()
+      // Only the username is synced to the backend; role/status stay local.
+      if (api && previous?.username && previous.username !== member.username) {
+        try {
+          await api.removeMembers(teamId, { users: [previous.username] })
+          const saved = await api.addMembers(teamId, { users: [member.username] })
+          const local = state.teams.find(t => t.id === teamId)
+          if (local) commit('upsertTeam', fromApiTeam(saved, local))
+        } catch (error) {
+          console.error('[teams] Failed to update member:', error)
+        }
+      }
+      return member
     },
 
-    removeMember({ commit }, { teamId, memberId }) {
+    async removeMember({ state, commit }, { teamId, memberId }) {
+      const team = state.teams.find(t => t.id === teamId)
+      const member = (team?.members || []).find(m => m.id === memberId)
+
       commit('removeMember', { teamId, memberId })
+
+      const api = getTeamsApi()
+      if (api && member?.username) {
+        try {
+          const saved = await api.removeMembers(teamId, { users: [member.username] })
+          const local = state.teams.find(t => t.id === teamId)
+          if (local) commit('upsertTeam', fromApiTeam(saved, local))
+        } catch (error) {
+          console.error('[teams] Failed to remove member:', error)
+        }
+      }
+    },
+
+    // ── AI profiles ───────────────────────────────────────────────────────────
+    // AI profiles are stored on the team's `profiles` list (see the backend
+    // `Team` model) and are managed through the same membership endpoint.
+    async addProfile({ state, commit }, { teamId, profileName }) {
+      const team = state.teams.find(t => t.id === teamId)
+      if (!team || !profileName) return null
+
+      if (!(team.profiles || []).includes(profileName)) {
+        commit('upsertTeam', { ...team, profiles: [...(team.profiles || []), profileName] })
+      }
+
+      const api = getTeamsApi()
+      if (api) {
+        try {
+          const saved = await api.addMembers(teamId, { profiles: [profileName] })
+          const local = state.teams.find(t => t.id === teamId)
+          if (local) commit('upsertTeam', fromApiTeam(saved, local))
+        } catch (error) {
+          console.error('[teams] Failed to add AI profile:', error)
+        }
+      }
+      return profileName
+    },
+
+    async removeProfile({ state, commit }, { teamId, profileName }) {
+      const team = state.teams.find(t => t.id === teamId)
+      if (!team) return
+
+      commit('upsertTeam', {
+        ...team,
+        profiles: (team.profiles || []).filter(p => p !== profileName)
+      })
+
+      const api = getTeamsApi()
+      if (api) {
+        try {
+          const saved = await api.removeMembers(teamId, { profiles: [profileName] })
+          const local = state.teams.find(t => t.id === teamId)
+          if (local) commit('upsertTeam', fromApiTeam(saved, local))
+        } catch (error) {
+          console.error('[teams] Failed to remove AI profile:', error)
+        }
+      }
     }
   }
 )

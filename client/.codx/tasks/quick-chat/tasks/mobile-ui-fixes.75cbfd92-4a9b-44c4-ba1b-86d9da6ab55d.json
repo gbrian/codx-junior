@@ -10,6 +10,7 @@
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "status_history": [],
   "tags": [],
   "file_list": [],
   "check_lists": [],
@@ -36,6 +37,8 @@
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [
         "software_developer"
       ],
@@ -64,6 +67,8 @@
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -84,7 +89,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-02 07:31:33.949781",
-      "updated_at": "2026-10-02T07:31:37.047415",
+      "updated_at": "2026-10-14T21:13:57.217889",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -109,6 +114,8 @@
           "error": null
         }
       ],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [
         "project"
       ],
@@ -117,24 +124,34 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-02 07:28:55.942620",
-  "updated_at": "2026-10-02T07:31:39.222593",
+  "updated_at": "2026-10-14T21:13:57.218530",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
   "board": "quick-chat",
   "column": "tasks",
+  "sprints": [],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
   "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
   "file_path": "/home/codx-junior-projects/codx-junior/client/.codx/tasks/quick-chat/tasks/mobile-ui-fixes.75cbfd92-4a9b-44c4-ba1b-86d9da6ab55d.json",
   "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
   "visibility": "",
   "remote_url": "",
   "attachments": [],

@@ -294,15 +294,16 @@ import ChatView from '@/views/ChatView.vue'
                 </div>
               </div>
 
-              <!-- Remote participant tiles (real media when available) -->
+              <!-- Remote participant tiles (one per remote *session*; a second
+                   device of the same user gets its own tile) -->
               <div
-                v-for="participant in remoteParticipants"
-                :key="participant"
+                v-for="peer in remotePeers"
+                :key="peer.id"
                 class="relative aspect-video rounded-2xl overflow-hidden bg-[#3c4043] flex items-center justify-center"
               >
                 <video
-                  v-if="hasRemoteStream(participant)"
-                  :ref="el => bindRemoteVideo(el, participant)"
+                  v-if="peer.hasStream"
+                  :ref="el => bindRemoteVideo(el, peer.id)"
                   autoplay
                   playsinline
                   class="w-full h-full object-cover"
@@ -311,7 +312,7 @@ import ChatView from '@/views/ChatView.vue'
                   <i class="fa-solid fa-user text-2xl text-primary/70"></i>
                 </div>
                 <div class="absolute bottom-2 left-2">
-                  <span class="text-white text-xs bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-sm">{{ participant }}</span>
+                  <span class="text-white text-xs bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-sm">{{ peer.label }}</span>
                 </div>
               </div>
             </div>
@@ -494,10 +495,43 @@ export default {
     isInitiator() {
       return !!this.currentMeet && this.currentMeet.initiator === this.currentUserName
     },
-    remoteParticipants() {
+    // Remote tiles, one per remote *session*.
+    //
+    // The store keys remote streams by a device-scoped peer id, so when the same
+    // account is connected from two devices (e.g. desktop + phone) each device
+    // renders the other as its own tile instead of collapsing them together.
+    remotePeers() {
       if (!this.currentMeet) return []
       const me = this.currentUserName
-      return (this.currentMeet.participants || []).filter(p => p !== me)
+      const peers = []
+      const seenUsernames = new Set()
+
+      // Peers we are already receiving media from (they carry a device id).
+      Object.values(this.currentMeet.remoteStreams || {}).forEach(entry => {
+        const username = entry.username || entry.peerId
+        peers.push({
+          id: entry.peerId,
+          username,
+          // A same-username peer is unmistakably the user's other device.
+          label: username === me ? `${username} (other device)` : username,
+          hasStream: true
+        })
+        seenUsernames.add(username)
+      })
+
+      // Participants that are connected but not sending media yet (camera off),
+      // excluding ourselves. These are keyed by username.
+      ;(this.currentMeet.participants || []).forEach(participant => {
+        if (participant === me || seenUsernames.has(participant)) return
+        peers.push({
+          id: participant,
+          username: participant,
+          label: participant,
+          hasStream: false
+        })
+      })
+
+      return peers
     },
     formattedDuration() {
       if (!this.currentMeet) return '00:00'
@@ -807,12 +841,14 @@ export default {
     },
 
     // ─── Remote media ───────────────────────────────────────────────────────
-    hasRemoteStream(username) {
-      return !!this.currentMeet?.remoteStreams?.[username]
+    // Streams are keyed by the device-scoped peer id (see store/meets.js), not
+    // by username, so two devices of the same account stay independent.
+    hasRemoteStream(peerId) {
+      return !!this.currentMeet?.remoteStreams?.[peerId]?.stream
     },
-    bindRemoteVideo(el, username) {
+    bindRemoteVideo(el, peerId) {
       if (!el) return
-      const stream = this.currentMeet?.remoteStreams?.[username]
+      const stream = this.currentMeet?.remoteStreams?.[peerId]?.stream
       if (stream && el.srcObject !== stream) {
         el.srcObject = stream
       }

@@ -10,6 +10,10 @@ import MenuDivider from './MenuDivider.vue'
     <i class="fa-solid fa-home"></i>
     Home
   </MenubarItem>
+  <MenubarItem @click="$ui.setActiveTab('activity')">
+    <i class="fa-solid fa-clock-rotate-left"></i>
+    Activity
+  </MenubarItem>
   <MenubarItem @click="$ui.showNewProject(true)">
     <i class="fa-solid fa-plus"></i>
     New project

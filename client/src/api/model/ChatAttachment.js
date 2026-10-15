@@ -43,6 +43,11 @@ export class ChatAttachment {
     return this.file_type.startsWith('image/')
   }
 
+  // Audio notes / voice messages (recorded with MediaRecorder or uploaded).
+  isAudio() {
+    return this.file_type.startsWith('audio/')
+  }
+
   isDocument() {
     const docTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument']
     return docTypes.some(type => this.file_type.includes(type))

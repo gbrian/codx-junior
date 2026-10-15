@@ -38,7 +38,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
             class="w-full h-full object-cover"
           />
 
-          <!-- File Icon Thumbnail -->
+          <!-- File Icon Thumbnail (documents, audio notes, …) -->
           <div v-else class="w-full h-full bg-gradient-to-br from-base-200 to-base-300 flex flex-col items-center justify-center gap-1">
             <i :class="getFileIcon(attachment)" class="text-3xl opacity-60"></i>
             <span class="text-xs font-medium text-base-content/60">{{ attachment.getExtension().toUpperCase() }}</span>
@@ -231,6 +231,15 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         </div>
       </template>
 
+      <!-- Audio preview (voice notes / uploaded audio) -->
+      <template v-else-if="currentAttachment.isAudio()">
+        <div class="w-full bg-base-200/60 rounded-lg p-4 flex flex-col items-center gap-3">
+          <i class="fa-solid fa-microphone-lines text-4xl text-primary"></i>
+          <span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Audio Note</span>
+          <audio :src="audioSrc" controls class="w-full"></audio>
+        </div>
+      </template>
+
       <!-- File Icon Preview -->
       <template v-else>
         <div class="w-full h-64 bg-gradient-to-br from-base-200 to-base-300 rounded-lg flex flex-col items-center justify-center gap-3">
@@ -328,6 +337,11 @@ export default {
   computed: {
     currentAttachment() {
       return this.selectedIndex !== null ? this.fileObjects[this.selectedIndex] : null
+    },
+    // Data URL of the currently previewed attachment (used by the audio player).
+    audioSrc() {
+      const attachment = this.currentAttachment
+      return attachment ? `data:${attachment.file_type};base64,${attachment.base64_data}` : ''
     },
     cropOverlayStyle() {
       return {
@@ -458,7 +472,12 @@ export default {
         'jpg': 'fa-solid fa-image text-cyan-500',
         'jpeg': 'fa-solid fa-image text-cyan-500',
         'gif': 'fa-solid fa-image text-cyan-500',
-        'svg': 'fa-solid fa-image text-cyan-500'
+        'svg': 'fa-solid fa-image text-cyan-500',
+        'webm': 'fa-solid fa-file-audio text-primary',
+        'mp3': 'fa-solid fa-file-audio text-primary',
+        'wav': 'fa-solid fa-file-audio text-primary',
+        'ogg': 'fa-solid fa-file-audio text-primary',
+        'm4a': 'fa-solid fa-file-audio text-primary'
       }
       return iconMap[ext] || 'fa-solid fa-file text-base-content/40'
     },

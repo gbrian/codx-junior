@@ -7,10 +7,13 @@
     class="absolute left-0 right-0 z-50"
     :class="top ? 'top-full' : 'bottom-full'"
   >
-    <div class="flex flex-wrap gap-1 p-2 bg-base-200 border rounded-lg shadow-lg">
+    <!-- Behaves like a bottom sheet on mobile: fixed header + footer with an
+         internally scrolling list, so it never grows taller than the viewport. -->
+    <div class="flex flex-col gap-1 p-2 bg-base-200 border rounded-lg shadow-lg max-h-[55vh] sm:max-h-96">
       <!-- Header with controls -->
-      <div class="w-full flex items-center gap-2 text-base-content/80 pb-1 border-b border-base-100">
-        <div class="flex gap-1">
+      <div class="w-full flex flex-wrap items-center gap-x-2 gap-y-1 text-base-content/80 pb-1 border-b border-base-100">
+        <!-- Keyboard hints are desktop-only; touch users just tap a row -->
+        <div class="hidden sm:flex items-center gap-1">
           <kbd class="kbd kbd-xs">Tab</kbd>
           <span class="text-xs">accept</span>
           <kbd class="kbd kbd-xs">Space</kbd>
@@ -18,6 +21,7 @@
           <kbd class="kbd kbd-xs">Esc</kbd>
           <span class="text-xs">dismiss</span>
         </div>
+        <span class="sm:hidden text-xs text-base-content/50">Tap to insert</span>
 
         <span v-if="selectedItems.length" class="ml-1 text-info font-semibold flex items-center gap-1">
           {{ selectedItems.length }} selected
@@ -83,13 +87,13 @@
         </button>
       </div>
 
-      <!-- Scrollable suggestion list -->
-      <div v-if="suggestions.length" ref="listRef" class="w-full flex flex-col gap-0.5 overflow-y-auto max-h-52 pr-1">
+      <!-- Scrollable suggestion list (fills the remaining height on mobile) -->
+      <div v-if="suggestions.length" ref="listRef" class="w-full flex-1 min-h-0 flex flex-col gap-0.5 overflow-y-auto pr-1">
         <div
           v-for="(s, i) in filteredSuggestions"
           :key="i"
           :ref="el => { if (i === activeIndex) activeEl = el }"
-          class="w-full flex items-center gap-1.5 px-2 h-7 rounded cursor-pointer transition-colors ring-1 ring-transparent flex-none"
+          class="w-full flex items-center gap-1.5 px-2 h-10 sm:h-7 rounded cursor-pointer transition-colors ring-1 ring-transparent flex-none"
           :class="itemClass(s, i)"
           @mousedown.prevent="onItemClick($event, s, i)"
           @mouseover="hoveredIndex = i; $emit('hover', i)"
@@ -115,7 +119,7 @@
 
           <!-- Name with fuzzy highlight -->
           <span
-            class="flex-none text-xs font-semibold"
+            class="flex-none text-sm sm:text-xs font-semibold"
             :class="hasDuplicateName(s) ? 'text-warning' : ''"
             v-html="highlightMatch(s.name, query)"
           />
@@ -147,8 +151,8 @@
             class="flex-none truncate max-w-24 text-[10px]"
           >{{ shortPath(s.file) }}</span>
 
-          <!-- Tab hint -->
-          <span class="flex-none w-10 text-right opacity-50 text-[10px]">
+          <!-- Tab hint (desktop only) -->
+          <span class="hidden sm:block flex-none w-10 text-right opacity-50 text-[10px]">
             <template v-if="i === activeIndex && !selectedItems.length">↵ Tab</template>
           </span>
         </div>

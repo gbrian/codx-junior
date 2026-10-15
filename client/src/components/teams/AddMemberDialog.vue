@@ -9,26 +9,48 @@ import MemberAvatar from './MemberAvatar.vue'
       Add Member
     </h3>
 
+    <!-- Member type: a human user or an AI profile -->
+    <div class="tabs tabs-boxed tabs-sm">
+      <a
+        class="tab flex-1"
+        :class="form.memberType === 'user' ? 'tab-active' : ''"
+        @click="setMemberType('user')"
+      >
+        <i class="fa-solid fa-user mr-1"></i> User
+      </a>
+      <a
+        class="tab flex-1"
+        :class="form.memberType === 'profile' ? 'tab-active' : ''"
+        @click="setMemberType('profile')"
+      >
+        <i class="fa-solid fa-robot mr-1"></i> AI Profile
+      </a>
+    </div>
+
     <div class="form-control gap-1">
-      <label class="label label-text text-xs font-semibold">User *</label>
+      <label class="label label-text text-xs font-semibold">
+        {{ isProfile ? 'AI Profile' : 'User' }} *
+      </label>
       <select
         v-model="form.username"
         class="select select-bordered select-sm"
-        @change="onUserSelected"
-        ref="userSelect"
+        @change="onOptionSelected"
+        ref="optionSelect"
       >
-        <option value="">Select a user...</option>
+        <option value="">
+          {{ isProfile ? 'Select a profile...' : 'Select a user...' }}
+        </option>
         <option
-          v-for="user in availableUsers"
-          :key="user.username"
-          :value="user.username"
+          v-for="opt in selectOptions"
+          :key="opt.value"
+          :value="opt.value"
         >
-          {{ user.username }}
+          {{ opt.label }}
         </option>
       </select>
     </div>
 
-    <div class="form-control gap-1">
+    <div class="form-control gap-1" v-if="!isProfile">
       <label class="label label-text text-xs font-semibold">Role</label>
       <select class="select select-bordered select-sm" v-model="form.role">
         <option value="admin">👑 Admin</option>
@@ -39,23 +61,35 @@ import MemberAvatar from './MemberAvatar.vue'
     </div>
 
     <!-- Preview -->
-    <div v-if="selectedUser" class="flex items-center gap-3 p-3 bg-base-200 rounded-xl">
+    <div v-if="previewMember" class="flex items-center gap-3 p-3 bg-base-200 rounded-xl">
       <MemberAvatar :member="previewMember" size="sm" :show-status="false" />
       <div>
-        <div class="font-semibold text-sm">{{ selectedUser.username }}</div>
-        <div class="text-xs text-base-content/50 capitalize">{{ form.role }}</div>
+        <div class="font-semibold text-sm flex items-center gap-1">
+          <i v-if="isProfile" class="fa-solid fa-robot text-xs text-primary"></i>
+          {{ previewMember.username }}
+        </div>
+        <div class="text-xs text-base-content/50 capitalize">
+          {{ isProfile ? 'AI profile' : form.role }}
+        </div>
       </div>
+    </div>
+
+    <div v-if="emptyOptions" class="text-xs text-base-content/50 italic">
+      {{ isProfile
+        ? 'No AI profiles available. Create one from Profiles.'
+        : 'No users available to add.' }}
     </div>
 
     <div class="flex gap-2 justify-end">
       <button class="btn btn-sm" @click="$emit('close')">Cancel</button>
       <button
         class="btn btn-sm btn-primary"
-        :disabled="!form.username"
+        :disabled="!canSubmit || loading"
+        :class="loading ? 'loading' : ''"
         @click="submit"
       >
-        <i class="fa-solid fa-user-plus"></i>
-        Add Member
+        <i v-if="!loading" class="fa-solid fa-plus"></i>
+        Add
       </button>
     </div>
   </div>
@@ -70,7 +104,9 @@ export default {
   },
   data() {
     return {
+      loading: false,
       form: {
+        memberType: 'user',
         username: '',
         role: 'member'
       },
@@ -79,38 +115,81 @@ export default {
   },
   mounted() {
     this.$storex.users.loadUsers()
-    this.$nextTick(() => this.$refs.userSelect?.focus())
+    const project = this.$storex.projects.activeProject
+    if (project) this.$storex.profiles.loadProjectProfiles({ project })
+    this.$nextTick(() => this.$refs.optionSelect?.focus())
   },
   computed: {
+    isProfile() {
+      return this.form.memberType === 'profile'
+    },
     availableUsers() {
-      const allUsers = this.$storex.users.users
-      const existingMemberIds = (this.team.members || []).map(m => m.username)
-      return allUsers.filter(u => !existingMemberIds.includes(u.username))
+      const allUsers = this.$storex.users.users || []
+      const existingMemberUsernames = (this.team.members || []).map(m => m.username)
+      return allUsers.filter(u => !existingMemberUsernames.includes(u.username))
+    },
+    availableProfiles() {
+      const profiles = this.$storex.profiles.profiles || []
+      const existingProfiles = this.team.profiles || []
+      return profiles.filter(p => !existingProfiles.includes(p.name))
+    },
+    selectOptions() {
+      if (this.isProfile) {
+        return this.availableProfiles.map(p => ({ value: p.name, label: p.name }))
+      }
+      return this.availableUsers.map(u => ({ value: u.username, label: u.username }))
+    },
+    emptyOptions() {
+      return this.selectOptions.length === 0
+    },
+    canSubmit() {
+      if (!this.form.username) return false
+      return this.isProfile || !!this.selectedUser
     },
     previewMember() {
-      if (!this.selectedUser) return null
-      return {
-        username: this.selectedUser.username,
-        role: this.form.role,
-        status: 'online'
+      if (!this.form.username) return null
+      if (this.isProfile) {
+        return { username: this.form.username, role: 'ai', status: 'online' }
       }
+      return { username: this.form.username, role: this.form.role, status: 'online' }
     }
   },
   methods: {
-    onUserSelected() {
-      this.selectedUser = this.availableUsers.find(u => u.username === this.form.username) || null
+    setMemberType(type) {
+      if (this.form.memberType === type) return
+      this.form.memberType = type
+      this.form.username = ''
+      this.selectedUser = null
     },
-    submit() {
-      if (!this.form.username || !this.selectedUser) return
-      const member = this.$storex.teams.addMember({
-        teamId: this.team.id,
-        memberData: {
-          username: this.selectedUser.username,
-          role: this.form.role,
-          status: 'offline'
+    onOptionSelected() {
+      this.selectedUser = this.availableUsers
+        .find(u => u.username === this.form.username) || null
+    },
+    async submit() {
+      if (!this.canSubmit || this.loading) return
+      this.loading = true
+      try {
+        if (this.isProfile) {
+          // AI profiles live on the team's `profiles` list.
+          await this.$storex.teams.addProfile({
+            teamId: this.team.id,
+            profileName: this.form.username
+          })
+          this.$emit('added')
+        } else {
+          const member = await this.$storex.teams.addMember({
+            teamId: this.team.id,
+            memberData: {
+              username: this.selectedUser.username,
+              role: this.form.role,
+              status: 'offline'
+            }
+          })
+          this.$emit('added', member)
         }
-      })
-      this.$emit('added', member)
+      } finally {
+        this.loading = false
+      }
     }
   }
 }

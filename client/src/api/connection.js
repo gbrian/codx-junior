@@ -11,15 +11,16 @@ export class CodxJuniorConnection {
     this.user = user
     this.settings = settings || {}
     // Socket.IO session id associated with the current socket. It is kept in
-    // sync by the socket manager (see store/session.js `connect`) and sent as
-    // `x-sid` so the meets API can target signaling at this session.
+    // sync by the API layer (see api.js `initSocket` / `initConnection`) and
+    // sent as `x-sid` so the meets API can target signalling at *this* session
+    // instead of every device logged in with the same account.
     this.sid = this.settings.sid || ''
     this.interceptors = interceptors
   }
 
   get headers() {
     return {
-      "x-sid": this.sid || '',
+      "x-sid": this.sid || this.settings?.sid || '',
       "x-username": this.user?.username || '',
       "Authentication": `Bearer ${this.user?.token}`
     };
@@ -83,6 +84,7 @@ export class CodxJuniorConnection {
     this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
+          .then(({ data }) => data)
           .finally(() => this.liveRequests--);
   }
 }

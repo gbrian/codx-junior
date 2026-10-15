@@ -14,9 +14,9 @@ export const namespaced = true
 // are mirrored into the state through `setRemoteStream`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// { [meetId]: { [username]: RTCPeerConnection } }
+// { [meetId]: { [peerId]: RTCPeerConnection } }
 const peerConnections = {}
-// { [meetId]: { [username]: RTCIceCandidateInit[] } }
+// { [meetId]: { [peerId]: RTCIceCandidateInit[] } }
 // ICE candidates can arrive before the offer/answer → buffered until the remote
 // description is set.
 const pendingCandidates = {}
@@ -39,6 +39,53 @@ let iceServers = [
 // picking up speech. Shared with the mic level monitor (src/utils/audioLevel.js)
 // so the "speaking" pulse agrees with the boolean the UI reads.
 const MIC_SPEAKING_THRESHOLD = 12
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEVICE IDENTITY (multi-device support)
+//
+// One *account* can be connected from several devices at the same time (e.g. a
+// desktop and a phone). Because both sessions share the same username, a
+// username alone cannot identify a peer: keying the rooms by username made the
+// client treat the second device as "itself" — it was filtered out of the
+// participant tiles and its WebRTC signals were ignored, so a phone could never
+// see the desktop's camera.
+//
+// Every session is therefore identified by a composite key: the username plus a
+// per-session discriminator. We prefer the remote socket id (`fromSid`, already
+// present in the signalling payloads) and fall back to a locally generated,
+// per-tab `deviceId`. The username is kept untouched for display only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function readDeviceId() {
+  try {
+    const key = 'codx-meet-device-id'
+    let id = sessionStorage.getItem(key)
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36)
+      sessionStorage.setItem(key, id)
+    }
+    return id
+  } catch (e) {
+    return `dev-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+// Stable per-tab device id: two tabs/devices of the same user get distinct ids.
+const deviceId = readDeviceId()
+
+/**
+ * Build the composite, device-scoped peer key.
+ *
+ * @param {string} username - participant username (used for display too)
+ * @param {string} [sid]    - session discriminator (socket id / device id). When
+ *                            missing we degrade to the plain username, which
+ *                            keeps the legacy single-device behaviour working.
+ * @returns {string}
+ */
+function peerIdOf(username, sid) {
+  const who = username || 'guest'
+  return sid ? `${who}::${sid}` : who
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -88,26 +135,35 @@ function meetToClient(meet, fallback = {}) {
 }
 
 /**
- * Get (or lazily create) the RTCPeerConnection towards a remote participant.
+ * Get (or lazily create) the RTCPeerConnection towards a remote *session*.
+ *
+ * `peerId` is the device-scoped key (see `peerIdOf`) so two devices logged in
+ * with the same account get independent connections instead of sharing one.
  */
-function ensurePeer(ctx, meetId, remoteUser) {
+function ensurePeer(ctx, meetId, peerId, username = '') {
   peerConnections[meetId] = peerConnections[meetId] || {}
-  const existing = peerConnections[meetId][remoteUser]
-  if (existing) return existing
+  const existing = peerConnections[meetId][peerId]
+  if (existing) {
+    if (username) existing._username = username
+    return existing
+  }
 
   const pc = new RTCPeerConnection({ iceServers })
+  // Remember the display name so `ontrack` can label the remote stream even
+  // though the map key is a device-scoped id.
+  pc._username = username || peerId
 
   pc.onicecandidate = (event) => {
     if (!event.candidate) return
     // Echo the candidate back through the REST signalling endpoint.
-    API.meets.addIceCandidate({ meetId, candidate: event.candidate, to: remoteUser })
+    API.meets.addIceCandidate({ meetId, candidate: event.candidate, to: username || peerId })
       .catch(err => console.warn('[meets] failed to send ICE candidate', err))
   }
 
   pc.ontrack = (event) => {
     const [stream] = event.streams
     if (stream) {
-      ctx.commit('setRemoteStream', { meetId, username: remoteUser, stream })
+      ctx.commit('setRemoteStream', { meetId, peerId, username: pc._username, stream })
     }
   }
 
@@ -119,32 +175,32 @@ function ensurePeer(ctx, meetId, remoteUser) {
     })
   }
 
-  peerConnections[meetId][remoteUser] = pc
+  peerConnections[meetId][peerId] = pc
   return pc
 }
 
-function closePeer(ctx, meetId, remoteUser) {
-  const pc = peerConnections[meetId]?.[remoteUser]
+function closePeer(ctx, meetId, peerId) {
+  const pc = peerConnections[meetId]?.[peerId]
   if (pc) {
     try { pc.close() } catch (e) { /* ignore */ }
-    delete peerConnections[meetId][remoteUser]
+    delete peerConnections[meetId][peerId]
   }
   if (pendingCandidates[meetId]) {
-    delete pendingCandidates[meetId][remoteUser]
+    delete pendingCandidates[meetId][peerId]
   }
-  ctx.commit('removeRemoteStream', { meetId, username: remoteUser })
+  ctx.commit('removeRemoteStream', { meetId, peerId })
 }
 
 function closeAllPeers(ctx, meetId) {
   const peers = peerConnections[meetId] || {}
-  Object.keys(peers).forEach(u => closePeer(ctx, meetId, u))
+  Object.keys(peers).forEach(peerId => closePeer(ctx, meetId, peerId))
   delete peerConnections[meetId]
   delete pendingCandidates[meetId]
 }
 
-async function flushCandidates(meetId, remoteUser, pc) {
-  const buffered = pendingCandidates[meetId]?.[remoteUser] || []
-  if (pendingCandidates[meetId]) pendingCandidates[meetId][remoteUser] = []
+async function flushCandidates(meetId, peerId, pc) {
+  const buffered = pendingCandidates[meetId]?.[peerId] || []
+  if (pendingCandidates[meetId]) pendingCandidates[meetId][peerId] = []
   for (const candidate of buffered) {
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate))
@@ -161,8 +217,8 @@ async function flushCandidates(meetId, remoteUser, pc) {
 async function syncLocalTracks(meetId) {
   const stream = localStreams[meetId]
   const peers = peerConnections[meetId] || {}
-  for (const remoteUser of Object.keys(peers)) {
-    const pc = peers[remoteUser]
+  for (const peerId of Object.keys(peers)) {
+    const pc = peers[peerId]
     for (const kind of ['audio', 'video']) {
       const track = stream ? stream.getTracks().find(t => t.kind === kind) : null
       const sender = pc.getSenders().find(s => s.track?.kind === kind)
@@ -246,7 +302,12 @@ export const getters = getterTree(state, {
   // detected — this drives the "speaking" pulse on the mic indicator.
   isMicSpeaking: (state) => state.localMicEnabled && state.micLevel >= MIC_SPEAKING_THRESHOLD,
   meetForId: (state) => (meetId) => state.activeMeets[meetId] || null,
+  // Remote streams are keyed by the device-scoped peer id.
   remoteStreamsFor: (state) => (meetId) => state.activeMeets[meetId]?.remoteStreams || {},
+  // Remote peers as an array of { peerId, username, stream } entries — one per
+  // session (so two devices of the same user appear separately).
+  remotePeersFor: (state) => (meetId) =>
+    Object.values(state.activeMeets[meetId]?.remoteStreams || {}),
   deviceCount: (state) => {
     return {
       microphones: state.availableDevices.microphones.length,
@@ -317,18 +378,20 @@ export const mutations = mutationTree(state, {
     }
   },
 
-  setRemoteStream(state, { meetId, username, stream }) {
+  // remoteStreams is keyed by the *device-scoped* peer id so that two devices
+  // logged in with the same account stay separate entries.
+  setRemoteStream(state, { meetId, peerId, username, stream }) {
     if (!state.activeMeets[meetId]) return
     state.activeMeets[meetId].remoteStreams = {
       ...state.activeMeets[meetId].remoteStreams,
-      [username]: stream
+      [peerId]: { peerId, username: username || peerId, stream }
     }
   },
 
-  removeRemoteStream(state, { meetId, username }) {
+  removeRemoteStream(state, { meetId, peerId }) {
     if (!state.activeMeets[meetId]) return
     const streams = { ...state.activeMeets[meetId].remoteStreams }
-    delete streams[username]
+    delete streams[peerId]
     state.activeMeets[meetId].remoteStreams = streams
   },
 
@@ -409,7 +472,10 @@ export const mutations = mutationTree(state, {
       if (meet.localStream) {
         meet.localStream.getTracks().forEach(track => track.stop())
       }
-      Object.values(meet.remoteStreams).forEach(stream => {
+      Object.values(meet.remoteStreams || {}).forEach(entry => {
+        // Entries are { peerId, username, stream }; tolerate the legacy shape
+        // (a bare MediaStream) so an in-flight upgrade never throws.
+        const stream = entry?.stream || entry
         if (stream?.getTracks) stream.getTracks().forEach(track => track.stop())
       })
 
@@ -911,12 +977,16 @@ export const actions = actionTree(
      *   • 'join-approved'  – our knock was accepted (→ join for real)
      *   • 'join-rejected'  – our knock was declined
      *
-     * Payload: { type, meetId, from, to, fromName?, fromAvatar?, meet?, participants? }
+     * Payload: { type, meetId, from, fromSid?, to, fromName?, fromAvatar?, meet?, participants? }
+     *
+     * `fromSid` is the sender's session id: it distinguishes the several
+     * devices a single account may join from.
      */
     handleMeetEvent(ctx, evt = {}) {
       const { type, meetId, from, to } = evt
       if (!meetId || !type) return
       const me = currentUsername()
+      const fromSid = evt.fromSid || evt.fromDevice || ''
 
       // Outgoing knock resolved (we are not in the meet yet, so handle first).
       if (type === 'join-approved' || type === 'join-rejected') {
@@ -934,7 +1004,7 @@ export const actions = actionTree(
 
       if (type === 'initiated') {
         const initiator = evt.meet?.initiator || from
-        if (initiator === me) return          // our own initiate
+        if (initiator === me && (!fromSid || fromSid === API.sid)) return   // our own initiate
         if (ctx.state.activeMeets[meetId]) return
         const initiatorInfo = (evt.meet?.participants || [])
           .find(p => (typeof p === 'string' ? p : p.username) === initiator)
@@ -953,7 +1023,8 @@ export const actions = actionTree(
 
       if (type === 'join-request') {
         const requester = from
-        if (!requester || requester === me) return
+        // A same-username knock from *another* device is a real request.
+        if (!requester || (requester === me && (!fromSid || fromSid === API.sid))) return
         ctx.commit('addJoinRequest', {
           meetId,
           from: requester,
@@ -970,9 +1041,13 @@ export const actions = actionTree(
         else if (from) ctx.commit('addParticipantToMeet', { meetId, userId: from })
 
         // Mesh topology: every peer already in the meet offers to the newcomer.
-        // The newcomer itself (from === me) waits for the incoming offers.
-        if (from && from !== me) {
-          ctx.dispatch('createOffer', { meetId, to: from })
+        // The newcomer itself waits for the incoming offers.
+        //
+        // A second device of the SAME user is a real newcomer, so compare the
+        // session id too instead of skipping every same-username join.
+        const isSelfEcho = from === me && (!fromSid || fromSid === API.sid)
+        if (from && !isSelfEcho) {
+          ctx.dispatch('createOffer', { meetId, to: from, toSid: fromSid, username: from })
         }
         return
       }
@@ -980,7 +1055,7 @@ export const actions = actionTree(
       if (type === 'left') {
         const list = normalizeParticipants(evt.participants)
         if (list.length) ctx.commit('setParticipants', { meetId, participants: list })
-        if (from) ctx.dispatch('_dropPeer', { meetId, username: from })
+        if (from) ctx.dispatch('_dropPeer', { meetId, peerId: peerIdOf(from, fromSid), username: from })
         return
       }
 
@@ -997,9 +1072,16 @@ export const actions = actionTree(
       const { meetId, type, from, to, signal } = evt
       if (!meetId || !from || !type) return
 
+      const fromSid = evt.fromSid || evt.fromDevice || ''
+      const fromPeerId = peerIdOf(from, fromSid)
       const me = currentUsername()
       const mySid = API.sid
-      if (from === me) return                       // ignore our own echo
+
+      // Drop only our OWN echo. A second device of the same user shares the
+      // username but not the session id, so it must NOT be treated as "me" —
+      // doing so is exactly what stopped a phone from seeing the desktop.
+      const isSelfEcho = from === me && (!fromSid || fromSid === mySid)
+      if (isSelfEcho) return
       if (to && to !== me && to !== mySid) return   // not addressed to us
 
       // The signalling event can race ahead of the REST (join) response → buffer.
@@ -1011,26 +1093,26 @@ export const actions = actionTree(
 
       try {
         if (type === 'offer') {
-          const pc = ensurePeer(ctx, meetId, from)
+          const pc = ensurePeer(ctx, meetId, fromPeerId, from)
           await pc.setRemoteDescription(new RTCSessionDescription(signal))
-          await flushCandidates(meetId, from, pc)
+          await flushCandidates(meetId, fromPeerId, pc)
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           await API.meets.sendAnswer({ meetId, answer, to: from })
         } else if (type === 'answer') {
-          const pc = peerConnections[meetId]?.[from]
+          const pc = peerConnections[meetId]?.[fromPeerId]
           if (!pc) return
           await pc.setRemoteDescription(new RTCSessionDescription(signal))
-          await flushCandidates(meetId, from, pc)
+          await flushCandidates(meetId, fromPeerId, pc)
         } else if (type === 'ice-candidate') {
           if (!signal) return
-          const pc = peerConnections[meetId]?.[from]
+          const pc = peerConnections[meetId]?.[fromPeerId]
           if (pc && pc.remoteDescription && pc.remoteDescription.type) {
             await pc.addIceCandidate(new RTCIceCandidate(signal))
           } else {
             pendingCandidates[meetId] = pendingCandidates[meetId] || {}
-            pendingCandidates[meetId][from] = pendingCandidates[meetId][from] || []
-            pendingCandidates[meetId][from].push(signal)
+            pendingCandidates[meetId][fromPeerId] = pendingCandidates[meetId][fromPeerId] || []
+            pendingCandidates[meetId][fromPeerId].push(signal)
           }
         }
       } catch (error) {
@@ -1039,12 +1121,15 @@ export const actions = actionTree(
     },
 
     /**
-     * Create and send an SDP offer to a specific peer.
+     * Create and send an SDP offer to a specific peer *session*.
+     * `to` is the username (used for routing/display), `toSid` is the target
+     * session id when the payload provides one.
      */
-    async createOffer(ctx, { meetId, to } = {}) {
+    async createOffer(ctx, { meetId, to, toSid, username } = {}) {
       if (!meetId || !to) return
+      const peerId = peerIdOf(to, toSid)
       try {
-        const pc = ensurePeer(ctx, meetId, to)
+        const pc = ensurePeer(ctx, meetId, peerId, username || to)
         if (pc.signalingState !== 'stable') return
         const offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
@@ -1055,10 +1140,20 @@ export const actions = actionTree(
     },
 
     /**
-     * Drop the peer connection of a participant that left.
+     * Drop the peer connection of a session that left. Accepts either the
+     * device-scoped `peerId` or, as a fallback, the `username` (legacy payloads
+     * without a session id — drops every session of that user).
      */
-    _dropPeer(ctx, { meetId, username }) {
-      closePeer(ctx, meetId, username)
+    _dropPeer(ctx, { meetId, peerId, username } = {}) {
+      if (peerId) {
+        closePeer(ctx, meetId, peerId)
+        return
+      }
+      if (username) {
+        Object.keys(peerConnections[meetId] || {})
+          .filter(k => k === username || k.startsWith(`${username}::`))
+          .forEach(k => closePeer(ctx, meetId, k))
+      }
     },
 
     /**

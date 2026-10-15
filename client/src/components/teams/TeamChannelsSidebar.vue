@@ -148,6 +148,54 @@ import TeamSelector from './TeamSelector.vue'
           </button>
         </div>
       </div>
+
+      <!-- ── AI Profiles section ─────────────────────────────────────── -->
+      <div class="mt-1">
+        <div class="flex items-center gap-1 px-1 py-1 text-xs font-semibold text-base-content/50 uppercase tracking-wide group">
+          <span
+            class="flex items-center gap-1 flex-1 cursor-pointer"
+            @click="profilesCollapsed = !profilesCollapsed"
+          >
+            <i
+              class="fa-solid fa-chevron-down text-xs transition-transform shrink-0"
+              :class="profilesCollapsed ? '-rotate-90' : ''"
+            ></i>
+            AI Profiles
+          </span>
+          <button
+            class="btn btn-xs btn-ghost p-0 w-4 h-4 min-h-0 opacity-0 group-hover:opacity-100"
+            @click.stop="$emit('add-member')"
+            title="Add AI profile"
+          >
+            <i class="fa-solid fa-plus text-xs"></i>
+          </button>
+        </div>
+
+        <div v-if="!profilesCollapsed">
+          <div
+            v-for="profile in (activeTeam.profiles || [])"
+            :key="profile"
+            class="flex items-center gap-2 px-2 py-1 rounded group text-base-content/60 hover:bg-base-content/10 hover:text-base-content"
+          >
+            <i class="fa-solid fa-robot text-xs w-4 shrink-0 text-primary/70"></i>
+            <span class="truncate flex-1 text-xs">{{ profile }}</span>
+            <button
+              class="btn btn-ghost btn-xs p-0 w-4 h-4 min-h-0 opacity-0 group-hover:opacity-100 shrink-0"
+              @click.stop="removeProfile(profile)"
+              title="Remove AI profile"
+            >
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+
+          <div
+            v-if="!(activeTeam.profiles || []).length"
+            class="px-3 py-2 text-xs text-base-content/30 italic"
+          >
+            No AI profiles yet
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -178,7 +226,8 @@ export default {
   data() {
     return {
       channelSearch: '',
-      dmCollapsed: false
+      dmCollapsed: false,
+      profilesCollapsed: false
     }
   },
   computed: {
@@ -208,6 +257,10 @@ export default {
     },
     openDm(member) {
       this.$storex.ui.openTeamDM({ team: this.activeTeam, member })
+    },
+    removeProfile(profile) {
+      if (!this.activeTeam) return
+      this.$storex.teams.removeProfile({ teamId: this.activeTeam.id, profileName: profile })
     }
   }
 }

@@ -2,7 +2,6 @@
 import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
 import DesktopSidebar from './components/layout/DesktopSidebar.vue'
-import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 import NewProject from './components/project/NewProject.vue'
 </script>
 
@@ -37,17 +36,13 @@ import NewProject from './components/project/NewProject.vue'
         @settings="openAccountSettings"
       />
 
-      <!-- Main Content with Router (Flex context for scrollable children) -->
+      <!-- Main Content with Router (Flex context for scrollable children).
+           Every screen — including the Activity Wall, the default screen of the
+           mobile home — is resolved by the router (see the mobile home redirect
+           in router/navigate.js). -->
       <div class="grow flex flex-col min-h-0 min-w-0">
         <RouterView />
       </div>
-
-      <!-- Mobile Bottom Bar (Portrait on mobile) -->
-      <MobileBottomBar
-        v-if="showMobileBottomBar"
-        :user-name="$user?.username || 'User'"
-        @show-menu="openMobileSidebar"
-      />
 
       <!-- Toast Notifications -->
       <Toast ref="toastComponent" />
@@ -115,12 +110,6 @@ export default {
     },
     errorNotifications() {
       return this.$ui.notifications.filter(n => n.type === 'error')
-    },
-    showMobileBottomBar() {
-      const navigation = this.$storex.$router.$navigation
-      // Hide the bottom bar inside a chat or the Meet tool, which take over
-      // the full screen (the bar would otherwise cover their content).
-      return !navigation.getChatId() && !navigation.isMeetView && this.$ui.isMobile
     }
   },
   created() {
@@ -164,9 +153,6 @@ export default {
     // The mobile sidebar open/close state is owned by the ui store
     // (`sidebarCollapsed`) instead of a local flag, so the sidebar and its
     // backdrop stay in sync through a single source of truth.
-    openMobileSidebar() {
-      this.$storex.ui.expandSidebar()
-    },
     closeMobileSidebar() {
       this.$storex.ui.collapseSidebar()
     },
