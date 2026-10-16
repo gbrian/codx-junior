@@ -5,6 +5,19 @@ import { ENTITY_STATUS } from './entityStatuses'
 
 export const namespaced = true
 
+// ─── Chat Mode Configuration ───────────────────────────────────────────────
+export const CHAT_MODES = {
+  chat: { value: 'chat', label: 'Chat', icon: 'fa-comments' },
+  agent: { value: 'agent', label: 'Agent', icon: 'fa-solid fa-arrows-spin' },
+  task: { value: 'task', label: 'Task', icon: 'fa-tasks' },
+  topic: { value: 'topic', label: 'Topic', icon: 'fa-lightbulb' },
+  preview: { value: 'preview', label: 'Preview', icon: 'fa-eye' },
+  browser: { value: 'browser', label: 'Browser', icon: 'fa-globe' },
+  slides: { value: 'slides', label: 'Slides', icon: 'fa-presentation' },
+  tutorial: { value: 'tutorial', label: 'Tutorial', icon: 'fa-graduation-cap' },
+  channel: { value: 'channel', label: 'Channel', icon: 'fa-hashtag' }
+}
+
 // ─── Status Configuration (single source of truth) ───────────────────────────
 export const CHAT_STATUS_CONFIG = {
   todo:     { value: 'todo',     label: 'To Do',    icon: 'fa-solid fa-circle-dot',   textColor: 'text-info/60',    borderColor: 'border-l-info',    btnClass: 'btn-info btn-outline' },
@@ -21,6 +34,7 @@ export const state = () => ({
   activeChatId: null,
   chatEvents: {},
   chatLoadingStatus: {}, // { [chatId]: ENTITY_STATUS }
+  needsReload: {}, // { [chatId]: true } chat only carries a summary (last message) and must be fully reloaded before display
   searchResults: null,
   recentChatIds: [],
   recentChatsPage: 1,
@@ -34,10 +48,47 @@ function registerChat(state, chat) {
     return
   }
   const existingChat = state.chats[chat.id] || {}
+  
+  // Update lastMessageAt when registering a chat with messages
+  const lastMessage = chat.messages?.[chat.messages.length - 1]
+  const lastMessageAt = lastMessage?.timestamp || lastMessage?.created_at || chat.updated_at || new Date().toISOString()
+  
   state.chats[chat.id] = {
     ...existingChat,
-    ...chat
+    ...chat,
+    lastMessageAt
   }
+}
+
+// Register a chat that only carries a summary (e.g. from list()/search() — the
+// last message only).
+// - If the full history is already loaded, keep its messages and only refresh
+//   the rest of the chat info from the summary.
+// - If a full load is in flight, leave the chat untouched.
+// - Otherwise flag it so the full history is fetched before the chat is shown.
+function registerChatSummary(state, chat) {
+  if (!chat?.id) return
+
+  const status = state.chatLoadingStatus[chat.id]
+
+  // A full load is in flight — the summary would only clobber the incoming
+  // full history, so leave the chat untouched.
+  if (status === ENTITY_STATUS.LOADING) {
+    return
+  }
+
+  // Full history already loaded: keep its messages, refresh the chat info.
+  if (status === ENTITY_STATUS.LOADED) {
+    const existingChat = state.chats[chat.id] || {}
+    registerChat(state, { ...chat, messages: existingChat.messages })
+    return
+  }
+
+  // Summary only (last message) or unknown chat: register it and flag for a
+  // full reload before it is displayed.
+  registerChat(state, chat)
+  $storex.chats.setChatNeedsReload(chat.id)
+  $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
 }
 
 function getChatWorkingProject({ owner_project_id, project_id }) {
@@ -48,6 +99,21 @@ function getChatWorkingProject({ owner_project_id, project_id }) {
 function getChatProject({ owner_project_id }) {
   return $storex.projects.allProjectsById[owner_project_id] ||
             $storex.projects.activeProject
+}
+
+// Whether a chat is owned by the CURRENTLY ACTIVE project. The chats store is
+// scoped to the active project (it is cleared whenever the project changes), so
+// chats owned by another project must never be cached here. Doing so would leak
+// their cards into the current board whenever a board is copied/moved to another
+// project, because boards are keyed by title and an imported board keeps the
+// same title until the next reload.
+// When the owner cannot be determined, previous behaviour is preserved (true).
+function isActiveProjectChat(chat) {
+  if (!chat) return false
+  const ownerProjectId = chat.owner_project_id || chat.project_id
+  const activeProjectId = $storex.projects.activeProject?.project_id
+  if (!ownerProjectId || !activeProjectId) return true
+  return ownerProjectId === activeProjectId
 }
 
 function getRootChat(state, chatId) {
@@ -66,6 +132,24 @@ export const getters = getterTree(state, {
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
   allTemplates: state => Object.values(state.chats || {}).filter(c => c.is_template),
+  
+  // ─── Chat Mode Helpers ────────────────────────────────────────────────────
+  availableChatModes: () => Object.values(CHAT_MODES),
+  chatModeConfig: () => (mode) => CHAT_MODES[mode] || CHAT_MODES.chat,
+  chatModeLabel: () => (mode) => (CHAT_MODES[mode] || CHAT_MODES.chat).label,
+  chatModeIcon: () => (mode) => (CHAT_MODES[mode] || CHAT_MODES.chat).icon,
+
+  // ─── Channel Helpers ──────────────────────────────────────────────────────
+  channels: state => {
+    return Object.values(state.chats || {})
+      .filter(c => c.mode === 'channel')
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || a.updated_at || 0).getTime()
+        const timeB = new Date(b.lastMessageAt || b.updated_at || 0).getTime()
+        return timeB - timeA
+      })
+  },
+
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0 ||
       state.chatLoadingStatus[chatId] === ENTITY_STATUS.LOADING
@@ -73,6 +157,7 @@ export const getters = getterTree(state, {
   chatLoadingStatus: state => (chatId) => {
     return state.chatLoadingStatus[chatId] || ENTITY_STATUS.UNINITIALIZED
   },
+  chatNeedsReload: state => (chatId) => !!state.needsReload[chatId],
   activeChat: state => state.activeChatId ? (state.chats[state.activeChatId] || null) : null,
   chatProject: state => ({ project_id, owner_project_id }) => {
     return $storex.projects.allProjectsById[project_id || owner_project_id]
@@ -90,7 +175,16 @@ export const getters = getterTree(state, {
   searchResults: state => state.searchResults,
   getChatProject: () => getChatProject,
   getChatWorkingProject: () => getChatWorkingProject,
-  recentChats: state => state.recentChatIds.map(id => state.chats[id]).filter(Boolean),
+  recentChats: state => {
+    return state.recentChatIds
+      .map(id => state.chats[id])
+      .filter(Boolean)
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || a.updated_at || 0).getTime()
+        const timeB = new Date(b.lastMessageAt || b.updated_at || 0).getTime()
+        return timeB - timeA
+      })
+  },
   recentChatsHasMore: state => state.recentChatsHasMore,
   recentChatsLoading: state => state.recentChatsLoading,
 
@@ -150,6 +244,18 @@ export const mutations = mutationTree(state, {
     }
   },
 
+  setChatNeedsReload(state, chatId) {
+    if (!chatId) return
+    state.needsReload = { ...state.needsReload, [chatId]: true }
+  },
+
+  clearChatNeedsReload(state, chatId) {
+    if (!chatId || !state.needsReload[chatId]) return
+    const next = { ...state.needsReload }
+    delete next[chatId]
+    state.needsReload = next
+  },
+
   setChatUpdating(state, { chatId, updating }) {
     const current = state.chatEvents[chatId]?.updatingCount || 0
     const prevTimeoutId = state.chatEvents[chatId]?.timeoutId || null
@@ -189,6 +295,13 @@ export const mutations = mutationTree(state, {
     state.chats = {}
     state.activeChatId = null
     state.chatLoadingStatus = {}
+    state.needsReload = {}
+  },
+
+  updateChatLastMessageAt(state, { chatId, timestamp }) {
+    if (state.chats[chatId]) {
+      state.chats[chatId].lastMessageAt = timestamp
+    }
   }
 })
 
@@ -202,12 +315,7 @@ export const actions = actionTree(
       if (!activeProject?.$api) return
       
       const chats = await activeProject.$api.chats.list()
-      chats.forEach(chat => {
-        if (chat.id && !state.chats[chat.id]) {
-          registerChat(state, chat)
-          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        }
-      })
+      chats.forEach(chat => registerChatSummary(state, chat))
     },
     async loadRecentChats({ state }, { userId, page, pageSize, append = false } = {}) {
       if (state.recentChatsLoading) return
@@ -230,10 +338,7 @@ export const actions = actionTree(
         }
 
         // Register every chat so they are available in state.chats
-        response.chats.forEach(chat => {
-          registerChat(state, chat)
-          $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
-        })
+        response.chats.forEach(chat => registerChatSummary(state, chat))
 
         const ids = response.chats.map(c => c.id)
 
@@ -257,7 +362,9 @@ export const actions = actionTree(
       if (options instanceof ChatSearchRequest) {
         searchRequest = options
       } else {
-        if (!options.query || options.query.trim() === '') {
+        const hasDateRange = !!(options.from_date || options.to_date)
+        // Allow date-range-only searches (planning/follow-up), not just text queries.
+        if ((!options.query || options.query.trim() === '') && !hasDateRange) {
           $storex.chats.clearSearchResults()
           return null
         }
@@ -281,6 +388,12 @@ export const actions = actionTree(
 
       const project = $storex.projects.activeProject
       const results = await project.$api.chats.search(searchRequest)
+
+      // Search returns chat summaries (last message only) — register them so
+      // they get a full reload when opened.
+      if (Array.isArray(results?.results)) {
+        results.results.forEach(chat => registerChatSummary(state, chat))
+      }
 
       $storex.chats.setSearchResults(results)
       return results
@@ -335,16 +448,15 @@ export const actions = actionTree(
       if (!storedChat) return null
 
       const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
-
-      if (status === ENTITY_STATUS.LOADED) {
-        return storedChat
-      }
+      const needsReload = !!state.needsReload[chat.id]
 
       if (status === ENTITY_STATUS.LOADING) {
         return storedChat
       }
 
-      if (status === ENTITY_STATUS.UNINITIALIZED) {
+      // A chat loaded from a summary (list/search) must be fully reloaded before
+      // being shown, even if its record status is already LOADED.
+      if (status === ENTITY_STATUS.UNINITIALIZED || needsReload) {
         return await $storex.chats.loadChat(chat)
       }
 
@@ -385,6 +497,9 @@ export const actions = actionTree(
       }
       const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id })
       registerChat(state, loadedChat)
+      // A full chat was fetched — mark it as loaded so later list/search
+      // summaries keep its messages instead of clobbering them.
+      $storex.chats.setChatLoadingStatus({ chatId: id, status: ENTITY_STATUS.LOADED })
       return state.chats[id] || null
     },
     async loadChat({ state }, chat) {
@@ -394,8 +509,10 @@ export const actions = actionTree(
 
       const existingChat = state.chats[chat.id]
       const status = state.chatLoadingStatus[chat.id] || ENTITY_STATUS.UNINITIALIZED
-      
-      if (existingChat && status === ENTITY_STATUS.LOADED) {
+      const needsReload = !!state.needsReload[chat.id]
+
+      // Reload unless the full history is already loaded and still fresh.
+      if (existingChat && status === ENTITY_STATUS.LOADED && !needsReload) {
         return existingChat
       }
 
@@ -404,6 +521,7 @@ export const actions = actionTree(
       try {
         const loadedChat = await project.$api.chats.loadChat(chat)
         registerChat(state, loadedChat)
+        $storex.chats.clearChatNeedsReload(chat.id)
         $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       } catch (error) {
         $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
@@ -416,9 +534,15 @@ export const actions = actionTree(
       const freshChat = await project.$api.chats.loadChat(chat)
       if (freshChat && state.chats[chat.id]) {
         Object.assign(state.chats[chat.id], freshChat)
-      } else {
+      } else if (freshChat && isActiveProjectChat(freshChat)) {
+        // Only cache chats owned by the ACTIVE project. The chats store is
+        // scoped to it, so caching another project's chat would leak its card
+        // into the current board — boards are keyed by title and a board that
+        // is copied/moved to another project keeps its title — until the next
+        // project reload (that is what produced the transient duplicated cards).
         registerChat(state, freshChat)
       }
+      $storex.chats.clearChatNeedsReload(chat.id)
       $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
       return state.chats[chat.id]
     },
@@ -434,6 +558,12 @@ export const actions = actionTree(
         
         if (updatedChat && updatedChat.messages) {
           state.chats[chat.id].messages = updatedChat.messages
+          // Update lastMessageAt with the latest message timestamp
+          const lastMessage = updatedChat.messages[updatedChat.messages.length - 1]
+          if (lastMessage) {
+            const timestamp = lastMessage.timestamp || lastMessage.created_at || new Date().toISOString()
+            $storex.chats.updateChatLastMessageAt({ chatId: chat.id, timestamp })
+          }
         }
         
         return updatedChat
@@ -479,6 +609,26 @@ export const actions = actionTree(
         throw error
       }
     },
+    // Update only the `content` of an existing message (e.g. an edited canva
+    // code block), keeping every other field of the message untouched.
+    async updateMessageContent({ state }, { chat, doc_id, content }) {
+      if (!chat?.id || !doc_id) return null
+
+      const chatState = state.chats[chat.id]
+      const message = chatState?.messages?.find(m => m.doc_id === doc_id)
+        || chat.messages?.find(m => m.doc_id === doc_id)
+      if (!message) return null
+
+      const updated_at = new Date().toISOString()
+      // Optimistic local update so the message refreshes immediately
+      message.content = content
+      message.updated_at = updated_at
+
+      return await $storex.chats.updateMessage({
+        chat,
+        message: { ...message, content, updated_at }
+      })
+    },
     async updateMessages({ state }, { chat, messages }) {
       if (!chat?.id || !messages?.length) return
 
@@ -496,6 +646,12 @@ export const actions = actionTree(
 
         if (lastResult?.messages) {
           state.chats[chat.id].messages = lastResult.messages
+          // Update lastMessageAt with the latest message timestamp
+          const lastMessage = lastResult.messages[lastResult.messages.length - 1]
+          if (lastMessage) {
+            const timestamp = lastMessage.timestamp || lastMessage.created_at || new Date().toISOString()
+            $storex.chats.updateChatLastMessageAt({ chatId: chat.id, timestamp })
+          }
         } else {
           await $storex.chats.reloadChat(chat)
         }
@@ -592,6 +748,7 @@ export const actions = actionTree(
       chatIds.forEach(id => {
         delete state.chats[id]
         delete state.chatLoadingStatus[id]
+        delete state.needsReload[id]
       })
 
       if (chatIds.includes(state.activeChatId)) {
@@ -606,16 +763,24 @@ export const actions = actionTree(
         return
       }
 
+      // Load/reload the chat data without triggering setActiveChat again
       await $storex.chats.reloadChat({ id, project_id, owner_project_id })
+
+      // Set the active chat id — activeChat getter will resolve it from chats map
       $storex.chats.setActiveChatId(id)
 
-      if (!$storex.ui.isDesktopMode) {
-        const chatName = name || `chat-${id}`
-        $storex.$router.$navigation.chats.open(id, chatName)
+      // Desktop "vibe" mode renders its own layout, so it must not force an app
+      // to open on top of it.
+      if (!$storex.ui.isMobile && $storex.ui.viewMode === 'vibe') {
+        return
       }
 
-      if (!$storex.ui.isMobile && $storex.ui.viewMode !== 'vibe') {
-        $storex.ui.openChat($storex.chats.activeChat)
+      // Unified opener: a dockview panel on desktop, its own route on mobile.
+      // `openChat` → `openApp('chat', …)` decides which, so the store no longer
+      // branches on isDesktopMode / navigation.chats.open itself.
+      const chat = $storex.chats.activeChat
+      if (chat) {
+        $storex.ui.openChat({ ...chat, name: name || chat.name })
       }
     },
     async createNewChat({ state }, chat) {
@@ -628,7 +793,17 @@ export const actions = actionTree(
         owner_project_id: chat.owner_project_id || $storex.projects.activeProject.project_id,
         ...chat
       }
-      
+
+      // A child chat (subtask / thread) belongs to the SAME sprint(s) as its
+      // parent when it does not define its own sprint info. The parent may be
+      // passed inline (chat.parent) or only referenced by parent_id.
+      if (chat.parent_id && !chat.sprints?.length) {
+        const parentChat = chat.parent || state.chats?.[chat.parent_id]
+        if (parentChat?.sprints?.length) {
+          chat.sprints = [...parentChat.sprints]
+        }
+      }
+
       $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.UNINITIALIZED })
       if (!chat.temp) {
         return await $storex.chats.saveChat(chat)
@@ -663,6 +838,32 @@ export const actions = actionTree(
       }
 
       return await $storex.chats.createNewChat(newChat)
+    },
+    // Persist a fully-populated chat (used by board import) in a SINGLE request
+    // and register it in the store. Unlike `createNewChat` — which saves the
+    // metadata first and then writes each message with its own request — this
+    // sends the whole message history inline (PUT /api/chats?chat_only=0), so
+    // importing a board with hundreds of tasks stays fast.
+    async importChat({ state }, chat) {
+      if (!chat?.id) return null
+      const project = getChatProject(chat) || $storex.projects.activeProject
+      if (!project?.$api) return null
+
+      const savedChat = await project.$api.chats.save(chat)
+      const saved = savedChat || chat
+
+      // Only cache chats that belong to the ACTIVE project: the chats store is
+      // scoped to it (it is cleared on project change), so caching another
+      // project's chats would leak the imported cards into the current
+      // project's board views — and let `deleteBoard` destroy them on a move.
+      if (project.project_id !== $storex.projects.activeProject?.project_id) {
+        return saved
+      }
+
+      registerChat(state, saved)
+      $storex.chats.clearChatNeedsReload(saved.id)
+      $storex.chats.setChatLoadingStatus({ chatId: saved.id, status: ENTITY_STATUS.LOADED })
+      return state.chats[saved.id]
     },
     async createNewChatFromUrl({ state }, chat) {
       chat = {
@@ -743,6 +944,15 @@ export const actions = actionTree(
         await $storex.chats.setActiveChat(findChild)
       }
     },
+    // Mark a chat as "processing" the moment the user sends a message, before
+    // the server streams its first chunk back. This gives immediate UI feedback
+    // and is shared by the chat list, kanban and tab indicators. The underlying
+    // `setChatUpdating` mutation schedules an auto-reset timeout, so a
+    // non-responsive server falls back to the idle state automatically.
+    startChatProcessing(_, { chatId }) {
+      if (!chatId) return
+      $storex.chats.setChatUpdating({ chatId, updating: true })
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
@@ -760,6 +970,17 @@ export const actions = actionTree(
       }
 
       if (chatId) {
+        // Socket events are broadcast for EVERY project. Ignore chats that do
+        // not belong to the active project: the chats store is scoped to it, so
+        // caching a foreign chat would inject duplicate cards into the current
+        // board. This happens while copying/moving a board to another project —
+        // each imported chat is saved there and emits a "changed" event, and
+        // `importChat` already refuses to cache it, but this event path used to
+        // re-register it (transient duplicates that vanish after a reload).
+        if (!state.chats[chatId] && !isActiveProjectChat({ owner_project_id })) {
+          return
+        }
+
         if (type === 'changed' || !state.chats[chatId]) {
           await $storex.chats.reloadChat({ id: chatId, owner_project_id })
         }
@@ -813,6 +1034,41 @@ export const actions = actionTree(
       } catch (error) {
         console.error('[chats store] Failed to update chat status:', error)
       }
-    }
+    },
+    async createNewThread(_, { chat, mode, message }) {
+      const { files, profiles, doc_id: subtaskMessageId } = message
+      const findChild = $storex.chats.allChats.find(c => c.message_id === subtaskMessageId)
+
+      // Thread already exists -> just open it
+      if (findChild) {
+        await $storex.chats.setActiveChat(findChild)
+        return findChild
+      }
+
+      const boardTitle = chat.board
+      const columnTitle = chat.column
+      const newChat = await $storex.chats.createNewBoardChat({
+        boardTitle, columnTitle,
+        chat: {
+          name: `${subtaskMessageId} - thread`,
+          owner_project_id: chat.owner_project_id || chat.project_id,
+          project_id: chat.project_id || chat.owner_project_id,
+          parent_id: chat.id,
+          message_id: subtaskMessageId,
+          file_list: files,
+          profiles: profiles,
+          mode: mode || chat.mode || 'chat',
+          board: chat.board,
+          column: chat.column,
+          activateChat: true,
+          messages: [{ ...message, doc_id: null }]
+        }
+      })
+
+      // A thread must actually run like a task: without this the new thread
+      // chat is created empty and no task/answer is generated.
+      await $storex.projects.chatWihProject(newChat)
+      return newChat
+    },
   }
 )

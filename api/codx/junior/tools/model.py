@@ -30,13 +30,17 @@ class ToolResponse:
         llm_response: Lightweight feedback for the LLM context.
         logs: List of formatted log entries for forensic audit trail.
               Format: "[YYYY-MM-DD HH:MM:SS.mmm][LEVEL] Message"
+        cost: Cost in cxjcoins incurred while executing the tool (e.g. a tool
+              that performs its own AI call). Defaults to 0.0. SmolAgent sums
+              this into the response message cost and the chat budget.
     """
 
     def __init__(
         self,
         user_response: str,
         llm_response: str,
-        logs: Optional[List[str]] = None
+        logs: Optional[List[str]] = None,
+        cost: float = 0.0
     ) -> None:
         """
         Initialize a dual-return tool response.
@@ -45,10 +49,12 @@ class ToolResponse:
             user_response: Content visible to the user in the chat interface.
             llm_response: Feedback/status message for the LLM context.
             logs: Optional list of formatted log entries for forensic audit.
+            cost: Cost in cxjcoins incurred by the tool execution (default 0.0).
         """
         self.user_response: str = user_response
         self.llm_response: str = llm_response
         self.logs: List[str] = logs or []
+        self.cost: float = cost or 0.0
 
     def add_log(
         self,

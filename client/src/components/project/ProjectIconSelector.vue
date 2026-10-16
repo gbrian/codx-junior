@@ -9,7 +9,7 @@ import ProjectIconSquare from './ProjectIconSquare.vue';
     @keydown.stop="handleKeydown"
     v-if="$project" />
     <div class="spin spin-dots" v-else></div>
-    <ul tabindex="0" class="dropdown-content bg-base-100 ml-2 rounded-box z-[150] p-2 max-h-60 overflow-auto shadow-sm">
+    <ul tabindex="0" class="dropdown-content bg-base-100 bg-base-100 ml-2 rounded-box z-[150] p-2 max-h-60 overflow-auto shadow-sm">
       <li><div class="text-xs text-center mb-2" :key="filter">{{ filter }}</div></li>
       <li v-for="project in projects" :key="project.project_id">
         <ProjectIconSquare :project="project" @click="selectProject(project)" />

@@ -12,7 +12,7 @@
       </div>
       
       <!-- Branch dropdown menu -->
-      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-1 shadow border border-base-content/10 max-h-60 overflow-y-auto">
+      <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[1] w-48 p-1 shadow border border-base-content/10 max-h-60 overflow-y-auto">
         <li v-for="branch in branches" :key="branch">
           <a 
             :class="currentBranch === branch ? 'active bg-primary/20 text-primary' : ''"

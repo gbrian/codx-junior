@@ -1,7 +1,7 @@
 <script setup>
 import MessengerChannelList from '@/components/messenger/MessengerChannelList.vue'
 import MessengerGroupInfo from '@/components/messenger/MessengerGroupInfo.vue'
-import Chat from '@/components/chat/Chat.vue'
+import ChatView from '@/views/ChatView.vue'
 </script>
 
 <template>
@@ -20,11 +20,11 @@ import Chat from '@/components/chat/Chat.vue'
       :style="sidebarCollapsed ? 'width:64px' : 'width:288px'"
     >
       <MessengerChannelList
-        :groups="groupChats"
+        :groups="channels"
         :active-chat="activeChat"
         :user-name="$user?.username || 'User'"
         :is-collapsed="sidebarCollapsed"
-        :loading="loadingGroups"
+        :loading="loadingChannels"
         @select="openChat"
         @new-group="showNewGroupModal = true"
         @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
@@ -46,11 +46,11 @@ import Chat from '@/components/chat/Chat.vue'
         </div>
         <div class="flex-1 overflow-hidden">
           <MessengerChannelList
-            :groups="groupChats"
+            :groups="channels"
             :active-chat="activeChat"
             :user-name="$user?.username || 'User'"
             :is-collapsed="false"
-            :loading="loadingGroups"
+            :loading="loadingChannels"
             @select="chat => { openChat(chat); showMobileChannels = false }"
             @new-group="showNewGroupModal = true; showMobileChannels = false"
             @toggle-collapse="showMobileChannels = false"
@@ -87,102 +87,13 @@ import Chat from '@/components/chat/Chat.vue'
         </div>
       </transition>
 
-      <!-- ── Active chat ── -->
+      <!-- ── Active chat with ChatView ── -->
       <transition name="fade">
-        <div v-if="activeChat" class="flex-1 flex flex-col h-full overflow-hidden">
-
-          <!-- Chat header -->
-          <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-base-content/5 bg-base-300/80 backdrop-blur-sm">
-            <!-- Mobile back -->
-            <button
-              v-if="isMobile"
-              class="p-2 text-base-content/40 hover: transition-colors"
-              @click="activeChatId = null"
-            >
-              <i class="fas fa-arrow-left text-sm"></i>
-            </button>
-
-            <!-- Channel avatar -->
-            <div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-              <span class="text-primary text-xs font-bold">{{ getInitials(activeChat.name) }}</span>
-            </div>
-
-            <div class="flex-1 min-w-0">
-              <h2 class="text-sm font-semibold text-base-content/80 truncate"># {{ activeChat.name || 'Channel' }}</h2>
-              <p class="text-[11px] text-base-content/30">
-                {{ membersLabel }}
-              </p>
-            </div>
-
-            <div class="flex items-center gap-1">
-              <!-- Hidden messages toggle -->
-              <button
-                class="btn btn-ghost btn-xs rounded-lg flex items-center gap-1"
-                :class="showHidden ? 'text-warning' : 'text-base-content/30 hover:text-base-content/70'"
-                :title="showHidden ? 'Hide hidden messages' : 'Show hidden messages'"
-                @click="showHidden = !showHidden"
-              >
-                <i :class="showHidden ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
-                <span v-if="hiddenCount" class="text-xs tabular-nums">{{ hiddenCount }}</span>
-              </button>
-
-              <!-- Members / info toggle -->
-              <button
-                class="btn btn-ghost btn-xs text-base-content/30 hover:text-base-content/70 rounded-lg"
-                :class="showGroupInfo ? 'text-primary' : ''"
-                title="Group info & members"
-                @click="showGroupInfo = !showGroupInfo"
-              >
-                <i class="fas fa-users text-sm"></i>
-              </button>
-              <!-- Loading indicator -->
-              <span v-if="isChatLoading" class="loading loading-spinner loading-xs text-primary ml-1"></span>
-            </div>
-          </div>
-
-          <!-- Content row (messages + optional group info panel) -->
-          <div class="flex-1 min-h-0 flex flex-row overflow-hidden">
-
-            <!-- Chat component column -->
-            <div class="flex-1 min-w-0 overflow-hidden">
-              <Chat
-                :chat="activeChat"
-                :show-hidden="showHidden"
-                class="h-full"
-              />
-            </div>
-
-            <!-- Group info panel (desktop right panel) -->
-            <transition name="slide-right">
-              <MessengerGroupInfo
-                v-if="showGroupInfo && !isMobile && activeChat"
-                :chat="activeChat"
-                :profiles="profiles"
-                @close="showGroupInfo = false"
-                @update-members="updateGroupMembers"
-                @update-name="updateGroupName"
-                @leave-group="leaveGroup"
-              />
-            </transition>
-          </div>
-        </div>
-      </transition>
-
-      <!-- Group info drawer (mobile — full overlay) -->
-      <transition name="slide-left">
-        <div
-          v-if="showGroupInfo && isMobile && activeChat"
-          class="fixed inset-0 z-50 flex flex-col bg-base-300"
-        >
-          <MessengerGroupInfo
-            :chat="activeChat"
-            :profiles="profiles"
-            @close="showGroupInfo = false"
-            @update-members="updateGroupMembers"
-            @update-name="updateGroupName"
-            @leave-group="leaveGroup"
-          />
-        </div>
+        <ChatView
+          v-if="activeChat"
+          :chat="activeChat"
+          class="flex-1 w-full h-full"
+        />
       </transition>
     </div>
 
@@ -349,8 +260,7 @@ export default {
       // Chat state
       activeChatId: null,
       isChatLoading: false,
-      loadingGroups: false,
-      groupChats: [],
+      loadingChannels: false,
 
       // UI state
       sidebarCollapsed: false,
@@ -372,6 +282,9 @@ export default {
   computed: {
     isMobile() {
       return this.$ui.isMobile
+    },
+    channels() {
+      return this.$storex.chats.channels
     },
     activeChat() {
       if (!this.activeChatId) return null
@@ -413,7 +326,6 @@ export default {
     }
   },
   async created() {
-    await this.loadGroupChats()
     this.loadProfiles()
     // Open chat from query param if present
     const chatId = this.$route?.query?.chatId
@@ -432,34 +344,6 @@ export default {
     },
 
     // ── Data loading ─────────────────────────────────────────
-    async loadGroupChats() {
-      try {
-        this.loadingGroups = true
-        const project = this.$project
-        if (!project?.$api) return
-
-        const response = await project.$api.chats.getRecentChats({
-          filters: { mode: 'group' },
-          page: 1,
-          pageSize: 100
-        })
-
-        if (response?.chats) {
-          this.groupChats = response.chats.filter(c => c.mode === 'group')
-          // Register them in store for reactive updates
-          this.groupChats.forEach(chat => {
-            if (!this.$storex.chats.chats[chat.id]) {
-              this.$storex.chats.chats[chat.id] = chat
-            }
-          })
-        }
-      } catch (err) {
-        console.error('[Messenger] loadGroupChats error', err)
-      } finally {
-        this.loadingGroups = false
-      }
-    },
-
     async loadProfiles() {
       try {
         const project = this.$project
@@ -497,14 +381,13 @@ export default {
         const ownerProject = this.chatProject
         const chat = await this.$chats.createNewChat({
           name,
-          mode: 'group',
+          mode: 'channel',
           board: 'messenger',
           profiles: this.newGroupMembers,
           messages: [],
           owner_project_id: ownerProject?.project_id
         })
         if (chat) {
-          this.groupChats.unshift(chat)
           this.showNewGroupModal = false
           await this.openChat(chat)
         }
@@ -535,8 +418,6 @@ export default {
         if (this.$storex.chats.chats[this.activeChatId]) {
           this.$storex.chats.chats[this.activeChatId].profiles = profiles
         }
-        const idx = this.groupChats.findIndex(c => c.id === this.activeChatId)
-        if (idx !== -1) this.groupChats[idx] = { ...this.groupChats[idx], profiles }
       } catch (err) {
         console.error('[Messenger] updateGroupMembers error', err)
       }
@@ -552,8 +433,6 @@ export default {
         if (this.$storex.chats.chats[this.activeChatId]) {
           this.$storex.chats.chats[this.activeChatId].name = name
         }
-        const idx = this.groupChats.findIndex(c => c.id === this.activeChatId)
-        if (idx !== -1) this.groupChats[idx] = { ...this.groupChats[idx], name }
       } catch (err) {
         console.error('[Messenger] updateGroupName error', err)
       }
@@ -561,7 +440,6 @@ export default {
 
     leaveGroup(chat) {
       if (!chat) return
-      this.groupChats = this.groupChats.filter(c => c.id !== chat.id)
       if (this.activeChatId === chat.id) {
         this.activeChatId = null
         this.showGroupInfo = false

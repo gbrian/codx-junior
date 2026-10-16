@@ -14,6 +14,15 @@ Tool Response Types:
     - ToolResponse: Dual-return object for tools that need to produce both
                     user-facing content and LLM feedback
 
+Glob Patterns:
+    Several project tools accept glob patterns inside their path arguments.
+    Glob wildcards are:
+        - ``*``   matches any characters within a single path segment
+        - ``?``   matches a single character
+        - ``[abc]`` matches one character from the set
+        - ``**``  matches across multiple directories (recursive)
+    Example: ``web/src/components/**/*.vue``.
+
 Made with ❤️ by codx-junior
 """
 
@@ -214,11 +223,24 @@ TOOLS = [
                 "name": "project_read_file",
                 "description": (
                     "Read project file content from one or multiple file paths. "
-                    "BULK OPERATION: To reduce tool calls, read multiple related files at once "
-                    "by providing a list of paths instead of making separate calls. "
-                    "Example: file_path=[\"src/main.py\", \"config/settings.py\"] "
-                    "instead of two separate calls. "
-                    "Invalid or missing files are returned as error blocks."
+                    "\n\nGLOB PATTERNS: any path may contain glob wildcards and will be "
+                    "expanded to every matching file. Supported wildcards: "
+                    "'*' (any characters within one path segment, e.g. 'src/*.py'), "
+                    "'?' (a single character), '[abc]' (one character from a set) and "
+                    "'**' (zero or more directories, recursive). "
+                    "Glob examples: 'web/src/components/**/*.vue' (every .vue file under "
+                    "components, at any depth), 'api/**/test_*.py' (every test module), "
+                    "'**/*.md' (every markdown file). "
+                    "Use a glob instead of listing files one by one whenever you need many "
+                    "files of the same kind or are unsure of the exact paths; the tool reads "
+                    "and reports each match individually. "
+                    "\n\nBULK OPERATION: To reduce tool calls, read multiple related files "
+                    "at once by providing a list of paths instead of making separate calls. "
+                    "Example: file_path=[\"src/main.py\", \"config/settings.py\"]. "
+                    "Literal file paths and glob patterns can be mixed in the same list, e.g. "
+                    "file_path=[\"README.md\", \"src/**/*.ts\"]. "
+                    "Invalid or missing files are returned as error blocks; a glob that matches "
+                    "no file is reported as an error."
                 ),
                 "parameters": {
                     "type": "object",
@@ -228,6 +250,10 @@ TOOLS = [
                             "description": (
                                 "Single file path (string) or list of file paths (array of strings). "
                                 "Supports relative or absolute paths and glob patterns. "
+                                "Glob wildcards: '*' (any characters in a segment), '?' (one character), "
+                                "'[abc]' (character set) and '**' (match across directories, recursive). "
+                                "Examples: 'src/main.py', 'web/src/components/**/*.vue', 'api/**/*.py'. "
+                                "Each glob expands to all matching files (read and reported individually). "
                                 "Reading multiple files in one call is more efficient."
                             )
                         }

@@ -53,7 +53,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
     <main
       v-if="isMobile || !activeChat"
       class="flex-1 flex flex-col min-w-0 h-full relative"
-      :class="[isMobile ? 'pb-20' : '']"
+      :class="[mobileBottomBarVisible ? 'pb-20' : '']"
     >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
@@ -227,8 +227,17 @@ export default {
     isMobile() {
       return this.$ui.isMobile
     },
+    // Mirrors App.vue's bottom bar visibility: the fixed bottom bar is hidden
+    // while a chat is open, so we must not reserve its space then.
+    mobileBottomBarVisible() {
+      return this.isMobile && !this.chatId
+    },
     isHomePage() {
-      return this.$route.path === '/'
+      // Home now lives at "/:projectName" (name 'home'); "/" is the unscoped
+      // bootstrap route (name 'root') used before a project is active.
+      return this.$route.name === 'home'
+        || this.$route.name === 'root'
+        || this.$route.path === '/'
     },
     activeChat() {
       if (!this.activeChatId) return null
@@ -361,14 +370,25 @@ export default {
     },
     async openChat() {
       try {
-        this.activeChatId = this.chatId  
+        this.activeChatId = this.chatId
         if (this.chatId) {
           const chat = { id: this.chatId }
           await this.$chats.loadChat(chat)
+
+          // ChatId present but the chat could not be resolved → go home
+          if (!this.$chats.chats[this.chatId]) {
+            this.activeChatId = null
+            this.$router.$navigation.apps.openHome()
+          }
         }
       } catch (err) {
         console.error('[QuickChat] openChat error', err)
         this.activeChatId = null
+
+        // Invalid chat: redirect home only when a chatId was requested
+        if (this.chatId) {
+          this.$router.$navigation.apps.openHome()
+        }
       } finally {
         this.chatLoading = false
       }

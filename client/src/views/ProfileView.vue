@@ -30,8 +30,8 @@ import ProfileCard from '@/components/ProfileCard.vue';
               class="input input-sm input-bordered flex-1" 
             />
             <select 
-              v-model="toolDropdownValue" 
-              @change="addToolFromDropdown"
+              v-model="tooldropdownValue" 
+              @change="addToolFromdropdown"
               class="select select-sm select-bordered"
               title="Add tool filter"
             >
@@ -41,8 +41,8 @@ import ProfileCard from '@/components/ProfileCard.vue';
               </option>
             </select>
             <select 
-              v-model="tagDropdownValue" 
-              @change="addTagFromDropdown"
+              v-model="tagdropdownValue" 
+              @change="addTagFromdropdown"
               class="select select-sm select-bordered"
               title="Add tag filter"
             >
@@ -167,8 +167,8 @@ export default {
       searchQuery: '',
       selectedTools: [],
       selectedTags: [],
-      toolDropdownValue: '',
-      tagDropdownValue: '',
+      tooldropdownValue: '',
+      tagdropdownValue: '',
       searchKeys: ['name', 'description', 'llm_model', 'tools', 'content'],
       loadingProfile: false,
       loadingProfiles: false,
@@ -276,18 +276,18 @@ export default {
       return this.selectedTags.some(tag => this.profileHasTag(profile, tag))
     },
     // Add tool from dropdown
-    addToolFromDropdown() {
-      if (this.toolDropdownValue && !this.selectedTools.includes(this.toolDropdownValue)) {
-        this.selectedTools.push(this.toolDropdownValue)
+    addToolFromdropdown() {
+      if (this.tooldropdownValue && !this.selectedTools.includes(this.tooldropdownValue)) {
+        this.selectedTools.push(this.tooldropdownValue)
       }
-      this.toolDropdownValue = ''
+      this.tooldropdownValue = ''
     },
     // Add tag from dropdown
-    addTagFromDropdown() {
-      if (this.tagDropdownValue && !this.selectedTags.includes(this.tagDropdownValue)) {
-        this.selectedTags.push(this.tagDropdownValue)
+    addTagFromdropdown() {
+      if (this.tagdropdownValue && !this.selectedTags.includes(this.tagdropdownValue)) {
+        this.selectedTags.push(this.tagdropdownValue)
       }
-      this.tagDropdownValue = ''
+      this.tagdropdownValue = ''
     },
     // Remove specific tool from selected tools
     removeTool(tool) {

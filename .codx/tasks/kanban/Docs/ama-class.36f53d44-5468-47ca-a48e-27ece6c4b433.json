@@ -4,11 +4,13 @@
   "project_id": null,
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": "e6fb3a58-6b2d-4bf0-82da-2264c4b234d6",
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [],
   "check_lists": [],
   "profiles": [],
@@ -17,6 +19,7 @@
   ],
   "name": "AMA class",
   "pinned": false,
+  "is_template": false,
   "description": "The AMA system is implemented in a Python class called `AMA`. It integrates classes `Knowledge` and `AI` to manage the knowledge base and perform AI analysis. The `receive_user_request` method processes user questions by analyzing them, conducting searches, and refining results. The method loops until an answer is determined to be complete. Ultimately, it returns the finalized answer to the user.",
   "messages": [
     {
@@ -30,13 +33,15 @@
       "improvement": false,
       "created_at": "2026-03-20 11:32:58.042611",
       "updated_at": "2026-03-20 11:32:58.042655",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 8.020187139511108,
         "first_chunk_time_taken": 0.056534767150878906,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -44,7 +49,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "a4eb21b6-4352-4ff0-9ed2-17fc58835244",
@@ -57,13 +63,15 @@
       "improvement": false,
       "created_at": "2026-03-20 11:32:58.042611",
       "updated_at": "2026-03-20 11:32:58.042655",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 8.020187139511108,
         "first_chunk_time_taken": 0.056534767150878906,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -71,16 +79,18 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-03-20 11:32:58.045623",
-  "updated_at": "2026-03-21T15:49:10.713616",
+  "updated_at": "2026-09-30T16:49:44.763502",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
   "board": "kanban",
   "column": "Docs",
+  "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
@@ -88,7 +98,13 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

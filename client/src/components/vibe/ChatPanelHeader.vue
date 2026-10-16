@@ -31,7 +31,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
         <div tabindex="0" role="button" class="btn btn-xs btn-ghost" title="Chat mode">
           <ChatIcon :mode="chat.mode" class="text-xs" />
         </div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-44 p-1 shadow text-xs">
+        <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-20 w-44 p-1 shadow text-xs">
           <li @click="setChatMode('chat')"><a><ChatIcon mode="chat" /> Conversation</a></li>
           <li @click="setChatMode('task')"><a><ChatIcon mode="task" /> Document</a></li>
           <li @click="setChatMode('topic')"><a><ChatIcon mode="topic" /> Group chat</a></li>
@@ -72,7 +72,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
         <div tabindex="0" role="button" class="btn btn-xs btn-ghost">
           <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
         </div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-300 border rounded-box z-20 w-52 p-1 shadow text-xs">
+        <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-300 border rounded-box z-20 w-52 p-1 shadow text-xs">
           <li @click="$emit('new-subtask')"><a><i class="fa-solid fa-plus"></i> New subtask</a></li>
           <li @click="$emit('create-subtasks')"><a><i class="fa-solid fa-wand-magic-sparkles"></i> Create subtasks</a></li>
           <li @click="showExportChat = true"><a><i class="fa-solid fa-file-arrow-down"></i> Export</a></li>

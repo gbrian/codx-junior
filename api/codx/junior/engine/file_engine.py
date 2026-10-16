@@ -631,6 +631,13 @@ class FileEngine:
         """
         Diff a project file against provided content using git diff --no-index.
 
+        The provided content is streamed to git through stdin (via
+        ``subprocess.run(input=...)``) instead of being embedded in a shell
+        command. This avoids the OS "Argument list too long" (E2BIG) error
+        that occurs when the content is large enough to exceed the kernel's
+        maximum command-line length (ARG_MAX) - which is what happened when
+        the content was passed through an ``os.popen`` shell heredoc.
+
         Args:
             path: File path.
             content: New content to diff against.
@@ -642,16 +649,18 @@ class FileEngine:
         """
         path = self.get_project_file_path(path=path)
 
+        # Full diff: compare the working-tree file against the provided content.
+        # Content is piped through stdin so large files never hit ARG_MAX.
         cmd = ["git", "diff", "--no-index", path, "-"]
         result = subprocess.run(cmd, input=content, text=True, capture_output=True)
         diff_out = result.stdout
 
-        git_command = f"""
-        cat << EOF | git --no-pager diff --shortstat --no-index -- - {path}
-        {content}
-        EOF
-        """
-        diff_stats_out = os.popen(git_command).read()
+        # Short stats: same piping strategy, no shell heredoc.
+        stats_cmd = ["git", "diff", "--shortstat", "--no-index", path, "-"]
+        stats_result = subprocess.run(
+            stats_cmd, input=content, text=True, capture_output=True
+        )
+        diff_stats_out = stats_result.stdout
 
         info = self.get_file_info(path)
         return {

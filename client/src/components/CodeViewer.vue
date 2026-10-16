@@ -96,7 +96,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </span>
 
           <!-- Change stats bar (wrap on mobile) -->
-          <div v-if="stats && !editMode && !isNoChange && !isMarkdown" class="flex items-center gap-2">
+          <div v-if="stats && !editMode && !isNoChange && !isMarkdown && !showPreviousDiff" class="flex items-center gap-2">
             <div
               class="flex h-2 rounded-full overflow-hidden bg-base-200 w-16 md:w-24 relative transition-all duration-300"
               :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
@@ -137,8 +137,49 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <span class="hidden sm:inline">Save</span>
         </button>
 
-        <!-- No Changes Text -->
-        <span class="text-success font-console text-xs py-2" v-if="isNoChange">No changes</span>
+        <!-- Compare with a previous message's version of this code block (dropdown) -->
+        <div class="dropdown dropdown-end shrink-0" v-if="hasPreviousVersion && finished && !editMode">
+          <button
+            tabindex="0"
+            class="btn btn-sm btn-info btn-outline snap-start shrink-0"
+            :class="{ 'btn-active': showPreviousDiff }"
+            title="Compare with a previous version"
+            aria-label="Compare with a previous version"
+            @click.stop
+          >
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span class="hidden sm:inline">Compare</span>
+            <i class="fa-solid fa-caret-down text-[10px]"></i>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-72 p-2 shadow border border-base-content/10">
+            <li class="menu-title text-xs">
+              <span>Compare with</span>
+            </li>
+            <li v-for="(block, idx) in previousCodeBlocks" :key="block.messageId">
+              <a
+                @click.stop="selectPreviousVersion(block)"
+                :class="{ 'active': showPreviousDiff && selectedPreviousBlock?.messageId === block.messageId }"
+              >
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="flex flex-col items-start min-w-0">
+                  <span class="text-xs font-medium truncate">
+                    {{ block.user || 'Assistant' }}
+                    <span class="badge badge-xs badge-ghost ml-1" v-if="idx === 0">latest</span>
+                  </span>
+                  <span class="text-[10px] opacity-60">
+                    {{ block.when ? moment(block.when).fromNow() : 'unknown time' }}
+                  </span>
+                </span>
+              </a>
+            </li>
+            <li v-if="showPreviousDiff">
+              <a @click.stop="clearPreviousDiff">
+                <i class="fa-solid fa-file"></i>
+                <span class="text-xs">File on disk</span>
+              </a>
+            </li>
+          </ul>
+        </div>
 
         <!-- Patch Button (AI Pattern) -->
         <button class="btn btn-sm btn-info btn-outline snap-start shrink-0"
@@ -234,34 +275,49 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div v-if="isContentOutdated" class="alert alert-sm text-error">
-        <i class="fa-solid fa-exclamation-circle text-error"></i>
-        <span class="text-xs md:text-sm">
-          <strong>Base file has changed:</strong> This content was generated {{ moment(contentCreatedAt).fromNow() }}, but the file was last modified {{ moment(last_modification).fromNow() }}. Consider refreshing the diff to ensure accuracy.
+      <div
+        v-if="isContentOutdated"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-error/10 text-error text-xs"
+        :title="`Base file has changed: This content was generated ${moment(contentCreatedAt).fromNow()}, but the file was last modified ${moment(last_modification).fromNow()}. Consider refreshing the diff to ensure accuracy.`"
+      >
+        <i class="fa-solid fa-exclamation-circle shrink-0"></i>
+        <span class="truncate">
+          <strong>Base file has changed:</strong> generated {{ moment(contentCreatedAt).fromNow() }}, file modified {{ moment(last_modification).fromNow() }} — refresh diff to ensure accuracy.
         </span>
       </div>
 
-      <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning alert-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
-        </svg>
-        <span class="text-xs md:text-sm">
+      <div
+        v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/10 text-warning text-xs"
+        :title="`Heavy modification detected: ${changeRiskMessage}`"
+      >
+        <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+        <span class="truncate">
           <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
         </span>
       </div>
 
-      <div v-if="changesetErrors.length" class="alert alert-error alert-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
-        </svg>
-        <div class="flex flex-col gap-1">
-          <span class="font-bold text-xs">Changeset Errors:</span>
-          <div class="text-xs space-y-1">
-            <div v-for="(error, idx) in changesetErrors" :key="idx" class="text-xs">
-              • {{ error }}
-            </div>
-          </div>
-        </div>
+      <!-- Previous-version comparison banner -->
+      <div
+        v-if="showPreviousDiff"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
+      >
+        <i class="fa-solid fa-clock-rotate-left shrink-0"></i>
+        <span class="truncate">Comparing with {{ previousCodeLabel }}</span>
+        <button class="ml-auto shrink-0 opacity-70 hover:opacity-100" @click.stop="clearPreviousDiff" title="Exit comparison" aria-label="Exit comparison">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div
+        v-if="changesetErrors.length"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-error/10 text-error text-xs"
+        :title="changesetErrors.join(' • ')"
+      >
+        <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+        <span class="truncate">
+          <strong>Changeset errors ({{ changesetErrors.length }}):</strong> {{ changesetErrors[0] }}
+        </span>
       </div>
 
       <!-- Main content area with diff or code views -->
@@ -270,9 +326,9 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
           <!-- DiffViewer with edit mode toggle (Monaco DiffEditor when in edit mode) -->
           <DiffViewer
-            v-if="showDiff && orgContent"
-            :org-content="orgContent"
-            :new-content="diffEditContent"
+            v-if="showDiff && comparisonOrgContent"
+            :org-content="comparisonOrgContent"
+            :new-content="diffEditContent || effectiveCode"
             :file="file"
             :language="fileLanguage"
             class="h-full"
@@ -347,6 +403,40 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </button>
         </div>
     </modal>
+
+    <!-- Heavy change confirmation modal -->
+    <modal v-if="showHeavyChangeConfirmModal">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+          Confirm Heavy Changes
+        </h3>
+        <div class="flex flex-col gap-2 py-2">
+          <p>
+            This save will apply a significant modification to
+            <strong>{{ fileName }}</strong>. Please review before continuing.
+          </p>
+          <div class="flex items-center gap-2 p-2 rounded bg-warning/10 text-warning text-sm">
+            <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+            <span>{{ changeRiskMessage }}</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs opacity-70">
+            <span class="text-error inline-flex items-center gap-1">
+              <i class="fa-solid fa-minus"></i> {{ deletionCount }} deletions
+            </span>
+            <span class="text-success inline-flex items-center gap-1">
+              <i class="fa-solid fa-plus"></i> {{ additionCount }} additions
+            </span>
+          </div>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost" @click="cancelHeavyChangeSave">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </button>
+          <button class="btn btn-warning" @click="confirmHeavyChangeSave">
+            <i class="fa-solid fa-check"></i> Save Anyway
+          </button>
+        </div>
+    </modal>
   </Collapsible>
 </template>
 
@@ -383,6 +473,7 @@ export default {
       localCode: null,
       showConfirmModal: false,
       showRollbackModal: false,
+      showHeavyChangeConfirmModal: false,
       isRollingBack: false,
       pendingViewSwitch: null,
       changesetErrors: [],
@@ -391,6 +482,8 @@ export default {
       codeHash: 0,
       lastCodeValue: null,
       baseFileChanged: false,
+      showPreviousDiff: false,
+      selectedPreviousId: null,
       actionFeedback: {
         copy: false,
         save: false,
@@ -401,6 +494,76 @@ export default {
   computed: {
     effectiveCode() {
       return this.localCode !== null ? this.localCode : this.code
+    },
+
+    /**
+     * All previous versions of THIS file found in PREVIOUS messages (newest first).
+     * Mapping uses the code block file name (```language filename).
+     * Blocks without a file name are skipped.
+     */
+    previousCodeBlocks() {
+      const messages = this.chat?.messages
+      if (!this.file || !this.message || !messages?.length) return []
+      // Skip synthetic file names generated for blocks without a real file name
+      if (/^content\.[a-z0-9]+$/i.test(this.file)) return []
+
+      const currentId = this.message.doc_id || this.message.id
+      const currentIndex = messages.findIndex((m) => (m.doc_id || m.id) === currentId)
+      if (currentIndex <= 0) return []
+
+      const results = []
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        const blocks = this.$service.chat.extractCodeBlocksFromMessage(messages[i])
+        const match = blocks.find((block) => block.filePath === this.file)
+        if (match) {
+          results.push({
+            ...match,
+            message: messages[i],
+            messageId: messages[i].doc_id || messages[i].id,
+            user: messages[i].user,
+            when: messages[i].updated_at || messages[i].created_at
+          })
+        }
+      }
+      return results
+    },
+
+    /**
+     * The previous version currently chosen for comparison.
+     * Falls back to the most recent one when none has been picked explicitly.
+     */
+    selectedPreviousBlock() {
+      if (!this.previousCodeBlocks.length) return null
+      if (this.selectedPreviousId) {
+        const found = this.previousCodeBlocks.find((block) => block.messageId === this.selectedPreviousId)
+        if (found) return found
+      }
+      return this.previousCodeBlocks[0]
+    },
+
+    previousCodeContent() {
+      return this.selectedPreviousBlock?.content ?? null
+    },
+
+    previousCodeLabel() {
+      const block = this.selectedPreviousBlock
+      if (!block) return 'previous version'
+      const user = block.user || 'assistant'
+      const time = block.when ? moment(block.when).fromNow() : ''
+      return time ? `previous version by ${user} (${time})` : `previous version by ${user}`
+    },
+
+    hasPreviousVersion() {
+      return this.previousCodeBlocks.length > 0
+    },
+
+    /**
+     * The "old" side of the diff:
+     * - previous-version compare -> the selected block from a previous message
+     * - file diff                -> the file currently on disk
+     */
+    comparisonOrgContent() {
+      return this.showPreviousDiff ? this.previousCodeContent : this.orgContent
     },
 
     hasLocalChanges() {
@@ -515,7 +678,8 @@ export default {
         await this.loadDiffInfo()
       }
       if (this.chat?.mode === 'vibe') {
-        this.saveToFile()
+        // Automatic save in vibe mode - bypass heavy change prompt
+        this.saveToFile(true)
       }
     },
     last_modification() {
@@ -662,6 +826,7 @@ export default {
       this.diffEditContent = newContent
       this.diffBaseContent = newContent
       this.editMode = false
+      this.showPreviousDiff = false
       this.showDiff = !!this.orgContent
       this.hasUnsavedFileChanges = true
     },
@@ -671,6 +836,7 @@ export default {
       this.diffEditContent = this.code
       this.diffBaseContent = this.code
       this.hasUnsavedFileChanges = false
+      this.showPreviousDiff = false
       this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
     },
 
@@ -735,9 +901,31 @@ export default {
         this.pendingViewSwitch = 'toggle'
         this.showConfirmModal = true
       } else {
+        this.showPreviousDiff = false
         this.showDiff = !this.showDiff
       }
     },
+
+    /**
+     * Compares this block against a specific previous version from an earlier
+     * message instead of against the file currently on disk.
+     */
+    selectPreviousVersion(block) {
+      this.selectedPreviousId = block.messageId
+      this.showPreviousDiff = true
+      this.editMode = false
+      this.showDiff = true
+    },
+
+    /**
+     * Exits the previous-version comparison and returns to the on-disk diff.
+     */
+    clearPreviousDiff() {
+      this.showPreviousDiff = false
+      this.selectedPreviousId = null
+      this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
+    },
+
     async loadDiffInfo() {
       const diffRequest = {
         path: this.file,
@@ -800,6 +988,7 @@ export default {
         this.cancelEdit()
         return
       }
+      this.showPreviousDiff = false
       this.editContent = this.effectiveCode
       this.editMode = true
       this.showDiff = false
@@ -833,6 +1022,7 @@ export default {
     discardDiffChanges() {
       this.diffEditContent = this.diffBaseContent
       this.showDiff = false
+      this.showPreviousDiff = false
     },
 
     confirmApplyDiff() {
@@ -886,7 +1076,20 @@ export default {
       }
     },
 
-    async saveToFile() {
+    /**
+     * Entry point for saving. Guards against accidentally persisting a heavy
+     * modification by asking for explicit confirmation first.
+     * Pass `skipConfirm = true` for automated flows (e.g. vibe mode).
+     */
+    saveToFile(skipConfirm = false) {
+      if (!skipConfirm && this.isDangerousChange) {
+        this.showHeavyChangeConfirmModal = true
+        return
+      }
+      this.performSave()
+    },
+
+    async performSave() {
       this.triggerActionFeedback('save')
       let content
       if (this.editMode && this.editContent) {
@@ -900,10 +1103,20 @@ export default {
       this.hasUnsavedFileChanges = false
       if (this.editMode) this.cancelEdit()
       this.showDiff = false
+      this.showPreviousDiff = false
       this.localCode = null
       this.diffEditContent = null
       this.diffBaseContent = null
       await this.loadDiffInfo()
+    },
+
+    confirmHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
+      this.performSave()
+    },
+
+    cancelHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
     },
 
     triggerActionFeedback(action) {

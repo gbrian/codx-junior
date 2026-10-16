@@ -110,7 +110,7 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           <button class="btn btn-sm tooltip tooltip-bottom" data-tip="More options">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
             <li>
               <a @click="showChildrenBoards = !showChildrenBoards"
                 :class="{ 'text-warning': showChildrenBoards }">
@@ -275,7 +275,7 @@ export default {
       editingBoard: null,
       columnTitle: '',
       columnColor: '#000000',
-      isDropdownOpen: false,
+      isdropdownOpen: false,
       selectedColumn: null,
       editColumnError: null,
       viewColumns: [],
@@ -440,7 +440,7 @@ export default {
         if (board !== this.board) {
           await this.$projects.setActiveBoard(board)
         }
-        this.isDropdownOpen = false
+        this.isdropdownOpen = false
         if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
           Object.keys(this.kanban.boards)
             .filter(b => this.kanban.boards[b])

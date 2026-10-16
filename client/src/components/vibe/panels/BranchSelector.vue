@@ -20,7 +20,7 @@ import { ref } from 'vue'
           </button>
           <div
             tabindex="0"
-            class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-[300px] max-h-60 overflow-y-auto"
+            class="dropdown-content bg-base-100 z-[1] menu p-2 shadow bg-base-100 rounded-box w-[300px] max-h-60 overflow-y-auto"
           >
             <!-- Filter input -->
             <input
@@ -71,7 +71,7 @@ import { ref } from 'vue'
         </button>
         <div
           tabindex="0"
-          class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-[300px] max-h-60 overflow-y-auto"
+          class="dropdown-content bg-base-100 z-[1] menu p-2 shadow bg-base-100 rounded-box w-[300px] max-h-60 overflow-y-auto"
         >
           <!-- Filter input -->
           <input

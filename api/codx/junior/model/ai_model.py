@@ -64,6 +64,7 @@ class AIModel(BaseModel):
     url: Optional[str] = Field(description="Model info", default="")
     system: Optional[str] = Field(description="Model system instructions", default="")
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
+    tags: List[str] = Field(description="Model tags", default=[])
     model_file: Optional[str] = Field(description="Custom Modelfile", default=None)
     # Priority: Model > Provider > Fallback
     max_tool_calls: Optional[int] = Field(

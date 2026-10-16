@@ -176,9 +176,9 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert Docker and DevOps engineer."),
                 HumanMessage(content=prompt_content),
             ]
-            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
-            response = await ai.a_chat(messages=messages)
-            content = response[-1].content.strip()
+            # CHANGED: Use a_chat_run (typed AgentRunResult) instead of the legacy a_chat list contract
+            response = await ai.a_chat_run(messages=messages)
+            content = response.content.strip()
             
             # Clean up any markdown code fences
             content = self._strip_code_fences(content, "yaml")
@@ -224,9 +224,9 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert Docker and DevOps engineer."),
                 HumanMessage(content=prompt_content),
             ]
-            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
-            response = await ai.a_chat(messages=messages)
-            content = response[-1].content.strip()
+            # CHANGED: Use a_chat_run (typed AgentRunResult) instead of the legacy a_chat list contract
+            response = await ai.a_chat_run(messages=messages)
+            content = response.content.strip()
             
             # Clean up any markdown code fences
             content = self._strip_code_fences(content, "dockerfile")
@@ -272,9 +272,9 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert in Docker and environment configuration."),
                 HumanMessage(content=prompt_content),
             ]
-            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
-            response = await ai.a_chat(messages=messages)
-            content = response[-1].content.strip()
+            # CHANGED: Use a_chat_run (typed AgentRunResult) instead of the legacy a_chat list contract
+            response = await ai.a_chat_run(messages=messages)
+            content = response.content.strip()
             
             # Clean up any markdown code fences
             content = self._strip_code_fences(content, "bash")
@@ -317,9 +317,9 @@ class WorkspaceFileGenerator:
                 SystemMessage(content="You are an expert in nginx configuration and web server security."),
                 HumanMessage(content=prompt_content),
             ]
-            # CHANGED: Use a_chat instead of chat to avoid event loop conflict
-            response = await ai.a_chat(messages=messages)
-            content = response[-1].content.strip()
+            # CHANGED: Use a_chat_run (typed AgentRunResult) instead of the legacy a_chat list contract
+            response = await ai.a_chat_run(messages=messages)
+            content = response.content.strip()
             
             # Clean up any markdown code fences
             content = self._strip_code_fences(content, "nginx")

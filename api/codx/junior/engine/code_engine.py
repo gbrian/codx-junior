@@ -554,8 +554,8 @@ Ensure the JSON is valid and the content is properly escaped if needed."""
                 "Generating full file content for %s using AI", file_path
             )
             
-            messages = await ai.a_chat(prompt=request_prompt)
-            response_content = messages[-1].content.strip()
+            run_result = await ai.a_chat_run(prompt=request_prompt)
+            response_content = run_result.content.strip()
             
             # Extract JSON from response
             parsed_response = self._extract_json_response(response_content)
@@ -838,3 +838,5 @@ Ensure the JSON is valid and the content is properly escaped if needed."""
         finally:
             if save_changes:
                 await self.session.save_chat(chat=chat)
+
+# Made with ❤️ by codx-junior

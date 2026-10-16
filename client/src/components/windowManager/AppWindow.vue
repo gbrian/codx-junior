@@ -7,7 +7,7 @@ import Iframe from '../Iframe.vue'
     <Iframe
       ref="iframe"
       class="w-full h-full"
-      :key="theApp.path"
+      :key="iframeKey"
       :url="currentUrl"
       @loaded="onLoaded"
       @navigated="onNavigated"
@@ -33,10 +33,43 @@ export default {
   },
   computed: {
     theApp() {
-      return this.app || this.params?.params?.app || this.params?.app
+      // Prefer the explicit prop, then the workspace payload (name + path +
+      // metadata), then the app definition and the legacy params slot.
+      return this.app ||
+        this.params?.params?.workspace ||
+        this.params?.params?.app ||
+        this.params?.app
     },
     tabId() {
-      return this.theApp?.tabId
+      // The explicit prop wins, then the app stored in the panel params (also
+      // covers `workspace` panels, whose app lives under `params.app`).
+      return this.app?.tabId ||
+        this.params?.params?.app?.tabId ||
+        this.theApp?.tabId ||
+        this.params?.app?.tabId
+    },
+    // Live app from the store: runtime param updates (e.g. a URL typed in the
+    // app menu navigator) are reactive here, unlike the panel params snapshot.
+    liveApp() {
+      return this.tabId ? this.$storex.ui.openApps[this.tabId] : null
+    },
+    // Identity of the iframe. Includes the navigator token so a "home" click
+    // always remounts the iframe — even when the URL string doesn't change
+    // (already at the base URL, or `lastUrl` was never persisted because the
+    // iframe content is cross-origin) — which forces a real reload.
+    iframeKey() {
+      const base = this.theApp?.path || ''
+      const token = this.liveApp?.params?.navToken || 0
+      return `${base}#${token}`
+    }
+  },
+  watch: {
+    // Navigate the iframe when the app URL is changed from outside (the
+    // navigator control in the app menu). Ignore echoes of our own navigation.
+    'liveApp.params.lastUrl'(url) {
+      if (url && url !== this.currentUrl) {
+        this.currentUrl = url
+      }
     }
   },
   methods: {

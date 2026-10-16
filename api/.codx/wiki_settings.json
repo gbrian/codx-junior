@@ -175,6 +175,71 @@
           "path": "/codx/junior/metrics/codx_junior_metrics.py",
           "slug": "codx-junior-metrics.md",
           "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/codx-junior-metrics.md"
+        },
+        {
+          "path": "/codx/junior/browser/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/browser/docker_firefox_manager.py",
+          "slug": "docker-firefox-manager.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/docker-firefox-manager.md"
+        },
+        {
+          "path": "/codx/junior/browser/browser_manager.py",
+          "slug": "browser-manager.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/browser-manager.md"
+        },
+        {
+          "path": "/codx/junior/browser/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/browser/browser.py",
+          "slug": "browser.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/browser.md"
+        },
+        {
+          "path": "/codx/junior/api/browser_models.py",
+          "slug": "browser-models.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/browser-models.md"
+        },
+        {
+          "path": "/codx/junior/api/browser_router.py",
+          "slug": "browser-router.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/browser-router.md"
+        },
+        {
+          "path": "/codx/junior/api/browser.py",
+          "slug": "browser.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/browser.md"
+        },
+        {
+          "path": "/codx/junior/planning_manager.py",
+          "slug": "planning-manager.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/planning-manager.md"
+        },
+        {
+          "path": "/codx/junior/model/planning.py",
+          "slug": "planning.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/planning.md"
+        },
+        {
+          "path": "/codx/junior/model/agent.py",
+          "slug": "agent.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/agent.md"
+        },
+        {
+          "path": "/codx/junior/knowledge/knowledge_ai_search.py",
+          "slug": "knowledge-ai-search.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/knowledge-ai-search.md"
+        },
+        {
+          "path": "/codx/junior/chat/chat_prompt_builder.py",
+          "slug": "chat-prompt-builder.md",
+          "wiki_file": "/home/codx-junior/codx-junior/api/wiki/project-overview/chat-prompt-builder.md"
         }
       ],
       "id": "project-overview",

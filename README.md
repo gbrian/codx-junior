@@ -1,66 +1,99 @@
 <img width="1024" height="542" alt="image" src="https://github.com/user-attachments/assets/a8a79076-3c77-481e-9891-7885b8c6e822" />
 
-![Help wanted!](https://img.shields.io/badge/Help%20wanted!-8A2BE2)
-![AI](https://img.shields.io/badge/AI-always-blue)
-![API](https://img.shields.io/badge/API-python-blue)
-![Frontend](https://img.shields.io/badge/Frontend-vuejs-green)
+![Status](https://img.shields.io/badge/status-active%20beta-brightgreen)
+![Open source](https://img.shields.io/badge/open%20source-AGPL--3.0-blue)
+![API](https://img.shields.io/badge/API-python%20%2F%20FastAPI-blue)
+![Frontend](https://img.shields.io/badge/Frontend-Vue%203-green)
 ![Container](https://img.shields.io/badge/Container-docker-blue)
 
+> **● SYSTEM STATUS: ACTIVE BETA // OPEN SOURCE**
 
-# This is codx-junior...
-Your trusty sidekick in the vast world of open-source projects. Maintaining these projects is a labor of love, filled with endless tasks and challenges. But that's where I come in—ready to lend a hand and lighten the load!
+# codx-junior
 
-## Let me introduce myself
+**codx-junior is the open-source workspace transforming how software projects are built.**
 
-Think of me as your go-to collaborator for project management. I'm designed to guide you through every step of your journey. No task is too complex—I'm here to simplify your workflow, enhance testing, and ensure everything is perfectly documented.
+We bridge the gap between rapid AI automation and elite human expertise.
+Pure AI agents go wild when left unsupervised; we ensure they stay on track.
+Our hybrid model pairs cutting-edge AI models with veteran human developers.
+A single developer can now lead and ship complex IT projects **4x faster**.
 
-### Key Features
+The entire platform runs in the cloud: your team only needs a browser to work.
+Manage everything in one tab: **Kanban, dev containers, agents, and team chat.**
+Control your budget perfectly with transparent human hours and scalable AI tokens.
+Self-host the engine for free, or hire our managed team to execute your roadmap.
 
-- **AI-Powered Assistance**: I automate and streamline tasks with the power of AI, making modern software development a breeze.
-- **Project Management**: I keep tasks in sync with your codebase, ensuring consistency and organization.
-- **Code Generation and Review**: I automate repetitive tasks and promote a structured code review process.
-- **Deployment and Operations**: With Docker support, I simplify deployment and automate related tasks.
-- **Collaboration and Communication**: Use mentions to collaborate effectively, and let me manage user profiles to tailor code to your preferences.
-- **Knowledge Sharing**: I leverage advanced RAG indexing for improved responses and knowledge dissemination.
-- **Development Tools**: I offer a suite of tools to aid in writing, testing, and debugging code.
-- **Settings Customization**: Tailor me to fit your project needs.
+We are raising our seed round and onboarding early partners at **[join@codx-junior.ai](mailto:join@codx-junior.ai)**.
 
-### How I Learn
+📚 **Documentation:** see the [`docs/`](docs/) folder (VitePress site, run it with `npm run docs:dev`).
 
-I learn from the projects I work on, adapting to the unique styles and preferences of each repo owner. By analyzing profiles, I produce code that aligns with your vision and standards. Plus, I can learn and utilize multiple LLM models to enhance my capabilities and provide the best support possible.
+<img src="assets/images/NOV2025/codx-junior-desktop.png" />
 
-## How to Run Me
+## What's inside
 
-Running me, codx-junior, with Docker is straightforward:
+| Area | What you get |
+| --- | --- |
+| **Chats & agents** | Project-aware chats with several modes (chat, task, agent, vibe, topic, PR review, browser, slides, tutorial). Agents use tools to search the code, read and write files, apply patches, browse the web, generate images and drive Docker. |
+| **Kanban** | Boards and columns where every card is a chat. Tasks can have sub-tasks, checklists, tags, linked files and assigned users and profiles. |
+| **Vibe coding** | A split view with the conversation, the live file changes and a preview of the running app side by side. |
+| **Workspaces (dev containers)** | Docker Compose based workspaces created from templates (`dev-stack`, `static-site` or custom). They mount your projects and publish apps such as Coder (VS Code in the browser), a virtual desktop (noVNC / Kasm) or your own services, routed through Traefik. |
+| **Teams & messenger** | Teams with categories, channels and direct messages, all backed by chats, so humans and AI share the same conversation. |
+| **Knowledge (RAG)** | Projects are indexed into Milvus with configurable embeddings, ignore patterns and search settings. AI search, knowledge graph and keyword extraction help agents find the right context. |
+| **Profiles** | Reusable instructions (analyst, developer, teacher, wiki, …) that set the model, tools and coding standards. Profiles can be exposed as models through an OpenAI-compatible API (`/api/v1/models`, `/api/v1/completions`). |
+| **@codx mentions** | Write `@codx` in any project file and codx-junior edits, explains or improves it in place. |
+| **Git & code review** | Branches, commits, diffs and pull-request views with AI comments and change explanations. GitHub issues can be pulled in and turned into tasks. |
+| **Wiki** | AI-maintained project documentation, updated as the code changes. |
+| **Budget & analytics** | Every AI call is metered in tokens and **cxjcoins**. Per-user wallets, daily/weekly/monthly spending limits, token rules with extension requests, and a dashboard by day, model and user. |
+| **Users & security** | Admin and user roles, per-project permissions, per-app access, GitHub OAuth login and a forward-auth gate for every routed app. |
+| **AI providers** | Any OpenAI-compatible provider (OpenAI, Ollama, LocalAI, LiteLLM, vLLM, …) with per-purpose models: chat, RAG, embeddings, wiki, vision and image generation. MCP servers can be attached per project. |
+| **Plugins** | Python plugins (Azure DevOps pull requests, image editor, …) that extend the UI and the API. |
+
+## Architecture at a glance
+
+```
+browser ──► Traefik ──┬──► codx-junior-client  (Vue 3 + Vite, port 19981)
+                      ├──► codx-junior-api     (FastAPI + Socket.IO, port 19980)
+                      ├──► workspaces          (Docker Compose dev containers)
+                      └──► LocalAI / LiteLLM   (model serving, optional)
+
+codx-junior-api ──► codx-junior-api-background (watchers, indexing, long jobs)
+                ──► Milvus                     (vector store for knowledge)
+```
+
+* `client/`: Vue 3 single page app (Tailwind + daisyUI).
+* `api/`: Python 3.11 FastAPI service (`codx.junior`) with the chat engine, agents, tools, knowledge, workspaces, analytics and security.
+* `codx-junior-installer/`: Docker images and the Docker Compose stack used to self-host.
+* `docs/`: this project's VitePress documentation.
+
+## Self-host it
+
+You need Docker with Docker Compose.
 
 ```bash
-# Run docker-compose with public image
-docker-compose -f ./docker-compose-public.yaml up -d
+git clone https://github.com/gbrian/codx-junior.git
+cd codx-junior/codx-junior-installer/codx-junior
+
+cp .env.example .env        # set CODX_JUNIOR_DOMAIN, ACME_EMAIL, keys…
+bash build.sh               # build the images (or pull codxjunior/codx-junior:*)
+docker compose up -d
 ```
 
-> Check out `docker-compose-public.yaml` for custom settings.
+Open `http://localhost` (or the domain set in `CODX_JUNIOR_DOMAIN`), log in as `admin` and choose your password. Then add an AI provider and models in **Global settings**, and add your first project from a Git URL or a local folder.
 
-### Accessing Me
-Once running, access me by navigating to `http://localhost:19981` (or any other port specified in your `.env` file).
+Full instructions: [Getting started](docs/getting-started.md) and [Initial setup](docs/initial-setup.md).
 
-## Join the codx-junior <span style="color:#810582">Revolution</span>!
+## Run the docs locally
 
-Are you ready to elevate your open-source project management? Streamline tasks, enhance collaboration, and automate your workflow with ease. Whether you're a newbie or a seasoned pro, I'm here to simplify your software journey. Dive into a seamless development experience today and discover how efficient coding can be. Try me now and join our growing community!
-
-## Find Me on ProductHunt
-
-Discover codx-junior, your AI-powered project management sidekick for open-source development. Streamline your workflow, enhance collaboration, and automate tasks with ease. Ideal for developers seeking efficient code management and seamless deployment. Join our community and experience a new era of software development.
-
-```
-Note from the author
-
-I've developed codx-junior in the hope that someday it will totally free us from the tedious so we can focus on creativity.
-
-
-> You'll never code alone!
+```bash
+cd docs
+npm install
+npm run docs:dev
 ```
 
-### Wait... heare you jave some nince pics
+## Managed team
+
+Prefer to focus on the product? Our managed team of senior developers can run codx-junior for you and execute your roadmap, with transparent human hours and AI token usage. Write to [join@codx-junior.ai](mailto:join@codx-junior.ai).
+
+## Screenshots
 
 <img width="1800" height="977" alt="image" src="https://github.com/user-attachments/assets/74abbb98-a6c3-4c97-9632-2714a7e6b4c6" />
 

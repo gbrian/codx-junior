@@ -2,6 +2,7 @@
 import Iframe from '../Iframe.vue'
 import AIProviderSettings from './AIProviderSettings.vue'
 import AIModelSettings from './AIModelSettings.vue'
+import AISettingsExportImport from './AISettingsExportImport.vue'
 </script>
 
 <template>
@@ -18,6 +19,11 @@ import AIModelSettings from './AIModelSettings.vue'
         />
       </div>
       <div class="flex gap-2 ml-auto">
+        <AISettingsExportImport
+          :providers="aiProviders"
+          :models="aiModels"
+          @import="applyImport"
+        />
         <button
           class="btn btn-sm btn-ghost gap-1"
           :class="loading && 'loading'"
@@ -78,7 +84,7 @@ import AIModelSettings from './AIModelSettings.vue'
               </div>
             </div>
           </div>
-          
+
           <div class="flex items-center gap-2">
             <div class="text-xs text-base-content/60">
               {{ getModelCount(provider) }} models
@@ -515,6 +521,14 @@ export default {
       } finally {
         this.saving = false
       }
+    },
+    // Apply imported providers/models locally — persisted only when the user saves
+    applyImport({ providers, models, mode }) {
+      this.settings.ai_providers = providers
+      this.settings.ai_models = models
+      this.expandedProviders = (this.aiProviders || []).map(p => p.name)
+      const label = mode === 'replace' ? 'Imported (replace)' : 'Merged'
+      this.$toast.success(`${label}: ${providers.length} provider(s), ${models.length} model(s) — click "Save Changes" to apply`)
     },
     async reloadSettings() {
       await this.loadSettings()

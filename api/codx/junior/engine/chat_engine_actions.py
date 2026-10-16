@@ -203,8 +203,8 @@ class ChatEngineActions:
         """
 
         ai = self.session.get_ai()
-        messages = await ai.a_chat(prompt=query_search)
-        freetext_query = messages[-1].content
+        run_result = await ai.a_chat_run(prompt=query_search)
+        freetext_query = run_result.content
 
         documents = self.session.project_search(query=freetext_query)
 

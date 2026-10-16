@@ -32,6 +32,11 @@
           "path": "/upload/webtop_automation_guide.md",
           "slug": "webtop-automation-guide.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/webtop-automation-guide.md"
+        },
+        {
+          "path": "/README.md",
+          "slug": "readme.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/readme.md"
         }
       ],
       "id": "project-overview",

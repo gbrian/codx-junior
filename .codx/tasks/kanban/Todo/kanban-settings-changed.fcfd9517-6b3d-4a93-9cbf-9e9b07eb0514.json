@@ -4,11 +4,13 @@
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [],
   "check_lists": [],
   "profiles": [
@@ -19,6 +21,7 @@
   ],
   "name": "Kanban settings changed",
   "pinned": false,
+  "is_template": false,
   "description": "The user wants a 5-line summary of a conversation, but no conversation content has been provided. To generate a summary, I need the actual conversation text.\n\nOnce the conversation is provided, I will extract the main topics and key points to create a concise 5-line summary. I will also ensure to adhere to the formatting instructions, including file names and absolute paths if code snippets are involved.",
   "messages": [
     {
@@ -32,12 +35,14 @@
       "improvement": false,
       "created_at": "2026-03-06 14:25:30.397556",
       "updated_at": "2026-03-06 14:25:30.397599",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/Kanban.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/Kanban.vue"
       ],
       "meta_data": {},
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -45,7 +50,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "81165776-e681-43f9-ad62-6424b89260af",
@@ -58,13 +64,15 @@
       "improvement": false,
       "created_at": "2026-03-06 14:25:30.397556",
       "updated_at": "2026-03-06 14:25:30.397599",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 19.232635021209717,
         "first_chunk_time_taken": 0.00015020370483398438,
         "model": "gemini-2.5-flash-lite"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "VueDeveloper"
       ],
@@ -74,16 +82,18 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-03-06 14:25:30.400519",
-  "updated_at": "2026-03-07T07:11:15.902582",
+  "updated_at": "2026-09-30T16:50:39.481241",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
   "board": "kanban",
   "column": "Todo",
+  "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
@@ -91,7 +101,13 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

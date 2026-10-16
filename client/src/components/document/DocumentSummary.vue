@@ -57,7 +57,8 @@ export default {
   },
   data() {
     return {
-      open: true
+      // Collapse the table of contents by default on mobile to save reading space
+      open: !(this.$ui?.isMobile)
     }
   },
   computed: {

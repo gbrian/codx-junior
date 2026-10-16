@@ -10,6 +10,7 @@
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [
     "/home/codx-junior-projects/codx-junior/api/codx/junior/settings.py",
     "/home/codx-junior-projects/codx-junior/api/codx/junior/db.py",
@@ -24,6 +25,7 @@
   ],
   "name": "Use Case 1: Auto-Assign Board to New Task",
   "pinned": false,
+  "is_template": false,
   "description": "# 5-Line Summary\n\n1. **Use Case Definition**: Implement automatic board assignment for new tasks in the codx-junior PM Agent, which reactively assigns tasks to appropriate boards based on project context and task properties.\n\n2. **Core Architecture**: Build a FastAPI event handler and LangGraph state machine that receives task notifications, queries available boards/labels via platform tools, uses LLM decision-making, and executes assignments.\n\n3. **Key Components**: Develop three platform tools (read_boards, read_labels, set_chat_board), a Label data model, an event notification handler, and database persistence for audit trails.\n\n4. **Success Metrics**: Target <2 second latency, 95%+ assignment accuracy, 100% decision logging, comprehensive error handling, and 80%+ test coverage.\n\n5. **Integration Requirements**: PM Agent must initialize with CODXJuniorSettings and Profile, access task modification events, query existing Kanban structures, and persist assignment decisions through the codx-junior database layer.",
   "messages": [
     {
@@ -37,9 +39,11 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {},
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -61,7 +65,7 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "start_time": 1783008333.4903138,
@@ -70,6 +74,8 @@
         "time_taken": 9.964020490646362,
         "first_chunk_time_taken": 0.17226004600524902
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "project"
       ],
@@ -93,9 +99,11 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -117,7 +125,7 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "start_time": 1783008383.3223002,
@@ -163,6 +171,8 @@
           }
         ]
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "project"
       ],
@@ -186,7 +196,7 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [
         "/home/codx-junior-projects/codx-junior/api/codx/junior/settings.py",
         "/home/codx-junior-projects/codx-junior/api/codx/junior/db.py",
@@ -196,6 +206,8 @@
         "/home/codx-junior-projects/codx-junior/api/codx/junior/model/profile.py"
       ],
       "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -217,7 +229,7 @@
       "improvement": false,
       "created_at": "2026-07-02 10:48:20.189644",
       "updated_at": "2026-07-02 10:48:20.189669",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "start_time": 1783008818.5615408,
@@ -268,6 +280,8 @@
           }
         ]
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [
         "project"
       ],
@@ -282,7 +296,7 @@
     }
   ],
   "created_at": "2026-07-02 10:48:20.192916",
-  "updated_at": "2026-07-02T16:14:10.521324",
+  "updated_at": "2026-09-30T16:51:27.575192",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -296,6 +310,7 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
   "pr_view": {},
@@ -331,5 +346,8 @@
       ]
     }
   ],
-  "auto_initialize": false
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

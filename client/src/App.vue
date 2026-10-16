@@ -3,10 +3,11 @@ import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
 import DesktopSidebar from './components/layout/DesktopSidebar.vue'
 import MobileBottomBar from './components/layout/MobileBottomBar.vue'
+import NewProject from './components/project/NewProject.vue'
 </script>
 
 <template>
-  <div class="w-full h-full relative bg-base-300" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full relative bg-base-100" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     
     <div class="h-full w-full flex" v-else :class="layoutClasses">
@@ -44,13 +45,24 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 
       <!-- Mobile Bottom Bar (Portrait on mobile) -->
       <MobileBottomBar
-        v-if="isMobilePortrait && showMobileBottomBar"
+        v-if="showMobileBottomBar"
         :user-name="$user?.username || 'User'"
         @show-menu="showMobileSidebarOverlay = true"
       />
 
       <!-- Toast Notifications -->
       <Toast ref="toastComponent" />
+
+      <!-- Global "New project" modal — opened from any launcher
+           (sidebar AppsSection, MainMenuItems, WindowsMenuItems, QuickBar)
+           through the ui store flag `newProject`. -->
+      <modal
+        v-if="$ui.newProject"
+        close="true"
+        @close="$ui.showNewProject(false)"
+      >
+        <NewProject />
+      </modal>
     </div>
   </div>
   
@@ -107,8 +119,8 @@ export default {
       return this.$ui.notifications.filter(n => n.type === 'error')
     },
     showMobileBottomBar() {
-      const { name, params } = this.$route
-      return name != 'chat' || !params?.chatId
+      const chatId = this.$storex.$router.$navigation.getChatId()
+      return !chatId && this.$ui.isMobile
     }
   },
   watch: {

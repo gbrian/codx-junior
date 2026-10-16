@@ -35,7 +35,7 @@ import ChatEntryVue from '../ChatEntry.vue'
                 </span>
                 <i class="fa-solid fa-bars"></i>
               </div>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
+              <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
                 <li @click="onValidateSelected" v-if="selectedFiles.length"><a>Validate changes</a></li>
                 <li @click="onBulkAction" v-if="selectedFiles.length"><a>Custom action...</a></li>
                 <li class="overflow-hidden text-nowrap text-ellipsis" @click="setFilesColumn" v-if="selectedFiles.length"><a>

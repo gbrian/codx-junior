@@ -14,7 +14,7 @@ import Modal from '../Modal.vue'
       <span class="text-xs font-semibold">{{ label }}</span>
 
       <!-- Single select: selected badge or "default" label -->
-      <template v-if="isSingleSelect">
+      <template v-if="isSingle">
         <div v-if="selectedItem" class="badge badge-sm gap-1 badge-primary">
           <img
             v-if="selectedItem.avatar"
@@ -69,9 +69,41 @@ import Modal from '../Modal.vue'
         v-model="filterText"
         type="text"
         placeholder="Type to filter..."
-        class="input input-sm input-bordered w-full mb-4"
+        class="input input-sm input-bordered w-full mb-3"
         @click.stop
       />
+
+      <!-- Quick tag filter (opt-in via enableTagFilter) -->
+      <div
+        v-if="enableTagFilter && availableTags.length"
+        class="flex flex-wrap gap-1.5 mb-4"
+        role="group"
+        aria-label="Filter by tag"
+      >
+        <button
+          v-for="tag in availableTags"
+          :key="tag"
+          type="button"
+          class="btn btn-xs gap-1 normal-case"
+          :class="selectedTags.includes(tag)
+            ? 'btn-primary'
+            : 'btn-ghost border border-base-content/15 text-base-content/70'"
+          :aria-pressed="selectedTags.includes(tag)"
+          @click.stop="toggleTag(tag)"
+        >
+          <i class="fa-solid fa-tag text-[10px]" aria-hidden="true"></i>
+          {{ tag }}
+        </button>
+        <button
+          v-if="selectedTags.length"
+          type="button"
+          class="btn btn-xs btn-ghost gap-1 text-error"
+          @click.stop="clearTags"
+        >
+          <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+          clear
+        </button>
+      </div>
 
       <!-- Scrollable grid with custom slot rendering -->
       <div class="grid grid-cols-3 gap-2 overflow-y-auto max-h-96 mb-4">
@@ -79,7 +111,6 @@ import Modal from '../Modal.vue'
           v-for="(item, ix) in filteredAndSorted"
           :key="item.name"
           class="click"
-          :class="isItemSelected(item.name) ? 'ring-2 ring-primary' : ''"
           @click="selectItem(item)"
         >
           <!-- Slot for custom rendering -->
@@ -165,6 +196,10 @@ export default {
       type: Boolean,
       default: false
     },
+    single: {
+      type: Boolean,
+      default: false
+    },
     allowDeselect: {
       type: Boolean,
       default: false
@@ -172,39 +207,65 @@ export default {
     emptyLabel: {
       type: String,
       default: ''
+    },
+    // When enabled, a quick filter bar is shown using each item's `tags` array
+    enableTagFilter: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update:selected-items', 'open'],
+  emits: ['update:selected-items', 'open', 'select'],
   data() {
     return {
       internalSelected: [],
       filterText: '',
       tempSelected: [],
-      isModalOpen: false
+      isModalOpen: false,
+      selectedTags: []
     }
   },
   computed: {
+    isSingle() {
+      return this.single || this.isSingleSelect
+    },
+    // Unique tags across items, used to render the quick filter bar
+    availableTags() {
+      if (!this.enableTagFilter) return []
+      const tags = new Set()
+      ;(this.items || []).forEach(item => {
+        (item.tags || []).forEach(tag => tags.add(tag))
+      })
+      return [...tags].sort((a, b) => a.localeCompare(b))
+    },
     filteredAndSorted() {
       const q = this.filterText.toLowerCase()
+      const activeTags = this.selectedTags.map(t => t.toLowerCase())
       return (this.items || [])
-        .filter(item => item.name.toLowerCase().includes(q))
+        .filter(item => {
+          if (q && !item.name.toLowerCase().includes(q)) return false
+          if (!activeTags.length) return true
+          // AND semantics: the item must carry every selected tag
+          const itemTags = (item.tags || []).map(t => t.toLowerCase())
+          return activeTags.every(tag => itemTags.includes(tag))
+        })
         .sort((a, b) => a.name.localeCompare(b.name))
     },
     activeItems() {
       return (this.items || []).filter(item => this.internalSelected.includes(item.name))
     },
     selectedItem() {
-      if (!this.isSingleSelect || !this.internalSelected.length) return null
+      if (!this.isSingle || !this.internalSelected.length) return null
+      // Resolve against the full list so the trigger badge survives tag filtering
       return (this.items || []).find(item => item.name === this.internalSelected[0]) || null
     },
     buttonTitle() {
-      if (this.isSingleSelect) {
+      if (this.isSingle) {
         return this.selectedItem ? this.selectedItem.name : (this.emptyLabel || `Select ${this.label}`)
       }
       return this.activeItems.length ? `${this.activeItems.length} selected` : `Select ${this.label.toLowerCase()}`
     },
     selectedCountText() {
-      if (this.isSingleSelect) {
+      if (this.isSingle) {
         return this.selectedItem ? `Selected: ${this.selectedItem.name}` : (this.emptyLabel ? `Using ${this.emptyLabel}` : 'None selected')
       }
       return `${this.internalSelected.length} selected`
@@ -226,6 +287,7 @@ export default {
     },
     openModal() {
       this.filterText = ''
+      this.selectedTags = []
       this.tempSelected = [...this.internalSelected]
       this.$emit('open')
       this.isModalOpen = true
@@ -246,12 +308,15 @@ export default {
       return this.internalSelected.includes(itemName)
     },
     selectItem(item) {
-      if (this.isSingleSelect) {
+      if (this.isSingle) {
+        // Single mode: only one item can be selected at a time
         if (this.allowDeselect && this.internalSelected[0] === item.name) {
           this.internalSelected = []
         } else {
           this.internalSelected = [item.name]
         }
+        // Notify listeners with the selected item (or null when cleared)
+        this.$emit('select', this.selectedItem)
       } else {
         const idx = this.internalSelected.indexOf(item.name)
         if (idx > -1) {
@@ -261,8 +326,23 @@ export default {
         }
       }
     },
+    // Toggle a quick-filter tag on/off
+    toggleTag(tag) {
+      const idx = this.selectedTags.indexOf(tag)
+      if (idx > -1) {
+        this.selectedTags.splice(idx, 1)
+      } else {
+        this.selectedTags.push(tag)
+      }
+    },
+    clearTags() {
+      this.selectedTags = []
+    },
     deselectAll() {
       this.internalSelected = []
+      if (this.isSingle) {
+        this.$emit('select', null)
+      }
     }
   }
 }

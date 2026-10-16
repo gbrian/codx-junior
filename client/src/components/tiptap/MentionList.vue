@@ -92,7 +92,7 @@ export default {
 </script>
 
 <style lang="scss">
-/* Dropdown menu */
+/* dropdown menu */
 .dropdown-menu {
   border-radius: 0.7rem;
   display: flex;

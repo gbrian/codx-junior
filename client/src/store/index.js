@@ -16,8 +16,27 @@ import * as media from './media'
 import * as views from './views'
 import * as toast from './toast'
 import * as kanban from './kanban'
+import * as planning from './planning'
+import * as browsers from './browsers'
+import * as meets from './meets'
 
-const modules = { session, projects, ui, users, profiles, logs, chats, teams, media, views, toast, kanban }
+const modules = { 
+  session,
+  projects,
+  ui,
+  users,
+  profiles,
+  logs,
+  chats,
+  teams,
+  media,
+  views,
+  toast,
+  kanban,
+  planning,
+  browsers,
+  meets 
+}
 const storePattern = {
   state () {
     return {
@@ -82,10 +101,10 @@ export const EXTENSION_LANGUAGE_MAP = {
   html: 'html',
   htm: 'html',
   xml: 'xml',
-  svg: 'xml',
+  svg: 'svg',
   css: 'css',
   scss: 'scss',
-  sass: 'scss',
+  sass: 'sass',
   less: 'less',
   json: 'json',
   jsonc: 'json',

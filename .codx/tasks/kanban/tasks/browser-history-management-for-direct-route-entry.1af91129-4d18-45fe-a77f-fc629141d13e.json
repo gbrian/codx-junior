@@ -258,12 +258,20 @@
     }
   ],
   "created_at": "2026-09-22 13:18:52.876424",
-  "updated_at": "2026-09-22T13:37:34.059093",
+  "updated_at": "2026-10-06T05:40:36.029549",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
   "board": "kanban",
   "column": "tasks",
+  "sprints": [
+    "Browser sessions"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
   "columns": [],
   "chat_index": 0,
   "url": "",

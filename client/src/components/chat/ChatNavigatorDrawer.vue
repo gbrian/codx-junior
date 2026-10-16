@@ -211,7 +211,7 @@ import TaskSettings from '@/components/kanban/TaskSettings.vue'
                     <ChatIcon :mode="workingChatMode" class="text-sm" />
                     <span>{{ modeLabel }}</span>
                   </div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow">
+                  <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[1] w-full p-2 shadow">
                     <li @click="onActionSetMode('chat')"><a><ChatIcon mode="chat" /> Conversation</a></li>
                     <li @click="onActionSetMode('task')"><a><ChatIcon mode="task" /> Document</a></li>
                     <li @click="onActionSetMode('topic')"><a><ChatIcon mode="topic" /> Group Chat</a></li>

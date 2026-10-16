@@ -5,6 +5,7 @@ import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import Editor from '../monaco/Editor.vue'
 import MarkdownViewer from '../MarkdownViewer.vue'
+import CanvaEditor from '../canva/CanvaEditor.vue'
 import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </script>
 
@@ -28,9 +29,10 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       <span class="text-xs opacity-50" v-if="fileMeta.last_modification">
         {{ moment(fileMeta.last_modification).fromNow() }}
       </span>
+      <span class="loading loading-spinner loading-xs" title="Saving canvas" v-if="isCanva && saving"></span>
       
       <!-- Unsaved changes indicator -->
-      <div class="flex items-center gap-2" v-if="editMode && hasChanges">
+      <div class="flex items-center gap-2" v-if="(editMode || isContentMode || isCanvaEditorMode) && hasChanges">
         <div class="flex items-center gap-1 px-2 py-1 bg-warning rounded text-warning-content text-xs">
           <i class="fa-solid fa-circle-exclamation"></i>
           <span>Unsaved changes</span>
@@ -39,16 +41,45 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 
       <div class="grow"></div>
 
+      <!-- Editor / content switcher (files with a dedicated editor, e.g. canva) -->
+      <div class="join" v-if="hasAssociatedEditor && !editMode && !loading">
+        <button
+          class="btn btn-xs join-item"
+          :class="viewMode === 'editor' ? 'btn-primary' : 'btn-ghost'"
+          title="Show editor"
+          @click="setViewMode('editor')"
+        >
+          <i class="fa-solid fa-palette mr-1"></i> Editor
+        </button>
+        <button
+          class="btn btn-xs join-item"
+          :class="viewMode === 'content' ? 'btn-primary' : 'btn-ghost'"
+          title="Show raw content"
+          @click="setViewMode('content')"
+        >
+          <i class="fa-solid fa-code mr-1"></i> Content
+        </button>
+      </div>
+
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
+      <a
+        class="btn btn-xs btn-ghost"
+        title="Download file"
+        :href="downloadUrl"
+        :download="displayFileName"
+        v-if="!editMode && !loading && filePath"
+      >
+        <i class="fa-solid fa-download"></i>
+      </a>
       <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo && !isMarkdown">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
         <i class="fa-solid fa-trash"></i>
       </button>
-      <button class="btn btn-xs btn-outline" @click="startEdit" v-if="!editMode && !isBinary">
+      <button class="btn btn-xs btn-outline" @click="startEdit" v-if="!editMode && !isBinary && !isCanva">
         <i class="fa-solid fa-pen"></i> Edit
       </button>
       <template v-if="editMode">
@@ -76,6 +107,35 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           <i class="fa-solid fa-floppy-disk" v-else></i> Save
         </button>
       </template>
+      <template v-if="isContentMode">
+        <button 
+          class="btn btn-xs btn-ghost" 
+          :disabled="!hasChanges"
+          @click="discardChanges"
+          title="Discard unsaved changes"
+        >
+          <i class="fa-solid fa-times"></i> Discard
+        </button>
+        <button class="btn btn-xs btn-success" :disabled="saving || !hasChanges" @click="saveFile">
+          <span class="loading loading-spinner loading-xs" v-if="saving"></span>
+          <i class="fa-solid fa-floppy-disk" v-else></i> Save
+        </button>
+      </template>
+      <!-- Canvas editor: changes stay in memory until the user saves them -->
+      <template v-if="isCanvaEditorMode">
+        <button
+          class="btn btn-xs btn-ghost"
+          :disabled="!hasChanges"
+          @click="discardChanges"
+          title="Discard unsaved changes"
+        >
+          <i class="fa-solid fa-times"></i> Discard
+        </button>
+        <button class="btn btn-xs btn-success" :disabled="saving || !hasChanges" @click="saveFile">
+          <span class="loading loading-spinner loading-xs" v-if="saving"></span>
+          <i class="fa-solid fa-floppy-disk" v-else></i> Save
+        </button>
+      </template>
     </div>
 
     <!-- File content -->
@@ -94,7 +154,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       />
       <div class="w-full h-full flex items-center justify-center bg-base-300" v-else-if="isPdf">
         <iframe
-          :src="pdfDataUrl"
+          :src="pdfPreviewUrl"
           class="w-full h-full"
           title="PDF Viewer"
         ></iframe>
@@ -122,6 +182,24 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
         @add-file="handleAddFile"
         @table-updated="handleTableUpdated"
       />
+      <template v-else-if="isCanva">
+        <!-- Visual editor -->
+        <CanvaEditor
+          v-if="viewMode === 'editor'"
+          class="h-full"
+          :modelValue="canvaDefinition"
+          @update:modelValue="onCanvaUpdate"
+        />
+        <!-- Raw editor content (JSON) -->
+        <Editor
+          v-else
+          v-model="editContent"
+          language="json"
+          :fileName="displayFilePath"
+          @save="saveFile"
+          class="h-full"
+        />
+      </template>
       <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
         <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
       </div>
@@ -274,6 +352,8 @@ const EXTENSION_ICON_MAP = {
   // Version Control
   'git': 'fa-brands fa-git-alt text-orange-600',
   'gitignore': 'fa-brands fa-git-alt text-orange-600',
+  // Canvas
+  'canva': 'fa-solid fa-palette text-primary',
   // Other
   'lock': 'fa-solid fa-lock text-amber-600',
   'key': 'fa-solid fa-key text-yellow-600'
@@ -298,7 +378,13 @@ export default {
       showDiff: false,
       showDeleteModal: false,
       deleting: false,
-      showDiscardModal: false
+      showDiscardModal: false,
+      // Local snapshot of the canvas definition consumed by <CanvaEditor>.
+      // Kept as data (not derived from fileContent) so persisting edits never
+      // re-triggers the editor's modelValue watcher and wipes the canvas.
+      canvaDefinition: [],
+      // Active view for files with a dedicated editor: 'editor' | 'content'
+      viewMode: 'editor'
     }
   },
   computed: {
@@ -334,12 +420,28 @@ export default {
     isMarkdown() {
       return MARKDOWN_EXTENSIONS.includes(this.fileExtension)
     },
+    isCanva() {
+      return this.fileExtension === 'canva'
+    },
+    // Files that expose a dedicated visual editor + a raw content editor.
+    // Extend this list when new editor types are added.
+    hasAssociatedEditor() {
+      return this.isCanva
+    },
+    // True when the raw editor content is currently displayed
+    isContentMode() {
+      return this.hasAssociatedEditor && this.viewMode === 'content'
+    },
+    // True when the dedicated visual editor is currently displayed
+    isCanvaEditorMode() {
+      return this.isCanva && this.viewMode === 'editor'
+    },
     isBinary() {
       return BINARY_EXTENSIONS.includes(this.fileExtension) || this.isVideo
     },
-    pdfDataUrl() {
-      if (!this.fileContent || !this.isPdf) return ''
-      return `data:application/pdf;base64,${this.fileContent}`
+    pdfPreviewUrl() {
+      if (!this.isPdf) return ''
+      return this.$api.files.getFilePreviewUrl(this.filePath)
     },
     imageDataUrl() {
       if (!this.fileContent || !this.isImage) return ''
@@ -349,6 +451,10 @@ export default {
     videoPreviewUrl() {
       if (!this.isVideo) return ''
       return this.$api.files.getFilePreviewUrl(this.filePath)
+    },
+    downloadUrl() {
+      if (!this.filePath) return ''
+      return this.$api.files.getFileDownloadUrl(this.filePath)
     },
     validatedLanguage() {
       const lang = EXTENSION_LANGUAGE_MAP[this.fileExtension] || this.fileExtension
@@ -394,6 +500,17 @@ export default {
       const ext = this.fileExtension
       return EXTENSION_ICON_MAP[ext] || 'fa-regular fa-file text-info'
     },
+    // Parse raw editor content into a node array. Supports both a root array
+    // and a { nodes: [...] } envelope. Returns null when the JSON is invalid.
+    parseCanvaDefinition(content) {
+      try {
+        const parsed = JSON.parse(content)
+        return Array.isArray(parsed) ? parsed : (parsed.nodes || [])
+      } catch (ex) {
+        console.warn('Invalid canva definition', ex)
+        return null
+      }
+    },
     async loadFile() {
       if (!this.displayFilePath) {
         this.error = 'No file path provided'
@@ -404,6 +521,12 @@ export default {
       try {
         const { content, last_modification, size } = await this.$api.files.read(this.filePath)
         this.fileContent = content
+        // Rebuild the visual canvas snapshot whenever the file is (re)loaded.
+        // The staged JSON is synced too, so change detection starts clean.
+        if (this.isCanva) {
+          this.canvaDefinition = this.parseCanvaDefinition(content) || []
+          this.editContent = content
+        }
         this.fileMeta = { last_modification, size }
       } catch (ex) {
         console.error('Error reading file', ex)
@@ -415,6 +538,23 @@ export default {
     async reloadFile() {
       await this.loadFile()
       this.$ui.addNotification({ text: `${this.displayFileName} reloaded` })
+    },
+    // Toggle between the dedicated editor and its raw content representation
+    setViewMode(mode) {
+      if (mode === this.viewMode) return
+      // Seed the raw editor with the current content the first time we show it
+      if (mode === 'content' && !this.editContent) {
+        this.editContent = this.fileContent
+      }
+      // Going back to the canvas replays the staged definition, so edits made
+      // in the raw editor (or by the canvas itself) are never lost
+      if (mode === 'editor' && this.isCanva) {
+        const definition = this.parseCanvaDefinition(this.editContent)
+        if (definition) {
+          this.canvaDefinition = definition
+        }
+      }
+      this.viewMode = mode
     },
     startEdit() {
       this.editContent = this.fileContent
@@ -434,6 +574,14 @@ export default {
       try {
         await this.$api.files.write(this.displayFilePath, this.editContent)
         this.fileContent = this.editContent
+        // Raw content edits must be pushed back to the visual editor. Canvas
+        // edits are already the source of truth and must not be reloaded here.
+        if (this.isCanva && this.isContentMode) {
+          const definition = this.parseCanvaDefinition(this.editContent)
+          if (definition) {
+            this.canvaDefinition = definition
+          }
+        }
         this.showDiff = false
         this.$ui.addNotification({ text: `${this.displayFileName} saved` })
         const { last_modification, size } = await this.$api.files.read(this.displayFilePath)
@@ -445,6 +593,11 @@ export default {
         this.saving = false
       }
     },
+    // Canvas edits are only staged in memory: they are written to disk when the
+    // user presses Save and dropped when the user discards them.
+    onCanvaUpdate(nodes) {
+      this.editContent = JSON.stringify({ nodes }, null, 2)
+    },
     discardChanges() {
       if (this.hasChanges) {
         this.showDiscardModal = true
@@ -453,10 +606,15 @@ export default {
     cancelDiscard() {
       this.showDiscardModal = false
     },
-    confirmDiscard() {
-      this.editContent = this.fileContent
+    async confirmDiscard() {
       this.showDiscardModal = false
       this.showDiff = false
+      if (this.isCanva) {
+        // Restore the editor state from the file on disk
+        await this.loadFile()
+      } else {
+        this.editContent = this.fileContent
+      }
       this.$ui.addNotification({ text: 'Changes discarded' })
     },
     copyContent() {

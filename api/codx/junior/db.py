@@ -11,6 +11,8 @@ from typing import Optional, List, Any, Dict
 from datetime import datetime
 from enum import Enum
 
+from codx.junior.model.agent import CostInfo
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -114,7 +116,22 @@ class Message(BaseModel):
 
     Both lists are streamed in real time together with the message and are
     persisted with the chat.
-    
+
+    **Cost Tracking (`cost` / `cost_info` fields)**
+
+    ``cost`` records the cost, in cxjcoins, of the AI iteration that produced
+    this message. SmolAgent registers the FULL processing cost of the response
+    here (every LLM round plus every tool cost reported via
+    ``ToolResponse.cost``). ``ChatManager`` accumulates this value into
+    :attr:`Chat.cost` when the message is added, so the chat budget
+    (``Chat.estimation_cost``) is preserved even if the message is later
+    deleted.
+
+    ``cost_info`` carries the detailed breakdown (tokens, input/output/tool
+    costs, chat budget state) produced by SmolAgent's typed
+    :class:`AgentRunResult`. It is streamed to clients together with the
+    message via ``message-event``.
+
     **Message Read Tracking (`read_by` field)**
     
     The `read_by` field tracks which users have viewed a message in collaborative chats.
@@ -164,6 +181,24 @@ class Message(BaseModel):
     meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (timings, model, analytics...)")
     tool_events: List[ToolEvent] = Field(default=[], description="Tool execution events associated with this response message")
     lifecycle_events: List[LifeCycleEvent] = Field(default=[], description="Agent run lifecycle events associated with this response message")
+    cost: float = Field(
+        default=0.0,
+        description=(
+            "Cost in cxjcoins of the AI iteration that produced this message. "
+            "SmolAgent registers the FULL processing cost here (all LLM rounds "
+            "plus any tool cost) and ChatManager accumulates it into Chat.cost "
+            "when the message is added."
+        )
+    )
+    cost_info: Optional[CostInfo] = Field(
+        default=None,
+        description=(
+            "Detailed cost/usage breakdown of the AI run that produced this "
+            "message (tokens, input/output/tool costs, chat budget state). "
+            "Streamed to clients via message-event. The numeric `cost` field is "
+            "what ChatManager accumulates into Chat.cost."
+        )
+    )
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
@@ -180,6 +215,23 @@ class ChatHistoryEntry(BaseModel):
     timestamp: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when this history entry was generated")
     summary: str = Field(default='', description="Summary of this history entry")
     message_ids: List[str] = Field(default=[], description="List of message IDs associated with this history entry")
+
+
+class ChatStatusEvent(BaseModel):
+    """
+    Append-only record of a single chat status transition.
+
+    Registered by :class:`codx.junior.chat_manager.ChatManager` whenever
+    ``Chat.status`` changes, so task-performance metrics (cycle time,
+    throughput, reliability...) can be derived from a complete transition
+    history instead of the single mutable ``Chat.status`` value.
+    """
+    doc_id: Optional[str] = Field(default=None, description="Unique identifier of this transition record")
+    from_status: Optional[str] = Field(default=None, description="Previous status, None on the first record")
+    to_status: str = Field(default='', description="New status")
+    user: Optional[str] = Field(default=None, description="User that triggered the change, if any")
+    at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp of the transition")
+    meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (source, reason...)")
 
 
 class ChatId(BaseModel):
@@ -201,6 +253,14 @@ class Chat(BaseModel):
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
+    status_history: List[ChatStatusEvent] = Field(
+        default=[],
+        description=(
+            "Append-only log of status transitions (from_status -> to_status) "
+            "used to build performance metrics like cycle time and throughput. "
+            "Maintained by ChatManager.save_chat whenever status changes."
+        )
+    )
     tags: Optional[List[str]] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])
@@ -218,12 +278,67 @@ class Chat(BaseModel):
     column_id: str = Field(default='')
     board: str = Field(default='')
     column: str = Field(default='')
+    sprints: List[str] = Field(
+        default=[],
+        description=(
+            "Identifiers of the sprint boards this chat belongs to. "
+            "A chat/task can be part of multiple sprints; membership is used to "
+            "filter which cards are shown on a 'sprint' type board. Persisted "
+            "through the existing /api/chats/metadata endpoint."
+        )
+    )
+
+    # ── Planning / task fields ─────────────────────────────────────────────
+    # Persisted through the existing /api/chats/metadata endpoint
+    # (ChatManager.update_chat_metadata uses setattr for known attributes).
+    priority: Optional[str] = Field(
+        default=None,
+        description="Task priority: 'high' | 'medium' | 'low'"
+    )
+    due_date: Optional[str] = Field(
+        default=None,
+        description="Task due date in ISO format (YYYY-MM-DD)"
+    )
+    progress: int = Field(
+        default=0,
+        description="Task completion percentage (0-100)"
+    )
+    assignees: List[str] = Field(
+        default=[],
+        description="Usernames assigned to this task (distinct from participants in 'users')"
+    )
+    sort_index: Optional[int] = Field(
+        default=None,
+        description="Manual ordering index within a board column"
+    )
+
     columns: List[KanbanColumn] = Field(default=[])
     chat_index: Optional[int] = Field(default=0)
     url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')
     llm_model: Optional[str] = Field(default='')
+
+    # ── Cost budget ────────────────────────────────────────────────────────
+    estimation_cost: Optional[float] = Field(
+        default=None,
+        description=(
+            "Estimated maximum cost (in cxjcoins) allowed for this chat. "
+            "When the accumulated cost reaches this value, SmolAgent stops "
+            "executing to keep the chat within budget. None (or <= 0) means "
+            "no cost limit."
+        )
+    )
+    cost: float = Field(
+        default=0.0,
+        description=(
+            "Accumulated cost (in cxjcoins) spent on this chat. Updated by "
+            "ChatManager whenever a message with a cost is added or updated. "
+            "This value is MONOTONIC: deleting a message never reduces it, so "
+            "the budget reflects everything the chat has actually spent."
+        )
+    )
+
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
     attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this chat")

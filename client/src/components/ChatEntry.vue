@@ -10,7 +10,6 @@ import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
-import ChatEntryDrawer from './ChatEntryDrawer.vue'
 </script>
 
 <template>
@@ -24,54 +23,37 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
     ]"
     tabindex="0"
   >
-    <!-- ── Row: Avatar + Header + Content ── -->
-    <div class="flex gap-3 items-start w-full">
-      <!-- Avatar column -->
-      <div class="w-7 shrink-0 flex flex-col items-center gap-1 pt-0.5">
-        
-        <template v-if="isNewSpeaker">
-          <img class="w-6" src="/only_icon.png" v-if="isAssistant" />
-          <div
-            v-for="profile in messageProfiles"
-            :key="profile.name"
-            class="tooltip tooltip-right"
-            :data-tip="profile.name || profile.username"
-          >
-            <ProfileAvatar :profile="profile" width="6" />
-          </div>
-        </template>
-        <!-- Connecting line for grouped messages -->
-        <div
-          v-if="!isNewSpeaker"
-          class="w-px flex-1 bg-base-300/40 mt-0.5 min-h-[1rem]"
-        >           
-        </div>
-        
-        <!-- Events button — desktop only -->
-        <div class="flex flex-col gap-1 click"
-          @click.stop="toggleEventsPanel">
-          <button
-            v-if="!isMyMessage"
-            class="flex mt-4 btn btn-xs btn-ghost tooltip tooltip-bottom gap-1"
-            :class="eventsOpen && 'btn-active text-warning'"
-            data-tip="Events & Tools"
-          >
-            <i class="fa-solid fa-stream text-info"></i>
-          </button>
-          <div class="indicator btn btn-xs btn-ghost" v-if="toolEventCount">
-            <span class="indicator-item badge badge-xs badge-warning opacity-70">{{ toolEventCount }}</span>
-            <i class="fa-solid fa-wrench"></i>
-          </div>
-        </div>
-      </div>
+    <!-- ── Row: Header + Content ── -->
+    <!-- Compact by default; comfortable once the chat panel reaches @lg (512px+). -->
+    <div class="flex gap-2 items-start w-full @lg/panel:gap-3">
 
       <!-- Main block column -->
       <div class="flex-1 min-w-0 pb-0.5">
 
         <!-- Header row: only shown on first message of a speaker group -->
-        <div v-if="isNewSpeaker" class="flex items-center gap-2 mb-1 leading-none flex-wrap">
-          
-          <!-- Check mark for seen status (only for other users' messages, at top) -->
+        <!-- Sticky: stays pinned to the top of the messages viewport while a long
+             message scrolls, so author/actions are always reachable. -->
+        <!-- Layout: LEFT = identity + state (archive, time, seen, events/tools,
+             avatars, badges) · RIGHT = actions. -->
+        <div class="sticky top-0 z-20 -mt-1 flex items-center gap-2 leading-none flex-wrap bg-base-100 px-1 pb-3 border-b border-base-content/30">
+
+          <!-- ─────────────────────────── LEFT: identity + state ─────────────────────────── -->
+
+          <!-- Archive toggle -->
+          <button
+            v-if="isDone"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
+            @click.stop="$emit('hide', message)"
+          >
+            <i class="fa-solid fa-box-archive text-warning/70"></i>
+          </button>
+
+          <!-- Timestamp -->
+          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
+          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+
+          <!-- Seen double-check (other users' messages only) -->
           <button
             v-if="!isMyMessage && isDone"
             class="h-5 w-5 min-h-0 tooltip tooltip-bottom flex items-center justify-center transition-all"
@@ -82,12 +64,55 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-solid fa-check-double text-sm"></i>
           </button>
 
+          <!-- Events drawer trigger (assistant only).
+               - Hidden on mobile (*) — reachable from the ⋯ menu.
+               - Hidden when there are tools, since the tools button opens the same drawer. -->
+          <button
+            v-if="isAssistant && !toolEventCount"
+            class="hidden @lg/panel:flex btn btn-xs btn-ghost tooltip tooltip-bottom"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Events & Tools"
+            @click.stop="toggleEventsPanel"
+          >
+            <i class="fa-solid fa-stream text-info"></i>
+          </button>
 
-          <span class="font-semibold text-sm text-base-content">{{ displayMessage.user }}</span>
-          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
-          <span v-if="timeTaken" class="text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+          <!-- Tools counter — shows the icon + count and opens the same drawer -->
+          <button
+            v-if="isAssistant && toolEventCount"
+            class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
+            :class="eventsOpen && 'btn-active text-warning'"
+            data-tip="Tools"
+            @click.stop="toggleEventsPanel"
+          >
+            <i class="fa-solid fa-wrench text-info"></i>
+            <span class="text-[11px] tabular-nums">x{{ toolEventCount }}</span>
+          </button>
 
-          <!-- State badges inline with header -->
+          <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">
+            {{ displayMessage.user }}
+          </span>
+
+
+          <!-- Avatars — DaisyUI overlapping avatar group to save space -->
+          <div
+            v-if="isAssistant || messageProfiles.length"
+            class="avatar-group -space-x-3 rtl:space-x-reverse shrink-0"
+          >
+            <div v-if="isAssistant" class="avatar">
+              <div class="w-5">
+                <img src="/only_icon.png" alt="Assistant" />
+              </div>
+            </div>
+            <ProfileAvatar
+              v-for="profile in messageProfiles"
+              :key="profile.name"
+              :profile="profile"
+              width="5"
+            />
+          </div>
+
+          <!-- Status badges -->
           <span v-if="cancellationTime" class="badge badge-xs badge-error">
             <i class="fa-solid fa-ban mr-0.5"></i>Cancelled
           </span>
@@ -101,182 +126,99 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
             <i class="fa-solid fa-box-archive"></i> Archived
           </span>
 
-          <!-- ── Mobile-only indicators in header ── -->
-          <div class="flex md:hidden items-center gap-1 ml-auto">
-            <!-- Mobile profile avatars -->
-            <div
-              v-for="profile in messageProfiles"
-              :key="profile.name"
-              class="flex items-center"
-            >
-              <ProfileAvatar :profile="profile" width="4" />
-            </div>
+          <div class="grow"></div>
 
-            <!-- Mobile events indicator -->
+          <!-- ─────────────────────────── RIGHT: actions ─────────────────────────── -->
+          <!-- relative + z-20 lifts this (and its dropdown) above the content block. -->
+          <div
+            class="relative z-20
+                  focus-within:opacity-100
+                  transition-all duration-150 translate-y-0
+                  flex items-center gap-0.5"
+          >
+            <!-- Stop generation -->
             <button
-              v-if="hasEvents"
-              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
-              :class="eventsOpen && 'btn-active text-warning'"
-              @click.stop="toggleEventsPanel"
+              v-if="!isDone && cancellationTokenId"
+              class="btn btn-xs btn-error gap-1"
+              @click.stop="cancelMessage"
             >
-              <i class="fa-solid fa-stream text-info text-[10px]"></i>
-              <span class="text-[10px]">{{ eventCount }}</span>
+              <span class="loading loading-xs"></span>Stop
             </button>
 
-            <!-- Mobile attachments indicator -->
+            <!-- Core actions -->
             <button
-              v-if="hasAttachments"
-              class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5"
-              :class="eventsOpen && 'btn-active text-warning'"
-              @click.stop="toggleEventsPanel"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Thread"
+              @click.stop="$emit('thread', message)"
             >
-              <i class="fa-solid fa-paperclip text-info text-[10px]"></i>
-              <span class="text-[10px]">{{ attachmentCount }}</span>
+              <i class="fa-solid fa-comment-dots"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Mark as answer"
+              @click.stop="$emit('answer', message)"
+            >
+              <i class="fa-solid fa-check-double text-success/70"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              data-tip="Copy"
+              @click.stop="copyMessageToClipboard"
+            >
+              <i class="fa-solid fa-copy"></i>
+            </button>
+            <button
+              v-if="displayMessage.diffMessage"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showDiff && 'btn-active'"
+              data-tip="Diff"
+              @click.stop="toggleShowDiff"
+            >
+              <i class="fa-regular fa-file-lines"></i>
+            </button>
+            <button
+              v-if="hasCodeBlocksOrFiles"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showFileView && 'btn-active'"
+              data-tip="Files"
+              @click.stop="toggleFileView"
+            >
+              <i class="fa-solid fa-file-code"></i>
+            </button>
+            <button
+              v-if="hasPRViewBlocks"
+              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              :class="showPRView && 'btn-active'"
+              data-tip="Review"
+              @click.stop="togglePRView"
+            >
+              <i class="fa-solid fa-code-branch"></i>
             </button>
 
-            <!-- Mobile floating menu button -->
-            <div class="dropdown dropdown-end md:hidden">
-              <button class="btn btn-xs btn-ghost gap-0.5 px-1 h-auto min-h-0 py-0.5" tabindex="0">
-                <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
+            <!-- Divider -->
+            <div class="w-px h-4 bg-base-300 mx-0.5"></div>
+
+            <!-- More dropdown -->
+            <div class="dropdown dropdown-end" @click.stop>
+              <button tabindex="0" class="btn btn-xs btn-ghost">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
               </button>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow border border-base-100">
-                <li><a @click.stop="$emit('thread', message)">
-                  <i class="fa-solid fa-comment-dots"></i> Thread
-                </a></li>
-                <li><a @click.stop="$emit('hide', message)" :class="!isDone && 'disabled'">
-                  <i class="fa-solid fa-box-archive text-warning/70"></i>
-                  {{ displayMessage.hide ? 'Unarchive' : 'Archive' }}
-                </a></li>
-                <li><a @click.stop="$emit('answer', message)">
-                  <i class="fa-solid fa-check-double text-success/70"></i> Mark as answer
-                </a></li>
-                <li><a @click.stop="copyMessageToClipboard">
-                  <i class="fa-solid fa-copy"></i> Copy
-                </a></li>
-                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'">
-                  <i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}
-                </a></li>
-                <li v-if="displayMessage.diffMessage"><a @click.stop="toggleShowDiff">
-                  <i class="fa-regular fa-file-lines"></i> Diff
-                </a></li>
-                <li v-if="hasCodeBlocksOrFiles"><a @click.stop="toggleFileView">
-                  <i class="fa-solid fa-file-code"></i> Files
-                </a></li>
-                <li v-if="hasPRViewBlocks"><a @click.stop="togglePRView">
-                  <i class="fa-solid fa-code-branch"></i> Review
-                </a></li>
-                <li><a @click.stop="runAgents">
-                  <i class="fa-solid fa-people-group"></i> Run agents
-                </a></li>
-                <li v-if="isDone"><a @click.stop="toggleSrcView()">
-                  <i class="fa-solid fa-code"></i> View source
-                </a></li>
-                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)">
-                  <i class="fa-solid fa-pen"></i> Edit
-                </a></li>
-                <li><a @click.stop="confirmRemove" class="text-error">
-                  <i class="fa-solid fa-trash-can"></i> Delete
-                </a></li>
+              <ul
+                tabindex="0"
+                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
+              >
+                <!-- Events & Tools — the desktop drawer button is hidden on
+                     mobile (*), so it lives here for narrow panels. -->
+                <li v-if="isAssistant" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
+                <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
+                <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
+                <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
+                <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
+                <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
               </ul>
             </div>
           </div>
-        </div>
 
-        <!-- ── Floating Notion Toolbar (appears on hover, top-right of block) ── -->
-        <div
-          class="absolute right-0 top-0 z-20
-                 opacity-0 group-hover/entry:opacity-100
-                 transition-all duration-150 translate-y-0
-                 flex items-center gap-0.5
-                 bg-base-100/95 backdrop-blur-sm
-                 border border-base-100 rounded-lg shadow-md px-1 py-0.5"
-        >
-          <!-- Stop generation -->
-          <button
-            v-if="!isDone && cancellationTokenId"
-            class="btn btn-xs btn-error gap-1"
-            @click.stop="cancelMessage"
-          >
-            <span class="loading loading-xs"></span>Stop
-          </button>
-
-          <!-- Core actions -->
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :data-tip="displayMessage.hide ? 'Unarchive' : 'Archive'"
-            @click.stop="$emit('hide', message)"
-            v-if="isDone"
-          >
-            <i class="fa-solid fa-box-archive text-warning/70"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Thread"
-            @click.stop="$emit('thread', message)"
-          >
-            <i class="fa-solid fa-comment-dots"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Mark as answer"
-            @click.stop="$emit('answer', message)"
-          >
-            <i class="fa-solid fa-check-double text-success/70"></i>
-          </button>
-          <button
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            data-tip="Copy"
-            @click.stop="copyMessageToClipboard"
-          >
-            <i class="fa-solid fa-copy"></i>
-          </button>
-          <button
-            v-if="displayMessage.diffMessage"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showDiff && 'btn-active'"
-            data-tip="Diff"
-            @click.stop="toggleShowDiff"
-          >
-            <i class="fa-regular fa-file-lines"></i>
-          </button>
-          <button
-            v-if="hasCodeBlocksOrFiles"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showFileView && 'btn-active'"
-            data-tip="Files"
-            @click.stop="toggleFileView"
-          >
-            <i class="fa-solid fa-file-code"></i>
-          </button>
-          <button
-            v-if="hasPRViewBlocks"
-            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="showPRView && 'btn-active'"
-            data-tip="Review"
-            @click.stop="togglePRView"
-          >
-            <i class="fa-solid fa-code-branch"></i>
-          </button>
-
-          <!-- Divider -->
-          <div class="w-px h-4 bg-base-300 mx-0.5"></div>
-
-          <!-- More dropdown -->
-          <div class="dropdown dropdown-end" @click.stop>
-            <button tabindex="0" class="btn btn-xs btn-ghost">
-              <i class="fa-solid fa-ellipsis-vertical"></i>
-            </button>
-            <ul
-              tabindex="0"
-              class="dropdown-content menu rounded-box shadow-lg w-44 p-1 bg-base-200 z-50 text-sm"
-            >
-              <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
-              <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
-              <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
-              <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
-              <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
-            </ul>
-          </div>
         </div>
 
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
@@ -317,16 +259,6 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           <div class="skeleton h-4 w-2/3 rounded"></div>
         </div>
 
-        <!-- ── Answer / Topic accent bar ── -->
-        <div
-          v-if="displayMessage.is_answer || isTopic"
-          class="absolute left-0 top-0 bottom-0 w-0.5 rounded-full"
-          :class="[
-            displayMessage.is_answer && 'bg-success',
-            isTopic && !displayMessage.is_answer && 'bg-info',
-          ]"
-        ></div>
-
         <!-- ── TOC for long documents ── -->
         <DocumentSummary
           v-if="!srcView && isDone && messageContent && !showPRView && !showFileView && !hasEvents && !showAttachments"
@@ -344,8 +276,8 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           @mouseup="onContentMouseUp"
           class="min-w-0 w-full notion-content"
           :class="[
-            displayMessage.is_answer && 'pl-3 border-l-2 border-success/30',
-            isTopic && !displayMessage.is_answer && 'pl-3 border-l-2 border-info/30',
+            displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-success/30',
+            isTopic && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
           ]"
         >
 
@@ -520,6 +452,7 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
           <ChatAttachmentPreview
             v-if="displayMessage.attachments?.length"
             :attachments="displayMessage.attachments"
+            @update-attachment="onAttachmentUpdated"
           />
         </div>
 
@@ -556,20 +489,11 @@ import ChatEntryDrawer from './ChatEntryDrawer.vue'
       </div>
     </div>
   </div>
-
-  <!-- ── Events/Tools Drawer ── -->
-  <ChatEntryDrawer
-    :isOpen="eventsOpen"
-    :lifecycleEvents="message?.lifecycle_events || []"
-    :toolEvents="message?.tool_events || []"
-    :metadata="message?.meta_data"
-    @close="eventsOpen = false"
-  />
 </template>
 
 <script>
 export default {
-  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList', 'isNewSpeaker', 'eventsOpen'],
   emits: [
     'generate-code',
     'reload-file',
@@ -594,7 +518,8 @@ export default {
     'code-file-shown',
     'message-changed',
     'show-events',
-    'preview-file'
+    'preview-file',
+    'update-attachment'
   ],
   data() {
     return {
@@ -612,7 +537,6 @@ export default {
       selectedText: '',
       selectionPosition: { top: 0, left: 0 },
       collapsed: false,
-      eventsOpen: false,
       hasSeen: false,
       unseenToggling: false,
       isFocused: false,
@@ -628,6 +552,9 @@ export default {
     this.collapsed = this.displayMessage.hide
   },
   computed: {
+    isMobile() {
+      return this.$ui?.isMobile
+    },
     isDone() {
       return this.displayMessage.done
     },
@@ -929,6 +856,12 @@ export default {
     openFile(file) {
       this.$emit('preview-file', file)
     },
+    onAttachmentUpdated({ index, attachment }) {
+      const message = this.displayMessage
+      if (!message?.attachments) return
+      message.attachments.splice(index, 1, attachment)
+      this.$emit('update-attachment', { message, index, attachment })
+    },
     openThread() {
       this.$chats.setActiveChat(this.threadChat)
     },
@@ -974,20 +907,11 @@ export default {
     onCreateTask(taskData) {
       this.$emit('sub-task', { content: taskData.content, title: taskData.title })
     },
+    // The events/tools panel is rendered once, by ChatMessageList, which owns the
+    // panel open state. Here we only notify it which message to show; the button's
+    // active state comes back through the `eventsOpen` prop.
     toggleEventsPanel() {
-      this.eventsOpen = !this.eventsOpen
-      if (this.eventsOpen) {
-        this.$emit('show-events', {
-          toolEvents: this.message?.tool_events || [],
-          lifecycleEvents: this.message?.lifecycle_events || [],
-          attachments: this.message?.attachments || [],
-          metadata: this.message?.meta_data,
-          toolCount: this.toolEventCount,
-          lifecycleCount: this.lifecycleEventCount,
-          attachmentCount: this.attachmentCount,
-          totalEvents: this.toolEventCount + this.lifecycleEventCount + this.attachmentCount
-        })
-      }
+      this.$emit('show-events', this.message)
     },
     onBlockEdited(data) {
       const { blockHash, originalContent, newContent, block } = data
@@ -1043,13 +967,13 @@ export default {
     startSeenTracking() {
       if (this.hasSeen || this.isMessageSeen || !this.isDone) return
       this.seenProgressValue = 0
-      
+
       const startTime = Date.now()
-      
+
       this.progressInterval = setInterval(() => {
         const elapsed = Date.now() - startTime
         this.seenProgressValue = (elapsed / this.seenDuration) * 100
-        
+
         if (elapsed >= this.seenDuration) {
           this.stopProgressTracking()
           this.submitMessageSeen()
@@ -1067,21 +991,21 @@ export default {
       try {
         const currentUsername = this.$user?.username
         if (!currentUsername) return
-        
+
         const chatId = this.chat?.doc_id || this.chat?.id
         const messageId = this.message?.doc_id || this.message?.id
-        
+
         if (!chatId || !messageId) {
           console.error('Missing chat_id or message_id', { chatId, messageId })
           return
         }
-        
+
         const readByList = this.message.read_by || []
         if (readByList.includes(currentUsername)) {
           this.hasSeen = true
           return
         }
-        
+
         await this.$storex.api.chats.markMessageAsSeen({
           chat_id: chatId,
           message_id: messageId,
@@ -1101,17 +1025,17 @@ export default {
     async toggleUnseenStatus() {
       if (this.unseenToggling) return
       this.unseenToggling = true
-      
+
       try {
         const chatId = this.chat?.doc_id || this.chat?.id
         const messageId = this.message?.doc_id || this.message?.id
         const currentUsername = this.$user?.username
-        
+
         if (!chatId || !messageId || !currentUsername) {
           console.error('Missing required IDs', { chatId, messageId, currentUsername })
           return
         }
-        
+
         if (this.isMessageSeen) {
           await this.$storex.api.chats.unmarkMessageAsSeen({
             chat_id: chatId,

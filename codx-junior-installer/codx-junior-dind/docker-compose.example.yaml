@@ -1,0 +1,45 @@
+services:
+  my-project-codx-junior:
+    image: codxjunior/codx-junior:dind
+    container_name: my-project-codx-junior
+    runtime: sysbox-runc
+    privileged: false
+    restart: unless-stopped
+    volumes:
+      - /home/shared/codx-junior:/home/codx-junior/codx-junior
+      - /home/shared/codx-junior-cloud/docker/traefik/letsencrypt/acme.json:/codx-junior/traefik/letsencrypt/acme.json
+      - "/home/shared/codx-junior-projects/codx-services/customers/My Project LLC:/home/codx-junior-projects/My Project LLC"
+      - /home/shared/codx-junior/codx-junior-installer/codx-junior-dind/entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh
+    # DOCKER
+      - dind-storage:/var/lib/docker
+      - dind-certs-ca:/certs/ca
+      - dind-certs-client:/certs/client
+    # PPP
+      - /dev/ppp:/dev/ppp
+
+    working_dir: /codx-junior
+    environment:
+      - CODX_JUNIOR_DOMAIN=my-project.codx-junior.com
+      - GITHUB_ADMINS="codx-junior"
+      - CODX_JUNIOR_HIDDEN=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.my-project-junior-demo.rule=Host(`my-project.codx-junior.com`)"
+      - "traefik.http.routers.my-project-junior-demo.tls=true"
+      - "traefik.http.routers.my-project-junior-demo.tls.certresolver=myresolver"
+      - "traefik.http.routers.my-project-junior-demo.service=my-project-junior-demo"
+
+      - "traefik.http.routers.my-project-junior-demo.middlewares=redirectscheme"
+      - "traefik.http.services.my-project-junior-demo.loadbalancer.server.port=80"
+
+    networks:
+      - docker_default
+
+volumes:
+  dind-storage:
+  dind-certs-ca:
+  dind-certs-client:
+
+networks:
+  docker_default:
+    external: true

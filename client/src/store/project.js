@@ -573,9 +573,6 @@ export const actions = actionTree(
               await $storex.projects.activeProjectChanged(API.activeProject)
             } catch {}
           }
-          if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-            await $storex.projects.activeProjectChanged($storex.projects.allProjects[0])
-          }
           return $storex.projects.allProjects
         } catch (ex) {
           $storex.session.onError("Error loading projects", ex)
@@ -586,22 +583,52 @@ export const actions = actionTree(
     },
     async restoreLastActiveProject({ state }) {
       try {
-        const lastProjectId = localStorage.getItem('lastActiveProject')
-        if (lastProjectId) {
-          const project = state.allProjects?.find(p => p.project_id === lastProjectId)
-          if (project) {
-            await $storex.projects.activeProjectChanged(project)
+        // 1) Prefer the project encoded in the URL base path (deep link / refresh)
+        //    e.g. "/my.project/chats" → "my.project"
+        const base = import.meta.env.BASE_URL || '/'
+        let pathname = window.location.pathname
+        if (base !== '/' && pathname.startsWith(base)) {
+          pathname = pathname.slice(base.length - 1)
+        }
+        const segment = pathname.split('/').filter(Boolean)[0]
+
+        // "/auth/:provider" callbacks are owned by the router guard – leave them.
+        if (segment && segment !== 'auth') {
+          const urlProjectName = decodeURIComponent(segment)
+          const urlProject = state.allProjects?.find(p => p.project_name === urlProjectName)
+          if (urlProject) {
+            await $storex.projects.activeProjectChanged(urlProject)
             return
           }
+
+          // URL points to an unknown project → activate a fallback and go home.
+          await $storex.projects.activateFallbackProject()
+          $storex.$router?.replace({ name: 'home' })?.catch(() => {})
+          return
         }
-        
-        const defaultProject = state.allProjects?.find(p => p.project_name === 'codx-junior')
-        if (defaultProject) {
-          await $storex.projects.activeProjectChanged(defaultProject)
-        }
+
+        // 2) No project in the URL → fall back to the last project used on this browser
+        await $storex.projects.activateFallbackProject()
       } catch (error) {
         console.error('Failed to restore last active project:', error)
       }
+    },
+    /**
+     * Activate a sensible fallback project when the URL does not resolve to one:
+     * the last project used on this browser, then the default "codx-junior",
+     * then the first available project.
+     */
+    async activateFallbackProject({ state }) {
+      const lastProjectId = localStorage.getItem('lastActiveProject')
+      const project =
+        state.allProjects?.find(p => p.project_id === lastProjectId) ||
+        state.allProjects?.find(p => p.project_name === 'codx-junior') ||
+        state.allProjects?.[0]
+
+      if (project) {
+        await $storex.projects.activeProjectChanged(project)
+      }
+      return project || null
     },
     async activeProjectChanged ({ state }, project) {
       const { project_id, project_name, codx_path } = project
@@ -633,7 +660,7 @@ export const actions = actionTree(
           overlay?.markStepLoading('settings')
           const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
           if (!existsProject) {
-            await $storex.projects.setAllProjects([...state.allProjects, API.activeProject])
+            await $storex.projects.setAllProjects([...state.activeProjects, API.activeProject])
           }
           
           const newActiveProject = state.allProjectsById[API.activeProject.project_id]
@@ -659,6 +686,9 @@ export const actions = actionTree(
           $storex.projects.addRecentProject(state.activeProject)
           state.workspaces = API.allWorkspaces
           $storex.ui.saveState()
+
+          // Keep the URL's project base path ("/:projectName/…") in sync
+          $storex.projects.syncRouteProjectPrefix(state.activeProject)
           
           overlay?.completeStep('finalize', 'Ready')
           overlay?.finishLoading()
@@ -1086,6 +1116,36 @@ export const actions = actionTree(
       socket.off('codx-junior-index-progress-batch-complete')
       socket.off('codx-junior-index-progress-completed')
       socket.off('codx-junior-index-error')
+    },
+
+    /**
+     * Keep the URL's project base path ("/:projectName/…") in sync with the
+     * active project. The unscoped "root" route is promoted to the scoped
+     * home once a project is active. No-op when the URL already matches.
+     */
+    syncRouteProjectPrefix(_, project) {
+      const router = $storex.$router
+      const current = router?.currentRoute?.value
+      if (!router || !project?.project_name) return
+      if (!current?.name || current.name === 'mobile') return
+
+      // Use the RAW project name: vue-router percent-encodes params while
+      // building the URL, so encoding here would double-encode the segment and
+      // break the reload lookup in restoreLastActiveProject(). Router params
+      // are decoded, so the equality check below compares like values.
+      const projectName = project.project_name
+      const targetName = current.name === 'root' ? 'home' : current.name
+
+      // Already scoped to the right project – nothing to do.
+      if (current.name !== 'root' && current.params?.projectName === projectName) {
+        return
+      }
+
+      router.replace({
+        name: targetName,
+        params: { ...(current.params || {}), projectName },
+        query: current.query
+      }).catch(() => {})
     },
 
     async saveLastActiveProject() {

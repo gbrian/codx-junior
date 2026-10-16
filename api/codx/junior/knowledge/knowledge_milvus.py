@@ -166,10 +166,10 @@ Return a JSON object with this information:
  * "category": Choose a category from the list for this document or return a new one if doesn't fit 
  * "content_graph": Create a graph representation of the content using nodes and relations.
 """ % (doc.page_content, ",".join(categories))
-                messages = await self.get_ai().a_chat(prompt=summary_prompt)
+                run_result = await self.get_ai().a_chat_run(prompt=summary_prompt)
                 doc.metadata = {
                     **doc.metadata,
-                    **next(extract_json_blocks(messages[-1].content))
+                    **next(extract_json_blocks(run_result.content))
                 }
             except Exception as ex:
                 logger.error("Error enriching document %s: %s", source, ex)
@@ -189,8 +189,8 @@ Each entry having fields:
  * "user_request": Create a user request using the document content.
  * "ai_response": Create a response for the generated user_request using the document content.
 """ % doc.page_content
-                messages = await self.get_ai().a_chat(prompt=summary_prompt)
-                training = next(extract_json_blocks(messages[-1].content))
+                run_result = await self.get_ai().a_chat_run(prompt=summary_prompt)
+                training = next(extract_json_blocks(run_result.content))
                 doc.metadata["training"] = training 
             except Exception as ex:
                 logger.info("Error creating training dataset %s: %s", source, ex)
@@ -386,8 +386,8 @@ Rules:
         ])
 
         try:
-            messages = await self.get_ai().a_chat(prompt=prompt)
-            updated_summary = messages[-1].content.strip()
+            run_result = await self.get_ai().a_chat_run(prompt=prompt)
+            updated_summary = run_result.content.strip()
 
             os.makedirs(os.path.dirname(self.summary_file_path), exist_ok=True)
             with open(self.summary_file_path, "w", encoding="utf-8") as f:
@@ -746,7 +746,7 @@ FROM THIS CONTENT:
         chages_summary = ""
         if force:
             ai = self.get_ai()
-            messages = await ai.a_chat(prompt="""
+            run_result = await ai.a_chat_run(prompt="""
 ```diff
 %s
 ```
@@ -785,7 +785,7 @@ Added modules A, B, for this and that
 
 ... the methods Foo and Bar has been updated to...
 """ % diff)
-            chages_summary = messages[-1].content
+            chages_summary = run_result.content
             with open(last_changes_summary_file_path, 'w', encoding="utf-8") as f:
                 f.write(chages_summary)
         elif os.path.isfile(last_changes_summary_file_path):

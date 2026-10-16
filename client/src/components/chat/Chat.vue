@@ -59,7 +59,6 @@ import Collapsible from '../Collapsible.vue'
     <!-- Normal Chat Content -->
     <template v-else>
 
-
       <Collapsible :defaultOpen="false" class="w-full">
         <!-- Icon -->
         <template #icon>
@@ -70,40 +69,40 @@ import Collapsible from '../Collapsible.vue'
         <template #title>
           <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
             <i class="fa-solid fa-file"></i>
-            Files: {{ allfiles.length }} +  
+            Files: {{ allfiles.length }} +
           </div>
         </template>
 
         <!-- Actions -->
         <template #actions>
-                  <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
-          <ChatProfileSelector
-            :project="chatProject"
-            :selected-profiles="chat.profiles"
-            :use-modal="true"
-            @profiles-changed="onProfilesChanged"
-          />
-          <CheckLists :chat="chat" :readOnly="readOnly" />
-        </div>
-
+          <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+            <ChatProfileSelector
+              :project="chatProject"
+              :selected-profiles="chat.profiles"
+              :use-modal="true"
+              @profiles-changed="onProfilesChanged"
+            />
+            <CheckLists :chat="chat" :readOnly="readOnly" />
+          </div>
         </template>
-      <!-- File list + profile selector header -->
-      <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
-        <div class="w-full" v-if="chatFiles.length || messageFiles.length">
-          <ChatFileList
-            :files="chatFiles"
-            :message-files="messageFiles"
-            :chat-project="chatProject"
-            @remove-file="removeFileFromChat"
-            @add-file="onAddFileToChat"
-            @add-as-message="addFileContentAsMessage"
-            @sync-notebook="syncNotebook"
-            @export-notebook="exportNotebook"
-            @preview-file="openFilePreview"
-            v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
-          />
+
+        <!-- File list + profile selector header -->
+        <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
+          <div class="w-full" v-if="chatFiles.length || messageFiles.length">
+            <ChatFileList
+              :files="chatFiles"
+              :message-files="messageFiles"
+              :chat-project="chatProject"
+              @remove-file="removeFileFromChat"
+              @add-file="onAddFileToChat"
+              @add-as-message="addFileContentAsMessage"
+              @sync-notebook="syncNotebook"
+              @export-notebook="exportNotebook"
+              @preview-file="openFilePreview"
+              v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
+            />
+          </div>
         </div>
-      </div>
       </Collapsible>
 
       <!-- PR View Section -->
@@ -131,6 +130,7 @@ import Collapsible from '../Collapsible.vue'
             :read-only="readOnly"
             :users-list="usersList"
             :children-chats="childrenChats"
+            :processing="isProcessing"
             @edited="onMessageEdited"
             @remove="removeMessage"
             @remove-file="removeFileFromMessage($event.message, $event.file)"
@@ -153,6 +153,7 @@ import Collapsible from '../Collapsible.vue'
             @run-agents="onMessageRunAgents"
             @preview-file="handleFilePreview"
             @search-files="onSelectionSearchFiles"
+            @update-attachment="onMessageAttachmentUpdated"
           >
             <!-- IntelliSense slot — floats above the composer -->
             <template #intellisense>
@@ -193,6 +194,10 @@ import Collapsible from '../Collapsible.vue'
                 :selected-profiles="selectedProfiles"
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                :chat="chat"
+                :collapsed="inputCollapsed"
+                :attachment-count="attachments?.length || 0"
+                :file-count="files?.length || 0"
                 @send="sendMessage"
                 @add-message="addNewMessage()"
                 @search-message="addSearchMessage"
@@ -202,17 +207,22 @@ import Collapsible from '../Collapsible.vue'
                 @drop.stop="onDropInputBox"
                 @model-changed="onLLMModelChanged"
                 @profiles-selected="onProfilesSelected"
+                @upload-files="onUploadFiles"
                 @toggle-voice="toggleVoiceSession"
+                @toggle-collapsed="toggleInputCollapsed"
               />
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatAttachmentPreview
                 :attachments="attachments"
                 @remove-attachment="removeAttachment"
-                v-if="attachments?.length"
+                @update-attachment="onAttachmentUpdated"
+                v-if="attachments?.length && !composerCollapsed"
               />
             </template>
 
             <!-- Per-message files slot (files attached to the current message being composed) -->
             <template #files>
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatFileList
                 :files="files"
                 :message-files="[]"
@@ -220,7 +230,7 @@ import Collapsible from '../Collapsible.vue'
                 @remove-file="removeFileFromFiles"
                 @add-file="addFileContentAsMessage"
                 @preview-file="handleFilePreview"
-                v-if="files?.length"
+                v-if="files?.length && !composerCollapsed"
               />
             </template>
           </ChatMessageList>
@@ -323,13 +333,16 @@ export default {
       uploadPath: '',
       uploadContext: null,
       MAX_IMAGE_SIZE_MB: 50,
-      dragCounter: 0
+      dragCounter: 0,
+      inputCollapsed: false
     }
   },
   created() {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    // Collapse the composer by default on mobile to leave more room for reading
+    this.inputCollapsed = this.$ui.isMobile
     this.initProject()
   },
   mounted() {
@@ -347,6 +360,12 @@ export default {
     },
     isChatLoading() {
       return !this.chat?.id || this.chat?.status === ENTITY_STATUS.LOADING
+    },
+    // True while the chat is being processed (waiting for the server's first
+    // chunk or streaming). Driven by the shared chats store flag, which is set
+    // immediately on send and auto-resets on a timeout if the server never replies.
+    isProcessing() {
+      return !!this.chat?.id && this.$chats.isChatUpdating(this.chat.id)
     },
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []
@@ -420,6 +439,11 @@ export default {
     mentionList() {
       return (this.chatProject?.$state || this.$projects).mentionList
     },
+    // On mobile the composer collapses while reading the messages; the image/files
+    // previews are hidden too so the reading area stays clean.
+    composerCollapsed() {
+      return this.$ui.isMobile && this.inputCollapsed
+    },
     messageMentions() {
       const mentions = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(w => w[1]) || []
       return [
@@ -464,9 +488,19 @@ export default {
       this.updateCursorWord()
       this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
+    },
+    editMessage(newVal) {
+      // Always expand the composer while editing a message
+      if (newVal) this.inputCollapsed = false
     }
   },
   methods: {
+    toggleInputCollapsed() {
+      this.inputCollapsed = !this.inputCollapsed
+      if (!this.inputCollapsed) {
+        this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+      }
+    },
     initProject() {
       this.$projects.initProjectState(this.chatProject)
     },
@@ -556,19 +590,11 @@ export default {
     validateImageSize(file) {
       const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
       if (file.size > maxSizeBytes) {
-        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        const errorMsg = `File exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
         this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
         return false
       }
       return true
-    },
-    async fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result.split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
     },
     async prepareAttachmentFromFile(file) {
       if (!this.validateImageSize(file)) return null
@@ -626,6 +652,12 @@ export default {
         }
       }
       return validImageFiles.length > 0
+    },
+    async onUploadFiles(files) {
+      for (const file of files) {
+        const attachment = await this.prepareAttachmentFromFile(file)
+        if (attachment) this.attachments.push(attachment)
+      }
     },
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)
@@ -852,8 +884,11 @@ export default {
       })
       this.onResetEdit()
     },
-    toggleHide({ doc_id, hide }) {
-      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+    toggleHide({ doc_id, is_answer, hide }) {
+      // Answer messages can not be hidden.
+      if (!is_answer) {
+        this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+      }
     },
     toggleAnswer({ doc_id, is_answer }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { is_answer: !is_answer } })
@@ -896,7 +931,7 @@ export default {
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
-        attachments: this.attachments.map(a => a.toJSON()),
+        attachments: this.attachments.map(a => a.toJSON?.() || a),
         metadata: this.metadata,
         user: this.$user.username,
         task_item
@@ -951,6 +986,14 @@ export default {
     },
     async sendChatMessage(chat) {
       this.waiting = true
+
+      // Notify the UI immediately that the chat is processing, before the
+      // server streams its first chunk back (which can take several seconds).
+      // The store auto-resets this after a timeout if the server never replies.
+      if (chat?.id) {
+        this.$chats.startChatProcessing({ chatId: chat.id })
+      }
+
       try {
         return await this.$storex.projects.chatWihProject(chat)
       } finally {
@@ -1044,7 +1087,7 @@ export default {
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
       if (imageFile) {
         const attachment = await this.prepareAttachmentFromFile(imageFile)
-        this.attachments.push(attachment)
+        if (attachment) this.attachments.push(attachment)
         return stop()
       }
       const textContent = await this.chatSvc.parseTextFromPaste(e)
@@ -1082,6 +1125,31 @@ export default {
     },
     removeAttachment(idx) {
       this.attachments = this.attachments.filter((_, ix) => ix !== idx)
+    },
+    onAttachmentUpdated({ index, attachment }) {
+      this.attachments.splice(index, 1, attachment)
+      if (this.editMessage) {
+        this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id: this.editMessage.doc_id,
+          update: {
+            attachments: this.attachments.map(a => a.toJSON?.() || a),
+            updated_at: new Date().toISOString()
+          }
+        })
+      }
+    },
+    onMessageAttachmentUpdated({ message, index, attachment }) {
+      const attachments = (message.attachments || []).map(a => a.toJSON?.() || a)
+      attachments.splice(index, 1, attachment.toJSON?.() || attachment)
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat,
+        doc_id: message.doc_id || message.id,
+        update: {
+          attachments,
+          updated_at: new Date().toISOString()
+        }
+      })
     },
     removeAttachmentByIndex(idx) {
       this.removeAttachment(idx)
@@ -1235,8 +1303,12 @@ export default {
     createBlock() {
       this.setEditorText(this.editorText + "```\n\n```")
     },
-    onNewThread(message) {
-      this.$chats.createNewThread({ chat: this.chat, message })
+    async onNewThread(message) {
+      await this.$chats.createNewThread({
+        chat: this.chat,
+        mode: this.chat.mode,
+        message
+      })
     },
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })

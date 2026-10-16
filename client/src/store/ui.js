@@ -50,12 +50,24 @@ export const state = () => ({
     changes: 33,
     preview: 37
   },
+  sidebarCollapsed: false,
+  // Projects pinned by the user for quick switching. Persisted in localStorage
+  // through the uiState snapshot (saveState/loadState), so it survives reloads.
+  pinnedProjects: [],
   projectLoadingState: {
     isLoading: false,
     projectName: '',
     currentStep: null,
     error: null
-  }
+  },
+  // Call device preferences
+  callDevicePreferences: {
+    microphone: 'default',
+    speaker: 'default',
+    autoMute: false
+  },
+  // Active call panel on chat
+  activeChatCallPanelWidth: 30
 })
 
 export const getters = getterTree(state, {
@@ -67,32 +79,44 @@ export const getters = getterTree(state, {
   isVibeMode: state => state.viewMode === 'vibe',
   isExpertMode: state => state.viewMode === 'expert',
   isDesktopMode: () => $storex.$router.currentRoute.value.name === 'codx-junior-split',
+  // Pinned projects resolved to full project objects (keeps only pins that still exist)
+  pinnedProjectsList: state => (state.pinnedProjects || [])
+    .map(id => $storex.projects.allProjectsById?.[id] ||
+                $storex.projects.allProjects?.find(p => p.project_id === id))
+    .filter(Boolean),
+  // Whether the currently active project is pinned
+  isActiveProjectPinned: state => {
+    const projectId = $storex.projects.activeProject?.project_id
+    return !!projectId && (state.pinnedProjects || []).includes(projectId)
+  },
 })
 
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
     tab = tab || 'home'
-    if (tab !== 'home') {
-      $storex.ui.showApp({
-        name: tab,
-        component: tab
-      })
-    } else {
+
+    // Home is not an app: it clears the active app on desktop and is just a
+    // route on mobile.
+    if (tab === 'home') {
       state.activeTab = null
       state.activeApp = null
+      if (state.isMobile) {
+        $storex.ui.openApp('home')
+      }
+      $storex.ui.saveState()
+      return
     }
+
+    // Unified opener: every other tab goes through openApp so the same key
+    // works on both modes (dockview panel on desktop, route on mobile),
+    // including aliased apps such as 'planning' → tasks panel w/ planning view.
+    state.activeTab = tab
+    $storex.ui.openApp(tab)
     $storex.ui.saveState()
   },
   showTab(state, tab) {
-    if (tab !== state.activeTab) {
-      $storex.ui.setActiveTab(tab)
-    }
-    if (!state.isMobile) {
-      $storex.ui.showApp({
-        name: tab,
-        component: tab
-      })
-    }
+    // setActiveTab now resolves the correct panel/route for any mode.
+    $storex.ui.setActiveTab(tab)
   },
   closeTab(state) {
     state.activeTab = null
@@ -103,17 +127,11 @@ export const mutations = mutationTree(state, {
   },
   toggleLogs(state) {
     state.showLogs = !state.showLogs
-    $storex.ui.showApp({
-      name: 'Logs',
-      component: 'log-viewer'
-    })
+    $storex.ui.openApp('log-viewer')
   },
   openChatLogs(state) {
     state.showLogs = !state.showLogs
-    $storex.ui.showApp({
-      name: 'Chat logs',
-      component: 'chat-logs'
-    })
+    $storex.ui.openApp('chat-logs')
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
@@ -204,23 +222,23 @@ export const mutations = mutationTree(state, {
     }
     app.initialParams = app.initialParams || JSON.parse(JSON.stringify(app.params))
     app.openedAt = Date.now()
-    
+
     if (state.viewMode !== 'vibe' && !state.isMobile) {
       // Check if app already exists in openApps state
       const existingApp = Object.values(state.openApps).find(openApp => {
         if (app.key && openApp.key) {
           return openApp.key === app.key
         }
-        return openApp.component === app.component && 
+        return openApp.component === app.component &&
               JSON.stringify(openApp.initialParams) === JSON.stringify(app.initialParams)
       })
-      
+
       if (existingApp) {
         state.activeApp = existingApp
         $storex.views.activatePanel(existingApp.tabId)
         return
       }
-      
+
       // Check if panel already exists in Desktop API by checking component and initialParams
       const desktopApi = $storex.views._desktopApi
       if (desktopApi && desktopApi.panels) {
@@ -229,10 +247,10 @@ export const mutations = mutationTree(state, {
             return panel.key === app.key
           }
           const panelParams = panel.params?.params || panel.params || {}
-          return panel.component === app.component && 
+          return panel.component === app.component &&
                 JSON.stringify(panelParams.initialParams || panelParams) === JSON.stringify(app.initialParams)
         })
-        
+
         if (existingPanel) {
           state.activeApp = app
           $storex.views.activatePanel(existingPanel.id)
@@ -240,7 +258,7 @@ export const mutations = mutationTree(state, {
         }
       }
     }
-    
+
     state.openApps = {
       ...state.openApps,
       [app.tabId]: app
@@ -250,16 +268,28 @@ export const mutations = mutationTree(state, {
   updateAppParams(state, { tabId, params }) {
     const app = state.openApps[tabId]
     if (!app) return
-    state.openApps = {
-      ...state.openApps,
-      [tabId]: {
-        ...app,
-        params: {
-          ...app.params,
-          ...params
-        }
-      }
+
+    // Skip no-op updates so we don't persist the layout for nothing
+    const changed = Object.keys(params || {}).some(key => app.params?.[key] !== params[key])
+    if (!changed) return
+
+    // Merge into the *same* app object instead of replacing it: dockview panels
+    // keep a reference to it (`panel.params.app`), so replacing the object would
+    // leave the panel — and the layout that gets persisted — with a stale
+    // snapshot (e.g. the active board would be lost on reload).
+    app.params = { ...app.params, ...params }
+
+    // Keep the hosting dockview panel params in sync too. They are the values
+    // serialized into the saved layout, so a reload restores the last board and
+    // params instead of the ones captured when the panel was first opened.
+    const panel = $storex.views._desktopApi?.getPanel?.(tabId)
+    const panelParams = panel?.params || panel?.api?.params
+    if (panelParams) {
+      Object.assign(panelParams, params)
     }
+
+    // Persist the updated layout so the change survives a reload.
+    $storex.views.onLayoutChanged()
   },
   closeApp(state, app) {
     if (!app) return
@@ -284,55 +314,41 @@ export const mutations = mutationTree(state, {
   setAppShowMode(state, mode) {
     state.appShowMode = mode
   },
-  openWorkspace(_, workspace) {
-    if (!$storex.ui.isDesktopMode) {
-      $storex.$router.$navigation.workspaces.open(workspace.id || workspace.key, workspace.name)
+  setSidebarCollapsed(state, collapsed) {
+    state.sidebarCollapsed = collapsed
+    $storex.ui.saveState()
+  },
+  // ════════════════════════════════════════════════════════════════
+  // PINNED PROJECTS (quick project switcher)
+  // ════════════════════════════════════════════════════════════════
+  setPinnedProjects(state, projectIds) {
+    state.pinnedProjects = Array.isArray(projectIds) ? projectIds : []
+    $storex.ui.saveState()
+  },
+  pinProject(state, projectId) {
+    if (!projectId || (state.pinnedProjects || []).includes(projectId)) return
+    state.pinnedProjects = [...(state.pinnedProjects || []), projectId]
+    $storex.ui.saveState()
+  },
+  unpinProject(state, projectId) {
+    state.pinnedProjects = (state.pinnedProjects || []).filter(id => id !== projectId)
+    $storex.ui.saveState()
+  },
+  togglePinProject(state, projectId) {
+    if (!projectId) return
+    if ((state.pinnedProjects || []).includes(projectId)) {
+      state.pinnedProjects = state.pinnedProjects.filter(id => id !== projectId)
     } else {
-      $storex.ui.showApp({
-        tabId: `workspace-${workspace.id || workspace.key}`,
-        name: workspace.name,
-        component: 'workspace',
-        params: {
-          workspace: {
-            id: workspace.id || workspace.key,
-            name: workspace.name
-          }
-        }
-      })
-    }  
+      state.pinnedProjects = [...(state.pinnedProjects || []), projectId]
+    }
+    $storex.ui.saveState()
   },
   openChat(_, chat) {
-    if (!$storex.ui.isDesktopMode) {
-      $storex.$router.push({
-        name: 'chat',
-        params: {
-          chatId: chat.id,
-          chatName: chat.name
-        }
-      })
-    } else {
-      $storex.ui.showApp({
-        tabId: chat.id,
-        name: chat.name,
-        component: 'chat',
-        params: {
-          chat: {
-            id: chat.id,
-            name: chat.name,
-            owner_project_id: chat.owner_project_id
-          }
-        }
-      })
-    }
+    // Unified: panel on desktop, route on mobile
+    $storex.ui.openApp({ appKey: 'chat', payload: { chat } })
   },
   openFileInViewer(_, filePath) {
-    const fileName = filePath.split('/').pop()
-    $storex.ui.showApp({
-      tabId: `file-viewer-${filePath}`,
-      name: fileName,
-      component: 'file-viewer',
-      params: { filePath }
-    })
+    $storex.ui.openApp({ appKey: 'file-viewer', payload: { filePath } })
   },
   openViewEditor(state, view = null) {
     state.viewEditor = { view: view || null }
@@ -361,6 +377,14 @@ export const mutations = mutationTree(state, {
       ...loadingState
     }
   },
+  setCallDevicePreferences(state, preferences) {
+    state.callDevicePreferences = { ...state.callDevicePreferences, ...preferences }
+    $storex.ui.saveState()
+  },
+  setActiveChatCallPanelWidth(state, width) {
+    state.activeChatCallPanelWidth = width
+    $storex.ui.saveState()
+  }
 })
 
 export const actions = actionTree(
@@ -379,8 +403,8 @@ export const actions = actionTree(
         return
       }
       try {
-        const data = { 
-          ...state, 
+        const data = {
+          ...state,
           uiReady: false,
           openApps: {},
           viewEditor: null,
@@ -407,19 +431,7 @@ export const actions = actionTree(
       } catch (error) {
         console.error('Failed to parse saved UI state:', error)
       }
-
-      const {
-        activeProject: project_id,
-        activeChat: chatId
-      } = state
-
-      if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
-        await $storex.projects.activeProjectChanged({ project_id })
-      }
-      if (chatId && $storex.projects.activeProject) {
-        $storex.projects.setActiveChat({ id: chatId })
-      }
-      
+      $storex.ui.showNewProject(false)
       $storex.ui.handleResize()
     },
     handleResize({ state }) {
@@ -428,11 +440,36 @@ export const actions = actionTree(
       const isMobile = width <= 1024
       const orientation = width > height ? 'landscape' : 'portrait'
       state.isMobile = isMobile
-      state.orientation = orientation  
+      state.orientation = orientation
     },
     loadTask (_, task) {
       $storex.projects.setActiveChat(task)
     },
+
+    // ════════════════════════════════════════════════════════════════
+    // UNIFIED APP OPENER
+    // ════════════════════════════════════════════════════════════════
+
+    openApp(_, payload) {
+      // Vuex passes the action context as the first argument, so the real
+      // payload arrives here (second). Accept either a bare app key ("wiki")
+      // or an object ({ appKey, payload }) so call sites stay terse.
+      const appKey = typeof payload === 'string' ? payload : payload?.appKey
+      const data = typeof payload === 'string' ? {} : (payload?.payload || {})
+
+      if (!appKey) {
+        console.warn('[UI] openApp: missing app key', payload)
+        return
+      }
+
+      const navigation = $storex.$navigation
+      if (!navigation || typeof navigation.openApp !== 'function') {
+        console.warn('[UI] openApp: navigation not ready for', appKey)
+        return
+      }
+      return navigation.openApp(appKey, data)
+    },
+
     async openFile({ state }, file) {
       if (state.isMobile) {
         state.openedFile = file
@@ -494,71 +531,55 @@ export const actions = actionTree(
     },
 
     openTeamChannel(_, { team, channel }) {
-      $storex.ui.showApp({
-        tabId: `team-channel-${channel.id}`,
-        name: `# ${channel.name}`,
-        component: 'team-channel',
-        params: { team, channel }
-      })
+      $storex.ui.openApp({ appKey: 'team-channel', payload: { team, channel } })
     },
 
     async openTeamDM(_, { team, member }) {
       const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
-      $storex.ui.showApp({
-        tabId: `team-dm-${team.id}-${member.id}`,
-        name: `@ ${member.username}`,
-        component: 'team-dm',
-        params: { team, member, chatId }
-      })
+      $storex.ui.openApp({ appKey: 'team-dm', payload: { team, member, chatId } })
     },
 
     openTeamMediaLibrary(_, { team }) {
-      $storex.ui.showApp({
-        tabId: `team-media-${team.id}`,
-        name: `🖼 ${team.name} Media`,
-        component: 'team-media-library',
-        params: { team }
-      })
+      $storex.ui.openApp({ appKey: 'team-media-library', payload: { team } })
     },
 
     openVibeCoding() {
-      $storex.ui.showApp({
-        key: 'vibe-coding',
-        name: 'Vibe Coding',
-        component: 'vibe-coding',
-        params: {}
-      })
+      $storex.ui.openApp('vibe-coding')
     },
 
     openProjects() {
-      $storex.ui.showApp({
-        tabId: 'projects',
-        name: 'Projects',
-        component: 'projects',
-        params: {}
-      })
+      $storex.ui.openApp('projects')
     },
 
     openTeams() {
-      $storex.ui.showApp({
-        tabId: 'teams',
-        name: 'Teams',
-        component: 'teams',
-        params: {}
-      })
+      $storex.ui.openApp('team')
     },
 
     openWorkspaces() {
-      $storex.ui.showApp({
-        tabId: 'workspaces',
-        name: 'Workspaces',
-        component: 'workspaces',
-        params: {}
-      })
+      $storex.ui.openApp('workspaces')
+    },
+
+    openWorkspace(_, workspace) {
+      if (!workspace || !workspace.key) {
+        console.warn('[UI] openWorkspace: invalid workspace', workspace)
+        return
+      }
+      // Forward the whole workspace under the `workspace` key so the app's
+      // desktopParams can lift name/path into the panel params.
+      $storex.ui.openApp({ appKey: 'workspace', payload: { workspace } })
+    },
+
+    openMeet(_, meetId) {
+      $storex.ui.openApp({ appKey: 'meet', payload: { meetId } })
     },
 
     openTasks() {
       $storex.ui.setActiveTab('tasks')
+    },
+
+    // Open the Task Manager directly on the Planning view.
+    openPlanning() {
+      $storex.ui.openApp('planning')
     },
 
     openWiki() {
@@ -579,12 +600,7 @@ export const actions = actionTree(
     },
 
     openTutorial(_, tutorialId) {
-      $storex.ui.showApp({
-        tabId: `tutorial-${tutorialId}`,
-        name: 'Knowledge',
-        component: 'knowledge',
-        params: { tutorial: tutorialId }
-      })
+      $storex.ui.openApp({ appKey: 'knowledge', payload: { params: { tutorial: tutorialId } } })
     },
 
     setProjectLoading(_, isLoading) {
@@ -600,5 +616,26 @@ export const actions = actionTree(
     setProjectLoadingError(_, error) {
       $storex.ui.setProjectLoadingState({ error })
     },
+
+    /**
+     * Update call device preferences and persist to localStorage
+     */
+    updateCallDevicePreferences({ commit }, preferences) {
+      commit('setCallDevicePreferences', preferences)
+    },
+
+    /**
+     * Get saved call device preferences
+     */
+    getCallDevicePreferences({ state }) {
+      return state.callDevicePreferences
+    },
+
+    /**
+     * Set active call panel width
+     */
+    setActiveChatCallPanelWidth({ commit }, width) {
+      commit('setActiveChatCallPanelWidth', width)
+    }
   },
 )

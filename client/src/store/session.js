@@ -52,7 +52,6 @@ export const state = () => ({
 export const getters = getterTree(state, {
   lastEvent: state => state.events[state.events.length - 1]?.data,
   wikiEvents: ({ events }) => events.filter(e => e.data?.type === 'wiki'),
-  /** Expose the SocketManager so components can call API.socket directly */
   socket: () => API.socket
 })
 
@@ -91,11 +90,6 @@ export const actions = actionTree(
       }
     },
 
-    /**
-     * (Re-)connect the socket via the API layer.
-     * All socket lifecycle callbacks are handled here and delegate into
-     * the store actions so the rest of the app stays decoupled from socket.io.
-     */
     connect () {
       if (!API.user) {
         API.disconnectSocket()
@@ -140,6 +134,54 @@ export const actions = actionTree(
       if (event === 'codx-junior-online-users') {
         $storex.users.setOnlineUsers(data.users)
       }
+      
+      // ──── VOICE CALL EVENTS ────────────────────────────────
+      if (event === 'voice-call-initiate') {
+        // Incoming call notification
+        $storex.calls.handleIncomingCall({
+          chatId: data.chatId,
+          from: data.from,
+          fromName: data.fromName,
+          fromAvatar: data.fromAvatar,
+          timestamp: data.timestamp
+        })
+        console.log('[session] Incoming call from:', data.from, 'for chat:', data.chatId)
+      }
+      
+      if (event === 'voice-call-accept') {
+        // Call was accepted
+        $storex.calls.updateCallStatus({
+          chatId: data.chatId,
+          status: 'active'
+        })
+        console.log('[session] Call accepted by:', data.acceptedBy)
+      }
+      
+      if (event === 'voice-call-reject') {
+        // Call was rejected
+        $storex.calls.endActiveCall(data.chatId)
+        console.log('[session] Call rejected by:', data.rejectedBy)
+      }
+      
+      if (event === 'voice-call-end') {
+        // Call ended
+        $storex.calls.endActiveCall(data.chatId)
+        console.log('[session] Call ended by:', data.endedBy)
+      }
+      
+      if (event === 'voice-call-participant-added') {
+        // New participant joined
+        $storex.calls.addParticipantToCall({
+          chatId: data.chatId,
+          userId: data.userId
+        })
+        console.log('[session] Participant joined:', data.userId)
+      }
+      
+      if (event === 'voice-call-mute-toggle') {
+        // Participant muted/unmuted
+        console.log('[session] Participant mute toggled:', data.userId, 'muted:', data.muted)
+      }
     },
 
     onInfo(_, notification) {
@@ -161,9 +203,6 @@ export const actions = actionTree(
       $storex.session.addNotification({ ...notification, type: 'error' })
     },
 
-    /**
-     * Emit a socket event.  Delegates entirely to API.socket.
-     */
     emit(_, { event, data }) {
       API.socket?.emit(event, data || {})
     }
