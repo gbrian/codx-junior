@@ -1,0 +1,59 @@
+#####################################################################################
+# Magnitude - docker test harness
+#
+#   docker compose up -d magnitude     # long running inference server (:10100)
+#   docker compose run --rm magnitude-test   # one-shot download + inference test
+#
+# Values come from the sibling `.env` file (copy `.env.example` to `.env`).
+# See README.md for the full walkthrough.
+#####################################################################################
+name: magnitude
+
+x-magnitude-common: &magnitude-common
+  build:
+    context: .
+    args:
+      MAGNITUDE_ARCH: ${MAGNITUDE_ARCH:-x64}
+  image: magnitude:local
+  volumes:
+    # Models, cache and settings live here and survive container restarts.
+    - magnitude-data:/home/magnitude/.magnitude
+  environment:
+    MAGNITUDE_HOME: /home/magnitude
+    MAGNITUDE_PORT: "10100"
+    MAGNITUDE_NETWORK_ENABLED: "true"
+    MAGNITUDE_API_KEY: "${MAGNITUDE_API_KEY:-mag_local_dev_key}"
+    # Test knobs (used by `magnitude-test` and by the in-container script)
+    MAGNITUDE_MODEL: "${MAGNITUDE_MODEL:-}"
+    MAGNITUDE_PREFERENCE: "${MAGNITUDE_PREFERENCE:-fastest}"
+    MAGNITUDE_RECO_LIMIT: "${MAGNITUDE_RECO_LIMIT:-5}"
+    MAGNITUDE_PROMPT: "${MAGNITUDE_PROMPT:-In one sentence, what is an inference engine?}"
+    MAGNITUDE_MAX_TOKENS: "${MAGNITUDE_MAX_TOKENS:-128}"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Long running Magnitude server + web UI (OpenAI compatible API on 10100)
+  # ---------------------------------------------------------------------------
+  magnitude:
+    <<: *magnitude-common
+    container_name: magnitude-server
+    restart: unless-stopped
+    ports:
+      - "${MAGNITUDE_PORT:-10100}:10100"
+
+  # ---------------------------------------------------------------------------
+  # One-shot smoke test: downloads a small model and runs one completion.
+  # It starts its own `magnitude serve` inside this container, so it can be run
+  # on its own (do not run it at the same time as the `magnitude` service when
+  # they share the same models volume).
+  # ---------------------------------------------------------------------------
+  magnitude-test:
+    <<: *magnitude-common
+    container_name: magnitude-test
+    profiles: ["test"]
+    command: ["test"]
+
+volumes:
+  magnitude-data:
+    name: magnitude-data

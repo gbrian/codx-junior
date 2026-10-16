@@ -7,9 +7,12 @@ making it easy to understand the project layout and locate components.
 Made with ❤️ by codx-junior
 """
 
+import os
 import logging
 from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from pathlib import Path
+
+from .project_tools import list_project_files
 
 if TYPE_CHECKING:
     from codx.junior.settings import CODXJuniorSettings
@@ -21,7 +24,7 @@ PROJECT_STRUCTURE_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "project_structure",
-        "description": "Get the project structure with files and folders, excluding invalid files. Returns a tree-like representation of the project organization.",
+        "description": "Get the project structure with files and folders read from disk, including nested (child) projects. Files and folders are filtered using only the repository .gitignore. Returns a tree-like representation of the project organization.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -32,7 +35,7 @@ PROJECT_STRUCTURE_TOOL_JSON = {
                 },
                 "max_depth": {
                     "type": "integer",
-                    "description": "Maximum folder depth to traverse. Leave null for no limit.",
+                    "description": "Maximum folder depth to traverse. Folders that reach this depth are shown by name but not expanded, together with the number of files and folders they contain. Leave null for no limit.",
                     "default": None
                 },
                 "include_file_sizes": {
@@ -54,7 +57,7 @@ READ_FOLDER_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "read_folder",
-        "description": "Read and display the structure of a specific folder within the project. Provides a tree-like view of files and subdirectories at a given path.",
+        "description": "Read and display the structure of a specific folder within the project, reading files and folders from disk, including nested (child) projects. Files and folders are filtered using only the repository .gitignore. Provides a tree-like view of files and subdirectories at a given path.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -87,14 +90,22 @@ def project_structure(
     settings: Optional["CODXJuniorSettings"] = None,
 ) -> str:
     """
-    Get the project structure with files and folders.
+    Get the project structure with files and folders read from disk.
 
-    This tool returns the project's file and folder organization,
-    excluding invalid files and ignored patterns defined in project settings.
+    The project's files and folders are read directly from the filesystem,
+    including any nested (child) projects. Filtering uses only the repository
+    ``.gitignore`` rules, so ignored folders and files are discarded while child
+    projects remain navigable.
+
+    When ``max_depth`` is set, the tree is truncated at that depth. Folders that
+    reach the limit are still listed by name—so the model knows they exist—but
+    are not expanded, and the number of files and folders they contain is shown
+    instead.
 
     Args:
         include_details: If True, includes additional metadata like file counts per folder.
-        max_depth: Maximum folder depth to traverse (None = no limit).
+        max_depth: Maximum folder depth to traverse (None = no limit). Folders at
+            the limit are shown collapsed with their file and folder counts.
         include_file_sizes: If True, includes file sizes in bytes for each file.
         path: Optional folder path to limit results to. Must be within project or codx path.
         settings: CODXJuniorSettings instance (passed by SmolAgent).
@@ -104,7 +115,6 @@ def project_structure(
 
     Raises:
         ValueError: If settings is not provided or path is invalid.
-        RuntimeError: If project context is unavailable.
 
     Example:
         >>> result = project_structure(include_details=True)
@@ -117,8 +127,21 @@ def project_structure(
             📄 Card.tsx (1.8 KB)
           📁 utils/
             📄 helpers.ts (3.2 KB)
+        📁 child-project/
+          📁 src/
+            📄 main.py (1.1 KB)
         📁 tests/
           📄 Button.test.tsx (4.1 KB)
+
+        Limit the traversal depth; folders beyond the limit keep their name and
+        expose the number of files and folders they contain:
+        >>> result = project_structure(max_depth=1)
+        >>> print(result)
+        # Project Structure
+
+        📁 src/ (12 files, 4 folders)
+        📁 child-project/ (1 file, 1 folder)
+        📄 README.md
 
     Made with ❤️ by codx-junior
     """
@@ -128,16 +151,8 @@ def project_structure(
         raise ValueError(error_msg)
 
     try:
-        # Get the active session from settings (injected by SmolAgent runtime)
-        session = getattr(settings, "_active_session", None)
-        if not session:
-            raise RuntimeError(
-                "project_structure: no active session in settings. "
-                "The SmolAgent runtime must inject session context."
-            )
-
         structure_info = _build_structure(
-            session=session,
+            settings=settings,
             include_details=include_details,
             max_depth=max_depth,
             include_file_sizes=include_file_sizes,
@@ -243,8 +258,73 @@ def _validate_path(path_str: str, project_root: str, codx_root: Optional[str] = 
     )
 
 
+def _collect_project_files(settings: "CODXJuniorSettings") -> List[str]:
+    """
+    Collect project-relative file paths from the project and its child projects.
+
+    Files are read from disk and filtered using only the repository
+    ``.gitignore`` (see :func:`list_project_files` with
+    ``apply_custom_ignores=False``). Child projects discovered under the project
+    root (see ``settings.get_sub_projects``) are traversed as well, so their
+    files appear in the structure tree even though the project's custom ignore
+    patterns would normally exclude them.
+
+    Args:
+        settings: CODXJuniorSettings instance with project configuration.
+
+    Returns:
+        List[str]: Sorted, de-duplicated project-relative file paths.
+
+    Example:
+        >>> _collect_project_files(settings)
+        ['README.md', 'codx/junior/tools/project_structure.py',
+         'child-project/src/main.py']
+    """
+    project_root = os.path.abspath(settings.abs_project_path)
+    rel_files: set = set()
+
+    # Current project files, honoring only .gitignore
+    for rel_path in list_project_files(settings=settings, apply_custom_ignores=False):
+        rel_files.add(os.path.normpath(rel_path))
+
+    # Nested child projects, honoring each of their own .gitignore
+    try:
+        sub_projects = settings.get_sub_projects()
+    except Exception as ex:
+        logger.warning("Could not resolve child projects: %s", ex)
+        sub_projects = []
+
+    for child in sub_projects:
+        if child is None:
+            continue
+
+        child_root = os.path.abspath(child.abs_project_path)
+        prefix = os.path.relpath(child_root, project_root)
+        # Skip child projects that live outside this project root
+        if prefix.startswith(".."):
+            logger.debug("Skipping child project outside project root: %s", child_root)
+            continue
+
+        try:
+            child_files = list_project_files(
+                settings=child, apply_custom_ignores=False
+            )
+        except Exception as ex:
+            logger.warning(
+                "Error listing child project '%s': %s",
+                getattr(child, "project_name", child_root),
+                ex,
+            )
+            continue
+
+        for rel_path in child_files:
+            rel_files.add(os.path.normpath(os.path.join(prefix, rel_path)))
+
+    return sorted(rel_files)
+
+
 def _build_structure(
-    session: Any,
+    settings: "CODXJuniorSettings",
     include_details: bool = False,
     max_depth: Optional[int] = None,
     include_file_sizes: bool = False,
@@ -254,12 +334,20 @@ def _build_structure(
     Build the project structure representation.
 
     This internal function constructs the tree-like representation of the
-    project's files and folders, using the knowledge base to get valid files.
+    project's files and folders by reading them directly from disk, including
+    nested (child) projects. Only the repository ``.gitignore`` rules are
+    applied (through :func:`_collect_project_files`); the project's custom
+    ignore patterns are intentionally not used so child projects stay navigable.
+
+    The full tree is always built from every project file. The ``max_depth``
+    limit is applied later, while formatting, so that folders sitting at the
+    limit are still listed by name together with the number of files and folders
+    they contain (see :func:`_format_tree`).
 
     Args:
-        session: CODXJuniorSession instance with project configuration.
+        settings: CODXJuniorSettings instance with project configuration.
         include_details: Include additional metadata.
-        max_depth: Maximum recursion depth.
+        max_depth: Maximum recursion depth (applied while formatting).
         include_file_sizes: Include file size information.
         path: Optional folder path to limit results to.
 
@@ -267,78 +355,68 @@ def _build_structure(
         str: Formatted project structure.
 
     Raises:
-        RuntimeError: If knowledge base is not available.
+        RuntimeError: If the project files cannot be read.
         ValueError: If path is invalid.
 
     Diagram:
     flowchart TD
-        A[_build_structure] --> B[Get all valid sources from Knowledge]
-        B --> C[Build folder tree structure]
-        C --> D[Filter by max_depth if set]
-        D --> E[Filter by path if set]
+        A[_build_structure] --> B[Collect project + child project files from disk]
+        B --> C[Filter using only .gitignore]
+        C --> D[Filter by path if set]
+        D --> E[Build full folder tree structure]
         E --> F[Format as tree representation]
-        F --> G[Add metadata if requested]
-        G --> H[Return formatted string]
+        F --> G[Collapse folders at max_depth and add file/folder counts]
+        G --> H[Add metadata if requested]
+        H --> I[Return formatted string]
     """
     try:
-        # Get knowledge base instance from session
-        knowledge = session.knowledge
-        if not knowledge:
-            raise RuntimeError("Knowledge base not initialized in session")
+        project_root = os.path.abspath(settings.abs_project_path)
 
-        # Get all valid indexed sources
-        all_sources: List[str] = knowledge.get_all_sources()
+        # Read the project files directly from disk (including child projects),
+        # filtering with only the repository .gitignore.
+        project_files: List[str] = _collect_project_files(settings=settings)
 
-        if not all_sources:
-            return "No files indexed in the project yet. Run a knowledge reload first."
+        if not project_files:
+            return "No files found in the project."
 
-        # Build folder hierarchy
-        project_root = knowledge.settings.abs_project_path
-        
         # Validate and resolve path if provided
         target_path = None
         if path:
-            codx_root = getattr(knowledge.settings, "abs_codx_path", None)
+            codx_root = getattr(settings, "abs_codx_path", None)
             try:
                 target_path = _validate_path(path, project_root, codx_root)
             except ValueError as ex:
                 raise ValueError(f"Invalid path parameter: {str(ex)}") from ex
-        
+
         structure_tree: Dict[str, Any] = {}
 
-        for source in all_sources:
-            # Get relative path from project root
-            try:
-                relative_path = Path(source).relative_to(project_root)
-            except ValueError:
-                relative_path = Path(source)
+        for relative_path in project_files:
+            rel_path = Path(relative_path)
+            abs_path = os.path.join(project_root, relative_path)
 
-            # Skip if max_depth is set
-            if max_depth and len(relative_path.parts) > max_depth:
-                continue
-
-            # Skip if path filter is set and source is not under target path
+            # Skip if path filter is set and file is not under target path
             if target_path:
                 try:
-                    Path(source).relative_to(target_path)
+                    Path(abs_path).relative_to(target_path)
                 except ValueError:
                     continue
 
-            # Build nested dictionary structure
-            _add_to_tree(structure_tree, relative_path, source, include_file_sizes)
+            # Build nested dictionary structure. The full tree is always built;
+            # the max_depth limit is applied while formatting so folder names
+            # are preserved even when their content is not expanded.
+            _add_to_tree(structure_tree, rel_path, abs_path, include_file_sizes)
 
         # Format and return the structure
         formatted = _format_tree(
             structure_tree,
             include_details=include_details,
-            project_root=project_root
+            project_root=project_root,
+            max_depth=max_depth,
         )
 
         return formatted
 
     except ValueError:
-        raise
-    except RuntimeError:
         raise
     except Exception as ex:
         logger.exception("Error building project structure: %s", ex)
@@ -383,15 +461,70 @@ def _add_to_tree(
     current[file_name] = file_info
 
 
+def _count_tree(node: Dict[str, Any]) -> tuple:
+    """
+    Recursively count the files and folders contained in a folder node.
+
+    Args:
+        node: The ``_children`` dictionary of a folder node.
+
+    Returns:
+        tuple: ``(file_count, folder_count)`` counts including all descendants.
+
+    Example:
+        >>> _count_tree(folder_node["_children"])
+        (12, 4)
+    """
+    file_count = 0
+    folder_count = 0
+
+    for info in node.values():
+        if info.get("_type") == "folder":
+            folder_count += 1
+            child_files, child_folders = _count_tree(info.get("_children", {}))
+            file_count += child_files
+            folder_count += child_folders
+        elif info.get("_type") == "file":
+            file_count += 1
+
+    return file_count, folder_count
+
+
+def _format_children_summary(file_count: int, folder_count: int) -> str:
+    """
+    Build a human-readable summary of a collapsed (not expanded) folder.
+
+    Args:
+        file_count: Number of files contained in the folder.
+        folder_count: Number of folders contained in the folder.
+
+    Returns:
+        str: Summary label such as ``(1 file, 2 folders)``.
+
+    Example:
+        >>> _format_children_summary(1, 0)
+        '(1 file, 0 folders)'
+    """
+    file_label = "file" if file_count == 1 else "files"
+    folder_label = "folder" if folder_count == 1 else "folders"
+    return f"({file_count} {file_label}, {folder_count} {folder_label})"
+
+
 def _format_tree(
     tree: Dict[str, Any],
     include_details: bool = False,
     project_root: str = "",
     prefix: str = "",
-    is_last: bool = True
+    is_last: bool = True,
+    max_depth: Optional[int] = None,
+    depth: int = 1
 ) -> str:
     """
     Format the tree structure as a string representation.
+
+    When ``max_depth`` is set, folders at or beyond the limit are rendered
+    collapsed: their name is kept so the reader knows the folder exists, but
+    their content is replaced by the count of files and folders they contain.
 
     Args:
         tree: The tree dictionary to format.
@@ -399,6 +532,8 @@ def _format_tree(
         project_root: Project root path for reference.
         prefix: Prefix for tree formatting (internal use).
         is_last: Whether this is the last item (internal use).
+        max_depth: Maximum folder depth to display (None = no limit).
+        depth: Depth of the items in ``tree`` (internal use, root items = 1).
 
     Returns:
         str: Formatted tree representation.
@@ -420,22 +555,38 @@ def _format_tree(
         next_prefix = "    " if is_last_item else "│   "
 
         if info.get("_type") == "folder":
+            children = info.get("_children", {})
+
+            # Depth limit reached: keep the folder name but do not expand it.
+            # Show how many files and folders it contains so the model knows
+            # the folder exists and how much it holds.
+            if max_depth and depth >= max_depth:
+                file_count, folder_count = _count_tree(children)
+                summary = _format_children_summary(file_count, folder_count)
+                lines.append(f"{prefix}{current_prefix}📁 **{name}**/ {summary}")
+                continue
+
             # Format folder
             lines.append(f"{prefix}{current_prefix}📁 **{name}**/")
 
             # Recursively format children
-            children = info.get("_children", {})
             if children:
                 child_lines = _format_tree(
                     children,
                     include_details=include_details,
                     project_root=project_root,
                     prefix=prefix + next_prefix,
-                    is_last=is_last_item
+                    is_last=is_last_item,
+                    max_depth=max_depth,
+                    depth=depth + 1
                 )
                 lines.append(child_lines)
 
         elif info.get("_type") == "file":
+            # Only reached for expanded levels; guard against over-deep files
+            if max_depth and depth > max_depth:
+                continue
+
             # Format file
             file_name = name
             file_path = info.get("_path", "")

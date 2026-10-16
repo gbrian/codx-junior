@@ -7,8 +7,10 @@
   "file_match": "workspace|docker-compose|Dockerfile",
   "content": null,
   "parsed_content": null,
-  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/workspace.profile",
-  "profiles": [],
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/workspace/workspace.profile",
+  "profiles": [
+    "devops"
+  ],
   "llm_model": "",
   "use_knowledge": true,
   "user": {
@@ -34,6 +36,8 @@
       "updated_at": "2026-07-05T08:24:23.363697",
       "enabled": true
     },
+    "github_admin": false,
+    "github_only": false,
     "token_limit_rules": [],
     "token_limit_requests": []
   },
@@ -47,6 +51,16 @@
     "active": false,
     "model_name": null,
     "description": null
+  },
+  "guardrails": {
+    "enabled": false,
+    "scope": null,
+    "scope_keywords": [],
+    "scope_similarity_threshold": 0.35,
+    "allowed_tools": [],
+    "refusal_message": "I can only answer questions within my configured scope.",
+    "risk_threshold": 10.0,
+    "use_llm_classifier": false
   },
   "chat_mode": null,
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",

@@ -1,0 +1,5 @@
+# Local configuration (contains the API key)
+.env
+
+# Bind-mounted data / model cache if you ever switch the volume to a folder
+data/

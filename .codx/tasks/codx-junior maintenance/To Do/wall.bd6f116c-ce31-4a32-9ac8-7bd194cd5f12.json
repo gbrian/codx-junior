@@ -1669,7 +1669,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-14 20:24:44.266948",
-      "updated_at": "2026-10-14T20:27:31.531070",
+      "updated_at": "2026-10-16T12:49:18.888042",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -1909,7 +1909,9 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     },
@@ -2157,7 +2159,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-15 06:21:20.250618",
-      "updated_at": "2026-10-15T06:24:23.999929",
+      "updated_at": "2026-10-16T12:54:19.146136",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -2356,13 +2358,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-14 19:34:20.820993",
-  "updated_at": "2026-10-15T06:24:27.711445",
+  "updated_at": "2026-10-16T12:54:19.151890",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

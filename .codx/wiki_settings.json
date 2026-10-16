@@ -37,6 +37,36 @@
           "path": "/README.md",
           "slug": "readme.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/readme.md"
+        },
+        {
+          "path": "/magnitude/Dockerfile",
+          "slug": "dockerfile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/dockerfile.md"
+        },
+        {
+          "path": "/magnitude/scripts/entrypoint.sh",
+          "slug": "entrypoint.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/entrypoint.md"
+        },
+        {
+          "path": "/magnitude/scripts/test-model.sh",
+          "slug": "test-model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/test-model.md"
+        },
+        {
+          "path": "/magnitude/scripts/lib.sh",
+          "slug": "lib.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/lib.md"
+        },
+        {
+          "path": "/magnitude/scripts/run-test.sh",
+          "slug": "run-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/run-test.md"
+        },
+        {
+          "path": "/magnitude/Makefile",
+          "slug": "makefile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/wiki/project-overview/makefile.md"
         }
       ],
       "id": "project-overview",
@@ -254,4 +284,5 @@
   "error": "[Errno 2] No such file or directory: '/shared/codx-junior/.codx/wiki_settings.json'",
   "path": "/home/codx-junior-projects/codx-junior/.codx/wiki_settings.json",
   "mode": "codx-junior"
+}mode": "codx-junior"
 }

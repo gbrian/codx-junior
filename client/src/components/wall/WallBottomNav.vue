@@ -4,16 +4,24 @@ import { WALL_NAV } from './wallKinds'
 
 <template>
   <!--
-    Activity Wall — its own bottom bar (mobile only).
+    Activity Wall — its own bottom bar.
 
-    Above `md` the wall uses the left rail (WallNav.vue); below `md` that rail is
-    hidden and this bar takes over. The Menu entry opens the app sidebar through
-    the single ui-store flag (`$storex.ui.expandSidebar()`), the same source of
-    truth App.vue and DesktopSidebar share, so the sidebar and its backdrop stay
-    in sync.
+    It is shown while the wall is NARROWER than the left rail threshold (`@xl`,
+    576px, see Wall.vue) and swaps with WallNav.vue above it, so the wall always
+    exposes exactly one navigation surface. `@xl:` is a CONTAINER query: the wall
+    lives inside dockview windows / desktop panes, so its real width — not the
+    viewport — decides which navigation is rendered.
+
+    The bar is anchored to the wall box (`absolute`) instead of the viewport
+    (`fixed`) so that, when the wall is embedded in a pane, the bar stays inside
+    that pane rather than sticking to the bottom of the whole window.
+
+    The Menu entry opens the app sidebar through the single ui-store flag
+    (`$storex.ui.expandSidebar()`), the same source of truth App.vue and
+    DesktopSidebar share, so the sidebar and its backdrop stay in sync.
   -->
   <nav
-    class="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch justify-around bg-base-300 border-t border-base-content/10 safe-area-bottom"
+    class="@xl:hidden absolute bottom-0 inset-x-0 z-40 flex items-stretch justify-around bg-base-300 border-t border-base-content/10 safe-area-bottom"
     aria-label="Activity navigation"
   >
     <!-- App sidebar -->

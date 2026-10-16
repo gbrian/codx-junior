@@ -15,7 +15,8 @@ Tool Response Types:
                     user-facing content and LLM feedback
 
 Glob Patterns:
-    Several project tools accept glob patterns inside their path arguments.
+    Glob patterns are only supported by search tools that return file paths
+    (e.g. ``project_search``). Reading tools always use literal paths.
     Glob wildcards are:
         - ``*``   matches any characters within a single path segment
         - ``?``   matches a single character
@@ -207,6 +208,9 @@ TOOLS = [
                     "Also finds project files whose path matches the query; the repository's "
                     ".gitignore and the project's custom ignore patterns are honored so ignored "
                     "folders and files are discarded. "
+                    "A query containing glob wildcards ('*', '?', '[') is treated as a glob "
+                    "pattern matched against project file paths (e.g. '**/*.py' returns every "
+                    "Python file). "
                     "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
                     "as a list instead of making separate calls. "
                     "Example: search=[\"authentication\", \"user session\"] instead of two separate calls."
@@ -218,7 +222,8 @@ TOOLS = [
                             "type": ["string", "array"],
                             "description": (
                                 "Single search query (string) or list of search queries (array of strings). "
-                                "Combining multiple related queries in one call is more efficient."
+                                "Combining multiple related queries in one call is more efficient. "
+                                "A query may contain glob wildcards to find files by pattern."
                             )
                         },
                         "validation": {
@@ -244,24 +249,13 @@ TOOLS = [
                 "name": "project_read_file",
                 "description": (
                     "Read project file content from one or multiple file paths. "
-                    "\n\nGLOB PATTERNS: any path may contain glob wildcards and will be "
-                    "expanded to every matching file. Supported wildcards: "
-                    "'*' (any characters within one path segment, e.g. 'src/*.py'), "
-                    "'?' (a single character), '[abc]' (one character from a set) and "
-                    "'**' (zero or more directories, recursive). "
-                    "Glob examples: 'web/src/components/**/*.vue' (every .vue file under "
-                    "components, at any depth), 'api/**/test_*.py' (every test module), "
-                    "'**/*.md' (every markdown file). "
-                    "Use a glob instead of listing files one by one whenever you need many "
-                    "files of the same kind or are unsure of the exact paths; the tool reads "
-                    "and reports each match individually. "
+                    "Paths are read literally: glob wildcards ('*', '?', '[') are NOT "
+                    "interpreted. Use project_search to discover files by pattern and then "
+                    "read the returned paths. "
                     "\n\nBULK OPERATION: To reduce tool calls, read multiple related files "
                     "at once by providing a list of paths instead of making separate calls. "
                     "Example: file_path=[\"src/main.py\", \"config/settings.py\"]. "
-                    "Literal file paths and glob patterns can be mixed in the same list, e.g. "
-                    "file_path=[\"README.md\", \"src/**/*.ts\"]. "
-                    "Invalid or missing files are returned as error blocks; a glob that matches "
-                    "no file is reported as an error."
+                    "Invalid or missing files are returned as error blocks."
                 ),
                 "parameters": {
                     "type": "object",
@@ -270,11 +264,8 @@ TOOLS = [
                             "type": ["string", "array"],
                             "description": (
                                 "Single file path (string) or list of file paths (array of strings). "
-                                "Supports relative or absolute paths and glob patterns. "
-                                "Glob wildcards: '*' (any characters in a segment), '?' (one character), "
-                                "'[abc]' (character set) and '**' (match across directories, recursive). "
-                                "Examples: 'src/main.py', 'web/src/components/**/*.vue', 'api/**/*.py'. "
-                                "Each glob expands to all matching files (read and reported individually). "
+                                "Supports relative and absolute paths. Glob wildcards are not "
+                                "interpreted. "
                                 "Reading multiple files in one call is more efficient."
                             )
                         }

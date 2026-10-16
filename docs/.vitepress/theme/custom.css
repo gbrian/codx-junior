@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* codx-junior brand colors for the VitePress default theme */
+:root {
+  --vp-c-brand-1: #8f008f;
+  --vp-c-brand-2: #cc0099;
+  --vp-c-brand-3: #550e57;
+}
+
+/* Small helper used by the home page feature icons */
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  float: left;
+  margin-right: 8px;
+}

@@ -45,7 +45,7 @@ from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
 from codx.junior.utils.utils import document_to_code_block
-from codx.junior.model.model import CodxUser
+from codx.junior.model.model import CodxUser, Profile
 from codx.junior.chat.chat_knowledge import ChatKnowledge
 from codx.junior.analytics import Analytics
 
@@ -330,6 +330,48 @@ class ChatEngine:
         return sorted(all_files)
 
     # -------------------------------------------------------------------------
+    # Helper: resolve linked (nested) profiles (ADDED)
+    # -------------------------------------------------------------------------
+    def _resolve_linked_profiles(self, profiles: List[Profile]) -> List[Profile]:
+        """
+        Expand a list of profiles with the profiles they link to.
+
+        Each :class:`Profile` may reference other profiles by name in its
+        ``profiles`` property. Linked profiles can themselves link to more
+        profiles, so the graph is expanded **recursively** and deduplicated
+        (first occurrence wins, order preserved).
+
+        This guarantees that the content, tools and agents (profile names) of
+        every linked profile participate when processing a chat. Resolution is
+        delegated to :class:`ProfileManager` (the same logic used for file
+        profiles) and is best-effort: on failure the original list is returned
+        so a chat is never blocked by a profile-resolution error.
+
+        :param profiles: Profiles referenced directly by the chat/mentions.
+        :return: The input profiles plus all their (recursively) linked profiles.
+        """
+        if not profiles:
+            return profiles
+        try:
+            resolved = self.get_profile_manager().reduce_linked_profiles(
+                profiles=profiles
+            )
+            logger.info(
+                "Resolved %d profile(s) to %d after expanding linked profiles: %s",
+                len(profiles),
+                len(resolved),
+                [p.name for p in resolved],
+            )
+            return resolved
+        except Exception as ex:
+            logger.exception(
+                "Failed to resolve linked profiles, using %d base profile(s): %s",
+                len(profiles),
+                ex,
+            )
+            return profiles
+
+    # -------------------------------------------------------------------------
     # Helper: resolve profiles, model and tools
     # -------------------------------------------------------------------------
     def _resolve_profiles_and_model(
@@ -343,14 +385,19 @@ class ChatEngine:
         Derive the active profiles, LLM model, tool list, and profile content string
         from the query mentions and chat state.
 
+        CHANGED: the mentioned profiles are first expanded with their **linked
+        profiles** (the ``profiles`` property, recursively) so that the content,
+        tools and agents of every linked profile are applied to the process.
+
         Profiles are sorted by name and their content is formatted to be passed
         as part of the AI system prompt, including the current date/time.
 
         flowchart TD
-            A[Query mentions profiles] --> B{Any profiles?}
+            A[Query mentions profiles] --> A1[Expand linked profiles - recursive]
+            A1 --> B{Any profiles?}
             B -->|Yes| C[Sort profiles by name]
             C --> D[Build system prompt content]
-            D --> E[Collect tools]
+            D --> E[Collect tools from all profiles]
             E --> F{Profile has model?}
             F -->|Yes| G[Set chat_model from profile]
             F -->|No| H[Keep existing model]
@@ -365,7 +412,11 @@ class ChatEngine:
         :return: Dict with keys: chat_profiles_system_content, chat_profile_names,
                  chat_model, chat_tools, is_refine.
         """
-        all_profiles = query_mentions.profiles
+        # Resolve nested/linked profiles: each profile may reference other
+        # profiles by name through its ``profiles`` property. Expand recursively
+        # and deduplicate so every linked profile — with its content, tools and
+        # agents — participates in the process.
+        all_profiles = self._resolve_linked_profiles(query_mentions.profiles)
         chat_profiles_system_content = ""
         chat_profile_names: List[str] = []
         chat_model: Optional[str] = chat.llm_model
@@ -1951,6 +2002,7 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 9. Resolve profiles, model, and tools
+            #    (linked/nested profiles are expanded inside the helper)
             # ------------------------------------------------------------------
             profile_result = self._resolve_profiles_and_model(
                 chat=chat,

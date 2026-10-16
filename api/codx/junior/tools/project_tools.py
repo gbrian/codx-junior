@@ -29,11 +29,15 @@ BULK_OPERATION_THRESHOLD = 3
 FILE_READ_ERROR_TEMPLATE = "error [%s]\nERROR: %s %s"
 MAX_FILES_BULK_OP = 10
 MAX_QUERIES_BULK_OP = 5
+# Glob wildcards are recognized only by search tools that return file paths
+# (see find_project_files). Reading tools always use literal paths.
 GLOB_PATTERN_CHARS = ("*", "?", "[")
 # Lists tracked and untracked (non-ignored) files, honoring the repo .gitignore
 GIT_FILE_LIST_COMMAND = "git ls-files --cached --others --exclude-standard --full-name"
 # Maximum number of matching project files returned by project_search
 MAX_FILE_MATCHES = 100
+# VCS internals never listed when only the repository .gitignore is applied
+VCS_IGNORE_PATTERNS = (".git",)
 
 
 def get_ai(settings: CODXJuniorSettings, tool_name: str) -> AI:
@@ -95,36 +99,35 @@ async def code_block(file_path: str, code: str, code_language: str, **kwargs) ->
 
 def path_to_absolute_project_path(
     settings: CODXJuniorSettings, file_path: str
-) -> Optional[str]:
+) -> str:
     """
     Convert a relative or absolute file path to an absolute project path.
+
+    Paths are resolved literally: glob wildcards are NOT interpreted. The
+    returned path always points inside the project root and does not need to
+    exist on disk, which allows callers such as ``project_write_file`` to
+    create new files.
 
     Args:
         settings: The project settings.
         file_path: Relative or absolute path to resolve.
 
     Returns:
-        Optional[str]: Absolute path if valid, None otherwise.
+        str: Absolute path inside the project root.
     """
     if not file_path.startswith(settings.abs_project_path):
-        if file_path[0] == "/":
+        if file_path and file_path[0] == "/":
             file_path = file_path[1:]
-        new_file_path = os.path.join(settings.abs_project_path, file_path)
-        if os.path.isfile(new_file_path):
-            return new_file_path
-        res = glob.glob(
-            file_path,
-            root_dir=settings.abs_project_path,
-            recursive=True,
-            include_hidden=True,
-        )
-        return str(res[0]) if res else None
+        return os.path.join(settings.abs_project_path, file_path)
     return file_path
 
 
 def _is_glob_pattern(path: str) -> bool:
     """
     Check whether a path string contains glob wildcard characters.
+
+    Used only by search tools that return file paths (see
+    :func:`find_project_files`). Reading tools treat every path literally.
 
     Args:
         path: The path string to inspect.
@@ -135,28 +138,35 @@ def _is_glob_pattern(path: str) -> bool:
     return isinstance(path, str) and any(char in path for char in GLOB_PATTERN_CHARS)
 
 
-def _expand_glob_pattern(settings: CODXJuniorSettings, pattern: str) -> List[str]:
+def _find_glob_files(
+    settings: CODXJuniorSettings, pattern: str, limit: int = MAX_FILE_MATCHES
+) -> List[str]:
     """
-    Expand a glob pattern into the list of matching absolute file paths.
+    Find project-relative files matching a glob pattern.
 
-    The pattern may be relative or absolute, but only matches that resolve
-    inside the project root are returned. Directories and paths outside the
-    project are ignored.
+    Wildcards follow the standard glob syntax (``*``, ``?``, ``[abc]``,
+    ``**``). Only matching files inside the project root are returned, and the
+    repository ``.gitignore`` plus the project's custom ignore patterns are
+    honored (see :func:`list_project_files`).
 
     Args:
         settings: The project settings.
-        pattern: A relative or absolute glob pattern (e.g. ``src/**/*.py``).
+        pattern: Relative or absolute glob pattern (e.g. ``**/*.py``).
+        limit: Maximum number of matching files to return.
 
     Returns:
-        List[str]: Sorted list of matching absolute file paths within the project.
+        List[str]: Sorted project-relative file paths.
 
     Example:
-        >>> _expand_glob_pattern(settings, "web/src/components/**/*.vue")
-        ['/project/web/src/components/Button.vue', ...]
+        >>> _find_glob_files(settings, "codx/**/*.py")
+        ['codx/junior/tools/project_tools.py', ...]
     """
+    project_root = os.path.abspath(settings.abs_project_path)
+    ignore_patterns = settings.get_ignore_patterns()
+
     rel_pattern = pattern
     if os.path.isabs(rel_pattern):
-        rel_pattern = os.path.relpath(rel_pattern, settings.abs_project_path)
+        rel_pattern = os.path.relpath(rel_pattern, project_root)
     rel_pattern = rel_pattern.lstrip("/")
 
     # Reject patterns that escape the project root
@@ -166,24 +176,25 @@ def _expand_glob_pattern(settings: CODXJuniorSettings, pattern: str) -> List[str
 
     matches = glob.glob(
         rel_pattern,
-        root_dir=settings.abs_project_path,
+        root_dir=project_root,
         recursive=True,
         include_hidden=True,
     )
 
-    project_root = os.path.realpath(settings.abs_project_path)
-    expanded = []
+    results = []
     for match in matches:
-        abs_match = os.path.normpath(os.path.join(settings.abs_project_path, match))
+        abs_match = os.path.normpath(os.path.join(project_root, match))
         # Keep results inside the project and limited to files
-        if not os.path.realpath(abs_match).startswith(project_root):
+        if not abs_match.startswith(project_root + os.sep):
             continue
         if not os.path.isfile(abs_match):
             continue
-        expanded.append(abs_match)
+        if any(p and p in abs_match for p in ignore_patterns):
+            continue
+        results.append(os.path.relpath(abs_match, project_root))
 
-    logger.debug("Glob '%s' expanded to %d file(s)", pattern, len(expanded))
-    return sorted(expanded)
+    logger.debug("Glob '%s' matched %d file(s)", pattern, len(results))
+    return sorted(set(results))[:limit]
 
 
 def _read_single_file(settings: CODXJuniorSettings, file_path: str) -> tuple[str, Optional[str]]:
@@ -238,14 +249,14 @@ def project_read_file(
     Supports bulk file reading to reduce tool calls. For optimal performance,
     read multiple related files in a single call instead of multiple individual calls.
 
-    Glob patterns are supported for each path: any path containing glob
-    wildcards ('*', '?', '[') is expanded and every matching file is read.
-    Example: ``/project/web/src/components/**/*.vue`` reads all matching
-    ``.vue`` files.
+    Paths are read literally: glob wildcards ('*', '?', '[') are NOT interpreted.
+    Use ``project_search`` to discover files by pattern and then read the paths
+    it returns.
 
     Args:
         file_path: Single file path (str) or list of file paths to read.
-                   Supports relative and absolute paths, and glob patterns.
+                   Supports relative and absolute paths. Glob patterns are not
+                   supported.
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
 
@@ -262,10 +273,6 @@ def project_read_file(
         Read multiple files at once:
         >>> project_read_file(["src/main.py", "config/settings.py"])
         # Returns ToolResponse with both files and summary
-
-        Read every file matching a glob pattern:
-        >>> project_read_file("web/src/components/**/*.vue")
-        # Returns ToolResponse with all matching .vue files and summary
     """
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if not settings:
@@ -288,37 +295,12 @@ def project_read_file(
             MAX_FILES_BULK_OP,
         )
 
-    # Read all files (expanding glob patterns into their matching files)
+    # Read all files using literal paths (glob patterns are not supported)
     contents = []
     successful_reads = []
     failed_reads = []
 
     for fp in file_paths:
-        # Expand glob patterns to all matching files
-        if _is_glob_pattern(fp):
-            matched_files = _expand_glob_pattern(settings=settings, pattern=fp)
-            if not matched_files:
-                error_msg = "No files match pattern"
-                error_block = FILE_READ_ERROR_TEMPLATE % (fp, fp, error_msg)
-                contents.append(error_block)
-                failed_reads.append((fp, error_msg))
-                logger.warning("Glob pattern matched no files: %s", fp)
-                continue
-
-            for matched_path in matched_files:
-                content, error = _read_single_file(
-                    settings=settings, file_path=matched_path
-                )
-                contents.append(content)
-
-                if error:
-                    failed_reads.append((matched_path, error))
-                else:
-                    successful_reads.append(
-                        _to_relative_path(settings=settings, abs_path=matched_path)
-                    )
-            continue
-
         content, error = _read_single_file(settings=settings, file_path=fp)
         contents.append(content)
 
@@ -419,17 +401,24 @@ def _list_walk_files(project_root: str, ignore_patterns: List[str]) -> List[str]
     return walk_files
 
 
-def list_project_files(settings: CODXJuniorSettings) -> List[str]:
+def list_project_files(
+    settings: CODXJuniorSettings, apply_custom_ignores: bool = True
+) -> List[str]:
     """
-    List the project files, honoring ``.gitignore`` and custom project ignores.
+    List the project files, honoring ``.gitignore`` and optionally custom ignores.
 
     Files and folders matched by the repository's ``.gitignore`` are discarded
-    by querying git directly. In addition, every path matched by the custom
-    ignore patterns defined in the project settings (``knowledge_file_ignore``,
-    sub-projects, wiki path, ``.git``, ``node_modules``, ...) is filtered out.
+    by querying git directly. When ``apply_custom_ignores`` is True (default),
+    every path matched by the custom ignore patterns defined in the project
+    settings (``knowledge_file_ignore``, sub-projects, wiki path, ``.git``,
+    ``node_modules``, ...) is filtered out as well. When it is False only the
+    repository ``.gitignore`` is honored, which allows callers such as
+    ``project_structure`` to navigate nested (child) projects.
 
     Args:
         settings: The project settings.
+        apply_custom_ignores: Whether to also apply the project's custom ignore
+            patterns on top of ``.gitignore``.
 
     Returns:
         List[str]: Sorted list of project-relative file paths.
@@ -437,9 +426,17 @@ def list_project_files(settings: CODXJuniorSettings) -> List[str]:
     Example:
         >>> list_project_files(settings)
         ['README.md', 'codx/junior/settings.py', 'codx/junior/tools/project_tools.py']
+        >>> list_project_files(settings, apply_custom_ignores=False)
+        ['README.md', 'codx/junior/settings.py', 'child-project/src/main.py', ...]
     """
     project_root = os.path.abspath(settings.abs_project_path)
-    ignore_patterns = settings.get_ignore_patterns()
+
+    if apply_custom_ignores:
+        ignore_patterns = settings.get_ignore_patterns()
+    else:
+        # Only the repository .gitignore is applied (via git ls-files); VCS
+        # internals are still excluded from the non-git walk fallback.
+        ignore_patterns = list(VCS_IGNORE_PATTERNS)
 
     abs_files = _list_git_files(project_root)
     if abs_files is None:
@@ -458,16 +455,23 @@ def find_project_files(
     settings: CODXJuniorSettings, query: str, limit: int = MAX_FILE_MATCHES
 ) -> List[str]:
     """
-    Find project files whose path matches every term in a query.
+    Find project files whose path matches a query.
 
-    Matching is case-insensitive and requires each whitespace-separated token of
-    the query to be present in the project-relative path. Files are filtered with
-    ``.gitignore`` and the project's custom ignore patterns (see
-    :func:`list_project_files`).
+    Two matching modes are supported:
+
+    - **Glob pattern**: when the query contains glob wildcards (``*``, ``?``,
+      ``[``) it is treated as a glob pattern matched against the project file
+      paths (e.g. ``**/*.py``).
+    - **Keyword search**: otherwise the query is split into whitespace
+      separated terms and a file matches when every term is present
+      (case-insensitive) in the project-relative path.
+
+    Files are filtered with ``.gitignore`` and the project's custom ignore
+    patterns (see :func:`list_project_files`).
 
     Args:
         settings: The project settings.
-        query: Space separated terms matched against the file paths.
+        query: Glob pattern or space separated terms matched against the paths.
         limit: Maximum number of matching files to return.
 
     Returns:
@@ -476,8 +480,18 @@ def find_project_files(
     Example:
         >>> find_project_files(settings, "settings.py")
         ['codx/junior/settings.py']
+        >>> find_project_files(settings, "**/*.py")
+        ['codx/junior/tools/project_tools.py', ...]
     """
-    tokens = [token for token in re.split(r"\s+", (query or "").strip().lower()) if token]
+    query = (query or "").strip()
+    if not query:
+        return []
+
+    # Glob patterns are matched directly against the project file paths
+    if _is_glob_pattern(query):
+        return _find_glob_files(settings=settings, pattern=query, limit=limit)
+
+    tokens = [token for token in re.split(r"\s+", query.lower()) if token]
     if not tokens:
         return []
 
@@ -499,6 +513,10 @@ def project_search(
     the query. The repository's ``.gitignore`` rules are honored so ignored
     folders and files are discarded, and the custom ignore patterns defined in the
     project settings are applied as well.
+
+    File matching supports glob patterns: a query containing glob wildcards
+    ('*', '?', '[') is treated as a glob pattern matched against the project
+    file paths (e.g. ``**/*.py``).
 
     Supports bulk searching to reduce tool calls. For optimal performance,
     search for multiple related concepts in a single call.
@@ -524,6 +542,10 @@ def project_search(
         >>> project_search(["authentication", "user session", "login"])
         # Returns ToolResponse with results for all queries, the matching project
         # files and a summary
+
+        Find every Python file using a glob query:
+        >>> project_search("**/*.py")
+        # Returns ToolResponse with the matching file paths and a summary
     """
     if not search:
         raise ValueError("The search argument must be provided and cannot be empty.")

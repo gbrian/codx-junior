@@ -11,17 +11,35 @@ import WallAvatar from './WallAvatar.vue'
 </script>
 
 <template>
-  <div class="w-full h-full bg-base-300 text-base-content">
-    <!-- Three-column grid, centered on wide screens (mirrors the mockup shell) -->
+  <!--
+    Activity Wall shell.
+
+    The layout is driven by CONTAINER queries (`@container` + `@xl:` / `@5xl:` /
+    `@7xl:`) and NOT by the viewport. The wall is embedded inside dockview
+    windows and resizable desktop panes, so its real width has nothing to do with
+    `window.innerWidth`: viewport breakpoints made the wall look broken inside a
+    narrow pane (squeezed three-column grid) while the compact bottom bar stayed
+    hidden — leaving no way to reach Messages & co.
+
+    Breakpoints (Tailwind v4 container sizes):
+      · < @xl  (576px)  → the bottom bar (WallBottomNav) is the navigation;
+      · ≥ @xl  (576px)  → the left rail (WallNav) replaces the bottom bar;
+      · ≥ @5xl (1024px) → the rail expands and shows its labels;
+      · ≥ @7xl (1280px) → the right rail fits next to the feed.
+    The rail and the bottom bar use the SAME `@xl` threshold, so exactly one
+    navigation surface is always rendered — no section can become unreachable.
+  -->
+  <div class="relative @container w-full h-full bg-base-300 text-base-content">
+    <!-- Centered layout shell (mirrors the mockup) -->
     <div class="mx-auto flex w-full max-w-[1265px] h-full">
-      <!-- Left rail (desktop) -->
-      <header class="hidden md:flex flex-col shrink-0 border-r border-base-content/10 px-1 md:w-16 xl:w-64">
+      <!-- Left rail (wide layouts) -->
+      <header class="hidden @xl:flex flex-col shrink-0 border-r border-base-content/10 px-1 @xl:w-16 @5xl:w-64 overflow-y-auto">
         <WallNav :route="route" :notifications="notificationCount" :messages="messageCount" @action="onAction" />
-        <div class="mt-auto p-3 text-xs text-base-content/40 hidden xl:block">codx-junior · Activity</div>
+        <div class="mt-auto p-3 text-xs text-base-content/40 hidden @5xl:block">codx-junior · Activity</div>
       </header>
 
       <!-- Main column -->
-      <main class="flex-1 min-w-0 max-w-[600px] flex flex-col md:border-r border-base-content/10 overflow-y-auto pb-16 md:pb-0">
+      <main class="flex-1 min-w-0 max-w-[600px] flex flex-col @xl:border-r border-base-content/10 overflow-y-auto pb-16 @xl:pb-0">
         <!-- Single sticky header: title + tabs + kind filters. Keeping them in ONE
              sticky block fixes the bug where the filter chips slid under the
              header and became invisible (they used to be a separate sticky row
@@ -29,7 +47,7 @@ import WallAvatar from './WallAvatar.vue'
         <div class="sticky top-0 z-20 bg-base-300/95 backdrop-blur border-b border-base-content/10">
           <!-- Title row -->
           <div class="flex items-center gap-3 px-4 h-14">
-            <img src="/only_icon.png" alt="codx-junior" class="w-7 h-7 rounded-full md:hidden" />
+            <img src="/only_icon.png" alt="codx-junior" class="w-7 h-7 rounded-full @xl:hidden" />
             <h1 class="text-lg font-bold flex-1 truncate">{{ title }}</h1>
             <button v-if="showFilters" class="btn btn-ghost btn-sm btn-circle" @click="reload" aria-label="Refresh activity">
               <i class="fa-solid fa-rotate"></i>
@@ -154,8 +172,8 @@ import WallAvatar from './WallAvatar.vue'
         <WallTimeline v-else :posts="posts" :status="status" :accounts="accounts" :viewers="viewerMap" @action="onAction" @retry="reload" />
       </main>
 
-      <!-- Right rail (desktop) -->
-      <aside class="hidden lg:block w-80 shrink-0 px-4 py-4 overflow-y-auto">
+      <!-- Right rail (only when the wall itself is wide enough for 3 columns) -->
+      <aside class="hidden @7xl:block w-80 shrink-0 px-4 py-4 overflow-y-auto">
         <WallRightRail
           :query="query"
           :trends="trends"
@@ -167,7 +185,9 @@ import WallAvatar from './WallAvatar.vue'
       </aside>
     </div>
 
-    <!-- Mobile bottom bar (the wall's own navigation) -->
+    <!-- Compact navigation: shown while the wall is narrower than the rail
+         threshold (`@xl`), so navigation is never missing. It is anchored to the
+         wall box (not the viewport) to stay inside the pane it is rendered in. -->
     <WallBottomNav
       :route="route"
       :notifications="notificationCount"
