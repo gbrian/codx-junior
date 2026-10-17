@@ -7,6 +7,8 @@ Responsibilities
 * Shaping Docker Engine API payloads into the JSON contract consumed by
   ``client/src/api/modules/infra.js``.
 * Container lifecycle actions, ad-hoc container creation, log/stats reads.
+* Maintenance: removal of single images/volumes/networks and pruning of
+  images, volumes, networks, build cache and the whole system.
 
 Notes
 -----
@@ -17,6 +19,9 @@ Notes
   ``stats=false`` from the query string to skip that cost.
 * The daemon only returns an *instantaneous* stats sample, so the CPU/memory
   series is an in-process ring buffer that fills while the UI polls.
+* Destructive calls keep Docker's own safety rules: in-use images, mounted
+  volumes and networks with endpoints are refused with HTTP 409 by the daemon,
+  and the router forwards that status to the UI.
 """
 
 import json
@@ -32,6 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from urllib.parse import quote
 
 from codx.junior.infra.docker_client import (
     DEFAULT_ENDPOINT,
@@ -61,6 +67,8 @@ from codx.junior.infra.models import (
     InfraNetworkList,
     InfraOk,
     InfraPort,
+    InfraPruneRequest,
+    InfraPruneResult,
     InfraStack,
     InfraStackList,
     InfraStackService,
@@ -95,6 +103,9 @@ SERIES_LENGTH = 40
 EVENTS_WINDOW_MINUTES = 60
 
 VALID_ACTIONS = ("start", "stop", "restart", "pause", "unpause", "kill")
+
+# Resource classes accepted by ``POST /api/infra/maintenance/prune``.
+VALID_PRUNE_TARGETS = ("images", "volumes", "networks", "build_cache", "system")
 
 LOG_LEVELS = ("TRACE", "DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL", "CRITICAL")
 LOG_LEVEL_RE = re.compile(r"\b(" + "|".join(LOG_LEVELS) + r")\b")
@@ -735,6 +746,74 @@ def _stack_from_volume_name(name: str) -> str:
     return name.split("_", 1)[0]
 
 
+# ── Maintenance helpers ───────────────────────────────────────────────────────
+
+
+def _until_filter(older_than_days: Optional[int]) -> Optional[str]:
+    """
+    Convert ``older_than_days`` into a docker duration filter (``"48h"``).
+
+    Returns ``None`` when no window is requested (``None`` or ``0``), which
+    means "no age restriction".
+
+    Example:
+        >>> _until_filter(2)
+        '48h'
+        >>> _until_filter(None) is None
+        True
+    """
+    try:
+        days = int(older_than_days or 0)
+    except (TypeError, ValueError):
+        return None
+    if days <= 0:
+        return None
+    return f"{days * 24}h"
+
+
+def _filters_param(filters: Dict[str, List[str]]) -> str:
+    """
+    Encode a filter map the way the Engine API expects it.
+
+    Docker takes ``filters`` as a compact JSON object whose values are always
+    arrays, e.g. ``{"dangling":["true"],"until":["48h"]}``.
+
+    Example:
+        >>> _filters_param({"dangling": ["true"]})
+        '{"dangling":["true"]}'
+    """
+    cleaned = {
+        key: [str(value) for value in values]
+        for key, values in (filters or {}).items()
+        if values
+    }
+    return json.dumps(cleaned, separators=(",", ":"))
+
+
+def _prune_result(payload: Any, host_id: str, target: str) -> InfraPruneResult:
+    """
+    Normalise a ``*/prune`` response into :class:`InfraPruneResult`.
+
+    The daemon answers with different keys per resource class
+    (``ImagesDeleted``, ``VolumesDeleted``, ``NetworksDeleted``,
+    ``CachesDeleted``, ``ContainersDeleted``) plus a shared
+    ``SpaceReclaimed`` counter, so the removal count is aggregated generically
+    instead of being hard-coded per target.
+    """
+    payload = payload or {}
+    removed = 0
+    for key, value in payload.items():
+        if str(key).lower().endswith("deleted") and isinstance(value, list):
+            removed += len(value)
+    return InfraPruneResult(
+        ok=True,
+        host_id=host_id,
+        target=target,
+        removed=removed,
+        reclaimed_bytes=max(0, int(payload.get("SpaceReclaimed") or 0)),
+    )
+
+
 # ── Manager ───────────────────────────────────────────────────────────────────
 
 
@@ -1216,6 +1295,155 @@ class InfraManager:
 
         networks.sort(key=lambda item: item.name)
         return InfraNetworkList(networks=networks)
+
+    # -- maintenance: single resource removal ------------------------------
+
+    def remove_image(self, image_id: str, host_id: Optional[str] = None) -> InfraOk:
+        """
+        Remove an image by id (``sha256:…``) or ``repo:tag`` reference.
+
+        Args:
+            image_id: Image id or tag reference.
+            host_id: Target host.
+
+        Raises:
+            ValueError: The reference is empty.
+            DockerAPIError: HTTP 409 (or 500 on older engines) while a
+                container still references the image.
+        """
+        reference = (image_id or "").strip()
+        if not reference:
+            raise ValueError("An image id or 'repo:tag' reference is required")
+
+        # ``/``, ``:`` and ``@`` are valid in an image reference, so they are
+        # kept readable in the path instead of being percent-encoded.
+        self.client(host_id).delete(f"/images/{quote(reference, safe='/:@')}")
+        logger.info("Image %s removed", reference)
+        return InfraOk(ok=True)
+
+    def remove_volume(self, name: str, host_id: Optional[str] = None) -> InfraOk:
+        """
+        Remove a volume by name.
+
+        Args:
+            name: Volume name.
+            host_id: Target host.
+
+        Raises:
+            ValueError: The name is empty.
+            DockerAPIError: HTTP 409 while a container mounts the volume.
+        """
+        volume_name = (name or "").strip()
+        if not volume_name:
+            raise ValueError("A volume name is required")
+
+        self.client(host_id).delete(f"/volumes/{quote(volume_name, safe='')}")
+        logger.info("Volume %s removed", volume_name)
+        return InfraOk(ok=True)
+
+    def remove_network(self, network_id: str, host_id: Optional[str] = None) -> InfraOk:
+        """
+        Remove a network by id or name.
+
+        Args:
+            network_id: Network id or name.
+            host_id: Target host.
+
+        Raises:
+            ValueError: The reference is empty.
+            DockerAPIError: HTTP 403 for predefined networks (``bridge``,
+                ``host``, ``none``) or 409 while endpoints remain attached.
+        """
+        reference = (network_id or "").strip()
+        if not reference:
+            raise ValueError("A network id or name is required")
+
+        self.client(host_id).delete(f"/networks/{quote(reference, safe='')}")
+        logger.info("Network %s removed", reference)
+        return InfraOk(ok=True)
+
+    # -- maintenance: prune ------------------------------------------------
+
+    def prune(
+        self, request: InfraPruneRequest, host_id: Optional[str] = None
+    ) -> InfraPruneResult:
+        """
+        Prune one resource class and report what was reclaimed.
+
+        Target mapping (Engine API):
+
+        ==============  =========================================================
+        ``target``      Daemon call
+        ==============  =========================================================
+        ``images``      ``POST /images/prune`` (``dangling`` + ``until`` filters)
+        ``volumes``     ``POST /volumes/prune`` (``all=true`` unless dangling)
+        ``networks``    ``POST /networks/prune``
+        ``build_cache`` ``POST /build/prune?all=true`` (``until`` filter)
+        ``system``      ``POST /system/prune`` (volumes excluded, docker default)
+        ==============  =========================================================
+
+        ``system`` also removes **stopped containers**, which is docker's
+        definition of a system prune; named volumes are intentionally kept
+        because dropping them would lose data.
+
+        Args:
+            request: Prune options (``target``, ``older_than_days``,
+                ``dangling_only``, ``host_id``).
+            host_id: Target host (``request.host_id`` wins when set).
+
+        Returns:
+            :class:`InfraPruneResult` with ``removed`` and ``reclaimed_bytes``.
+
+        Raises:
+            ValueError: The target is not supported.
+        """
+        target = (request.target or "").strip().lower()
+        if target not in VALID_PRUNE_TARGETS:
+            raise ValueError(
+                f"Unsupported prune target '{request.target}'. "
+                f"Allowed: {', '.join(VALID_PRUNE_TARGETS)}"
+            )
+
+        target_host = request.host_id or host_id
+        resolved_host = self.host_config(target_host).id
+        client = self.client(target_host)
+        until = _until_filter(request.older_than_days)
+
+        if target == "images":
+            filters: Dict[str, List[str]] = {
+                "dangling": ["true" if request.dangling_only else "false"]
+            }
+            if until:
+                filters["until"] = [until]
+            payload = client.post(
+                "/images/prune", params={"filters": _filters_param(filters)}
+            )
+        elif target == "volumes":
+            # docker default only prunes anonymous volumes; ``all=true`` also
+            # drops unused named volumes (what the maintenance view lists).
+            params = None if request.dangling_only else {
+                "filters": _filters_param({"all": ["true"]})
+            }
+            payload = client.post("/volumes/prune", params=params)
+        elif target == "networks":
+            payload = client.post("/networks/prune")
+        elif target == "build_cache":
+            params = {"all": "true"}
+            if until:
+                params["filters"] = _filters_param({"until": [until]})
+            payload = client.post("/build/prune", params=params)
+        else:  # system
+            payload = client.post("/system/prune", params={"volumes": "false"})
+
+        result = _prune_result(payload, resolved_host, target)
+        logger.info(
+            "Prune '%s' on %s removed %d resource(s), reclaimed %d bytes",
+            target,
+            resolved_host,
+            result.removed,
+            result.reclaimed_bytes,
+        )
+        return result
 
     # -- events ------------------------------------------------------------
 

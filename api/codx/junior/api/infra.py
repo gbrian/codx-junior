@@ -2,9 +2,9 @@
 Docker infrastructure router (`/api/infra/*`).
 
 Every route is **admin-only**: listing containers is harmless, but start/stop/
-kill and container creation are privileged operations. The JSON contract is the
-one consumed by `client/src/api/modules/infra.js` (its `INFRA_ENDPOINTS` array
-is the machine-readable version of the table below).
+kill, container creation and any prune/removal are privileged operations. The
+JSON contract is the one consumed by `client/src/api/modules/infra.js` (its
+`INFRA_ENDPOINTS` array is the machine-readable version of the table below).
 
 Route layout
 ------------
@@ -22,6 +22,10 @@ GET    /api/infra/images                     – images
 GET    /api/infra/volumes                    – volumes
 GET    /api/infra/networks                   – networks
 GET    /api/infra/events                     – recent daemon events
+DELETE /api/infra/images/{id}                – remove one image
+DELETE /api/infra/volumes/{name}             – remove one volume
+DELETE /api/infra/networks/{id}              – remove one network
+POST   /api/infra/maintenance/prune          – prune images|volumes|networks|build_cache|system
 
 Example
 -------
@@ -33,6 +37,11 @@ curl -b "auth=…" "https://codx.local/api/infra/containers?host=host-local&stat
 curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
      -d '{"action":"restart"}' \
      "https://codx.local/api/infra/containers/codx-junior/actions"
+
+# Reclaim space: dangling images older than 7 days
+curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
+     -d '{"target":"images","dangling_only":true,"older_than_days":7}' \
+     "https://codx.local/api/infra/maintenance/prune"
 ```
 
 Diagram
@@ -66,6 +75,8 @@ from codx.junior.infra.models import (
     InfraImageList,
     InfraNetworkList,
     InfraOk,
+    InfraPruneRequest,
+    InfraPruneResult,
     InfraStackList,
     InfraStats,
     InfraSummary,
@@ -87,7 +98,8 @@ def _raise_http(ex: Exception) -> NoReturn:
 
     Mapping:
       * ``DockerUnavailable`` → 503 (daemon/socket not reachable)
-      * ``DockerAPIError`` 404 → 404 (no such container)
+      * ``DockerAPIError`` 403/404/409 → forwarded with the same status
+        (predefined network, missing resource, resource still in use)
       * other ``DockerAPIError`` → 502 (daemon rejected the operation)
       * ``KeyError`` → 404 (unknown host id)
       * ``ValueError`` → 400 (invalid request)
@@ -97,8 +109,8 @@ def _raise_http(ex: Exception) -> NoReturn:
         raise HTTPException(status_code=503, detail=str(ex)) from ex
 
     if isinstance(ex, DockerAPIError):
-        if ex.status_code == 404:
-            raise HTTPException(status_code=404, detail=ex.message) from ex
+        if ex.status_code in (403, 404, 409):
+            raise HTTPException(status_code=ex.status_code, detail=ex.message) from ex
         raise HTTPException(
             status_code=502, detail=f"Docker error: {ex.message}"
         ) from ex
@@ -445,6 +457,127 @@ def list_events(
     """
     try:
         return get_infra_manager().events(host_id=host, minutes=minutes)
+    except Exception as ex:
+        _raise_http(ex)
+
+
+# ── Maintenance: single resource removal ──────────────────────────────────────
+
+
+@router.delete(
+    "/images/{image_id:path}",
+    response_model=InfraOk,
+    summary="[Admin] Remove an image",
+)
+def remove_image(
+    image_id: str,
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraOk:
+    """
+    Remove a single image.
+
+    ``image_id`` accepts either a ``sha256:…`` digest or a ``repo:tag``
+    reference (the client percent-encodes it, so ``:`` and ``/`` are decoded
+    here before being forwarded to the daemon).
+
+    Returns ``{"ok": true}``. Answers **409** while a container - running or
+    stopped - still references the image, which is exactly what the Docker CLI
+    reports.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return get_infra_manager().remove_image(image_id, host_id=host)
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.delete(
+    "/volumes/{name:path}",
+    response_model=InfraOk,
+    summary="[Admin] Remove a volume",
+)
+def remove_volume(
+    name: str,
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraOk:
+    """
+    Remove a single volume by name.
+
+    Returns ``{"ok": true}``. Answers **409** while a container (even a stopped
+    one) still mounts the volume, so no data can be lost silently.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return get_infra_manager().remove_volume(name, host_id=host)
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.delete(
+    "/networks/{network_id}",
+    response_model=InfraOk,
+    summary="[Admin] Remove a network",
+)
+def remove_network(
+    network_id: str,
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraOk:
+    """
+    Remove a single network by id or name.
+
+    Returns ``{"ok": true}``. Answers **403** for the predefined ``bridge``,
+    ``host`` and ``none`` networks and **409** while endpoints are still
+    attached.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return get_infra_manager().remove_network(network_id, host_id=host)
+    except Exception as ex:
+        _raise_http(ex)
+
+
+# ── Maintenance: prune ────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/maintenance/prune",
+    response_model=InfraPruneResult,
+    summary="[Admin] Prune Docker resources",
+)
+def prune_resources(
+    payload: InfraPruneRequest,
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraPruneResult:
+    """
+    Prune one resource class and report what was reclaimed.
+
+    ``target`` selects the resource class:
+
+    | target        | what is removed                                                     |
+    | :------------ | :------------------------------------------------------------------ |
+    | `images`      | unused images (`dangling_only` keeps tagged ones)                    |
+    | `volumes`     | unused volumes (`dangling_only` limits it to anonymous ones)         |
+    | `networks`    | unused networks (predefined ones are never touched)                   |
+    | `build_cache` | builder cache entries                                                 |
+    | `system`      | stopped containers + unused networks + dangling images + build cache  |
+
+    ``older_than_days`` restricts the prune to resources created before that
+    window; the daemon supports it for `images` and `build_cache` only.
+    `system` keeps named volumes on purpose, matching `docker system prune`.
+
+    Returns ``{ok, host_id, target, removed, reclaimed_bytes}``.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return get_infra_manager().prune(payload, host_id=host)
     except Exception as ex:
         _raise_http(ex)
 

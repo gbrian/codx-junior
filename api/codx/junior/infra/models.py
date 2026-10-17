@@ -349,8 +349,46 @@ class InfraCreateContainerRequest(BaseModel):
 
 
 class InfraOk(BaseModel):
-    """Generic ``{ok: true}`` response (container removal)."""
+    """Generic ``{ok: true}`` response (container/image/volume/network removal)."""
 
     ok: bool = Field(default=True)
+
+
+# ── Maintenance ───────────────────────────────────────────────────────────────
+
+
+class InfraPruneRequest(BaseModel):
+    """Body of ``POST /api/infra/maintenance/prune``."""
+
+    target: str = Field(
+        default="images",
+        description="images | volumes | networks | build_cache | system",
+    )
+    older_than_days: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Only prune resources older than N days. Honoured by 'images' and "
+            "'build_cache'; the daemon has no age filter for volumes/networks."
+        ),
+    )
+    dangling_only: bool = Field(
+        default=False,
+        description=(
+            "images: keep tagged images (dangling=true). "
+            "volumes: only anonymous volumes (docker's default behaviour)."
+        ),
+    )
+    host_id: Optional[str] = Field(default=None, description="Target host id")
+
+
+class InfraPruneResult(BaseModel):
+    """Response of ``POST /api/infra/maintenance/prune``."""
+
+    ok: bool = Field(default=True)
+    host_id: str = Field(default="host-local")
+    target: str = Field(default="images")
+    removed: int = Field(default=0, description="Number of resources removed")
+    reclaimed_bytes: int = Field(default=0, description="Disk space reclaimed")
 
 # Made with ❤️ by codx-junior
