@@ -56,6 +56,10 @@ import MenuDivider from './MenuDivider.vue'
     <i class="fa-solid fa-chart-area"></i>
     Analytics
   </MenubarItem>
+  <MenubarItem @click="$ui.openInfra()">
+    <i class="fa-solid fa-server"></i>
+    Infrastructure
+  </MenubarItem>
   <MenuDivider />
   <WorkspacesMenu />
   <MenuDivider />

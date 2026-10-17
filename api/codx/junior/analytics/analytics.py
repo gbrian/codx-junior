@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -13,6 +14,7 @@ from codx.junior.analytics.model import (
     ArchivedMessage,
     ToolCallMessage,
 )
+from codx.junior.analytics.decision_model import DecisionModelEvent
 from codx.junior.analytics.storage import AnalyticsStorage
 from codx.junior.globals import ANALYTICS_DATA_PATH
 
@@ -34,6 +36,7 @@ class Analytics:
     - Complete message archival (request/response pairs)
     - Tool call execution history with arguments and results
     - Tool execution logs for forensic audit trail
+    - Decision-model logging (typed deciders such as ``vegaml``)
     - Forensic audit trail with complete LLM request kwargs and tool definitions
 
     Diagram:
@@ -45,6 +48,7 @@ class Analytics:
             +record_chat_session(...)
             +record_archived_message(...)
             +record_tool_call_message(...)
+            +record_decision(...)
             +get_usage_by_user(...)
             +get_chat_sessions_by_user(...)
             +get_chat_with_requests(chat_id)
@@ -52,6 +56,8 @@ class Analytics:
             +get_tool_call_messages_for_chat(chat_id)
             +get_chat_complete_context(chat_id)
             +get_tool_metrics(...)
+            +get_decisions_by_chat(chat_id)
+            +get_decision_metrics(...)
         }
     """
 
@@ -465,6 +471,111 @@ class Analytics:
         )
         return event
 
+    def record_decision(
+        self,
+        *,
+        decision_type: str,
+        engine: str = "",
+        model: str = "",
+        username: str = "",
+        project_name: str = "",
+        project_id: str = "",
+        chat_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        state: str = "",
+        questions: Optional[List[str]] = None,
+        choices: Optional[Dict[str, str]] = None,
+        probs: Optional[Dict[str, Dict[str, float]]] = None,
+        choice: Optional[str] = None,
+        confidence: Optional[float] = None,
+        abstained: bool = False,
+        success: bool = True,
+        error: Optional[str] = None,
+        duration_seconds: float = 0.0,
+        reason: str = "",
+        tags: str = "",
+        details: Optional[Dict[str, Any]] = None,
+        event_id: Optional[str] = None,
+    ) -> DecisionModelEvent:
+        """
+        Record a single decision-model invocation (e.g. a ``vegaml`` typed decider).
+
+        Captures what the model was asked, what it answered, the calibrated
+        probabilities it reported, whether it abstained and how long it took.
+        This complements the chat/tool/token analytics so the whole decision
+        process can be audited afterwards.
+
+        Args:
+            decision_type:    What is being decided (e.g. 'chat_organization').
+            engine:           Engine that produced the decision (e.g. 'structured').
+            model:            Decision model name/variant (e.g. '0.8b').
+            username:         User context.
+            project_name:     Project context name.
+            project_id:       Project identifier.
+            chat_id:          Chat the decision belongs to.
+            session_id:       Optional conversation/session id.
+            request_id:       Optional request id for traceability.
+            state:            Textual state the model reasoned about.
+            questions:        Question keys asked to the model.
+            choices:          Chosen answer per question key.
+            probs:            Calibrated probabilities per question key.
+            choice:           Primary selected answer.
+            confidence:       Confidence of the primary answer in [0, 1].
+            abstained:        Whether the model refused to decide.
+            success:          Whether the model produced a usable answer.
+            error:            Error message when the model failed.
+            duration_seconds: Wall-clock seconds for the decision call.
+            reason:           Human readable explanation (logging).
+            tags:             Comma-separated tags for filtering.
+            details:          Raw model output kept for forensic audit.
+            event_id:         Optional explicit event id (generated when omitted).
+
+        Returns:
+            The persisted ``DecisionModelEvent``.
+        """
+        event = DecisionModelEvent(
+            event_id=event_id or f"{decision_type or 'decision'}-{uuid.uuid4().hex}",
+            decision_type=decision_type,
+            engine=engine,
+            model=model,
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            chat_id=chat_id,
+            session_id=session_id,
+            request_id=request_id,
+            state=state,
+            questions=questions or [],
+            choices=choices or {},
+            probs=probs or {},
+            choice=choice,
+            confidence=confidence,
+            abstained=abstained,
+            success=success,
+            error=error,
+            duration_seconds=duration_seconds,
+            reason=reason,
+            tags=tags,
+            details=details or {},
+        )
+        self.storage.write_decision_event(event)
+        logger.info(
+            "Decision recorded: type=%s engine=%s model=%s user=%s chat_id=%s "
+            "choice=%s confidence=%s abstained=%s success=%s duration=%.3fs",
+            decision_type,
+            engine,
+            model,
+            username,
+            chat_id,
+            choice,
+            confidence,
+            abstained,
+            success,
+            duration_seconds,
+        )
+        return event
+
     # ── Query helpers ──────────────────────────────────────────────────────
 
     @staticmethod
@@ -547,6 +658,64 @@ class Analytics:
             if result[key]["calls"] > 0:
                 result[key]["avg_time_taken"] = (
                     result[key]["total_time_taken"] / result[key]["calls"]
+                )
+
+        return result
+
+    @staticmethod
+    def _aggregate_decision_events(
+        events: List[DecisionModelEvent],
+        key_fn,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Aggregate decision-model metrics grouped by a key function.
+
+        Args:
+            events: Source decision events.
+            key_fn: Callable that extracts the grouping key from an event.
+
+        Returns:
+            Dict mapping key → {calls, successful, failed, abstained,
+                                total_duration_seconds, avg_duration_seconds,
+                                avg_confidence}.
+        """
+        result: Dict[str, Dict[str, Any]] = {}
+        for event in events:
+            key = key_fn(event)
+            if key not in result:
+                result[key] = {
+                    "calls": 0,
+                    "successful": 0,
+                    "failed": 0,
+                    "abstained": 0,
+                    "total_duration_seconds": 0.0,
+                    "avg_duration_seconds": 0.0,
+                    "confidence_sum": 0.0,
+                    "confidence_count": 0,
+                    "avg_confidence": None,
+                }
+            bucket = result[key]
+            bucket["calls"] += 1
+            if event.success:
+                bucket["successful"] += 1
+            else:
+                bucket["failed"] += 1
+            if event.abstained:
+                bucket["abstained"] += 1
+            bucket["total_duration_seconds"] += event.duration_seconds
+            if event.confidence is not None:
+                bucket["confidence_sum"] += event.confidence
+                bucket["confidence_count"] += 1
+
+        for key in result:
+            bucket = result[key]
+            if bucket["calls"] > 0:
+                bucket["avg_duration_seconds"] = (
+                    bucket["total_duration_seconds"] / bucket["calls"]
+                )
+            if bucket["confidence_count"] > 0:
+                bucket["avg_confidence"] = (
+                    bucket["confidence_sum"] / bucket["confidence_count"]
                 )
 
         return result
@@ -1088,5 +1257,75 @@ class Analytics:
             username=username,
         )
         return self._aggregate_tool_events(events, lambda e: e.project_name)
+
+    # ── Decision Model Query API ───────────────────────────────────────────────
+
+    def get_decisions_by_chat(
+        self,
+        chat_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        decision_type: Optional[str] = None,
+    ) -> List[DecisionModelEvent]:
+        """
+        Get all decision-model events for a specific chat.
+
+        Provides the complete audit trail of the decision process (typed
+        deciders and LLM fallbacks) for a chat.
+
+        Args:
+            chat_id:       The chat identifier.
+            start_date:    Optional date filter (inclusive).
+            end_date:      Optional date filter (inclusive).
+            decision_type: Optional filter by decision type.
+
+        Returns:
+            List of ``DecisionModelEvent`` objects ordered by timestamp.
+        """
+        return self.storage.read_decision_events(
+            chat_id=chat_id,
+            start_date=start_date,
+            end_date=end_date,
+            decision_type=decision_type,
+        )
+
+    def get_decision_metrics(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        decision_type: Optional[str] = None,
+        group_by: str = "model",
+        username: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Get aggregated decision-model metrics grouped by a key.
+
+        Args:
+            start_date:    Inclusive ISO date lower bound.
+            end_date:      Inclusive ISO date upper bound.
+            decision_type: Filter by exact decision type.
+            group_by:      'model' (default), 'engine', or 'decision_type'.
+            username:      Filter by exact username.
+            project_name:  Filter by exact project name.
+
+        Returns:
+            Dict[key, {calls, successful, failed, abstained,
+                       total_duration_seconds, avg_duration_seconds, avg_confidence}]
+        """
+        events = self.storage.read_decision_events(
+            start_date=start_date,
+            end_date=end_date,
+            decision_type=decision_type,
+            username=username,
+            project_name=project_name,
+        )
+        key_fns = {
+            "model": lambda e: e.model,
+            "engine": lambda e: e.engine,
+            "decision_type": lambda e: e.decision_type,
+        }
+        key_fn = key_fns.get(group_by, key_fns["model"])
+        return self._aggregate_decision_events(events, key_fn)
 
 # Made with ❤️ by codx-junior

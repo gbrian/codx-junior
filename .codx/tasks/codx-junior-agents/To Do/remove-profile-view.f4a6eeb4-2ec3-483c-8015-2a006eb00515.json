@@ -9,8 +9,17 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "",
-  "status_history": [],
+  "status": "done",
+  "status_history": [
+    {
+      "doc_id": "54d6b9a8-452e-41e8-8071-e2e75918141a",
+      "from_status": null,
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-16T13:41:42.628284",
+      "meta_data": null
+    }
+  ],
   "tags": [],
   "file_list": [],
   "check_lists": [],
@@ -18,7 +27,7 @@
     "software_developer"
   ],
   "users": [],
-  "name": "New task",
+  "name": "Remove profile view",
   "pinned": false,
   "is_template": false,
   "description": "- Removed the Profiles feature: ProfileView.vue and EditProfile.vue emptied/deleted, and unregistered the `profiles` app in appComponentsMap.js, apps.js, router/index.ts and navigate.js.\n- Removed all navigation/menu entries for Profiles in MainMenuItems.vue, TabNavigation.vue, MobileMenu.vue and QuickBar.vue.\n- Confirmed src/store/ui.js has no profiles references; instead cleaned dead profile-editor state/mutations/actions from src/store/project.js.\n- Usage was validated first: ProfileViewer.vue, ProfileCard/Avatar, profile selectors and store/profiles.js were kept as still in use.\n- Manual step left: run `rm src/views/ProfileView.vue src/components/EditProfile.vue` since the write tool can only empty files, not unlink them.",
@@ -355,7 +364,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-15 10:59:05.424826",
-      "updated_at": "2026-10-15T11:04:25.409158",
+      "updated_at": "2026-10-16T14:17:03.981460",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -691,13 +700,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-15 09:18:26.283176",
-  "updated_at": "2026-10-15T11:04:28.644695",
+  "updated_at": "2026-10-16T14:17:03.983338",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -715,7 +726,7 @@
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior-agents/To Do/new-task.f4a6eeb4-2ec3-483c-8015-2a006eb00515.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior-agents/To Do/remove-profile-view.f4a6eeb4-2ec3-483c-8015-2a006eb00515.json",
   "llm_model": "",
   "estimation_cost": null,
   "cost": 0.44796389999999997,

@@ -81,7 +81,12 @@ export default {
         { label: 'Browser sessions', icon: 'fa-regular fa-compass', action: 'browser-sessions' },
         { label: 'Profiles', icon: 'fa-solid fa-id-badge', action: 'profiles', admin: true },
         { label: 'Knowledge', icon: 'fa-solid fa-magnifying-glass', action: 'knowledge', admin: true },
-        { label: 'Analytics', icon: 'fa-solid fa-chart-area', action: 'analytics' }
+        { label: 'Analytics', icon: 'fa-solid fa-chart-area', action: 'analytics' },
+        // Docker infrastructure (containers, stacks, images, volumes,
+        // networks, events) — see config/apps.js → infra.
+        // NOTE: `/api/infra/*` is admin-only on the backend; add
+        // `admin: true` here once the role is enforced server-side.
+        { label: 'Infrastructure', icon: 'fa-solid fa-server', action: 'infra' }
       ]
     }
   },
@@ -110,7 +115,8 @@ export default {
         'browser-sessions': () => this.$ui.setActiveTab('browser-sessions'),
         profiles: () => this.$ui.setActiveTab('profiles'),
         knowledge: () => this.$ui.setActiveTab('knowledge'),
-        analytics: () => this.$ui.setActiveTab('analytics')
+        analytics: () => this.$ui.setActiveTab('analytics'),
+        infra: () => this.$ui.openInfra()
       }
       actions[item.action]?.()
       this.$emit('close')

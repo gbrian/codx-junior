@@ -4,11 +4,13 @@
   "project_id": null,
   "owner_project_id": "3921fcc6-1860-4daf-8689-c3fd77f2cc40",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "status_history": [],
   "tags": [],
   "file_list": [
     "/shared/codx-junior/docs/index.md"
@@ -20,6 +22,7 @@
   ],
   "name": "Index",
   "pinned": false,
+  "is_template": false,
   "description": "1. The provided markdown document outlines the home page of codx\u2011junior, an open\u2011source AI platform.  \n2. It introduces the hero section, features, and a banner image, emphasizing collaboration and open\u2011source support.  \n3. Comments request enhancements to the \"AI for the win\" section, highlighting AI\u2019s role in revolutionizing projects and freeing creativity.  \n4. They also request detail for the \"All in one\" feature, showcasing task management, container orchestration, testing, and collaboration tools.  \n5. The instructions ask for the document to be updated accordingly and returned with the applied changes.",
   "messages": [
     {
@@ -33,12 +36,16 @@
       "improvement": false,
       "created_at": "2025-11-25 15:11:08.581824",
       "updated_at": "2025-11-25 15:11:08.581846",
-      "images": [],
+      "attachments": [],
       "files": [
         "/shared/codx-junior/docs/index.md",
         "/shared/codx-junior/docs/index.md"
       ],
       "meta_data": {},
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -46,7 +53,8 @@
       "is_thinking": false,
       "disable_knowledge": true,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "539195e8-3ea3-4d34-8ef0-e23bfddba7ce",
@@ -59,13 +67,17 @@
       "improvement": false,
       "created_at": "2025-11-25 15:11:08.581824",
       "updated_at": "2025-11-25 15:11:08.581846",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "first_chunk_time_taken": 0.0001850128173828125,
         "model": "openai/mercury",
         "time_taken": 1.8653440475463867
       },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -73,7 +85,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "d8ac0efd-5bc3-4b2f-bbff-5b9f3f6c4427",
@@ -86,9 +99,13 @@
       "improvement": false,
       "created_at": "2025-11-25 15:11:08.581824",
       "updated_at": "2025-11-25 15:11:08.581846",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {},
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -96,7 +113,8 @@
       "is_thinking": false,
       "disable_knowledge": true,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "d81a7afd-d9bd-4e51-ae45-4608f10c5124",
@@ -108,39 +126,61 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2025-11-25 15:11:08.581824",
-      "updated_at": "2025-11-25 15:11:08.581846",
-      "images": [],
+      "updated_at": "2026-10-16T14:21:29.504205",
+      "attachments": [],
       "files": [],
       "meta_data": {
         "first_chunk_time_taken": 0.00019240379333496094,
         "model": "openai/mercury",
         "time_taken": 1.8024921417236328
       },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
-      "error": null
+      "read_by": [
+        "admin"
+      ],
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2025-11-25 15:11:08.584096",
-  "updated_at": "2025-11-25T19:13:32.904003",
+  "updated_at": "2026-10-16T14:21:29.507022",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
   "board": "Docs v0.1",
   "column": "Backlog",
+  "sprints": [],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior/codx-junior/docs/.codx/tasks/Docs v0.1/Backlog/index.01e5814a-dc8e-4773-8687-83183d9ad222.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/docs/.codx/tasks/Docs v0.1/Backlog/index.01e5814a-dc8e-4773-8687-83183d9ad222.json",
   "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

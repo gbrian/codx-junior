@@ -134,6 +134,16 @@ export const APPS = {
     route: () => ({ name: 'browsers' })
   },
 
+  // ── Infrastructure (Docker) ───────────────────────────────────────────────
+  // Deployed containers, compose stacks, images, volumes, networks and daemon
+  // events for the active host. Desktop mode → dockview panel; single/mobile
+  // mode → "/:projectName/infra". Data comes from API.infra (see
+  // src/api/modules/infra.js), which is mock-backed until the backend lands.
+  infra: {
+    id: 'infra', title: 'Infrastructure', component: 'infra', icon: 'fa-solid fa-server',
+    route: () => ({ name: 'infra' })
+  },
+
   // ── Files ─────────────────────────────────────────────────────────────────
   'file-explorer': {
     id: 'file-explorer', title: 'File Explorer', component: 'file-explorer', icon: 'fa-solid fa-folder-open',
@@ -212,6 +222,14 @@ export const APPS = {
   'chat-logs': {
     id: 'chat-logs', title: 'Chat logs', component: 'chat-logs', icon: 'fa-solid fa-magnifying-glass-chart',
     route: () => ({ name: 'chat-logs' })
+  },
+
+  'decision-model-logs': {
+    id: 'decision-model-logs', title: 'Decision model logs', component: 'decision-model-logs', icon: 'fa-solid fa-diagram-project',
+    // Desktop mode → opens as a tab (dockview panel) next to the other panels;
+    // single mode → the project-scoped route "/:projectName/decision-model-logs"
+    // (see router/index.ts + store/ui.openDecisionModelLogs).
+    route: () => ({ name: 'decision-model-logs' })
   },
 
   metrics: {

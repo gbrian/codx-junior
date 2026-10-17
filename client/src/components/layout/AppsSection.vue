@@ -125,6 +125,13 @@ import { isMultiInstance } from '@/config/apps'
       />
 
       <NavItem
+        icon="fas fa-server"
+        label="Infrastructure"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToInfra"
+      />
+
+      <NavItem
         icon="fas fa-graduation-cap"
         label="Wiki"
         :is-collapsed="isCollapsed"
@@ -227,6 +234,15 @@ export default {
     },
     handleNavigateToGitView() {
       this.openApp('git-view')
+    },
+    // Docker infrastructure (containers, compose stacks, images, volumes,
+    // networks, daemon events). Uses the same unified opener as the other
+    // entries: a dockview panel on desktop, "/:projectName/infra" in
+    // single / mobile mode (see config/apps.js → infra).
+    // NOTE: `/api/infra/*` is admin-only on the backend; gate this NavItem with
+    // v-if="$users.isProjectAdmin" once the role is enforced server-side.
+    handleNavigateToInfra() {
+      this.openApp('infra')
     },
     handleNavigateToWiki() {
       this.openApp('wiki')

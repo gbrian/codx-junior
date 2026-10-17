@@ -213,6 +213,13 @@ export const mutations = mutationTree(state, {
     state.showLogs = !state.showLogs
     $storex.ui.openApp('chat-logs')
   },
+  openDecisionModelLogs() {
+    // Unified opener: an in-app TAB (dockview panel) while desktop mode is
+    // active — it no longer navigates away from ".../desktop" and tears the
+    // workspace down — and the project-scoped route otherwise. The project
+    // prefix is injected centrally by the router (see `withProject`).
+    $storex.ui.openApp('decision-model-logs')
+  },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
     $storex.ui.saveState()
@@ -671,6 +678,14 @@ export const actions = actionTree(
     // Open the Git view (repository changes / history).
     openGitView() {
       $storex.ui.openApp('git-view')
+    },
+
+    // Open the Infrastructure (Docker) view: containers, compose stacks, images,
+    // volumes, networks and daemon events for the active host. Routed through the
+    // unified openApp() so it lands as a dockview panel on desktop and as the
+    // "/:projectName/infra" route in single / mobile mode.
+    openInfra() {
+      $storex.ui.openApp('infra')
     },
 
     // Open the Team screen. Pass an optional team id to focus a specific team

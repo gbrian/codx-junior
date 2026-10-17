@@ -10,6 +10,7 @@ import { teamsModule } from './modules/teams'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
+import { infraModule } from './modules/infra'
 
 /**
  * In-flight request deduplication map.
@@ -661,6 +662,13 @@ const initializeAPI = ({ project, user } = {}) => {
         API._viewsModule = viewsModule(API)
       }
       return API._viewsModule
+    },
+
+    get infra() {
+      if (!API._infraModule) {
+        API._infraModule = infraModule(API)
+      }
+      return API._infraModule
     },
 
     screen: {

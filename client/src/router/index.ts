@@ -137,7 +137,9 @@ const router = createRouter({
     { path: '/:projectName/file-viewer/:filePath(.*)*', name: 'file-viewer', component: AppRouteView, meta: { app: 'file-viewer' } },
     { path: '/:projectName/logs', name: 'log-viewer', component: AppRouteView, meta: { app: 'log-viewer' } },
     { path: '/:projectName/chat-logs', name: 'chat-logs', component: AppRouteView, meta: { app: 'chat-logs' } },
+    { path: '/:projectName/decision-model-logs', name: 'decision-model-logs', component: AppRouteView, meta: { app: 'decision-model-logs' } },
     { path: '/:projectName/metrics', name: 'metrics', component: AppRouteView, meta: { app: 'metrics' } },
+    { path: '/:projectName/infra', name: 'infra', component: AppRouteView, meta: { app: 'infra' } },
     { path: '/:projectName/team-channel/:channelId', name: 'team-channel', component: AppRouteView, meta: { app: 'team-channel' } },
     { path: '/:projectName/team-dm/:dmId', name: 'team-dm', component: AppRouteView, meta: { app: 'team-dm' } },
     { path: '/:projectName/team-media-library/:teamId', name: 'team-media-library', component: AppRouteView, meta: { app: 'team-media-library' } },
@@ -202,6 +204,7 @@ const _replace = router.replace.bind(router)
 
 // Initialize navigation API with both $router and $storex
 router.$navigation = Navigate({ $router: router, $storex })
+router.$navigation.$storex = $storex
 router.$navigation.init()
 
 router.beforeEach((to, from) => {

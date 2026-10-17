@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "codx-junior"
-  text: "AI speed, human judgement."
-  tagline: "● SYSTEM STATUS: ACTIVE BETA // OPEN SOURCE. The open-source workspace transforming how software projects are built."
+  text: "Your partner in crime to build ideas."
+  tagline: "An open-source multi-AI team for brainstorming, design, coding, testing and cloud deploys — ship fast at budget price and never lose control."
   image:
     src: /only_icon.png
     alt: codx-junior
@@ -48,6 +48,33 @@ features:
 <img class="rounded-md" src="/images/NOV2025/codx-junior-pull-request.png" />
 <img class="rounded-md" src="/images/NOV2025/codx-junior-task-manager.png" />
 </div>
+
+<section class="mt-12 mx-auto max-w-4xl">
+  <h2 class="text-2xl sm:text-3xl font-semibold text-center">Why I built codx-junior</h2>
+  <p class="mt-6 text-lg">
+    I built codx-junior because I needed a <strong>partner in crime</strong> to help me develop my ideas.
+    Finding the right talent at a price that works is hard — and that's normal. But I still have plenty of
+    ideas I want to bring to life, so codx-junior became that partner.
+  </p>
+  <p class="mt-4 text-lg">
+    With codx-junior I have a team I can work with: we take an idea, make it real and go live fast, at a
+    budget price. And when I get stuck, I can pay a freelancer to jump in and fix it — without ever losing
+    control of my project, because codx-junior reviews and checks every change for me.
+  </p>
+
+  <div class="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div class="rounded-xl border p-4 text-center">🧠 <strong>Brainstorming</strong></div>
+    <div class="rounded-xl border p-4 text-center">🎨 <strong>Design</strong></div>
+    <div class="rounded-xl border p-4 text-center">🖼️ <strong>Images</strong></div>
+    <div class="rounded-xl border p-4 text-center">💻 <strong>Coding</strong></div>
+    <div class="rounded-xl border p-4 text-center">🧪 <strong>Testing</strong></div>
+    <div class="rounded-xl border p-4 text-center">☁️ <strong>Deploying to cloud</strong></div>
+  </div>
+
+  <p class="mt-8 text-lg text-center">
+    The multi-AI in codx-junior works with me across the whole journey — and assists anyone who joins me.
+  </p>
+</section>
 
 <section class="pt-2">
   <div class="bg-gradient-to-br from-sky-800 via-sky-900 to-violet-400 p-6 sm:p-10 rounded-2xl w-full text-white flex items-center justify-between mx-auto my-10">

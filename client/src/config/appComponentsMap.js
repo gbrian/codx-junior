@@ -20,6 +20,7 @@ import ChatView from '../views/ChatView.vue'
 import ViewProperties from '../components/main-menu/ViewProperties.vue'
 import MetricsDashboard from '../components/analytics/MetricsDashboard.vue'
 import LogsAnalyzerDashboard from '../components/logs/LogsAnalyzerDashboard.vue'
+import DecisionModelLogs from '../components/DecisionModelLogs.vue'
 import TeamChannel from '../components/teams/TeamChannel.vue'
 import TeamDM from '../components/teams/TeamDM.vue'
 import TeamMediaLibrary from '../components/teams/TeamMediaLibrary.vue'
@@ -32,6 +33,7 @@ import BrowserSessionList from '../components/browsers/BrowserSessionList.vue'
 import MessengerView from '../views/MessengerView.vue'
 import MeetView from '../views/MeetView.vue'
 import GitView from '../components/repo/GitView.vue'
+import InfraView from '../views/infra/InfraView.vue'
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
@@ -61,11 +63,13 @@ export const APP_COMPONENTS_MAP = {
   'chat': ChatView,
   'analytics': MetricsDashboard,
   'chat-logs': LogsAnalyzerDashboard,
+  'decision-model-logs': DecisionModelLogs,
   'team-channel': TeamChannel,
   'team-dm': TeamDM,
   'team-media-library': TeamMediaLibrary,
   'vibe-coding': VibeCodingView,
-  'workspaces': WorkspacesManager
+  'workspaces': WorkspacesManager,
+  'infra': InfraView
 }
 
 // Additional components not mapped to apps

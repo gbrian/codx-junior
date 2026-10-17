@@ -39,6 +39,7 @@ dependencies = [
   'pathspec>=1.1.1',
   'ddgs>=9.16.0',
   'PyMuPDF>=1.23.0',
+  'vegaml>=0.9.0',
 ]
 
 classifiers = [

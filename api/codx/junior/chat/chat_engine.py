@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ from codx.junior.project.project_discover import (
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch
 from codx.junior.knowledge.knowledge_ai_search_message import build_search_message
+from codx.junior.organizer import ChatOrganizer
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
@@ -67,16 +69,19 @@ TASK_ITEM_ANALYSIS = "analysis"
 def _is_refine(mode) -> bool:
     return mode in [CHAT_MODE_TASK, CHAT_MODE_TUTORIAL] 
 
-# Prompt used to auto-initialize an auto_initialize chat's metadata
+# Prompt used to auto-initialize an auto_initialize chat's metadata.
+#
+# Only the chat NAME is suggested here: the board/column destination is decided
+# by the chat organization process (codx.junior.organizer), which validates the
+# result against the project's real boards/columns (tasks/kanban.json) and falls
+# back to an LLM decision engine when no confident match is found.
 CHAT_INIT_PROMPT = """
-Based on the conversation below, suggest values for the following chat metadata fields.
-Return a JSON object with these keys (omit a key if you cannot determine a good value):
+Based on the conversation below, suggest a name for this chat.
+Return a JSON object with this key (omit it if you cannot determine a good value):
   - "name": a short, descriptive title for this chat (max 8 words)
-  - "board": the high-level board/category this chat belongs to (e.g. "Backend", "Frontend", "DevOps", "Design", "General")
-  - "column": the workflow column that best fits the current state (e.g. "To Do", "In Progress", "Done", "Backlog")
 
 Return ONLY a valid JSON object, no extra text.
-Example: {"name": "Fix login bug", "board": "Backend", "column": "In Progress"}
+Example: {"name": "Fix login bug"}
 """
 
 class ChatEngine:
@@ -1409,28 +1414,37 @@ class ChatEngine:
         ai_chat_fn
     ) -> None:
         """
-        Use AI to auto-fill missing chat metadata for auto_initialize chats.
+        Auto-fill metadata for auto_initialize chats.
 
-        When a chat is marked as ``auto_initialize``, this method asks the AI to
-        suggest values for ``name``, ``board``, and ``column`` based on the
-        conversation content.  Only fields that are currently empty/blank will
-        be overwritten.  On success the ``auto_initialize`` flag is cleared.
+        Two independent steps run for a chat marked ``auto_initialize``:
+
+        1. **Name** — asked to the AI through ``CHAT_INIT_PROMPT`` (unchanged
+           mechanism). Only the name is used; a missing name leaves the field
+           untouched.
+        2. **Board / column** — delegated to the chat organization process
+           (:class:`codx.junior.organizer.ChatOrganizer`), which decides the
+           destination against the project's real boards/columns
+           (``tasks/kanban.json``) and falls back to an LLM decision engine
+           when the preferred engine is unavailable or abstains — i.e. the
+           behaviour that existed before when no local engine is installed.
+
+        Both steps are best-effort: a failure in one never prevents the other
+        nor breaks the chat turn. ``auto_initialize`` is cleared once both
+        steps have been attempted so the chat is no longer re-processed.
 
         flowchart TD
             A{chat.auto_initialize?} -->|No| Z[Skip]
-            A -->|Yes| B[Build init messages from history]
-            B --> C[Call AI with CHAT_INIT_PROMPT]
-            C --> D[Parse JSON response]
-            D --> E{name missing?}
-            E -->|Yes| F[Set chat.name]
-            E -->|No| G{board missing?}
-            F --> G
-            G -->|Yes| H[Set chat.board]
-            G -->|No| I{column missing?}
+            A -->|Yes| B[Ask AI for a name - CHAT_INIT_PROMPT]
+            B --> C{name suggested?}
+            C -->|Yes| D[Set chat.name]
+            C -->|No| E[Keep current name]
+            D --> F[ChatOrganizer.organize_if_needed]
+            E --> F
+            F --> G[Structured engine - local typed decision]
+            G -->|unavailable / abstain| H[LLM engine - previous behaviour]
+            G -->|match| I[Set board + column + priority]
             H --> I
-            I -->|Yes| J[Set chat.column]
-            J --> K[Clear auto_initialize flag]
-            I -->|No| K
+            I --> J[Clear auto_initialize flag]
 
         :param chat: The chat whose metadata may be auto-filled.
         :param messages: The assembled message list for the current turn.
@@ -1440,10 +1454,13 @@ class ChatEngine:
             return
 
         logger.info(
-            "Chat '%s' is auto_initialize — attempting AI metadata auto-fill",
+            "Chat '%s' is auto_initialize — initializing chat metadata",
             chat.doc_id
         )
 
+        # ------------------------------------------------------------------
+        # 1. Name — AI suggestion (unchanged mechanism, name only).
+        # ------------------------------------------------------------------
         try:
             init_messages = messages.copy()
             init_run: AgentRunResult = await ai_chat_fn(
@@ -1465,31 +1482,43 @@ class ChatEngine:
 
             suggestions: Dict[str, str] = json.loads(raw)
             logger.info(
-                "Chat init suggestions for '%s': %s", chat.doc_id, suggestions
+                "Chat init name suggestion for '%s': %s", chat.doc_id, suggestions
             )
 
             if suggestions.get("name"):
                 chat.name = suggestions["name"]
                 logger.info("Auto-set chat.name = '%s'", chat.name)
 
-            if not chat.board and suggestions.get("board"):
-                chat.board = suggestions["board"]
-                logger.info("Auto-set chat.board = '%s'", chat.board)
-
-            if not chat.column and suggestions.get("column"):
-                chat.column = suggestions["column"]
-                logger.info("Auto-set chat.column = '%s'", chat.column)
-
-            chat.auto_initialize = False
-            logger.info(
-                "Chat '%s' metadata initialized: name='%s' board='%s' column='%s'",
-                chat.doc_id, chat.name, chat.board, chat.column
-            )
-
         except (ValueError, RuntimeError, JSONDecodeError, OSError) as ex:
             logger.exception(
-                "Error auto-initializing chat metadata for '%s': %s", chat.doc_id, ex
+                "Error auto-initializing chat name for '%s': %s", chat.doc_id, ex
             )
+
+        # ------------------------------------------------------------------
+        # 2. Board / column — chat organization decision process.
+        #
+        #    The organizer decides the destination against the real boards and
+        #    columns of the project and only fills fields that are still empty
+        #    (a board/column set by a human always wins). The blocking decision
+        #    runs in a worker thread so the event loop is not blocked by the
+        #    local model inference or the LLM fallback call.
+        # ------------------------------------------------------------------
+        try:
+            organizer = ChatOrganizer(
+                settings=self.settings,
+                chat_manager=self.get_chat_manager(project_id=chat.owner_project_id),
+            )
+            await asyncio.to_thread(organizer.organize_if_needed, chat)
+        except Exception as ex:  # never break the chat on a decision failure
+            logger.exception(
+                "Error organizing chat '%s': %s", chat.doc_id, ex
+            )
+
+        chat.auto_initialize = False
+        logger.info(
+            "Chat '%s' metadata initialized: name='%s' board='%s' column='%s'",
+            chat.doc_id, chat.name, chat.board, chat.column
+        )
 
     # -------------------------------------------------------------------------
     # Helper: handle post-task mode cleanup

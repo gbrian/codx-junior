@@ -330,6 +330,46 @@
           "path": "/codx/junior/tools/browser_tools.py",
           "slug": "browser-tools.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/browser-tools.md"
+        },
+        {
+          "path": "/codx/junior/organizer/models.py",
+          "slug": "models.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/models.md"
+        },
+        {
+          "path": "/codx/junior/organizer/base.py",
+          "slug": "base.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/base.md"
+        },
+        {
+          "path": "/codx/junior/organizer/catalogue.py",
+          "slug": "catalogue.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/catalogue.md"
+        },
+        {
+          "path": "/codx/junior/organizer/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/organizer/service.py",
+          "slug": "service.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/service.md"
+        },
+        {
+          "path": "/codx/junior/organizer/prompts.py",
+          "slug": "prompts.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/prompts.md"
+        },
+        {
+          "path": "/codx/junior/organizer/engines.py",
+          "slug": "engines.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/engines.md"
+        },
+        {
+          "path": "/codx/junior/analytics/decision_model.py",
+          "slug": "decision-model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/decision-model.md"
         }
       ],
       "id": "project-overview",
