@@ -87,6 +87,15 @@ export const filesModule = (API) => ({
     return API.post(`/api/files/write?path=${encodeURIComponent(source)}`, { page_content, metadata: { source } })
   },
 
+  // Persist several editors in a single round-trip.
+  // `files` = [{ path, content }] — only dirty files should be sent.
+  // Mirrors `uploadMultiple` naming so the two bulk endpoints stay symmetrical.
+  writeMultiple(files) {
+    return API.post(`/api/files/write-multiple`, {
+      files: files.map(({ path, content }) => ({ path, content }))
+    })
+  },
+
   reset(source) {
     return API.get(`/api/files/reset?path=${encodeURIComponent(source)}`)
   },

@@ -147,7 +147,7 @@ export const INFRA_ENDPOINTS = [
  * ────────────────────────────────────────────────────────────────────────── */
 
 /** Flip to `false` to hit the real `/api/infra/*` routes. */
-const USE_MOCK = true
+const USE_MOCK = false
 
 const MiB = 1024 ** 2
 const GiB = 1024 ** 3

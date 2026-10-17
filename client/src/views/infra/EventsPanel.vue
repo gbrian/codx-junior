@@ -11,15 +11,26 @@
     <div v-else class="card bg-base-200 border border-base-300 shadow-sm">
       <div class="card-body p-0">
         <ul class="divide-y divide-base-300">
+          <!-- Two-line block in a narrow panel, single row when the panel is
+               wide enough (`layout.inline`, >= 36rem / 576px). -->
           <li v-for="(e, i) in filteredList" :key="`${e.ts}-${i}`"
-              class="flex items-center gap-3 px-3 py-2 text-sm">
-            <span class="w-5 text-center">
+              class="flex px-3 py-2.5 text-sm"
+              :class="layout.inline ? 'items-center gap-3' : 'items-start gap-2'">
+            <span class="w-5 shrink-0 text-center" :class="layout.inline ? '' : 'pt-0.5'">
               <i class="fas" :class="typeIcon(e.type)" :title="e.type"></i>
             </span>
-            <span class="font-mono text-xs opacity-50 w-20 shrink-0">{{ fmtTime(e.ts) }}</span>
-            <span class="badge badge-sm shrink-0" :class="actionBadge(e.action)">{{ e.action }}</span>
-            <span class="font-mono text-xs truncate grow">{{ e.actor }}</span>
-            <span class="text-[11px] opacity-40 hidden sm:inline">{{ e.type }}</span>
+
+            <div class="min-w-0 grow" :class="layout.inline ? 'flex items-center gap-3' : ''">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="badge badge-sm shrink-0" :class="actionBadge(e.action)">{{ e.action }}</span>
+                <span class="font-mono text-xs truncate">{{ e.actor }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] opacity-50"
+                   :class="layout.inline ? 'ml-auto shrink-0' : 'mt-0.5'">
+                <span class="font-mono">{{ fmtTime(e.ts) }}</span>
+                <span v-if="layout.inline">{{ e.type }}</span>
+              </div>
+            </div>
           </li>
         </ul>
       </div>
@@ -29,6 +40,7 @@
 
 <script setup>
 import { filteredList, fmtTime } from './useInfra'
+import { layout } from './useInfraLayout'
 
 function typeIcon(type) {
   return {

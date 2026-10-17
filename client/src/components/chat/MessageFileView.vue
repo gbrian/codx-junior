@@ -4,24 +4,46 @@ import CodeViewer from '../CodeViewer.vue'
 
 <template>
   <div class="flex flex-col gap-4 bg-base-200 rounded-lg">
-    <!-- Code blocks section -->
+    <!-- Code blocks section — each row can be picked for a bulk save -->
     <div v-if="codeBlocks.length" class="flex flex-col gap-3">
-      <CodeViewer
+      <div
         v-for="(block, index) in codeBlocks"
         :key="`code-${index}`"
-        :code="block.content"
-        :language="block.language"
-        :file="block.filePath"
-        :finished="true"
-        :chat="chat"
-        :showCodeOpened="true"
-        :message="message"
-        :diff-option="true"
-        @save-file="$emit('save-file', $event)"
-        @add-file="$emit('add-file', $event)"
-        @open-file="$emit('open-file', $event)"
-        @sub-task="$emit('sub-task', $event)"
-      />
+        class="flex items-start gap-2"
+      >
+        <!-- Selection checkbox (only for blocks written to disk) -->
+        <label
+          v-if="selectionKeys[index]"
+          class="shrink-0 pt-3 cursor-pointer tooltip tooltip-right"
+          :data-tip="`Select ${block.filePath}`"
+        >
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+            :checked="isSelected(index)"
+            :disabled="savingSelection"
+            :aria-label="`Select ${block.filePath}`"
+            @change="$emit('toggle-select', selectionKeys[index])"
+          />
+        </label>
+
+        <div class="min-w-0 flex-1">
+          <CodeViewer
+            :code="block.content"
+            :language="block.language"
+            :file="block.filePath"
+            :finished="true"
+            :chat="chat"
+            :showCodeOpened="true"
+            :message="message"
+            :diff-option="true"
+            @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
+            @open-file="$emit('open-file', $event)"
+            @sub-task="$emit('sub-task', $event)"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Linked files not in code blocks -->
@@ -61,8 +83,8 @@ import CodeViewer from '../CodeViewer.vue'
 
 <script>
 export default {
-  props: ['codeBlocks', 'linkedFiles', 'chat', 'message'],
-  emits: ['save-file', 'add-file', 'open-file', 'sub-task', 'remove-file'],
+  props: ['codeBlocks', 'linkedFiles', 'chat', 'message', 'selectionKeys', 'selectedKeys', 'savingSelection'],
+  emits: ['save-file', 'add-file', 'open-file', 'sub-task', 'remove-file', 'toggle-select'],
   computed: {
     linkedFilesNotInBlocks() {
       return this.linkedFiles
@@ -71,6 +93,13 @@ export default {
       const codeBlockPaths = this.codeBlocks.map(b => b.filePath).filter(Boolean)
       
       return this.linkedFiles.filter(file => !codeBlockPaths.includes(file))
+    }
+  },
+  methods: {
+    // Selection state is owned by ChatEntry; this component only renders it.
+    isSelected(index) {
+      const key = this.selectionKeys?.[index]
+      return !!key && (this.selectedKeys || []).includes(key)
     }
   }
 }

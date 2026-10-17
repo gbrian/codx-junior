@@ -300,6 +300,99 @@ async def write_file(request: Request):
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
 
 
+@router.post("/files/write-multiple")
+async def write_multiple_files(request: Request):
+    """
+    Write content to multiple project files in a single request.
+
+    Each file is written using the same logic as `/files/write`
+    (`CODXJuniorSession.write_project_file`), so path resolution, optional
+    profile processing and the returned per-file metadata are identical.
+    This endpoint exists only to avoid one HTTP round-trip per file.
+
+    Body params:
+    - files: List of file entries (required, non-empty). Each entry:
+        - path: File path (relative or absolute, required)
+        - page_content: Content to write to the file
+          ('content' is accepted as an alias)
+    - process: Whether to run file profiles before saving (default false,
+      same as `/files/write`)
+
+    Returns:
+        Dict with:
+        - written: List of per-file results (same shape as `/files/write`)
+        - failed: List of failures with 'path' and 'error'
+        - total_files: Total number of file entries received
+        - total_written: Number of successfully written files
+
+    Notes:
+        Files are written sequentially. A failure writing one file does not
+        abort the remaining ones: it is reported in `failed`.
+    """
+    try:
+        data = await request.json()
+    except Exception as ex:
+        logger.warning("Invalid JSON payload for multi file write: %s", ex)
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Invalid JSON payload"
+        )
+
+    files = data.get("files") or []
+    process = bool(data.get("process", False))
+
+    if not files:
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Missing 'files' parameter"
+        )
+
+    codx_junior_session = request.state.codx_junior_session
+
+    written = []
+    failed = []
+
+    logger.info("Writing %d files (process: %s)", len(files), process)
+
+    for file_entry in files:
+        if not isinstance(file_entry, dict):
+            failed.append({"path": None, "error": "Invalid file entry"})
+            continue
+
+        path = file_entry.get("path")
+        page_content = file_entry.get("page_content")
+        if page_content is None:
+            page_content = file_entry.get("content", "")
+
+        if not path:
+            failed.append({"path": None, "error": "Missing 'path' parameter"})
+            continue
+
+        try:
+            result = await codx_junior_session.write_project_file(
+                file_path=path,
+                content=page_content,
+                process=process
+            )
+            written.append(result)
+        except Exception as ex:
+            logger.error("Error writing file %s: %s", path, ex)
+            failed.append({"path": path, "error": str(ex)})
+
+    logger.info(
+        "Multi file write completed: %d written, %d failed",
+        len(written),
+        len(failed)
+    )
+
+    return {
+        "written": written,
+        "failed": failed,
+        "total_files": len(files),
+        "total_written": len(written),
+    }
+
+
 @router.get("/files/reset")
 async def reset_file(request: Request):
     """

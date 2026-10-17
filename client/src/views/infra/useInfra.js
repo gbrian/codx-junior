@@ -3,9 +3,9 @@
  * Infrastructure (Docker) — shared view state, selectors and actions.
  * ----------------------------------------------------------------------------
  * Single reactive store: every infra component (InfraView, the per-tab panels
- * and the container drawer) reads and mutates the SAME state, so an action
- * taken in one place is instantly reflected everywhere (counts, tables,
- * drawer…). Nothing here talks HTTP directly — everything goes through
+ * and the container detail overlay) reads and mutates the SAME state, so an
+ * action taken in one place is instantly reflected everywhere (counts, tables,
+ * overlay…). Nothing here talks HTTP directly — everything goes through
  * `API.infra` (see src/api/modules/infra.js), which is mock-backed until the
  * backend implements /api/infra/*.
  * ============================================================================
@@ -27,6 +27,15 @@ const POLL_MS = 5000
 
 let pollTimer = null
 let toastSeq = 0
+/**
+ * Monotonic token for container-detail openings.
+ *
+ * `openContainer()` is async: the detail request resolves AFTER the overlay is
+ * already visible. Without a token, a second open (or a slow first one) can
+ * commit its result last and silently restore the default tab — which is
+ * exactly why clicking "Logs" used to end up on "Overview".
+ */
+let openSeq = 0
 
 /* ── State ────────────────────────────────────────────────────────────────── */
 export const state = reactive({
@@ -55,7 +64,7 @@ export const state = reactive({
     sort: 'name'
   },
 
-  // container detail drawer
+  // container detail overlay (rendered as a centered modal, see ContainerDrawer.vue)
   drawerOpen: false,
   selectedContainerId: null,
   detail: null,
@@ -358,23 +367,31 @@ const ACTION_META = {
 }
 
 export function askAction(container, action) {
+  // Guard: the detail overlay can call this while `detail` is still loading.
+  if (!container) return
+  const name = container.name || container.id
   const meta = ACTION_META[action] || { label: action, danger: false, text: '' }
   confirm({
-    title: `${meta.label} ${container.name}?`,
-    html: `<b>${container.name}</b> — ${meta.text}`,
+    title: `${meta.label} ${name}?`,
+    html: `<b>${name}</b> — ${meta.text}`,
     confirmText: meta.label,
     danger: meta.danger,
-    onConfirm: () => doAction(container.id, action)
+    onConfirm: () => doAction(container.id || name, action)
   })
 }
 
 export function askRemove(container) {
+  // Guard: the detail overlay can call this while `detail` is still loading —
+  // without it the click throws and the confirmation dialog never opens.
+  if (!container) return
+  const name = container.name || container.id
+  const target = container.id || name
   confirm({
-    title: `Remove ${container.name}?`,
-    html: `The container <b>${container.name}</b> will be removed. Volumes are kept.`,
+    title: `Remove ${name}?`,
+    html: `The container <b>${name}</b> will be removed. Volumes are kept.`,
     confirmText: 'Remove',
     danger: true,
-    onConfirm: () => removeContainer(container.id)
+    onConfirm: () => removeContainer(target)
   })
 }
 
@@ -388,7 +405,8 @@ export async function doAction(id, action) {
     await loadAll({ silent: true })
     if (state.drawerOpen && state.selectedContainerId === id) {
       await refreshSelected()
-      loadLogs()
+      // Only refresh what is actually on screen.
+      if (state.detailTab === 'logs') loadLogs()
     }
   } catch (err) {
     pushToast({ text: `${name}: ${err?.message || err}`, kind: 'error' })
@@ -482,31 +500,54 @@ export async function submitRun() {
   }
 }
 
-/* ── Container drawer ─────────────────────────────────────────────────────── */
+/* ── Container detail overlay ─────────────────────────────────────────────── */
 export function closeDrawer() {
+  openSeq++
   state.drawerOpen = false
   state.selectedContainerId = null
   state.detail = null
+  state.detailTab = 'overview'
   state.logs = []
+  state.logsLoading = false
   state.stats = null
+  state.statsLoading = false
 }
 
-export async function openContainer(id) {
+/**
+ * Opens the container detail overlay (a centered modal).
+ *
+ * @param {string} id   Container id, short id or name.
+ * @param {'overview'|'logs'|'stats'|'config'} [tab='overview'] Tab to show.
+ *
+ * The requested tab is committed BOTH before and after the detail request:
+ * the awaited response must never be able to flip the user back to Overview
+ * (that was the reason the "Logs" action kept opening the Overview tab).
+ */
+export async function openContainer(id, tab = 'overview') {
+  const token = ++openSeq
+
   state.selectedContainerId = id
   state.drawerOpen = true
-  state.detailTab = 'overview'
+  state.detailTab = tab
   state.detail = state.containers.find(c => c.id === id || c.short === id || c.name === id) || null
   state.logs = []
   state.stats = null
 
+  // Start the tab's data immediately — it must not wait for the detail request.
+  if (tab === 'logs') loadLogs()
+  if (tab === 'stats') loadStats()
+
   try {
-    state.detail = (await API.infra.container(id)) || state.detail
+    const fetched = await API.infra.container(id)
+    if (token !== openSeq) return
+    if (fetched) state.detail = fetched
   } catch (err) {
-    pushToast({ text: `Could not load ${id}`, kind: 'error' })
+    if (token !== openSeq) return
+    if (!state.detail) pushToast({ text: `Could not load ${id}`, kind: 'error' })
   }
 
-  loadLogs()
-  loadStats()
+  // Re-assert the tab requested by the caller (newest open wins).
+  if (token === openSeq && state.detailTab !== tab) state.detailTab = tab
 }
 
 export function setDetailTab(tab) {
@@ -520,7 +561,7 @@ export async function refreshSelected() {
   if (!id) return
   try {
     const detail = await API.infra.container(id)
-    if (detail) state.detail = detail
+    if (detail && state.selectedContainerId === id) state.detail = detail
   } catch (err) {
     // keep the last known detail
   }
@@ -532,11 +573,12 @@ export async function loadLogs(tail = 200) {
   state.logsLoading = true
   try {
     const res = await API.infra.logs(id, tail)
+    if (state.selectedContainerId !== id) return // stale response, another container is open
     state.logs = res?.lines || []
   } catch (err) {
-    state.logs = []
+    if (state.selectedContainerId === id) state.logs = []
   } finally {
-    state.logsLoading = false
+    if (state.selectedContainerId === id) state.logsLoading = false
   }
 }
 
@@ -545,11 +587,13 @@ export async function loadStats() {
   if (!id) return
   state.statsLoading = true
   try {
-    state.stats = await API.infra.stats(id)
+    const stats = await API.infra.stats(id)
+    if (state.selectedContainerId !== id) return
+    state.stats = stats
   } catch (err) {
-    state.stats = null
+    if (state.selectedContainerId === id) state.stats = null
   } finally {
-    state.statsLoading = false
+    if (state.selectedContainerId === id) state.statsLoading = false
   }
 }
 

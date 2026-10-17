@@ -109,3 +109,83 @@ button,
   opacity: 1;
   color: var(--color-primary);
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Panel separators (dockview "sashes")
+   ───────────────────────────────────────────────────────────────────────────
+   The abyss theme ships `--dv-sash-color: transparent` plus a 500ms hover
+   delay, so the 4px gutter between two panels is completely invisible: users
+   cannot tell a divider exists, let alone that it can be dragged. VS Code
+   solves this with a light seam + a grip that appears on hover. This mirrors
+   that behaviour.
+
+   !! DO NOT change the sash width/height here !!
+   dockview-core hardcodes it in JS (`sashWidth = 4` in splitview.js) and
+   positions the sash with `left = splitPosition - sashWidth / 2`. Growing the
+   element in CSS would shift the divider and break the drag symmetry.
+   We therefore only recolour it, and expand the pointer target / draw the grip
+   with pseudo-elements, which stay centred on the split line. */
+.dockview-theme-abyss {
+  /* Resting seam, readable on both dark and light daisyUI themes.
+     The rgba() line is the fallback for browsers without color-mix(). */
+  --dv-sash-color: rgba(148, 163, 184, 0.45) !important;
+  --dv-sash-color: color-mix(in oklab, var(--color-base-content, #9ca3af) 30%, transparent) !important;
+  /* Hover / drag accent (daisyUI primary) */
+  --dv-active-sash-color: var(--color-primary, #cc049c) !important;
+  /* Feedback must be instant - dockview defaults to a 500ms delay */
+  --dv-active-sash-transition-duration: 120ms !important;
+  --dv-active-sash-transition-delay: 0s !important;
+  /* The 1px hairline dockview paints next to the seam: keep it subtle */
+  --dv-separator-border: rgba(148, 163, 184, 0.16) !important;
+  --dv-separator-border: color-mix(in oklab, var(--color-base-content, #9ca3af) 12%, transparent) !important;
+}
+
+/* 1. Bigger, symmetric pointer target (4px seam + 3px each side = 10px),
+      matching the comfortable catch area users know from VS Code. */
+.dockview-theme-abyss .dv-split-view-container .dv-sash-container > .dv-sash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* Horizontal split (columns) -> vertical seam -> widen horizontally */
+.dockview-theme-abyss .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash::before {
+  left: -3px;
+  right: -3px;
+}
+
+/* Vertical split (rows) -> horizontal seam -> widen vertically */
+.dockview-theme-abyss .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash::before {
+  top: -3px;
+  bottom: -3px;
+}
+
+/* 2. VS Code style grip: a rounded capsule centred on the split line.
+      Hidden at rest so the workspace stays calm, revealed on hover/drag. */
+.dockview-theme-abyss .dv-split-view-container .dv-sash-container > .dv-sash::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background-color: var(--dv-active-sash-color, #cc049c);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.dockview-theme-abyss .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash::after {
+  width: 4px;
+  height: 48px;
+}
+
+.dockview-theme-abyss .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash::after {
+  width: 48px;
+  height: 4px;
+}
+
+.dockview-theme-abyss .dv-split-view-container .dv-sash-container > .dv-sash:hover::after,
+.dockview-theme-abyss .dv-split-view-container .dv-sash-container > .dv-sash:active::after {
+  opacity: 1;
+}

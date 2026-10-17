@@ -8,7 +8,9 @@
       </div>
     </div>
 
-    <div v-else class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+    <!-- Two columns only when the PANEL is wide enough for two readable cards
+         (`layout.twoCol`, >= 56rem / 896px). -->
+    <div v-else class="grid gap-3" :class="layout.twoCol ? 'grid-cols-2' : 'grid-cols-1'">
       <div v-for="s in filteredList" :key="s.name" class="card bg-base-200 border border-base-300 shadow-sm">
         <div class="card-body p-3 gap-2">
           <div class="flex items-start gap-2">
@@ -27,30 +29,22 @@
                       :value="s.total ? (s.running / s.total) * 100 : 0" max="100"></progress>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="table table-xs">
-              <tbody>
-                <tr v-for="svc in s.services" :key="svc.id">
-                  <td class="w-6">
-                    <span class="inline-block w-2 h-2 rounded-full" :class="dotClass(svc.state)"></span>
-                  </td>
-                  <td class="font-mono text-xs">{{ svc.service || svc.name }}</td>
-                  <td class="text-xs opacity-60">{{ svc.name }}</td>
-                  <td class="text-xs">
-                    <span class="badge badge-xs" :class="`badge-${stateTone(svc.state)}`">{{ svc.state }}</span>
-                    <span v-if="svc.health" class="badge badge-xs ml-1" :class="`badge-${healthTone(svc.health)}`">
-                      {{ svc.health }}
-                    </span>
-                  </td>
-                  <td class="text-right">
-                    <button class="btn btn-xs btn-ghost" title="Details" @click="openContainer(svc.id)">
-                      <i class="fas fa-chevron-right"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <!-- Services: compact rows, readable at any panel width -->
+          <ul class="space-y-1">
+            <li v-for="svc in s.services" :key="svc.id"
+                class="flex items-center gap-2 rounded-lg bg-base-300/40 px-2 py-1.5">
+              <span class="inline-block w-2 h-2 rounded-full shrink-0" :class="dotClass(svc.state)"></span>
+              <span class="font-mono text-xs truncate grow">{{ svc.service || svc.name }}</span>
+              <span class="badge badge-xs shrink-0" :class="`badge-${stateTone(svc.state)}`">{{ svc.state }}</span>
+              <span v-if="svc.health" class="badge badge-xs shrink-0" :class="`badge-${healthTone(svc.health)}`">
+                {{ svc.health }}
+              </span>
+              <button class="btn btn-xs btn-ghost btn-square shrink-0"
+                      title="Details" aria-label="Details" @click="openContainer(svc.id)">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </li>
+          </ul>
 
           <div class="card-actions justify-end">
             <button class="btn btn-xs btn-ghost" @click="showJson(s.name, s)">
@@ -71,6 +65,7 @@ import {
   filteredList, stateTone, dotClass, healthTone,
   openContainer, showJson, setRoute, setFilter
 } from './useInfra'
+import { layout } from './useInfraLayout'
 
 function statusBadge(status) {
   return {

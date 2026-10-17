@@ -370,6 +370,31 @@
           "path": "/codx/junior/analytics/decision_model.py",
           "slug": "decision-model.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/decision-model.md"
+        },
+        {
+          "path": "/codx/junior/infra/docker_client.py",
+          "slug": "docker-client.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/docker-client.md"
+        },
+        {
+          "path": "/codx/junior/infra/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/infra/models.py",
+          "slug": "models.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/models.md"
+        },
+        {
+          "path": "/codx/junior/infra/manager.py",
+          "slug": "manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/manager.md"
+        },
+        {
+          "path": "/codx/junior/api/infra.py",
+          "slug": "infra.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/infra.md"
         }
       ],
       "id": "project-overview",

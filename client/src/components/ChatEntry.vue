@@ -375,6 +375,64 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             </div>
           </div>
 
+          <!-- ── Bulk save toolbar ──
+               Rendered above BOTH the Files view and the Review (PR) view, i.e.
+               whenever code blocks are on screen. The per-file checkboxes live
+               inside the child views (they own the block list); this bar only
+               drives "All" and the single bulk write call. -->
+          <div
+            v-if="showCodeBlockSelection"
+            class="mt-2 mb-2 rounded-lg border border-base-content/10 bg-base-200/40"
+          >
+            <div class="flex items-center gap-2 px-2 py-1.5 flex-wrap">
+              <label
+                v-if="selectableCodeBlocks.length > 1"
+                class="flex items-center gap-1.5 cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-xs checkbox-primary"
+                  :checked="allCodeBlocksSelected"
+                  :indeterminate.prop="someCodeBlocksSelected"
+                  aria-label="Select all files"
+                  @change="toggleSelectAllCodeBlocks($event.target.checked)"
+                />
+                <span class="text-[11px] text-base-content/60">All</span>
+              </label>
+
+              <span class="text-[11px] text-base-content/40 tabular-nums">
+                {{ selectedCodeBlockKeys.length }}/{{ selectableCodeBlocks.length }} selected
+              </span>
+
+              <span
+                v-if="codeBlockSaveStatus"
+                class="text-[11px]"
+                :class="codeBlockSaveStatus.error ? 'text-error' : 'text-success'"
+              >
+                {{ codeBlockSaveStatus.text }}
+              </span>
+
+              <div class="grow"></div>
+
+              <button
+                class="btn btn-xs btn-ghost gap-1"
+                :disabled="!selectedCodeBlockKeys.length || savingCodeBlocks"
+                @click="clearCodeBlockSelection"
+              >
+                <i class="fa-solid fa-xmark"></i>Clear
+              </button>
+              <button
+                class="btn btn-xs btn-success gap-1"
+                :disabled="!selectedCodeBlockKeys.length || savingCodeBlocks"
+                @click="saveSelectedCodeBlocks"
+              >
+                <span v-if="savingCodeBlocks" class="loading loading-spinner loading-xs"></span>
+                <i v-else class="fa-solid fa-floppy-disk"></i>
+                Save {{ selectedCodeBlockKeys.length }} file{{ selectedCodeBlockKeys.length > 1 ? 's' : '' }}
+              </button>
+            </div>
+          </div>
+
           <!-- File View -->
           <MessageFileView
             v-if="showFileView && !srcView && !showDiff && !showPRView && !showAttachments"
@@ -382,6 +440,10 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             :linkedFiles="displayMessage.files"
             :chat="chat"
             :message="message"
+            :selectionKeys="codeBlockKeys"
+            :selectedKeys="selectedCodeBlockKeys"
+            :savingSelection="savingCodeBlocks"
+            @toggle-select="toggleCodeBlockSelection"
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
             @open-file="$emit('open-file', $event)"
@@ -396,6 +458,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             :chat="chat"
             :message="message"
             :activeBranch="activeBranch"
+            :selectionKeys="codeBlockKeys"
+            :selectedKeys="selectedCodeBlockKeys"
+            @toggle-select="toggleCodeBlockSelection"
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
             @open-file="$emit('open-file', $event)"
@@ -560,7 +625,11 @@ export default {
       seenProgressValue: 0,
       seenDuration: 2500,
       progressInterval: null,
-      intersectionObserver: null
+      intersectionObserver: null,
+      // Code block selection for bulk save (lives here so CodeViewers stay dumb)
+      selectedCodeBlockKeys: [],
+      savingCodeBlocks: false,
+      codeBlockSaveStatus: null
     }
   },
   created() {
@@ -676,6 +745,46 @@ export default {
     prViewCodeBlocks() {
       return this.$service.chat.extractCodeBlocksFromMessage(this.displayMessage)
     },
+    // Selection keys aligned 1:1 with the rendered code blocks (same order the
+    // child views use). `null` marks a block that cannot be written to disk,
+    // so the child skips its checkbox instead of shifting every other row.
+    codeBlockKeys() {
+      return (this.prViewCodeBlocks || []).map((block, index) => {
+        const path = this.blockPath(block)
+        return path ? `${path}#${index}` : null
+      })
+    },
+    // Only the blocks that can actually be persisted
+    selectableCodeBlocks() {
+      return (this.prViewCodeBlocks || [])
+        .map((block, index) => {
+          const path = this.blockPath(block)
+          if (!path) return null
+          return {
+            key: `${path}#${index}`,
+            index,
+            path,
+            name: path.split('/').reverse()[0],
+            block
+          }
+        })
+        .filter(Boolean)
+    },
+    // Toolbar is visible in the Files view AND the Review (PR) view
+    showCodeBlockSelection() {
+      return (this.showFileView || this.showPRView) &&
+        !this.srcView &&
+        !this.showDiff &&
+        !this.showAttachments &&
+        this.selectableCodeBlocks.length > 0
+    },
+    allCodeBlocksSelected() {
+      return this.selectableCodeBlocks.length > 0 &&
+        this.selectedCodeBlockKeys.length === this.selectableCodeBlocks.length
+    },
+    someCodeBlocksSelected() {
+      return this.selectedCodeBlockKeys.length > 0 && !this.allCodeBlocksSelected
+    },
     toolEventCount() {
       const toolEvents = this.message?.tool_events
       if (Array.isArray(toolEvents)) {
@@ -722,6 +831,11 @@ export default {
       } else if (!this.isDone) {
         this.stopProgressTracking()
       }
+    },
+    // Drop stale selections when the code block set changes (e.g. streaming)
+    selectableCodeBlocks() {
+      const validKeys = this.selectableCodeBlocks.map(({ key }) => key)
+      this.selectedCodeBlockKeys = this.selectedCodeBlockKeys.filter(key => validKeys.includes(key))
     }
   },
   methods: {
@@ -818,6 +932,114 @@ export default {
         this.showDiff = false
         this.showPRView = false
         this.showAttachments = false
+      }
+    },
+    // ─────────────────────────────────────────────────────────────
+    // Code block selection / bulk save
+    // ─────────────────────────────────────────────────────────────
+    // extractCodeBlocks() returns camelCase `filePath`. Keeping the legacy
+    // snake_case/path fallbacks makes this resilient to extractor changes.
+    blockPath(block) {
+      return block?.filePath || block?.file_path || block?.path || null
+    },
+    isCodeBlockSelected(key) {
+      return this.selectedCodeBlockKeys.includes(key)
+    },
+    toggleCodeBlockSelection(key) {
+      if (!key) return
+      const index = this.selectedCodeBlockKeys.indexOf(key)
+      if (index >= 0) {
+        this.selectedCodeBlockKeys.splice(index, 1)
+      } else {
+        this.selectedCodeBlockKeys.push(key)
+      }
+      this.codeBlockSaveStatus = null
+    },
+    // "All" toggle: selects every selectable block of this message at once
+    toggleSelectAllCodeBlocks(checked) {
+      this.selectedCodeBlockKeys = checked
+        ? this.selectableCodeBlocks.map(({ key }) => key)
+        : []
+      this.codeBlockSaveStatus = null
+    },
+    clearCodeBlockSelection() {
+      this.selectedCodeBlockKeys = []
+      this.codeBlockSaveStatus = null
+    },
+    // Returns { path, content } or null when the block is not self-contained
+    resolveCodeBlockFile(block) {
+      const path = this.blockPath(block)
+      const content = block?.content ?? block?.code
+      if (!path || typeof content !== 'string') return null
+      return { path, content }
+    },
+    async saveSelectedCodeBlocks() {
+      if (this.savingCodeBlocks) return
+      const selected = this.selectableCodeBlocks
+        .filter(({ key }) => this.selectedCodeBlockKeys.includes(key))
+      if (!selected.length) return
+
+      this.savingCodeBlocks = true
+      this.codeBlockSaveStatus = null
+
+      try {
+        const resolved = selected
+          .map(item => item.file || this.resolveCodeBlockFile(item.block))
+        const api = (this.chatProject || this.$project)?.$api
+        const canBulkWrite = resolved.every(file => !!file) && !!api?.files?.writeMultiple
+
+        if (canBulkWrite) {
+          // Two blocks may target the same file — last one wins, as the
+          // backend writes them sequentially.
+          const byPath = new Map()
+          resolved.forEach(file => byPath.set(file.path, file))
+          const res = await api.files.writeMultiple([...byPath.values()])
+          // Backend contract: { written, failed: [{ path, error }], ... }
+          this.applyCodeBlockSaveResult(selected, res?.failed || [])
+        } else {
+          // No bulk endpoint available (or content not resolvable): replay the
+          // existing single-file flow, which expects { file, content }.
+          selected.forEach((item, ix) => {
+            const file = resolved[ix]
+            if (file) {
+              this.$emit('save-file', { file: file.path, content: file.content })
+            } else {
+              this.$emit('save-file', item.block)
+            }
+          })
+          this.selectedCodeBlockKeys = []
+          this.codeBlockSaveStatus = {
+            text: `${selected.length} file${selected.length > 1 ? 's' : ''} sent to save`
+          }
+        }
+      } catch (ex) {
+        console.error('Failed to save selected code blocks', ex)
+        this.codeBlockSaveStatus = { text: 'Error saving selected files', error: true }
+      } finally {
+        this.savingCodeBlocks = false
+      }
+    },
+    applyCodeBlockSaveResult(selected, failed = []) {
+      const failedPaths = failed
+        .map(entry => entry?.path)
+        .filter(Boolean)
+      const savedKeys = selected
+        .filter(({ path }) => !failedPaths.includes(path))
+        .map(({ key }) => key)
+
+      // Only clear successful ones — failed files stay selected for a retry
+      this.selectedCodeBlockKeys = this.selectedCodeBlockKeys
+        .filter(key => !savedKeys.includes(key))
+
+      if (failed.length) {
+        this.codeBlockSaveStatus = {
+          text: `${failed.length} of ${selected.length} failed`,
+          error: true
+        }
+      } else {
+        this.codeBlockSaveStatus = {
+          text: `${savedKeys.length} file${savedKeys.length > 1 ? 's' : ''} saved`
+        }
       }
     },
     togglePRView() {

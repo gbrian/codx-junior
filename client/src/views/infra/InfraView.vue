@@ -1,5 +1,11 @@
 <template>
-  <div class="infra-view w-full h-full overflow-auto p-4 md:p-6 pb-28">
+  <!-- ── Responsive shell ────────────────────────────────────────────────────
+       This view is rendered inside a RESIZABLE dockview panel, so "mobile"
+       must mean "this panel is narrow", not "the browser window is narrow".
+       The panel width is measured by `observePanelWidth()` (see
+       useInfraLayout.js) and every layout decision below reads `layout.*`. -->
+  <div ref="rootEl" class="infra-view w-full h-full overflow-auto pb-28"
+       :class="layout.compact ? 'p-4' : 'p-6'">
     <!-- ── Header ───────────────────────────────────────────────────────── -->
     <div class="flex flex-wrap items-start gap-3 mb-4">
       <div class="min-w-0">
@@ -15,7 +21,8 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <label class="sr-only" for="host-select">Host</label>
-        <select id="host-select" class="select select-bordered select-sm w-56"
+        <select id="host-select" class="select select-bordered select-sm"
+                :class="layout.compact ? 'grow w-full' : 'w-56'"
                 :value="state.hostId" @change="onHostChange">
           <option v-for="h in state.hosts" :key="h.id" :value="h.id">
             {{ h.is_local ? '🐳' : '🛰️' }} {{ h.name }}
@@ -38,7 +45,8 @@
     </div>
 
     <!-- ── Host KPI strip ───────────────────────────────────────────────── -->
-    <div v-if="state.summary" class="stats stats-vertical md:stats-horizontal w-full bg-base-200 border border-base-300 shadow-sm mb-4">
+    <div v-if="state.summary" class="stats w-full bg-base-200 border border-base-300 shadow-sm mb-4"
+         :class="layout.compact ? 'stats-vertical' : 'stats-horizontal'">
       <div class="stat">
         <div class="stat-title">CPU · {{ state.summary.cpu_cores }} cores</div>
         <div class="stat-value text-2xl">{{ state.summary.cpu_pct }}<span class="text-base opacity-50">%</span></div>
@@ -96,7 +104,8 @@
       </div>
     </div>
 
-    <div v-else-if="state.status === 'loading'" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+    <div v-else-if="state.status === 'loading'" class="grid gap-3 mb-4"
+         :class="layout.compact ? 'grid-cols-2' : 'grid-cols-6'">
       <div v-for="i in 6" :key="i" class="skeleton h-24 w-full"></div>
     </div>
 
@@ -132,15 +141,17 @@
       </div>
 
       <template v-else>
-        <!-- filters -->
+        <!-- filters (each control takes its own row in a narrow panel) -->
         <div class="flex flex-wrap items-center gap-2 mb-3">
-          <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-56 max-w-96">
+          <label class="input input-bordered input-sm flex items-center gap-2"
+                 :class="layout.compact ? 'w-full' : 'flex-1 min-w-56 max-w-96'">
             <i class="fas fa-magnifying-glass opacity-50"></i>
-            <input type="text" class="grow" :placeholder="searchPlaceholder"
+            <input type="text" class="grow min-w-0" :placeholder="searchPlaceholder"
                    :value="state.filters.q" @input="setFilter({ q: $event.target.value })" />
           </label>
 
-          <select v-if="state.route === 'containers'" class="select select-bordered select-sm w-40"
+          <select v-if="state.route === 'containers'" class="select select-bordered select-sm"
+                  :class="layout.compact ? 'grow' : 'w-40'"
                   :value="state.filters.state" @change="setFilter({ state: $event.target.value })">
             <option value="all">All states</option>
             <option value="running">Running</option>
@@ -151,14 +162,16 @@
           </select>
 
           <select v-if="state.route === 'containers' || state.route === 'stacks'"
-                  class="select select-bordered select-sm w-40"
+                  class="select select-bordered select-sm"
+                  :class="layout.compact ? 'grow' : 'w-40'"
                   :value="state.filters.stack" @change="setFilter({ stack: $event.target.value })">
             <option value="all">All stacks</option>
             <option v-for="s in state.stacks" :key="s.name" :value="s.name">{{ s.name }}</option>
           </select>
 
           <select v-if="['containers', 'images', 'volumes'].includes(state.route)"
-                  class="select select-bordered select-sm w-36"
+                  class="select select-bordered select-sm"
+                  :class="layout.compact ? 'grow' : 'w-36'"
                   :value="state.filters.sort" @change="setFilter({ sort: $event.target.value })">
             <option value="name">Sort: Name</option>
             <option value="cpu">Sort: CPU %</option>
@@ -190,7 +203,9 @@
     <!-- ── Container detail drawer ──────────────────────────────────────── -->
     <ContainerDrawer />
 
-    <!-- ── Modals ───────────────────────────────────────────────────────── -->
+    <!-- ── Modals ─────────────────────────────────────────────────────────
+         Teleported to <body>: full-window overlays, so they stay viewport
+         based on purpose. -->
     <Teleport to="body">
       <!-- confirm -->
       <div v-if="state.modal && state.modal.type === 'confirm'" class="modal modal-open">
@@ -294,10 +309,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import {
   useInfra, TABS, fmtTime, fmtBytes, tone
 } from './useInfra'
+import { layout, observePanelWidth } from './useInfraLayout'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
 import StacksPanel from './StacksPanel.vue'
@@ -312,6 +328,10 @@ const {
   openRunModal, submitRun, updateRunField,
   toggleLive
 } = useInfra()
+
+/* ── panel width tracking (this view lives in a resizable dockview panel) ─── */
+const rootEl = ref(null)
+let disposeLayout = null
 
 /* ── derived ──────────────────────────────────────────────────────────────── */
 const counts = computed(() => state.summary?.counts || {
@@ -356,10 +376,15 @@ function toastIcon (kind) {
 
 /* ── lifecycle ────────────────────────────────────────────────────────────── */
 onMounted(async () => {
+  disposeLayout = observePanelWidth(rootEl.value)
   await loadHosts()
   await loadAll()
 })
 onBeforeUnmount(() => {
+  if (disposeLayout) {
+    disposeLayout()
+    disposeLayout = null
+  }
   // stop polling when the view unmounts
   if (state.autoRefresh) toggleLive(false)
 })
