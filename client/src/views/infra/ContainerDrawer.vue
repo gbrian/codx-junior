@@ -60,7 +60,10 @@
             </button>
 
             <div class="flex-1"></div>
-            <button class="btn btn-sm btn-ghost" @click="showJson(detail?.name, detail)">
+            <!-- Inspect switches the visible TAB (same behaviour as Logs) instead
+                 of opening a detached JSON dialog. -->
+            <button class="btn btn-sm btn-ghost" :class="{ 'btn-active': state.detailTab === 'inspect' }"
+                    :aria-pressed="state.detailTab === 'inspect'" @click="setDetailTab('inspect')">
               <i class="fas fa-code"></i> Inspect
             </button>
             <button class="btn btn-sm btn-ghost text-error" title="Remove container"
@@ -141,6 +144,32 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </template>
+
+          <!-- ── inspect: the container document as JSON ────────────────── -->
+          <template v-else-if="state.detailTab === 'inspect'">
+            <div class="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2 border-b border-base-300">
+              <span class="text-xs opacity-50">
+                Normalized document from
+                <code class="font-mono">/api/infra/containers/{{ shortId }}</code>
+                · {{ jsonLineCount }} lines
+              </span>
+
+              <div class="flex-1"></div>
+
+              <button class="btn btn-xs btn-ghost" :disabled="reloading" @click="reloadDetail">
+                <i class="fas fa-rotate-right" :class="{ 'animate-spin': reloading }"></i>
+                Reload
+              </button>
+              <button class="btn btn-xs" @click="copyJson">
+                <i class="fas" :class="copied ? 'fa-check' : 'fa-copy'"></i>
+                {{ copied ? 'Copied' : 'Copy JSON' }}
+              </button>
+            </div>
+
+            <div class="grow min-h-0 overflow-auto bg-base-300/60 p-3">
+              <pre class="text-[11px] leading-relaxed font-mono whitespace-pre">{{ rawJson }}</pre>
             </div>
           </template>
 
@@ -355,7 +384,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   state, closeDrawer, setDetailTab, loadLogs,
-  askAction, askRemove, showJson,
+  askAction, askRemove, refreshSelected, pushToast,
   fmtBytes, fmtTime, fmtUptime, tone,
   stateTone, dotClass, healthTone, stateLabel
 } from './useInfra'
@@ -364,7 +393,8 @@ const DRAWER_TABS = [
   { id: 'overview', label: 'Overview', icon: 'fa-circle-info' },
   { id: 'logs', label: 'Logs', icon: 'fa-file-lines' },
   { id: 'stats', label: 'Stats', icon: 'fa-chart-area' },
-  { id: 'config', label: 'Env & labels', icon: 'fa-sliders' }
+  { id: 'config', label: 'Env & labels', icon: 'fa-sliders' },
+  { id: 'inspect', label: 'Inspect', icon: 'fa-code' }
 ]
 
 const detail = computed(() => state.detail)
@@ -372,6 +402,20 @@ const detail = computed(() => state.detail)
 /* ── log pane state ───────────────────────────────────────────────────────── */
 const tailSize = ref(200)
 const follow = ref(true)
+
+/* ── inspect pane state ───────────────────────────────────────────────────── */
+const copied = ref(false)
+const reloading = ref(false)
+
+const rawJson = computed(() => {
+  if (!detail.value) return '—'
+  try {
+    return JSON.stringify(detail.value, null, 2)
+  } catch (err) {
+    return String(detail.value)
+  }
+})
+const jsonLineCount = computed(() => rawJson.value.split('\n').length)
 
 const maxCpu = computed(() => {
   const series = state.stats?.series || []
@@ -405,6 +449,28 @@ function logLevelClass(level) {
     WARN: 'text-warning',
     DEBUG: 'text-info/70'
   }[level] || 'text-success'
+}
+
+/* ── inspect actions ──────────────────────────────────────────────────────── */
+async function copyJson() {
+  try {
+    await navigator.clipboard.writeText(rawJson.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 1600)
+    pushToast({ text: 'Container document copied', kind: 'success' })
+  } catch (err) {
+    // Clipboard API needs a secure context — say so instead of failing silently.
+    pushToast({ text: 'Clipboard is not available here', kind: 'error' })
+  }
+}
+
+async function reloadDetail() {
+  reloading.value = true
+  try {
+    await refreshSelected()
+  } finally {
+    reloading.value = false
+  }
 }
 
 /* ── focus / scroll plumbing ──────────────────────────────────────────────── */

@@ -103,8 +103,10 @@
                     title="Logs" aria-label="Logs" @click.stop="openContainer(c.id, 'logs')">
               <i class="fas fa-file-lines"></i>
             </button>
+            <!-- Inspect opens the detail overlay on its Inspect tab, exactly
+                 like Logs — it must not spawn a separate JSON dialog. -->
             <button class="btn btn-sm btn-square btn-ghost"
-                    title="Inspect" aria-label="Inspect" @click.stop="showJson(c.name, c)">
+                    title="Inspect" aria-label="Inspect" @click.stop="openContainer(c.id, 'inspect')">
               <i class="fas fa-code"></i>
             </button>
             <button class="btn btn-sm btn-square btn-ghost text-error"
@@ -216,7 +218,7 @@
                     <i class="fas fa-file-lines"></i>
                   </button>
                   <button class="btn btn-xs btn-ghost" title="Inspect"
-                          @click.stop="showJson(c.name, c)">
+                          @click.stop="openContainer(c.id, 'inspect')">
                     <i class="fas fa-code"></i>
                   </button>
                   <button class="btn btn-xs btn-ghost text-error" title="Remove"
@@ -238,7 +240,7 @@ import { computed } from 'vue'
 import {
   state, filteredList, setFilter, stateLabel, fmtBytes, tone,
   stateTone, dotClass, healthTone,
-  openContainer, askAction, askRemove, showJson
+  openContainer, askAction, askRemove
 } from './useInfra'
 import { layout } from './useInfraLayout'
 

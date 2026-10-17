@@ -139,7 +139,11 @@ export const INFRA_ENDPOINTS = [
   { method: 'GET',    path: '/api/infra/images',             desc: 'Images on the host.',                              query: 'host', response: '{ images: { repo, tag, id, size, created, containers, dangling }[] }' },
   { method: 'GET',    path: '/api/infra/volumes',            desc: 'Volumes on the host.',                             query: 'host', response: '{ volumes: { name, driver, scope, mountpoint, size, stack, in_use, anonymous }[] }' },
   { method: 'GET',    path: '/api/infra/networks',           desc: 'Networks on the host.',                            query: 'host', response: '{ networks: { id, name, driver, scope, subnet, internal, containers[] }[] }' },
-  { method: 'GET',    path: '/api/infra/events',             desc: 'Recent Docker daemon events.',                     query: 'host', response: '{ events: { ts, type, action, actor }[] }' }
+  { method: 'GET',    path: '/api/infra/events',             desc: 'Recent Docker daemon events.',                     query: 'host', response: '{ events: { ts, type, action, actor }[] }' },
+  { method: 'DELETE', path: '/api/infra/images/:id',         desc: 'Remove an image (fails while a container uses it).', response: '{ ok: true }' },
+  { method: 'DELETE', path: '/api/infra/volumes/:name',      desc: 'Remove a volume (fails while it is mounted).',       response: '{ ok: true }' },
+  { method: 'DELETE', path: '/api/infra/networks/:id',       desc: 'Remove a network (fails while it has endpoints).',   response: '{ ok: true }' },
+  { method: 'POST',   path: '/api/infra/maintenance/prune',  desc: 'Prune one resource class.',                          body: '{ target: images|volumes|networks|build_cache|system, older_than_days, dangling_only, host_id }', response: '{ ok, removed, reclaimed_bytes }' }
 ]
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -658,6 +662,90 @@ function _removeContainer(id) {
   return { ok: true }
 }
 
+/* -- MOCK: maintenance — single-resource removal ------------------------- */
+
+function _removeImage(id) {
+  const ix = MOCK.images.findIndex((i) => i.id === id)
+  if (ix < 0) return null
+  const img = MOCK.images[ix]
+  const inUse = MOCK.containers.some((c) => c.image === img.repo + ':' + img.tag)
+  if (inUse) throw new Error('image is used by a container')
+  MOCK.images.splice(ix, 1)
+  MOCK.events.unshift({ ts: new Date().toISOString(), type: 'image', action: 'destroy', actor: img.repo + ':' + img.tag })
+  return { ok: true }
+}
+
+function _removeVolume(name) {
+  const ix = MOCK.volumes.findIndex((v) => v.name === name)
+  if (ix < 0) return null
+  const inUse = MOCK.containers.some((c) => c.mounts.some((m) => m.source === name))
+  if (inUse) throw new Error('volume is in use')
+  MOCK.volumes.splice(ix, 1)
+  MOCK.events.unshift({ ts: new Date().toISOString(), type: 'volume', action: 'destroy', actor: name })
+  return { ok: true }
+}
+
+function _removeNetwork(id) {
+  const ix = MOCK.networks.findIndex((n) => n.id === id || n.name === id)
+  if (ix < 0) return null
+  const net = MOCK.networks[ix]
+  if (['host', 'none', 'bridge'].includes(net.name)) throw new Error('predefined network cannot be removed')
+  const attached = MOCK.containers.some((c) => c.networks.some((cn) => cn.name === net.name))
+  if (attached) throw new Error('network has active endpoints')
+  MOCK.networks.splice(ix, 1)
+  MOCK.events.unshift({ ts: new Date().toISOString(), type: 'network', action: 'destroy', actor: net.name })
+  return { ok: true }
+}
+
+/* -- MOCK: maintenance — prune ------------------------------------------ */
+
+function _prune(body) {
+  const target = body.target
+  const host = body.host_id || 'host-local'
+  let removed = 0
+  let reclaimed = 0
+
+  const dropImages = () => {
+    for (let i = MOCK.images.length - 1; i >= 0; i--) {
+      const img = MOCK.images[i]
+      if (MOCK.containers.some((c) => c.image === img.repo + ':' + img.tag)) continue
+      if (body.dangling_only && !img.dangling) continue
+      reclaimed += img.size || 0
+      MOCK.images.splice(i, 1)
+      removed++
+    }
+  }
+  const dropVolumes = () => {
+    for (let i = MOCK.volumes.length - 1; i >= 0; i--) {
+      const v = MOCK.volumes[i]
+      if (MOCK.containers.some((c) => c.mounts.some((m) => m.source === v.name))) continue
+      reclaimed += v.size || 0
+      MOCK.volumes.splice(i, 1)
+      removed++
+    }
+  }
+  const dropNetworks = () => {
+    for (let i = MOCK.networks.length - 1; i >= 0; i--) {
+      const n = MOCK.networks[i]
+      if (['host', 'none', 'bridge'].includes(n.name)) continue
+      if (MOCK.containers.some((c) => c.networks.some((cn) => cn.name === n.name))) continue
+      MOCK.networks.splice(i, 1)
+      removed++
+    }
+  }
+
+  if (target === 'images') dropImages()
+  else if (target === 'volumes') dropVolumes()
+  else if (target === 'networks') dropNetworks()
+  // MOCK: the builder cache is not modelled as a collection — fixed figures.
+  else if (target === 'build_cache') { removed = 12; reclaimed = 4.2 * GiB }
+  else if (target === 'system') { dropImages(); dropVolumes(); dropNetworks(); removed += 12; reclaimed += 4.2 * GiB }
+  else throw new Error('unknown prune target: ' + target)
+
+  MOCK.events.unshift({ ts: new Date().toISOString(), type: 'system', action: 'prune', actor: target })
+  return { ok: true, host_id: host, target, removed, reclaimed_bytes: Math.round(reclaimed) }
+}
+
 function _listContainers(search) {
   const host = search.get('host') || 'host-local'
   let list = _hostContainers(host)
@@ -705,6 +793,18 @@ function _route(method, pathname, search, body) {
   if (method === 'GET' && pathname === '/api/infra/volumes') return { volumes: _activeVolumes(search.get('host') || 'host-local') }
   if (method === 'GET' && pathname === '/api/infra/networks') return { networks: _activeNetworks(search.get('host') || 'host-local') }
   if (method === 'GET' && pathname === '/api/infra/events') return { events: MOCK.events.slice(0, 60) }
+
+  if (method === 'DELETE' && (m = pathname.match(/^\/api\/infra\/images\/(.+)$/))) {
+    return _removeImage(decodeURIComponent(m[1]))
+  }
+  if (method === 'DELETE' && (m = pathname.match(/^\/api\/infra\/volumes\/(.+)$/))) {
+    return _removeVolume(decodeURIComponent(m[1]))
+  }
+  if (method === 'DELETE' && (m = pathname.match(/^\/api\/infra\/networks\/(.+)$/))) {
+    return _removeNetwork(decodeURIComponent(m[1]))
+  }
+  if (method === 'POST' && pathname === '/api/infra/maintenance/prune') return _prune(body || {})
+
   return null
 }
 
@@ -781,6 +881,23 @@ export function infraModule(API) {
     images: (host = 'host-local') => get('/api/infra/images?' + hostQs(host)),
     volumes: (host = 'host-local') => get('/api/infra/volumes?' + hostQs(host)),
     networks: (host = 'host-local') => get('/api/infra/networks?' + hostQs(host)),
-    events: (host = 'host-local') => get('/api/infra/events?' + hostQs(host))
+    events: (host = 'host-local') => get('/api/infra/events?' + hostQs(host)),
+
+    /* ── Maintenance ─────────────────────────────────────────────────────── */
+
+    /** Remove a single image. Rejects while a container still uses it. */
+    removeImage: (id) => del('/api/infra/images/' + slug(id)),
+    /** Remove a single volume. Rejects while a container mounts it. */
+    removeVolume: (name) => del('/api/infra/volumes/' + slug(name)),
+    /** Remove a single network. Rejects while it has endpoints. */
+    removeNetwork: (id) => del('/api/infra/networks/' + slug(id)),
+
+    /**
+     * Prune one resource class.
+     * @param {{target:'images'|'volumes'|'networks'|'build_cache'|'system',
+     *          older_than_days?:number|null, dangling_only?:boolean, host_id?:string}} payload
+     * @returns {Promise<{ok:boolean, removed:number, reclaimed_bytes:number}>}
+     */
+    prune: (payload = {}) => post('/api/infra/maintenance/prune', payload)
   }
 }

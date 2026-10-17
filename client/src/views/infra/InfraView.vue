@@ -141,8 +141,10 @@
       </div>
 
       <template v-else>
-        <!-- filters (each control takes its own row in a narrow panel) -->
-        <div class="flex flex-wrap items-center gap-2 mb-3">
+        <!-- filters (each control takes its own row in a narrow panel).
+             Maintenance carries its own toolbar + search-less review list, so
+             the shared container/image/volume filters would only be noise. -->
+        <div v-if="state.route !== 'maintenance'" class="flex flex-wrap items-center gap-2 mb-3">
           <label class="input input-bordered input-sm flex items-center gap-2"
                  :class="layout.compact ? 'w-full' : 'flex-1 min-w-56 max-w-96'">
             <i class="fas fa-magnifying-glass opacity-50"></i>
@@ -196,6 +198,7 @@
           <VolumesPanel v-else-if="state.route === 'volumes'" />
           <NetworksPanel v-else-if="state.route === 'networks'" />
           <EventsPanel v-else-if="state.route === 'events'" />
+          <MaintenancePanel v-else-if="state.route === 'maintenance'" />
         </template>
       </template>
     </div>
@@ -321,6 +324,7 @@ import ImagesPanel from './ImagesPanel.vue'
 import VolumesPanel from './VolumesPanel.vue'
 import NetworksPanel from './NetworksPanel.vue'
 import EventsPanel from './EventsPanel.vue'
+import MaintenancePanel from './MaintenancePanel.vue'
 
 const {
   state, filteredList, tabCount,
