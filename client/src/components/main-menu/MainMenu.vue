@@ -34,7 +34,7 @@ import MainMenuItems from './MainMenuItems.vue'
         </MenubarTrigger>
         <MenubarPortal>
           <MenubarContent
-            class="py-4 min-w-60 outline-none bg-base-100 rounded-lg px-2 pb-4 border border-base-content/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
+            class="py-4 min-w-60 max-h-[80vh] overflow-y-auto outline-none bg-base-100 rounded-lg px-2 pb-4 border border-base-content/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
             :side-offset="5"
             :align-offset="-3"
           >

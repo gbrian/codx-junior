@@ -20,14 +20,35 @@
       <div class="flex-1"></div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <label class="sr-only" for="host-select">Host</label>
-        <select id="host-select" class="select select-bordered select-sm"
-                :class="layout.compact ? 'grow w-full' : 'w-56'"
-                :value="state.hostId" @change="onHostChange">
-          <option v-for="h in state.hosts" :key="h.id" :value="h.id">
-            {{ h.is_local ? '🐳' : '🛰️' }} {{ h.name }}
-          </option>
-        </select>
+        <!-- Hosts are resolved FIRST (loadHosts) — every other endpoint is
+             scoped by this id, so the selector must never be empty and the
+             selected id must always exist in `state.hosts`. -->
+        <div class="flex items-center gap-1" :class="layout.compact ? 'w-full' : ''">
+          <label class="sr-only" for="host-select">Docker host</label>
+          <select id="host-select" class="select select-bordered select-sm"
+                  :class="layout.compact ? 'grow' : 'w-56'"
+                  :value="state.hostId"
+                  :disabled="!state.hosts.length || state.hostsLoading"
+                  :title="hostSummary"
+                  @change="onHostChange">
+            <option v-if="!state.hosts.length" :value="state.hostId">No hosts available</option>
+            <option v-for="h in state.hosts" :key="h.id" :value="h.id">
+              {{ h.provider ? '☁️' : (h.is_local ? '🐳' : '🛰️') }} {{ h.name }}
+            </option>
+          </select>
+
+          <button class="btn btn-sm btn-square" title="Settings for the selected host"
+                  aria-label="Settings for the selected host"
+                  :disabled="!selectedHost" @click="openHostSettings()">
+            <i class="fas fa-gear"></i>
+          </button>
+          <button class="btn btn-sm btn-ghost" title="Add a Docker host manually" @click="openHostModal()">
+            <i class="fas fa-plus"></i> New host
+          </button>
+          <button class="btn btn-sm btn-ghost" title="Create a server at a cloud provider" @click="openCloudModal()">
+            <i class="fas fa-cloud-arrow-up"></i> New server
+          </button>
+        </div>
 
         <label class="label cursor-pointer gap-2 py-0">
           <span class="label-text text-xs">Live</span>
@@ -134,8 +155,12 @@
           <i class="fas fa-triangle-exclamation text-error text-4xl"></i>
           <h3 class="card-title mt-2">Could not reach the Docker daemon</h3>
           <p class="opacity-60 text-sm max-w-md">{{ state.error }}</p>
+          <p class="opacity-50 text-xs max-w-md">
+            Host <span class="font-mono">{{ state.hostId }}</span> — check its SSH settings with the gear button.
+          </p>
           <div class="card-actions mt-2">
             <button class="btn btn-primary btn-sm" @click="loadAll()"><i class="fas fa-rotate-right"></i> Retry</button>
+            <button class="btn btn-sm btn-ghost" @click="openHostSettings()"><i class="fas fa-gear"></i> Host settings</button>
           </div>
         </div>
       </div>
@@ -205,6 +230,12 @@
 
     <!-- ── Container detail drawer ──────────────────────────────────────── -->
     <ContainerDrawer />
+
+    <!-- ── Host definition dialog (create / edit / test) ────────────────── -->
+    <HostSettingsModal />
+
+    <!-- ── Cloud server wizard (provision + register a host) ────────────── -->
+    <CloudServerModal />
 
     <!-- ── Modals ─────────────────────────────────────────────────────────
          Teleported to <body>: full-window overlays, so they stay viewport
@@ -319,6 +350,8 @@ import {
 import { layout, observePanelWidth } from './useInfraLayout'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
+import HostSettingsModal from './HostSettingsModal.vue'
+import CloudServerModal from './CloudServerModal.vue'
 import StacksPanel from './StacksPanel.vue'
 import ImagesPanel from './ImagesPanel.vue'
 import VolumesPanel from './VolumesPanel.vue'
@@ -328,7 +361,8 @@ import MaintenancePanel from './MaintenancePanel.vue'
 
 const {
   state, filteredList, tabCount,
-  loadHosts, loadAll, setRoute, setHost, setFilter,
+  loadHosts, selectedHost, openHostModal, openHostSettings, openCloudModal,
+  loadAll, setRoute, setHost, setFilter,
   openRunModal, submitRun, updateRunField,
   toggleLive
 } = useInfra()
@@ -349,6 +383,18 @@ const memPct = computed(() => {
 const diskPct = computed(() => {
   const s = state.summary
   return s ? Math.round((s.disk_used / s.disk_total) * 100) : 0
+})
+
+/** Tooltip for the selector: what the selected host actually points at. */
+const hostSummary = computed(() => {
+  const host = selectedHost.value
+  if (!host) return 'No Docker host registered yet'
+  const parts = [host.endpoint]
+  if (host.kind === 'ssh' && host.hostname) parts.push(`ssh ${host.ssh_user ? host.ssh_user + '@' : ''}${host.hostname}:${host.ssh_port}`)
+  if (host.ssh_key_id) parts.push(`key ${host.ssh_key_id}`)
+  if (host.provider) parts.push(`${host.provider}${host.region ? ' · ' + host.region : ''}`)
+  if (host.engine) parts.push(`engine ${host.engine}`)
+  return parts.filter(Boolean).join(' · ')
 })
 
 const searchPlaceholder = computed(() => ({
@@ -381,7 +427,9 @@ function toastIcon (kind) {
 /* ── lifecycle ────────────────────────────────────────────────────────────── */
 onMounted(async () => {
   disposeLayout = observePanelWidth(rootEl.value)
+  // 1. Hosts first — every other endpoint is scoped by the selected host id.
   await loadHosts()
+  // 2. Then the host snapshot (loadAll re-uses the cached host list).
   await loadAll()
 })
 onBeforeUnmount(() => {

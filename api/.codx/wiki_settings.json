@@ -395,6 +395,11 @@
           "path": "/codx/junior/api/infra.py",
           "slug": "infra.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/infra.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/base.py",
+          "slug": "base.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/base.md"
         }
       ],
       "id": "project-overview",

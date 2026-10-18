@@ -21,10 +21,13 @@ import SettingsMenu from './SettingsMenu.vue'
     </label>
   </div>
 
-  <!-- Apps grid -->
+  <!-- Apps grid: ONLY the app results scroll. Keeping this block bounded is
+       what stops the Workspaces / Settings sections below from being clipped
+       (they used to live inside this scroll box, at the bottom of a max-h-360
+       area, so they were effectively unreachable). -->
   <div
     class="p-2 grid grid-cols-2 gap-1 text-sm"
-    :class="mobile ? '' : 'overflow-y-auto max-h-[360px]'"
+    :class="mobile ? '' : 'overflow-y-auto max-h-[300px]'"
   >
     <MenubarItem
       v-for="item in filteredItems"
@@ -39,22 +42,20 @@ import SettingsMenu from './SettingsMenu.vue'
     <div v-if="!filteredItems.length" class="col-span-2 px-3 py-2 text-xs opacity-50">
       No results
     </div>
+  </div>
 
-    <template v-if="!search">
-      <div class="col-span-2 px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide opacity-50">
-        Workspaces
-      </div>
-      <div class="col-span-2">
-        <WorkspacesMenu />
-      </div>
+  <!-- Workspaces + Settings: always visible, below the scrolling app grid.
+       Hidden while searching so the results stay focused. -->
+  <div v-if="!search" class="border-t border-base-content/10 px-2 py-2">
+    <div class="px-3 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide opacity-50">
+      Workspaces
+    </div>
+    <WorkspacesMenu />
 
-      <div class="col-span-2 px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide opacity-50">
-        Settings
-      </div>
-      <div class="col-span-2">
-        <SettingsMenu />
-      </div>
-    </template>
+    <div class="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide opacity-50">
+      Settings
+    </div>
+    <SettingsMenu />
   </div>
 </template>
 
