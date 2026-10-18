@@ -3,9 +3,15 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 bg-base-200/50 rounded-lg p-3 border border-base-100">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+  <!-- `sm` (regular chat panel) → boxed card with compact 48px thumbnails.
+       `lg` (channels / team chats) → bare Discord-style grid: no card, no
+       header, no size summary — previews sit directly on the channel canvas. -->
+  <div
+    class="flex flex-col gap-2"
+    :class="!isLarge && 'bg-base-200/50 rounded-lg p-3 border border-base-100'"
+  >
+    <!-- Header (compact mode only) -->
+    <div v-if="!isLarge" class="flex items-center justify-between">
       <div class="flex items-center gap-2">
         <i class="fa-solid fa-paperclip text-primary text-sm"></i>
         <span class="font-medium text-xs">Attachments</span>
@@ -18,8 +24,8 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       No attachments
     </div>
 
-    <!-- Thumbnail Grid -->
-    <div v-else class="flex gap-2 overflow-x-auto pb-1">
+    <!-- Thumbnail Grid — `lg` (channels/teams) wraps and renders big previews -->
+    <div v-else :class="isLarge ? 'flex flex-wrap gap-2' : 'flex gap-2 overflow-x-auto pb-1'">
       <div
         v-for="(attachment, idx) in fileObjects"
         :key="idx"
@@ -29,7 +35,12 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
         @mouseleave="onThumbLeave"
       >
         <!-- Thumbnail Container -->
-        <div class="w-12 h-12 rounded-lg overflow-hidden border border-base-100 bg-base-100 flex items-center justify-center hover:border-primary transition-colors">
+        <div
+          class="rounded-lg overflow-hidden border border-base-100 bg-base-100 flex items-center justify-center hover:border-primary transition-colors"
+          :class="isLarge
+            ? 'w-40 h-40 @lg/panel:w-56 @lg/panel:h-56'
+            : 'w-12 h-12'"
+        >
           <!-- Image Thumbnail -->
           <img
             v-if="attachment.isImage()"
@@ -40,14 +51,23 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
 
           <!-- File Icon Thumbnail (documents, audio notes, …) -->
           <div v-else class="w-full h-full bg-gradient-to-br from-base-200 to-base-300 flex flex-col items-center justify-center gap-1">
-            <i :class="getFileIcon(attachment)" class="text-3xl opacity-60"></i>
-            <span class="text-xs font-medium text-base-content/60">{{ attachment.getExtension().toUpperCase() }}</span>
+            <i :class="[getFileIcon(attachment), isLarge ? 'text-5xl' : 'text-3xl', 'opacity-60']"></i>
+            <span :class="['font-medium text-base-content/60', isLarge ? 'text-sm' : 'text-xs']">{{ attachment.getExtension().toUpperCase() }}</span>
           </div>
+        </div>
+
+        <!-- Filename caption under large previews (Discord-style) -->
+        <div
+          v-if="isLarge"
+          class="w-40 @lg/panel:w-56 truncate text-[11px] text-base-content/60 mt-1 px-0.5"
+          :title="attachment.file_name"
+        >
+          {{ attachment.file_name }}
         </div>
 
         <!-- Filename tooltip — images use the floating 3x preview instead -->
         <div
-          v-if="!attachment.isImage()"
+          v-if="!isLarge && !attachment.isImage()"
           class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-base-900 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
         >
           {{ attachment.file_name }}
@@ -55,8 +75,8 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       </div>
     </div>
 
-    <!-- Summary -->
-    <div v-if="fileObjects.length > 0" class="text-xs text-base-content/60 border-t border-base-100/50 pt-2 mt-1">
+    <!-- Summary (compact mode only) -->
+    <div v-if="!isLarge && fileObjects.length > 0" class="text-xs text-base-content/60 border-t border-base-100/50 pt-2 mt-1">
       Total: <span class="font-semibold text-base-content">{{ getTotalSize() }}</span>
     </div>
   </div>
@@ -309,12 +329,18 @@ export default {
     showSelector: {
       type: Boolean,
       default: false
+    },
+    // Preview density:
+    //   'sm' → compact 48px thumbnails (regular chat panels)
+    //   'lg' → big Discord/Slack-style previews (channels & team chats)
+    size: {
+      type: String,
+      default: 'sm'
     }
   },
   emits: ['remove-attachment', 'update-attachment'],
   data() {
     return {
-      fileObjects: [],
       showModal: false,
       selectedIndex: null,
       hoverPreview: null,
@@ -335,6 +361,22 @@ export default {
     }
   },
   computed: {
+    isLarge() {
+      return this.size === 'lg'
+    },
+    // Derived from the prop instead of copied into local state.
+    // The owners of the list (composer / message entry) mutate it in place —
+    // `attachments.push(...)` for a new voice note, `splice(...)` after an image
+    // edit — and an in-place mutation never re-triggers a watcher on the prop
+    // reference. Keeping a single source of truth makes every change render.
+    fileObjects() {
+      return (this.attachments || []).map(attachment => {
+        if (attachment instanceof ChatAttachment) {
+          return attachment
+        }
+        return ChatAttachment.fromJSON(attachment)
+      })
+    },
     currentAttachment() {
       return this.selectedIndex !== null ? this.fileObjects[this.selectedIndex] : null
     },
@@ -388,19 +430,6 @@ export default {
       return Math.max(1, Math.round(estimatedBytes / 1024))
     }
   },
-  watch: {
-    attachments: {
-      immediate: true,
-      handler(newVal) {
-        this.fileObjects = newVal.map(attachment => {
-          if (attachment instanceof ChatAttachment) {
-            return attachment
-          }
-          return ChatAttachment.fromJSON(attachment)
-        })
-      }
-    }
-  },
   beforeUnmount() {
     this.endCrop()
   },
@@ -433,7 +462,8 @@ export default {
     // Position is computed in viewport space; the preview is teleported to
     // <body> so the grid's horizontal scroll can never clip it.
     onThumbHover(attachment, event) {
-      if (!attachment?.isImage?.()) {
+      // Large previews (channels) are already full size — no floating zoom.
+      if (this.isLarge || !attachment?.isImage?.()) {
         this.hoverPreview = null
         return
       }
@@ -726,7 +756,8 @@ export default {
         const file = new File([blob], `${baseName}.${ext}`, { type: mime, lastModified: Date.now() })
         const attachment = await ChatAttachment.fromFile(file)
 
-        this.fileObjects.splice(this.selectedIndex, 1, attachment)
+        // The list is owned by the parent — it replaces the entry and the
+        // preview recomputes from the updated prop.
         this.$emit('update-attachment', { index: this.selectedIndex, attachment })
         this.closePreview()
       } catch (error) {

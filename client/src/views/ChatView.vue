@@ -73,6 +73,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
     >
       
       <!-- MINIMAL HEADER -->
+      <!-- Mobile runs it collapsed: only back + title + details toggle. -->
       <ChatViewHeader
         :chat="theChat"
         :rootChat="rootChat"
@@ -82,6 +83,8 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         :showHidden="showHidden"
         :isSelectedChatChild="isSelectedChatChild"
         :targetProject="targetProject"
+        :mobile-expanded="showMobileDetails"
+        @toggle-mobile-details="showMobileDetails = $event"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
@@ -119,12 +122,15 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         />
 
         <!-- Normal Chat View -->
+        <!-- On mobile the chat files strip is only rendered while the header
+             details panel is expanded, so the reading area keeps the space. -->
         <Chat 
           v-else
           :chat="theChat" 
           :showHidden="showHidden" 
           :childrenChats="childrenChats"
           :filter="chatSearch" 
+          :hide-files-header="isMobile && !showMobileDetails"
           @refresh-chat="reloadChat" 
           @remove-file="onRemoveFile"
           @delete="confirmDelete = true" 
@@ -246,7 +252,10 @@ export default {
       compactSidebar: true,
       chatProfiles: [],
       activeChatId: null,
-      showMobileSidebar: false
+      showMobileSidebar: false,
+      // Mobile: chat header details (and the chat files strip) stay collapsed
+      // until the user expands them from the header toggle.
+      showMobileDetails: false
     }
   },
   created() {
@@ -342,6 +351,8 @@ export default {
       if (!oldVal || oldVal.id !== newVal.id) {
         this.showHistoryWall = false
         this.showLogs = false
+        // A freshly opened chat starts with the compact mobile header
+        this.showMobileDetails = false
         this.loadHierarchy()
         this.loadChatProfiles()
         if (newVal) {

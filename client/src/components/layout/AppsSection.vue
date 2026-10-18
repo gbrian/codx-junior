@@ -16,7 +16,7 @@ import { isMultiInstance } from '@/config/apps'
         class="flex-1 min-w-0"
         @click.stop=""
         :options="{ folders: true, showIcon: true }"
-        @select="$storex.projects.activeProjectChanged($event)"
+        @select="onProjectSelected"
         @open="$emit('overlay-open')"
         @close="$emit('overlay-close')"
       />
@@ -161,6 +161,35 @@ export default {
     }
   },
   methods: {
+    // Project selector → switch the ACTIVE PROJECT IN PLACE.
+    //
+    // The switch is fully store-driven: `activeProjectChanged` reloads the
+    // project's settings, chats, models and boards while the shell (sidebar +
+    // desktop layout) stays mounted. It must never end in a URL/route change:
+    // navigating to "/<project_name>" leaves the desktop shell and reloads the
+    // document, which is exactly what we don't want when just picking another
+    // project.
+    async onProjectSelected(project) {
+      if (!project?.project_id) {
+        this.$ui.addNotification({ text: 'Invalid project', type: 'error' })
+        return
+      }
+
+      // Selecting the project that is already active is a no-op, not a reload.
+      if (project.project_id === this.$storex.projects.activeProject?.project_id) {
+        this.$emit('close')
+        return
+      }
+
+      try {
+        await this.$storex.projects.activeProjectChanged(project)
+      } catch (ex) {
+        console.error('Error switching project', ex)
+        this.$ui.addNotification({ text: `Error switching project: ${ex.message}`, type: 'error' })
+      } finally {
+        this.$emit('close')
+      }
+    },
     // Single entry point for opening an app from this menu.
     // On desktop a multi-instance app (declared in config/apps.js) opens a NEW
     // tab each time so several instances can coexist — e.g. the Task Manager,

@@ -9,109 +9,93 @@
  *       <content>
  *       ```
  *
- *  2. CODX sentinel file blocks, whose body is taken verbatim (it may itself
- *     contain fences, headings, etc.):
+ *  2. <file_change> envelopes, whose body is taken verbatim (it may itself
+ *     contain code fences, headings, etc.):
  *
- *       @@ CODX_FILE @@
- *       path: <project-relative path>
- *       language: <language id>
- *       change_type: <new|update|delete>
- *       encoding: text
- *       @@ CODX_CONTENT @@
- *       <content>
- *       @@ CODX_END @@
+ *       <file_change path="<project-relative path>" language="<language id>" change_type="<new|update|delete>" encoding="text">
+ *       <full file content, verbatim — markdown/fences allowed here>
+ *       <file_change/>
+ *
+ *     The closing marker accepts both `<file_change/>` and `</file_change>`,
+ *     and attributes may omit the `=` (`change_type"update"`) since models
+ *     frequently drop it.
  *
  * Both produce the same block shape so consumers (FileView / PRView / chat
  * file lists) work unchanged.
  */
 
-const CODX_MARKER_REGEX = /^@{2}\s+CODX_(FILE|CONTENT|END)\s+@{2}$/
+// Opening tag: <file_change + at least one attribute on the same line
+const FILE_CHANGE_OPEN_REGEX = /^<file_change\s/i
+// Closing tag: <file_change/>, <file_change /> or </file_change>
+const FILE_CHANGE_CLOSE_REGEX = /^<\/?file_change\s*\/?>\s*$/i
+// Attributes: key="value" or key"value" (missing '=')
+const FILE_CHANGE_ATTR_REGEX = /([A-Za-z_][\w-]*)\s*(?:=\s*)?"([^"]*)"/g
 const LEGACY_FENCE_REGEX = /^```(\w+)\s+(.+)$/
 
 /**
- * Detect a CODX sentinel marker on a single line.
- * Returns 'file' | 'content' | 'end' | null
+ * A `<file_change ...>` opening tag carries the metadata on the same line.
  */
-function getCodedFileMarker(line) {
-  if (line?.indexOf('@') !== 0) return null
-  const match = line.trim().match(CODX_MARKER_REGEX)
-  if (!match) return null
-  if (match[1] === 'FILE') return 'file'
-  if (match[1] === 'CONTENT') return 'content'
-  return 'end'
+function isFileChangeOpenTag(line) {
+  if (!line) return false
+  return FILE_CHANGE_OPEN_REGEX.test(line.trim())
 }
 
 /**
- * Parse a single "key: value" metadata line found between the FILE and
- * CONTENT markers.
+ * A closing marker is the whole line, either self-closed (`<file_change/>`)
+ * or as a regular end tag (`</file_change>`).
  */
-function parseCodedFileMetaLine(line) {
-  const match = line.match(/^\s*([A-Za-z_][\w-]*)\s*:\s*(.*?)\s*$/)
-  if (!match) return null
-  return { key: match[1].toLowerCase().replace(/-/g, '_'), value: match[2] }
+function isFileChangeCloseTag(line) {
+  if (!line) return false
+  return FILE_CHANGE_CLOSE_REGEX.test(line.trim())
 }
 
 /**
- * Read a full CODX file block starting at `startIndex` (the FILE marker).
+ * Parse the attributes of a `<file_change ...>` opening tag.
+ * Keys are normalized to snake_case so `change-type`, `change_type` and
+ * `changeType` all resolve to the same entry.
+ */
+function parseFileChangeAttributes(line) {
+  const attrs = {}
+  FILE_CHANGE_ATTR_REGEX.lastIndex = 0
+  let match
+  while ((match = FILE_CHANGE_ATTR_REGEX.exec(line))) {
+    const key = match[1].toLowerCase().replace(/-/g, '_')
+    attrs[key] = match[2]
+  }
+  return attrs
+}
+
+/**
+ * Read a full `<file_change>` envelope starting at `startIndex` (the open tag).
  *
- * Returns { block, endIndex } where `endIndex` is the index of the last
- * consumed line, or null when the start marker is malformed (nested start).
- * Streaming friendly: a block whose CONTENT/END markers have not arrived yet
- * yields whatever content is available so far.
+ * Returns { block, endIndex } where `endIndex` is the index of the closing
+ * marker line (or the last available line when the block is still streaming).
+ * Streaming friendly: a block whose closing marker has not arrived yet yields
+ * whatever content is available so far.
  */
-function readCodedFileBlock(lines, startIndex) {
-  const meta = {}
-  let i = startIndex + 1
-  let contentStart = -1
-  let contentEnd = -1
+function readFileChangeBlock(lines, startIndex) {
+  const attrs = parseFileChangeAttributes(lines[startIndex])
 
-  while (i < lines.length) {
-    const marker = getCodedFileMarker(lines[i])
-    if (marker === 'content') {
-      contentStart = i + 1
+  let endIndex = lines.length
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    if (isFileChangeCloseTag(lines[i])) {
+      endIndex = i
       break
     }
-    if (marker === 'end') {
-      // Empty body: the CONTENT marker was omitted
-      contentStart = i
-      contentEnd = i
-      break
-    }
-    if (marker === 'file') {
-      // Malformed: a new block opened before this one closed
-      return null
-    }
-    const parsed = parseCodedFileMetaLine(lines[i])
-    if (parsed) meta[parsed.key] = parsed.value
-    i++
   }
 
-  if (contentStart === -1) {
-    // Metadata still streaming - no CONTENT marker yet
-    contentStart = lines.length
-    contentEnd = lines.length
-  } else if (contentEnd === -1) {
-    // Find the END marker from the content start
-    for (let j = contentStart; j < lines.length; j++) {
-      if (getCodedFileMarker(lines[j]) === 'end') {
-        contentEnd = j
-        break
-      }
-    }
-    if (contentEnd === -1) contentEnd = lines.length
-  }
-
-  const filePath = meta.path || meta.file || ''
-  const language = meta.language || 'text'
+  const filePath = attrs.path || attrs.file || ''
 
   return {
     block: {
-      language,
+      language: attrs.language || 'text',
       filePath,
-      content: lines.slice(contentStart, contentEnd).join('\n'),
-      fileName: filePath ? filePath.split('/').pop() : ''
+      content: lines.slice(startIndex + 1, endIndex).join('\n'),
+      fileName: filePath ? filePath.split('/').pop() : '',
+      changeType: attrs.change_type || attrs.changetype || 'update',
+      encoding: attrs.encoding || 'text'
     },
-    endIndex: contentEnd
+    endIndex
   }
 }
 
@@ -128,15 +112,13 @@ export function extractCodeBlocks(content) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // CODX sentinel file block (verbatim body, may contain code fences)
-    if (getCodedFileMarker(line) === 'file') {
-      const coded = readCodedFileBlock(lines, i)
-      if (coded) {
-        if (coded.block.filePath) codeBlocks.push(coded.block)
-        // Resume right after the END marker (or after the last available line)
-        i = coded.endIndex + 1
-        continue
-      }
+    // <file_change> envelope (verbatim body, may contain code fences)
+    if (isFileChangeOpenTag(line)) {
+      const parsed = readFileChangeBlock(lines, i)
+      if (parsed.block.filePath) codeBlocks.push(parsed.block)
+      // Resume right after the closing marker (or after the last available line)
+      i = parsed.endIndex + 1
+      continue
     }
 
     const match = line.match(LEGACY_FENCE_REGEX)

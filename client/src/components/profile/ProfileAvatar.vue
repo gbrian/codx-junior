@@ -2,7 +2,9 @@
 import Document from '../document/Document.vue';
 </script>
 <template>
-  <div class="dropdown click">
+  <div class="dropdown click"
+    :title="profile?.name"
+  >
     <div tabindex="0" class="avatar" v-if="profile">
       <div class="rounded-full bg-base-300" :class="avatarWidth">
         <img :src="avatarUrl" />

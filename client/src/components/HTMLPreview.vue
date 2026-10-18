@@ -13,6 +13,7 @@
           class="select select-xs select-bordered max-w-xs"
           title="Select screen size"
         >
+          <option value="device">Device (auto)</option>
           <option value="custom">Custom</option>
           <option value="mobile-sm">Mobile (375px)</option>
           <option value="mobile-md">Mobile (425px)</option>
@@ -90,7 +91,8 @@
       v-model:w="popupWidth"
       v-model:h="popupHeight"
       :parent="true"
-      :resizable="true"
+      :draggable="!isMobile"
+      :resizable="!isMobile"
       class-name-active="active"
       class-name-dragging="dragging"
     >
@@ -101,12 +103,13 @@
         <div class="flex gap-2 p-3 border-b border-base-100 bg-base-100 items-center rounded-t-lg flex-wrap">
           <span class="text-sm font-semibold">HTML Preview</span>
           
-          <div class="flex gap-2 items-center flex-wrap">
+          <div v-if="!isMobile" class="flex gap-2 items-center flex-wrap">
             <select 
               v-model="popupSelectedSize" 
               class="select select-xs select-bordered"
               title="Select screen size"
             >
+              <option value="device">Device (auto)</option>
               <option value="custom">Custom</option>
               <option value="mobile-sm">Mobile (375px)</option>
               <option value="mobile-md">Mobile (425px)</option>
@@ -180,6 +183,16 @@ const screenSizes = {
   'desktop': { width: 1440, height: 900 }
 }
 
+// Presets resolved dynamically from the device viewport + orientation
+const deviceSizes = {
+  phonePortrait: { width: 375, height: 667 },
+  phoneLandscape: { width: 667, height: 375 },
+  tabletPortrait: { width: 768, height: 1024 },
+  tabletLandscape: { width: 1024, height: 768 },
+  desktopPortrait: { width: 1024, height: 768 },
+  desktopLandscape: { width: 1440, height: 900 }
+}
+
 export default {
   props: ['html'],
   data() {
@@ -194,7 +207,10 @@ export default {
       isPopupOpen: false,
       popupWidth: 1200,
       popupHeight: 800,
-      popupSelectedSize: 'custom'
+      popupSelectedSize: 'custom',
+      viewportWidth: 1024,
+      viewportHeight: 768,
+      isMobile: false
     }
   },
   watch: {
@@ -224,79 +240,121 @@ export default {
     }
   },
   mounted() {
+    this.updateViewport()
+
+    window.addEventListener('resize', this.handleViewportChange)
+    window.addEventListener('orientationchange', this.handleViewportChange)
+
+    // On mobile devices open with a device-sized frame instead of a desktop preset
+    if (this.isMobile) {
+      this.selectedSize = 'device'
+      this.popupSelectedSize = 'device'
+    }
+
     this.applySize(this.selectedSize)
-    this.renderHTML(this.html)
+    this.$nextTick(() => {
+      this.renderHTML(this.html)
+    })
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleViewportChange)
+    window.removeEventListener('orientationchange', this.handleViewportChange)
   },
   methods: {
-    renderHTML(htmlContent) {
-      const iframe = this.$refs.previewFrame
-      if (!iframe) return
-      
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow.document
-        doc.open()
-        doc.write(`
-          <!DOCTYPE html>
+    buildDocument(htmlContent) {
+      return `<!DOCTYPE html>
           <html>
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+              html {
+                -webkit-text-size-adjust: 100%;
+              }
               body {
-                margin: 0
-                padding: 1rem
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif
-                background-color: #0f172a
-                color: #e2e8f0
+                margin: 0;
+                padding: 1rem;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                background-color: #111111;
+                color: #e5e7eb;
+                overflow-wrap: break-word;
+              }
+              img, video, iframe, table {
+                max-width: 100%;
               }
             </style>
           </head>
           <body>
             ${htmlContent}
           </body>
-          </html>
-        `)
+          </html>`
+    },
+
+    writeFrame(refName, htmlContent, label) {
+      const iframe = this.$refs[refName]
+      if (!iframe) return
+
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document
+        doc.open()
+        doc.write(this.buildDocument(htmlContent))
         doc.close()
       } catch (error) {
-        console.error('Error rendering HTML preview:', error)
+        console.error(`Error rendering ${label}:`, error)
       }
     },
 
+    renderHTML(htmlContent) {
+      this.writeFrame('previewFrame', htmlContent, 'HTML preview')
+    },
+
     renderPopupHTML(htmlContent) {
-      const iframe = this.$refs.popupFrame
-      if (!iframe) return
-      
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow.document
-        doc.open()
-        doc.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              body {
-                margin: 0
-                padding: 1rem
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif
-                background-color: #0f172a
-                color: #e2e8f0
-              }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-          </html>
-        `)
-        doc.close()
-      } catch (error) {
-        console.error('Error rendering popup preview:', error)
+      this.writeFrame('popupFrame', htmlContent, 'popup preview')
+    },
+
+    updateViewport() {
+      this.viewportWidth = window.innerWidth || 1024
+      this.viewportHeight = window.innerHeight || 768
+      this.isMobile = this.viewportWidth < 768
+    },
+
+    getDeviceSize() {
+      const isPortrait = this.viewportHeight >= this.viewportWidth
+
+      if (this.viewportWidth < 768) {
+        return isPortrait ? deviceSizes.phonePortrait : deviceSizes.phoneLandscape
+      }
+      if (this.viewportWidth < 1024) {
+        return isPortrait ? deviceSizes.tabletPortrait : deviceSizes.tabletLandscape
+      }
+      return isPortrait ? deviceSizes.desktopPortrait : deviceSizes.desktopLandscape
+    },
+
+    getAvailableSpace() {
+      // p-4 on the scroll container: 16px on each side
+      const container = this.$refs.previewContainer
+      const width = container && container.clientWidth
+        ? container.clientWidth - 32
+        : this.viewportWidth - 32
+      const height = container && container.clientHeight
+        ? container.clientHeight - 32
+        : this.viewportHeight - 160
+
+      return {
+        width: Math.max(240, width),
+        height: Math.max(240, height)
       }
     },
 
     applySize(sizeKey) {
+      if (sizeKey === 'device') {
+        const size = this.getDeviceSize()
+        const available = this.getAvailableSpace()
+        this.displayWidth = Math.min(size.width, available.width)
+        this.displayHeight = Math.min(size.height, available.height)
+        return
+      }
+
       const size = screenSizes[sizeKey]
       if (size) {
         this.displayWidth = size.width
@@ -305,10 +363,38 @@ export default {
     },
 
     applyPopupSize(sizeKey) {
+      if (sizeKey === 'device') {
+        const size = this.getDeviceSize()
+        const margin = this.isMobile ? 0 : 32
+        this.popupWidth = Math.max(280, Math.min(size.width, this.viewportWidth - margin))
+        this.popupHeight = Math.max(280, Math.min(size.height, this.viewportHeight - margin))
+        return
+      }
+
       const size = screenSizes[sizeKey]
       if (size) {
         this.popupWidth = size.width
         this.popupHeight = size.height
+      }
+    },
+
+    handleViewportChange() {
+      this.updateViewport()
+
+      if (this.selectedSize === 'device') {
+        this.applySize('device')
+      }
+
+      if (!this.isPopupOpen) {
+        return
+      }
+
+      if (this.popupSelectedSize === 'device') {
+        this.applyPopupSize('device')
+      } else if (this.popupSelectedSize === 'custom') {
+        // Keep a custom popup inside the (possibly rotated) viewport
+        this.popupWidth = Math.min(this.popupWidth, this.viewportWidth)
+        this.popupHeight = Math.min(this.popupHeight, this.viewportHeight)
       }
     },
 
@@ -327,8 +413,15 @@ export default {
     },
 
     openPopup() {
+      this.updateViewport()
       this.isPopupOpen = true
-      this.popupSelectedSize = 'custom'
+
+      if (this.isMobile) {
+        // Mobile: open at device size / current orientation, no draggable frame
+        this.popupSelectedSize = 'device'
+        this.applyPopupSize('device')
+      }
+
       this.$nextTick(() => {
         this.renderPopupHTML(this.html)
       })

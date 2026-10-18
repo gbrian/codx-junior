@@ -23,27 +23,48 @@ ROLE_ASSISTANT = "assistant"
 MAX_IMAGE_SIZE_MB = 50
 MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
 
+# Attachments are not image-only: the chat composer records voice notes and
+# stores them as audio attachments (audio/webm, audio/ogg, audio/mp4 ...).
+# The generic constants keep the same limit that was previously image-only.
+MAX_ATTACHMENT_SIZE_MB = MAX_IMAGE_SIZE_MB
+MAX_ATTACHMENT_SIZE_BYTES = MAX_IMAGE_SIZE_BYTES
+
+ALLOWED_IMAGE_TYPES = [
+    'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml'
+]
+ALLOWED_AUDIO_TYPES = [
+    'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+    'audio/x-wav', 'audio/x-m4a', 'audio/m4a', 'audio/aac', 'audio/flac'
+]
+ALLOWED_ATTACHMENT_TYPES = ALLOWED_IMAGE_TYPES + ALLOWED_AUDIO_TYPES
+
 
 class ChatAttachment(BaseModel):
-    """Represents an image stored in chat or message with file metadata and base64 data."""
-    file_name: str = Field(description="Original file name of the image")
-    file_type: str = Field(description="MIME type (e.g., 'image/png', 'image/jpeg')")
+    """Represents a media file (image or audio note) attached to a chat or message,
+    with its metadata and base64 encoded data."""
+    file_name: str = Field(description="Original file name of the attachment")
+    file_type: str = Field(description="MIME type (e.g., 'image/png', 'audio/webm')")
     file_size: int = Field(description="File size in bytes")
-    base64_data: str = Field(description="Base64 encoded image data")
-    uploaded_at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when image was uploaded")
+    base64_data: str = Field(description="Base64 encoded file data")
+    uploaded_at: str = Field(default_factory=lambda: str(datetime.now()), description="Timestamp when the attachment was uploaded")
     
     @validator('file_size')
     def validate_file_size(cls, v):
-        if v > MAX_IMAGE_SIZE_BYTES:
-            raise ValueError(f"Image size exceeds maximum allowed size of {MAX_IMAGE_SIZE_MB}MB")
+        if v > MAX_ATTACHMENT_SIZE_BYTES:
+            raise ValueError(f"Attachment size exceeds maximum allowed size of {MAX_ATTACHMENT_SIZE_MB}MB")
         return v
     
     @validator('file_type')
     def validate_file_type(cls, v):
-        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml']
-        if v not in allowed_types:
-            raise ValueError(f"Image type '{v}' not allowed. Allowed types: {', '.join(allowed_types)}")
-        return v
+        # `MediaRecorder` reports the recording type together with its codec list
+        # ("audio/webm;codecs=opus"). Attachments store the container type only,
+        # so the parameters are stripped before validating (and persisting).
+        media_type = (v or '').split(';')[0].strip().lower()
+        if media_type not in ALLOWED_ATTACHMENT_TYPES:
+            raise ValueError(
+                f"Attachment type '{v}' not allowed. Allowed types: {', '.join(ALLOWED_ATTACHMENT_TYPES)}"
+            )
+        return media_type
 
 
 class KanbanColumn(BaseModel):

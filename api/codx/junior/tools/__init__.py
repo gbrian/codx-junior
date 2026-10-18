@@ -6,7 +6,7 @@ Tools are organized as callable functions with associated metadata for
 integration with language models and the API.
 
 Tool Scope Levels:
-    - "global": Tools always included in conversations (e.g., code_block_generator)
+    - "global": Tools always included in conversations
     - "chat": Tools available based on conversation context and selection
 
 Tool Response Types:
@@ -40,7 +40,6 @@ from .project_structure import (
     READ_FOLDER_TOOL_JSON,
 )
 from .code_writer import code_writer
-from .code_block_generator import code_block_generator
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
 from .apply_file_changes import apply_file_changes
@@ -115,7 +114,6 @@ __all__ = [
     "project_structure",
     "read_folder",
     "code_writer",
-    "code_block_generator",
     "create_task",
     "process_task",
     "apply_file_changes",

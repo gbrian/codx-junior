@@ -39,7 +39,7 @@
           isCollapsed ? 'justify-center px-2' : 'w-full'
         ]"
         :title="isCollapsed ? app.name : ''"
-        @click="handleSelectWorkspaceApp(app)"
+        @click="handleSelectWorkspaceApp(app, $event)"
       >
         <i v-if="app.icon" :class="app.icon" class="w-5 text-center shrink-0"></i>
         <i v-else class="fa-solid fa-cube w-5 text-center shrink-0"></i>
@@ -75,7 +75,14 @@ export default {
     }
   },
   methods: {
-    handleSelectWorkspaceApp(app) {
+    handleSelectWorkspaceApp(app, event) {
+      // Ctrl+Click (Cmd+Click on macOS) opens the app in a new browser window.
+      // A pathless app can't be opened standalone, so fall back to the panel.
+      const newWindow = event && (event.ctrlKey || event.metaKey)
+      if (newWindow && app.path) {
+        this.$ui.openNewWindowAppPanel(app)
+        return
+      }
       this.$ui.openWorkspace(app)
     },
     isWorkspaceAppSelected(workspaceId) {

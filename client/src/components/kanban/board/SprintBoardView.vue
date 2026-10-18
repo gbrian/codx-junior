@@ -47,6 +47,17 @@ import SprintBoardModals from './SprintBoardModals.vue'
         <span class="hidden sm:inline text-xs">All boards</span>
       </button>
 
+      <!-- Board wall: recap of this sprint's tasks and events -->
+      <button
+        class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
+        title="Board wall — recap of this sprint's activity"
+        aria-label="Board wall"
+        @click="$emit('board-wall')"
+      >
+        <i class="fa-solid fa-newspaper text-xs"></i>
+        <span class="hidden sm:inline text-xs">Wall</span>
+      </button>
+
       <div class="grow"></div>
 
       <!-- Add a column to the sprint (a task status) -->
@@ -301,7 +312,7 @@ export default {
     // to the globally active chat when not provided.
     selectedTaskId: { type: String, default: null }
   },
-  emits: ['new-board', 'open-task', 'open-task-window', 'browse-boards', 'edit-board', 'select-board', 'transfer'],
+  emits: ['new-board', 'open-task', 'open-task-window', 'browse-boards', 'edit-board', 'select-board', 'transfer', 'board-wall'],
   data() {
     return {
       searchQuery: '',

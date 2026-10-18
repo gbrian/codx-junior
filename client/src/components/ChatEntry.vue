@@ -36,7 +36,17 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
              message scrolls, so author/actions are always reachable. -->
         <!-- Layout: LEFT = identity + state (archive, time, seen, events/tools,
              avatars, badges) · RIGHT = actions. -->
-        <div class="sticky top-0 z-20 -mt-1 flex items-center gap-2 leading-none flex-wrap bg-base-100 px-1 pb-3 border-b border-base-content/30">
+        <!-- Narrow (mobile) panels use a single tight row: the action icons move
+             into the ⋯ dropdown (see below) instead of wrapping. -->
+        <!-- Channels (team channel / DM) are the exception: the header sits
+             directly ON the channel background (transparent, not sticky), so it
+             never paints a surface that differs from the conversation canvas. -->
+        <div
+          class="flex items-center gap-2 leading-none flex-wrap px-1"
+          :class="isChannel
+            ? 'pb-1'
+            : 'sticky top-0 z-20 -mt-1 pb-1.5 @lg/panel:pb-3 bg-base-100 border-b border-base-content/10 @lg/panel:border-base-content/30'"
+        >
 
           <!-- ─────────────────────────── LEFT: identity + state ─────────────────────────── -->
 
@@ -68,9 +78,10 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
 
           <!-- Inline events trigger (assistant only).
                - Hidden on mobile (*) — reachable from the ⋯ menu.
-               - Hidden when there are tools, since the tools button toggles the same inline list. -->
+               - Hidden when there are tools, since the tools button toggles the same inline list.
+               - Hidden in channels: tool/run events are developer detail. -->
           <button
-            v-if="isAssistant && !toolEventCount"
+            v-if="isAssistant && !isChannel && !toolEventCount"
             class="hidden @lg/panel:flex btn btn-xs btn-ghost tooltip tooltip-bottom"
             :class="eventsOpen && 'btn-active text-warning'"
             data-tip="Events & Tools"
@@ -82,7 +93,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           <!-- Tools counter — shows the icon + count and toggles the inline tools list
                rendered inside this message (see <ChatMessageEvents> below). -->
           <button
-            v-if="isAssistant && toolEventCount"
+            v-if="isAssistant && !isChannel && toolEventCount"
             class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
             :class="eventsOpen && 'btn-active text-warning'"
             data-tip="Tools"
@@ -122,7 +133,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           <span v-if="displayMessage.is_answer" class="badge badge-xs badge-success gap-1">
             <ChatIcon mode="answer" /> Knowledge
           </span>
-          <span v-if="isTopic" class="badge badge-xs badge-info gap-1">
+          <!-- `mode` carries the CHANNEL TYPE in team chats, not a knowledge
+               topic, so the topic badge only makes sense outside channels. -->
+          <span v-if="isTopic && !isChannel" class="badge badge-xs badge-info gap-1">
             <ChatIcon mode="topic" /> Topic
           </span>
           <span v-if="displayMessage.hide" class="text-[11px] text-warning/50">
@@ -139,7 +152,8 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
                   transition-all duration-150 translate-y-0
                   flex items-center gap-0.5"
           >
-            <!-- Stop generation -->
+            <!-- Stop generation — the only action that stays inline on every
+                 panel width, cancelling must never hide behind a menu. -->
             <button
               v-if="!isDone && cancellationTokenId"
               class="btn btn-xs btn-error gap-1"
@@ -149,30 +163,34 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             </button>
 
             <!-- Core actions -->
+            <!-- Rendered inline only on wide panels (@lg = 512px+). On narrow
+                 (mobile) panels all of them live in the ⋯ dropdown below, so the
+                 message header keeps a single compact line. -->
             <button
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               data-tip="Thread"
               @click.stop="$emit('thread', message)"
             >
               <i class="fa-solid fa-comment-dots"></i>
             </button>
             <button
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              v-if="!isChannel"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               data-tip="Mark as answer"
               @click.stop="$emit('answer', message)"
             >
               <i class="fa-solid fa-circle-info text-info/70"></i>
             </button>
             <button
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               data-tip="Copy"
               @click.stop="copyMessageToClipboard"
             >
               <i class="fa-solid fa-copy"></i>
             </button>
             <button
-              v-if="displayMessage.diffMessage"
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              v-if="displayMessage.diffMessage && !isChannel"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               :class="showDiff && 'btn-active'"
               data-tip="Diff"
               @click.stop="toggleShowDiff"
@@ -180,8 +198,8 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               <i class="fa-regular fa-file-lines"></i>
             </button>
             <button
-              v-if="hasCodeBlocksOrFiles"
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              v-if="hasCodeBlocksOrFiles && !isChannel"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               :class="showFileView && 'btn-active'"
               data-tip="Files"
               @click.stop="toggleFileView"
@@ -189,8 +207,8 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               <i class="fa-solid fa-file-code"></i>
             </button>
             <button
-              v-if="hasPRViewBlocks"
-              class="btn btn-xs btn-ghost tooltip tooltip-bottom"
+              v-if="hasPRViewBlocks && !isChannel"
+              class="hidden @lg/panel:inline-flex btn btn-xs btn-ghost tooltip tooltip-bottom"
               :class="showPRView && 'btn-active'"
               data-tip="Review"
               @click.stop="togglePRView"
@@ -198,8 +216,8 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               <i class="fa-solid fa-code-branch"></i>
             </button>
 
-            <!-- Divider -->
-            <div class="w-px h-4 bg-base-300 mx-0.5"></div>
+            <!-- Divider (wide panels only) -->
+            <div class="hidden @lg/panel:block w-px h-4 bg-base-300 mx-0.5"></div>
 
             <!-- More dropdown -->
             <div class="dropdown dropdown-end" @click.stop>
@@ -210,11 +228,21 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
                 tabindex="0"
                 class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
               >
+                <!-- ── Compact (mobile) message actions ──
+                     Mirrors the inline icon row that is hidden below @lg/panel,
+                     so every action stays reachable without widening the header. -->
+                <li class="@lg/panel:hidden"><a @click.stop="$emit('thread', message)"><i class="fa-solid fa-comment-dots w-4"></i> Thread</a></li>
+                <li v-if="!isChannel" class="@lg/panel:hidden"><a @click.stop="$emit('answer', message)"><i class="fa-solid fa-circle-info w-4 text-info/70"></i> {{ displayMessage.is_answer ? 'Unmark answer' : 'Mark as answer' }}</a></li>
+                <li class="@lg/panel:hidden"><a @click.stop="copyMessageToClipboard"><i class="fa-solid fa-copy w-4"></i> Copy</a></li>
+                <li v-if="displayMessage.diffMessage && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleShowDiff" :class="showDiff && 'text-primary'"><i class="fa-regular fa-file-lines w-4"></i> Diff</a></li>
+                <li v-if="hasCodeBlocksOrFiles && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleFileView" :class="showFileView && 'text-primary'"><i class="fa-solid fa-file-code w-4"></i> Files</a></li>
+                <li v-if="hasPRViewBlocks && !isChannel" class="@lg/panel:hidden"><a @click.stop="togglePRView" :class="showPRView && 'text-primary'"><i class="fa-solid fa-code-branch w-4"></i> Review</a></li>
+
                 <!-- Inline Events & Tools — the desktop trigger is hidden on
                      mobile (*), so it lives here for narrow panels. -->
-                <li v-if="isAssistant" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
-                <li><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
-                <li v-if="isDone"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
+                <li v-if="isAssistant && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
+                <li v-if="!isChannel"><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
+                <li v-if="isDone && !isChannel"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
                 <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
                 <li v-if="isDone"><a @click.stop="toggleUnseenStatus" :class="isMessageSeen && 'text-success'"><i :class="isMessageSeen ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'" class="w-4"></i> {{ isMessageSeen ? 'Mark un-seen' : 'Mark seen' }}</a></li>
                 <li><a @click.stop="confirmRemove" class="text-error"><i class="fa-solid fa-trash-can w-4"></i> Delete</a></li>
@@ -228,9 +256,10 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
              Rendered inline, directly under the header so it is discoverable and
              contextual. Driven by the existing `eventsOpen` prop (parent owns the
              open state). The "more details" drawer trigger lives INSIDE this panel
-             (see <ChatMessageEvents>), which re-emits `show-events-drawer`. -->
+             (see <ChatMessageEvents>), which re-emits `show-events-drawer`.
+             Hidden in channels: processing details are developer output. -->
         <ChatMessageEvents
-          v-if="eventsOpen"
+          v-if="eventsOpen && !isChannel"
           :message="displayMessage"
           :drawerOpen="eventsDrawerOpen"
           class="mt-2"
@@ -293,7 +322,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           class="min-w-0 w-full notion-content"
           :class="[
             displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-info/30',
-            isTopic && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
+            isTopic && !isChannel && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
           ]"
         >
 
@@ -490,9 +519,10 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             </div>
           </div>
 
-          <!-- Linked files -->
+          <!-- Linked files — project file paths belong to developer chats only.
+               Channels/DMs share files through attachments (see below). -->
           <div
-            v-if="displayMessage.files?.length && !showPRView && !showFileView && !showAttachments"
+            v-if="displayMessage.files?.length && !isChannel && !showPRView && !showFileView && !showAttachments"
             class="mt-3 pt-2 border-t border-base-100/50"
           >
             <p class="text-[11px] text-base-content/40 mb-1.5">
@@ -529,10 +559,11 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             </div>
           </div>
 
-          <!-- Images -->
+          <!-- Attachments — channels render them as large Discord-style previews -->
           <ChatAttachmentPreview
             v-if="displayMessage.attachments?.length"
             :attachments="displayMessage.attachments"
+            :size="isChannel ? 'lg' : 'sm'"
             @update-attachment="onAttachmentUpdated"
           />
         </div>
@@ -644,14 +675,44 @@ export default {
     isDone() {
       return this.displayMessage.done
     },
+    // ── Channel / team context ────────────────────────────────────────────
+    // Team channels and team DMs are ordinary chats tagged by the team store:
+    //   board: `team:<teamId>`  ·  name: `team:<teamId>/<channel>` | `dm:<teamId>/<user>`
+    // (see store/teams.js `createChannel` / `openDirectMessage` and
+    // store/ui.js `openTeamChannel` / `openTeamDM`).
+    // `mode` holds the CHANNEL TYPE ('topic' | 'chat' | 'task'), so it cannot
+    // be used to detect a channel — the board/name is the stable marker.
+    isTeamChat() {
+      const board = this.chat?.board
+      if (typeof board === 'string' && board.startsWith('team:')) return true
+      const name = this.chat?.name
+      return typeof name === 'string' &&
+        (name.startsWith('team:') || name.startsWith('dm:'))
+    },
+    // Explicit channel mode (chats created outside the team store)
+    isChannelChat() {
+      return this.chat?.mode === 'channel'
+    },
+    // Any Discord/Slack-like conversation surface: channel or team chat/DM
+    isChannel() {
+      return this.isChannelChat || this.isTeamChat
+    },
+    isChannelMessage() {
+      return this.isChannel
+    },
+    // `mode === 'topic'` means "text channel" inside a team, not a knowledge
+    // topic: the topic styling (badge + side border) only applies outside.
+    isTopic() {
+      return this.chat?.mode === 'topic' && !this.isTeamChat
+    },
+    // Topic chats show the thread's latest reply inline in place of the parent
+    // message. A channel must always keep the parent visible (Discord/Slack
+    // show a "N replies" badge instead — see the thread badge below).
+    isSlackStyle() {
+      return this.chat?.mode === 'topic' && !this.isTeamChat
+    },
     isWord() {
       return this.chat?.mode === 'word'
-    },
-    isTopic() {
-      return this.chat?.mode === 'topic'
-    },
-    isSlackStyle() {
-      return this.chat?.mode === 'topic'
     },
     isCollapsed() {
       return this.collapsed !== undefined
@@ -660,9 +721,6 @@ export default {
     },
     isMyMessage() {
       return this.displayMessage.user === this.$user.username
-    },
-    isChannelMessage() {
-      return this.chat.mode === 'channel'
     },
     isAssistant() {
       return this.message.role === 'assistant'
@@ -675,11 +733,17 @@ export default {
     thinkText() {
       return this.displayMessage.think
     },
+    // The entry renders its own message. In slack-like (topic) chats the replies
+    // of a message live in a thread chat and the parent shows the latest reply
+    // inline — every other mode must never replace the message with a thread
+    // reply, that would print the thread content over the original message.
     displayMessage() {
-      const message = this.threadChat?.messages
-          .filter(m => !m.hide)
-          .reverse()[0] || this.message
-      return message
+      const threadReply = this.isSlackStyle
+        ? this.threadChat?.messages
+            ?.filter(m => !m.hide)
+            .reverse()[0]
+        : null
+      return threadReply || this.message
     },
     messageProfiles() {
       let profiles = this.$projects.profiles

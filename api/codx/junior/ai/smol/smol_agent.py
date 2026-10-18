@@ -150,22 +150,11 @@ HARDCODED_SYSTEM_RULES = """
 CRITICAL INFORMATION — FILE CHANGES:
 Never wrap a file change inside a plain markdown code fence. Propose file changes only as follows.
 
-1) Prefer calling the `code_block_generator` tool once per file with:
-   file_path (project-relative), language, content (the FULL new content), change_type (new|update|delete).
+Use xml envelope per file with the changes like in the example:
 
-2) If tools are unavailable, emit one envelope per file with the sentinels on their own lines:
-
-@@ CODX_FILE @@
-path: <project-relative path>
-language: <language id>
-change_type: <new|update|delete>
-encoding: text
-@@ CODX_CONTENT @@
+<file_change path="<project-relative path>" language="<language id>" change_type"<new|update|delete>" encoding="text">
 <full file content, verbatim — markdown/fences allowed here>
-@@ CODX_END @@
-
-Content between the CONTENT and END sentinels is taken verbatim. If the content contains a
-line equal to one of the sentinels, use `encoding: base64` instead. Use valid project paths.
+<file_change/>
 
 ### Observe this rules when working with files
  * Use valid file path (absolute or relative) based on the project and conversation context.

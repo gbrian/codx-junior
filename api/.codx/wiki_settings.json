@@ -400,6 +400,56 @@
           "path": "/api/codx/junior/infra/cloud/base.py",
           "slug": "base.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/base.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/jobs.py",
+          "slug": "jobs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/jobs.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/models.py",
+          "slug": "models.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/models.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/host_store.py",
+          "slug": "host-store.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/host-store.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/hetzner.py",
+          "slug": "hetzner.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/hetzner.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/errors.py",
+          "slug": "errors.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/errors.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/ssh.py",
+          "slug": "ssh.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/ssh.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/aws.py",
+          "slug": "aws.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/aws.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/ssh_keys.py",
+          "slug": "ssh-keys.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/ssh-keys.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/azure.py",
+          "slug": "azure.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/azure.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/cloud/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
         }
       ],
       "id": "project-overview",

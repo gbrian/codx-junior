@@ -81,6 +81,9 @@ import FindReplaceBox from './FindReplaceBox.vue'
       <div class="mx-2 md:mx-3 border-t border-base-100/50 mt-1"></div>
 
       <!-- Toolbar -->
+      <!-- The voice note recorder lives in the toolbar: it only renders/emits,
+           the MediaRecorder lifecycle stays here so the mic is released whenever
+           the composer is collapsed, unmounted or the recording is cancelled. -->
       <ChatInputToolbar
         :waiting="waiting"
         :is-editing="isEditing"
@@ -93,6 +96,8 @@ import FindReplaceBox from './FindReplaceBox.vue'
         :profiles="profiles"
         :selected-profiles="selectedProfiles"
         :voice-language-label="voiceLanguageLabel"
+        :is-recording="isRecording"
+        :recording-label="recordingLabel"
         @send="onSend"
         @cancel-edit="$emit('cancel-edit')"
         @model-changed="$emit('model-changed', $event)"
@@ -101,6 +106,9 @@ import FindReplaceBox from './FindReplaceBox.vue'
         @preview-image="$emit('preview-image', $event)"
         @profiles-selected="$emit('profiles-selected', $event)"
         @upload-files="$emit('upload-files', $event)"
+        @start-voice-note="startVoiceNoteRecording"
+        @stop-voice-note="stopVoiceNoteRecording(false)"
+        @cancel-voice-note="stopVoiceNoteRecording(true)"
       />
     </template>
   </div>
@@ -137,12 +145,26 @@ export default {
       isDraggingOver: false,
       showFindReplace: false,
       // Draft kept in memory while the composer is collapsed on mobile
-      collapsedDraft: ''
+      collapsedDraft: '',
+      // ── Voice note recorder ──
+      isRecording: false,
+      recordingSeconds: 0,
+      recordingMaxSeconds: 300,
+      recordingMimeType: '',
+      recordingChunks: [],
+      recordingTimer: null,
+      discardVoiceNote: false,
+      mediaRecorder: null,
+      recordingStream: null
     }
   },
   computed: {
     isMobile() {
       return this.$ui.isMobile
+    },
+    // Label rendered by the toolbar while recording: "0:12 / 5:00"
+    recordingLabel() {
+      return `${this.formatRecordingTime(this.recordingSeconds)} / ${this.formatRecordingTime(this.recordingMaxSeconds)}`
     }
   },
   watch: {
@@ -150,6 +172,8 @@ export default {
       if (collapsed) {
         // The editor is unmounted while collapsed, keep the draft in memory
         this.collapsedDraft = this.$refs.editor?.value || ''
+        // The recorder controls disappear with the toolbar, never keep the microphone open
+        if (this.isRecording) this.stopVoiceNoteRecording(true)
       } else {
         // Put the draft back as soon as the editor is mounted again
         this.$nextTick(() => this.restoreCollapsedDraft())
@@ -162,6 +186,8 @@ export default {
   },
   unmounted() {
     document.removeEventListener('click', this.onDocumentClick)
+    // Release the microphone if the composer is destroyed mid-recording
+    this.cleanupVoiceNoteRecorder()
   },
   methods: {
     // ── Mobile collapse ─────────────────────────────────────
@@ -342,6 +368,144 @@ export default {
     },
     escapeRegex(str) {
       return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    },
+
+    // ── Voice notes ─────────────────────────────────────────
+
+    isVoiceNoteSupported() {
+      return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder)
+    },
+    // First codec container the browser can actually record
+    pickVoiceNoteMimeType() {
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ]
+      return candidates.find(type => window.MediaRecorder?.isTypeSupported?.(type)) || ''
+    },
+    voiceNoteExtension(mimeType) {
+      if (mimeType.includes('mp4')) return 'm4a'
+      if (mimeType.includes('ogg')) return 'ogg'
+      if (mimeType.includes('wav')) return 'wav'
+      return 'webm'
+    },
+    formatRecordingTime(seconds) {
+      const total = Math.max(0, Math.floor(seconds || 0))
+      const minutes = Math.floor(total / 60)
+      const secs = `${total % 60}`.padStart(2, '0')
+      return `${minutes}:${secs}`
+    },
+    async startVoiceNoteRecording() {
+      if (this.isRecording || this.readOnly) return
+      if (!this.isVoiceNoteSupported()) {
+        this.$ui?.addNotification?.({ text: 'Voice notes are not supported in this browser', type: 'warning' })
+        return
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const mimeType = this.pickVoiceNoteMimeType()
+        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+
+        this.recordingChunks = []
+        this.recordingStream = stream
+        this.recordingMimeType = recorder.mimeType || mimeType || 'audio/webm'
+        this.discardVoiceNote = false
+        this.recordingSeconds = 0
+
+        recorder.ondataavailable = (event) => {
+          if (event.data?.size) this.recordingChunks.push(event.data)
+        }
+        recorder.onstop = () => this.onVoiceNoteRecorderStop()
+
+        this.mediaRecorder = recorder
+        recorder.start()
+        this.isRecording = true
+        this.startRecordingTimer()
+        // Escape cancels the recording, matching the rest of the composer shortcuts
+        document.addEventListener('keydown', this.onRecordingKeyDown)
+      } catch (error) {
+        console.error('[VoiceNote] Unable to start recording', error)
+        this.cleanupVoiceNoteRecorder()
+        this.$ui?.addNotification?.({ text: 'Microphone access denied', type: 'error' })
+      }
+    },
+    stopVoiceNoteRecording(cancel = false) {
+      if (!this.mediaRecorder) {
+        this.cleanupVoiceNoteRecorder()
+        return
+      }
+      this.discardVoiceNote = cancel
+      this.isRecording = false
+      this.stopRecordingTimer()
+      document.removeEventListener('keydown', this.onRecordingKeyDown)
+      if (this.mediaRecorder.state !== 'inactive') this.mediaRecorder.stop()
+      else this.cleanupVoiceNoteRecorder()
+    },
+    onVoiceNoteRecorderStop() {
+      const chunks = this.recordingChunks
+      const mimeType = this.recordingMimeType
+      const discard = this.discardVoiceNote
+
+      this.cleanupVoiceNoteRecorder()
+
+      if (discard || !chunks.length) return
+
+      // `MediaRecorder.mimeType` carries the codec list ("audio/webm;codecs=opus").
+      // The attachment stores the container type only: a bare mime type keeps the
+      // `data:` URL used by the preview player valid in every browser and avoids
+      // the attachment type being rejected when the message is persisted.
+      const fileType = (mimeType || 'audio/webm').split(';')[0].trim()
+      const extension = this.voiceNoteExtension(fileType)
+      const blob = new Blob(chunks, { type: fileType })
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const file = new File([blob], `voice-note-${stamp}.${extension}`, {
+        type: fileType,
+        lastModified: Date.now()
+      })
+
+      // Reuse the composer upload pipeline: the parent turns the file into a
+      // ChatAttachment, which is stored, previewed and removable like any other
+      this.$emit('upload-files', [file])
+    },
+    onRecordingKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        this.stopVoiceNoteRecording(true)
+      }
+    },
+    startRecordingTimer() {
+      this.stopRecordingTimer()
+      this.recordingTimer = setInterval(() => {
+        this.recordingSeconds++
+        // Hard cap so a forgotten recording can never grow unbounded
+        if (this.recordingSeconds >= this.recordingMaxSeconds) {
+          this.stopVoiceNoteRecording(false)
+        }
+      }, 1000)
+    },
+    stopRecordingTimer() {
+      if (this.recordingTimer) clearInterval(this.recordingTimer)
+      this.recordingTimer = null
+    },
+    cleanupVoiceNoteRecorder() {
+      this.stopRecordingTimer()
+      document.removeEventListener('keydown', this.onRecordingKeyDown)
+
+      // Stopping the tracks releases the microphone indicator
+      this.recordingStream?.getTracks().forEach(track => track.stop())
+      this.recordingStream = null
+
+      if (this.mediaRecorder) {
+        this.mediaRecorder.ondataavailable = null
+        this.mediaRecorder.onstop = null
+      }
+      this.mediaRecorder = null
+      this.recordingChunks = []
+      this.recordingSeconds = 0
+      this.isRecording = false
+      this.discardVoiceNote = false
     }
   },
   expose: [

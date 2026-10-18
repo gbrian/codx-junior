@@ -14,6 +14,32 @@ import WallAvatar from './WallAvatar.vue'
   <!--
     Activity Wall shell.
 
+    The SAME component renders two feeds:
+
+      · PROJECT wall (default) — the global activity stream described below.
+      · BOARD wall (`board` prop / `board` param set) — the same feed restricted
+        to ONE board, so a board header can open a recap of everything that
+        happened in it ("Board wall").
+
+    HOW THE BOARD WALL IS OPENED
+    ----------------------------
+    Exactly like a task opens its chat: through the shared app opener, so the
+    wall becomes its own pane next to the board instead of an overlay on top of
+    it.
+
+        $storex.ui.openApp({ appKey: 'activity', payload: { board, project } })
+
+    In desktop mode that creates/updates the "Activity" dockview panel; in single
+    mode it pushes the "/activity" route. In BOTH cases the component receives
+    its data through a single `params` prop (see Desktop.vue /
+    store/views.syncPanelsWithApps and views/AppRouteView.vue), which is why
+    `board` and `project` are also read from there.
+
+    In board mode the global navigation (left rail, bottom bar, right rail) and
+    the composer are hidden — a board recap must not navigate or post outside the
+    board. The header back button leaves the wall: it closes the hosting panel
+    when rendered as one, otherwise it emits `close` for an embedding parent.
+
     The layout is driven by CONTAINER queries (`@container` + `@xl:` / `@5xl:` /
     `@7xl:`) and NOT by the viewport. The wall is embedded inside dockview
     windows and resizable desktop panes, so its real width has nothing to do with
@@ -32,14 +58,21 @@ import WallAvatar from './WallAvatar.vue'
   <div class="relative @container w-full h-full bg-base-300 text-base-content">
     <!-- Centered layout shell (mirrors the mockup) -->
     <div class="mx-auto flex w-full max-w-[1265px] h-full">
-      <!-- Left rail (wide layouts) -->
-      <header class="hidden @xl:flex flex-col shrink-0 border-r border-base-content/10 px-1 @xl:w-16 @5xl:w-64 overflow-y-auto">
+      <!-- Left rail (wide layouts). Not rendered on the board wall: it is a
+           recap reached from a board and must not navigate the global activity. -->
+      <header
+        v-if="!boardScoped"
+        class="hidden @xl:flex flex-col shrink-0 border-r border-base-content/10 px-1 @xl:w-16 @5xl:w-64 overflow-y-auto"
+      >
         <WallNav :route="route" :notifications="notificationCount" :messages="messageCount" @action="onAction" />
         <div class="mt-auto p-3 text-xs text-base-content/40 hidden @5xl:block">codx-junior · Activity</div>
       </header>
 
       <!-- Main column -->
-      <main class="flex-1 min-w-0 max-w-[600px] flex flex-col @xl:border-r border-base-content/10 overflow-y-auto pb-16 @xl:pb-0">
+      <main
+        class="flex-1 min-w-0 max-w-[600px] flex flex-col border-base-content/10 overflow-y-auto pb-16"
+        :class="boardScoped ? '@xl:pb-0' : '@xl:border-r @xl:pb-0'"
+      >
         <!-- Single sticky header: title + tabs + kind filters. Keeping them in ONE
              sticky block fixes the bug where the filter chips slid under the
              header and became invisible (they used to be a separate sticky row
@@ -47,15 +80,39 @@ import WallAvatar from './WallAvatar.vue'
         <div class="sticky top-0 z-20 bg-base-300/95 backdrop-blur border-b border-base-content/10">
           <!-- Title row -->
           <div class="flex items-center gap-3 px-4 h-14">
-            <img src="/only_icon.png" alt="codx-junior" class="w-7 h-7 rounded-full @xl:hidden" />
-            <h1 class="text-lg font-bold flex-1 truncate">{{ title }}</h1>
+            <!-- Board wall: back to the board + board title + event counter -->
+            <template v-if="boardScoped">
+              <button
+                class="btn btn-ghost btn-sm btn-circle shrink-0"
+                title="Back to board"
+                aria-label="Back to board"
+                @click="close"
+              >
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
+              <span class="w-8 h-8 rounded-lg bg-primary/15 text-primary grid place-items-center shrink-0" aria-hidden="true">
+                <i class="fa-solid fa-newspaper text-sm"></i>
+              </span>
+              <div class="min-w-0 flex-1 leading-tight">
+                <h1 class="text-base font-bold truncate">{{ title }}</h1>
+                <p class="text-[11px] text-base-content/50 truncate">
+                  Board wall · {{ boardEventsLabel }}
+                </p>
+              </div>
+            </template>
+
+            <template v-else>
+              <img src="/only_icon.png" alt="codx-junior" class="w-7 h-7 rounded-full @xl:hidden" />
+              <h1 class="text-lg font-bold flex-1 truncate">{{ title }}</h1>
+            </template>
+
             <button v-if="showFilters" class="btn btn-ghost btn-sm btn-circle" @click="reload" aria-label="Refresh activity">
               <i class="fa-solid fa-rotate"></i>
             </button>
           </div>
 
-          <!-- Tabs (home only) -->
-          <div v-if="route === 'home'" class="flex" role="tablist">
+          <!-- Tabs (home only, project wall only) -->
+          <div v-if="route === 'home' && !boardScoped" class="flex" role="tablist">
             <button
               v-for="t in tabs"
               :key="t.key"
@@ -103,8 +160,9 @@ import WallAvatar from './WallAvatar.vue'
           </div>
         </div>
 
-        <!-- Composer -->
-        <div v-if="route === 'home' || route === 'profile'" class="border-b border-base-content/10">
+        <!-- Composer. Hidden on the board wall: a board recap must not create
+             board-less chats. -->
+        <div v-if="!boardScoped && (route === 'home' || route === 'profile')" class="border-b border-base-content/10">
           <WallComposer
             :me="meAccount"
             :project="activeProject"
@@ -168,12 +226,13 @@ import WallAvatar from './WallAvatar.vue'
           <WallTimeline :posts="posts" :status="status" :accounts="accounts" :viewers="viewerMap" @action="onAction" @retry="reload" />
         </div>
 
-        <!-- Feed (home / explore / bookmarks) -->
+        <!-- Feed (home / explore / bookmarks / board wall) -->
         <WallTimeline v-else :posts="posts" :status="status" :accounts="accounts" :viewers="viewerMap" @action="onAction" @retry="reload" />
       </main>
 
-      <!-- Right rail (only when the wall itself is wide enough for 3 columns) -->
-      <aside class="hidden @7xl:block w-80 shrink-0 px-4 py-4 overflow-y-auto">
+      <!-- Right rail (only when the wall itself is wide enough for 3 columns
+           and we are not in board mode) -->
+      <aside v-if="!boardScoped" class="hidden @7xl:block w-80 shrink-0 px-4 py-4 overflow-y-auto">
         <WallRightRail
           :query="query"
           :trends="trends"
@@ -187,8 +246,10 @@ import WallAvatar from './WallAvatar.vue'
 
     <!-- Compact navigation: shown while the wall is narrower than the rail
          threshold (`@xl`), so navigation is never missing. It is anchored to the
-         wall box (not the viewport) to stay inside the pane it is rendered in. -->
+         wall box (not the viewport) to stay inside the pane it is rendered in.
+         Not rendered on the board wall (see the template comment above). -->
     <WallBottomNav
+      v-if="!boardScoped"
       :route="route"
       :notifications="notificationCount"
       :messages="messageCount"
@@ -234,11 +295,25 @@ const WALL_STORAGE_KEY = 'codx.wall.state.v1'
 // to exercise the multi-project path.
 const WALL_PROJECT_LIMIT = 3
 
+// Kinds a board can actually produce. The board wall uses this subset so the
+// filter chips never advertise events (meets, knowledge, wiki…) a board cannot
+// generate.
+const BOARD_KINDS = ['all', 'chat', 'kanban', 'code', 'pr']
+
 export default {
   props: {
     project: { type: Object, default: null },
-    board: { type: String, default: null }
+    // Board scope. When set (board id/title string or board object) the wall only
+    // shows the tasks of that board — this is the "Board wall".
+    board: { type: [String, Object], default: null },
+    // Params handed over by the app shell. A dockview panel renders this
+    // component with `{ params, api, containerApi }` (see Desktop.vue →
+    // store/views.addPanelToDesktop) while an app route renders it with the plain
+    // params object (views/AppRouteView.vue), so the board scope of the
+    // "activity" app arrives here and is normalised by `appParams`.
+    params: { type: Object, default: null }
   },
+  emits: ['close'],
   data() {
     return {
       route: 'home',
@@ -259,13 +334,24 @@ export default {
       tabs: [
         { key: 'for-you', label: 'For you' },
         { key: 'following', label: 'Following' }
-      ],
-      filters: WALL_FILTERS
+      ]
     }
   },
   computed: {
+    // App params, whatever shape the host used. Keeping this in one place is what
+    // lets the SAME component work embedded (props) and as an app panel/route
+    // (params prop).
+    appParams() {
+      const raw = this.params || {}
+      return (raw.params && typeof raw.params === 'object') ? raw.params : raw
+    },
+    // The app entry hosting this wall when it is rendered as its own panel. It is
+    // what the back button closes (panel mode) instead of emitting `close`.
+    panelApp() {
+      return this.appParams.app || null
+    },
     activeProject() {
-      return this.project || this.$projects.activeProject || null
+      return this.project || this.appParams.project || this.$projects.activeProject || null
     },
     allProjects() {
       return this.$projects.allProjects || []
@@ -294,8 +380,57 @@ export default {
     threadAuthor() {
       return this.threadPost ? this.accounts[this.threadPost.authorId] : null
     },
+
+    // ── Board scope ───────────────────────────────────────────────────────────
+    // Board the wall is limited to: the `board` prop when embedded in a board
+    // view, or the `board` param when opened as the Activity app panel/route
+    // (config/apps.js → `activity.desktopParams`). Null = the global project wall.
+    boardValue() {
+      return this.board || this.appParams.board || null
+    },
+    boardId() {
+      const board = this.boardValue
+      if (!board) return null
+      return typeof board === 'string'
+        ? board
+        : (board.id || board.title || null)
+    },
+    boardRecord() {
+      return this.boardId ? this.$storex.kanban.boardById(this.boardId) : null
+    },
+    boardScoped() {
+      return !!this.boardId
+    },
+    // Tasks of the board. Sprint boards group their tasks by `status` and track
+    // membership in `chat.sprints`; kanban boards use `chat.board`.
+    boardTasks() {
+      if (!this.boardScoped) return []
+      const kanban = this.$storex.kanban
+      const tasks = this.boardRecord?.type === 'sprint'
+        ? kanban.sprintBoardChats(this.boardId)
+        : kanban.boardChats(this.boardId)
+      return tasks || []
+    },
+    // Board tasks ready for the feed: threads (message_id), templates and
+    // channel chats are not board events, so they are left out.
+    boardWallChats() {
+      const fallbackProject = this.activeProject
+      const projectOf = chat =>
+        this.$projects.allProjectsById?.[chat?.project_id || chat?.owner_project_id] || fallbackProject
+      return this.boardTasks
+        .filter(chat => !chat.message_id && !chat.is_template && chat.mode !== 'channel')
+        .map(chat => ({ chat, project: projectOf(chat) }))
+    },
+    boardEventsLabel() {
+      const count = this.basePosts.length
+      return `${count} event${count === 1 ? '' : 's'}`
+    },
+
     // Recent activity assembled from the real project and chat data.
     wallChats() {
+      // Board wall: strictly the tasks of the board this wall is scoped to.
+      if (this.boardScoped) return this.boardWallChats
+
       const list = []
       const seen = new Set()
       const push = (chat, project) => {
@@ -316,7 +451,7 @@ export default {
         (project.metrics?.wall || []).forEach(chat => push(chat, project))
       })
 
-      const fallbackProject = this.project || this.activeProject
+      const fallbackProject = this.activeProject
       const projectOf = chat =>
         this.$projects.allProjectsById?.[chat?.project_id || chat?.owner_project_id] || fallbackProject
 
@@ -333,11 +468,14 @@ export default {
       // already ended. `allActiveMeets` only holds in-progress meets (an ended
       // meet is removed from it and pushed to `meetHistory`), so feeding the wall
       // with active meets alone is exactly why past meetings never showed up.
+      // The board wall shows board events only, so meets are excluded there.
       const meetsStore = this.$storex.meets || {}
-      const meets = [
-        ...(meetsStore.allActiveMeets || []),
-        ...(meetsStore.meetHistory || [])
-      ]
+      const meets = this.boardScoped
+        ? []
+        : [
+            ...(meetsStore.allActiveMeets || []),
+            ...(meetsStore.meetHistory || [])
+          ]
       const posts = buildPosts({
         chats: this.wallChats,
         meets,
@@ -379,7 +517,9 @@ export default {
       return map
     },
     // The home header greets the current user instead of a generic "Activity".
+    // In board mode the header shows the board being recapped.
     title() {
+      if (this.boardScoped) return this.boardRecord?.title || this.boardId
       const welcome = `Welcome ${this.meAccount.name}`
       return {
         home: welcome,
@@ -392,6 +532,11 @@ export default {
     },
     showFilters() {
       return ['home', 'explore'].includes(this.route)
+    },
+    // Kind chips. The board wall only offers the kinds a board can produce.
+    filters() {
+      if (!this.boardScoped) return WALL_FILTERS
+      return WALL_FILTERS.filter(f => BOARD_KINDS.includes(f.key))
     },
     notificationCount() {
       return this.notifications.length
@@ -432,7 +577,9 @@ export default {
   },
   watch: {
     // Projects load asynchronously; build the multi-project feed once available.
+    // The board wall never reads other projects, so it skips this entirely.
     allProjects(list) {
+      if (this.boardScoped) return
       if (list?.length && !this.projectChats.length) {
         this.loadRecentProjectChats()
       }
@@ -443,8 +590,21 @@ export default {
     this.loadActivity()
   },
   methods: {
+    // Leave the wall. When it is rendered as its own app panel (the way boards
+    // open it, exactly like a chat panel) the hosting panel is closed; an
+    // embedding parent just hides it through the `close` event.
+    close() {
+      const app = this.panelApp
+      if (app?.tabId) {
+        this.$storex.ui.closeApp(app)
+        return
+      }
+      this.$emit('close')
+    },
     async loadActivity() {
       await this.loadActiveProjectChats()
+      // Board wall: everything it shows comes from the board's own tasks.
+      if (this.boardScoped) return
       await this.loadRecentProjectChats()
     },
     async loadActiveProjectChats() {
@@ -536,6 +696,9 @@ export default {
         project_id: projectId,
         owner_project_id: projectId
       })
+      // The board wall is a recap of the board: leaving it shows the task the
+      // user just opened (which now has its own panel, like any other chat).
+      if (this.boardScoped) this.close()
     },
 
     // ── Composer wiring ─────────────────────────────────────────────────────

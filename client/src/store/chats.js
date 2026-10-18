@@ -48,11 +48,11 @@ function registerChat(state, chat) {
     return
   }
   const existingChat = state.chats[chat.id] || {}
-  
+
   // Update lastMessageAt when registering a chat with messages
   const lastMessage = chat.messages?.[chat.messages.length - 1]
   const lastMessageAt = lastMessage?.timestamp || lastMessage?.created_at || chat.updated_at || new Date().toISOString()
-  
+
   state.chats[chat.id] = {
     ...existingChat,
     ...chat,
@@ -127,12 +127,20 @@ function getRootChat(state, chatId) {
   return current
 }
 
+// Human readable thread name derived from the message the thread answers.
+// Falls back to the message id so a thread never ends up unnamed.
+function threadChatName(message) {
+  const text = `${message?.content || ''}`.replace(/\s+/g, ' ').trim()
+  const base = text || message?.doc_id || 'thread'
+  return `Thread: ${base.slice(0, 60)}`
+}
+
 export const getters = getterTree(state, {
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
   allTemplates: state => Object.values(state.chats || {}).filter(c => c.is_template),
-  
+
   // ─── Chat Mode Helpers ────────────────────────────────────────────────────
   availableChatModes: () => Object.values(CHAT_MODES),
   chatModeConfig: () => (mode) => CHAT_MODES[mode] || CHAT_MODES.chat,
@@ -313,7 +321,7 @@ export const actions = actionTree(
     async loadChats({ state }) {
       const activeProject = $storex.projects.activeProject
       if (!activeProject?.$api) return
-      
+
       const chats = await activeProject.$api.chats.list()
       chats.forEach(chat => registerChatSummary(state, chat))
     },
@@ -358,7 +366,7 @@ export const actions = actionTree(
     },
     async searchChats({ state }, options = {}) {
       let searchRequest
-      
+
       if (options instanceof ChatSearchRequest) {
         searchRequest = options
       } else {
@@ -443,7 +451,7 @@ export const actions = actionTree(
     },
     async loadUninitialized({ state }, chat) {
       if (!chat?.id) return null
-      
+
       const storedChat = state.chats[chat.id]
       if (!storedChat) return null
 
@@ -550,12 +558,12 @@ export const actions = actionTree(
       if (!chat?.id) return
       if (!message.content) {
         throw new Error("No empty messages allowed")
-      } 
+      }
       const project = getChatProject(chat)
-      
+
       try {
         const updatedChat = await project.$api.chats.addMessage(chat.id, message)
-        
+
         if (updatedChat && updatedChat.messages) {
           state.chats[chat.id].messages = updatedChat.messages
           // Update lastMessageAt with the latest message timestamp
@@ -565,7 +573,7 @@ export const actions = actionTree(
             $storex.chats.updateChatLastMessageAt({ chatId: chat.id, timestamp })
           }
         }
-        
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to add message:', error)
@@ -579,11 +587,11 @@ export const actions = actionTree(
 
       try {
         const updatedChat = await project.$api.chats.removeMessage(chat.id, messageDocId)
-        
+
         if (updatedChat && updatedChat.messages) {
           state.chats[chat.id].messages = updatedChat.messages
         }
-        
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to remove message:', error)
@@ -602,7 +610,7 @@ export const actions = actionTree(
         const updatedChat = await project.$api.chats.updateMessage(chat.id, message)
         registerChat(state, updatedChat)
         $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-        
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to update message:', error)
@@ -669,11 +677,11 @@ export const actions = actionTree(
 
       try {
         const updatedChat = await project.$api.chats.updateMetadata(chat.id, updates)
-        
+
         if (updatedChat && state.chats[chat.id]) {
           Object.assign(state.chats[chat.id], updates)
         }
-        
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to update chat info:', error)
@@ -692,14 +700,14 @@ export const actions = actionTree(
       }
 
       const project = getChatProject(chat)
-      
+
       try {
         const response = await project.$api.chats.markMessageAsSeen({
           chat_id,
           message_id,
           username
         })
-        
+
         if (response && chat.messages) {
           const messageIndex = chat.messages.findIndex(m => m.doc_id === message_id)
           if (messageIndex !== -1) {
@@ -712,7 +720,7 @@ export const actions = actionTree(
             }
           }
         }
-        
+
         return response
       } catch (error) {
         console.error('[chats store] Failed to mark message as seen:', error)
@@ -899,11 +907,19 @@ export const actions = actionTree(
           }
         }
       }
-      let column = $storex.projects.allBoards
-                        .find(({ title }) => title === boardTitle).columns.find(({ title }) => title === columnTitle)
+      // The board may be missing from the kanban state, have no columns yet, or
+      // not have the target column — never assume the lookups resolve, a chat
+      // must still be created when the board layout is incomplete.
+      const board = $storex.projects.allBoards.find(({ title }) => title === boardTitle)
+      let column = board?.columns?.find(({ title }) => title === columnTitle)
       if (!column) {
+        const boardState = $storex.projects.kanban.boards[boardTitle] || { columns: [] }
+        boardState.columns = [...(boardState.columns || []), newColumn]
+        $storex.projects.kanban.boards = {
+          ...$storex.projects.kanban.boards,
+          [boardTitle]: boardState
+        }
         column = newColumn
-        $storex.projects.kanban.boards[boardTitle].columns.push(column)
       }
 
       const newChat = await $storex.chats.createNewChat({
@@ -915,34 +931,6 @@ export const actions = actionTree(
       column.chats = [...column?.chats || [], newChat.id]
       $storex.projects.saveKanban($storex.projects.kanban)
       return newChat
-    },
-    async createNewThread(_, { chat, mode, message }) {
-      const { files, profiles, doc_id: subtaskMessageId } = message
-      const findChild = $storex.chats.allChats.find(c => c.message_id === subtaskMessageId)
-
-      if (!findChild) {
-        const boardTitle = chat.board
-        const columnTitle = chat.column
-        await $storex.chats.createNewBoardChat({
-          boardTitle, columnTitle,
-          chat: {
-            parent: chat,
-            name: `${subtaskMessageId} - thread`,
-            project_id: chat.project_id,
-            parent_id: chat.parent_id,
-            message_id: subtaskMessageId,
-            file_list: files,
-            profiles: profiles,
-            mode,
-            board: chat.board,
-            column: chat.column,
-            activateChat: true,
-            messages: [{ ...message, doc_id: null }]
-          }
-        })
-      } else {
-        await $storex.chats.setActiveChat(findChild)
-      }
     },
     // Mark a chat as "processing" the moment the user sends a message, before
     // the server streams its first chunk back. This gives immediate UI feedback
@@ -1005,17 +993,17 @@ export const actions = actionTree(
     },
     async getChatProfiles({}, chat) {
       if (!chat?.id) return []
-      
+
       const projectId = chat.project_id || chat.owner_project_id
       if (!projectId) return []
-      
+
       const project = $storex.projects.allProjectsById[projectId]
       if (!project) return []
-      
+
       if (!$storex.profiles.profilesByProject[projectId]) {
         await $storex.profiles.loadProjectProfiles(project)
       }
-      
+
       return $storex.profiles.profilesByProject[projectId] || []
     },
     async updateChatStatus({ state }, { chat, status }) {
@@ -1025,50 +1013,72 @@ export const actions = actionTree(
 
       try {
         const updatedChat = await project.$api.chats.updateMetadata(chat.id, { status })
-        
+
         if (updatedChat && state.chats[chat.id]) {
           state.chats[chat.id].status = updatedChat.status
         }
-        
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to update chat status:', error)
       }
     },
-    async createNewThread(_, { chat, mode, message }) {
-      const { files, profiles, doc_id: subtaskMessageId } = message
-      const findChild = $storex.chats.allChats.find(c => c.message_id === subtaskMessageId)
+    // ── Threads ─────────────────────────────────────────────────────────────
+    // A thread is a chat bound to ONE message of its parent chat:
+    //   parent_id  → the chat that owns the message
+    //   message_id → the message the thread answers
+    // Creating is idempotent: when a thread already exists for that message it
+    // is just opened. The thread starts empty, so creating it never triggers a
+    // model run — the user writes the first thread message.
+    async createNewThread({ getters }, { chat, mode, message }) {
+      if (!chat?.id) return null
 
-      // Thread already exists -> just open it
-      if (findChild) {
-        await $storex.chats.setActiveChat(findChild)
-        return findChild
+      const messageId = message?.doc_id || message?.id
+      if (!messageId) return null
+
+      // Prefer a child of this chat, then any already loaded chat bound to the
+      // same message (covers threads created before parent_id was set right).
+      const existingThread = getters.chatChildren(chat.id)
+        .find(c => c.message_id === messageId) ||
+        $storex.chats.allChats.find(c => c.message_id === messageId)
+
+      if (existingThread) {
+        await $storex.chats.setActiveChat(existingThread)
+        return existingThread
       }
 
-      const boardTitle = chat.board
-      const columnTitle = chat.column
-      const newChat = await $storex.chats.createNewBoardChat({
-        boardTitle, columnTitle,
-        chat: {
-          name: `${subtaskMessageId} - thread`,
-          owner_project_id: chat.owner_project_id || chat.project_id,
-          project_id: chat.project_id || chat.owner_project_id,
-          parent_id: chat.id,
-          message_id: subtaskMessageId,
-          file_list: files,
-          profiles: profiles,
-          mode: mode || chat.mode || 'chat',
-          board: chat.board,
-          column: chat.column,
-          activateChat: true,
-          messages: [{ ...message, doc_id: null }]
-        }
-      })
+      const threadData = {
+        name: threadChatName(message),
+        mode: mode || chat.mode || 'chat',
+        parent_id: chat.id,
+        message_id: messageId,
+        owner_project_id: chat.owner_project_id || chat.project_id,
+        project_id: chat.project_id || chat.owner_project_id,
+        board: chat.board,
+        column: chat.column,
+        file_list: [...(chat.file_list || [])],
+        profiles: [...(chat.profiles || [])],
+        messages: []
+      }
 
-      // A thread must actually run like a task: without this the new thread
-      // chat is created empty and no task/answer is generated.
-      await $storex.projects.chatWihProject(newChat)
-      return newChat
+      // Threads live in the same board/column as their parent so they stay in
+      // the same kanban context. Chats without a board are still created (and
+      // opened) — they just don't show up as a card.
+      const threadChat = chat.board
+        ? await $storex.chats.createNewBoardChat({
+            boardTitle: chat.board,
+            columnTitle: chat.column,
+            chat: threadData
+          })
+        : await $storex.chats.createNewChat(threadData)
+
+      if (!threadChat) return null
+
+      // createNewBoardChat already activates the new chat
+      if (!chat.board) {
+        await $storex.chats.setActiveChat(threadChat)
+      }
+      return threadChat
     },
   }
 )

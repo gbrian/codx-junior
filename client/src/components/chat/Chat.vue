@@ -60,7 +60,11 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
     <!-- Normal Chat Content -->
     <template v-else>
 
-      <Collapsible :defaultOpen="false" class="w-full">
+      <!-- ── Files + profiles strip ──
+           Hidden on mobile while the chat header details panel is collapsed
+           (`hideFilesHeader`, owned by ChatView) so the reading area keeps the
+           vertical space. Always rendered on desktop / expanded mobile. -->
+      <Collapsible v-if="!hideFilesHeader" :defaultOpen="false" class="w-full">
         <!-- Icon -->
         <template #icon>
           <span></span>
@@ -291,7 +295,10 @@ export default {
     'childrenChats',
     'readOnly',
     'message',
-    'input-only'
+    'input-only',
+    // Mobile: hide the files/profiles strip while the chat header details panel
+    // is collapsed (see ChatView), so the reading area keeps the vertical space.
+    'hideFilesHeader'
   ],
   data() {
     return {
@@ -335,7 +342,9 @@ export default {
       uploadContext: null,
       MAX_IMAGE_SIZE_MB: 50,
       dragCounter: 0,
-      inputCollapsed: false
+      inputCollapsed: false,
+      // In-flight attachment conversions (FileReader) — see flushPendingAttachments()
+      attachmentTasks: []
     }
   },
   created() {
@@ -505,9 +514,6 @@ export default {
     initProject() {
       this.$projects.initProjectState(this.chatProject)
     },
-    // Detect files referenced by a message using the shared extractor so that
-    // BOTH legacy ```lang /path/to/file fences and CODX sentinel file blocks
-    // (@@ CODX_FILE @@ … @@ CODX_END @@) are recognized.
     extractFilesFromCodeBlocks(content) {
       return extractCodeBlocks(content)
         .map(block => block.filePath)
@@ -648,10 +654,28 @@ export default {
       return validImageFiles.length > 0
     },
     async onUploadFiles(files) {
+      // Reading the file is asynchronous (FileReader). Keep the task around so a
+      // save triggered right after stopping a recording can wait for it instead
+      // of dropping the attachment.
+      const task = this.addAttachmentsFromFiles(files)
+      this.attachmentTasks.push(task)
+      try {
+        await task
+      } finally {
+        this.attachmentTasks = this.attachmentTasks.filter(t => t !== task)
+      }
+    },
+    async addAttachmentsFromFiles(files) {
       for (const file of files) {
         const attachment = await this.prepareAttachmentFromFile(file)
-        if (attachment) this.attachments.push(attachment)
+        if (attachment) this.attachments = [...this.attachments, attachment]
       }
+    },
+    // A voice note stopped right before saving may still be being read.
+    // Never persist (or post) a message before its attachments are ready.
+    async flushPendingAttachments() {
+      if (!this.attachmentTasks.length) return
+      await Promise.allSettled([...this.attachmentTasks])
     },
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)
@@ -862,20 +886,33 @@ export default {
       this.previousEditorText = ''
     },
     async updateMessage() {
+      const message = this.editMessage
+      if (!message?.doc_id) return
+      // A voice note stopped right before clicking Edit may still be being read:
+      // wait for it, otherwise the audio is dropped from the saved message.
+      await this.flushPendingAttachments()
       const content = this.$refs.inputBox?.getEditorText() ?? ''
       const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.chatSvc.updateExistingMessage({
-        chat: this.chat,
-        doc_id: this.editMessage.doc_id,
-        update: {
-          content,
-          profiles,
-          files,
-          attachments: this.attachments.map(a => a.toJSON?.() || a),
-          updated_at: new Date().toISOString()
-        }
-      })
+      try {
+        await this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id: message.doc_id,
+          update: {
+            content,
+            profiles,
+            files,
+            attachments: this.attachments.map(a => a.toJSON?.() || a),
+            updated_at: new Date().toISOString()
+          }
+        })
+      } catch (error) {
+        // Stay in edit mode (attachments included) so the user can retry
+        // instead of silently losing the recorded audio.
+        console.error('[chat] Failed to update message', error)
+        this.$ui?.addNotification?.({ text: 'Failed to save the message, please retry', type: 'error' })
+        return
+      }
       this.onResetEdit()
     },
     toggleHide({ doc_id, is_answer, hide }) {
@@ -947,6 +984,8 @@ export default {
       this.previousEditorText = ''
     },
     async addNewMessage({ task_item } = {}) {
+      // Never post without a voice note that is still being read
+      await this.flushPendingAttachments()
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
         await this.updateMessage()

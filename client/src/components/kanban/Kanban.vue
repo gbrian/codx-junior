@@ -105,6 +105,19 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           </button>
         </div>
 
+        <!-- Board wall: recap of the tasks and events of THIS board.
+             It opens as its own Activity panel, exactly like a task opens its
+             chat panel (both go through the shared app opener). -->
+        <button
+          class="btn btn-ghost btn-sm shrink-0 gap-1.5 tooltip tooltip-bottom"
+          data-tip="Board wall"
+          aria-label="Board wall"
+          @click="openBoardWall"
+        >
+          <i class="fa-solid fa-newspaper"></i>
+          <span class="hidden md:inline text-xs">Wall</span>
+        </button>
+
         <!-- More options dropdown (desktop) -->
         <div class="hidden sm:block dropdown dropdown-left">
           <button class="btn btn-sm tooltip tooltip-bottom" data-tip="More options">
@@ -420,6 +433,20 @@ export default {
     }
   },
   methods: {
+    // Board wall: opens the Activity app scoped to THIS board. It uses the same
+    // opener a task uses to show its chat (`$storex.ui.openApp`), so the wall is
+    // docked as its own panel next to the board instead of covering it — and it
+    // keeps working the same way in single/mobile mode (app route).
+    openBoardWall() {
+      if (!this.board) return
+      this.$storex.ui.openApp({
+        appKey: 'activity',
+        payload: {
+          board: this.board,
+          project: this.project || this.$projects.activeProject
+        }
+      })
+    },
     async setActiveChat(chat) {
       chat && this.$chats.reloadChat(chat)
       this.$chats.setActiveChat(chat)

@@ -56,6 +56,7 @@ import MarkdownIt from 'markdown-it'
 import { full as emoji } from 'markdown-it-emoji'
 import highlight from 'markdown-it-highlightjs'
 import Modal from './Modal.vue'
+import parser from '@/utils/markdownParser'
 
 function createMd(documentId) {
   const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
@@ -161,7 +162,9 @@ export default {
           .replace('```thymeleaf', '```html')
           .replace('```md', '')
       }
-      return text
+      // <file_change> envelopes are rendered as regular fenced code blocks so
+      // they get syntax highlighting and a scroll anchor like legacy fences.
+      return parser.fileChangeBlocksToFences(text)
     }
   },
   watch: {

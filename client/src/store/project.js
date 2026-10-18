@@ -646,17 +646,17 @@ export const actions = actionTree(
           projectName
         })
 
+        const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
+
         try {
-          const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
           overlay?.markStepLoading('fetch')
-          
           await API.setActiveProject(project)
           overlay?.completeStep('fetch', 'Settings loaded')
-          
+
           overlay?.markStepLoading('settings')
           const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
           if (!existsProject) {
-            await $storex.projects.setAllProjects([...state.activeProjects, API.activeProject])
+            await $storex.projects.setAllProjects([...state.allProjects, API.activeProject])
           }
           
           const newActiveProject = state.allProjectsById[API.activeProject.project_id]
@@ -665,18 +665,25 @@ export const actions = actionTree(
           
           overlay?.completeStep('settings', 'Config ready')
 
+          // ── Chat list: AWAITED ────────────────────────────────────────────
+          // `/api/chats` brings the whole chat tree of the project and every
+          // chat-driven surface (board columns, task cards, chat sidebar, the
+          // restored desktop panels) resolves its data from `chats.chats`.
+          // Loading it in the background released the shell with those
+          // components empty, so the activation waits for it: the project must
+          // be shown only when its data is complete.
+          overlay?.markStepLoading('chats')
+          $storex.chats.clearChats()
+          await $storex.chats.loadChats()
+          overlay?.completeStep('chats', `${$storex.chats.allChats.length} chats loaded`)
+
           overlay?.markStepLoading('models')
           const models = await API.projects.ai.models.list()
           state.ai = { ...state.activeProject.$state.ai, models }
           overlay?.completeStep('models', `${models.length} models loaded`)
 
-          overlay?.markStepLoading('chats')
-          // Clear previous chats and load only active project chats
-          $storex.chats.clearChats()
-          await $storex.chats.loadChats()
-          overlay?.completeStep('chats', 'Chats loaded')
-
-          // ── Notify kanban store about project change ──
+          // Boards are resolved from the chat list (`chats.chats`), so they are
+          // loaded once the chats are in place — sequentially, not in parallel.
           await $storex.kanban.onActiveProjectChanged()
 
           $storex.projects.addRecentProject(state.activeProject)

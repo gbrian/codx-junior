@@ -2336,7 +2336,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-15 12:27:36.986091",
-      "updated_at": "2026-10-15T12:28:25.495414",
+      "updated_at": "2026-10-18T08:02:09.850636",
       "attachments": [],
       "files": [],
       "meta_data": {
@@ -2416,13 +2416,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-01 12:17:10.447635",
-  "updated_at": "2026-10-15T12:28:29.393453",
+  "updated_at": "2026-10-18T08:02:09.859784",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

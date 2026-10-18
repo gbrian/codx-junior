@@ -8,12 +8,15 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 <template>
   <div
     class="h-auto border border-base-100 rounded-xl flex flex-col shadow-sm"
-    :class="isMobile ? 'px-3 py-2 gap-2' : 'px-6 py-3 gap-3'"
+    :class="isMobile ? 'px-2 py-1 gap-2' : 'px-6 py-3 gap-3'"
   >
     <!-- ═══════════════════════ MOBILE ═══════════════════════ -->
+    <!-- Collapsed by default: only back • title • details toggle, so the chat
+         keeps the vertical space. Every other control (breadcrumb, project,
+         status, cost, counters, tags, flags, actions) lives in the panel that
+         opens with the toggle. -->
     <template v-if="isMobile">
-      <!-- Compact row: back • title • status • cost • details toggle -->
-      <div class="flex items-center gap-1.5 min-w-0">
+      <div class="flex items-center gap-1 min-w-0">
         <button
           class="btn btn-ghost btn-sm btn-circle shrink-0"
           @click="$emit('back')"
@@ -45,69 +48,47 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           </button>
         </div>
 
-        <!-- Template indicator -->
-        <span v-if="chat.is_template" class="badge badge-warning badge-sm shrink-0" title="This is a template">
-          <i class="fa-solid fa-star text-xs"></i>
-        </span>
-
-        <!-- Compact status -->
-        <ChatStatusSelector
-          class="shrink-0"
-          compact
-          :status="chat.status"
-          @status-changed="onStatusChanged"
-        />
-
-        <!-- Cost is always visible on mobile (chip doubles as the budget editor) -->
-        <ChatCostSelector
-          class="shrink-0"
-          variant="chip"
-          :cost="chat.cost || 0"
-          :estimation-cost="chat.estimation_cost"
-          @cost-changed="$emit('cost-changed', $event)"
-        />
-
         <!-- Details toggle -->
         <button
           class="btn btn-ghost btn-sm btn-circle shrink-0"
-          @click="showMobileDetails = !showMobileDetails"
-          :title="showMobileDetails ? 'Hide chat details' : 'Show chat details'"
-          :aria-expanded="showMobileDetails"
+          @click="$emit('toggle-mobile-details', !mobileExpanded)"
+          :title="mobileExpanded ? 'Hide chat details' : 'Show chat details'"
+          :aria-expanded="mobileExpanded"
           aria-label="Toggle chat details"
         >
-          <i :class="showMobileDetails ? 'fa-solid fa-chevron-up' : 'fa-solid fa-sliders'"></i>
+          <i :class="mobileExpanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-sliders'"></i>
         </button>
       </div>
 
-      <!-- Subtle breadcrumb (only when nested) -->
+      <!-- Expandable details panel -->
       <div
-        v-if="breadcrumb.length"
-        class="flex items-center gap-1 text-xs text-base-content/50 min-w-0 overflow-hidden"
-      >
-        <button
-          @click="$emit('select-breadcrumb', rootChat)"
-          :title="rootChat.name"
-          class="text-primary truncate hover:text-primary/80 focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 outline-none whitespace-nowrap max-w-24"
-        >
-          {{ rootChat.name }}
-        </button>
-        <template v-for="(ancestor, idx) in breadcrumb" :key="ancestor.id">
-          <i class="fa-solid fa-chevron-right text-[10px] opacity-40 shrink-0"></i>
-          <button
-            @click="$emit('select-breadcrumb', ancestor)"
-            :title="ancestor.name"
-            class="truncate hover:text-primary focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 outline-none whitespace-nowrap max-w-24"
-          >
-            {{ ancestor.name }}
-          </button>
-        </template>
-      </div>
-
-      <!-- Collapsible details panel (shown on demand) -->
-      <div
-        v-show="showMobileDetails"
+        v-show="mobileExpanded"
         class="flex flex-col gap-3 pt-3 border-t border-base-300"
       >
+        <!-- Breadcrumb (only when nested) -->
+        <div
+          v-if="breadcrumb.length"
+          class="flex items-center gap-1 text-xs text-base-content/50 min-w-0 overflow-hidden"
+        >
+          <button
+            @click="$emit('select-breadcrumb', rootChat)"
+            :title="rootChat.name"
+            class="text-primary truncate hover:text-primary/80 focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 outline-none whitespace-nowrap max-w-24"
+          >
+            {{ rootChat.name }}
+          </button>
+          <template v-for="(ancestor, idx) in breadcrumb" :key="ancestor.id">
+            <i class="fa-solid fa-chevron-right text-[10px] opacity-40 shrink-0"></i>
+            <button
+              @click="$emit('select-breadcrumb', ancestor)"
+              :title="ancestor.name"
+              class="truncate hover:text-primary focus:ring-2 focus:ring-primary/50 rounded px-1 py-0.5 outline-none whitespace-nowrap max-w-24"
+            >
+              {{ ancestor.name }}
+            </button>
+          </template>
+        </div>
+
         <!-- Project -->
         <div class="flex flex-wrap items-center gap-2">
           <ProjectDetailt
@@ -118,11 +99,18 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           />
         </div>
 
-        <!-- Status + Messages -->
+        <!-- Status + Cost + Messages -->
         <div class="flex flex-wrap items-center gap-2">
           <ChatStatusSelector
             :status="chat.status"
             @status-changed="onStatusChanged"
+          />
+          <ChatCostSelector
+            class="shrink-0"
+            variant="chip"
+            :cost="chat.cost || 0"
+            :estimation-cost="chat.estimation_cost"
+            @cost-changed="$emit('cost-changed', $event)"
           />
           <button
             @click="$emit('toggle-hidden')"
@@ -384,7 +372,10 @@ export default {
     hiddenCount: { type: Number, default: 0 },
     showHidden: { type: Boolean, default: false },
     isSelectedChatChild: { type: Boolean, default: false },
-    targetProject: { type: Object, default: null }
+    targetProject: { type: Object, default: null },
+    // Mobile only: the details panel is controlled by the parent so it can hide
+    // other mobile chrome (e.g. the chat files strip) while collapsed.
+    mobileExpanded: { type: Boolean, default: false }
   },
   emits: [
     'update-name',
@@ -404,13 +395,13 @@ export default {
     'status-changed',
     'cost-changed',
     'back',
-    'show-sidebar'
+    'show-sidebar',
+    'toggle-mobile-details'
   ],
   data() {
     return {
       editingTitle: false,
-      workingChatName: '',
-      showMobileDetails: false
+      workingChatName: ''
     }
   },
   computed: {

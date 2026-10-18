@@ -157,144 +157,169 @@ function isNestedAnonymousFence(lines, index, currentType, currentFence) {
 }
 
 /**
- * CODX file block syntax
+ * File change XML syntax
  * -------------------------------------------------------------------------
- * In addition to legacy ```lang path fences, markdown may carry code blocks
- * using sentinel lines:
+ * In addition to legacy ```lang path fences, markdown may carry file blocks
+ * wrapped in an XML envelope:
  *
- *   @@ CODX_FILE @@
- *   path: <project-relative path>
- *   language: <language id>
- *   change_type: <new|update|delete>
- *   encoding: text
- *   @@ CODX_CONTENT @@
- *   <full file content, verbatim - may itself contain code fences>
- *   @@ CODX_END @@
+ *   <file_change path="<project-relative path>" language="<language id>" change_type="<new|update|delete>" encoding="text">
+ *   <full file content, verbatim - may itself contain code fences or headings>
+ *   <file_change/>
  *
- * The body between CONTENT and END is taken verbatim, so nested ``` fences
- * (and even heading-looking lines) never leak out of the block.
+ * The body is taken verbatim, so nested ``` fences (and even heading-looking
+ * lines) never leak out of the block. Both the self-closing `<file_change/>`
+ * and the regular `</file_change>` closing tags are accepted, and attributes
+ * may omit the `=` (`change_type"update"`) since models frequently drop it.
  */
 
+// Opening tag: <file_change + at least one attribute on the same line
+const FILE_CHANGE_OPEN_REGEX = /^<file_change\s/i
+// Closing tag: <file_change/>, <file_change /> or </file_change>
+const FILE_CHANGE_CLOSE_REGEX = /^<\/?file_change\s*\/?>\s*$/i
+// Attributes: key="value" or key"value" (missing '=')
+const FILE_CHANGE_ATTR_REGEX = /([A-Za-z_][\w-]*)\s*(?:=\s*)?"([^"]*)"/g
+
 /**
- * Detect one of the sentinel markers on a single line.
- * Returns 'file' | 'content' | 'end' | null
+ * Parse the attributes of a `<file_change ...>` opening tag.
+ * Keys are normalized to snake_case so `change-type`, `change_type` and
+ * `changeType` all resolve to the same entry.
  */
-function getCodedFileMarkers(line) {
-  if (line?.indexOf('@') !== 0) return null
-  const match = line.trim().match(/^@{2}\s+CODX_(FILE|CONTENT|END)\s+@{2}$/)
-  if (!match) return null
-  if (match[1] === 'FILE') return 'file'
-  if (match[1] === 'CONTENT') return 'content'
-  return 'end'
+function parseFileChangeAttributes(line) {
+  const attrs = {}
+  if (!line) return attrs
+  FILE_CHANGE_ATTR_REGEX.lastIndex = 0
+  let match
+  while ((match = FILE_CHANGE_ATTR_REGEX.exec(line))) {
+    const key = match[1].toLowerCase().replace(/-/g, '_')
+    attrs[key] = match[2]
+  }
+  return attrs
 }
 
 /**
- * Parse a single "key: value" metadata line found between FILE and CONTENT
+ * Detect a `<file_change ...>` opening tag and return its attributes.
+ * Returns null when the line is not an opening tag.
  */
-function parseCodedFileMetaLine(line) {
-  const match = line.match(/^\s*([A-Za-z_][\w-]*)\s*:\s*(.*?)\s*$/)
-  if (!match) return null
-  return { key: match[1].toLowerCase().replace(/-/g, '_'), value: match[2] }
+function getFileChangeOpenTag(line) {
+  if (!line) return null
+  if (!FILE_CHANGE_OPEN_REGEX.test(line.trim())) return null
+  return parseFileChangeAttributes(line)
 }
 
 /**
- * Parse a full CODX file block starting at `startIndex` (the FILE marker).
- *
- * Returns { block, endIndex } where `endIndex` is the last consumed line so
- * the caller can resume right after it. Returns null when the start marker is
- * immediately followed by another FILE marker (malformed nested start).
- *
- * Streaming friendly: when CONTENT/END markers are missing the block is
- * emitted as unfinished with whatever content has arrived so far.
+ * A closing marker is the whole line, either self-closed (`<file_change/>`)
+ * or as a regular end tag (`</file_change>`).
  */
-function parseCodedFileBlock(lines, startIndex, getRendererFn = getRenderer) {
-  const meta = {}
-  let i = startIndex + 1
-  let contentStart = -1
-  let contentEnd = -1
+function isFileChangeCloseTag(line) {
+  if (!line) return false
+  return FILE_CHANGE_CLOSE_REGEX.test(line.trim())
+}
 
-  // Read metadata until the CONTENT or END marker
-  while (i < lines.length) {
-    const marker = getCodedFileMarkers(lines[i])
-    if (marker === 'content') {
-      contentStart = i + 1
+/**
+ * Parse a full `<file_change>` envelope starting at `startIndex` (the open tag).
+ *
+ * Returns { block, endIndex } where `endIndex` is the index of the closing
+ * marker line (or the last available line while the block is still streaming).
+ * Streaming friendly: a block whose closing marker has not arrived yet yields
+ * whatever content is available so far with finished=false.
+ */
+function parseFileChangeBlock(lines, startIndex, getRendererFn = getRenderer) {
+  const attrs = parseFileChangeAttributes(lines[startIndex])
+
+  let endIndex = lines.length
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    if (isFileChangeCloseTag(lines[i])) {
+      endIndex = i
       break
     }
-    if (marker === 'end') {
-      // Empty body: the CONTENT marker was omitted
-      contentStart = i
-      contentEnd = i
-      break
-    }
-    if (marker === 'file') {
-      // Malformed: a new block opened before this one closed
-      return null
-    }
-    const parsed = parseCodedFileMetaLine(lines[i])
-    if (parsed) meta[parsed.key] = parsed.value
-    i++
   }
 
-  if (contentStart === -1) {
-    // Metadata still streaming - no CONTENT marker yet
-    contentStart = lines.length
-    contentEnd = lines.length
-  } else if (contentEnd === -1) {
-    // Find the END marker from the content start
-    for (let j = contentStart; j < lines.length; j++) {
-      if (getCodedFileMarkers(lines[j]) === 'end') {
-        contentEnd = j
-        break
-      }
-    }
-    if (contentEnd === -1) contentEnd = lines.length
-  }
-
-  const finished = contentEnd < lines.length
-  const content = lines.slice(contentStart, contentEnd).join('\n')
-  const language = meta.language || 'text'
-  const fileName = meta.path || generateFileName(language)
+  const finished = endIndex < lines.length
+  const content = lines.slice(startIndex + 1, endIndex).join('\n')
+  const language = attrs.language || 'text'
+  const filePath = attrs.path || attrs.file || ''
+  const fileName = filePath || generateFileName(language)
 
   const block = {
     type: language,
     content,
-    hash: generateHash(content),
+    // Finished blocks hash by content (stable once closed); open blocks hash
+    // by structural identity so the Vue :key does not change while streaming.
+    hash: finished ? generateHash(content) : generateHash(`${language}:${fileName}`),
     fileName,
+    filePath,
     renderer: getRendererFn(language, fileName),
     finished,
-    // Marks a block that came from the sentinel syntax (always rendered as code)
+    // Marks a block that came from the XML envelope (always rendered as code)
     isFileBlock: true,
-    fileChangeType: meta.change_type || '',
-    encoding: meta.encoding || 'text'
+    fileChangeType: attrs.change_type || 'update',
+    encoding: attrs.encoding || 'text'
   }
 
-  return { block, endIndex: finished ? contentEnd : lines.length - 1 }
+  return { block, endIndex: finished ? endIndex : lines.length - 1 }
+}
+
+/**
+ * Rewrite every `<file_change>` envelope into a standard fenced code block so
+ * plain markdown renderers (markdown-it) display it highlighted, with the same
+ * file path info string used by legacy blocks.
+ *
+ * The fence length adapts to the body, so nested ``` fences stay verbatim
+ * inside the generated block.
+ */
+function fileChangeBlocksToFences(content) {
+  if (!content || typeof content !== 'string') return content
+
+  const lines = content.split('\n')
+  const output = []
+  let i = 0
+
+  while (i < lines.length) {
+    if (!getFileChangeOpenTag(lines[i])) {
+      output.push(lines[i])
+      i++
+      continue
+    }
+
+    const { block, endIndex } = parseFileChangeBlock(lines, i)
+    const longestRun = (block.content.match(/`{3,}/g) || [])
+      .reduce((max, run) => Math.max(max, run.length), 0)
+    const fence = '`'.repeat(Math.max(3, longestRun + 1))
+    const info = [block.type, block.filePath].filter(Boolean).join(' ')
+
+    output.push(`${fence}${info}`)
+    if (block.content.length) output.push(block.content)
+    output.push(fence)
+
+    i = endIndex + 1
+  }
+
+  return output.join('\n')
 }
 
 /**
  * Check if position is inside a code fence (any nesting level) OR inside a
- * CODX file block (whose body is verbatim and must not be re-parsed).
+ * `<file_change>` envelope (whose body is verbatim and must not be re-parsed).
  */
 function isInsideCodeFence(lines, lineIndex) {
   let currentFence = null
   let nestStack = []
-  let inCodedFile = false
+  let inFileChange = false
 
   for (let i = 0; i < lineIndex; i++) {
     const line = lines[i]
-    const marker = getCodedFileMarkers(line)
 
-    if (inCodedFile) {
-      // Inside a CODX block everything is verbatim until the END marker,
+    if (inFileChange) {
+      // Inside an envelope everything is verbatim until the closing marker,
       // including nested fences and heading-looking lines.
-      if (marker === 'end') inCodedFile = false
+      if (isFileChangeCloseTag(line)) inFileChange = false
       continue
     }
 
-    // A CODX FILE marker only opens a block when we are not already inside a
+    // An opening tag only starts a block when we are not already inside a
     // legacy fence (mirrors parseBlocks, where fences win inside code blocks).
-    if (marker === 'file' && !currentFence) {
-      inCodedFile = true
+    if (!currentFence && getFileChangeOpenTag(line)) {
+      inFileChange = true
       continue
     }
 
@@ -323,7 +348,7 @@ function isInsideCodeFence(lines, lineIndex) {
     }
   }
 
-  return !!currentFence || inCodedFile
+  return !!currentFence || inFileChange
 }
 
 /**
@@ -335,9 +360,10 @@ function isInsideCodeFence(lines, lineIndex) {
  *   plain content. Only the matching closing fence ends the block.
  * - Markdown blocks (type='markdown') also treat inner fences as content.
  * - A closing fence must match the OUTER opening fence character and length.
- * - CODX sentinel blocks (@@ CODX_FILE @@ ... @@ CODX_END @@) are
- *   parsed as verbatim file blocks: their body may contain fences and headings
- *   without affecting the surrounding markdown.
+ * - `<file_change ...> ... <file_change/>` envelopes are parsed as verbatim
+ *   file blocks: their body may contain fences and headings without affecting
+ *   the surrounding markdown. Legacy ```lang path fences keep working as
+ *   fallback.
  *
  * NESTED BLOCK DEPTH TRACKING:
  * - When a named inner fence opens inside a code block, nestDepth increases.
@@ -410,19 +436,17 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
 
-    // CODX file block takes priority when not already inside a legacy fence
-    if (!inCodeBlock && getCodedFileMarkers(line) === 'file') {
-      const coded = parseCodedFileBlock(lines, i, getRendererFn)
-      if (coded) {
-        if (blocks.length > 0) {
-          blocks[blocks.length - 1].finished = true
-        }
-        if (currentContent.length) addBlock(true)
-        blocks.push(coded.block)
-        blockIndex++
-        i = coded.endIndex
-        continue
+    // <file_change> envelope takes priority when not already inside a fence
+    if (!inCodeBlock && getFileChangeOpenTag(line)) {
+      if (blocks.length > 0) {
+        blocks[blocks.length - 1].finished = true
       }
+      if (currentContent.length) addBlock(true)
+      const fileChange = parseFileChangeBlock(lines, i, getRendererFn)
+      blocks.push(fileChange.block)
+      blockIndex++
+      i = fileChange.endIndex
+      continue
     }
 
     const fence = getFence(line)
@@ -482,7 +506,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     addBlock(false)
   }
 
-  // All blocks except the last are finished. CODX file blocks keep the
+  // All blocks except the last are finished. File change blocks keep the
   // finished flag resolved during parsing so an open (streaming) file block
   // is not force-completed.
   for (let i = 0; i < blocks.length - 1; i++) {
@@ -650,9 +674,11 @@ export default {
   isClosingFence,
   countClosingFencesAhead,
   isNestedAnonymousFence,
-  getCodedFileMarkers,
-  parseCodedFileMetaLine,
-  parseCodedFileBlock,
+  getFileChangeOpenTag,
+  isFileChangeCloseTag,
+  parseFileChangeAttributes,
+  parseFileChangeBlock,
+  fileChangeBlocksToFences,
   isInsideCodeFence,
   parseBlocks,
   collectAllChildContent,

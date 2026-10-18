@@ -37,9 +37,60 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
 
       <!-- Action buttons -->
       <div class="flex gap-2 items-center justify-end" v-if="!searching">
+        <!-- Voice note recorder.
+             Kept outside the edit/normal branches so an ongoing recording is
+             always visible and cancellable. The recording itself is owned by
+             ChatInputBox, which emits the resulting audio file as an attachment. -->
+        <template v-if="isRecording">
+          <span
+            class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-error/10 text-error text-xs font-medium tabular-nums"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+            {{ recordingLabel }}
+          </span>
+          <button
+            class="btn btn-sm btn-circle btn-primary tooltip"
+            data-tip="Attach voice note"
+            aria-label="Attach voice note"
+            @click="$emit('stop-voice-note')"
+          >
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+          <button
+            class="btn btn-sm btn-circle btn-ghost tooltip text-error"
+            data-tip="Cancel recording"
+            aria-label="Cancel recording"
+            @click="$emit('cancel-voice-note')"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </template>
+
+        <!-- Start recording.
+             Lives outside the edit/normal branches: an audio note can be recorded
+             both when composing a new message and when editing an existing one. -->
+        <button
+          class="btn btn-sm btn-circle tooltip"
+          data-tip="Record a voice note"
+          aria-label="Record a voice note"
+          :disabled="waiting || readOnly"
+          v-if="!isRecording"
+          @click="$emit('start-voice-note')"
+        >
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+
         <!-- Edit mode buttons -->
         <template v-if="isEditing">
-          <button class="btn btn-sm btn-info btn-outline" @click="$emit('send')">
+          <!-- Disabled while recording: saving now would drop the audio note that
+               is still being captured. -->
+          <button
+            class="btn btn-sm btn-info btn-outline"
+            :disabled="isRecording"
+            @click="$emit('send')"
+          >
             <i class="fa-solid fa-save"></i>
             <div class="text-xs">Edit</div>
           </button>
@@ -188,12 +239,16 @@ export default {
     images: { type: Array, default: () => [] },
     voiceLanguageLabel: String,
     profiles: { type: Array, default: () => [] },
-    selectedProfiles: { type: Array, default: () => [] }
+    selectedProfiles: { type: Array, default: () => [] },
+    // ── Voice note recorder (state owned by ChatInputBox) ──
+    isRecording: { type: Boolean, default: false },
+    recordingLabel: { type: String, default: '' }
   },
   emits: [
     'send', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected',
-    'file-selected', 'upload-files'
+    'file-selected', 'upload-files',
+    'start-voice-note', 'stop-voice-note', 'cancel-voice-note'
   ],
   data() {
     return {

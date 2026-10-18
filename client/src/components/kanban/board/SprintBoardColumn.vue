@@ -147,16 +147,25 @@ import SprintTaskCard from './SprintTaskCard.vue'
       </button>
     </div>
 
-    <!-- Tasks (sortable when `reorderable`) -->
+    <!--
+      Tasks (sortable when `reorderable`). The list is windowed: a column may
+      hold hundreds of tasks and only the cards inside the render window are
+      mounted, so a board with many tasks stays responsive. The window grows
+      while the user scrolls, keeping every rendered card at its real index
+      (drag & drop, drop indicators and reordering keep working unchanged).
+    -->
     <div
+      ref="taskList"
       class="flex flex-col gap-2 p-2 overflow-y-auto flex-1 min-h-0"
+      @scroll.passive="onTaskListScroll"
       @dragover.prevent="onTaskListDragOver"
       @drop.prevent="onTaskListDrop"
     >
       <div
-        v-for="(task, taskIndex) in localTasks"
+        v-for="(task, taskIndex) in visibleTasks"
         :key="task.id"
         class="group relative cursor-pointer"
+        :data-task-id="task.id"
         draggable="true"
         @dragstart="onTaskDragStart($event, task, taskIndex)"
         @dragend="onTaskDragEnd"
@@ -180,6 +189,22 @@ import SprintTaskCard from './SprintTaskCard.vue'
           @add-subtask="$emit('add-subtask', task)"
           @remove="$emit('remove-task', task)"
         />
+      </div>
+
+      <!--
+        Windowing footer: the cards outside the render window mount on demand
+        while scrolling. The button is the keyboard-accessible alternative for
+        the same action.
+      -->
+      <div v-if="hiddenTasksCount" class="flex items-center justify-center pt-0.5">
+        <button
+          class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary"
+          :title="`Show the remaining ${hiddenTasksCount} tasks`"
+          @click="renderMore(hiddenTasksCount)"
+        >
+          <i class="fa-solid fa-chevron-down text-xs"></i>
+          <span class="text-xs">{{ hiddenTasksCount }} more</span>
+        </button>
       </div>
 
       <!-- Empty column drop hint -->
@@ -221,6 +246,21 @@ const STATUS_BADGE_CLASSES = {
 // Maximum number of profiles rendered before the "+N" overflow avatar
 const MAX_VISIBLE_PROFILES = 4
 
+// Windowing of the task list: cards mounted on first paint and cards added per
+// scroll step. Keeps the DOM of a column bounded when a board holds hundreds of
+// tasks (mounting every card is what makes big boards slow).
+const INITIAL_RENDER_TASKS = 20
+const RENDER_CHUNK_TASKS = 20
+// Distance (px) from the bottom of the list that triggers the next chunk, so
+// cards are mounted slightly before they enter the viewport
+const SCROLL_LOAD_THRESHOLD_PX = 320
+
+// `profiles.list()` returns the same list for every column of a board, so a
+// board with many columns would otherwise fire one request per column. Share
+// and cache the lookup (scoped to the project, refreshed after a short time).
+const PROFILES_CACHE_MS = 30000
+let profilesCache = { key: null, at: 0, promise: null }
+
 export default {
   name: 'SprintBoardColumn',
   props: {
@@ -256,12 +296,25 @@ export default {
       maxVisibleProfiles: MAX_VISIBLE_PROFILES,
       // Profiles whose avatar URL failed to load (falls back to the initial)
       failedAvatars: {},
-      columnProfiles: []
+      columnProfiles: [],
+      // Number of tasks currently mounted (the render window). Grows while the
+      // user scrolls this column, see `onTaskListScroll`.
+      renderLimit: INITIAL_RENDER_TASKS,
+      // Scroll handler is throttled through requestAnimationFrame
+      scrollTicking: false
     }
   },
   computed: {
     tasks() {
       return this.column.tasks || []
+    },
+    // The mounted slice of the column. Keeping it a prefix means the rendered
+    // tasks keep their real index, so drag & drop / reordering are unaffected.
+    visibleTasks() {
+      return this.localTasks.slice(0, this.renderLimit)
+    },
+    hiddenTasksCount() {
+      return Math.max(0, this.localTasks.length - this.visibleTasks.length)
     },
     columnClasses() {
       const surface = this.hasBackground
@@ -284,6 +337,13 @@ export default {
     },
     overflowProfilesTitle() {
       return this.overflowProfiles.map(p => p.name).join(', ')
+    },
+    // Names of the profiles pre-selected on this column. Used as the watcher
+    // source so the avatars are resolved only when the list really changes.
+    profilesSignature() {
+      return (this.column.profiles || [])
+        .map(entry => (entry && typeof entry === 'object' ? entry.name : entry))
+        .join('|')
     },
 
     // Accumulated cost (cxj) of every task in this column
@@ -309,10 +369,31 @@ export default {
       handler(newTasks) {
         // Skip sync while actively dragging or while a reorder save is pending
         if (this.draggingTaskIndex !== null || this.pendingReorder) return
+        const previousCount = this.localTasks.length
         this.localTasks = [...newTasks]
+        this.syncRenderLimit(previousCount, newTasks.length)
+        this.$nextTick(this.fillViewport)
+      }
+    },
+    // Column profiles change rarely — resolve their avatars only when the list
+    // itself changes instead of on every task update of the column
+    profilesSignature: {
+      immediate: true,
+      handler() {
         this.loadColumnProfiles()
       }
+    },
+    // A task opened from outside (sidebar, search, another panel) must be part
+    // of the render window before it gets highlighted
+    selectedTaskId: {
+      immediate: true,
+      handler(taskId) {
+        this.revealTask(taskId)
+      }
     }
+  },
+  mounted() {
+    this.$nextTick(this.fillViewport)
   },
   methods: {
     formatCoins(val) {
@@ -320,6 +401,68 @@ export default {
       if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
       if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
       return Number(val).toFixed(2)
+    },
+
+    // ── Task list windowing ─────────────────────────────────────────────────
+    // Mount more cards when the user approaches the bottom of the list
+    onTaskListScroll(event) {
+      const el = event.target
+      // The handler reads scrollHeight (layout), so coalesce scroll bursts
+      if (this.scrollTicking) return
+      this.scrollTicking = true
+      requestAnimationFrame(() => {
+        this.scrollTicking = false
+        this.maybeRenderMore(el)
+      })
+    },
+    maybeRenderMore(el) {
+      if (this.renderLimit >= this.localTasks.length) return
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - SCROLL_LOAD_THRESHOLD_PX
+      if (nearBottom) this.renderMore()
+    },
+    // Extend the render window (scroll step, footer button)
+    renderMore(count = RENDER_CHUNK_TASKS) {
+      if (this.renderLimit >= this.localTasks.length) return
+      this.renderLimit = Math.min(this.localTasks.length, this.renderLimit + count)
+      this.$nextTick(this.fillViewport)
+    },
+    // Keep the window in sync with the task list: start with the initial chunk,
+    // keep it open on store updates and reveal cards appended to the column.
+    syncRenderLimit(previousCount, nextCount) {
+      const initial = Math.min(INITIAL_RENDER_TASKS, nextCount)
+      const added = Math.max(0, nextCount - previousCount)
+      // First load — or a different set of tasks (a filter/board was toggled):
+      // begin with the initial window instead of mounting the whole column
+      if (previousCount === 0 || added > RENDER_CHUNK_TASKS) {
+        this.renderLimit = initial
+        return
+      }
+      this.renderLimit = Math.min(nextCount, Math.max(this.renderLimit + added, initial))
+    },
+    // A short column may not fill its own height, so no scroll event would ever
+    // reveal the remaining cards. Grow the window until the list overflows.
+    fillViewport() {
+      const el = this.$refs.taskList
+      if (!el || this.renderLimit >= this.localTasks.length) return
+      if (el.scrollHeight > el.clientHeight + 8) return
+      this.renderLimit = Math.min(this.localTasks.length, this.renderLimit + RENDER_CHUNK_TASKS)
+      this.$nextTick(this.fillViewport)
+    },
+    // Make sure the given task is mounted (and visible) even when it sits below
+    // the current window
+    revealTask(taskId) {
+      if (!taskId) return
+      const index = this.localTasks.findIndex(t => t.id === taskId)
+      if (index < 0) return
+      if (index >= this.renderLimit) {
+        this.renderLimit = Math.min(this.localTasks.length, index + RENDER_CHUNK_TASKS)
+      }
+      this.$nextTick(() => this.scrollTaskIntoView(taskId))
+    },
+    scrollTaskIntoView(taskId) {
+      const nodes = this.$refs.taskList?.querySelectorAll('[data-task-id]') || []
+      const node = Array.from(nodes).find(n => n.dataset.taskId === taskId)
+      node?.scrollIntoView({ block: 'nearest' })
     },
 
     // ── Profile avatars ─────────────────────────────────────────────────────
@@ -447,10 +590,12 @@ export default {
       this.onTaskDragEnd()
     },
     onTaskListDragOver() {
-      // Dragging over the empty area at the bottom of the task list
-      if (this.draggingTaskIndex !== null) {
-        this.taskDropIndex = this.localTasks.length
-      }
+      // Dragging over the empty area at the bottom of the task list. With a
+      // partially rendered list the real end of the column is not visible, so
+      // no end-of-list drop target is offered (dropping on a card still works).
+      if (this.draggingTaskIndex === null) return
+      if (this.hiddenTasksCount) return
+      this.taskDropIndex = this.localTasks.length
     },
     onTaskListDrop(event) {
       const fromColumn = event.dataTransfer.getData('fromColumn')
@@ -474,7 +619,10 @@ export default {
     // preferred, and a name-only fallback guarantees something always renders.
     async loadColumnProfiles() {
       const entries = this.column.profiles || []
+      const signature = this.profilesSignature
       const profiles = await this.loadAvailableProfiles()
+      // Column changed (other board / filtered board) while we waited
+      if (signature !== this.profilesSignature) return
 
       this.columnProfiles = entries.map(entry => {
         const name = entry && typeof entry === 'object' ? entry.name : entry
@@ -492,9 +640,21 @@ export default {
     // ── Column profiles (avatar group in the header) ─────────────────────────
     // Columns store the NAMES of the profiles pre-selected on new tasks; the
     // header resolves them to full profile objects (which carry the `avatar`
-    // image URL) to render their avatar.
+    // image URL) to render their avatar. The list is cached per project so a
+    // board with many columns does not fire one request per column.
     async loadAvailableProfiles() {
-      return await this.$project.$api.profiles.list()
+      const key = this.$project?.project_id || ''
+      const cached = profilesCache.promise
+        && profilesCache.key === key
+        && (Date.now() - profilesCache.at) < PROFILES_CACHE_MS
+      if (!cached) {
+        profilesCache = {
+          key,
+          at: Date.now(),
+          promise: this.$project.$api.profiles.list().catch(() => [])
+        }
+      }
+      return await profilesCache.promise
     }
   }
 }

@@ -126,6 +126,18 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
+                  <!-- Board wall: recap of this board's tasks and events. Opens as
+                       its own Activity panel, like a task opens its chat panel. -->
+                  <button
+                    @click="openBoardWall"
+                    class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+                    title="Board wall — recap of this board's activity"
+                    aria-label="Board wall"
+                  >
+                    <i class="fa-solid fa-newspaper text-xs"></i>
+                    <span class="hidden sm:inline text-xs">Wall</span>
+                  </button>
+
                   <button
                     @click="openEditBoardModal"
                     class="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
@@ -261,6 +273,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             @select-board="onSelectBoard"
             @browse-boards="showBoardList = true"
             @transfer="showTransfer = true"
+            @board-wall="openBoardWall"
           />
         </template>
 
@@ -573,6 +586,20 @@ export default {
     }
   },
   methods: {
+    // Board wall: opens the Activity app scoped to THIS board. Same mechanism a
+    // task uses to show its chat (`$storex.ui.openApp` → own dockview panel on
+    // desktop, app route in single mode), so the recap docks next to the board
+    // instead of covering it.
+    openBoardWall() {
+      if (!this.activeBoardId) return
+      this.$storex.ui.openApp({
+        appKey: 'activity',
+        payload: {
+          board: this.activeBoardId,
+          project: this.project || this.$projects.activeProject
+        }
+      })
+    },
     // Board requested through the app params (persisted per panel) or the route
     resolveRequestedBoardId() {
       return [
@@ -811,7 +838,7 @@ export default {
 
         // "Run" → create the task and start processing it immediately
         if (run) {
-          await this.$storex.projects.chatWihProject(chat)
+          await $storex.projects.chatWihProject(chat)
         }
       }
 
