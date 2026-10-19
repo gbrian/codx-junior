@@ -492,6 +492,33 @@ defineExpose({
           </div>
         </div>
 
+        <!-- Project assigned to the tasks created in this column -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
+              Project <span class="normal-case font-normal opacity-50">(optional)</span>
+            </span>
+            <button
+              v-if="newColumn.project_id"
+              type="button"
+              class="label-text-alt text-[10px] text-error hover:underline"
+              title="Clear project"
+              @click="newColumn.project_id = null"
+            >
+              Clear
+            </button>
+          </label>
+          <ProjectDetailt
+            :model-value="selectedColumnProject"
+            @update:model-value="onColumnProjectSelected"
+            @select="onColumnProjectSelected"
+          />
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i>
+            Tasks created in this column are assigned to this project. Leave empty to use the board's project.
+          </p>
+        </div>
+
         <!-- Default profiles inherited by tasks created in this column -->
         <div class="form-control mb-4">
           <label class="label py-1">
@@ -920,7 +947,9 @@ const DEFAULT_NEW_COLUMN = () => ({
   icon: '',
   color: COLUMN_COLORS[0],
   // Profiles pre-selected on tasks created in this column
-  profiles: []
+  profiles: [],
+  // Project tasks created in this column are assigned to (optional)
+  project_id: null
 })
 
 const DEFAULT_NEW_BOARD = () => ({
@@ -948,7 +977,7 @@ export default {
     boardType: { type: String, default: 'sprint' },
     // Display name of the active board (kanban uses it instead of sprintTitle)
     boardTitle: { type: String, default: null },
-    // Board columns ({ id, title, icon?, color, status?, profiles? })
+    // Board columns ({ id, title, icon?, color, status?, profiles?, project_id? })
     columns: { type: Array, default: () => [] },
     // Column being edited (opens the column dialog in "edit" mode)
     editingColumn: { type: Object, default: null },
@@ -1078,6 +1107,12 @@ export default {
       if (!id) return null
       return this.$storex.projects.allProjectsById?.[id] || null
     },
+    // Project picked for the column being edited (null ⇒ the board's project)
+    selectedColumnProject() {
+      const id = this.newColumn.project_id
+      if (!id) return null
+      return this.$storex.projects.allProjectsById?.[id] || null
+    },
     // Project the composer works against — same resolution as the chat composer
     chatProject() {
       return this.$storex.projects.allProjectsById?.[this.newTask.project_id] || this.$project
@@ -1120,11 +1155,14 @@ export default {
     composerText() {
       this.scheduleIntelliSense()
     },
-    // Kanban: switching the destination column re-applies the profiles it defines
+    // Kanban: switching the destination column re-applies what the column
+    // defines for its tasks (profiles + project)
     'newTask.column'(title) {
       if (!this.isKanban) return
       const column = this.findColumn({ title })
-      if (column) this.newTask.selectedProfiles = [...(column.profiles || [])]
+      if (!column) return
+      this.newTask.selectedProfiles = [...(column.profiles || [])]
+      this.newTask.project_id = column.project_id || null
     },
     // Board view sets the column to edit before opening the dialog
     editingColumn(col) {
@@ -1137,7 +1175,8 @@ export default {
           // Prefill with the column's icon (may be the canonical status icon)
           icon: col.icon || '',
           color: col.color || COLUMN_COLORS[0],
-          profiles: [...(col.profiles || [])]
+          profiles: [...(col.profiles || [])],
+          project_id: col.project_id || null
         }
       }
     }
@@ -1427,7 +1466,7 @@ export default {
     // `status` is the target sprint column's status, `column` the target kanban
     // column. A column's "+" button passes its own values; otherwise the first
     // column is used (so a custom first column always receives the new task).
-    // The destination column also seeds the task's default profiles.
+    // The destination column also seeds the task's default profiles & project.
     openNewTask({ parentId, status, column } = {}) {
       // A subtask inherits its parent's project by default
       const parent = parentId ? this.$storex.chats.chats?.[parentId] : null
@@ -1440,7 +1479,8 @@ export default {
         // The first column is the default landing status for a new task
         status: status || firstColumn?.status || 'todo',
         column: column || firstColumn?.title || '',
-        project_id: parent?.project_id || null,
+        // A subtask follows its parent; otherwise the column defines the project
+        project_id: parent?.project_id || targetColumn?.project_id || null,
         // Default profiles inherited from the destination column
         selectedProfiles: [...(targetColumn?.profiles || [])]
       }
@@ -1519,6 +1559,13 @@ export default {
       if (!id) return
       this.newTask.project_id = id
     },
+    // Same contract as `onProjectSelected`, for the column dialog's project field
+    onColumnProjectSelected(project) {
+      const id = typeof project === 'string'
+        ? project
+        : (project?.project_id || project?.id || null)
+      this.newColumn.project_id = id || null
+    },
     setDeadline(preset) {
       const date = new Date()
       if (preset === 'tomorrow') date.setDate(date.getDate() + 1)
@@ -1560,7 +1607,9 @@ export default {
           icon: target.icon || '',
           color: target.color || COLUMN_COLORS[0],
           // Profiles tasks created in this column inherit by default
-          profiles: [...(target.profiles || [])]
+          profiles: [...(target.profiles || [])],
+          // Project tasks created in this column are assigned to
+          project_id: target.project_id || null
         }
       } else {
         this.newColumn = DEFAULT_NEW_COLUMN()
@@ -1590,6 +1639,8 @@ export default {
       const icon = this.newColumn.icon || null
       // Profiles pre-selected on tasks created in this column
       const profiles = [...this.newColumn.profiles]
+      // Project tasks created in this column are assigned to (optional)
+      const project_id = this.newColumn.project_id || null
 
       const duplicateTitle = this.columns.find(
         c => c.title === title && c.id !== this.newColumn.id
@@ -1617,10 +1668,18 @@ export default {
           status,
           icon,
           color: this.newColumn.color,
-          profiles
+          profiles,
+          project_id
         })
       } else {
-        this.$emit('column-created', { title, status, icon, color: this.newColumn.color, profiles })
+        this.$emit('column-created', {
+          title,
+          status,
+          icon,
+          color: this.newColumn.color,
+          profiles,
+          project_id
+        })
       }
       this.closeNewColumn()
     },

@@ -181,6 +181,8 @@ function defaultSprintColumns() {
     icon: status.icon,
     color: null,
     profiles: [],
+    // Project tasks created in this column are assigned to (optional)
+    project_id: null,
     status: status.value
   }))
 }
@@ -406,6 +408,9 @@ export const getters = getterTree(state, {
         color: col.color || null,
         // Profiles tasks created in this column inherit by default
         profiles: col.profiles || [],
+        // Project tasks created in this column are assigned to
+        project_id: col.project_id || null,
+        project: $storex.projects.allProjectsById?.[col.project_id] || null,
         position: ix,
         tasks: columnTasks
       }
@@ -778,8 +783,11 @@ export const actions = actionTree(
       // The sprint board's columns are its task statuses; the first column is
       // the default landing column. Subtasks inherit board/column from the
       // parent, root tasks fall back to the first column's status.
-      const firstColumn = getters.sprintColumns(sprintId)?.[0]
+      const columns = getters.sprintColumns(sprintId) || []
+      const firstColumn = columns[0]
       const taskStatus = status || firstColumn?.status || 'todo'
+      // The destination column may define the project its tasks belong to
+      const targetColumn = columns.find(c => c.status === taskStatus) || firstColumn
 
       // `board` and `column` are required by the backend and must be part of the
       // create payload (before the chat is saved via PUT /api/chats?chat_only=1).
@@ -801,7 +809,8 @@ export const actions = actionTree(
         column,
         llm_model: llm_model || null,
         owner_project_id: parentChat?.owner_project_id || activeProject?.project_id || null,
-        project_id: project_id || parentChat?.project_id,
+        // The column's project wins over the sprint board's project
+        project_id: project_id || targetColumn?.project_id || parentChat?.project_id || null,
       })
 
       // Defensive: guarantee membership/status via the metadata endpoint even if
@@ -835,6 +844,8 @@ export const actions = actionTree(
         color: col.color || null,
         // Profiles tasks created in this column inherit by default
         profiles: col.profiles || [],
+        // Project tasks created in this column are assigned to (optional)
+        project_id: col.project_id || null,
         status: col.status,
         chats: []
       }))
@@ -845,7 +856,7 @@ export const actions = actionTree(
 
     // Add a column: `title` labels it in the UI, `status` is the chat status its
     // tasks get (defaults to the title when omitted) and `icon` is optional.
-    async addSprintColumn({ state }, { boardId, title, status, icon, color, profiles } = {}) {
+    async addSprintColumn({ state }, { boardId, title, status, icon, color, profiles, project_id } = {}) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
       title = title?.trim()
@@ -868,6 +879,8 @@ export const actions = actionTree(
           color: color || null,
           // Profiles tasks created in this column inherit by default
           profiles: profiles || [],
+          // Project tasks created in this column are assigned to (optional)
+          project_id: project_id || null,
           status: columnStatus,
           chats: []
         }
@@ -876,9 +889,10 @@ export const actions = actionTree(
       await $storex.kanban.saveKanban()
     },
 
-    // Update a column (title / status / icon / color / profiles). Changing the
-    // status a column writes migrates its tasks so the cards follow the column.
-    async updateSprintColumn({ state, getters }, { boardId, id, title, icon, color, status, profiles } = {}) {
+    // Update a column (title / status / icon / color / profiles / project).
+    // Changing the status a column writes migrates its tasks so the cards
+    // follow the column.
+    async updateSprintColumn({ state, getters }, { boardId, id, title, icon, color, status, profiles, project_id } = {}) {
       const board = getKanban().boards?.[boardId]
       if (!board) return
 
@@ -911,6 +925,8 @@ export const actions = actionTree(
       if (color !== undefined) column.color = color || null
       // Only touch `profiles` when the caller provides it
       if (profiles !== undefined) column.profiles = profiles || []
+      // Only touch `project_id` when the caller provides it
+      if (project_id !== undefined) column.project_id = project_id || null
       board.last_update = new Date().toISOString()
       await $storex.kanban.saveKanban()
     },

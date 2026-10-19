@@ -498,7 +498,7 @@ export default {
         columns: reorderedColumns
       })
     },
-    async onColumnCreated({ title, status, icon, color, profiles }) {
+    async onColumnCreated({ title, status, icon, color, profiles, project_id }) {
       if (this.isVirtualBoard || !title?.trim()) return
       await this.$storex.kanban.addSprintColumn({
         boardId: this.boardId,
@@ -506,10 +506,12 @@ export default {
         status,
         icon,
         color,
-        profiles
+        profiles,
+        // Project tasks created in this column are assigned to
+        project_id
       })
     },
-    async onColumnUpdated({ id, title, status, icon, color, profiles }) {
+    async onColumnUpdated({ id, title, status, icon, color, profiles, project_id }) {
       if (this.isVirtualBoard || !id) return
       await this.$storex.kanban.updateSprintColumn({
         boardId: this.boardId,
@@ -518,7 +520,9 @@ export default {
         status,
         icon,
         color,
-        profiles
+        profiles,
+        // Project tasks created in this column are assigned to
+        project_id
       })
     },
     async onColumnDeleted({ id }) {

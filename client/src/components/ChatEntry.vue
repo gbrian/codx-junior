@@ -17,8 +17,12 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
   <!-- =============================================
        NOTION-STYLE DESKTOP BLOCK RENDERING
        ============================================= -->
+  <!-- `has-[.dropdown:focus-within]:z-30` lifts the WHOLE entry while its ⋯ menu
+       is open. The menu lives inside the sticky header (a z-20 stacking context),
+       so its own z-[200] cannot escape; without this the next message's sticky
+       z-20 header (later in DOM) paints over the overflowing menu items. -->
   <div
-    class="notion-entry group/entry relative w-full"
+    class="notion-entry group/entry relative w-full has-[.dropdown:focus-within]:z-30"
     :class="[
       displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
     ]"
@@ -41,11 +45,13 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
         <!-- Channels (team channel / DM) are the exception: the header sits
              directly ON the channel background (transparent, not sticky), so it
              never paints a surface that differs from the conversation canvas. -->
+        <!-- `focus-within:z-30`: while a header control (the ⋯ menu) holds focus
+             this header outranks the following messages' sticky z-20 headers. -->
         <div
           class="flex items-center gap-2 leading-none flex-wrap px-1"
           :class="isChannel
             ? 'pb-1'
-            : 'sticky top-0 z-20 -mt-1 pb-1.5 @lg/panel:pb-3 bg-base-100 border-b border-base-content/10 @lg/panel:border-base-content/30'"
+            : 'sticky top-0 z-20 focus-within:z-30 -mt-1 pb-1.5 @lg/panel:pb-3 bg-base-100 border-b border-base-content/10 @lg/panel:border-base-content/30'"
         >
 
           <!-- ─────────────────────────── LEFT: identity + state ─────────────────────────── -->
@@ -226,21 +232,21 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               </button>
               <ul
                 tabindex="0"
-                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-50 text-sm"
+                class="dropdown-content bg-base-100 menu rounded-box shadow-lg w-44 p-1 z-[200] text-sm"
               >
                 <!-- ── Compact (mobile) message actions ──
                      Mirrors the inline icon row that is hidden below @lg/panel,
                      so every action stays reachable without widening the header. -->
-                <li class="@lg/panel:hidden"><a @click.stop="$emit('thread', message)"><i class="fa-solid fa-comment-dots w-4"></i> Thread</a></li>
-                <li v-if="!isChannel" class="@lg/panel:hidden"><a @click.stop="$emit('answer', message)"><i class="fa-solid fa-circle-info w-4 text-info/70"></i> {{ displayMessage.is_answer ? 'Unmark answer' : 'Mark as answer' }}</a></li>
-                <li class="@lg/panel:hidden"><a @click.stop="copyMessageToClipboard"><i class="fa-solid fa-copy w-4"></i> Copy</a></li>
-                <li v-if="displayMessage.diffMessage && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleShowDiff" :class="showDiff && 'text-primary'"><i class="fa-regular fa-file-lines w-4"></i> Diff</a></li>
-                <li v-if="hasCodeBlocksOrFiles && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleFileView" :class="showFileView && 'text-primary'"><i class="fa-solid fa-file-code w-4"></i> Files</a></li>
-                <li v-if="hasPRViewBlocks && !isChannel" class="@lg/panel:hidden"><a @click.stop="togglePRView" :class="showPRView && 'text-primary'"><i class="fa-solid fa-code-branch w-4"></i> Review</a></li>
+                <li class=""><a @click.stop="$emit('thread', message)"><i class="fa-solid fa-comment-dots w-4"></i> Thread</a></li>
+                <li v-if="!isChannel" class=""><a @click.stop="$emit('answer', message)"><i class="fa-solid fa-circle-info w-4 text-info/70"></i> {{ displayMessage.is_answer ? 'Unmark answer' : 'Mark as answer' }}</a></li>
+                <li class=""><a @click.stop="copyMessageToClipboard"><i class="fa-solid fa-copy w-4"></i> Copy</a></li>
+                <li v-if="displayMessage.diffMessage && !isChannel" class=""><a @click.stop="toggleShowDiff" :class="showDiff && 'text-primary'"><i class="fa-regular fa-file-lines w-4"></i> Diff</a></li>
+                <li v-if="hasCodeBlocksOrFiles && !isChannel" class=""><a @click.stop="toggleFileView" :class="showFileView && 'text-primary'"><i class="fa-solid fa-file-code w-4"></i> Files</a></li>
+                <li v-if="hasPRViewBlocks && !isChannel" class=""><a @click.stop="togglePRView" :class="showPRView && 'text-primary'"><i class="fa-solid fa-code-branch w-4"></i> Review</a></li>
 
                 <!-- Inline Events & Tools — the desktop trigger is hidden on
                      mobile (*), so it lives here for narrow panels. -->
-                <li v-if="isAssistant && !isChannel" class="@lg/panel:hidden"><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
+                <li v-if="isAssistant && !isChannel" class=""><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
                 <li v-if="!isChannel"><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
                 <li v-if="isDone && !isChannel"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
                 <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>

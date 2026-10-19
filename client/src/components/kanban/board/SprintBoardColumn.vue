@@ -64,49 +64,80 @@ import SprintTaskCard from './SprintTaskCard.vue'
       </span>
 
       <!--
-        Profiles pre-selected on tasks created in this column, shown as a DaisyUI
-        avatar group right after the status icon so the column's defaults are
-        visible at a glance (no color-only signalling). Each avatar renders the
-        profile's `avatar` image URL; the initial is only a fallback for profiles
-        without an avatar (or when the image fails to load).
+        Column defaults shown right after the status icon:
+          • the project tasks created in this column are assigned to — only when
+            it is different from the active project (a same-project column needs
+            no extra signal);
+          • the profiles pre-selected on tasks created in this column, rendered
+            as a DaisyUI avatar group (no color-only signalling). Each avatar
+            renders the profile's `avatar` image URL; the initial is only a
+            fallback for profiles without an avatar (or when the image fails to
+            load).
       -->
       <div
-        v-if="columnProfiles.length"
-        class="avatar-group -space-x-2 rtl:space-x-reverse shrink-0"
+        v-if="columnProject || columnProfiles.length"
+        class="flex items-center gap-1 shrink-0"
       >
+        <!-- Project the tasks of this column belong to -->
         <div
-          v-for="profile in visibleProfiles"
-          :key="profile.name"
-          class="avatar placeholder tooltip"
-          :data-tip="profileTitle(profile)"
-          :title="profileTitle(profile)"
+          v-if="columnProject"
+          class="avatar placeholder tooltip tooltip-bottom"
+          :data-tip="columnProjectTitle"
+          :title="columnProjectTitle"
+          :aria-label="columnProjectTitle"
         >
           <div
-            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center text-[9px] font-medium text-base-content/60"
-            :style="profileAvatarStyle(profile)"
+            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center"
           >
-            <!-- Profile avatar image URL (falls back to the initial on error) -->
             <img
-              v-if="profileAvatar(profile) && !failedAvatars[profile.name]"
-              :src="profileAvatar(profile)"
-              :alt="profile.name"
+              v-if="columnProject.project_icon"
+              :src="columnProject.project_icon"
+              :alt="columnProject.project_name"
               class="w-full h-full rounded-full object-cover"
-              @error="onAvatarError(profile.name)"
             />
-            <span v-else>{{ initial(profile.name) }}</span>
+            <i v-else class="fa-solid fa-cube text-[9px] leading-none text-base-content/60"></i>
           </div>
         </div>
 
-        <!-- Overflow: profiles that do not fit in the group -->
+        <!-- Profiles pre-selected on tasks created in this column -->
         <div
-          v-if="overflowProfiles.length"
-          class="avatar placeholder tooltip tooltip-bottom"
-          :data-tip="overflowProfilesTitle"
+          v-if="columnProfiles.length"
+          class="avatar-group -space-x-2 rtl:space-x-reverse shrink-0"
         >
           <div
-            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-100 flex items-center justify-center text-[9px] font-semibold text-base-content/50"
+            v-for="profile in visibleProfiles"
+            :key="profile.name"
+            class="avatar placeholder tooltip"
+            :data-tip="profileTitle(profile)"
+            :title="profileTitle(profile)"
           >
-            <span>+{{ overflowProfiles.length }}</span>
+            <div
+              class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center text-[9px] font-medium text-base-content/60"
+              :style="profileAvatarStyle(profile)"
+            >
+              <!-- Profile avatar image URL (falls back to the initial on error) -->
+              <img
+                v-if="profileAvatar(profile) && !failedAvatars[profile.name]"
+                :src="profileAvatar(profile)"
+                :alt="profile.name"
+                class="w-full h-full rounded-full object-cover"
+                @error="onAvatarError(profile.name)"
+              />
+              <span v-else>{{ initial(profile.name) }}</span>
+            </div>
+          </div>
+
+          <!-- Overflow: profiles that do not fit in the group -->
+          <div
+            v-if="overflowProfiles.length"
+            class="avatar placeholder tooltip tooltip-bottom"
+            :data-tip="overflowProfilesTitle"
+          >
+            <div
+              class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-100 flex items-center justify-center text-[9px] font-semibold text-base-content/50"
+            >
+              <span>+{{ overflowProfiles.length }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -328,6 +359,21 @@ export default {
     columnBadgeClass() {
       if (this.column.color) return ''
       return STATUS_BADGE_CLASSES[this.column.status] || 'bg-base-content/10 text-base-content/60'
+    },
+    // Project assigned to the tasks of this column. Surfaced in the header only
+    // when it differs from the active project, so a column that works inside the
+    // open project adds no extra signal. The column object may carry the
+    // resolved project (store getters); otherwise it is looked up by id.
+    columnProject() {
+      const id = this.column.project_id
+      if (!id || id === this.$project?.project_id) return null
+      return this.column.project
+        || this.$storex.projects.allProjectsById?.[id]
+        || { project_id: id }
+    },
+    columnProjectTitle() {
+      const name = this.columnProject?.project_name || this.columnProject?.project_id
+      return name ? `Tasks are created in project: ${name}` : ''
     },
     visibleProfiles() {
       return this.columnProfiles.slice(0, this.maxVisibleProfiles)

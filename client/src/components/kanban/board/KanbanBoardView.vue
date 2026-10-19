@@ -844,23 +844,27 @@ export default {
 
       this.onSelectTask(chat)
     },
-    async onColumnCreated({ title, color, profiles }) {
+    async onColumnCreated({ title, color, profiles, project_id }) {
       if (!title?.trim() || !this.activeBoard) return
       await this.$storex.kanban.addColumn({
         boardId: this.activeBoardId,
         title,
         color,
-        profiles
+        profiles,
+        // Project tasks created in this column are assigned to
+        project_id
       })
     },
-    async onColumnUpdated({ id, title, color, profiles }) {
+    async onColumnUpdated({ id, title, color, profiles, project_id }) {
       if (!this.activeBoard) return
       await this.$storex.kanban.updateColumn({
         boardId: this.activeBoardId,
         id,
         title,
         color,
-        profiles
+        profiles,
+        // Project tasks created in this column are assigned to
+        project_id
       })
       this.editingColumn = null
     },
