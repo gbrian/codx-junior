@@ -782,7 +782,10 @@ class ChatEngine:
         https://platform.openai.com/docs/guides/vision
 
         CHANGED: Simplified to only handle image files. PDFs are skipped with
-        a debug log. No longer processes message attachments.
+        a debug log. Message attachments are NOT processed here: they are
+        gathered from every visible message by
+        :meth:`ChatPromptBuilder.collect_attachments` and appended to the
+        request message by :meth:`ChatPromptBuilder.build_ai_prompt_messages`.
 
         :param binary_files: List of {'path', 'full_path'} dicts from chat files.
         :return: List of content blocks (image_url type only).
@@ -1059,6 +1062,11 @@ class ChatEngine:
         streaming via ``send_message_event`` → ``response_message.think``;
         overwriting it here would erase the streamed think content.
 
+        FIX: the pure knowledge-search branch (``is_search``) builds its query
+        through :meth:`ChatPromptBuilder._get_text_content`, because prompt
+        messages may carry multimodal content parts (attachment images). Joining
+        ``m.content`` directly raised ``TypeError`` on list content.
+
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
             A -->|No| C[AI Chat with run_context - returns AgentRunResult]
@@ -1132,7 +1140,11 @@ class ChatEngine:
                     message=f"Knowledge search for: {chat.name}"
                 )
                 send_message_event("* Searching...", False)
-                combined_query = concat_content([m.content for m in messages])
+                # FIX: prompt messages may carry multimodal content parts
+                # (attachment images) — join only their TEXT parts.
+                combined_query = concat_content(
+                    [ChatPromptBuilder._get_text_content(m) for m in messages]
+                )
                 ai_search_results = await KnowledgeAISearch(
                     settings=self.settings
                 ).ai_search(user_query=combined_query)
@@ -1701,6 +1713,11 @@ class ChatEngine:
 
         ADDED: Binary chat files (PDFs, images) are now detected and passed
         to the vision API if supported by the model.
+
+        ADDED: ``message.attachments`` of EVERY visible message (current chat
+        and parent chats) are attached to the single request message, so an
+        image uploaded in an earlier turn stays visible to the model on every
+        following turn (see :meth:`ChatPromptBuilder.build_ai_prompt_messages`).
 
         ADDED: Chat-attached files (current chat AND parent chat) are resolved
         against the project that owns the chat (``project_id`` if present,
@@ -2329,8 +2346,25 @@ class ChatEngine:
             )
 
             # ------------------------------------------------------------------
-            # 20.5 ADDED: Prepare vision content from binary files
+            # 20.5 ADDED: Report conversation attachments attached to the request
+            #      and prepare vision content from binary files.
+            #
+            #      Message attachments (image/* of every visible message, current
+            #      and parent chats) are already appended to the request message by
+            #      ``build_ai_prompt_messages``; this only reports them for
+            #      traceability. ``binary_files`` (project files on disk) follow the
+            #      separate ``vision_content`` route.
             # ------------------------------------------------------------------
+            attachment_parts_count = ChatPromptBuilder.count_attachment_parts(messages)
+            if attachment_parts_count:
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message=(
+                        f"Sending {attachment_parts_count} image attachment(s) "
+                        f"with the request"
+                    )
+                )
+
             vision_content: Optional[List[Dict[str, Any]]] = None
             if binary_files:
                 vision_content = self._prepare_vision_content(binary_files)

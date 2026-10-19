@@ -34,6 +34,7 @@ import MessengerView from '../views/MessengerView.vue'
 import MeetView from '../views/MeetView.vue'
 import GitView from '../components/repo/GitView.vue'
 import InfraView from '../views/infra/InfraView.vue'
+import SolopreneurView from '../views/SolopreneurView.vue'
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
@@ -69,7 +70,10 @@ export const APP_COMPONENTS_MAP = {
   'team-media-library': TeamMediaLibrary,
   'vibe-coding': VibeCodingView,
   'workspaces': WorkspacesManager,
-  'infra': InfraView
+  'infra': InfraView,
+  // Solopreneur mode as a desktop panel (single/mobile mode uses the
+  // "/solopreneur" route — see router/index.ts).
+  'solopreneur': SolopreneurView
 }
 
 // Additional components not mapped to apps

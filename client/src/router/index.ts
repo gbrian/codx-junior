@@ -11,6 +11,7 @@ import Desktop from '@/components/desktop/Desktop.vue'
 import KanbanBoardView from '@/components/kanban/board/KanbanBoardView.vue'
 import BrowsersSessionManager from '@/components/browsers/BrowsersSessionManager.vue'
 import AppRouteView from '@/views/AppRouteView.vue'
+import SolopreneurView from '@/views/SolopreneurView.vue'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROJECT-SCOPED ROUTES
@@ -41,6 +42,19 @@ const router = createRouter({
       name: 'root',
       component: AppRouteView,
       meta: { app: 'activity' }
+    },
+    {
+      // Solopreneur mode — a top-level, project-INDEPENDENT screen that re-frames
+      // the workspace around a solo operator (venture overview, modules and the
+      // AI co-founder). The optional ":module" segment makes a module
+      // deep-linkable ("/solopreneur/tasks"); without it the dashboard is shown.
+      //
+      // It is a STATIC segment, so vue-router ranks it above the dynamic
+      // "/:projectName" route, and it is never project-prefixed: `withProject()`
+      // only injects a project into routes whose path contains ":projectName".
+      path: '/solopreneur/:module?',
+      name: 'solopreneur',
+      component: SolopreneurView
     },
     {
       // Home (project launcher)

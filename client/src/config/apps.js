@@ -50,6 +50,15 @@ export const APPS = {
     route: () => ({ name: 'home' })
   },
 
+  // Solopreneur mode: the top-level "/solopreneur" screen that re-frames the
+  // workspace around a solo operator (venture overview, modules, AI co-founder).
+  // Unscoped — its route carries no ":projectName" — so `withProject()` never
+  // prefixes it (see router/index.ts + views/SolopreneurView.vue).
+  solopreneur: {
+    id: 'solopreneur', title: 'Solopreneur', component: 'solopreneur', icon: 'fa-solid fa-rocket',
+    route: () => ({ name: 'solopreneur' })
+  },
+
   tasks: {
     id: 'tasks', title: 'Task Manager', component: 'tasks', icon: 'fa-brands fa-trello',
     // Several Task Managers can be open at once — one per board. The board is

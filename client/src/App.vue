@@ -10,9 +10,11 @@ import NewProject from './components/project/NewProject.vue'
     <Login v-if="isLogin" />
     
     <div class="h-full w-full flex" v-else :class="layoutClasses">
-      <!-- Desktop Sidebar (Landscape on desktop) -->
+      <!-- Desktop Sidebar (Landscape on desktop). Hidden on full-screen,
+           project-independent screens such as Solopreneur mode, which brings
+           its own header/navigation (see views/SolopreneurView.vue). -->
       <DesktopSidebar
-        v-if="isDesktopLandscape"
+        v-if="isDesktopLandscape && !isFullScreenRoute"
         :user-name="$user?.username || 'User'"
         :user-subtitle="'Pro'"
         @settings="openAccountSettings"
@@ -20,14 +22,14 @@ import NewProject from './components/project/NewProject.vue'
 
       <!-- Mobile Sidebar Overlay (Mobile only, slides from left) -->
       <div
-        v-if="isMobile && $ui.isSidebarExpanded"
+        v-if="isMobile && !isFullScreenRoute && $ui.isSidebarExpanded"
         class="fixed inset-0 z-100 transition-opacity duration-200 md:hidden"
         @click="closeMobileSidebar"
       ></div>
 
       <!-- Mobile Sidebar (Slides from left on mobile) -->
       <DesktopSidebar
-        v-if="isMobile"
+        v-if="isMobile && !isFullScreenRoute"
         :user-name="$user?.username || 'User'"
         :user-subtitle="'Pro'"
         :is-mobile="true"
@@ -98,6 +100,12 @@ export default {
     },
     isMobilePortrait() {
       return this.isMobile && this.isPortrait
+    },
+    // Full-screen, project-independent screens render their own shell: the
+    // standard sidebar is hidden so the screen owns the whole viewport.
+    // (Solopreneur mode: "/solopreneur/:module?" — see router/index.ts.)
+    isFullScreenRoute() {
+      return this.$route?.name === 'solopreneur'
     },
     layoutClasses() {
       if (this.isMobilePortrait) {

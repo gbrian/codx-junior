@@ -588,8 +588,15 @@ export const actions = actionTree(
         }
         const segment = pathname.split('/').filter(Boolean)[0]
 
-        // "/auth/:provider" callbacks are owned by the router guard – leave them.
-        if (segment && segment !== 'auth') {
+        // Top-level screens that are NOT project-scoped:
+        //   • "/auth/:provider" — OAuth callbacks, owned by the router guard.
+        //   • "/solopreneur"    — Solopreneur mode (see views/SolopreneurView.vue).
+        // They must not be resolved as a project name: an unknown segment would
+        // activate a fallback project AND replace the deep link with the project
+        // home, so a reload of "/solopreneur" would bounce away from the screen.
+        const unscopedSegments = ['auth', 'solopreneur']
+
+        if (segment && !unscopedSegments.includes(segment)) {
           const urlProjectName = decodeURIComponent(segment)
           const urlProject = state.allProjects?.find(p => p.project_name === urlProjectName)
           if (urlProject) {
@@ -836,7 +843,6 @@ export const actions = actionTree(
     generateCode({ state }, { chat, codeBlockInfo }) {
       const data = {
         codx_path: state.activeProject.codx_path,
-        chat,
         code_block_info: codeBlockInfo
       }
       $storex.session.emit({ event: 'codx-junior-generate-code', data })
@@ -1119,6 +1125,12 @@ export const actions = actionTree(
 
       // Already scoped to the right project – nothing to do.
       if (current.name !== 'root' && current.params?.projectName === projectName) {
+        return
+      }
+
+      // Project-independent screens ("/solopreneur", see router/index.ts) live
+      // outside the "/:projectName" base path: promote them to nothing.
+      if (!router.getRoutes().some(route => route.name === targetName && route.path.includes(':projectName'))) {
         return
       }
 
