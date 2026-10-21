@@ -17,9 +17,17 @@ import SprintTaskCard from './SprintTaskCard.vue'
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <!-- Column header (drag handle for column reordering when `draggable`) -->
+    <!--
+      Column header. Two stacked rows keep the column readable:
+        • primary row   — drag handle, status icon, title, task count, cost and
+                          the column actions (everything needed at a glance)
+        • secondary row — the defaults applied to the tasks created in this
+                          column (assigned project, pre-selected profiles),
+                          rendered only when there is something to show
+      The whole header is the drag handle when the column is `draggable`.
+    -->
     <div
-      class="flex items-center gap-2 px-3 py-2.5 border-b border-base-100 shrink-0"
+      class="shrink-0 border-b border-base-100"
       :class="[
         column.borderColor ? `border-l-4 rounded-tl-xl ${column.borderColor}` : '',
         draggable ? 'cursor-grab active:cursor-grabbing select-none' : ''
@@ -28,90 +36,135 @@ import SprintTaskCard from './SprintTaskCard.vue'
       @dragstart="draggable ? onColumnDragStart($event) : null"
       @dragend="draggable ? $emit('column-drag-end') : null"
     >
-      <i v-if="draggable" class="fa-solid fa-grip-vertical text-xs text-base-content/20 shrink-0"></i>
+      <!-- Primary row: identity, metrics and actions -->
+      <div class="flex items-center gap-2 px-3 py-2.5">
+        <i v-if="draggable" class="fa-solid fa-grip-vertical text-xs text-base-content/20 shrink-0"></i>
+
+        <!--
+          Column icon — a single rendering for every column: a circle filled with
+          the column colour and the icon centred inside. Canonical statuses take
+          the colour from the status tokens, custom/kanban columns from the colour
+          picked in the column dialog (applied inline below). A column without an
+          icon keeps its colour dot, centred in the same circle.
+        -->
+        <span
+          class="relative w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+          :class="columnBadgeClass"
+        >
+          <!-- Explicit colour layer (custom/kanban columns) -->
+          <span
+            v-if="column.color"
+            class="absolute inset-0 rounded-full opacity-20"
+            :style="{ backgroundColor: column.color }"
+          ></span>
+
+          <!-- Column icon, centred -->
+          <i
+            v-if="column.icon"
+            :class="[column.icon, 'relative text-[10px] leading-none']"
+            :style="column.color ? { color: column.color } : null"
+          ></i>
+
+          <!-- Colour dot, for columns that define no icon -->
+          <span
+            v-else
+            class="relative w-1.5 h-1.5 rounded-full bg-current"
+            :style="column.color ? { backgroundColor: column.color } : null"
+          ></span>
+        </span>
+
+        <!-- Column title — the one piece of information that must always fit -->
+        <span
+          class="text-sm font-semibold text-base-content/80 flex-1 min-w-0 truncate"
+          :title="column.title"
+        >
+          {{ column.title }}
+        </span>
+
+        <span class="text-xs text-base-content/60 bg-base-content/10 rounded-full px-1.5 shrink-0 tabular-nums">
+          {{ localTasks.length }}
+        </span>
+
+        <!-- Accumulated cost of the tasks in this column (sprint) -->
+        <span
+          v-if="totalCost > 0"
+          class="flex items-center gap-0.5 text-xs font-semibold text-amber-400 shrink-0 tabular-nums tooltip tooltip-bottom"
+          :data-tip="costTooltip"
+        >
+          <i class="fa-solid fa-coins text-[10px]"></i>{{ formatCoins(totalCost) }}
+        </span>
+
+        <button
+          v-if="allowCreate"
+          @click.stop="$emit('new-task')"
+          class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-primary"
+          title="Add task"
+          aria-label="Add task"
+          draggable="false"
+        >
+          <i class="fa-solid fa-plus text-xs"></i>
+        </button>
+        <button
+          v-if="allowEdit"
+          @click.stop="$emit('edit-column')"
+          class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/20 hover:text-base-content/60"
+          title="Edit column"
+          aria-label="Edit column"
+          draggable="false"
+        >
+          <i class="fa-solid fa-ellipsis text-xs"></i>
+        </button>
+      </div>
 
       <!--
-        Column icon — a single rendering for every column: a circle filled with
-        the column colour and the icon centred inside. Canonical statuses take
-        the colour from the status tokens, custom/kanban columns from the colour
-        picked in the column dialog (applied inline below). A column without an
-        icon keeps its colour dot, centred in the same circle.
-      -->
-      <span
-        class="relative w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-        :class="columnBadgeClass"
-      >
-        <!-- Explicit colour layer (custom/kanban columns) -->
-        <span
-          v-if="column.color"
-          class="absolute inset-0 rounded-full opacity-20"
-          :style="{ backgroundColor: column.color }"
-        ></span>
-
-        <!-- Column icon, centred -->
-        <i
-          v-if="column.icon"
-          :class="[column.icon, 'relative text-[10px] leading-none']"
-          :style="column.color ? { color: column.color } : null"
-        ></i>
-
-        <!-- Colour dot, for columns that define no icon -->
-        <span
-          v-else
-          class="relative w-1.5 h-1.5 rounded-full bg-current"
-          :style="column.color ? { backgroundColor: column.color } : null"
-        ></span>
-      </span>
-
-      <!--
-        Column defaults shown right after the status icon:
-          • the project tasks created in this column are assigned to — only when
-            it is different from the active project (a same-project column needs
-            no extra signal);
-          • the profiles pre-selected on tasks created in this column, rendered
-            as a DaisyUI avatar group (no color-only signalling). Each avatar
-            renders the profile's `avatar` image URL; the initial is only a
-            fallback for profiles without an avatar (or when the image fails to
-            load).
+        Secondary row: the defaults applied to the tasks created in this column.
+          • the project those tasks are assigned to — only when it is different
+            from the active project (a same-project column needs no extra signal);
+          • the profiles pre-selected on tasks created here, rendered as a DaisyUI
+            avatar group. Each avatar renders the profile's `avatar` image URL;
+            the initial is only a fallback for profiles without an avatar (or
+            when the image fails to load).
       -->
       <div
         v-if="columnProject || columnProfiles.length"
-        class="flex items-center gap-1 shrink-0"
+        class="flex items-center gap-2 px-3 pb-2 min-w-0 text-[11px] leading-none text-base-content/40"
       >
         <!-- Project the tasks of this column belong to -->
-        <div
+        <span
           v-if="columnProject"
-          class="avatar placeholder tooltip tooltip-bottom"
-          :data-tip="columnProjectTitle"
+          class="flex items-center gap-1 min-w-0"
           :title="columnProjectTitle"
           :aria-label="columnProjectTitle"
         >
-          <div
-            class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center"
-          >
-            <img
-              v-if="columnProject.project_icon"
-              :src="columnProject.project_icon"
-              :alt="columnProject.project_name"
-              class="w-full h-full rounded-full object-cover"
-            />
-            <i v-else class="fa-solid fa-cube text-[9px] leading-none text-base-content/60"></i>
-          </div>
-        </div>
+          <span class="avatar placeholder shrink-0">
+            <span
+              class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center"
+            >
+              <img
+                v-if="columnProject.project_icon"
+                :src="columnProject.project_icon"
+                :alt="columnProjectName"
+                class="w-full h-full rounded-full object-cover"
+              />
+              <i v-else class="fa-solid fa-cube text-[9px] leading-none text-base-content/60"></i>
+            </span>
+          </span>
+          <span class="truncate">{{ columnProjectName }}</span>
+        </span>
 
         <!-- Profiles pre-selected on tasks created in this column -->
-        <div
+        <span
           v-if="columnProfiles.length"
-          class="avatar-group -space-x-2 rtl:space-x-reverse shrink-0"
+          class="avatar-group -space-x-2 rtl:space-x-reverse shrink-0 ml-auto"
         >
-          <div
+          <span
             v-for="profile in visibleProfiles"
             :key="profile.name"
             class="avatar placeholder tooltip"
             :data-tip="profileTitle(profile)"
             :title="profileTitle(profile)"
           >
-            <div
+            <span
               class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-300 overflow-hidden flex items-center justify-center text-[9px] font-medium text-base-content/60"
               :style="profileAvatarStyle(profile)"
             >
@@ -124,58 +177,23 @@ import SprintTaskCard from './SprintTaskCard.vue'
                 @error="onAvatarError(profile.name)"
               />
               <span v-else>{{ initial(profile.name) }}</span>
-            </div>
-          </div>
+            </span>
+          </span>
 
           <!-- Overflow: profiles that do not fit in the group -->
-          <div
+          <span
             v-if="overflowProfiles.length"
             class="avatar placeholder tooltip tooltip-bottom"
             :data-tip="overflowProfilesTitle"
           >
-            <div
+            <span
               class="w-5 h-5 rounded-full ring-1 ring-base-100 bg-base-100 flex items-center justify-center text-[9px] font-semibold text-base-content/50"
             >
               <span>+{{ overflowProfiles.length }}</span>
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </span>
       </div>
-
-      <span class="text-xs text-base-content/30 bg-base-100 rounded-full px-1.5 shrink-0">
-        {{ localTasks.length }}
-      </span>
-      <span class="text-xs font-semibold text-base-content/70 flex-1 truncate">
-        {{ column.title }}
-      </span>
-
-      <!-- Accumulated cost of the tasks in this column (sprint) -->
-      <span
-        v-if="totalCost > 0"
-        class="flex items-center gap-0.5 text-xs font-semibold text-amber-400 shrink-0 tabular-nums tooltip tooltip-bottom"
-        :data-tip="costTooltip"
-      >
-        <i class="fa-solid fa-coins text-[10px]"></i>{{ formatCoins(totalCost) }}
-      </span>
-
-      <button
-        v-if="allowCreate"
-        @click.stop="$emit('new-task')"
-        class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/30 hover:text-primary"
-        title="Add task"
-        draggable="false"
-      >
-        <i class="fa-solid fa-plus text-xs"></i>
-      </button>
-      <button
-        v-if="allowEdit"
-        @click.stop="$emit('edit-column')"
-        class="btn btn-ghost btn-xs rounded-md h-5 min-h-0 px-1 text-base-content/20 hover:text-base-content/60"
-        title="Edit column"
-        draggable="false"
-      >
-        <i class="fa-solid fa-ellipsis text-xs"></i>
-      </button>
     </div>
 
     <!--
@@ -374,6 +392,10 @@ export default {
     columnProjectTitle() {
       const name = this.columnProject?.project_name || this.columnProject?.project_id
       return name ? `Tasks are created in project: ${name}` : ''
+    },
+    // Label shown next to the project avatar in the column meta row
+    columnProjectName() {
+      return this.columnProject?.project_name || this.columnProject?.project_id || ''
     },
     visibleProfiles() {
       return this.columnProfiles.slice(0, this.maxVisibleProfiles)

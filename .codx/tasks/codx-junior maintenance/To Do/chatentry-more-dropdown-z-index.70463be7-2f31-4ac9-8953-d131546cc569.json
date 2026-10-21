@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "doing",
+  "status": "rejected",
   "status_history": [
     {
       "doc_id": "efff612d-1d08-4751-b95e-5e3c46f6a52b",
@@ -17,6 +17,14 @@
       "to_status": "doing",
       "user": null,
       "at": "2026-10-19T06:01:23.582819",
+      "meta_data": null
+    },
+    {
+      "doc_id": "55291864-415d-45f5-a8a7-ddb9380586c4",
+      "from_status": "doing",
+      "to_status": "rejected",
+      "user": null,
+      "at": "2026-10-21T07:54:55.804656",
       "meta_data": null
     }
   ],
@@ -407,7 +415,7 @@
     }
   ],
   "created_at": "2026-10-19 06:01:23.540126",
-  "updated_at": "2026-10-19T08:52:28.084748",
+  "updated_at": "2026-10-21T07:54:55.620474",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

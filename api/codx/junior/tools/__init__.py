@@ -43,7 +43,7 @@ from .code_writer import code_writer
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
 from .apply_file_changes import apply_file_changes
-from .git_tools import get_file_last_version
+from .git_tools import get_file_last_version, create_pr_branch
 from .image_tools import explain_image, generate_image
 from .tutorial_tools import (
     tutorial_definition,
@@ -124,6 +124,7 @@ __all__ = [
     "modify_chapter",
     "delete_chapter",
     "get_file_last_version",
+    "create_pr_branch",
     "docker_ps",
     "docker_logs",
     "docker_stats",
@@ -601,6 +602,64 @@ TOOLS = [
         "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "history", "file-operations"],
         "tool_call": get_file_last_version
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "create_pr_branch",
+                "description": (
+                    "Create a local PR branch from the current branch with the changes generated in this chat. "
+                    "PRs are reviewed locally by codx-junior, so nothing is pushed to the remote. "
+                    "The branch is created from the CURRENT branch unless 'base_branch' is provided. "
+                    "When 'files' is provided those contents are written before committing; when omitted the "
+                    "changes already present on disk are committed. "
+                    "With 'worktree' enabled the branch is created in a separate git worktree, leaving the "
+                    "project's working tree and its uncommitted changes untouched."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "Target PR branch name (e.g. 'codx-junior/fix-login'). "
+                                "Generated automatically when omitted."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Base branch to branch off. Defaults to the current branch."
+                            )
+                        },
+                        "commit_message": {
+                            "type": "string",
+                            "description": "Commit message. Defaults to a generic AI changes message."
+                        },
+                        "files": {
+                            "type": "object",
+                            "description": (
+                                "Optional map of project-relative file path to full file content. "
+                                "Omit it to commit the changes already present in the working tree."
+                            ),
+                            "additionalProperties": {"type": "string"}
+                        },
+                        "worktree": {
+                            "type": "boolean",
+                            "description": (
+                                "Create the branch as a git worktree instead of switching the project's "
+                                "working tree. Defaults to the project setting 'git_pr_worktrees'."
+                            )
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "worktree"],
+        "tool_call": create_pr_branch
     },
     {
         "tool_json": DOCKER_PS_TOOL_JSON,

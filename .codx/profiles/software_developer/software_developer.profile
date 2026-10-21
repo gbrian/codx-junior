@@ -9,7 +9,8 @@
   "parsed_content": null,
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/software_developer/software_developer.profile",
   "profiles": [
-    "biblio"
+    "biblio",
+    "git"
   ],
   "llm_model": "",
   "use_knowledge": true,

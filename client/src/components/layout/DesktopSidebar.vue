@@ -173,10 +173,42 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
             </div>
             <div class="flex-1 min-w-0">
               <div class="text-sm truncate">{{ userName }}</div>
-              <div class="text-xs"
-                :class="connected ? 'text-success/60': 'text-error'"
-              >{{ connected ? 'online': 'offline' }}</div>
+              <div class="flex items-center gap-1.5 min-w-0 text-xs">
+                <span
+                  class="shrink-0"
+                  :class="connected ? 'text-success/60': 'text-error'"
+                >{{ connected ? 'online': 'offline' }}</span>
+                <!-- Daily spent: today's cxj consumption, always visible.
+                     Lives on the secondary line so the name keeps its width. -->
+                <span
+                  v-if="todaySpentFormatted != null"
+                  class="flex items-center gap-1 min-w-0 truncate transition-colors duration-150"
+                  :title="todaySpentTitle"
+                  :aria-label="todaySpentTitle"
+                >
+                  <i
+                    class="fa-solid fa-coins text-[10px] shrink-0"
+                    :class="dailyLimitExceeded ? 'text-error' : 'text-warning'"
+                    aria-hidden="true"
+                  ></i>
+                  <span
+                    class="font-mono font-semibold tabular-nums"
+                    :class="dailyLimitExceeded ? 'text-error' : 'text-warning'"
+                  >{{ todaySpentFormatted }}</span>
+                  <span class="text-base-content/40">today</span>
+                </span>
+              </div>
             </div>
+            <!-- Wallet balance: always visible next to the chevron,
+                 independent of the menu open/closed state. -->
+            <span
+              v-if="walletBalance != null"
+              class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/15 text-success text-[11px] font-mono font-semibold leading-none whitespace-nowrap tabular-nums transition-colors duration-150"
+              :title="`Wallet balance: ${walletBalance} cxj coins`"
+              :aria-label="`Wallet balance: ${walletBalance} cxj coins`"
+            >
+              <i class="fa-solid fa-wallet" aria-hidden="true"></i>{{ walletBalance }}
+            </span>
             <i class="fas fa-chevron-down text-xs text-base-content/40 shrink-0"></i>
           </div>
         </WindowsMenu>
@@ -209,7 +241,8 @@ export default {
   data() {
     return {
       dailyLimitStatus: 'normal',
-      moreExpanded: false
+      moreExpanded: false,
+      metricsInterval: null
     }
   },
   computed: {
@@ -245,18 +278,67 @@ export default {
     },
     connected() {
       return this.$session.connected
+    },
+    // Wallet balance (cxj coins) shown next to the footer chevron.
+    // Always rendered — it does not depend on the WindowsMenu open state.
+    walletBalance() {
+      const balance = this.$storex?.users?.user?.wallet?.balance_cxjcoins
+      return balance != null ? Number(balance).toFixed(2) : null
+    },
+    // Amount spent today (cxj coins) — $storex.users.metrics.today.total_cxjcoins
+    todaySpent() {
+      const coins = this.$storex?.users?.metrics?.today?.total_cxjcoins
+      return coins != null ? Number(coins) : null
+    },
+    todaySpentFormatted() {
+      return this.todaySpent != null ? this.todaySpent.toFixed(2) : null
+    },
+    // Daily spending limit (if configured): { period, limit_cxjcoins }
+    dailyLimit() {
+      const limit = this.$storex?.users?.user?.wallet?.spending_limits?.find(l => l.period === 'daily')
+      return limit?.limit_cxjcoins ?? null
+    },
+    // Exceeded limit turns the value into an error state (never color-only:
+    // the tooltip/label carries the meaning).
+    dailyLimitExceeded() {
+      if (this.dailyLimit == null || this.todaySpent == null) return false
+      return this.todaySpent >= this.dailyLimit
+    },
+    todaySpentTitle() {
+      if (this.todaySpent == null) return null
+      if (this.dailyLimit == null) return `Spent today: ${this.todaySpentFormatted} cxj coins`
+      return `Spent today: ${this.todaySpentFormatted} of ${Number(this.dailyLimit).toFixed(2)} cxj coins (daily limit)`
+    }
+  },
+  mounted() {
+    // Metrics are otherwise only loaded by UserInfo (inside the lazily
+    // rendered Windows menu), so the sidebar keeps its own fresh copy.
+    this.loadTodaySpend()
+    this.metricsInterval = setInterval(() => this.loadTodaySpend(), 60000)
+  },
+  beforeUnmount() {
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval)
+      this.metricsInterval = null
     }
   },
   methods: {
     // Toggle between the icon rail and the expanded sidebar.
     toggleCollapse() {
-      this.$storex.ui.toggleSidebar()
+      return this.$storex.ui.toggleSidebar()
     },
     // A launcher overlay (project selector, windows menu, …) was opened.
     // Expand the sidebar and keep it expanded so the launcher and its state
     // stay visible — this replaces the old floating/pin behaviour.
     onOverlayOpen() {
       this.$storex.ui.expandSidebar()
+    },
+    async loadTodaySpend() {
+      try {
+        await this.$storex.users.loadMetrics()
+      } catch (ex) {
+        console.error('Error loading user metrics', ex)
+      }
     },
     handleClose() {
       if (this.isMobile) {

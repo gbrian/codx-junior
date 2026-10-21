@@ -10,7 +10,7 @@ defineProps({
   wide: { type: Boolean, default: false }
 })
 
-const { state, t, goModule, openModal } = useSolopreneur()
+const { state, t, goModule, openModal, setLang } = useSolopreneur()
 
 // Order mirrors the approved mockup: the work sections (projects, sprints)
 // follow the summary, before the billing/support ones.
@@ -29,6 +29,14 @@ const ICONS = {
   messages: 'fa-solid fa-comments'
 }
 
+// Languages offered in the account menu. `code` matches `state.lang` and the
+// LANG_LOCALE map used by the date / money formatters.
+const LANGS = [
+  { code: 'EN', label: 'English' },
+  { code: 'ES', label: 'Español' },
+  { code: 'FR', label: 'Français' }
+]
+
 // Account menu. It lives in the brand row because that row is the TOP-MOST
 // header of this screen on narrow layouts (above the nav row and the greeting
 // topbar) — it replaces the logout icon that used to sit there.
@@ -39,6 +47,9 @@ function closeAccount() { accountOpen.value = false }
 // painted underneath an open panel.
 function chooseModule(id) { closeAccount(); goModule(id) }
 function chooseLogout() { closeAccount(); openModal('logout') }
+// The language selector lives here too (it used to sit in the greeting topbar):
+// the menu STAYS OPEN on purpose, so the change is visible in place.
+function chooseLang(code) { setLang(code) }
 </script>
 
 <template>
@@ -124,9 +135,34 @@ function chooseLogout() { closeAccount(); openModal('logout') }
             <i class="fa-solid fa-wallet w-4 text-center" aria-hidden="true"></i>
             <span>{{ t('nav.wallet') }}</span>
           </button>
+
+          <!-- Language: moved here from the greeting topbar. Three short codes
+               fit the 224px panel, so no nested dropdown is needed. -->
+          <div class="mt-1 pt-2 border-t border-base-content/10">
+            <div class="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-base-content/40">
+              {{ t('language') }}
+            </div>
+            <div class="flex gap-1 px-1.5 pb-1">
+              <button
+                v-for="l in LANGS"
+                :key="l.code"
+                type="button"
+                class="flex-1 px-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+                :class="state.lang === l.code
+                  ? 'border-codx-primary bg-codx-primary/5 text-codx-primary'
+                  : 'border-base-content/15 text-base-content/60 hover:bg-base-200'"
+                :aria-pressed="state.lang === l.code"
+                :title="l.label"
+                @click="chooseLang(l.code)"
+              >
+                {{ l.code }}
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
-            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-base-content/80 hover:bg-base-200 transition-colors"
+            class="w-full flex items-center gap-2.5 px-3 py-2 mt-1 rounded-lg text-sm text-base-content/80 hover:bg-base-200 transition-colors border-t border-base-content/10"
             @click="chooseLogout()"
           >
             <i class="fa-solid fa-right-from-bracket w-4 text-center" aria-hidden="true"></i>

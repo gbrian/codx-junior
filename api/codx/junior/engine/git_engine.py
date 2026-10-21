@@ -8,10 +8,11 @@ Made with ❤️ by codx-junior
 import json
 import logging
 import os
+import re
 import subprocess
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from codx.junior.project.project_discover import find_project_parents
 from codx.junior.utils.utils import exec_command
@@ -20,6 +21,9 @@ if TYPE_CHECKING:
     from codx.junior.engine.session import CODXJuniorSession
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_BRANCH_PREFIX = "codx-junior"
+DEFAULT_COMMIT_MESSAGE = "feat: apply AI-generated code changes"
 
 
 class GitEngine:
@@ -39,6 +43,10 @@ class GitEngine:
         GE --> reset_project_file
         GE --> diff_file
         GE --> get_file_version_at_depth
+        GE --> get_working_tree_status
+        GE --> build_branch_name
+        GE --> create_pr_branch
+        GE --> get_worktrees_path
     ```
     """
 
@@ -74,6 +82,103 @@ class GitEngine:
         
         return cleaned
 
+    def _get_repo_root(self) -> str:
+        """
+        Return the git root path for the project, falling back to the project path.
+
+        Returns:
+            Absolute path of the repository root.
+        """
+        return self.find_git_root_path() or self.settings.abs_project_path
+
+    def _run_git(self, args: List[str], cwd: Optional[str] = None) -> dict:
+        """
+        Run a git command without a shell and return a structured result.
+
+        Uses ``subprocess.run`` with an argument list so branch names and file
+        paths never need shell quoting, and stdout/stderr stay separated (unlike
+        ``exec_command``, which merges stderr into stdout).
+
+        Args:
+            args: Git arguments, e.g. ``["checkout", "-b", "feature/x"]``.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            Dict with 'ok', 'command', 'output', 'error' and 'returncode'.
+        """
+        cwd = cwd or self._get_repo_root()
+        command = ["git"] + list(args)
+        command_str = " ".join(command)
+        logger.info("git command: %s (cwd=%s)", command_str, cwd)
+        try:
+            completed = subprocess.run(
+                command, cwd=cwd, text=True, capture_output=True
+            )
+        except Exception as ex:
+            logger.error("Error running '%s': %s", command_str, ex)
+            return {
+                "ok": False,
+                "command": command_str,
+                "output": "",
+                "error": str(ex),
+                "returncode": -1,
+            }
+
+        output = (completed.stdout or "").strip()
+        error = (completed.stderr or "").strip()
+        ok = completed.returncode == 0
+        if not ok:
+            logger.warning("git command failed: %s. %s", command_str, error)
+        return {
+            "ok": ok,
+            "command": command_str,
+            "output": output,
+            "error": error,
+            "returncode": completed.returncode,
+        }
+
+    def _ref_exists(self, ref: str, cwd: Optional[str] = None) -> bool:
+        """
+        Check whether a git ref (branch, remote branch or commit) exists.
+
+        Args:
+            ref: Full ref name, e.g. ``refs/heads/main`` or ``origin/main``.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            True when the ref can be resolved.
+        """
+        result = self._run_git(["rev-parse", "--verify", "--quiet", ref], cwd=cwd)
+        return bool(result["ok"] and result["output"])
+
+    def _resolve_base_ref(self, base_branch: Optional[str], cwd: str) -> Optional[str]:
+        """
+        Resolve the ref a new PR branch should be created from.
+
+        Local branches are preferred (PRs are reviewed locally) and the remote
+        tracking branch is used as a fallback.
+
+        Args:
+            base_branch: Base branch name, may be empty.
+            cwd: Working directory (repository root).
+
+        Returns:
+            Resolvable ref name, or None when the base branch is unknown.
+        """
+        if not base_branch:
+            return None
+
+        base_branch = self._sanitize_branch_name(base_branch)
+        for candidate in (
+            f"refs/heads/{base_branch}",
+            f"refs/remotes/origin/{base_branch}",
+        ):
+            if self._ref_exists(candidate, cwd=cwd):
+                return candidate
+
+        logger.warning("Base branch not found: %s", base_branch)
+        return None
+
     def _get_file_last_modification(self, file_path: str) -> Optional[str]:
         """
         Return the last modification datetime of a file as an ISO 8601 string.
@@ -106,6 +211,49 @@ class GitEngine:
             current_path = os.path.dirname(current_path)
             
         return self.find_git_root_path()
+
+    def _write_repo_file(self, repo_path: str, file_path: str, content: str) -> dict:
+        """
+        Write a file inside a repository (or worktree), creating parent folders.
+
+        Paths escaping the repository root are rejected.
+
+        Args:
+            repo_path: Absolute repository (or worktree) root.
+            file_path: Relative (to the repo) or absolute file path.
+            content: Full file content to write.
+
+        Returns:
+            Dict with 'ok', 'file_path' (repo-relative) and 'error'.
+        """
+        repo_root = os.path.normpath(repo_path)
+        resolved = file_path
+        if not os.path.isabs(resolved):
+            resolved = os.path.join(repo_root, resolved)
+        resolved = os.path.normpath(resolved)
+
+        if not resolved.startswith(repo_root + os.sep):
+            return {
+                "ok": False,
+                "file_path": file_path,
+                "error": f"File path must belong to {repo_path}",
+            }
+
+        try:
+            dir_name = os.path.dirname(resolved)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+            with open(resolved, "w", encoding="utf-8") as f:
+                f.write(content if content is not None else "")
+        except (IOError, OSError) as ex:
+            logger.error("Error writing file %s: %s", resolved, ex)
+            return {"ok": False, "file_path": file_path, "error": str(ex)}
+
+        return {
+            "ok": True,
+            "file_path": os.path.relpath(resolved, repo_root),
+            "error": "",
+        }
 
     def diff_file(self, path: str, content: str, from_branch: str = None, to_branch: str = None) -> dict:
         """
@@ -575,7 +723,9 @@ class GitEngine:
 
     def get_project_current_branch(self) -> str:
         """Return the current git branch name."""
-        stdout, _ = exec_command("git branch --show-current", cwd=self.settings.abs_project_path)
+        stdout, _ = exec_command(
+            "git branch --show-current", cwd=self._get_repo_root()
+        )
         return stdout.strip()
 
     def get_project_parent_branch(self) -> str:
@@ -691,6 +841,380 @@ class GitEngine:
             )
 
         return changes
+
+    def get_working_tree_status(self) -> dict:
+        """
+        Return the working tree status of the repository.
+
+        Returns:
+            Dict with 'ok', 'dirty', 'files' (porcelain lines) and 'error'.
+
+        Example:
+            >>> engine.get_working_tree_status()
+            {'ok': True, 'dirty': True, 'files': [' M codx/junior/app.py'], 'error': ''}
+        """
+        result = self._run_git(["status", "--porcelain"])
+        files = [line for line in result["output"].split("\n") if line.strip()]
+        return {
+            "ok": result["ok"],
+            "dirty": bool(files),
+            "files": files,
+            "error": result["error"],
+        }
+
+    def build_branch_name(self, name: Optional[str] = None, prefix: Optional[str] = None) -> str:
+        """
+        Build a safe branch name from free text.
+
+        Args:
+            name: Optional descriptive text (chat name, task title...).
+            prefix: Branch prefix. Defaults to the project's `git_pr_branch_prefix`
+                setting, or 'codx-junior'.
+
+        Returns:
+            Branch name such as 'codx-junior/fix-login-timeout' or
+            'codx-junior/chat-20240101-120000' when no name is provided.
+
+        Example:
+            >>> engine.build_branch_name("Fix: login timeout!")
+            'codx-junior/fix-login-timeout'
+        """
+        if prefix is None:
+            prefix = getattr(self.settings, "git_pr_branch_prefix", None) or DEFAULT_BRANCH_PREFIX
+
+        slug = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+        slug = slug[:40].strip("-")
+        if not slug:
+            slug = f"chat-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+        prefix = (prefix or "").strip("/")
+        return f"{prefix}/{slug}" if prefix else slug
+
+    def get_worktrees_path(self) -> str:
+        """
+        Return the folder where PR worktrees are created.
+
+        Returns:
+            Absolute path, taken from the project's `get_worktrees_path()` setting.
+        """
+        if hasattr(self.settings, "get_worktrees_path"):
+            return self.settings.get_worktrees_path()
+
+        repo_path = self._get_repo_root().rstrip("/")
+        return os.path.join(
+            os.path.dirname(repo_path), f"{os.path.basename(repo_path)}-worktrees"
+        )
+
+    def list_worktrees(self) -> list:
+        """
+        Return the repository's registered worktrees.
+
+        Returns:
+            List of dicts with 'path' and 'branch' keys.
+        """
+        result = self._run_git(["worktree", "list", "--porcelain"])
+        worktrees = []
+        current: Dict[str, str] = {}
+
+        for line in result["output"].split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("worktree "):
+                if current:
+                    worktrees.append(current)
+                current = {"path": line[len("worktree "):].strip()}
+            elif line.startswith("branch ") and current is not None:
+                branch = line[len("branch "):].strip()
+                current["branch"] = self._sanitize_branch_name(
+                    branch.replace("refs/heads/", "")
+                )
+
+        if current:
+            worktrees.append(current)
+        return worktrees
+
+    def get_worktree_path_for_branch(self, branch_name: str) -> str:
+        """
+        Return the worktree path already registered for a branch, if any.
+
+        Args:
+            branch_name: Branch name to look for.
+
+        Returns:
+            Absolute worktree path, or an empty string when none exists.
+        """
+        branch_name = self._sanitize_branch_name(branch_name)
+        for worktree in self.list_worktrees():
+            if worktree.get("branch") == branch_name:
+                return worktree.get("path", "")
+        return ""
+
+    def _create_branch_worktree(
+        self,
+        repo_path: str,
+        branch_name: str,
+        base_ref: str,
+        branch_exists: bool,
+        worktree_path: Optional[str] = None,
+    ) -> dict:
+        """
+        Create (or reuse) a worktree holding the given branch.
+
+        Args:
+            repo_path: Absolute repository root.
+            branch_name: Branch to check out in the worktree.
+            base_ref: Ref used to create the branch when it does not exist yet.
+            branch_exists: Whether the branch already exists locally.
+            worktree_path: Optional target path. Defaults to
+                `<worktrees path>/<branch slug>`.
+
+        Returns:
+            Dict with 'ok', 'path', 'output' and 'error'.
+        """
+        existing_path = self.get_worktree_path_for_branch(branch_name)
+        if existing_path:
+            return {
+                "ok": True,
+                "path": existing_path,
+                "output": f"reusing worktree {existing_path}",
+                "error": "",
+            }
+
+        target_path = worktree_path or os.path.join(
+            self.get_worktrees_path(),
+            re.sub(r"[^a-zA-Z0-9_.-]+", "-", branch_name).strip("-"),
+        )
+        if not os.path.isabs(target_path):
+            target_path = os.path.join(repo_path, target_path)
+        target_path = os.path.normpath(target_path)
+
+        try:
+            os.makedirs(target_path, exist_ok=True)
+        except OSError as ex:
+            return {
+                "ok": False,
+                "path": target_path,
+                "output": "",
+                "error": f"Could not create worktree folder {target_path}: {ex}",
+            }
+
+        if branch_exists:
+            args = ["worktree", "add", target_path, branch_name]
+        else:
+            args = ["worktree", "add", "-b", branch_name, target_path, base_ref]
+
+        result = self._run_git(args, cwd=repo_path)
+        return {
+            "ok": result["ok"],
+            "path": target_path,
+            "output": result["output"],
+            "error": result["error"],
+        }
+
+    def _commit_all(
+        self, cwd: str, message: str, allow_empty: bool = True
+    ) -> dict:
+        """
+        Stage every change and commit it.
+
+        Args:
+            cwd: Working directory (repository root or worktree path).
+            message: Commit message.
+            allow_empty: Allow commits without content changes.
+
+        Returns:
+            Result dict of the commit command.
+        """
+        add = self._run_git(["add", "-A"], cwd=cwd)
+        if not add["ok"]:
+            return add
+
+        args = ["commit", "-m", message]
+        if allow_empty:
+            args.append("--allow-empty")
+        return self._run_git(args, cwd=cwd)
+
+    def create_pr_branch(
+        self,
+        branch_name: Optional[str] = None,
+        files_content: Optional[Dict[str, str]] = None,
+        base_branch: Optional[str] = None,
+        commit_message: Optional[str] = None,
+        use_worktree: bool = False,
+        worktree_path: Optional[str] = None,
+        allow_empty: bool = True,
+    ) -> dict:
+        """
+        Create a local PR branch from the current branch with the chat changes.
+
+        PRs are reviewed locally by codx-junior, so nothing is pushed to the
+        remote: the workflow ends once the branch and its commit exist locally.
+
+        Workflow:
+            1. Resolve the base branch: `base_branch` or the **current** branch.
+            2. Create the branch from that base, either:
+               - as a git worktree (`use_worktree=True`): the main checkout and
+                 its uncommitted changes stay untouched, or
+               - in the project working tree (`use_worktree=False`): the repo is
+                 switched to the new branch.
+            3. Write `files_content` (optional) and commit every change.
+
+        Args:
+            branch_name: Target PR branch (e.g. 'codx-junior/fix-login').
+                Generated automatically when omitted.
+            files_content: Optional map of repo-relative file path -> full content.
+                Omit it to commit the changes already present on disk.
+            base_branch: Base branch. Defaults to the current branch.
+            commit_message: Commit message. Defaults to a generic message.
+            use_worktree: Create the branch as a worktree (default: False).
+            worktree_path: Custom worktree folder. Defaults to
+                `<worktrees path>/<branch slug>`.
+            allow_empty: Allow commits with no content changes.
+
+        Returns:
+            Dict with 'success', 'branch', 'base_branch', 'base_ref',
+            'original_branch', 'commit', 'files_written', 'worktree',
+            'worktree_path', 'branch_checked_out', 'steps', 'errors' and
+            'repo_path'.
+
+        Example:
+            Create a local PR branch from the current branch, in a worktree:
+            >>> engine.create_pr_branch(
+            ...     branch_name="codx-junior/fix-login",
+            ...     commit_message="fix: login timeout",
+            ...     use_worktree=True,
+            ... )
+            {'success': True, 'branch': 'codx-junior/fix-login', ...}
+        """
+        repo_path = self._get_repo_root()
+        original_branch = (self.get_project_current_branch() or "").strip()
+
+        base_branch = (
+            self._sanitize_branch_name(base_branch) if base_branch else original_branch
+        )
+        branch_name = (
+            self._sanitize_branch_name(branch_name) if branch_name else ""
+        ) or self.build_branch_name()
+
+        result = {
+            "success": False,
+            "branch": branch_name,
+            "base_branch": base_branch,
+            "base_ref": None,
+            "original_branch": original_branch,
+            "commit": "",
+            "files_written": [],
+            "worktree": False,
+            "worktree_path": "",
+            "branch_checked_out": False,
+            "steps": [],
+            "errors": [],
+            "repo_path": repo_path,
+        }
+
+        if not branch_name:
+            result["errors"].append("branch_name is required")
+            return result
+
+        if base_branch and branch_name == base_branch:
+            result["errors"].append(
+                f"Branch name '{branch_name}' must differ from the base branch"
+            )
+            return result
+
+        if files_content is not None and not isinstance(files_content, dict):
+            result["errors"].append("files_content must be a dictionary")
+            return result
+
+        status = self.get_working_tree_status()
+        result["steps"].append({
+            "name": "status",
+            "ok": status["ok"],
+            "output": f"{len(status['files'])} changed file(s)",
+            "error": status["error"],
+        })
+        if not status["ok"]:
+            result["errors"].append(f"Could not read git status: {status['error']}")
+            return result
+
+        commit_message = commit_message or DEFAULT_COMMIT_MESSAGE
+
+        base_ref = self._resolve_base_ref(base_branch, repo_path) or "HEAD"
+        result["base_ref"] = base_ref
+
+        branch_exists = self._ref_exists(
+            f"refs/heads/{branch_name}", cwd=repo_path
+        )
+
+        if use_worktree:
+            worktree_result = self._create_branch_worktree(
+                repo_path=repo_path,
+                branch_name=branch_name,
+                base_ref=base_ref,
+                branch_exists=branch_exists,
+                worktree_path=worktree_path,
+            )
+            result["steps"].append({"name": "worktree", **worktree_result})
+            if not worktree_result["ok"]:
+                result["errors"].append(
+                    f"Could not create worktree for '{branch_name}': "
+                    f"{worktree_result['error']}"
+                )
+                return result
+
+            result["worktree"] = True
+            result["worktree_path"] = worktree_result["path"]
+            work_path = worktree_result["path"]
+        else:
+            checkout = self._run_git(
+                ["checkout", branch_name]
+                if branch_exists
+                else ["checkout", "-b", branch_name, base_ref]
+            )
+            result["steps"].append({"name": "checkout", **checkout})
+            if not checkout["ok"]:
+                result["errors"].append(
+                    f"Could not checkout branch '{branch_name}': {checkout['error']}"
+                )
+                return result
+
+            work_path = repo_path
+            result["branch_checked_out"] = True
+
+        for file_path, content in (files_content or {}).items():
+            write_result = self._write_repo_file(
+                repo_path=work_path,
+                file_path=file_path,
+                content=content,
+            )
+            result["steps"].append({"name": "write", **write_result})
+            if write_result["ok"]:
+                result["files_written"].append(write_result["file_path"])
+            else:
+                result["errors"].append(
+                    f"Could not write '{file_path}': {write_result['error']}"
+                )
+
+        if result["errors"]:
+            return result
+
+        commit = self._commit_all(
+            cwd=work_path, message=commit_message, allow_empty=allow_empty
+        )
+        result["steps"].append({"name": "commit", **commit})
+        if not commit["ok"]:
+            result["errors"].append(
+                f"Could not commit changes: {commit['error'] or commit['output']}"
+            )
+            return result
+
+        head = self._run_git(["rev-parse", "HEAD"], cwd=work_path)
+        if head["ok"]:
+            result["commit"] = head["output"]
+
+        result["success"] = not result["errors"]
+        return result
 
     def reset_project_file(self, file_path: str) -> None:
         """Reset file's last change."""

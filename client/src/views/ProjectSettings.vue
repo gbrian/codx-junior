@@ -104,10 +104,49 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
                   <div class="text-xs text-base-content/60 mt-1">List of external libraries or modules required.</div>
                 </div>
               </div>
+            </div>
+
+            <div v-if="activeTab === 'git'">
+              <div class="font-bold mb-4">Commit author</div>
+              <div class="flex flex-col gap-4">
+                <div>
+                  <label class="label-text block mb-2">User name</label>
+                  <input v-model="globalGit.username" type="text" placeholder="codx-junior" class="input input-bordered w-full" />
+                  <div class="text-xs text-base-content/60 mt-1">Author name used for commits created by codx-junior.</div>
+                </div>
+                <div>
+                  <label class="label-text block mb-2">Email</label>
+                  <input v-model="globalGit.email" type="email" placeholder="codx-junior@localhost" class="input input-bordered w-full" />
+                  <div class="text-xs text-base-content/60 mt-1">Author email used for commits created by codx-junior.</div>
+                </div>
+              </div>
 
               <div class="divider"></div>
 
-              <div class="font-bold mb-4">Project Branches</div>
+              <div class="font-bold mb-4">Local PR branches</div>
+              <div class="flex flex-col gap-4">
+                <div>
+                  <label class="label-text block mb-2">PR branch prefix</label>
+                  <input v-model="settings.git_pr_branch_prefix" type="text" placeholder="codx-junior" class="input input-bordered w-full" />
+                  <div class="text-xs text-base-content/60 mt-1">
+                    Prefix used when codx-junior generates PR branch names, e.g. <code>codx-junior/fix-login-timeout</code>.
+                  </div>
+                </div>
+                <div>
+                  <label class="label-text block mb-2">Worktrees path</label>
+                  <input v-model="settings.git_worktrees_path" type="text" :placeholder="defaultWorktreesPath" class="input input-bordered w-full" />
+                  <div class="text-xs text-base-content/60 mt-1">
+                    Folder where PR worktrees are created. Absolute when it starts with <code>/</code>, otherwise relative to the project path.
+                  </div>
+                  <div class="text-xs text-base-content/60 mt-1">
+                    Leave empty to use the default: <code>{{ defaultWorktreesPath }}</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="font-bold mb-4">Project branches</div>
               <div class="flex flex-col gap-2">
                 <div class="text-xs text-base-content/60">Project branches are copies of the project's files to allow working in parallel</div>
                 <button @click="addBranch" class="btn btn-sm btn-ghost justify-start">
@@ -430,10 +469,68 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
                 </div>
               </div>
             </div>
+          </div>
+
+          <div v-if="activeTab === 'git'">
+            <div class="font-bold mb-4 text-lg">Commit author</div>
+            <div class="space-y-6">
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">User name</label>
+                  <p class="text-xs text-base-content/60">Author name used for commits created by codx-junior.</p>
+                </div>
+                <div class="w-96">
+                  <input v-model="globalGit.username" type="text" placeholder="codx-junior" class="input input-bordered w-full" />
+                </div>
+              </div>
+
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">Email</label>
+                  <p class="text-xs text-base-content/60">Author email used for commits created by codx-junior.</p>
+                </div>
+                <div class="w-96">
+                  <input v-model="globalGit.email" type="email" placeholder="codx-junior@localhost" class="input input-bordered w-full" />
+                </div>
+              </div>
+            </div>
 
             <div class="divider"></div>
 
-            <div class="font-bold mb-4 text-lg">Project Branches</div>
+            <div class="font-bold mb-4 text-lg">Local PR branches</div>
+            <div class="space-y-6">
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">PR branch prefix</label>
+                  <p class="text-xs text-base-content/60">
+                    Prefix used when codx-junior generates PR branch names, e.g. <code>codx-junior/fix-login-timeout</code>.
+                    Leave empty to use the default <code>codx-junior</code>.
+                  </p>
+                </div>
+                <div class="w-96">
+                  <input v-model="settings.git_pr_branch_prefix" type="text" placeholder="codx-junior" class="input input-bordered w-full" />
+                </div>
+              </div>
+
+              <div class="flex justify-between items-start gap-6">
+                <div class="flex-1">
+                  <label class="label-text block font-semibold mb-2">Worktrees path</label>
+                  <p class="text-xs text-base-content/60">
+                    Folder where PR worktrees are created. Absolute when it starts with <code>/</code>, otherwise relative to the project path.
+                  </p>
+                  <p class="text-xs text-base-content/60 mt-1">
+                    Leave empty to use the default: <code>{{ defaultWorktreesPath }}</code>
+                  </p>
+                </div>
+                <div class="w-96">
+                  <input v-model="settings.git_worktrees_path" type="text" :placeholder="defaultWorktreesPath" class="input input-bordered w-full" />
+                </div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="font-bold mb-4 text-lg">Project branches</div>
             <div class="space-y-4">
               <p class="text-xs text-base-content/60">Project branches are copies of the project's files to allow working in parallel</p>
               <button @click="addBranch" class="btn btn-sm btn-outline">
@@ -712,10 +809,12 @@ export default {
     return {
       activeTab: 'general',
       settings: null,
+      globalGit: { username: '', email: '' },
       confirmDelete: false,
       drawerOpen: false,
       navItems: [
         { id: 'general', label: 'General', icon: 'fa-sliders' },
+        { id: 'git', label: 'Git', icon: 'fa-code-branch' },
         { id: 'ai', label: 'AI Models', icon: 'fa-brain' },
         { id: 'mcp', label: 'MCP Servers', icon: 'fa-server' },
         { id: 'knowledge', label: 'Knowledge', icon: 'fa-lightbulb' },
@@ -730,6 +829,14 @@ export default {
   computed: {
     project() {
       return this.$project
+    },
+    defaultWorktreesPath() {
+      const repoPath = (this.settings?.abs_project_path || this.project?.abs_project_path || '').replace(/\/+$/, '')
+      const index = repoPath.lastIndexOf('/')
+      if (index <= 0) {
+        return repoPath ? `${repoPath}-worktrees` : ''
+      }
+      return `${repoPath.substring(0, index)}/${repoPath.substring(index + 1)}-worktrees`
     }
   },
   watch: {
@@ -743,10 +850,37 @@ export default {
       if (this.settings && !this.settings.mcp_servers) {
         this.settings.mcp_servers = []
       }
+      if (this.settings && this.settings.git_pr_branch_prefix === undefined) {
+        this.settings.git_pr_branch_prefix = ''
+      }
+      if (this.settings && this.settings.git_worktrees_path === undefined) {
+        this.settings.git_worktrees_path = ''
+      }
+      await this.loadGlobalGitSettings()
       this.confirmDelete = false
+    },
+    async loadGlobalGitSettings() {
+      let git = {}
+      try {
+        git = await this.$storex.api.settings.global.section('git')
+      } catch (ex) {
+        console.error('Error loading global git settings', ex)
+      }
+      this.globalGit = {
+        ...(git || {}),
+        username: git?.username || '',
+        email: git?.email || ''
+      }
+    },
+    async saveGlobalGitSettings() {
+      if (!this.globalGit) {
+        return
+      }
+      await this.$storex.api.settings.global.saveSection('git', this.globalGit)
     },
     async saveSettings() {
       await this.$project.$api.settings.save(this.settings)
+      await this.saveGlobalGitSettings()
       await this.reloadSettings()
       this.$ui.addNotification({ text: 'Settings saved successfully' })
     },
@@ -766,7 +900,8 @@ export default {
     },
     getActiveDescription() {
       const descriptions = {
-        general: 'Configure project name, path, wiki, and branches',
+        general: 'Configure project name, path and wiki',
+        git: 'Configure commit author, PR branches and worktrees',
         ai: 'Select AI models for different project tasks',
         mcp: 'Configure Model Context Protocol servers',
         knowledge: 'Configure knowledge base and RAG settings',

@@ -93,6 +93,16 @@ class CODXJuniorSettings(BaseModel):
 
     is_git_root: Optional[bool] = Field(default=False)
 
+    # Git PR settings (PRs are handled locally by codx-junior)
+    git_pr_branch_prefix: Optional[str] = Field(
+        default="codx-junior",
+        description="Prefix used when naming PR branches automatically"
+    )
+    git_worktrees_path: Optional[str] = Field(
+        default="",
+        description="Folder where PR worktrees are created (absolute or relative to the project path)"
+    )
+
     def __str__(self):
         return str(self.model_dump())
 
@@ -120,6 +130,30 @@ class CODXJuniorSettings(BaseModel):
     def get_project_workspaces(self):
         global_settings = read_global_settings()
         return [w for w in global_settings.workspaces if self.project_id in w.project_ids]
+
+    def get_worktrees_path(self) -> str:
+        """
+        Return the folder used to create PR branches as git worktrees.
+
+        When `git_worktrees_path` is empty a sibling folder of the project is
+        used (`<project-parent>/<project-name>-worktrees`), so worktrees never
+        pollute the repository working tree.
+
+        Returns:
+            Absolute path to the worktrees folder.
+        """
+        if self.git_worktrees_path:
+            if self.git_worktrees_path.startswith("/"):
+                return self.git_worktrees_path
+            return os.path.join(self.abs_project_path, self.git_worktrees_path)
+
+        project_path = (self.abs_project_path or self.project_path or "").rstrip("/")
+        if not project_path:
+            return os.path.join(self.codx_path or "", "worktrees")
+
+        return os.path.join(
+            os.path.dirname(project_path), f"{os.path.basename(project_path)}-worktrees"
+        )
 
     def get_active_mcp_servers(self) -> List[MCPServer]:
         """Get list of active MCP servers."""
