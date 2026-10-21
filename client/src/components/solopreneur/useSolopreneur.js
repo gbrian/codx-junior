@@ -1,17 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Solopreneur mode — shared, singleton state + actions.
 //
-// There is no `/api/solopreneur/*` backend yet, so this module owns a
-// self-contained reactive data layer that reproduces the approved mockup.
-// It still integrates with the real app where it matters:
+// The dashboard sections (summary / account / wallet / updates / messages)
+// still own a self-contained reactive data layer that reproduces the approved
+// mockup, while integrating with the real app where it matters:
 //
 //   • identity   → the current user (`$storex.api.user`) and the active
 //                  project name are overlaid on the seeded profile.
 //   • logout     → real `$storex.users.logout()`.
-//   • new project→ the mockup's local dialog (kept 1:1 with the design).
+//   • new project→ REAL creation (`$storex.projects.createNewProject`).
 //   • toasts     → real `$storex.ui.addNotification`.
 //   • navigation → real router (`$storex.$router`) via `goModule()`, but ONLY
 //                  when the screen is hosted by its route (see below).
+//
+// The Projects and Sprints sections do NOT use this file's data: they read the
+// real stores through `useSolopreneurProjects.js`.
 //
 // Only ONE SolopreneurView is mounted at a time, so a module-scoped singleton
 // keeps every child component in sync without prop-drilling.
@@ -20,7 +23,7 @@ import { reactive } from 'vue'
 import { $storex } from '@/store'
 import { translate, LANG_LOCALE } from './i18n'
 
-export const MODULES = ['summary', 'account', 'projects', 'wallet', 'updates', 'messages']
+export const MODULES = ['summary', 'account', 'projects', 'sprints', 'wallet', 'updates', 'messages']
 
 export const PLANS = [
   { id: 'basic', name: 'Basic', price: 8.99, note: 'One project · monthly billing' },
@@ -43,12 +46,18 @@ export const CREDIT_PACKS = [
 //
 // Instead the view MEASURES the width it is actually given and publishes it
 // here (`setViewportWidth`), so every component reads one source of truth.
+const COMPACT_WIDTH = 640 // phone / narrow panel: one-row summaries, tighter paddings
 const WIDE_WIDTH = 1024 // rail beside the content instead of above it
 const XL_WIDTH = 1280   // room for the calendar side column
 
 function tiers(width) {
   const w = Math.max(0, Math.round(Number(width) || 0))
-  return { width: w, isWide: w >= WIDE_WIDTH, isXl: w >= XL_WIDTH }
+  return {
+    width: w,
+    isCompact: w < COMPACT_WIDTH,
+    isWide: w >= WIDE_WIDTH,
+    isXl: w >= XL_WIDTH
+  }
 }
 
 function initialViewport() {
@@ -79,6 +88,8 @@ function capitalize(value) {
 }
 
 // ── seed data (approved mockup) ─────────────────────────────────────────────
+// Only dashboard copy: the project list, the boards and the tickets come from
+// the real stores (see useSolopreneurProjects.js).
 function seed() {
   return {
     user: {
@@ -90,11 +101,6 @@ function seed() {
       credits: 500, plan: 'Basic', billing: 'Monthly', invoice: 8.99, due: isoDate(monthFirst(1))
     },
     stats: { uptime: '99.98%', hours: '38 h', tasks: 18 },
-    projects: [
-      { id: 'p_1', name: 'Online store', tasks: 12, progress: 68, variant: 'g1', updated: daysAgo(1) },
-      { id: 'p_2', name: 'Booking system', tasks: 7, progress: 45, variant: 'g2', updated: daysAgo(2) },
-      { id: 'p_3', name: 'Company website', tasks: 3, progress: 90, variant: 'g3', updated: daysAgo(4) }
-    ],
     tasks: [
       { id: 't_1', title: 'Fix the checkout button on mobile', time: '10:00', context: 'Online store', status: 'in_progress' },
       { id: 't_2', title: 'Approve the new payment provider', time: '12:30', context: 'Waiting for your OK', status: 'in_progress' },
@@ -131,10 +137,7 @@ function freshUi() {
     errors: {},
     typing: false,
     query: '',
-    updatesFilter: 'all',
-    projectQuery: '',
-    projectSort: 'progress',
-    openProject: null
+    updatesFilter: 'all'
   }
 }
 
@@ -153,11 +156,13 @@ export const state = reactive({
 function setViewportWidth(width) {
   const next = tiers(width)
   if (next.width === state.viewport.width) {
+    state.viewport.isCompact = next.isCompact
     state.viewport.isWide = next.isWide
     state.viewport.isXl = next.isXl
     return
   }
   state.viewport.width = next.width
+  state.viewport.isCompact = next.isCompact
   state.viewport.isWide = next.isWide
   state.viewport.isXl = next.isXl
 }
@@ -244,25 +249,27 @@ function toast(text, type = 'success') {
 }
 
 // ── actions ─────────────────────────────────────────────────────────────────
-function createProject({ name, tasks }) {
+// Real project creation. The store reloads the project list and activates the
+// new project, so the Projects section shows it straight away.
+async function createProject({ name, repo }) {
   const value = String(name || '').trim()
   if (!value) {
     state.ui.errors = { name: t('common.required') }
     return false
   }
   state.ui.errors = {}
-  const variants = ['g1', 'g2', 'g3']
-  state.projects.unshift({
-    id: 'p_' + Date.now(),
-    name: value,
-    tasks: Math.max(0, Math.min(50, Number(tasks) || 0)),
-    progress: 0,
-    variant: variants[state.projects.length % 3],
-    updated: isoDate(new Date())
-  })
-  closeModal()
-  toast(t('toast.created'))
-  return true
+  try {
+    await $storex.projects.createNewProject({
+      project_name: value,
+      git_path: String(repo || '').trim() || null
+    })
+    closeModal()
+    toast(t('toast.created'))
+    return true
+  } catch (err) {
+    toast(t('pp.createError'), 'error')
+    return false
+  }
 }
 
 function saveAccount(data) {
@@ -344,8 +351,6 @@ function toggleTask(id) {
   if (!task) return
   const wasDone = task.status === 'done'
   task.status = wasDone ? 'in_progress' : 'done'
-  const project = state.projects.find(p => p.name === task.context)
-  if (project) project.progress = Math.max(0, Math.min(100, project.progress + (wasDone ? -3 : 3)))
   state.stats.tasks = Math.max(0, state.stats.tasks + (wasDone ? -1 : 1))
   closeModal()
   toast(wasDone ? t('toast.taskReopened') : t('toast.taskDone'))
@@ -366,13 +371,18 @@ function setLang(code) {
   toast(t('toast.lang'))
 }
 
+// Search runs over the REAL projects plus the dashboard copy.
 function searchResults(query) {
   const q = String(query || '').trim().toLowerCase()
   if (!q) return []
   const out = []
-  state.projects.forEach(p => {
-    if (p.name.toLowerCase().includes(q)) out.push({ label: p.name, meta: 'Project', module: 'projects' })
+
+  ;($storex.projects.allProjects || []).forEach(p => {
+    if (String(p.project_name || '').toLowerCase().includes(q)) {
+      out.push({ label: p.project_name, meta: 'Project', module: 'projects' })
+    }
   })
+
   state.tasks.forEach(x => {
     if (x.title.toLowerCase().includes(q)) out.push({ label: x.title, meta: 'Task', module: 'summary' })
   })

@@ -2,7 +2,14 @@
 import { ref, computed } from 'vue'
 import { useSolopreneur } from './useSolopreneur'
 
-const { state, t, dateLine, goModule, openModal, setLang, searchResults } = useSolopreneur()
+// `openModal` is NOT needed here: the bar no longer creates projects or logs
+// out (the account menu lives in the sidebar brand header, see
+// SolopreneurSidebar.vue).
+const { state, t, dateLine, goModule, setLang, searchResults } = useSolopreneur()
+
+// The primary "+" captures a ticket; the whole dialog lives in the host view
+// (views/SolopreneurView.vue) so this bar stays presentational.
+const emit = defineEmits(['new-ticket'])
 
 const LANGS = [
   { code: 'EN', label: 'English' },
@@ -101,16 +108,20 @@ function chooseLang(code) { setLang(code); closeMenus() }
         </div>
       </div>
 
-      <!-- New project -->
+      <!-- Quick ticket — the primary action: capture a ticket without leaving home.
+           It is the ONLY action of this bar: project creation and the account
+           menu (Account / Wallet / Log out) do not belong here — the account
+           entry point is the sidebar brand header, and projects are created from
+           the Projects module. -->
       <button
         type="button"
         class="h-9 md:h-10 inline-flex items-center justify-center gap-2 px-3 md:px-5 rounded-full bg-base-content text-base-100 text-sm font-semibold hover:opacity-90 active:scale-95 transition shrink-0"
-        :aria-label="t('addProject')"
-        :title="t('addProject')"
-        @click="openModal('newProject')"
+        :aria-label="t('sp.newTicket')"
+        :title="t('sp.newTicket')"
+        @click="emit('new-ticket')"
       >
-        <i class="fa-solid fa-plus md:hidden"></i>
-        <span class="hidden md:inline">{{ t('addProject') }}</span>
+        <i class="fa-solid fa-plus"></i>
+        <span class="hidden md:inline">{{ t('sp.newTicket') }}</span>
       </button>
     </div>
   </header>

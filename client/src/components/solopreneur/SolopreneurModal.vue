@@ -10,7 +10,7 @@ const {
 const modal = computed(() => state.ui.modal)
 
 const name = ref('')
-const tasksCount = ref(3)
+const repo = ref('')
 const pack = ref(CREDIT_PACKS[0].id)
 const plan = ref('basic')
 
@@ -33,15 +33,17 @@ watch(modal, (m) => {
   if (!m) return
   if (m.type === 'newProject') {
     name.value = ''
-    tasksCount.value = 3
+    repo.value = ''
     state.ui.errors = {}
   }
   if (m.type === 'credits') pack.value = CREDIT_PACKS[0].id
   if (m.type === 'plan') plan.value = currentPlanId.value
 })
 
+// Real creation: `createProject` calls the projects store, which reloads the
+// project list and activates the new project.
 function submitProject() {
-  createProject({ name: name.value, tasks: tasksCount.value })
+  createProject({ name: name.value, repo: repo.value })
 }
 
 function submitCredits() { addCredits(pack.value) }
@@ -80,14 +82,13 @@ function messageTeam() {
             <span v-if="state.ui.errors.name" class="text-xs text-error">{{ state.ui.errors.name }}</span>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="np-tasks" class="text-xs font-semibold text-base-content/60">{{ t('np.tasks') }}</label>
+            <label for="np-repo" class="text-xs font-semibold text-base-content/60">{{ t('np.repo') }}</label>
             <input
-              id="np-tasks"
-              v-model.number="tasksCount"
-              type="number"
-              min="0"
-              max="50"
-              class="h-11 rounded-xl border border-base-content/15 bg-base-100 px-4 text-sm outline-none focus:border-codx-primary"
+              id="np-repo"
+              v-model="repo"
+              type="text"
+              placeholder="https://github.com/user/repo.git"
+              class="h-11 rounded-xl border border-base-content/15 bg-base-100 px-4 text-sm font-mono outline-none focus:border-codx-primary"
             />
           </div>
           <div class="flex justify-end gap-3 pt-1">

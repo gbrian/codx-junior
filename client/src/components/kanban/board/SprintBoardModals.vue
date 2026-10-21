@@ -23,15 +23,28 @@ defineExpose({
   <div class="sprint-board-modals">
 
     <!-- ── New Task / Subtask Modal ── -->
-    <modal close @close="closeNewTask" v-if="showNewTask">
-      <div class="p-1">
-        <h2 class="font-bold text-base mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-plus text-primary text-sm"></i>
-          {{ newTask.parentId ? 'Add Subtask' : 'New Task' }}
+    <!-- Fullscreen while compact: on mobile the ticket dialog owns the viewport
+         instead of floating over a backdrop you can dismiss by accident. -->
+    <modal close :fullscreen="compact" @close="closeNewTask" v-if="showNewTask">
+      <!-- The title lives in the modal header: that bar is always there, so
+           using it hands the body the ~40px an in-body heading would take. -->
+      <template #header>
+        <h2 class="min-w-0 flex items-center gap-2 font-semibold text-sm md:text-base">
+          <i class="fa-solid fa-plus text-primary text-xs"></i>
+          <span class="truncate">{{ newTask.parentId ? 'Add Subtask' : 'New Task' }}</span>
+          <span
+            v-if="isUrgent"
+            class="badge badge-xs badge-warning gap-1 shrink-0 font-semibold"
+            :title="`Due ${newTask.deadline}`"
+          >
+            <i class="fa-solid fa-bolt text-[8px]"></i> Urgent
+          </span>
         </h2>
+      </template>
 
+      <div :class="compact ? 'p-0' : 'p-1'">
         <!-- Project (icon only) · Task name · Mode -->
-        <div class="flex items-center gap-2 mb-3">
+        <div class="flex items-center gap-2" :class="compact ? 'mb-2.5' : 'mb-3'">
           <div class="shrink-0">
             <ProjectDetailt
               :iconify="true"
@@ -44,11 +57,14 @@ defineExpose({
             ref="taskNameInput"
             v-model="newTask.name"
             type="text"
-            placeholder="Describe what needs to be done…"
+            :placeholder="compact ? 'What needs to be done?' : 'Describe what needs to be done…'"
             class="grow input"
+            :class="compact ? 'input-sm' : null"
             @keydown.enter="addNewTask"
           />
-          <div class="">
+          <!-- Mode: board tasks only. A quick ticket is always a chat, so the
+               compact dialog drops the selector and keeps the "chat" default. -->
+          <div v-if="!compact" class="">
             <ChatModeSelector
               :selected-mode="newTask.mode"
               @mode-changed="newTask.mode = $event"
@@ -98,8 +114,8 @@ defineExpose({
         </div>
 
         <!-- Initial message, files & images -->
-        <div class="form-control mb-3">
-          <label class="label py-1">
+        <div class="form-control" :class="compact ? 'mb-2.5' : 'mb-3'">
+          <label v-if="!compact" class="label py-1">
             <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Initial message</span>
             <span class="label-text-alt text-[10px] text-base-content/40">Optional · type @ to find files</span>
           </label>
@@ -168,8 +184,33 @@ defineExpose({
           </div>
         </div>
 
+        <!-- Quick options — compact: urgent due date + cost budget dropdown -->
+        <div v-if="compact" class="flex items-center gap-2 mb-2.5">
+          <button
+            type="button"
+            class="btn btn-sm gap-1.5"
+            :class="isUrgent ? 'btn-warning' : 'btn-ghost border border-base-100'"
+            :aria-pressed="isUrgent"
+            :title="isUrgent
+              ? `Urgent · due ${newTask.deadline} (click to clear)`
+              : 'Urgent: mark it due tomorrow'"
+            @click="toggleUrgent"
+          >
+            <i class="fa-solid fa-bolt text-xs"></i>
+            Urgent
+          </button>
+          <ChatCostSelector
+            variant="chip"
+            class="ml-auto"
+            label="Cost budget"
+            :cost="0"
+            :estimation-cost="newTask.estimation_cost"
+            @cost-changed="newTask.estimation_cost = $event"
+          />
+        </div>
+
         <!-- Assignees & Deadline -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div v-if="!compact" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <!-- Assignees (one or more users) -->
           <div class="form-control">
             <label class="label py-1">
@@ -255,7 +296,7 @@ defineExpose({
         </div>
 
         <!-- Cost budget (cxjcoins) — reusable component -->
-        <div class="mb-4">
+        <div v-if="!compact" class="mb-4">
           <ChatCostSelector
             variant="field"
             label="Cost budget"
@@ -268,7 +309,7 @@ defineExpose({
 
         <!-- Existing subtasks of the parent not yet in this sprint -->
         <!-- Selecting one adds it to the sprint immediately and closes this dialog -->
-        <div v-if="newTask.parentId && parentChildren.length" class="form-control mb-4">
+        <div v-if="!compact && newTask.parentId && parentChildren.length" class="form-control mb-4">
           <label class="label py-1">
             <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">
               Existing subtasks
@@ -298,7 +339,7 @@ defineExpose({
         </div>
 
         <!-- Context note -->
-        <div class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mb-4">
+        <div v-if="!compact" class="flex gap-2 items-start p-2.5 rounded-lg bg-info/5 border border-info/15 mb-4">
           <i class="fa-solid fa-circle-info text-info text-xs mt-0.5 shrink-0"></i>
           <span class="text-xs text-base-content/50">
             <!-- Kanban: destination is a board column (chat.column) -->
@@ -327,12 +368,13 @@ defineExpose({
         </div>
 
         <!-- Actions -->
-        <div class="flex gap-2 justify-end items-center">
-          <span v-if="hasInitialContent" class="text-[10px] text-base-content/40 mr-auto flex items-center gap-1">
+        <div class="flex gap-2 items-center" :class="compact ? '' : 'justify-end'">
+          <span v-if="hasInitialContent && !compact" class="text-[10px] text-base-content/40 mr-auto flex items-center gap-1">
             <i class="fa-solid fa-play text-[8px]"></i> Run creates the task and starts the agent now
           </span>
           <button
             class="btn btn-outline btn-sm gap-1.5"
+            :class="compact ? 'flex-1' : null"
             @click="addNewTask"
             :disabled="!newTask.name?.trim() || creating"
           >
@@ -340,6 +382,7 @@ defineExpose({
           </button>
           <button
             class="btn btn-primary btn-sm gap-1.5"
+            :class="compact ? 'flex-1' : null"
             title="Create the task and process it immediately"
             @click="runNewTask"
             :disabled="!newTask.name?.trim() || !hasInitialContent || creating"
@@ -982,7 +1025,10 @@ export default {
     // Column being edited (opens the column dialog in "edit" mode)
     editingColumn: { type: Object, default: null },
     // Show the "Delete column" action inside the column dialog (sprint boards)
-    allowColumnDelete: { type: Boolean, default: false }
+    allowColumnDelete: { type: Boolean, default: false },
+    // Compact layout for narrow hosts (e.g. the solopreneur quick ticket on
+    // mobile): optional fields are hidden and spacing/controls are reduced.
+    compact: { type: Boolean, default: false }
   },
   emits: [
     'task-created', 'tasks-added', 'column-created', 'column-updated', 'column-deleted',
@@ -1144,6 +1190,10 @@ export default {
       return this.newTask.users.map(name =>
         this.allUsers.find(u => u.username === name) || { username: name, avatar: null }
       )
+    },
+    // The "Urgent" shortcut is on while the task is due tomorrow
+    isUrgent() {
+      return !!this.newTask.deadline && this.newTask.deadline === this.dateISO(1)
     }
   },
   watch: {
@@ -1566,15 +1616,22 @@ export default {
         : (project?.project_id || project?.id || null)
       this.newColumn.project_id = id || null
     },
-    setDeadline(preset) {
+    // Local YYYY-MM-DD for "today + offset" days, so the native date input and
+    // the backend agree on the same day
+    dateISO(offsetDays = 0) {
       const date = new Date()
-      if (preset === 'tomorrow') date.setDate(date.getDate() + 1)
-      if (preset === 'week') date.setDate(date.getDate() + 7)
-      // Local YYYY-MM-DD so the native date input reflects the right day
-      const iso = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      date.setDate(date.getDate() + offsetDays)
+      return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
         .toISOString()
         .split('T')[0]
-      this.newTask.deadline = iso
+    },
+    setDeadline(preset) {
+      const offset = preset === 'tomorrow' ? 1 : preset === 'week' ? 7 : 0
+      this.newTask.deadline = this.dateISO(offset)
+    },
+    // "Urgent" is a due-date shortcut: on ⇒ due tomorrow, off ⇒ no deadline
+    toggleUrgent() {
+      this.newTask.deadline = this.isUrgent ? null : this.dateISO(1)
     },
 
     // ── Add existing ─────────────────────────────────────────────────────────

@@ -40,6 +40,12 @@ export const state = () => ({
   recentChatsPage: 1,
   recentChatsHasMore: true,
   recentChatsLoading: false,
+  // Last "a chat document was created or updated" signal, cached by the store
+  // so components do not have to scan the transient socket log
+  // (`session.events`, whose entries expire after a few seconds).
+  // `revision` is a monotonic counter: consumers WATCH it and compare numbers,
+  // they never diff the chat list or the event log themselves.
+  chatActivity: { revision: 0, chatId: null, kind: null, at: null },
 })
 
 function registerChat(state, chat) {
@@ -196,6 +202,13 @@ export const getters = getterTree(state, {
   recentChatsHasMore: state => state.recentChatsHasMore,
   recentChatsLoading: state => state.recentChatsLoading,
 
+  // ─── Activity signal ──────────────────────────────────────────────────────
+  // Monotonic counter bumped by `setChatActivity` on every socket
+  // "changed"/"done" chat event and on every local chat write. Components that
+  // must refresh when a chat/ticket changes watch this number.
+  activityRevision: state => state.chatActivity.revision,
+  lastActivity: state => state.chatActivity,
+
   // ─── Status helpers ────────────────────────────────────────────────────────
   statusList: () => Object.values(CHAT_STATUS_CONFIG),
   statusConfig: () => (status) => CHAT_STATUS_CONFIG[status] || CHAT_STATUS_CONFIG[DEFAULT_STATUS],
@@ -211,7 +224,7 @@ export const mutations = mutationTree(state, {
     state.activeChatId = chatId || null
   },
 
-  clearActiveChat(state) {
+  clearActiveChat() {
     state.activeChatId = null
   },
 
@@ -262,6 +275,20 @@ export const mutations = mutationTree(state, {
     const next = { ...state.needsReload }
     delete next[chatId]
     state.needsReload = next
+  },
+
+  // Cache the "a chat document was created or updated" signal.
+  // Only WRITE paths reach this mutation (socket "changed"/"done" events plus
+  // the local save/update/delete actions) — never the read paths
+  // (`loadChats`, `loadChat`, `reloadChat`, `registerChat*`). That is what keeps
+  // a consumer from re-arming its own refresh: reading chats does not signal.
+  setChatActivity(state, { chatId = null, kind = 'changed', ts = Date.now() } = {}) {
+    state.chatActivity = {
+      revision: (state.chatActivity?.revision || 0) + 1,
+      chatId,
+      kind,
+      at: new Date(ts).toISOString()
+    }
   },
 
   setChatUpdating(state, { chatId, updating }) {
@@ -488,6 +515,9 @@ export const actions = actionTree(
         const updatedChat = await project.$api.chats.saveChatInfo({ ...chat, messages: [] })
         registerChat(state, updatedChat)
         $storex.chats.setChatLoadingStatus({ chatId: updatedChat.id, status: ENTITY_STATUS.LOADED })
+        // A chat was created or its metadata was written: signal the change so
+        // activity feeds (e.g. the solopreneur summary) refresh.
+        $storex.chats.setChatActivity({ chatId: updatedChat.id, kind: isNew ? 'created' : 'saved' })
         return state.chats[updatedChat.id]
       } catch (error) {
         console.error('[chats store] Failed to save chat info:', error)
@@ -682,6 +712,11 @@ export const actions = actionTree(
           Object.assign(state.chats[chat.id], updates)
         }
 
+        // Metadata written (status, name, board/column …): signal the change.
+        // Chats of other projects are not cached here, but the signal is still
+        // emitted so feeds that read several projects can refresh.
+        $storex.chats.setChatActivity({ chatId: chat.id, kind: 'updated' })
+
         return updatedChat
       } catch (error) {
         console.error('[chats store] Failed to update chat info:', error)
@@ -762,6 +797,9 @@ export const actions = actionTree(
       if (chatIds.includes(state.activeChatId)) {
         $storex.chats.clearActiveChat()
       }
+
+      // A deleted ticket is a change too: feeds must drop the row.
+      $storex.chats.setChatActivity({ chatId: chat.id, kind: 'deleted' })
     },
     async setActiveChat({ state }, activeChat) {
       const { id, project_id, owner_project_id, name } = activeChat || {}
@@ -865,12 +903,14 @@ export const actions = actionTree(
       // project's chats would leak the imported cards into the current
       // project's board views — and let `deleteBoard` destroy them on a move.
       if (project.project_id !== $storex.projects.activeProject?.project_id) {
+        $storex.chats.setChatActivity({ chatId: saved.id, kind: 'created' })
         return saved
       }
 
       registerChat(state, saved)
       $storex.chats.clearChatNeedsReload(saved.id)
       $storex.chats.setChatLoadingStatus({ chatId: saved.id, status: ENTITY_STATUS.LOADED })
+      $storex.chats.setChatActivity({ chatId: saved.id, kind: 'created' })
       return state.chats[saved.id]
     },
     async createNewChatFromUrl({ state }, chat) {
@@ -884,6 +924,7 @@ export const actions = actionTree(
       const savedChat = await project.$api.chats.fromUrl(chat)
       registerChat(state, savedChat)
       $storex.chats.setChatLoadingStatus({ chatId: savedChat.id, status: ENTITY_STATUS.LOADED })
+      $storex.chats.setChatActivity({ chatId: savedChat.id, kind: 'created' })
       if (!chat.temp) {
         await $storex.chats.setActiveChat(savedChat)
       }
@@ -957,6 +998,18 @@ export const actions = actionTree(
         $storex.ui.addNotification({ text: message, type: event_type })
       }
 
+      // Cache the activity signal BEFORE the active-project guard below: socket
+      // events are broadcast for EVERY project, and the consumers of this signal
+      // (e.g. the solopreneur summary) read the activity of several projects.
+      // This replaces the old approach of scanning the transient
+      // `session.events` log from every interested component.
+      if (chatId && (type === 'changed' || event_type === 'done')) {
+        $storex.chats.setChatActivity({
+          chatId,
+          kind: event_type === 'done' ? 'done' : 'changed'
+        })
+      }
+
       if (chatId) {
         // Socket events are broadcast for EVERY project. Ignore chats that do
         // not belong to the active project: the chats store is scoped to it, so
@@ -1017,6 +1070,9 @@ export const actions = actionTree(
         if (updatedChat && state.chats[chat.id]) {
           state.chats[chat.id].status = updatedChat.status
         }
+
+        // Status change of a ticket: same activity signal as a metadata write.
+        $storex.chats.setChatActivity({ chatId: chat.id, kind: 'status' })
 
         return updatedChat
       } catch (error) {

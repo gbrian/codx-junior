@@ -450,9 +450,17 @@ export default {
         this.$chats.setActiveChat(parent)
         this.$emit('chat', parent)
       } else {
-        this.$chats.setActiveChat(null)
-        this.navigateToChats()
+        this.closeChat()
       }
+    },
+    // Leaves the current chat. On mobile a chat IS a route (see
+    // QuickChatView), so clearing the store is not enough: the URL must
+    // change, otherwise the reader stays on the same screen and the header
+    // "back" arrow looks dead.
+    closeChat() {
+      this.activeChatId = null
+      this.$chats.setActiveChat(null)
+      this.navigateToChats()
     },
     toggleMobileSidebar() {
       this.showMobileSidebar = !this.showMobileSidebar
@@ -517,8 +525,27 @@ export default {
       await this.saveChatInfo(chat)
     },
     navigateToChats() {
-      if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
-      this.$emit('chats', this.kanban?.title || this.theChat?.board || this.theChat?.board)
+      const board = this.kanban?.title || this.theChat?.board
+      this.$emit('chats', board)
+
+      // Desktop (dockview): the chat lives in a panel, so switching the active
+      // tab is enough — the host opens the board.
+      if (this.$ui.isDesktopMode) {
+        if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
+        return
+      }
+
+      // Mobile / single mode: go back in history so the user lands where the
+      // chat was opened from (activity wall, board…). The old `activeTab`
+      // check made this a no-op whenever the tab was already 'tasks', which is
+      // exactly why the header back arrow stopped working on mobile.
+      if (window.history.state?.back) {
+        this.$router.back()
+        return
+      }
+
+      // Deep link / page reload (no in-app history): chat list route.
+      this.$storex.$navigation?.chats?.list?.()
     },
     onSidebarAddSubtask(parentChat) {
       if (!parentChat) return

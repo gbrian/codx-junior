@@ -1,15 +1,20 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSolopreneur } from './useSolopreneur'
+import { PROJECTS_PAGE_SIZE, useSolopreneurProjects } from './useSolopreneurProjects'
 import SolopreneurCalendar from './SolopreneurCalendar.vue'
 import SolopreneurWall from './SolopreneurWall.vue'
 
 const { state, t, money, shortDate, goModule, openModal } = useSolopreneur()
+const { projects: realProjects, selectProject } = useSolopreneurProjects()
 
 // Width tier measured by the view (see views/SolopreneurView.vue).
 // Card grids below need NO tier at all: they use intrinsic `auto-fit` tracks,
 // so they reflow to whatever width the screen is given (route or panel).
 const isXl = computed(() => state.viewport.isXl)
+// Phone / narrow panel: the "At a glance" strip must stay in ONE row, so it
+// switches to a compact icon variant (see the template).
+const isCompact = computed(() => state.viewport.isCompact)
 
 const accountRows = computed(() => [
   [t('acc.business'), state.user.business],
@@ -21,11 +26,40 @@ const accountRows = computed(() => [
 ])
 
 const glance = computed(() => [
-  { value: state.stats.uptime, label: t('gl.uptime'), pct: 100 },
-  { value: state.stats.hours, label: t('gl.hours'), pct: 42 },
-  { value: String(state.stats.tasks), label: t('gl.tasks'), pct: 55 },
-  { value: String(state.projects.length), label: t('gl.projects'), pct: 50 }
+  { value: state.stats.uptime, label: t('gl.uptime'), short: t('gl.uptimeShort'), icon: 'fa-solid fa-signal', pct: 100 },
+  { value: state.stats.hours, label: t('gl.hours'), short: t('gl.hoursShort'), icon: 'fa-solid fa-clock', pct: 42 },
+  { value: String(state.stats.tasks), label: t('gl.tasks'), short: t('gl.tasksShort'), icon: 'fa-solid fa-list-check', pct: 55 },
+  { value: String(projectTiles.value.length), label: t('gl.projects'), short: t('gl.projectsShort'), icon: 'fa-solid fa-folder-open', pct: 50 }
 ])
+
+// Project tiles read the REAL project list (name + ticket progress of the
+// active project); the gradient is only decoration, assigned deterministically
+// so a project keeps its colour across renders.
+const projectTiles = computed(() => {
+  const variants = ['g1', 'g2', 'g3']
+  return realProjects.value.map((project, index) => ({
+    id: project.id,
+    name: project.name,
+    tasks: project.tasks,
+    progress: project.progress === null ? 0 : project.progress,
+    variant: variants[index % variants.length]
+  }))
+})
+
+// Big accounts can own dozens of projects: the card shows the first page only
+// and grows on demand (local counter — independent from the Projects filters).
+const tileLimit = ref(PROJECTS_PAGE_SIZE)
+const visibleTiles = computed(() => projectTiles.value.slice(0, tileLimit.value))
+const hiddenTiles = computed(() => Math.max(0, projectTiles.value.length - visibleTiles.value.length))
+
+function loadMoreTiles() {
+  tileLimit.value += PROJECTS_PAGE_SIZE
+}
+
+function openProject(id) {
+  selectProject(id)
+  goModule('projects')
+}
 
 function tileStyle(variant) {
   const map = {
@@ -50,18 +84,50 @@ function tileStyle(variant) {
       <!-- Main column -->
       <div class="flex flex-col gap-6 min-w-0">
         <!-- At a glance -->
-        <section class="bg-base-100 border border-base-content/10 rounded-2xl shadow-sm p-6">
-          <h2 class="text-base font-semibold">{{ t('gl.title') }}</h2>
-          <div class="grid gap-4 mt-5 grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))]">
-            <div v-for="(item, i) in glance" :key="i" class="bg-base-200 rounded-xl p-5 flex flex-col gap-1.5">
-              <strong class="text-2xl font-semibold tracking-tight">{{ item.value }}</strong>
-              <span class="text-xs text-base-content/50">{{ item.label }}</span>
-              <div class="h-1.5 rounded-full bg-base-content/10 overflow-hidden mt-2">
+        <section
+          class="bg-base-100 border border-base-content/10 rounded-2xl shadow-sm"
+          :class="isCompact ? 'p-3' : 'p-6'"
+        >
+          <h2 class="font-semibold" :class="isCompact ? 'text-sm' : 'text-base'">{{ t('gl.title') }}</h2>
+          <!-- Compact (phone / narrow panel): the four KPIs must fit ONE row,
+               so they shrink to icon + value + short label and the progress
+               bars are dropped. Wider layouts keep the original cards. -->
+          <div
+            class="grid"
+            :class="isCompact
+              ? 'grid-cols-4 gap-1.5 mt-3'
+              : 'gap-4 mt-5 grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))]'"
+          >
+            <div
+              v-for="(item, i) in glance"
+              :key="i"
+              :class="isCompact
+                ? 'bg-base-200 rounded-lg px-1.5 py-2 flex flex-col items-center gap-0.5 text-center min-w-0'
+                : 'bg-base-200 rounded-xl p-5 flex flex-col gap-1.5'"
+            >
+              <i
+                v-if="isCompact"
+                :class="[item.icon, 'text-[11px] text-codx-primary']"
+                aria-hidden="true"
+              ></i>
+              <strong
+                class="font-semibold tracking-tight"
+                :class="isCompact ? 'text-sm max-w-full truncate' : 'text-2xl'"
+              >{{ item.value }}</strong>
+              <span
+                class="text-base-content/50"
+                :class="isCompact ? 'text-[10px] leading-tight max-w-full line-clamp-2' : 'text-xs'"
+                :title="isCompact ? item.label : undefined"
+              >{{ isCompact ? item.short : item.label }}</span>
+              <div v-if="!isCompact" class="h-1.5 rounded-full bg-base-content/10 overflow-hidden mt-2">
                 <div class="h-full rounded-full bg-codx-primary" :style="{ width: item.pct + '%' }"></div>
               </div>
             </div>
           </div>
         </section>
+
+        <!-- Activity wall (same feed as the Activity app, embedded in the summary) -->
+        <SolopreneurWall />
 
         <!-- Your projects -->
         <section class="bg-base-100 border border-base-content/10 rounded-2xl shadow-sm p-6">
@@ -73,21 +139,21 @@ function tileStyle(variant) {
             <button
               type="button"
               class="h-9 px-4 rounded-full bg-base-content text-base-100 text-sm font-semibold hover:opacity-90 transition shrink-0"
-              @click="openModal('newProject')"
+              @click="goModule('projects')"
             >{{ t('addProject') }}</button>
           </div>
 
           <div
-            v-if="state.projects.length"
+            v-if="visibleTiles.length"
             class="grid gap-4 mt-5 grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))]"
           >
             <button
-              v-for="p in state.projects"
+              v-for="p in visibleTiles"
               :key="p.id"
               type="button"
               class="text-left text-white rounded-2xl p-5 min-h-[190px] flex flex-col justify-between transition hover:-translate-y-0.5 hover:opacity-95"
               :style="tileStyle(p.variant)"
-              @click="goModule('projects')"
+              @click="openProject(p.id)"
             >
               <div>
                 <h3 class="text-sm font-semibold">{{ p.name }}</h3>
@@ -104,6 +170,21 @@ function tileStyle(variant) {
           </div>
           <div v-else class="mt-5 py-10 text-center text-sm text-base-content/50 bg-base-200 border border-dashed border-base-content/15 rounded-xl">
             {{ t('pr.empty') }}
+          </div>
+
+          <!-- Pager: one more page per click, like the Projects section -->
+          <div v-if="hiddenTiles" class="flex flex-wrap items-center justify-center gap-3 mt-5">
+            <p class="text-xs text-base-content/40">
+              {{ t('pp.showing') }} {{ visibleTiles.length }} {{ t('pp.of') }} {{ projectTiles.length }}
+            </p>
+            <button
+              type="button"
+              class="h-9 px-4 rounded-full border border-base-content/20 bg-base-100 text-sm font-semibold hover:bg-base-200 transition inline-flex items-center gap-2"
+              @click="loadMoreTiles"
+            >
+              {{ t('pp.loadMore') }}
+              <span class="text-xs opacity-60">+{{ Math.min(hiddenTiles, PROJECTS_PAGE_SIZE) }}</span>
+            </button>
           </div>
         </section>
 
@@ -163,9 +244,6 @@ function tileStyle(variant) {
             <div v-else class="mt-5 py-10 text-center text-sm text-base-content/50 bg-base-200 rounded-xl">{{ t('up.empty') }}</div>
           </section>
         </div>
-
-        <!-- Activity wall (same feed as the Activity app, embedded in the summary) -->
-        <SolopreneurWall />
       </div>
 
       <!-- Calendar column -->
