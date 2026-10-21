@@ -437,6 +437,12 @@ export default {
       handler(newTasks) {
         // Skip sync while actively dragging or while a reorder save is pending
         if (this.draggingTaskIndex !== null || this.pendingReorder) return
+        // The store rebuilds every column (and its task array) whenever the
+        // chats change — opening a chat, a socket event, a status change…
+        // When the cards are literally the same objects nothing changed for
+        // this column, so keep the mounted list as-is instead of replacing
+        // `localTasks` and re-rendering every card (same data, new array).
+        if (this.sameTasks(newTasks)) return
         const previousCount = this.localTasks.length
         this.localTasks = [...newTasks]
         this.syncRenderLimit(previousCount, newTasks.length)
@@ -469,6 +475,14 @@ export default {
       if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
       if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
       return Number(val).toFixed(2)
+    },
+
+    // True when `next` holds exactly the cards already mounted (same objects,
+    // same order). The store returns the very same chat objects while a chat
+    // change does not affect this column, so a column can skip the resync.
+    sameTasks(next) {
+      if (next.length !== this.localTasks.length) return false
+      return next.every((task, index) => task === this.localTasks[index])
     },
 
     // ── Task list windowing ─────────────────────────────────────────────────

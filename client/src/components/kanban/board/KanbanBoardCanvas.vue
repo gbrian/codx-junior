@@ -145,14 +145,25 @@ export default {
     columns: {
       immediate: true,
       handler(newCols) {
-        // Sync local copy when store columns change (but not while dragging)
-        if (this.draggingColIndex === null) {
-          this.localColumns = [...newCols]
-        }
+        // Never resync while dragging (the local order wins until the drop)
+        if (this.draggingColIndex !== null) return
+        // The store rebuilds the whole column list on every chats change (a
+        // chat being opened, a socket event, a status write…). When the very
+        // same column objects come back nothing changed, so keep the current
+        // list — that alone stops pushing a new `column` prop down every column
+        // (and, through it, a new task array down every card of the board).
+        if (this.sameColumns(newCols)) return
+        this.localColumns = [...newCols]
       }
     }
   },
   methods: {
+    // True when `next` holds exactly the columns already rendered (same
+    // objects, same order).
+    sameColumns(next) {
+      if (next.length !== this.localColumns.length) return false
+      return next.every((column, index) => column === this.localColumns[index])
+    },
     onColumnDragStart(colIndex) {
       this.draggingColIndex = colIndex
     },

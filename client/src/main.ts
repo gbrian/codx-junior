@@ -30,12 +30,20 @@ function generateUID(length) {
   return window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(length * 2)))).replace(/[+/=]/g, "").substring(0, length)
 }
 
+// The mixin is applied app-wide, so anything in its lifecycle hooks runs once
+// per component instance — every panel, list row and toolbar button. The
+// lifecycle logs below were a measurable share of the mount cost in the
+// production profile, so they are now dev-only (stripped by esbuild `define`).
 const globalMixin = {
   onBeforeMount() {
-    console.log("Before mount. Events: ", this.events, this.$root)
+    if (import.meta.env.DEV) {
+      console.log("Before mount. Events: ", this.events, this.$root)
+    }
   },
   onBeforeUnmount() {
-    console.log("Before Unmount. Events: ", this.events)
+    if (import.meta.env.DEV) {
+      console.log("Before Unmount. Events: ", this.events)
+    }
   },
   computed: {
     $storex () {

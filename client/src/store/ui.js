@@ -511,18 +511,48 @@ export const mutations = mutationTree(state, {
   }
 })
 
+// ── UI state persistence (debounced) ─────────────────────────────────────
+//
+// `saveState` is called by ~20 mutations, several of which are driven by
+// pointer movement (`setPanelWidth`, `setActiveChatCallPanelWidth`,
+// `setSidebarCollapsed`) or run on every tab / pin / panel action. It used to
+// serialize the whole ui state and write it to localStorage synchronously, so
+// dragging a splitter became one `JSON.stringify` + one synchronous write per
+// mousemove — a direct cause of the "slow actions" reported in production.
+//
+// Writes are now coalesced; the trailing flush on `pagehide` (see `init`)
+// makes sure the last change still survives the tab being closed.
+const UI_STATE_SAVE_DELAY = 250
+
+let uiStateSaveTimer = null
+
+function scheduleUiStateSave() {
+  if (uiStateSaveTimer !== null) clearTimeout(uiStateSaveTimer)
+  uiStateSaveTimer = setTimeout(() => {
+    uiStateSaveTimer = null
+    $storex.ui.persistState()
+  }, UI_STATE_SAVE_DELAY)
+}
+
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }) {
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
+      // Flush a pending debounced write before the page goes away.
+      window.addEventListener('pagehide', () => {
+        $storex.ui.persistState()
+      })
       if (API.user?.theme) {
         state.theme = API.user.theme
       }
       state.coderProjectCodxPath = null
     },
-    saveState({ state }) {
+    saveState() {
+      scheduleUiStateSave()
+    },
+    persistState({ state }) {
       if (!state.uiReady) {
         return
       }

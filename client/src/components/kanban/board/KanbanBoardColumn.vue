@@ -141,11 +141,23 @@ export default {
       handler(newTasks) {
         // Skip sync while actively dragging or while a reorder save is pending
         if (this.draggingTaskIndex !== null || this.pendingReorder) return
+        // The store rebuilds every column (and its task array) whenever the
+        // chats change — opening a chat, a socket event, a status change…
+        // When the cards are literally the same objects nothing changed for
+        // this column, so keep the mounted list as-is instead of replacing
+        // `localTasks` and re-rendering every card (same data, new array).
+        if (this.sameTasks(newTasks)) return
         this.localTasks = [...newTasks]
       }
     }
   },
   methods: {
+    // True when `next` holds exactly the tasks already mounted (same objects,
+    // same order).
+    sameTasks(next) {
+      if (next.length !== this.localTasks.length) return false
+      return next.every((task, index) => task === this.localTasks[index])
+    },
     // ── Column drag (for canvas reordering) ────────────────────────────────
     onColumnDragStart(event) {
       event.dataTransfer.effectAllowed = 'move'

@@ -29,6 +29,14 @@ export const CHAT_STATUS_CONFIG = {
 
 const DEFAULT_STATUS = 'todo'
 
+// In-flight chat reloads, keyed by chat id.
+// Socket events arrive in bursts (one per chat change while the agent streams)
+// and every path that opens a chat asks for a fresh copy. Firing them in
+// parallel fetched the SAME chat several times and each response replaced the
+// chat object, cascading a full re-render of every consumer (board columns,
+// cards, message list). One request per chat at a time keeps references stable.
+const reloadsInFlight = {}
+
 export const state = () => ({
   chats: {},
   activeChatId: null,
@@ -567,22 +575,43 @@ export const actions = actionTree(
 
       return state.chats[chat.id]
     },
+    // Reloads a chat from the server. COALESCED per chat: concurrent calls share
+    // the same request. Socket events arrive in bursts while an agent streams and
+    // several open paths ask for a fresh copy, so without this the same chat was
+    // fetched N times and each response replaced the chat object — cascading a
+    // full re-render of every consumer (board columns, cards, message list).
     async reloadChat({ state }, chat) {
+      const chatId = chat?.id
+      if (!chatId) return null
+
+      // A reload for this chat is already in flight — share its result instead
+      // of firing another request that would replace the chat object again.
+      if (reloadsInFlight[chatId]) return reloadsInFlight[chatId]
+
       const project = getChatProject(chat)
-      const freshChat = await project.$api.chats.loadChat(chat)
-      if (freshChat && state.chats[chat.id]) {
-        Object.assign(state.chats[chat.id], freshChat)
-      } else if (freshChat && isActiveProjectChat(freshChat)) {
-        // Only cache chats owned by the ACTIVE project. The chats store is
-        // scoped to it, so caching another project's chat would leak its card
-        // into the current board — boards are keyed by title and a board that
-        // is copied/moved to another project keeps its title — until the next
-        // project reload (that is what produced the transient duplicated cards).
-        registerChat(state, freshChat)
-      }
-      $storex.chats.clearChatNeedsReload(chat.id)
-      $storex.chats.setChatLoadingStatus({ chatId: chat.id, status: ENTITY_STATUS.LOADED })
-      return state.chats[chat.id]
+      // `.finally()` always runs asynchronously, so the bookkeeping entry is
+      // never cleared before it is stored (see the assignment below).
+      const request = (async () => {
+        const freshChat = await project.$api.chats.loadChat(chat)
+        if (freshChat && state.chats[chatId]) {
+          Object.assign(state.chats[chatId], freshChat)
+        } else if (freshChat && isActiveProjectChat(freshChat)) {
+          // Only cache chats owned by the ACTIVE project. The chats store is
+          // scoped to it, so caching another project's chat would leak its card
+          // into the current board — boards are keyed by title and a board that
+          // is copied/moved to another project keeps its title — until the next
+          // project reload (that is what produced the transient duplicated cards).
+          registerChat(state, freshChat)
+        }
+        $storex.chats.clearChatNeedsReload(chatId)
+        $storex.chats.setChatLoadingStatus({ chatId, status: ENTITY_STATUS.LOADED })
+        return state.chats[chatId]
+      })().finally(() => {
+        delete reloadsInFlight[chatId]
+      })
+
+      reloadsInFlight[chatId] = request
+      return request
     },
     async addMessage({ state }, { chat, message }) {
       if (!chat?.id) return

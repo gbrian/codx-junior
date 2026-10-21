@@ -65,6 +65,17 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </template>
 
 <script>
+// Stable per-instance id. It MUST be generated once: radix-vue registers the
+// panels by id (and the panel ids are derived from it), so an id that changes
+// between renders makes both panels unregister/re-register — which happened on
+// every re-render while the handle was dragged.
+let splitterUid = 0
+
+// `layout` fires on every pointer move while the handle is dragged (60–200
+// events/s). Nothing below reacts to them synchronously: the sizes are kept in
+// NON-reactive instance state and committed once the gesture settles.
+const LAYOUT_SETTLE_MS = 150
+
 export default {
   props: {
     // Per-panel sizing/class config: { left: {...}, right: {...} }
@@ -82,26 +93,25 @@ export default {
   emits: ['resize'],
   data() {
     return {
-      // Last known layout (array of panel sizes, %). Seeds `leftSize`/`rightSize`
-      // so a panel that is re-mounted keeps the split the user last chose.
-      savedLayout: null,
-      // Debounce handle used while persisting during a drag.
-      persistTimer: null
+      groupId: `splitter-group-${++splitterUid}`,
+      // Sizes radix-vue uses to SEED the panels (persisted layout on mount).
+      // Intentionally NOT updated from the live layout on every event: binding
+      // the panel's own output (`layout`) back to its input (`defaultSize`)
+      // re-entered radix's layout calculation on each pointer move
+      // (`layout` → `defaultSize` → `layout` …). It is committed once per
+      // gesture, see `commitLayout()`.
+      seededLayout: null
     }
   },
   computed: {
-    groupId() {
-      const t = this.generateUID()
-      return `splitter-group-${t}`
-    },
-    // Left panel size: the persisted value wins, then the configured default.
+    // Left panel size: the remembered value wins, then the configured default.
     leftSize() {
-      const saved = this.savedLayout?.[0]
+      const saved = this.seededLayout?.[0]
       return saved != null ? saved : (this.panels?.left?.defaultSize || 20)
     },
-    // Right panel size: the persisted value wins, then the configured default.
+    // Right panel size: the remembered value wins, then the configured default.
     rightSize() {
-      const saved = this.savedLayout?.[1]
+      const saved = this.seededLayout?.[1]
       return saved != null ? saved : (this.panels?.right?.defaultSize || 20)
     }
   },
@@ -110,14 +120,35 @@ export default {
     persistKey: {
       immediate: true,
       handler(key) {
-        this.savedLayout = this.readLayout(key)
+        const layout = this.readLayout(key)
+        this.seededLayout = layout
+        // Do not re-emit/re-persist a layout we already know about
+        this.dragState().lastCommitted = layout ? this.signature(layout) : null
       }
     }
   },
   beforeUnmount() {
-    clearTimeout(this.persistTimer)
+    const state = this.dragState()
+    clearTimeout(state.timer)
+    // Keep the last split for the next mount without emitting anything
+    if (state.sizes) this.writeLayout(this.persistKey, state.sizes)
   },
   methods: {
+    // Non-reactive drag bookkeeping. It changes on EVERY `layout` event, so it
+    // must stay out of `data()`: a reactive write there re-rendered this
+    // component — and both slots (board canvas, chat/messages, diff panes) —
+    // on every pointer move.
+    dragState() {
+      if (!this.splitterDragState) {
+        this.splitterDragState = { sizes: null, lastCommitted: null, timer: null }
+      }
+      return this.splitterDragState
+    },
+    // Comparable signature of a layout. Rounded so sub-0.01% jitter produced by
+    // the panels' normalisation does not look like a new layout.
+    signature(sizes) {
+      return (sizes || []).map(size => Number(size).toFixed(2)).join(':')
+    },
     // localStorage key for a given persist key
     storageKey(key) {
       return `splitter-layout:${key}`
@@ -142,20 +173,40 @@ export default {
         // Storage may be unavailable (private mode / quota) — ignore
       }
     },
-    // Splitter layout changed (user resized, or a panel was added/removed).
-    // Only remember it while BOTH panels are present so closing the side panel
-    // (which collapses the layout to a single [100] entry) does not wipe the
-    // remembered split.
+    // Splitter layout changed (user resizing, or a panel was added/removed).
+    // Fires continuously during a drag — keep it write-free (see `dragState`).
     onLayout(sizes) {
+      // Only meaningful while BOTH panels are present: closing the side panel
+      // collapses the layout to a single [100] entry and must not wipe the
+      // remembered split.
       if (!this.$slots.left || !this.$slots.right) return
       if (!Array.isArray(sizes) || sizes.length < 2) return
-      this.savedLayout = [...sizes]
+
+      const state = this.dragState()
+      state.sizes = [sizes[0], sizes[1]]
+
+      // Echo of a layout we already committed — nothing to do
+      if (this.signature(state.sizes) === state.lastCommitted) return
+
+      // Commit once the handle stops moving instead of on every event
+      clearTimeout(state.timer)
+      state.timer = setTimeout(() => this.commitLayout(), LAYOUT_SETTLE_MS)
+    },
+    // Single commit per gesture: remember, persist and notify ONCE.
+    commitLayout() {
+      const state = this.dragState()
+      const sizes = state.sizes
+      if (!sizes) return
+
+      const signature = this.signature(sizes)
+      if (signature === state.lastCommitted) return
+      state.lastCommitted = signature
+
+      // Keep the split for the next mount / when the optional panel is
+      // re-opened (one reactive write per gesture, not per pointer move)
+      this.seededLayout = [...sizes]
+      this.writeLayout(this.persistKey, sizes)
       this.$emit('resize', { sizes: [...sizes], left: sizes[0], right: sizes[1] })
-      // Debounce the write: radix fires `layout` continuously during a drag.
-      clearTimeout(this.persistTimer)
-      this.persistTimer = setTimeout(() => {
-        this.writeLayout(this.persistKey, this.savedLayout)
-      }, 200)
     }
   }
 }

@@ -74,7 +74,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
         <template #title>
           <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
             <i class="fa-solid fa-file"></i>
-            Files: {{ allfiles.length }} +
+            Files: {{ allFilesCount }} +
           </div>
         </template>
 
@@ -230,7 +230,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
               <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatFileList
                 :files="files"
-                :message-files="[]"
+                :message-files="noMessageFiles"
                 :chat-project="chatProject"
                 @remove-file="removeFileFromFiles"
                 @add-file="addFileContentAsMessage"
@@ -286,6 +286,12 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
 
 <script>
 import ChatAttachment from '@/api/model/ChatAttachment.js'
+
+// Stable empty list. Returning a brand new `[]` from a computed — or writing an
+// array literal in the template — gives the file list a NEW identity on every
+// render, which makes <ChatFileList> rebuild its chips and re-check every file
+// on the server (see ChatFileList.syncFiles).
+const EMPTY_FILE_LIST = Object.freeze([])
 
 export default {
   props: [
@@ -344,7 +350,12 @@ export default {
       dragCounter: 0,
       inputCollapsed: false,
       // In-flight attachment conversions (FileReader) — see flushPendingAttachments()
-      attachmentTasks: []
+      attachmentTasks: [],
+      // (chatId::projectId) the project state was last initialised for. The
+      // chat record is REPLACED by the store on every update (reload, socket
+      // event, list refresh), so this key — not the object — tells a real
+      // navigation apart from a mere refresh (see the `chat` watcher).
+      projectInitKey: null
     }
   },
   created() {
@@ -380,22 +391,55 @@ export default {
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []
     },
+    // Files attached to the chat. `file_list` belongs to the chat record, so its
+    // identity is stable until the list really changes; EMPTY_FILE_LIST keeps the
+    // "no files" case stable too (`|| []` used to return a new array on every
+    // evaluation, re-arming the <ChatFileList> watcher).
     chatFiles() {
-      return this.chat.file_list || []
+      return this.chat?.file_list || EMPTY_FILE_LIST
     },
+    // Files referenced by the conversation: the ones linked to each message plus
+    // the paths found in its code blocks / <file_change> envelopes.
+    //
+    // This is evaluated on EVERY message update (streaming included), so it must
+    // not produce new data when nothing changed:
+    //  * the (expensive) markdown parsing is cached per message and only re-runs
+    //    when that message's content changes;
+    //  * the resulting array keeps its identity while the file list is the same,
+    //    otherwise <ChatFileList> would rebuild its chips — and re-check every
+    //    file on the server — on each streamed chunk.
     messageFiles() {
-      const allMsgFiles = new Set()
-      this.messages?.forEach(msg => {
-        msg.files?.forEach(f => allMsgFiles.add(f))
-        if (msg.content) {
-          const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
-          extractedFiles.forEach(f => allMsgFiles.add(f))
-        }
+      const parseCache = this.parsedMessageFiles || (this.parsedMessageFiles = new Map())
+      const nextParseCache = new Map()
+      const files = new Set()
+
+      ;(this.messages || []).forEach(message => {
+        const key = message.doc_id || message.id || null
+        const content = message.content || ''
+        const cached = key ? parseCache.get(key) : null
+        const parsed = cached && cached.content === content
+          ? cached.files
+          : this.extractFilesFromCodeBlocks(content)
+        if (key) nextParseCache.set(key, { content, files: parsed })
+
+        ;(message.files || []).forEach(file => files.add(file))
+        parsed.forEach(file => files.add(file))
       })
-      return Array.from(allMsgFiles)
+
+      this.parsedMessageFiles = nextParseCache
+
+      const next = Array.from(files)
+      // Same list → keep the very same array (no prop change downstream)
+      if (this.lastMessageFiles && this.sameFiles(this.lastMessageFiles, next)) {
+        return this.lastMessageFiles
+      }
+      this.lastMessageFiles = next
+      return next
     },
-    allfiles() {
-      return [...this.chatFiles || [], ...this.messageFiles || []]
+    // Number of distinct files shown in the files strip header. A count, not a
+    // collection, so nothing is recreated when the conversation updates.
+    allFilesCount() {
+      return new Set([...this.chatFiles, ...this.messageFiles]).size
     },
     isPRView() {
       return this.chat.mode === 'prview'
@@ -446,6 +490,12 @@ export default {
       return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
         || this.$project
     },
+    // Identity of the (chat, working project) pair the project state belongs to.
+    // Stable across store refreshes: `registerChat()` replaces the chat object
+    // but never this key, which is exactly what the `chat` watcher needs.
+    chatProjectKey() {
+      return `${this.chat?.id || ''}::${this.chatProject?.project_id || ''}`
+    },
     mentionList() {
       return (this.chatProject?.$state || this.$projects).mentionList
     },
@@ -453,6 +503,11 @@ export default {
     // previews are hidden too so the reading area stays clean.
     composerCollapsed() {
       return this.$ui.isMobile && this.inputCollapsed
+    },
+    // Stable empty list handed to the composer's file list: an inline `[]` in the
+    // template would be a brand new array on every render of this component.
+    noMessageFiles() {
+      return EMPTY_FILE_LIST
     },
     messageMentions() {
       const mentions = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(w => w[1]) || []
@@ -486,7 +541,15 @@ export default {
     }
   },
   watch: {
+    // The store REPLACES the chat object on every update (load, reload, socket
+    // "changed" event, chats-list refresh). Initialising the project state on
+    // each of those re-entered the loaders that produce those updates
+    // (`initProjectState` → reload chats/kanban → registerChat → new object),
+    // which cascaded into an endless rebuild of every column and task of the
+    // board. Only a real navigation (another chat / another working project)
+    // may initialise the project state.
     chat() {
+      if (this.projectInitKey === this.chatProjectKey) return
       this.initProject()
     },
     uploadProjectFile(newVal, oldVal) {
@@ -512,12 +575,22 @@ export default {
       }
     },
     initProject() {
+      // Remember what was initialised so the `chat` watcher can tell a store
+      // refresh (same key → ignore) from a real navigation (new key → init).
+      this.projectInitKey = this.chatProjectKey
       this.$projects.initProjectState(this.chatProject)
     },
     extractFilesFromCodeBlocks(content) {
       return extractCodeBlocks(content)
         .map(block => block.filePath)
         .filter(Boolean)
+    },
+    // Same file paths, same order. Used to keep collection identities stable so
+    // downstream components are not re-rendered with identical data.
+    sameFiles(previous, next) {
+      if (previous === next) return true
+      if (!previous || !next || previous.length !== next.length) return false
+      return next.every((file, index) => file === previous[index])
     },
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]

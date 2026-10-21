@@ -112,6 +112,59 @@ function extractAppsFromLayout(layout) {
   return apps
 }
 
+// ── Layout persistence (debounced) ────────────────────────────────────────
+//
+// `onLayoutChanged` is wired to dockview's `onDidLayoutChange` and
+// `onDidAddPanel`, which fire continuously while a splitter or panel is
+// dragged, and again on every tab activation. Serializing the layout
+// (`toJSON`) and writing it to localStorage synchronously on each of those
+// events ran on the main thread during exactly the interactions reported as
+// "slow".
+//
+// Writes are coalesced and happen once the interaction settles. The trailing
+// flush on `pagehide`/`visibilitychange` makes sure the last change still
+// survives the tab being closed.
+const LAYOUT_SAVE_DELAY = 300
+
+let layoutSaveTimer = null
+
+function saveLayoutNow() {
+  if (layoutSaveTimer !== null) {
+    clearTimeout(layoutSaveTimer)
+    layoutSaveTimer = null
+  }
+
+  // Nothing loaded yet: there is no layout worth persisting.
+  if (!$storex.views?.loadedView) return
+
+  try {
+    const desktopApi = $storex.views._desktopApi
+    if (!desktopApi) return
+
+    const key = getProjectStorageKey()
+    if (!key) return
+
+    localStorage.setItem(key, JSON.stringify(desktopApi.toJSON()))
+  } catch (error) {
+    console.error('Error saving layout:', error)
+  }
+}
+
+function scheduleLayoutSave() {
+  if (layoutSaveTimer !== null) clearTimeout(layoutSaveTimer)
+  layoutSaveTimer = setTimeout(() => {
+    layoutSaveTimer = null
+    saveLayoutNow()
+  }, LAYOUT_SAVE_DELAY)
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', saveLayoutNow)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveLayoutNow()
+  })
+}
+
 export const actions = actionTree(
   { state, getters, mutations },
   {
@@ -207,23 +260,13 @@ export const actions = actionTree(
       }
     },
 
-    async onLayoutChanged({ state }) {
+    onLayoutChanged({ state }) {
       // Only save if a layout has been loaded/initialized for this session
       if (!state.loadedView) {
         return
       }
-      try {
-        const desktopApi = state._desktopApi
-        if (!desktopApi) return
-
-        const key = getProjectStorageKey()
-        if (!key) return
-
-        const layout = desktopApi.toJSON()
-        localStorage.setItem(key, JSON.stringify(layout))
-      } catch (error) {
-        console.error('Error saving layout:', error)
-      }
+      // Coalesced: dockview emits this on every frame of a drag.
+      scheduleLayoutSave()
     },
 
     async onPanelActive(_, panel) {
