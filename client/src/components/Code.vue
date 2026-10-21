@@ -1,10 +1,30 @@
 <script setup>
-import MermaidViewerVue from './MermaidViewer.vue'
-import MarkdownViewer from './MarkdownViewer.vue'
-import CodeViewer from './CodeViewer.vue'
-import HTMLPreview from './HTMLPreview.vue'
+import { defineAsyncComponent, h } from 'vue'
 import BlockEditor from './BlockEditor.vue'
-import CanvaViewer from './canva/CanvaViewer.vue'
+
+// Placeholder shown while a deferred chunk is being fetched, so a code block
+// never collapses (no layout shift) before its renderer arrives.
+const ChunkPlaceholder = {
+  name: 'ChunkPlaceholder',
+  render: () => h('div', { class: 'flex items-center justify-center p-4' }, [
+    h('span', { class: 'loading loading-spinner loading-xs text-base-content/40' })
+  ])
+}
+
+const asyncChunk = (loader) => defineAsyncComponent({
+  loader,
+  loadingComponent: ChunkPlaceholder,
+  delay: 150
+})
+
+// Mermaid, markdown-it, the Canva canvas and the code viewer (monaco +
+// git-diff-view + highlight.js) are only needed once a block is actually shown.
+// Splitting them here keeps them out of the initial bundle.
+const MermaidViewerVue = asyncChunk(() => import('./MermaidViewer.vue'))
+const MarkdownViewer = asyncChunk(() => import('./MarkdownViewer.vue'))
+const CodeViewer = asyncChunk(() => import('./CodeViewer.vue'))
+const HTMLPreview = asyncChunk(() => import('./HTMLPreview.vue'))
+const CanvaViewer = asyncChunk(() => import('./canva/CanvaViewer.vue'))
 </script>
 
 <template>

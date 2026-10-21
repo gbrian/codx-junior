@@ -1,7 +1,6 @@
 <script setup>
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
-import highlight from 'markdown-it-highlightjs'
 import Modal from './Modal.vue'
 </script>
 
@@ -54,14 +53,15 @@ import Modal from './Modal.vue'
 <script>
 import MarkdownIt from 'markdown-it'
 import { full as emoji } from 'markdown-it-emoji'
-import highlight from 'markdown-it-highlightjs'
 import Modal from './Modal.vue'
+import { highlightCode } from '@/utils/highlight'
 import parser from '@/utils/markdownParser'
 
 function createMd(documentId) {
-  const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
+  // `highlight` replaces markdown-it-highlightjs, which statically imports the
+  // FULL highlight.js language pack into whichever chunk renders markdown.
+  const md = new MarkdownIt({ html: true, linkify: true, typographer: true, highlight: highlightCode })
   md.use(emoji)
-  md.use(highlight)
 
   const defaultHeadingRenderer = md.renderer.rules.heading_open || function(tokens, idx, options, env, self) {
     return self.renderToken(tokens, idx, options)

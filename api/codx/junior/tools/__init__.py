@@ -599,7 +599,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "history", "file-operations"],
         "tool_call": get_file_last_version
     },
@@ -649,15 +649,16 @@ TOOLS = [
                             "type": "boolean",
                             "description": (
                                 "Create the branch as a git worktree instead of switching the project's "
-                                "working tree. Defaults to the project setting 'git_pr_worktrees'."
-                            )
+                                "working tree. Defaults to false."
+                            ),
+                            "default": False
                         }
                     },
                     "required": []
                 }
             }
         },
-        "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "branch", "pull-request", "worktree"],
         "tool_call": create_pr_branch
     },

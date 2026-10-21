@@ -11,7 +11,7 @@ Made with ❤️ by codx-junior
 import logging
 from typing import Dict, Optional
 
-from codx.junior.engine import CODXJuniorSession
+from codx.junior.settings import CODXJuniorSettings
 from .model import ToolResponse
 
 # Configure logging
@@ -21,6 +21,74 @@ logger = logging.getLogger(__name__)
 DEFAULT_DEPTH = 0
 MAX_DEPTH = 50
 DEFAULT_COMMIT_MESSAGE = "feat: apply AI-generated code changes"
+
+
+class _SettingsSession:
+    """
+    Minimal session facade exposing what GitEngine needs from a session.
+
+    Tools are executed by the agent runtime, which injects ``settings`` for
+    tools declared with ``project_settings=True``. Only a project session
+    (``CODXJuniorSession``) exposes ``get_git_engine()``; when the injected
+    context is a chat-scoped object (or nothing at all) the git engine is
+    built from the project settings through this facade, because
+    ``GitEngine`` only reads ``session.settings``.
+
+    Attributes:
+        settings: Project settings the git engine operates on.
+    """
+
+    def __init__(self, settings: CODXJuniorSettings) -> None:
+        self.settings = settings
+
+    def log_info(self, msg: str, *args) -> None:
+        """Mirror CODXJuniorSession.log_info for engine methods that log."""
+        logger.info("[%s] " + msg, self.settings.project_name, *args)
+
+
+def _resolve_git_engine(**kwargs):
+    """
+    Resolve the GitEngine for the current tool execution context.
+
+    Resolution order:
+        1. An injected project session exposing ``get_git_engine()``.
+        2. The session attached to the injected settings
+           (``settings._active_session``), set by the agent runtime.
+        3. A git engine built from the injected project ``settings``.
+
+    Args:
+        **kwargs: Tool keyword arguments; ``session`` and/or ``settings`` are
+            injected by the agent runtime.
+
+    Returns:
+        The GitEngine instance to use.
+
+    Raises:
+        Exception: When neither a project session nor project settings are
+            available.
+    """
+    session = kwargs.get("session")
+    if session is not None and hasattr(session, "get_git_engine"):
+        return session.get_git_engine()
+
+    settings = kwargs.get("settings") or getattr(session, "settings", None)
+    if settings is None:
+        raise Exception(
+            "Invalid session - git engine not available "
+            "(no project session or project settings injected)"
+        )
+
+    active_session = getattr(settings, "_active_session", None)
+    if active_session is not None and hasattr(active_session, "get_git_engine"):
+        return active_session.get_git_engine()
+
+    from codx.junior.engine.git_engine import GitEngine
+
+    logger.info(
+        "Resolving git engine from project settings: %s",
+        getattr(settings, "project_name", ""),
+    )
+    return GitEngine(session=_SettingsSession(settings=settings))
 
 
 def get_file_last_version(
@@ -49,7 +117,8 @@ def get_file_last_version(
         depth: How many commits back to navigate (default: 0 = previous version).
                Must be >= 0. If exceeds available history, returns error.
         **kwargs: Additional arguments including:
-            - session (CODXJuniorSession): Session with git engine (required).
+            - settings (CODXJuniorSettings): Project settings, injected by the runtime.
+            - session: Project session, injected by the runtime when available.
 
     Returns:
         ToolResponse: Contains:
@@ -58,7 +127,6 @@ def get_file_last_version(
 
     Raises:
         ValueError: If file_path is empty or depth is invalid.
-        Exception: If session or git engine is not available.
 
     Example:
         Get previous version (1 commit back):
@@ -71,10 +139,6 @@ def get_file_last_version(
         Get version from 5 commits ago:
         >>> get_file_last_version("config/settings.py", depth=4)
     """
-    session: CODXJuniorSession = kwargs.get("session", None)
-    if not session:
-        raise Exception("Invalid session - git engine not available")
-
     if not file_path:
         raise ValueError("file_path must be provided and cannot be empty")
 
@@ -84,8 +148,8 @@ def get_file_last_version(
     depth = max(0, min(int(depth), MAX_DEPTH))
 
     try:
-        # Get git engine and retrieve file version
-        git_engine = session.get_git_engine()
+        # Resolve the git engine from the injected session or project settings
+        git_engine = _resolve_git_engine(**kwargs)
         result = git_engine.get_file_version_at_depth(file_path=file_path, depth=depth)
 
         # Check for errors
@@ -165,6 +229,7 @@ def create_pr_branch(
     commit_message: Optional[str] = None,
     files: Optional[Dict[str, str]] = None,
     use_worktree: bool = False,
+    worktree: Optional[bool] = None,
     **kwargs
 ) -> ToolResponse:
     """
@@ -178,7 +243,7 @@ def create_pr_branch(
       given.
     - When `files` is provided those contents are written before committing.
       When omitted, the changes already present on disk are committed.
-    - When `use_worktree` is enabled the branch is created in a separate
+    - When worktree mode is enabled the branch is created in a separate
       `git worktree` folder, so the project's working tree and its uncommitted
       changes stay untouched.
 
@@ -190,8 +255,10 @@ def create_pr_branch(
         files: Optional dictionary mapping project-relative file paths to their
             full file content.
         use_worktree: Create the branch as a worktree (default: False).
+        worktree: Alias of `use_worktree`, matching the tool schema flag name.
         **kwargs: Additional arguments including:
-            - session (CODXJuniorSession): Session with git engine (required).
+            - settings (CODXJuniorSettings): Project settings, injected by the runtime.
+            - session: Project session, injected by the runtime when available.
 
     Returns:
         ToolResponse: Contains:
@@ -201,14 +268,13 @@ def create_pr_branch(
 
     Raises:
         ValueError: If `files` is not a dictionary.
-        Exception: If session or git engine is not available.
 
     Example:
         PR branch from the current branch with the changes already on disk:
         >>> create_pr_branch(branch_name="codx-junior/fix-login")
 
         PR branch isolated in a worktree:
-        >>> create_pr_branch(branch_name="codx-junior/fix-login", use_worktree=True)
+        >>> create_pr_branch(branch_name="codx-junior/fix-login", worktree=True)
 
         Write specific files and commit them on the PR branch:
         >>> create_pr_branch(
@@ -217,18 +283,16 @@ def create_pr_branch(
         ...     files={"codx/junior/app.py": "print('hi')"},
         ... )
     """
-    session: CODXJuniorSession = kwargs.get("session", None)
-    if not session:
-        raise Exception("Invalid session - git engine not available")
-
     if files is not None and not isinstance(files, dict):
         raise ValueError("files must be a dictionary mapping file paths to contents")
 
-    git_engine = session.get_git_engine()
-    branch_name = branch_name or git_engine.build_branch_name()
+    # The tool schema exposes the flag as `worktree`; keep both names working.
+    use_worktree = bool(use_worktree or worktree)
 
     logs = []
     try:
+        git_engine = _resolve_git_engine(**kwargs)
+        branch_name = branch_name or git_engine.build_branch_name()
         result = git_engine.create_pr_branch(
             branch_name=branch_name,
             files_content=files,
@@ -238,10 +302,12 @@ def create_pr_branch(
         )
     except Exception as ex:
         error_msg = f"Unexpected error: {str(ex)}"
-        logger.error("create_pr_branch failed for %s: %s", branch_name, ex)
+        logger.error(
+            "create_pr_branch failed for %s: %s", branch_name or "(auto)", ex
+        )
         return ToolResponse(
-            user_response=f"error [{branch_name}]\nERROR: {error_msg}",
-            llm_response=f"Failed to create branch '{branch_name}': {error_msg}",
+            user_response=f"error [{branch_name or 'create_pr_branch'}]\nERROR: {error_msg}",
+            llm_response=f"Failed to create branch '{branch_name or '(auto)'}': {error_msg}",
         )
 
     # Collect git step logs for the forensic audit trail

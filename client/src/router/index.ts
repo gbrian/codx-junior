@@ -1,17 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { $storex } from '../store'
 import Navigate from './navigate'
-import QuickChatView from '@/views/QuickChatView.vue'
-import WorkspaceView from '@/views/WorkspaceView.vue'
-import MessengerView from '@/views/MessengerView.vue'
-import MeetView from '@/views/MeetView.vue'
-import TeamView from '@/views/TeamView.vue'
-import MetricsDashboard from '@/components/analytics/MetricsDashboard.vue'
-import Desktop from '@/components/desktop/Desktop.vue'
-import KanbanBoardView from '@/components/kanban/board/KanbanBoardView.vue'
-import BrowsersSessionManager from '@/components/browsers/BrowsersSessionManager.vue'
-import AppRouteView from '@/views/AppRouteView.vue'
-import SolopreneurView from '@/views/SolopreneurView.vue'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LAZY ROUTE COMPONENTS
+// Each screen is its own chunk: navigating fetches only what the route needs
+// instead of evaluating the whole application on first paint.
+// ─────────────────────────────────────────────────────────────────────────────
+const AppRouteView = () => import('@/views/AppRouteView.vue')
+const QuickChatView = () => import('@/views/QuickChatView.vue')
+const WorkspaceView = () => import('@/views/WorkspaceView.vue')
+const MessengerView = () => import('@/views/MessengerView.vue')
+const MeetView = () => import('@/views/MeetView.vue')
+const TeamView = () => import('@/views/TeamView.vue')
+const MetricsDashboard = () => import('@/components/analytics/MetricsDashboard.vue')
+const Desktop = () => import('@/components/desktop/Desktop.vue')
+const KanbanBoardView = () => import('@/components/kanban/board/KanbanBoardView.vue')
+const BrowsersSessionManager = () => import('@/components/browsers/BrowsersSessionManager.vue')
+const SolopreneurView = () => import('@/views/SolopreneurView.vue')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROJECT-SCOPED ROUTES

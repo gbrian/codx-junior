@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "ui",
+  "status": "done",
   "status_history": [
     {
       "doc_id": "aabbab70-8aa9-4f2c-b51c-a8cf4108e5dc",
@@ -17,6 +17,14 @@
       "to_status": "ui",
       "user": null,
       "at": "2026-10-21T08:50:14.385507",
+      "meta_data": null
+    },
+    {
+      "doc_id": "ec4a74b1-a7f1-407d-9056-6d546f26afd3",
+      "from_status": "ui",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-21T10:22:49.017054",
       "meta_data": null
     }
   ],
@@ -401,7 +409,7 @@
     }
   ],
   "created_at": "2026-10-21 08:50:14.305346",
-  "updated_at": "2026-10-21T09:04:50.833819",
+  "updated_at": "2026-10-21T10:22:48.971305",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

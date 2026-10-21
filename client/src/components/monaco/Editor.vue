@@ -1,6 +1,7 @@
 <script setup>
 import { CodeEditor, DiffEditor } from 'monaco-editor-vue3'
 import { EXTENSION_LANGUAGE_MAP } from '../../store'
+import { ensureMonacoWorkers } from './monacoWorkers'
 </script>
 
 <template>
@@ -125,7 +126,10 @@ export default {
       }
     }
   },
-  mounted() {
+  async mounted() {
+    // Workers must be registered before Monaco creates its first editor,
+    // otherwise its language services run on the main thread.
+    await ensureMonacoWorkers()
     this.$nextTick(() => {
       this.isReady = true
     })

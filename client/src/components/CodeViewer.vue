@@ -1,15 +1,19 @@
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import moment from 'moment'
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
-import hljs from 'highlight.js'
-import Editor from './monaco/Editor.vue'
+import hljs from '@/utils/highlight'
 import Collapsible from './Collapsible.vue'
-import Document from './document/Document.vue'
-import DiffViewer from './DiffViewer.vue'
 import "@git-diff-view/vue/styles/diff-view.css"
 import { EXTENSION_LANGUAGE_MAP } from '../store'
 
+// Monaco (~1 MB) and the git-diff renderer are only required when a block is
+// opened, edited or diffed: keep them in their own chunks instead of evaluating
+// them with the first rendered message.
+const Editor = defineAsyncComponent(() => import('./monaco/Editor.vue'))
+const DiffViewer = defineAsyncComponent(() => import('./DiffViewer.vue'))
+const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 </script>
 
 <template>
