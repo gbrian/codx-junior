@@ -797,8 +797,14 @@ export default {
     chatFiles() {
       return this.chat.file_list
     },
+    // Thread bound to this message. Read from the chats store directly:
+    // `$projects.allChats` maps EVERY chat through `createProjectChat()`, so
+    // evaluating it per rendered message cloned the whole project chat list
+    // (O(messages × chats)) on each render.
     threadChat() {
-      return this.$projects.allChats.find(c => c.message_id === this.message.doc_id)
+      const messageId = this.message.doc_id
+      if (!messageId) return null
+      return this.$chats.allChats.find(c => c.message_id === messageId) || null
     },
     cancellationTokenId() {
       return this.displayMessage.meta_data?.cancellation_token_id
@@ -1174,10 +1180,20 @@ export default {
     openThread() {
       this.$chats.setActiveChat(this.threadChat)
     },
+    // Hydrate the thread chat behind this message.
+    //
+    // This runs on every render of the entry (created + message watcher), so it
+    // must NOT write to the store once the thread is loaded: `reloadChat()`
+    // always replaced the chat object, and a chat write re-derives every board
+    // column, card and unread badge — opening a chat with N threaded messages
+    // therefore produced N full rebuilds of the sprint board.
+    //
+    // `loadUninitialized()` is the correct call here: it fetches the thread only
+    // when its history is not loaded yet (chats list/search returns summaries)
+    // and is a plain no-op afterwards.
     loadThreadChat() {
-      if (this.threadChat) {
-        this.$chats.reloadChat(this.threadChat)
-      }
+      if (!this.threadChat) return null
+      return this.$storex.chats.loadUninitialized(this.threadChat)
     },
     runAgents() {
       this.$emit('run-agents', this.message)

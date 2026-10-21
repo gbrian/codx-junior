@@ -132,21 +132,54 @@ export default {
         // Never resync while dragging (the local order wins until the drop)
         if (this.draggingColIndex !== null) return
         // The store rebuilds the whole column list on every chats change (a
-        // chat being opened, a socket event, a status write…). When the very
-        // same column objects come back nothing changed, so keep the current
-        // list — that alone stops pushing a new `column` prop down every column
-        // (and, through it, a new task array down every card of the board).
+        // chat being opened, a socket event, a status write…). When the columns
+        // would render exactly what is already mounted, keep the current list:
+        // that stops pushing a new `column` prop down every column (and, through
+        // it, re-rendering every card of the board).
         if (this.sameColumns(newCols)) return
         this.localColumns = [...newCols]
       }
     }
   },
   methods: {
-    // True when `next` holds exactly the columns already rendered (same
-    // objects, same order).
+    // True when `next` would render exactly what is already mounted.
+    //
+    // Comparing object identity is not enough: the store derives fresh column
+    // objects (and fresh task arrays) on every chats change, so an
+    // identity-only check always failed and every column re-rendered on each
+    // chat write. The comparison therefore ignores the wrapper identity and
+    // looks at what the column actually renders:
+    //   • its identity/position (id + title) and status,
+    //   • the header metadata (icon, colour, project, profiles),
+    //   • the tasks, which must be literally the same chat objects in the same
+    //     order (the cards are keyed and compared by identity downstream).
     sameColumns(next) {
       if (next.length !== this.localColumns.length) return false
-      return next.every((column, index) => column === this.localColumns[index])
+      return next.every((column, index) => {
+        const current = this.localColumns[index]
+        if (column === current) return true
+        if (!current) return false
+        if (column.id !== current.id || column.title !== current.title) return false
+        if ((column.status || null) !== (current.status || null)) return false
+        if ((column.icon || null) !== (current.icon || null)) return false
+        if ((column.color || null) !== (current.color || null)) return false
+        if ((column.project_id || null) !== (current.project_id || null)) return false
+        if (this.profilesKey(column) !== this.profilesKey(current)) return false
+        return this.sameTasks(column.tasks, current.tasks)
+      })
+    },
+    // Stable signature of the profiles a column pre-selects on new tasks
+    profilesKey(column) {
+      return (column?.profiles || [])
+        .map(entry => (entry && typeof entry === 'object' ? entry.name : entry))
+        .join('|')
+    },
+    // Same tasks, same order (compared by object identity)
+    sameTasks(next, current) {
+      const nextTasks = next || []
+      const currentTasks = current || []
+      if (nextTasks.length !== currentTasks.length) return false
+      return nextTasks.every((task, index) => task === currentTasks[index])
     },
     onColumnDragStart(colIndex) {
       this.draggingColIndex = colIndex

@@ -8,6 +8,19 @@ export const namespaced = true
 // Boards are keyed by title, so the virtual board reuses its title as id.
 export const NO_BOARD_ID = 'No board'
 
+// Placeholder column that groups the chats which define no `column`.
+//
+// The fallback is applied AT THE COMPARISON SITES (column list, view builder,
+// sprint grouping) and never on the chat objects themselves: wrapping a chat
+// in `{ ...c, column }` gave every task a NEW identity on every read, so the
+// board columns could never recognise their cards and re-rendered the whole
+// board (columns → tasks → cards) on any single chat write.
+export const NO_COLUMN_ID = '--none--'
+
+// Status a sprint task belongs to when it defines none (see `sprintColumns`).
+// Same rule as NO_COLUMN_ID: applied when grouping, never written on the chat.
+const FALLBACK_STATUS = 'todo'
+
 // Portable board document contract used by export/import.
 export const BOARD_EXPORT_FORMAT = 'codx-junior-board'
 export const BOARD_EXPORT_VERSION = 1
@@ -209,12 +222,14 @@ export const getters = getterTree(state, {
   // ── Virtual "No board" board ────────────────────────────────────────────────
   // Chats that are not associated with any board. Templates and channel-mode
   // chats are excluded because they are not real work items.
+  //
+  // The chats are returned AS STORED — no wrapper objects, no defaulted
+  // fields. See NO_COLUMN_ID / FALLBACK_STATUS: the grouping defaults are
+  // applied where the grouping happens.
   noBoardChats: () => {
     const allChats = Object.values($storex.chats.chats || {})
     return allChats
       .filter(c => c?.id && !c.board && !c.is_template && c.mode !== 'channel')
-      // Board-less chats have no column; they are grouped by task status instead
-      .map(c => ({ ...c, status: c.status || 'todo' }))
   },
 
   // Synthetic, non-persisted board describing the board-less group. It is typed
@@ -249,9 +264,17 @@ export const getters = getterTree(state, {
     return getters.noBoardChats.length ? [getters.virtualBoard] : []
   },
 
-  allBoards: (_, getters) => {
+  // Persisted boards, built from the kanban document ONLY.
+  //
+  // This getter deliberately does not depend on the chats store: it is what
+  // gives a stored board a STABLE object identity while chats keep changing.
+  // `boardById()` is read by every board consumer (the active board watcher,
+  // the canvas, the app params), so a board object that changed identity on
+  // each chat write re-rendered the whole workspace — chats are not part of a
+  // board's identity, the kanban document is.
+  storedBoards: (_, getters) => {
     const { boards = {} } = getters.kanban
-    const storedBoards = Object.keys(boards)
+    return Object.keys(boards)
       .filter(title => boards[title] !== null)
       .map(title => ({
         ...boards[title],
@@ -262,16 +285,20 @@ export const getters = getterTree(state, {
         // Board participants (user list) — optional
         users: boards[title]?.users || []
       }))
-    // The virtual "No board" board is always appended last
-    return [...storedBoards, ...getters.virtualBoards]
   },
+
+  allBoards: (_, getters) => [
+    ...getters.storedBoards,
+    // The virtual "No board" board is always appended last
+    ...getters.virtualBoards
+  ],
 
   // Resolve a board by its id/title. The virtual "No board" board always
   // resolves (even with no chats) so a component can keep it selected.
   boardById: (state, getters) => (boardId) => {
     if (!boardId) return null
     if (boardId === NO_BOARD_ID) return getters.virtualBoard
-    return getters.allBoards.find(b => b.id === boardId) || null
+    return getters.storedBoards.find(b => b.id === boardId) || null
   },
 
   isVirtualBoard: (state, getters) => (boardId) => boardId === NO_BOARD_ID,
@@ -284,20 +311,22 @@ export const getters = getterTree(state, {
 
   // Tasks that belong to a board (chat.board === boardId). The virtual board
   // instead exposes every board-less chat.
+  //
+  // The chat objects are returned as stored (see `noBoardChats`): columns, cards
+  // and drag & drop all compare them by identity to know whether anything
+  // changed, so cloning them here made every consumer re-render on every chat
+  // write.
   boardChats: (state, getters) => (boardId) => {
     if (!boardId) return []
-    if (boardId === NO_BOARD_ID) {
-      return getters.noBoardChats.map(c => ({ ...c, column: c.column || '--none--' }))
-    }
+    if (boardId === NO_BOARD_ID) return getters.noBoardChats
     const allChats = Object.values($storex.chats.chats || {})
-    return allChats
-      .filter(c => c.board === boardId)
-      .map(c => ({ ...c, column: c.column || '--none--' }))
+    return allChats.filter(c => c.board === boardId)
   },
 
   columnList: (state, getters) => (boardId) => {
     const kanbanColumns = getters.boardById(boardId)?.columns?.map(c => c.title) || []
-    const chatColumns = getters.boardChats(boardId).map(c => c.column)
+    // Chats without a column are grouped under a placeholder column
+    const chatColumns = getters.boardChats(boardId).map(c => c.column || NO_COLUMN_ID)
     return [...new Set([...kanbanColumns, ...chatColumns])]
   },
 
@@ -305,13 +334,17 @@ export const getters = getterTree(state, {
   buildViewColumns: (state, getters) => (boardId, filterText) => {
     const board = getters.boardById(boardId)
     const columnChats = board?.columns?.chats || []
+    // Hoisted: looking the board chats up again for every column made this
+    // O(columns × chats) on each evaluation.
+    const boardTasks = getters.boardChats(boardId)
+    const text = filterText ? filterText.toLowerCase() : null
 
     const getChatIndex = (c) => columnChats.findIndex(kc => kc.id === c.id)
 
     const builtColumns = getters.columnList(boardId).map((col, ix) => {
       const storeColumn = board?.columns?.find(bc => bc.title === col) || {}
-      const tasks = getters.boardChats(boardId)
-        .filter(t => t.column === col)
+      const tasks = boardTasks
+        .filter(t => (t.column || NO_COLUMN_ID) === col)
         .sort((a, b) => {
           // Respect explicit sort_index if present, then fall back to pinned / chat index
           if (a.sort_index !== undefined && b.sort_index !== undefined) {
@@ -320,12 +353,12 @@ export const getters = getterTree(state, {
           return a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1
         })
 
-      const filtered = filterText
+      const filtered = text
         ? tasks.filter(task =>
             Object.keys(task)
               .reduce((acc, k) => `${acc} ${JSON.stringify(task[k])}`, '')
               .toLowerCase()
-              .includes(filterText.toLowerCase())
+              .includes(text)
           )
         : tasks
 
@@ -357,14 +390,13 @@ export const getters = getterTree(state, {
     getters.allBoards.filter(b => b.type === 'sprint' && !b.virtual),
 
   // Tasks that belong to a sprint (chat.sprints includes the board id).
+  // Returned as stored, like `boardChats` — no clones, no defaulted `status`.
   sprintBoardChats: (state, getters) => (boardId) => {
     if (!boardId) return []
     if (boardId === NO_BOARD_ID) return getters.noBoardChats
 
     const allChats = Object.values($storex.chats.chats || {})
-    return allChats
-      .filter(c => (c.sprints || []).includes(boardId))
-      .map(c => ({ ...c, status: c.status || 'todo' }))
+    return allChats.filter(c => (c.sprints || []).includes(boardId))
   },
 
   // The sprint columns for a board. Customized boards persist their columns on
@@ -373,7 +405,8 @@ export const getters = getterTree(state, {
   //
   // Sprint boards work by changing a task's `status` field, so each column
   // groups every task whose `status` matches the column `status` (or its
-  // `title` when no status was defined).
+  // `title` when no status was defined). Tasks without a status belong to the
+  // fallback column (FALLBACK_STATUS).
   sprintColumns: (state, getters) => (boardId) => {
     const board = getters.boardById(boardId)
     const tasks = getters.sprintBoardChats(boardId)
@@ -388,7 +421,7 @@ export const getters = getterTree(state, {
       const config = $storex.chats.statusConfig(status)
 
       const columnTasks = tasks
-        .filter(t => t.status === status)
+        .filter(t => (t.status || FALLBACK_STATUS) === status)
         .sort((a, b) => {
           const ao = a.sort_index ?? Number.MAX_SAFE_INTEGER
           const bo = b.sort_index ?? Number.MAX_SAFE_INTEGER
@@ -423,7 +456,7 @@ export const getters = getterTree(state, {
   parentBoard: (state, getters) => (boardId) => {
     const board = getters.boardById(boardId)
     if (!board?.parent_id) return null
-    return getters.allBoards.find(b => b.id === board.parent_id) || null
+    return getters.storedBoards.find(b => b.id === board.parent_id) || null
   },
 
   // The virtual board can never be a parent board
@@ -697,7 +730,8 @@ export const actions = actionTree(
 
     // Persist a new task order within a column using sort_index on each chat
     async reorderTasksInColumn({ state, getters }, { boardId, columnTitle, taskIds }) {
-      const tasks = getters.boardChats(boardId).filter(t => t.column === columnTitle)
+      const tasks = getters.boardChats(boardId)
+        .filter(t => (t.column || NO_COLUMN_ID) === columnTitle)
       await Promise.all(
         taskIds.map((id, index) => {
           const task = tasks.find(t => t.id === id)
@@ -743,7 +777,7 @@ export const actions = actionTree(
       if (!taskId || !status) return
       const chat = $storex.chats.chats?.[taskId]
       if (!chat) return
-      if ((chat.status || 'todo') === status) return
+      if ((chat.status || FALLBACK_STATUS) === status) return
       await $storex.chats.updateChatInfo({ chat, updates: { status } })
     },
 
@@ -785,7 +819,7 @@ export const actions = actionTree(
       // parent, root tasks fall back to the first column's status.
       const columns = getters.sprintColumns(sprintId) || []
       const firstColumn = columns[0]
-      const taskStatus = status || firstColumn?.status || 'todo'
+      const taskStatus = status || firstColumn?.status || FALLBACK_STATUS
       // The destination column may define the project its tasks belong to
       const targetColumn = columns.find(c => c.status === taskStatus) || firstColumn
 
@@ -913,7 +947,7 @@ export const actions = actionTree(
       // Changing the status re-groups the column, so move its tasks along
       if (nextStatus !== previousStatus) {
         const tasks = getters.sprintBoardChats(boardId)
-          .filter(t => (t.status || 'todo') === previousStatus)
+          .filter(t => (t.status || FALLBACK_STATUS) === previousStatus)
         await Promise.all(tasks.map(t =>
           $storex.chats.updateChatInfo({ chat: t, updates: { status: nextStatus } })
         ))
@@ -952,7 +986,7 @@ export const actions = actionTree(
 
       // Move the tasks so the removed column never loses them
       const tasks = getters.sprintBoardChats(boardId)
-        .filter(t => (t.status || 'todo') === status)
+        .filter(t => (t.status || FALLBACK_STATUS) === status)
       await Promise.all(tasks.map(t =>
         $storex.chats.updateChatInfo({ chat: t, updates: { status: targetStatus } })
       ))
