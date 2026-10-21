@@ -46,6 +46,8 @@ class GitEngine:
         GE --> get_working_tree_status
         GE --> build_branch_name
         GE --> create_pr_branch
+        GE --> close_pr_branch
+        GE --> abandon_pr_branch
         GE --> get_worktrees_path
     ```
     """
@@ -1012,6 +1014,115 @@ class GitEngine:
             "error": result["error"],
         }
 
+    def _current_branch(self, cwd: Optional[str] = None) -> str:
+        """
+        Return the branch currently checked out in *cwd* (empty when detached).
+
+        Args:
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            Current branch name, or an empty string for a detached HEAD.
+        """
+        result = self._run_git(["branch", "--show-current"], cwd=cwd)
+        return result["output"] if result["ok"] else ""
+
+    def get_default_branch(self) -> str:
+        """
+        Return the repository's default (integration) branch.
+
+        Resolution order: ``main``, ``master``, ``develop``, the remote HEAD,
+        and finally the first local branch found.
+
+        Returns:
+            Default branch name, or an empty string when it cannot be resolved.
+        """
+        repo_path = self._get_repo_root()
+        for candidate in ("main", "master", "develop"):
+            if self._ref_exists(f"refs/heads/{candidate}", cwd=repo_path):
+                return candidate
+
+        remote_head = self._run_git(
+            ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], cwd=repo_path
+        )
+        if remote_head["ok"] and remote_head["output"]:
+            return self._sanitize_branch_name(remote_head["output"].split("/")[-1])
+
+        refs = self._run_git(
+            ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
+            cwd=repo_path,
+        )
+        branches = [b.strip() for b in refs["output"].split("\n") if b.strip()]
+        return branches[0] if branches else ""
+
+    def _remove_worktree(self, branch_name: str, cwd: Optional[str] = None) -> dict:
+        """
+        Remove the worktree registered for *branch_name*, when it exists.
+
+        Args:
+            branch_name: Branch whose worktree should be removed.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            Dict with 'ok', 'removed' (True when a worktree was deleted),
+            'path', 'output' and 'error'.
+        """
+        worktree_path = self.get_worktree_path_for_branch(branch_name)
+        if not worktree_path:
+            return {
+                "ok": True,
+                "removed": False,
+                "path": "",
+                "output": "no worktree registered",
+                "error": "",
+            }
+
+        result = self._run_git(["worktree", "remove", "--force", worktree_path], cwd=cwd)
+        if not result["ok"]:
+            # Stale administrative entries block future worktree operations
+            self._run_git(["worktree", "prune"], cwd=cwd)
+
+        return {
+            "ok": result["ok"],
+            "removed": result["ok"],
+            "path": worktree_path,
+            "output": result["output"],
+            "error": result["error"],
+        }
+
+    def _delete_branch(
+        self, branch_name: str, cwd: Optional[str] = None, force: bool = True
+    ) -> dict:
+        """
+        Delete a local branch.
+
+        Args:
+            branch_name: Branch to delete.
+            cwd: Working directory. Defaults to the repository root.
+            force: Use ``-D`` (delete without merge check) when True.
+
+        Returns:
+            Dict with 'ok', 'deleted' (True when a branch was deleted),
+            'output' and 'error'.
+        """
+        if not self._ref_exists(f"refs/heads/{branch_name}", cwd=cwd):
+            return {
+                "ok": True,
+                "deleted": False,
+                "output": "branch not found",
+                "error": "",
+            }
+
+        result = self._run_git(
+            ["branch", "-D" if force else "-d", branch_name], cwd=cwd
+        )
+        return {
+            "ok": result["ok"],
+            "deleted": result["ok"],
+            "output": result["output"],
+            "error": result["error"],
+        }
+
     def _commit_all(
         self, cwd: str, message: str, allow_empty: bool = True
     ) -> dict:
@@ -1212,6 +1323,280 @@ class GitEngine:
         head = self._run_git(["rev-parse", "HEAD"], cwd=work_path)
         if head["ok"]:
             result["commit"] = head["output"]
+
+        result["success"] = not result["errors"]
+        return result
+
+    def close_pr_branch(
+        self,
+        branch_name: str,
+        base_branch: Optional[str] = None,
+        commit_message: Optional[str] = None,
+        delete_branch: bool = False,
+    ) -> dict:
+        """
+        Close a local PR by merging its branch into the base branch.
+
+        Workflow:
+            1. Resolve the base branch (`base_branch`, the branch currently
+               checked out, or the repository default branch).
+            2. Stash local changes so the checkout never fails.
+            3. Check out the base branch and ``git merge --no-ff <branch>``.
+               Conflicts abort the merge and are reported.
+            4. Remove the branch worktree, when one exists.
+            5. Optionally delete the merged branch.
+            6. Restore the stashed local changes.
+
+        Nothing is pushed: PRs are reviewed and merged locally by codx-junior.
+
+        Args:
+            branch_name: PR branch to merge.
+            base_branch: Branch to merge into. Defaults to the current branch,
+                or the repository default branch when the PR branch is the one
+                checked out.
+            commit_message: Merge commit message. Defaults to
+                ``"Merge branch '<branch>' into '<base>'"``.
+            delete_branch: Delete the PR branch after merging (default: False).
+
+        Returns:
+            Dict with 'success', 'action', 'branch', 'base_branch',
+            'original_branch', 'commit', 'worktree_removed', 'branch_deleted',
+            'steps', 'errors' and 'repo_path'.
+
+        Example:
+            >>> engine.close_pr_branch(branch_name="codx-junior/fix-login")
+            {'success': True, 'branch': 'codx-junior/fix-login', ...}
+        """
+        repo_path = self._get_repo_root()
+        branch_name = self._sanitize_branch_name(branch_name)
+
+        result = {
+            "success": False,
+            "action": "merge",
+            "branch": branch_name,
+            "base_branch": (
+                self._sanitize_branch_name(base_branch) if base_branch else ""
+            ),
+            "original_branch": "",
+            "commit": "",
+            "worktree_removed": False,
+            "branch_deleted": False,
+            "steps": [],
+            "errors": [],
+            "repo_path": repo_path,
+        }
+
+        if not branch_name:
+            result["errors"].append("branch_name is required")
+            return result
+
+        original_branch = self._current_branch(repo_path)
+        result["original_branch"] = original_branch
+        current_branch = (
+            self._sanitize_branch_name(original_branch) if original_branch else ""
+        )
+
+        if not self._ref_exists(f"refs/heads/{branch_name}", cwd=repo_path):
+            result["errors"].append(f"Branch '{branch_name}' not found")
+            return result
+
+        base = result["base_branch"] or (
+            current_branch
+            if current_branch and current_branch != branch_name
+            else self.get_default_branch()
+        )
+        result["base_branch"] = base
+
+        if not base:
+            result["errors"].append(
+                "Could not determine the base branch to merge into"
+            )
+            return result
+        if base == branch_name:
+            result["errors"].append(
+                f"Branch '{branch_name}' cannot be merged into itself"
+            )
+            return result
+
+        status = self.get_working_tree_status()
+        result["steps"].append({
+            "name": "status",
+            "ok": status["ok"],
+            "output": f"{len(status['files'])} changed file(s)",
+            "error": status["error"],
+        })
+        if not status["ok"]:
+            result["errors"].append(f"Could not read git status: {status['error']}")
+            return result
+
+        message = commit_message or f"Merge branch '{branch_name}' into '{base}'"
+        stashed = False
+        try:
+            # Keep local work safe: checkout would fail on a dirty tree
+            if status["dirty"]:
+                stash = self._run_git([
+                    "stash", "push", "-u",
+                    "-m", f"codx-junior: auto-stash before closing {branch_name}",
+                ], cwd=repo_path)
+                result["steps"].append({"name": "stash", **stash})
+                if not stash["ok"]:
+                    result["errors"].append(
+                        f"Could not stash local changes: {stash['error']}"
+                    )
+                    return result
+                stashed = True
+
+            if current_branch != base:
+                checkout = self._run_git(["checkout", base], cwd=repo_path)
+                result["steps"].append({"name": "checkout", **checkout})
+                if not checkout["ok"]:
+                    result["errors"].append(
+                        f"Could not checkout base branch '{base}': "
+                        f"{checkout['error']}"
+                    )
+                    return result
+
+            merge = self._run_git(
+                ["merge", "--no-ff", branch_name, "-m", message], cwd=repo_path
+            )
+            result["steps"].append({"name": "merge", **merge})
+            if not merge["ok"]:
+                self._run_git(["merge", "--abort"], cwd=repo_path)
+                result["errors"].append(
+                    f"Could not merge '{branch_name}' into '{base}': "
+                    f"{merge['error'] or merge['output']}"
+                )
+                return result
+
+            head = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
+            if head["ok"]:
+                result["commit"] = head["output"]
+
+            worktree = self._remove_worktree(branch_name, cwd=repo_path)
+            result["steps"].append({"name": "worktree-remove", **worktree})
+            result["worktree_removed"] = worktree["removed"]
+            if not worktree["ok"]:
+                result["errors"].append(
+                    f"Could not remove worktree '{worktree['path']}': "
+                    f"{worktree['error']}"
+                )
+                return result
+
+            if delete_branch:
+                deleted = self._delete_branch(branch_name, cwd=repo_path)
+                result["steps"].append({"name": "branch-delete", **deleted})
+                result["branch_deleted"] = deleted["deleted"]
+                if not deleted["ok"]:
+                    result["errors"].append(
+                        f"Could not delete branch '{branch_name}': "
+                        f"{deleted['error']}"
+                    )
+
+            return result
+        finally:
+            if stashed:
+                pop = self._run_git(["stash", "pop"], cwd=repo_path)
+                result["steps"].append({"name": "stash-pop", **pop})
+                if not pop["ok"]:
+                    result["errors"].append(
+                        "Could not restore stashed local changes. "
+                        "Run 'git stash pop' manually."
+                    )
+            result["success"] = not result["errors"]
+
+    def abandon_pr_branch(
+        self,
+        branch_name: str,
+        base_branch: Optional[str] = None,
+        delete_branch: bool = True,
+    ) -> dict:
+        """
+        Abandon a local PR: remove its worktree and drop the branch.
+
+        The PR changes are discarded: the branch (and its commits) is deleted,
+        so the base branch never receives them. When the repository is checked
+        out on the PR branch, the base branch is checked out first (local
+        changes are never forced away — a failed checkout is reported).
+
+        Args:
+            branch_name: PR branch to abandon.
+            base_branch: Branch to return to when the PR branch is checked out.
+                Defaults to the repository default branch.
+            delete_branch: Delete the (unmerged) branch (default: True).
+
+        Returns:
+            Dict with 'success', 'action', 'branch', 'base_branch',
+            'restored_branch', 'worktree_removed', 'branch_deleted',
+            'steps', 'errors' and 'repo_path'.
+
+        Example:
+            >>> engine.abandon_pr_branch(branch_name="codx-junior/fix-login")
+            {'success': True, 'branch': 'codx-junior/fix-login', ...}
+        """
+        repo_path = self._get_repo_root()
+        branch_name = self._sanitize_branch_name(branch_name)
+
+        result = {
+            "success": False,
+            "action": "discard",
+            "branch": branch_name,
+            "base_branch": (
+                self._sanitize_branch_name(base_branch) if base_branch else ""
+            ),
+            "restored_branch": "",
+            "worktree_removed": False,
+            "branch_deleted": False,
+            "steps": [],
+            "errors": [],
+            "repo_path": repo_path,
+        }
+
+        if not branch_name:
+            result["errors"].append("branch_name is required")
+            return result
+
+        # 1. Remove the worktree (if the branch lives in one)
+        worktree = self._remove_worktree(branch_name, cwd=repo_path)
+        result["steps"].append({"name": "worktree-remove", **worktree})
+        result["worktree_removed"] = worktree["removed"]
+        if not worktree["ok"]:
+            result["errors"].append(
+                f"Could not remove worktree '{worktree['path']}': "
+                f"{worktree['error']}"
+            )
+            return result
+
+        # 2. Leave the PR branch before deleting it
+        current_branch = self._current_branch(repo_path)
+        if current_branch == branch_name:
+            base = result["base_branch"] or self.get_default_branch()
+            result["base_branch"] = base
+            if not base or base == branch_name:
+                result["errors"].append(
+                    f"Cannot abandon '{branch_name}' while it is checked out: "
+                    "provide a base_branch to return to"
+                )
+                return result
+
+            checkout = self._run_git(["checkout", base], cwd=repo_path)
+            result["steps"].append({"name": "checkout", **checkout})
+            if not checkout["ok"]:
+                result["errors"].append(
+                    f"Could not checkout '{base}': {checkout['error']}"
+                )
+                return result
+            result["restored_branch"] = base
+
+        # 3. Drop the branch
+        if delete_branch:
+            deleted = self._delete_branch(branch_name, cwd=repo_path)
+            result["steps"].append({"name": "branch-delete", **deleted})
+            result["branch_deleted"] = deleted["deleted"]
+            if not deleted["ok"]:
+                result["errors"].append(
+                    f"Could not delete branch '{branch_name}': {deleted['error']}"
+                )
+                return result
 
         result["success"] = not result["errors"]
         return result

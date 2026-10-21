@@ -450,6 +450,11 @@
           "path": "/api/codx/junior/infra/cloud/__init__.py",
           "slug": "init.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/api/global_settings.py",
+          "slug": "global-settings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/global-settings.md"
         }
       ],
       "id": "project-overview",

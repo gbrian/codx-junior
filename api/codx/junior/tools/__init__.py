@@ -43,7 +43,12 @@ from .code_writer import code_writer
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
 from .apply_file_changes import apply_file_changes
-from .git_tools import get_file_last_version, create_pr_branch
+from .git_tools import (
+    get_file_last_version,
+    create_pr_branch,
+    close_pr,
+    abandon_pr,
+)
 from .image_tools import explain_image, generate_image
 from .tutorial_tools import (
     tutorial_definition,
@@ -125,6 +130,8 @@ __all__ = [
     "delete_chapter",
     "get_file_last_version",
     "create_pr_branch",
+    "close_pr",
+    "abandon_pr",
     "docker_ps",
     "docker_logs",
     "docker_stats",
@@ -615,7 +622,8 @@ TOOLS = [
                     "When 'files' is provided those contents are written before committing; when omitted the "
                     "changes already present on disk are committed. "
                     "With 'worktree' enabled the branch is created in a separate git worktree, leaving the "
-                    "project's working tree and its uncommitted changes untouched."
+                    "project's working tree and its uncommitted changes untouched. "
+                    "On success the chat PR view is updated with status 'open'."
                 ),
                 "parameters": {
                     "type": "object",
@@ -661,6 +669,97 @@ TOOLS = [
         "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "branch", "pull-request", "worktree"],
         "tool_call": create_pr_branch
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "close_pr",
+                "description": (
+                    "Close a local PR by merging its branch changes into the base branch. "
+                    "The branch worktree is removed when one exists. Nothing is pushed: PRs are merged locally. "
+                    "The branch and base default to the chat PR view, so it can be called without arguments. "
+                    "On success the chat PR view is updated with status 'merged'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "PR branch to merge. Defaults to the branch stored in the chat PR view."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Branch to merge into. Defaults to the PR view base branch, "
+                                "the current branch, or the repository default branch."
+                            )
+                        },
+                        "commit_message": {
+                            "type": "string",
+                            "description": "Merge commit message. Defaults to a generated message."
+                        },
+                        "delete_branch": {
+                            "type": "boolean",
+                            "description": (
+                                "Delete the PR branch after merging. Defaults to false."
+                            ),
+                            "default": False
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "merge"],
+        "tool_call": close_pr
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "abandon_pr",
+                "description": (
+                    "Abandon a local PR: remove its git worktree (if any) and delete the branch, "
+                    "discarding the changes without merging them. "
+                    "The branch and base default to the chat PR view, so it can be called without arguments. "
+                    "On success the chat PR view is updated with status 'discarded'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "PR branch to abandon. Defaults to the branch stored in the chat PR view."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Branch to return to when the PR branch is checked out. "
+                                "Defaults to the PR view base branch or the repository default branch."
+                            )
+                        },
+                        "delete_branch": {
+                            "type": "boolean",
+                            "description": (
+                                "Delete the branch (default: true). Set false to keep the branch "
+                                "and only remove its worktree."
+                            ),
+                            "default": True
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "discard"],
+        "tool_call": abandon_pr
     },
     {
         "tool_json": DOCKER_PS_TOOL_JSON,

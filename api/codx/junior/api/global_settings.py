@@ -35,9 +35,14 @@ logger = logging.getLogger(__name__)
 
 def is_admin_user(user: CodxUser = Depends(get_authenticated_user)) -> CodxUser:
     """Raise 403 if the authenticated user is not an admin."""
-    if user.role != "admin":
+    if not user:
+        logger.error("Access denied, NO user")
+        raise HTTPException(status_code=403, detail="Access denied. No user.")
+
+    if not user or user.role != "admin":
         logger.error("Access denied for user: %s", user)
         raise HTTPException(status_code=403, detail="Access denied. Admins only.")
+    
     return user
 
 
