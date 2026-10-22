@@ -37,6 +37,12 @@ const DEFAULT_STATUS = 'todo'
 // cards, message list). One request per chat at a time keeps references stable.
 const reloadsInFlight = {}
 
+// Auto-reset timers of `setChatUpdating`, kept OUT of the store state: refreshing
+// the safety timeout of a chat that is ALREADY flagged as updating must not
+// invalidate `isChatUpdating()` — that re-rendered every card of the board on
+// each streamed chunk.
+const updatingTimeouts = {}
+
 export const state = () => ({
   chats: {},
   activeChatId: null,
@@ -56,22 +62,68 @@ export const state = () => ({
   chatActivity: { revision: 0, chatId: null, kind: null, at: null },
 })
 
+// Same values, same order. The API answers with brand-new arrays on every read,
+// so a reference check alone reports a change for the collections the board
+// derives its columns/tasks from (`sprints`, `board`, `profiles`…).
+function sameArrayValues(current, next) {
+  if (current === next) return true
+  if (!Array.isArray(current) || !Array.isArray(next)) return false
+  if (current.length !== next.length) return false
+  return current.every((value, index) => value === next[index])
+}
+
+// Collections that ARE the payload: the freshly loaded ones always win.
+const CHAT_PAYLOAD_FIELDS = ['messages', 'attachments']
+
+// Merge `source` INTO `target`, keeping `target`'s identity and the identity of
+// every collection whose values did not really change.
+//
+// The chat object identity is what the board compares to decide whether anything
+// changed (`SprintBoardCanvas.sameColumns` / `SprintBoardColumn.sameTasks`), so
+// replacing it turned a plain "history refreshed" into a full rebuild of every
+// column, every card and every derived getter — which is what made opening a
+// chat in the sprint board cascade into a render loop.
+function mergeChat(target, source) {
+  Object.keys(source).forEach(key => {
+    const next = source[key]
+    const current = target[key]
+    if (current === next) return
+    if (CHAT_PAYLOAD_FIELDS.includes(key)) {
+      target[key] = next
+      return
+    }
+    if (sameArrayValues(current, next)) return
+    target[key] = next
+  })
+}
+
 function registerChat(state, chat) {
   if (!chat?.id) {
     console.error('[chats store] Attempted to store a null/invalid chat:', chat)
     return
   }
-  const existingChat = state.chats[chat.id] || {}
 
   // Update lastMessageAt when registering a chat with messages
   const lastMessage = chat.messages?.[chat.messages.length - 1]
   const lastMessageAt = lastMessage?.timestamp || lastMessage?.created_at || chat.updated_at || new Date().toISOString()
 
-  state.chats[chat.id] = {
-    ...existingChat,
-    ...chat,
-    lastMessageAt
+  const existingChat = state.chats[chat.id]
+  if (!existingChat) {
+    state.chats[chat.id] = {
+      ...chat,
+      lastMessageAt
+    }
+    return state.chats[chat.id]
   }
+
+  // Merge INTO the existing object so the chat keeps its identity (see
+  // `mergeChat`). Only the fields that really changed are written, so a chat
+  // refresh no longer invalidates the getters the board is built from.
+  mergeChat(existingChat, chat)
+  if (existingChat.lastMessageAt !== lastMessageAt) {
+    existingChat.lastMessageAt = lastMessageAt
+  }
+  return existingChat
 }
 
 // Register a chat that only carries a summary (e.g. from list()/search() — the
@@ -267,6 +319,11 @@ export const mutations = mutationTree(state, {
   },
 
   setChatLoadingStatus(state, { chatId, status }) {
+    if (!chatId) return
+    // Writing an unchanged status recreated the whole map and invalidated every
+    // `isChatUpdating()` / `chatLoadingStatus()` consumer (every card of the
+    // board) for nothing.
+    if (state.chatLoadingStatus[chatId] === status) return
     state.chatLoadingStatus = {
       ...state.chatLoadingStatus,
       [chatId]: status
@@ -274,7 +331,7 @@ export const mutations = mutationTree(state, {
   },
 
   setChatNeedsReload(state, chatId) {
-    if (!chatId) return
+    if (!chatId || state.needsReload[chatId]) return
     state.needsReload = { ...state.needsReload, [chatId]: true }
   },
 
@@ -300,36 +357,44 @@ export const mutations = mutationTree(state, {
   },
 
   setChatUpdating(state, { chatId, updating }) {
-    const current = state.chatEvents[chatId]?.updatingCount || 0
-    const prevTimeoutId = state.chatEvents[chatId]?.timeoutId || null
+    if (!chatId) return
 
-    if (prevTimeoutId) {
-      clearTimeout(prevTimeoutId)
-    }
+    // Single safety timer per chat, refreshed on every event
+    clearTimeout(updatingTimeouts[chatId])
+    delete updatingTimeouts[chatId]
 
-    if (!updating) {
-      state.chatEvents = {
-        ...state.chatEvents,
-        [chatId]: {
-          ...(state.chatEvents[chatId] || {}),
-          updatingCount: 0,
-          updatingAt: null,
-          timeoutId: null,
-        }
-      }
-    } else {
-      const timeoutId = setTimeout(() => {
+    if (updating) {
+      // Safety net: a chat that stops receiving events must not stay "updating"
+      updatingTimeouts[chatId] = setTimeout(() => {
+        delete updatingTimeouts[chatId]
         $storex.chats.setChatUpdating({ chatId, updating: false })
       }, 10000)
 
+      // Already flagged: nothing changes for the UI, so skip the write that
+      // would re-render every `isChatUpdating()` consumer (cards, columns, tabs).
+      if (state.chatEvents[chatId]?.updatingCount > 0) return
+
       state.chatEvents = {
         ...state.chatEvents,
         [chatId]: {
-          ...(state.chatEvents[chatId] || {}),
-          updatingCount: current + 1,
+          updatingCount: 1,
           updatingAt: new Date().toISOString(),
-          timeoutId,
+          timeoutId: null,
         }
+      }
+      return
+    }
+
+    // Already idle: nothing to reset
+    if (!state.chatEvents[chatId]?.updatingCount) return
+
+    state.chatEvents = {
+      ...state.chatEvents,
+      [chatId]: {
+        ...(state.chatEvents[chatId] || {}),
+        updatingCount: 0,
+        updatingAt: null,
+        timeoutId: null,
       }
     }
   },
@@ -339,6 +404,11 @@ export const mutations = mutationTree(state, {
     state.activeChatId = null
     state.chatLoadingStatus = {}
     state.needsReload = {}
+    // Drop the pending "updating" safety timers of the previous project
+    Object.keys(updatingTimeouts).forEach(chatId => {
+      clearTimeout(updatingTimeouts[chatId])
+      delete updatingTimeouts[chatId]
+    })
   },
 
   updateChatLastMessageAt(state, { chatId, timestamp }) {
@@ -594,7 +664,13 @@ export const actions = actionTree(
       const request = (async () => {
         const freshChat = await project.$api.chats.loadChat(chat)
         if (freshChat && state.chats[chatId]) {
-          Object.assign(state.chats[chatId], freshChat)
+          // Merge in place, keeping the chat identity AND the identity of the
+          // collections that did not change (`sprints`, `board`, `profiles`…).
+          // A plain `Object.assign` re-assigned them with brand-new arrays, which
+          // invalidated `sprintBoardChats`/`sprintColumns` (and therefore every
+          // column and card of the board) on every socket event.
+          mergeChat(state.chats[chatId], freshChat)
+          if (freshChat.lastMessageAt) state.chats[chatId].lastMessageAt = freshChat.lastMessageAt
         } else if (freshChat && isActiveProjectChat(freshChat)) {
           // Only cache chats owned by the ACTIVE project. The chats store is
           // scoped to it, so caching another project's chat would leak its card

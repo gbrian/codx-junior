@@ -203,8 +203,13 @@ export default {
       state.lastCommitted = signature
 
       // Keep the split for the next mount / when the optional panel is
-      // re-opened (one reactive write per gesture, not per pointer move)
-      this.seededLayout = [...sizes]
+      // re-opened. Written ONLY when the seed really changes: `leftSize` /
+      // `rightSize` feed `defaultSize`, so re-seeding the panels with the very
+      // same numbers made radix recompute the layout (a new `layout` event for
+      // every commit, and therefore a new render of both slots).
+      if (this.signature(this.seededLayout || []) !== signature) {
+        this.seededLayout = [...sizes]
+      }
       this.writeLayout(this.persistKey, sizes)
       this.$emit('resize', { sizes: [...sizes], left: sizes[0], right: sizes[1] })
     }
