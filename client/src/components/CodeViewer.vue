@@ -445,6 +445,11 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 </template>
 
 <script>
+// Old code blocks are compared against a file that most likely moved on:
+// loading their diff automatically is expensive and usually meaningless, so it
+// is only fetched on demand (refresh icon / save / rollback).
+const AUTO_DIFF_MAX_AGE_HOURS = 5
+
 export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
@@ -694,6 +699,17 @@ export default {
     contentCreatedAt() {
       return this.message?.updated_at
     },
+    /**
+     * True when the code block belongs to an old message (> AUTO_DIFF_MAX_AGE_HOURS).
+     * Those blocks skip the automatic diff/read requests and rely on the manual
+     * refresh action instead. Missing timestamps are considered fresh.
+     */
+    isMessageStale() {
+      const createdAt = this.message?.updated_at || this.message?.created_at
+      if (!createdAt) return false
+      const age = Date.now() - new Date(createdAt).getTime()
+      return age > AUTO_DIFF_MAX_AGE_HOURS * 60 * 60 * 1000
+    },
     isContentOutdated() {
       if (this.isNoChange || !this.contentCreatedAt || !this.last_modification) {
         return false
@@ -708,8 +724,10 @@ export default {
       if (this.finished) {
         this.isUserScrolledUp = false
         this.shouldForceScrollToBottom = false
-        
-        await this.loadDiffInfo()
+
+        if (!this.isMessageStale) {
+          await this.loadDiffInfo()
+        }
       }
       if (this.chat?.mode === 'vibe') {
         // Automatic save in vibe mode - bypass heavy change prompt
@@ -751,7 +769,7 @@ export default {
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
-    if (this.finished && this.showCode) {
+    if (this.finished && this.showCode && !this.isMessageStale) {
       this.loadDiffInfo()
     }
     this.detectPatchPattern()

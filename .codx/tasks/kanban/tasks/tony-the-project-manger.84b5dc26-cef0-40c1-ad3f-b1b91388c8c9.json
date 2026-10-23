@@ -45,6 +45,7 @@
       "updated_at": "2026-10-21T08:42:45.535921",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -73,6 +74,7 @@
       "updated_at": "2026-10-21T10:10:21.480154",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792572166.1019359,
         "cancellation_token_id": "e7097c03-2e20-4eb9-adea-0beb78c04655",
@@ -135,6 +137,7 @@
       "updated_at": "2026-10-21T10:10:32.860971",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -163,6 +166,7 @@
       "updated_at": "2026-10-21T14:21:42.500523",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792578421.4942486,
         "cancellation_token_id": "5fe23019-372a-4ab3-bc81-f94a42d9ebd1",
@@ -391,6 +395,7 @@
       "updated_at": "2026-10-21T14:21:58.107832",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -416,9 +421,10 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-21 14:21:59.767397",
-      "updated_at": "2026-10-21T14:25:36.504421",
+      "updated_at": "2026-10-23T09:07:26.420260",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792592519.7136028,
         "cancellation_token_id": "87240138-23e6-4572-8bf3-47d455215cd4",
@@ -761,13 +767,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-21 08:42:07.316415",
-  "updated_at": "2026-10-21T14:25:36.588875",
+  "updated_at": "2026-10-23T09:07:26.421773",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
