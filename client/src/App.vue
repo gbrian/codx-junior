@@ -2,17 +2,19 @@
 import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
 import DesktopSidebar from './components/layout/DesktopSidebar.vue'
-import MobileBottomBar from './components/layout/MobileBottomBar.vue'
+import NewProject from './components/project/NewProject.vue'
 </script>
 
 <template>
-  <div class="w-full h-full relative bg-base-300" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full relative bg-base-100" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     
     <div class="h-full w-full flex" v-else :class="layoutClasses">
-      <!-- Desktop Sidebar (Landscape on desktop) -->
+      <!-- Desktop Sidebar (Landscape on desktop). Hidden on full-screen,
+           project-independent screens such as Solopreneur mode, which brings
+           its own header/navigation (see views/SolopreneurView.vue). -->
       <DesktopSidebar
-        v-if="isDesktopLandscape"
+        v-if="isDesktopLandscape && !isFullScreenRoute"
         :user-name="$user?.username || 'User'"
         :user-subtitle="'Pro'"
         @settings="openAccountSettings"
@@ -20,37 +22,43 @@ import MobileBottomBar from './components/layout/MobileBottomBar.vue'
 
       <!-- Mobile Sidebar Overlay (Mobile only, slides from left) -->
       <div
-        v-if="isMobile && showMobileSidebarOverlay"
+        v-if="isMobile && !isFullScreenRoute && $ui.isSidebarExpanded"
         class="fixed inset-0 z-100 transition-opacity duration-200 md:hidden"
-        @click="showMobileSidebarOverlay = false"
+        @click="closeMobileSidebar"
       ></div>
 
       <!-- Mobile Sidebar (Slides from left on mobile) -->
       <DesktopSidebar
-        v-if="isMobile"
+        v-if="isMobile && !isFullScreenRoute"
         :user-name="$user?.username || 'User'"
         :user-subtitle="'Pro'"
         :is-mobile="true"
-        :is-mobile-expanded="showMobileSidebarOverlay"
         class="z-150"
-        @close="showMobileSidebarOverlay = false"
+        @close="closeMobileSidebar"
         @settings="openAccountSettings"
       />
 
-      <!-- Main Content with Router (Flex context for scrollable children) -->
+      <!-- Main Content with Router (Flex context for scrollable children).
+           Every screen — including the Activity Wall, the default screen of the
+           mobile home — is resolved by the router (see the mobile home redirect
+           in router/navigate.js). -->
       <div class="grow flex flex-col min-h-0 min-w-0">
         <RouterView />
       </div>
 
-      <!-- Mobile Bottom Bar (Portrait on mobile) -->
-      <MobileBottomBar
-        v-if="isMobilePortrait && showMobileBottomBar"
-        :user-name="$user?.username || 'User'"
-        @show-menu="showMobileSidebarOverlay = true"
-      />
-
       <!-- Toast Notifications -->
       <Toast ref="toastComponent" />
+
+      <!-- Global "New project" modal — opened from any launcher
+           (sidebar AppsSection, MainMenuItems, WindowsMenuItems, QuickBar)
+           through the ui store flag `newProject`. -->
+      <modal
+        v-if="$ui.newProject"
+        close="true"
+        @close="$ui.showNewProject(false)"
+      >
+        <NewProject />
+      </modal>
     </div>
   </div>
   
@@ -65,8 +73,7 @@ export default {
     return {
       pendingProjectSwitch: null,
       windowWidth: 0,
-      windowHeight: 0,
-      showMobileSidebarOverlay: false
+      windowHeight: 0
     }
   },
   computed: {
@@ -94,6 +101,12 @@ export default {
     isMobilePortrait() {
       return this.isMobile && this.isPortrait
     },
+    // Full-screen, project-independent screens render their own shell: the
+    // standard sidebar is hidden so the screen owns the whole viewport.
+    // (Solopreneur mode: "/solopreneur/:module?" — see router/index.ts.)
+    isFullScreenRoute() {
+      return this.$route?.name === 'solopreneur'
+    },
     layoutClasses() {
       if (this.isMobilePortrait) {
         return 'flex-col'
@@ -105,10 +118,14 @@ export default {
     },
     errorNotifications() {
       return this.$ui.notifications.filter(n => n.type === 'error')
-    },
-    showMobileBottomBar() {
-      const { name, params } = this.$route
-      return name != 'chat' || !params?.chatId
+    }
+  },
+  created() {
+    // Resolve the viewport before the first paint so the mobile sidebar starts
+    // collapsed (the ui store default is expanded for desktop).
+    this.updateDimensions()
+    if (this.isMobile) {
+      this.closeMobileSidebar()
     }
   },
   watch: {
@@ -123,7 +140,10 @@ export default {
       deep: true
     },
     '$route'() {
-      this.showMobileSidebarOverlay = false
+      // Mobile sidebar is an overlay: close it when navigating away.
+      if (this.isMobile) {
+        this.closeMobileSidebar()
+      }
     }
   },
   mounted() {
@@ -137,6 +157,12 @@ export default {
     updateDimensions() {
       this.windowWidth = window.innerWidth
       this.windowHeight = window.innerHeight
+    },
+    // The mobile sidebar open/close state is owned by the ui store
+    // (`sidebarCollapsed`) instead of a local flag, so the sidebar and its
+    // backdrop stay in sync through a single source of truth.
+    closeMobileSidebar() {
+      this.$storex.ui.collapseSidebar()
     },
     retryProjectLoad() {
       if (this.pendingProjectSwitch) {

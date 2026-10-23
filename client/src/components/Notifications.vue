@@ -47,8 +47,35 @@ import { ref } from 'vue'
 
         <!-- Events List -->
         <div class="max-h-96 overflow-y-auto">
-          <!-- Last Event (Latest) -->
-          <div v-if="lastEvent" class="px-4 py-3 border-b border-base-content/5 bg-white/2">
+          <!-- Recent Events from $storex.session.events -->
+          <div v-if="recentEvents.length > 0">
+            <div class="px-4 py-2 bg-info/10 border-b border-info/20 sticky top-0">
+              <span class="text-xs font-semibold text-info uppercase">Recent Events ({{ recentEvents.length }})</span>
+            </div>
+            <div
+              v-for="event in recentEvents.slice(0, 3)"
+              :key="`event-${event.event}-${event.ts}`"
+              class="px-4 py-3 border-b border-base-content/5 hover:bg-white/5 transition-colors"
+            >
+              <div class="flex items-start gap-3">
+                <div class="shrink-0 mt-0.5">
+                  <i :class="getEventIcon(event)" class="text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-semibold text-base-content/80 uppercase">{{ getEventType(event) }}</span>
+                    <span class="text-xs text-base-content/40 shrink-0">{{ formatTime(event.ts) }}</span>
+                  </div>
+                  <p class="text-sm text-base-content/70 mt-1 break-words">
+                    {{ event.data?.text || event.event || 'Event occurred' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Last Event (Latest) - Separated -->
+          <div v-if="lastEvent && recentEvents.length === 0" class="px-4 py-3 border-b border-base-content/5 bg-white/2">
             <div class="flex items-start gap-3">
               <div class="shrink-0 mt-1">
                 <i :class="getEventIcon(lastEvent)" class="text-lg"></i>
@@ -166,6 +193,10 @@ export default {
     }
   },
   computed: {
+    recentEvents() {
+      const events = this.$storex.session.events || []
+      return events.slice().reverse()
+    },
     lastEvent() {
       return this.$storex.session.lastEvent
     },
@@ -183,6 +214,7 @@ export default {
     },
     hasNotifications() {
       return (
+        this.recentEvents.length > 0 ||
         this.errorNotifications.length > 0 ||
         this.warningNotifications.length > 0 ||
         this.successNotifications.length > 0 ||

@@ -11,16 +11,16 @@ import ChatIcon from '../chat/ChatIcon.vue'
     itemKey="id"
     :disabled="$ui.isMobile"
     @end="$emit('column-order-changed', localColumns)"
-    class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+    class="h-full min-h-0 grid grid-flow-col auto-rows-fr overflow-x-auto overflow-y-hidden relative gap-2 justify-start"
   >
     <template #item="{ element: column }">
       <div
-        class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto h-full flex flex-col"
+        class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-hidden h-full flex flex-col min-h-0"
         :class="column.color && 'border-t-4'"
         :style="{ borderColor: column.color }"
       >
         <!-- Column header -->
-        <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+        <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center shrink-0">
           <div
             class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100"
             :style="{ backgroundColor: column.color }"
@@ -65,7 +65,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
         </div>
 
         <!-- Tasks draggable list -->
-        <div class="column-tasks grow overflow-y-auto">
+        <div class="column-tasks grow overflow-y-auto min-h-0">
           <draggable
             v-model="column.tasks"
             group="tasks"

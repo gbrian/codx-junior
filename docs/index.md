@@ -2,61 +2,93 @@
 layout: home
 
 hero:
-  name: "This is "
-  text: "codx-junior AI ;) "
-  tagline: "Maintaining open source projects is a labor of love, let's do it together!"
+  name: "codx-junior"
+  text: "Your partner in crime to build ideas."
+  tagline: "An open-source multi-AI team for brainstorming, design, coding, testing and cloud deploys — ship fast at budget price and never lose control."
   image:
     src: /only_icon.png
     alt: codx-junior
   actions:
-    - theme: alt
-      text: Let's start
-      link: /hello-codx-junior
-
     - theme: brand
-      text: Try the DEMO
+      text: What is codx-junior?
+      link: /guide/introduction
+    - theme: alt
+      text: Self-host it
+      link: /getting-started
+    - theme: alt
+      text: Try the demo
       link: /demo
 
 features:
-  - title: About me
-    details: I'm an open source AI platform built to assist repo owners in keeping their repos sharp. Think of me as your trusty collaborator, always ready to tackle even the hardest tasks, no matter how complex they get.
-  - title: AI for the win
-    details: AI can revolutionize our projects by automating tedious tasks, freeing us to focus on creativity. codx-junior is a mixture of AI models and features tailored for open source project management.
-  - title:  All-In-One
-    details: "codx-junior provides everything you need: task management, containerized project execution, desktop testing, and seamless collaboration with all contributors."
-
+  - icon: 🧭
+    title: AI that stays on track
+    details: Pure AI agents go wild when left unsupervised. codx-junior pairs cutting-edge AI models with veteran human developers so every change is reviewed and steered.
+  - icon: 🚀
+    title: Ship 4x faster
+    details: A single developer can lead and ship complex IT projects, delegating the repetitive work to agents while keeping control of the roadmap.
+  - icon: 🗂️
+    title: Everything in one tab
+    details: Kanban, dev containers, agents and team chat live in the same browser tab. Your team only needs a browser to work.
+  - icon: 💰
+    title: Predictable budget
+    details: Transparent human hours and scalable AI tokens. Every AI call is metered, with wallets and spending limits per user.
+  - icon: 🛠️
+    title: Self-host for free
+    details: The engine is open source (AGPL-3.0). Run it on your own servers with Docker Compose, or hire our managed team to execute your roadmap.
+  - icon: 🤝
+    title: Join us
+    details: We are raising our seed round and onboarding early partners. Write to join@codx-junior.ai.
 ---
-<script setup>
-import ProductHunt from '.vitepress/theme/components/ProductHunt.vue'
-</script>
-<div class="flex flex-col gap-2 mt-4">
-<img class="rounded-md" src="https://github.com/gbrian/codx-junior/raw/main/assets/images/NOV2025/codx-junior-desktop.png" />
+
+<div class="flex flex-col gap-2 mt-8">
+<img class="rounded-md" src="/images/NOV2025/codx-junior-desktop.png" />
 
 <div class="grid grid-cols-3 gap-4">
-<img class="rounded-md" src="https://github.com/gbrian/codx-junior/raw/main/assets/images/NOV2025/codx-junior-kanban.png" />
-<img class="rounded-md" src="https://github.com/gbrian/codx-junior/raw/main/assets/images/NOV2025/codx-junior-pull-request.png" />
-<img class="rounded-md" src="https://github.com/gbrian/codx-junior/raw/main/assets/images/NOV2025/codx-junior-task-manager.png" />
-
+<img class="rounded-md" src="/images/NOV2025/codx-junior-kanban.png" />
+<img class="rounded-md" src="/images/NOV2025/codx-junior-pull-request.png" />
+<img class="rounded-md" src="/images/NOV2025/codx-junior-task-manager.png" />
 </div>
+
+<section class="mt-12 mx-auto max-w-4xl">
+  <h2 class="text-2xl sm:text-3xl font-semibold text-center">Why I built codx-junior</h2>
+  <p class="mt-6 text-lg">
+    I built codx-junior because I needed a <strong>partner in crime</strong> to help me develop my ideas.
+    Finding the right talent at a price that works is hard — and that's normal. But I still have plenty of
+    ideas I want to bring to life, so codx-junior became that partner.
+  </p>
+  <p class="mt-4 text-lg">
+    With codx-junior I have a team I can work with: we take an idea, make it real and go live fast, at a
+    budget price. And when I get stuck, I can pay a freelancer to jump in and fix it — without ever losing
+    control of my project, because codx-junior reviews and checks every change for me.
+  </p>
+
+  <div class="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div class="rounded-xl border p-4 text-center">🧠 <strong>Brainstorming</strong></div>
+    <div class="rounded-xl border p-4 text-center">🎨 <strong>Design</strong></div>
+    <div class="rounded-xl border p-4 text-center">🖼️ <strong>Images</strong></div>
+    <div class="rounded-xl border p-4 text-center">💻 <strong>Coding</strong></div>
+    <div class="rounded-xl border p-4 text-center">🧪 <strong>Testing</strong></div>
+    <div class="rounded-xl border p-4 text-center">☁️ <strong>Deploying to cloud</strong></div>
+  </div>
+
+  <p class="mt-8 text-lg text-center">
+    The multi-AI in codx-junior works with me across the whole journey — and assists anyone who joins me.
+  </p>
+</section>
+
 <section class="pt-2">
-    <div
-        class="bg-gradient-to-br from-sky-800 via-sky-900 to-violet-400 p-6 sm:p-10 rounded-2xl w-full text-white flex items-center justify-between mx-auto my-10">
-        <div class="flex flex-col gap-6">
-            <div class="">
-                <span class="text-gray-200">Apply now</span>
-                <br>
-                <span class="text-gray-200 text-4xl text-white font-semibold">HELP WANTED!</span>
-            </div>
-          </div>
-        <div>
+  <div class="bg-gradient-to-br from-sky-800 via-sky-900 to-violet-400 p-6 sm:p-10 rounded-2xl w-full text-white flex items-center justify-between mx-auto my-10">
+    <div class="flex flex-col gap-6">
+      <div>
+        <span class="text-gray-200">Early partners and seed round</span>
+        <br>
+        <span class="text-4xl text-white font-semibold">join@codx-junior.ai</span>
       </div>
     </div>
+  </div>
 </section>
 </div>
 
-<!--img width="100%" style="margin-top:20px;border-radius:20px" src="/images/NOV2025/codx-junior-banner.png" /-->
-
 <div class="mt-2 flex justify-between">
-<div>You will never code alone! ❤️ </div>
-<ProductHunt />
+<div>You will never code alone! ❤️</div>
 </div>

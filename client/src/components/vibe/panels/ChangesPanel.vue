@@ -1,5 +1,6 @@
 <script setup>
 import PRView from '@/components/repo/PRView.vue'
+import PRViewer from '@/components/repo/PRViewer.vue'
 import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
 </script>
 
@@ -12,7 +13,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       <button 
         v-if="availableProjectsToAdd.length > 0"
         class="btn btn-xs btn-ghost" 
-        @click="toggleAddProjectDropdown" 
+        @click="toggleAddProjectdropdown" 
         title="Add more projects"
       >
         <i class="fa-solid fa-plus text-base-content/60"></i>
@@ -24,10 +25,10 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
 
-      <!-- Add Projects Dropdown Menu -->
+      <!-- Add Projects dropdown Menu -->
       <div 
-        v-if="showAddProjectDropdown && availableProjectsToAdd.length > 0"
-        class="absolute top-12 right-2 dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10"
+        v-if="showAddProjectdropdown && availableProjectsToAdd.length > 0"
+        class="absolute top-12 right-2 dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10"
       >
         <li v-for="proj in availableProjectsToAdd" :key="projId(proj)">
           <a @click="addProjectToPanel(proj)" class="text-info gap-2">
@@ -38,16 +39,17 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       </div>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="loadingChanges" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/50">
+    <!-- Loading state: only replaces the panel while there is nothing to show yet,
+         so reloading keeps the branch selector reachable -->
+    <div v-if="loadingChanges && !cachedRepoChanges" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/50">
       <i class="fa-solid fa-spinner text-3xl animate-spin"></i>
       <span class="text-sm font-medium">Loading changes...</span>
       <span class="text-xs opacity-60" v-if="loadingStep">{{ loadingStep }}</span>
     </div>
 
     <template v-else>
-      <!-- No active session -->
-      <div v-if="!chat" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+      <!-- No active session (needs a chat or a project to work with) -->
+      <div v-if="!chat && !project" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
         <i class="fa-solid fa-inbox text-4xl"></i>
         <span class="text-sm">No active session</span>
       </div>
@@ -59,10 +61,11 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       </div>
 
       <template v-else>
-        <!-- Project selector + Branch selector row -->
-        <div class="shrink-0 border-b border-base-content/10 bg-base-200/30 px-2 py-2">
+        <!-- Project selector + Branch selector row (chat mode only).
+             Standalone mode uses the BranchSelector inside PRViewer. -->
+        <div v-if="chat" class="shrink-0 border-b border-base-content/10 bg-base-200/30 px-2 py-2">
           <div class="flex items-center gap-3">
-            <!-- Project Dropdown -->
+            <!-- Project dropdown -->
             <div class="dropdown dropdown-hover">
               <button 
                 class="btn btn-sm btn-ghost gap-2 min-w-[200px] justify-start"
@@ -78,7 +81,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
                   {{ changeCountByProject[selectedProjectId] }}
                 </span>
               </button>
-              <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10">
+              <ul class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-64 p-2 shadow border border-base-content/10">
                 <li v-for="proj in projectsWithBranches" :key="projId(proj)">
                   <a 
                     @click="selectedProjectId = projId(proj)"
@@ -117,30 +120,31 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
               </ul>
             </div>
 
-            <!-- Branch selector -->
+            <!-- Branch selector: left = source (from_branch), right = target (to_branch) -->
             <div class="grow min-h-0">
               <BranchSelector
                 v-if="selectedProject"
                 :project="selectedProject"
-                :current-branch="currentBranch"
-                :compare-branch="compareBranch"
+                :current-branch="fromBranch"
+                :compare-branch="toBranch"
                 :available-branches="selectedBranches"
-                :loading="false"
-                @branch-changed="onBranchChanged"
-                @compare-branch-changed="onCompareBranchChanged"
+                :loading="loadingChanges"
+                @branch-changed="onFromBranchChanged"
+                @compare-branch-changed="onToBranchChanged"
               />
             </div>
           </div>
         </div>
 
-        <!-- PRView: key forces re-mount when cache key changes -->
-        <div v-if="cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
+        <!-- Chat mode: full PRView (comments, columns, sub-chats) -->
+        <div v-if="chat && cachedRepoChanges" class="grow min-h-0 overflow-hidden p-2">
+          <!-- Key forces re-mount when the branch pair cache key changes -->
           <PRView
             :key="cacheKey"
             ref="prView"
             :chat="chat"
-            :from-branch="compareBranch"
-            :to-branch="currentBranch"
+            :from-branch="fromBranch"
+            :to-branch="toBranch"
             :project="selectedProject"
             :available-branches="selectedBranches"
             :repo-changes="cachedRepoChanges"
@@ -152,6 +156,36 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             @chat-message="$emit('chat-message', $event)"
           />
         </div>
+
+        <!-- Standalone mode (no chat): the viewer is always mounted so the branch
+             pair stays selectable even when the comparison has no changes -->
+        <div v-else-if="!chat && selectedProject" class="grow min-h-0 overflow-hidden p-2">
+          <PRViewer
+            :key="cacheKey"
+            :project="selectedProject"
+            :from-branch="fromBranch"
+            :to-branch="toBranch"
+            :available-branches="selectedBranches"
+            :repo-changes="cachedRepoChanges"
+            :loading="loadingChanges"
+            class="h-full"
+            @refresh="loadChangesForProject(selectedProjectId, true)"
+            @branch-changed="onFromBranchChanged"
+            @compare-branch-changed="onToBranchChanged"
+            @open-file="onOpenFile"
+            @open-chat="$emit('open-chat', $event)"
+            @jump-to-message="$emit('jump-to-message', $event)"
+          />
+        </div>
+
+        <!-- Standalone mode without a selected project -->
+        <div
+          v-else-if="!chat"
+          class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40"
+        >
+          <i class="fa-solid fa-code-compare text-4xl"></i>
+          <span class="text-sm">No changes to compare</span>
+        </div>
       </template>
     </template>
   </div>
@@ -160,9 +194,12 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
 <script>
 export default {
   props: {
-    chat: { type: Object, default: null }
+    // Chat mode: projects are derived from the chat, its subtasks and chat.pr_view
+    chat: { type: Object, default: null },
+    // Standalone mode (e.g. embedded in GitView): project to compare branches for
+    project: { type: Object, default: null }
   },
-  emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message'],
+  emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message', 'open-chat', 'jump-to-message'],
   data() {
     return {
       loadingChanges: false,
@@ -171,13 +208,16 @@ export default {
       branchesByProject: {},
       changesByProject: {},
       changeCountByProject: {},
+      // per-project branch pair: projectId -> { from, to }
+      //   from = source branch (from_branch, left selector) - the branch that will be merged
+      //   to   = target branch (to_branch, right selector) - where the source is merged into
       branchSelectionByProject: {},
-      showAddProjectDropdown: false
+      showAddProjectdropdown: false
     }
   },
   computed: {
     chatProject() {
-      return this.$chats.chatProject(this.chat)
+      return this.chat ? this.$chats.chatProject(this.chat) : null
     },
 
     relatedProjects() {
@@ -211,7 +251,11 @@ export default {
 
       // Fallback: use chat's own project_id or owner_project_id for first load
       const chatProjectId = this.chat?.project_id || this.chat?.owner_project_id
-      return chatProjectId ? [chatProjectId] : []
+      if (chatProjectId) return [chatProjectId]
+
+      // Standalone: the project given as prop
+      const projectId = this.project ? this.projId(this.project) : null
+      return projectId ? [projectId] : []
     },
 
     projectsWithBranches() {
@@ -229,24 +273,26 @@ export default {
 
     selectedProject() {
       if (!this.selectedProjectId) return null
-      return this.$storex.projects.allProjectsById?.[this.selectedProjectId] || null
+      return this.$storex.projects.allProjectsById?.[this.selectedProjectId] || this.project || null
     },
 
     selectedBranches() {
       return this.branchesByProject[this.selectedProjectId] || []
     },
 
-    currentBranch() {
-      return this.branchSelectionByProject[this.selectedProjectId]?.current || 'main'
+    // Left selector: source branch (from_branch) - what will be merged
+    fromBranch() {
+      return this.branchSelectionByProject[this.selectedProjectId]?.from || 'main'
     },
 
-    compareBranch() {
-      return this.branchSelectionByProject[this.selectedProjectId]?.compare || 'local'
+    // Right selector: target branch (to_branch) - where the source is merged into
+    toBranch() {
+      return this.branchSelectionByProject[this.selectedProjectId]?.to || 'local'
     },
 
     cacheKey() {
       if (!this.selectedProjectId) return null
-      return `${this.selectedProjectId}:${this.compareBranch}:${this.currentBranch}`
+      return `${this.selectedProjectId}:${this.fromBranch}:${this.toBranch}`
     },
 
     cachedRepoChanges() {
@@ -257,39 +303,44 @@ export default {
     chat(newChat) {
       if (newChat?.id) this.loadAllProjects()
     },
+    project(newProject, previousProject) {
+      if (!newProject) return
+      if (newProject.project_id === previousProject?.project_id) return
+      if (newProject.project_id !== this.selectedProjectId) this.loadAllProjects()
+    },
     selectedProjectId(id) {
       if (id && !this.cachedRepoChanges) {
         this.loadChangesForProject(id)
       }
     },
-    currentBranch() {
+    fromBranch() {
       this.loadChangesForProject(this.selectedProjectId)
     },
-    compareBranch() {
+    toBranch() {
       this.loadChangesForProject(this.selectedProjectId)
     }
   },
   mounted() {
-    if (this.chat) this.loadAllProjects()
-    document.addEventListener('click', this.closeDropdown)
+    if (this.chat || this.project) this.loadAllProjects()
+    document.addEventListener('click', this.closedropdown)
   },
   beforeUnmount() {
-    document.removeEventListener('click', this.closeDropdown)
+    document.removeEventListener('click', this.closedropdown)
   },
   methods: {
     projId({ project_id, owner_project_id } = {}) {
       return project_id || owner_project_id
     },
 
-    toggleAddProjectDropdown() {
-      this.showAddProjectDropdown = !this.showAddProjectDropdown
+    toggleAddProjectdropdown() {
+      this.showAddProjectdropdown = !this.showAddProjectdropdown
     },
 
-    closeDropdown(event) {
+    closedropdown(event) {
       const headerBtn = event.target.closest('[title="Add more projects"]')
-      const dropdown = event.target.closest('.dropdown-content')
+      const dropdown = event.target.closest('.dropdown-content bg-base-100')
       if (!headerBtn && !dropdown) {
-        this.showAddProjectDropdown = false
+        this.showAddProjectdropdown = false
       }
     },
 
@@ -323,7 +374,7 @@ export default {
     },
 
     async loadAllProjects() {
-      if (!this.chat) return
+      if (!this.activeProjectIds.length) return
       this.loadingChanges = true
       this.branchesByProject = {}
       this.changesByProject = {}
@@ -358,6 +409,7 @@ export default {
     },
 
     async addProjectToPanel(project) {
+      if (!this.chat) return
       const id = this.projId(project)
       if (!id) return
 
@@ -379,7 +431,7 @@ export default {
 
       // Save to storage immediately
       await this.$storex.chats.saveChat(updatedChat)
-      this.showAddProjectDropdown = false
+      this.showAddProjectdropdown = false
 
       // Load branches for newly added project
       this.loadingStep = `Loading branches for ${project.project_name}...`
@@ -396,6 +448,7 @@ export default {
     },
 
     async removeProjectFromPanel(projectId) {
+      if (!this.chat) return
       const project = this.$storex.projects.allProjectsById?.[projectId]
       if (!project) return
 
@@ -441,57 +494,67 @@ export default {
       this.branchSelectionByProject = {
         ...this.branchSelectionByProject,
         [projectId]: {
-          current: prConfig?.fromBranch || branches[0] || 'main',
-          compare: prConfig?.toBranch || 'local'
+          // from = source (left selector), to = target (right selector)
+          from: prConfig?.fromBranch || branches[0] || 'main',
+          to: prConfig?.toBranch || 'local'
         }
       }
     },
 
-    async loadChangesForProject(projectId) {
+    async loadChangesForProject(projectId, force = false) {
       if (!projectId) return
       const project = this.$storex.projects.allProjectsById?.[projectId]
       if (!project) return
 
       const sel = this.branchSelectionByProject[projectId] || {}
-      const current = sel.current || 'main'
-      const compare = sel.compare || 'local'
-      const key = `${projectId}:${compare}:${current}`
+      const from = sel.from || 'main'
+      const to = sel.to || 'local'
+      const key = `${projectId}:${from}:${to}`
 
-      if (this.changesByProject[key]) return
+      if (!force && this.changesByProject[key]) return
 
       try {
         const changes = await project.$api.repo.changes({
-          from_branch: current,
-          to_branch: compare
+          from_branch: from,
+          to_branch: to
         })
         this.setChangesCache(key, changes)
         const count = Object.keys(changes?.branch_file_and_commits || {}).length
         this.setChangeCount(projectId, count)
-      } catch {
+      } catch (ex) {
+        // Empty/identical branch pairs (or a git error) must not lock the user
+        // out of the branch selectors: cache an empty, valid result instead.
+        console.warn('Unable to load branch changes:', ex)
+        this.setChangesCache(key, {
+          repo_path: project.abs_project_path || '',
+          branch_file_and_commits: {}
+        })
         this.setChangeCount(projectId, 0)
       }
     },
 
-    onBranchChanged(branch) {
+    /** Left selector changed: source branch (from_branch) */
+    onFromBranchChanged(branch) {
       if (!this.selectedProjectId) return
       this.branchSelectionByProject = {
         ...this.branchSelectionByProject,
         [this.selectedProjectId]: {
           ...this.branchSelectionByProject[this.selectedProjectId],
-          current: branch
+          from: branch
         }
       }
       this.saveBranchConfig()
       this.loadChangesForProject(this.selectedProjectId)
     },
 
-    onCompareBranchChanged(branch) {
+    /** Right selector changed: target branch (to_branch) */
+    onToBranchChanged(branch) {
       if (!this.selectedProjectId) return
       this.branchSelectionByProject = {
         ...this.branchSelectionByProject,
         [this.selectedProjectId]: {
           ...this.branchSelectionByProject[this.selectedProjectId],
-          compare: branch
+          to: branch
         }
       }
       this.saveBranchConfig()
@@ -499,14 +562,20 @@ export default {
     },
 
     onBranchSelected({ fromBranch, toBranch }) {
-      this.onBranchChanged(fromBranch)
-      this.onCompareBranchChanged(toBranch)
+      this.onFromBranchChanged(fromBranch)
+      this.onToBranchChanged(toBranch)
       this.$emit('select-branch', { fromBranch, toBranch })
+    },
+
+    onOpenFile(filePath) {
+      if (!filePath) return
+      this.$ui.openProjectFile(filePath)
     },
 
     saveBranchConfig() {
       if (!this.chat || !this.selectedProjectId) return
       const sel = this.branchSelectionByProject[this.selectedProjectId]
+      if (!sel) return
       const updatedChat = {
         ...this.chat,
         pr_view: {
@@ -515,8 +584,8 @@ export default {
             ...(this.chat.pr_view?.pull_requests || {}),
             [this.selectedProjectId]: {
               url: '',
-              fromBranch: sel.current,
-              toBranch: sel.compare
+              fromBranch: sel.from,
+              toBranch: sel.to
             }
           }
         }

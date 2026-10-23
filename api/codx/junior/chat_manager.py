@@ -59,6 +59,32 @@ CHANGED — chat ID validation:
     The :meth:`ChatManager.load_chat_from_path` method now ensures all loaded
     chats have a valid ID. Missing IDs are extracted from the filename or
     generated fresh, guaranteeing no chat is returned without an ID.
+
+CHANGED — time-range filtering:
+    :meth:`ChatManager.chat_paths` and :meth:`ChatManager.list_chats` now
+    accept an optional **upper bound** (``before_update`` / ``to_date``) in
+    addition to the existing lower bound (``last_update`` / ``from_date``),
+    enabling an explicit ``[from_date, to_date]`` window. Both bounds are
+    applied against the chat file ``mtime``. When a bound is ``None`` it is
+    ignored, so existing callers are unaffected.
+
+NEW — accumulated chat cost (``Chat.cost``):
+    ``Chat.cost`` accumulates the cxjcoins spent on a chat. It is updated here
+    whenever a message carrying a cost is added or updated, using the persisted
+    version of that message as the baseline (so a cost registered *after* the
+    message was first persisted is still captured exactly once). The value is
+    MONOTONIC — deleting a message never reduces it — so the chat budget stays
+    accurate even when messages are removed.
+
+NEW — chat status history (``Chat.status_history``):
+    ``Chat.status`` was previously a single mutable field ("last writer wins"),
+    making it impossible to reconstruct when a task moved between statuses. This
+    module now appends a :class:`codx.junior.db.ChatStatusEvent` to
+    ``Chat.status_history`` every time ``status`` actually changes (detected in
+    :meth:`ChatManager.save_chat` via :meth:`ChatManager._register_status_change`).
+    The log is append-only and merge-safe (dedup by ``doc_id``), giving future
+    task-performance metrics (cycle time, throughput, error rate) the raw
+    transition feed they need.
 """
 import logging
 import pathlib
@@ -74,7 +100,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
-from codx.junior.db import Chat, Message
+from codx.junior.db import Chat, Message, ChatStatusEvent
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -152,6 +178,17 @@ class ChatManager:
         * ``add_message`` inserts (idempotent: skips in-memory duplicate by ``doc_id``).
         * ``update_message`` matches by ``doc_id`` (appends if missing).
         * Both merge against the stored chat so concurrent updates are never lost.
+
+    Contract relied upon for the chat budget:
+        * ``add_message`` / ``update_message`` accumulate ``message.cost`` into
+          ``chat.cost`` (monotonic). ``remove_message`` never reduces
+          ``chat.cost``, so deleted messages still count towards the budget.
+
+    Contract relied upon for task-performance metrics:
+        * Every real ``Chat.status`` transition is appended to
+          ``Chat.status_history`` by :meth:`save_chat` (via
+          :meth:`_register_status_change`), producing an append-only,
+          merge-safe transition log.
     """
 
     def __init__(self, settings: CODXJuniorSettings, event_manager: Optional[EventManager] = None):
@@ -186,11 +223,24 @@ class ChatManager:
             f"/{slugify(chat.name)}.{chat.id}.json"
         )
 
-    def chat_paths(self, last_update: Optional[datetime] = None) -> List[str]:
+    def chat_paths(
+        self,
+        last_update: Optional[datetime] = None,
+        before_update: Optional[datetime] = None,
+    ) -> List[str]:
         """
         Return chat file paths, optionally filtering by last update time.
 
-        :param last_update: Only return paths for chats updated since this date.
+        CHANGED — time-range support:
+            An optional upper bound ``before_update`` was added so callers can
+            request an explicit ``[last_update, before_update]`` window. Both
+            bounds are compared against the chat file ``mtime``. A ``None``
+            bound is ignored, preserving the previous behavior.
+
+        :param last_update: Only return paths for chats updated **after** this
+            date (exclusive lower bound).
+        :param before_update: Only return paths for chats updated **on or
+            before** this date (inclusive upper bound).
         :return: List of file paths.
         """
         all_paths = (
@@ -202,6 +252,12 @@ class ChatManager:
             all_paths = [
                 path for path in all_paths
                 if datetime.fromtimestamp(os.path.getmtime(path)) > last_update
+            ]
+
+        if before_update:
+            all_paths = [
+                path for path in all_paths
+                if datetime.fromtimestamp(os.path.getmtime(path)) <= before_update
             ]
 
         return all_paths
@@ -356,16 +412,33 @@ class ChatManager:
         
         return True
 
-    def list_chats(self, from_date: Optional[str] = None) -> List[Chat]:
+    def list_chats(
+        self,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+    ) -> List[Chat]:
         """
         Return a sorted list of all chats (metadata only, no messages).
 
+        CHANGED — time-range filtering:
+            An optional upper bound ``to_date`` was added, turning the previous
+            single lower-bound filter into a full ``[from_date, to_date]``
+            window. Both bounds are optional; when omitted no filtering is
+            applied on that side (backward compatible). Invalid date strings
+            raise :class:`ValueError` (propagated to the caller).
+
         :param from_date: ISO-format date string; only chats modified after
-            this date are returned.
+            this date are returned (lower bound).
+        :param to_date: ISO-format date string; only chats modified on or
+            before this date are returned (inclusive upper bound).
         :return: List of Chat objects sorted by index/updated_at descending.
         """
         last_update = datetime.fromisoformat(from_date) if from_date else None
-        file_paths = self.chat_paths(last_update=last_update)
+        before_update = datetime.fromisoformat(to_date) if to_date else None
+        file_paths = self.chat_paths(
+            last_update=last_update,
+            before_update=before_update,
+        )
 
         def _load_chat_info(file_path: str) -> Optional[Chat]:
             try:
@@ -637,23 +710,95 @@ class ChatManager:
                 )
         return self.find_by_id(chat_id=chat.id) if chat.id else None
 
-    def _persist_chat_messages(self, chat: Chat) -> Chat:
+    @staticmethod
+    def _accumulate_message_cost(
+        chat: Chat,
+        stored_chat: Optional[Chat],
+        message: Message,
+    ) -> float:
+        """
+        Accumulate the cost of a single *message* into ``chat.cost`` (monotonic).
+
+        The persisted (stored) version of the message is used as the baseline so
+        the cost is counted **exactly once**, while still capturing costs that
+        are registered AFTER the message was first persisted (SmolAgent sets the
+        cost on the response message once the AI call returns, which happens
+        after the message may already have been streamed/saved with cost 0).
+
+        Only POSITIVE deltas are applied, so ``chat.cost`` never decreases. As a
+        result, deleting a message (see :meth:`remove_message`) never reduces the
+        accumulated cost of the chat.
+
+        :param chat: The in-memory chat whose accumulated cost to update.
+        :param stored_chat: The persisted chat (baseline), or ``None``.
+        :param message: The message whose cost to account for.
+        :return: The delta actually added (0.0 when nothing changed).
+        """
+        new_cost = getattr(message, "cost", 0.0) or 0.0
+        if new_cost <= 0:
+            return 0.0
+
+        previous_cost = 0.0
+        if stored_chat:
+            stored_message = next(
+                (m for m in stored_chat.messages if m.doc_id == message.doc_id),
+                None,
+            )
+            if stored_message is not None:
+                previous_cost = getattr(stored_message, "cost", 0.0) or 0.0
+
+        delta = new_cost - previous_cost
+        if delta <= 0:
+            return 0.0
+
+        chat.cost = (getattr(chat, "cost", 0.0) or 0.0) + delta
+        logger.info(
+            "Accumulated chat cost: chat='%s' message='%s' delta=%.6f total=%.6f",
+            chat.id,
+            message.doc_id,
+            delta,
+            chat.cost,
+        )
+        return delta
+
+    def _persist_chat_messages(
+        self,
+        chat: Chat,
+        stored_chat: Optional[Chat] = None,
+        cost_message: Optional[Message] = None,
+    ) -> Chat:
         """
         Merge-safe persistence used by the granular message operations.
 
         Reloads the stored chat (if any), merges message lists so mid-turn
-        saves never clobber concurrent updates, then delegates to
+        saves never clobber concurrent updates, optionally accumulates the cost
+        of *cost_message* into ``chat.cost`` and then delegates to
         :meth:`save_chat`.
 
         :param chat: The in-memory chat to persist.
+        :param stored_chat: Optional pre-loaded stored chat (avoids a second
+            disk read when the caller already loaded it).
+        :param cost_message: Optional message whose cost must be accumulated
+            into ``chat.cost`` before saving.
         :return: The persisted chat (same instance, messages may be merged).
         """
         manager = self._resolve_owner_manager(chat)
-        stored_chat = manager._load_stored_chat(chat)
+        if stored_chat is None:
+            stored_chat = manager._load_stored_chat(chat)
         if stored_chat:
+            # Keep the accumulated cost monotonic: never regress a value that
+            # may already have been persisted by another writer.
+            if (stored_chat.cost or 0.0) > (chat.cost or 0.0):
+                chat.cost = stored_chat.cost
             chat.messages = self._merge_message_lists(
                 stored_messages=stored_chat.messages,
                 incoming_messages=chat.messages,
+            )
+        if cost_message is not None:
+            manager._accumulate_message_cost(
+                chat=chat,
+                stored_chat=stored_chat,
+                message=cost_message,
             )
         return manager.save_chat(chat=chat)
 
@@ -664,6 +809,8 @@ class ChatManager:
         Used to notify events (tool usage, run lifecycle) in real time while
         an AI turn is still running. Idempotent in memory: the message is not
         appended twice if its ``doc_id`` is already on the chat.
+
+        The message's cost (if any) is accumulated into ``chat.cost``.
 
         :param chat: The chat to add the message to (mutated in place).
         :param message: The message to add.
@@ -680,13 +827,18 @@ class ChatManager:
             message.doc_id,
             message.role,
         )
-        return self._persist_chat_messages(chat)
+        return self._persist_chat_messages(chat, cost_message=message)
 
     def update_message(self, chat: Chat, message: Message) -> Chat:
         """
         Update an existing message in *chat* (matched by ``doc_id``) and
         persist immediately (merge-safe). If the message is not found it is
         appended instead.
+
+        The message's cost (if any) is accumulated into ``chat.cost`` — this
+        captures the cost SmolAgent registers on the response message AFTER the
+        AI call completes, even if the message was already persisted with a
+        cost of 0 during streaming.
 
         :param chat: The chat containing the message (mutated in place).
         :param message: The updated message.
@@ -711,7 +863,7 @@ class ChatManager:
             message.doc_id,
             found,
         )
-        return self._persist_chat_messages(chat)
+        return self._persist_chat_messages(chat, cost_message=message)
 
     def update_chat_metadata(self, chat: Chat, metadata: dict) -> Chat:
         """
@@ -742,6 +894,9 @@ class ChatManager:
         persist. The removal is applied on top of the merged (stored +
         in-memory) message list so no other concurrent change is lost.
 
+        The accumulated cost (``chat.cost``) is intentionally NOT changed:
+        deleting a message keeps its cost in the chat budget.
+
         :param chat: The chat containing the message (mutated in place).
         :param message_doc_id: ``doc_id`` of the message to remove.
         :return: The persisted chat.
@@ -763,6 +918,66 @@ class ChatManager:
     # Full-chat persistence
     # -------------------------------------------------------------------------
 
+    def _register_status_change(
+        self,
+        chat: Chat,
+        current_chat: Optional[Chat],
+        user: Optional[str] = None,
+    ) -> bool:
+        """
+        Detect and record a ``Chat.status`` transition into ``chat.status_history``.
+
+        The history is APPEND-ONLY: persisted entries (from ``current_chat``) are
+        merged with any in-memory entries (dedup by ``doc_id``) so concurrent
+        writers never lose a transition. A new :class:`ChatStatusEvent` is only
+        appended when the status actually changed.
+
+        This produces the raw transition feed required by the task-performance
+        metrics (cycle time, throughput, error rate) that cannot be derived from
+        the single mutable ``Chat.status`` field.
+
+        :param chat: The in-memory chat being persisted (mutated in place).
+        :param current_chat: The previously persisted chat, or ``None`` if new.
+        :param user: Optional user that triggered the change.
+        :return: ``True`` when a new transition was registered.
+        """
+        # Merge persisted (source of truth) + in-memory history, dedup by doc_id
+        merged: Dict[str, ChatStatusEvent] = {}
+        stored_history = current_chat.status_history if current_chat else []
+        for event in list(stored_history) + list(chat.status_history):
+            if not event.doc_id:
+                event.doc_id = str(uuid.uuid4())
+            merged[event.doc_id] = event
+
+        history = sorted(merged.values(), key=lambda e: _parse_timestamp(e.at))
+
+        previous_status = (current_chat.status if current_chat else None) or None
+        new_status = chat.status or None
+
+        if previous_status == new_status:
+            # No real transition — keep merged history and bail out
+            chat.status_history = history
+            return False
+
+        history.append(
+            ChatStatusEvent(
+                doc_id=str(uuid.uuid4()),
+                from_status=previous_status,
+                to_status=new_status or "",
+                user=user,
+                at=datetime.now().isoformat(),
+            )
+        )
+        chat.status_history = history
+        logger.info(
+            "Chat status change: chat='%s' '%s' -> '%s' (history=%d)",
+            chat.id,
+            previous_status,
+            new_status,
+            len(history),
+        )
+        return True
+
     def save_chat(self, chat: Chat, chat_only: bool = False) -> Chat:
         """
         Persist *chat* to disk, handling board/column defaults, ID assignment,
@@ -770,6 +985,10 @@ class ChatManager:
 
         When ``chat.owner_project_id`` points to a different project the call
         is transparently forwarded to the correct :class:`ChatManager`.
+
+        Status transitions are registered into ``chat.status_history`` before
+        the chat is written, using the previously persisted chat as the
+        ``from_status`` baseline.
 
         :param chat: The chat to save.
         :param chat_only: If ``True`` and the chat already exists, preserve
@@ -795,6 +1014,10 @@ class ChatManager:
         current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
+
+        # Detect and register chat status transitions (performance metrics).
+        # Runs before store_chat so the new record is persisted with the chat.
+        self._register_status_change(chat=chat, current_chat=current_chat)
 
         chat.file_path = self.get_chat_file(chat)
 

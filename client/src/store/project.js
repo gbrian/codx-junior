@@ -17,7 +17,6 @@ const createState = () => ({
   selectedLog: null,
   autoRefresh: false,
   changesSummary: null,
-  selectedProfile: null,
   project_branches: {},
   projectLoading: false,
   knowledge: null,
@@ -407,9 +406,6 @@ export const mutations = mutationTree(state, {
   setFormatedLogs(state, formatedLogs) {
     state.formatedLogs = formatedLogs
   },
-  setSelectedProfile(state, profile) {
-    state.selectedProfile = profile
-  },
   setProjectLoading(state, value) {
     state.projectLoading = value
   },
@@ -573,9 +569,6 @@ export const actions = actionTree(
               await $storex.projects.activeProjectChanged(API.activeProject)
             } catch {}
           }
-          if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-            await $storex.projects.activeProjectChanged($storex.projects.allProjects[0])
-          }
           return $storex.projects.allProjects
         } catch (ex) {
           $storex.session.onError("Error loading projects", ex)
@@ -586,22 +579,59 @@ export const actions = actionTree(
     },
     async restoreLastActiveProject({ state }) {
       try {
-        const lastProjectId = localStorage.getItem('lastActiveProject')
-        if (lastProjectId) {
-          const project = state.allProjects?.find(p => p.project_id === lastProjectId)
-          if (project) {
-            await $storex.projects.activeProjectChanged(project)
+        // 1) Prefer the project encoded in the URL base path (deep link / refresh)
+        //    e.g. "/my.project/chats" → "my.project"
+        const base = import.meta.env.BASE_URL || '/'
+        let pathname = window.location.pathname
+        if (base !== '/' && pathname.startsWith(base)) {
+          pathname = pathname.slice(base.length - 1)
+        }
+        const segment = pathname.split('/').filter(Boolean)[0]
+
+        // Top-level screens that are NOT project-scoped:
+        //   • "/auth/:provider" — OAuth callbacks, owned by the router guard.
+        //   • "/solopreneur"    — Solopreneur mode (see views/SolopreneurView.vue).
+        // They must not be resolved as a project name: an unknown segment would
+        // activate a fallback project AND replace the deep link with the project
+        // home, so a reload of "/solopreneur" would bounce away from the screen.
+        const unscopedSegments = ['auth', 'solopreneur']
+
+        if (segment && !unscopedSegments.includes(segment)) {
+          const urlProjectName = decodeURIComponent(segment)
+          const urlProject = state.allProjects?.find(p => p.project_name === urlProjectName)
+          if (urlProject) {
+            await $storex.projects.activeProjectChanged(urlProject)
             return
           }
+
+          // URL points to an unknown project → activate a fallback and go home.
+          await $storex.projects.activateFallbackProject()
+          $storex.$router?.replace({ name: 'home' })?.catch(() => {})
+          return
         }
-        
-        const defaultProject = state.allProjects?.find(p => p.project_name === 'codx-junior')
-        if (defaultProject) {
-          await $storex.projects.activeProjectChanged(defaultProject)
-        }
+
+        // 2) No project in the URL → fall back to the last project used on this browser
+        await $storex.projects.activateFallbackProject()
       } catch (error) {
         console.error('Failed to restore last active project:', error)
       }
+    },
+    /**
+     * Activate a sensible fallback project when the URL does not resolve to one:
+     * the last project used on this browser, then the default "codx-junior",
+     * then the first available project.
+     */
+    async activateFallbackProject({ state }) {
+      const lastProjectId = localStorage.getItem('lastActiveProject')
+      const project =
+        state.allProjects?.find(p => p.project_id === lastProjectId) ||
+        state.allProjects?.find(p => p.project_name === 'codx-junior') ||
+        state.allProjects?.[0]
+
+      if (project) {
+        await $storex.projects.activeProjectChanged(project)
+      }
+      return project || null
     },
     async activeProjectChanged ({ state }, project) {
       const { project_id, project_name, codx_path } = project
@@ -623,13 +653,13 @@ export const actions = actionTree(
           projectName
         })
 
+        const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
+
         try {
-          const overlay = document.querySelector('[data-test="project-loading-overlay"]')?.__vue__?.proxy
           overlay?.markStepLoading('fetch')
-          
           await API.setActiveProject(project)
           overlay?.completeStep('fetch', 'Settings loaded')
-          
+
           overlay?.markStepLoading('settings')
           const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
           if (!existsProject) {
@@ -642,23 +672,33 @@ export const actions = actionTree(
           
           overlay?.completeStep('settings', 'Config ready')
 
+          // ── Chat list: AWAITED ────────────────────────────────────────────
+          // `/api/chats` brings the whole chat tree of the project and every
+          // chat-driven surface (board columns, task cards, chat sidebar, the
+          // restored desktop panels) resolves its data from `chats.chats`.
+          // Loading it in the background released the shell with those
+          // components empty, so the activation waits for it: the project must
+          // be shown only when its data is complete.
+          overlay?.markStepLoading('chats')
+          $storex.chats.clearChats()
+          await $storex.chats.loadChats()
+          overlay?.completeStep('chats', `${$storex.chats.allChats.length} chats loaded`)
+
           overlay?.markStepLoading('models')
           const models = await API.projects.ai.models.list()
           state.ai = { ...state.activeProject.$state.ai, models }
           overlay?.completeStep('models', `${models.length} models loaded`)
 
-          overlay?.markStepLoading('chats')
-          // Clear previous chats and load only active project chats
-          $storex.chats.clearChats()
-          await $storex.chats.loadChats()
-          overlay?.completeStep('chats', 'Chats loaded')
-
-          // ── Notify kanban store about project change ──
+          // Boards are resolved from the chat list (`chats.chats`), so they are
+          // loaded once the chats are in place — sequentially, not in parallel.
           await $storex.kanban.onActiveProjectChanged()
 
           $storex.projects.addRecentProject(state.activeProject)
           state.workspaces = API.allWorkspaces
           $storex.ui.saveState()
+
+          // Keep the URL's project base path ("/:projectName/…") in sync
+          $storex.projects.syncRouteProjectPrefix(state.activeProject)
           
           overlay?.completeStep('finalize', 'Ready')
           overlay?.finishLoading()
@@ -679,9 +719,6 @@ export const actions = actionTree(
     async loadProjectKnowledge({ state }) {
       const data = await API.knowledge.status()
       state.knowledge = data
-    },
-    async loadProfiles({ state }) {
-      await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     async loadBranches({ state }, project) {
       const projectState = project?.$state || state
@@ -806,7 +843,6 @@ export const actions = actionTree(
     generateCode({ state }, { chat, codeBlockInfo }) {
       const data = {
         codx_path: state.activeProject.codx_path,
-        chat,
         code_block_info: codeBlockInfo
       }
       $storex.session.emit({ event: 'codx-junior-generate-code', data })
@@ -883,25 +919,6 @@ export const actions = actionTree(
       targetProject.$state.kanban = dataToSave
     },
     
-    async saveProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      const data = await $storex.profiles.saveProfile({ profile, project })
-      await $storex.projects.loadProfiles()
-      if (state.selectedProfile.name === data.name) {
-        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
-      }      
-    },
-    deleteProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      if (profile.name === state.selectedProfile?.name) {
-        state.selectedProfile = null
-      }
-      $storex.profiles.deleteProfile({ profile, project })
-      $storex.profiles.loadProjectProfiles(state.activeProject)
-    },
-    createNewProfile({ state }, profile) {
-      state.selectedProfile = profile
-    },
     async addBoard({ _ }, { title, parent_id, description, columns }) {
       if (!$storex.projects.kanban) {
         await $storex.projects.loadKanban()
@@ -1086,6 +1103,42 @@ export const actions = actionTree(
       socket.off('codx-junior-index-progress-batch-complete')
       socket.off('codx-junior-index-progress-completed')
       socket.off('codx-junior-index-error')
+    },
+
+    /**
+     * Keep the URL's project base path ("/:projectName/…") in sync with the
+     * active project. The unscoped "root" route is promoted to the scoped
+     * home once a project is active. No-op when the URL already matches.
+     */
+    syncRouteProjectPrefix(_, project) {
+      const router = $storex.$router
+      const current = router?.currentRoute?.value
+      if (!router || !project?.project_name) return
+      if (!current?.name || current.name === 'mobile') return
+
+      // Use the RAW project name: vue-router percent-encodes params while
+      // building the URL, so encoding here would double-encode the segment and
+      // break the reload lookup in restoreLastActiveProject(). Router params
+      // are decoded, so the equality check below compares like values.
+      const projectName = project.project_name
+      const targetName = current.name === 'root' ? 'home' : current.name
+
+      // Already scoped to the right project – nothing to do.
+      if (current.name !== 'root' && current.params?.projectName === projectName) {
+        return
+      }
+
+      // Project-independent screens ("/solopreneur", see router/index.ts) live
+      // outside the "/:projectName" base path: promote them to nothing.
+      if (!router.getRoutes().some(route => route.name === targetName && route.path.includes(':projectName'))) {
+        return
+      }
+
+      router.replace({
+        name: targetName,
+        params: { ...(current.params || {}), projectName },
+        query: current.query
+      }).catch(() => {})
     },
 
     async saveLastActiveProject() {

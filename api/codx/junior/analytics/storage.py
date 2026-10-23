@@ -13,6 +13,7 @@ from codx.junior.analytics.model import (
     ToolUsageEvent,
     TokenUsageEvent,
 )
+from codx.junior.analytics.decision_model import DecisionModelEvent
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class AnalyticsStorage:
     - <base_path>/chat_sessions/YYYY-MM-DD_chat_sessions.jsonl
     - <base_path>/messages/YYYY-MM-DD/{request_id}_archived_messages.jsonl
     - <base_path>/messages/YYYY-MM-DD/{request_id}_tool_call_messages.jsonl
+    - <base_path>/decisions/YYYY-MM-DD_decision_model.jsonl
 
     Messages are partitioned by request_id to avoid huge single-day files.
     Each request gets its own small JSONL file for archived and tool call messages.
@@ -45,6 +47,7 @@ class AnalyticsStorage:
             -str tools_path
             -str chat_sessions_path
             -str messages_path
+            -str decisions_path
             -Lock _lock
             +__init__(analytics_path: str)
             +write(event: TokenUsageEvent) void
@@ -52,12 +55,15 @@ class AnalyticsStorage:
             +write_chat_session(event: ChatSessionEvent) void
             +write_archived_message(event: ArchivedMessage) void
             +write_tool_call_message(event: ToolCallMessage) void
+            +write_decision_event(event: DecisionModelEvent) void
             +read_events(...) List[TokenUsageEvent]
             +read_tool_events(...) List[ToolUsageEvent]
             +read_chat_sessions(...) List[ChatSessionEvent]
             +read_archived_messages(chat_id, ...) List[ArchivedMessage]
             +read_tool_call_messages(chat_id, ...) List[ToolCallMessage]
+            +read_decision_events(...) List[DecisionModelEvent]
             +list_available_dates() List[str]
+            +list_available_decision_dates() List[str]
             +rewrite_events_for_date_range(...) int
         }
     ```
@@ -78,12 +84,14 @@ class AnalyticsStorage:
         self.tools_path = os.path.join(analytics_path, "tools")
         self.chat_sessions_path = os.path.join(analytics_path, "chat_sessions")
         self.messages_path = os.path.join(analytics_path, "messages")
+        self.decisions_path = os.path.join(analytics_path, "decisions")
 
         # Create all necessary directories
         os.makedirs(self.base_path, exist_ok=True)
         os.makedirs(self.tools_path, exist_ok=True)
         os.makedirs(self.chat_sessions_path, exist_ok=True)
         os.makedirs(self.messages_path, exist_ok=True)
+        os.makedirs(self.decisions_path, exist_ok=True)
 
         logger.info("AnalyticsStorage initialized at: %s", self.base_path)
 
@@ -101,6 +109,12 @@ class AnalyticsStorage:
         """Return chat session JSONL file path for given ISO date."""
         return os.path.join(
             self.chat_sessions_path, f"{iso_date}_chat_sessions.jsonl"
+        )
+
+    def _decision_file_path_for_date(self, iso_date: str) -> str:
+        """Return decision model JSONL file path for given ISO date."""
+        return os.path.join(
+            self.decisions_path, f"{iso_date}_decision_model.jsonl"
         )
 
     def _archived_message_file_path(self, iso_date: str, request_id: str) -> str:
@@ -127,6 +141,11 @@ class AnalyticsStorage:
         """Get current chat session file path for today."""
         today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
         return self._chat_session_file_path_for_date(today)
+
+    def _current_decision_file_path(self) -> str:
+        """Get current decision model file path for today."""
+        today = datetime.utcnow().strftime(FILE_DATE_FORMAT)
+        return self._decision_file_path_for_date(today)
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -291,6 +310,36 @@ class AnalyticsStorage:
                 logger.error(
                     "AnalyticsStorage.write_tool_call_message failed: %s", ex
                 )
+
+    def write_decision_event(self, event: DecisionModelEvent) -> None:
+        """
+        Append a DecisionModelEvent to today's decision model JSONL file.
+
+        Thread-safe via module-level lock. Stores every decision-model
+        invocation (input state, answers, calibrated probabilities, timing) so
+        the decision process can be audited afterwards.
+
+        Args:
+            event: The decision model event to persist.
+        """
+        file_path = self._current_decision_file_path()
+        line = json.dumps(event.to_dict(), ensure_ascii=False)
+        with self._lock:
+            try:
+                with open(file_path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                logger.debug(
+                    "Analytics: wrote decision event type=%s engine=%s model=%s "
+                    "chat_id=%s success=%s abstained=%s",
+                    event.decision_type,
+                    event.engine,
+                    event.model,
+                    event.chat_id,
+                    event.success,
+                    event.abstained,
+                )
+            except OSError as ex:
+                logger.error("AnalyticsStorage.write_decision_event failed: %s", ex)
 
     # ── Read ───────────────────────────────────────────────────────────────────
 
@@ -592,6 +641,72 @@ class AnalyticsStorage:
         events.sort(key=lambda e: e.timestamp)
         return events
 
+    def read_decision_events(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        decision_type: Optional[str] = None,
+        engine: Optional[str] = None,
+        model: Optional[str] = None,
+        username: Optional[str] = None,
+        project_name: Optional[str] = None,
+        project_id: Optional[str] = None,
+        success: Optional[bool] = None,
+    ) -> List[DecisionModelEvent]:
+        """
+        Read and optionally filter stored decision model events from JSONL files.
+
+        Args:
+            start_date:    Inclusive ISO date lower bound (YYYY-MM-DD).
+            end_date:      Inclusive ISO date upper bound (YYYY-MM-DD).
+            chat_id:       Filter by exact chat id.
+            decision_type: Filter by exact decision type.
+            engine:        Filter by exact engine name.
+            model:         Filter by exact model name.
+            username:      Filter by exact username.
+            project_name:  Filter by exact project name.
+            project_id:    Filter by exact project id.
+            success:       Filter by success flag.
+
+        Returns:
+            List of matching DecisionModelEvent objects ordered by timestamp.
+        """
+        available = self.list_available_decision_dates()
+        matching_files = []
+
+        for date_str in available:
+            if start_date and date_str < start_date:
+                continue
+            if end_date and date_str > end_date:
+                continue
+            matching_files.append(self._decision_file_path_for_date(date_str))
+
+        events: List[DecisionModelEvent] = []
+        for file_path in matching_files:
+            events.extend(self._read_decision_file(file_path))
+
+        # Apply filters
+        if chat_id:
+            events = [e for e in events if e.chat_id == chat_id]
+        if decision_type:
+            events = [e for e in events if e.decision_type == decision_type]
+        if engine:
+            events = [e for e in events if e.engine == engine]
+        if model:
+            events = [e for e in events if e.model == model]
+        if username:
+            events = [e for e in events if e.username == username]
+        if project_name:
+            events = [e for e in events if e.project_name == project_name]
+        if project_id:
+            events = [e for e in events if e.project_id == project_id]
+        if success is not None:
+            events = [e for e in events if e.success == success]
+
+        events.sort(key=lambda e: e.timestamp)
+        return events
+
     # ── Internal Readers ──────────────────────────────────────────────────────
 
     def _read_file(self, file_path: str) -> List[TokenUsageEvent]:
@@ -723,6 +838,31 @@ class AnalyticsStorage:
             logger.error("Error reading tool call message file %s: %s", file_path, ex)
         return events
 
+    def _read_decision_file(self, file_path: str) -> List[DecisionModelEvent]:
+        """Parse single decision model JSONL file into list of events, skipping bad lines."""
+        events: List[DecisionModelEvent] = []
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                for line_no, line in enumerate(fh, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        events.append(DecisionModelEvent.from_dict(data))
+                    except (json.JSONDecodeError, TypeError, ValueError) as ex:
+                        logger.warning(
+                            "Skipping malformed decision model line %d in %s: %s",
+                            line_no,
+                            file_path,
+                            ex,
+                        )
+        except FileNotFoundError:
+            pass
+        except OSError as ex:
+            logger.error("Error reading decision model file %s: %s", file_path, ex)
+        return events
+
     # ── Date Management ────────────────────────────────────────────────────────
 
     def list_available_dates(self) -> List[str]:
@@ -745,6 +885,26 @@ class AnalyticsStorage:
                         dates.append(date_part)
         except OSError as ex:
             logger.error("Error listing analytics directory: %s", ex)
+        return sorted(dates)
+
+    def list_available_decision_dates(self) -> List[str]:
+        """
+        Return sorted list of ISO date strings for which decision data exists.
+
+        Inspects the decisions subdirectory for ``decision_model`` JSONL files.
+
+        Returns:
+            Sorted list of YYYY-MM-DD strings in ascending order.
+        """
+        dates: List[str] = []
+        try:
+            for fname in os.listdir(self.decisions_path):
+                if fname.endswith("_decision_model.jsonl"):
+                    date_part = fname.replace("_decision_model.jsonl", "")
+                    if len(date_part) == 10:
+                        dates.append(date_part)
+        except OSError as ex:
+            logger.error("Error listing decisions directory: %s", ex)
         return sorted(dates)
 
     # ── Rewrite ────────────────────────────────────────────────────────────────

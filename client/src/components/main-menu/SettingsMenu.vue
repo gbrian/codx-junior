@@ -47,6 +47,12 @@ import MenubarItem from './MenubarItem.vue'
                     Chat logs
                 </a>
             </MenubarItem>
+            <MenubarItem v-if="$storex.api.permissions.isAdmin">
+                <a class="flex gap-1 tooltip tooltip-right click" data-tip="Decision model logs"
+                    @click="$ui.openDecisionModelLogs()">
+                    Decision model logs
+                </a>
+            </MenubarItem>
             <MenubarItem class="flex gap-2 hover:bg-base-300" v-if="$ui.isMobile" @click="showEruda">
                 Mobile console
             </MenubarItem>

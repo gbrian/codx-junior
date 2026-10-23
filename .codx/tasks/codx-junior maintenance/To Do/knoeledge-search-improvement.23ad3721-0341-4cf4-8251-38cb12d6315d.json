@@ -1,0 +1,263 @@
+{
+  "id": "23ad3721-0341-4cf4-8251-38cb12d6315d",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "onhold",
+  "status_history": [
+    {
+      "doc_id": "0193aa84-1843-45ac-b758-c9819b63bacb",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-21T05:51:14.826254",
+      "meta_data": null
+    },
+    {
+      "doc_id": "8c8b8de5-7fda-4a54-a41b-b62b784be6c3",
+      "from_status": "doing",
+      "to_status": "onhold",
+      "user": null,
+      "at": "2026-10-21T07:52:55.930831",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/project_tools.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_milvus.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Knoeledge search improvement",
+  "pinned": false,
+  "is_template": false,
+  "description": "**Conversation summary**\n\n1. You reported that many tasks run the same `project_search` calls concurrently or back-to-back, making knowledge search slow and expensive.\n2. I traced the search path and found the real costs: one LLM call per result document, a full repo walk plus two `git` subprocesses per query, and a `KnowledgeDB` rebuilt on every call.\n3. I also found no shared cache, no request coalescing, ignored `limit`/`search_type` args, and a 2\u00d7 hybrid over-fetch.\n4. I proposed ranked fixes: drop or batch the per-doc LLM filtering, add a version-keyed TTL/LRU cache with single-flight, memoize embeddings and file lists, and make `KnowledgeDB` a per-project singleton.\n5. I laid out a phased plan (P0 timing logs \u2192 P6 Redis/warm-up) and asked five open questions (cache scope, default filtering mode, invalidation source, size/TTL, glob fast path) before writing any code.",
+  "messages": [
+    {
+      "doc_id": "557790bd-158e-47c9-a10f-2977e475d9f7",
+      "role": "user",
+      "task_item": "",
+      "content": "It's common to have multiple tasks searching codebase, may will do same searches at the same time or just after another task has done the search.\nProject search is high cost and slow. \nSuggest approaches to improve knowledge search so we speed up that phase of the task.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-21 05:51:19.539842",
+      "updated_at": "2026-10-21T05:51:19.539918",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/project_tools.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "8da5582e-78f1-4582-a42c-f3acfd37e561",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll inspect the current search path before proposing anything.## 1. Understanding of the request\n\n- Multiple tasks (chats/agents) search the same codebase, often **concurrently** or **back-to-back**, repeating identical or near-identical searches.\n- `project_search` is slow and expensive.\n- Goal: **suggest approaches** to speed up the search phase. Not asking for a code change yet (I'll propose a plan and wait for your go-ahead).\n\n## 2. What I found in the current code (cost sources)\n\nI traced the full `project_search` \u2192 `Knowledge` \u2192 `KnowledgeDB` path. The expensive parts are **not** the vector search itself:\n\n| # | Hot spot | Where | Cost |\n|---|----------|-------|------|\n| 1 | **One LLM call per document** to \"extract lines related to validation\" (sequential) | `tools/project_tools.py` \u2192 `project_search`, loop over `doc_sources.values()` | Up to 10 LLM round-trips **per query**; dominates latency and money |\n| 2 | **Full repo walk on every search** | `knowledge_milvus.py` \u2192 `Knowledge.search` \u2192 `get_all_repo_files()` \u2192 `loader.list_repository_files()` | Filesystem scan per call, only to match `query.lower() in path` |\n| 3 | **Two git subprocesses per search** | `project_tools.py` \u2192 `find_project_files` \u2192 `_list_git_files` (`git rev-parse`, `git ls-files`) | Process spawn + full file list per call |\n| 4 | **`KnowledgeDB` rebuilt on every call** | `project_search`, `knowledge_engine`, `chat_knowledge`, `ProjectSearchManager` all do `Knowledge(settings)` \u2192 `get_db()` | New `LocalEmbeddingsModel` (SentenceTransformer reload), `list_databases()` + `list_collections()` + `describe_collection()` round-trips to Milvus |\n| 5 | **No result cache at any level** | only `smol/ai/tool_cache.py`, which is **per `_run_chat_loop`** (one chat turn), so other tasks/chats never benefit | Every task repeats the whole pipeline |\n| 6 | **No request coalescing** | \u2014 | Two tasks asking the same thing at the same moment run the whole pipeline twice in parallel |\n| 7 | **Limit/search-type ignored** | `Knowledge.search(query, search_type='fulltext', limit=100)` ignores both args and calls `get_db().search(query=query)` (Milvus default `_limit=50`) | Over-fetches; can't choose sparse-only |\n| 8 | **Hybrid over-fetch 2\u00d7** | `KnowledgeDB.search_hybrid` \u2192 `leg_limit = _limit * 2` | ~2\u00d7 candidates fused for every query |\n\nNet effect: for a typical `project_search([\"a\",\"b\"])` you pay **2 \u00d7 (repo walk + 2 git subprocesses + 1 DB init + 1 embedding + 1 hybrid search + N LLM calls)**, and a second task asking the same thing pays it all again.\n\n## 3. Proposed approaches (ranked by impact / effort)\n\n### A. Remove or batch the per-document LLM filtering \u2014 *biggest win*\n\n```text\ntoday:  query \u2192 search \u2192 for doc in docs(10): LLM(extract lines)   # 10 sequential calls\noption 1: query \u2192 search \u2192 local snippet extraction (no LLM at all)\noption 2: query \u2192 search \u2192 1 LLM call with all 10 docs + validation text\noption 3 (safe middle ground): use the RAG/analysis model + asyncio.gather with a semaphore\n```\n\n- Option 1 is almost free: keep `metadata[\"score\"]` thresholding plus a **local line-level matcher** (tokens of `validation` vs lines of `page_content`), returning top-K lines per doc \u2014 same shape of output, zero LLM cost.\n- Option 2 keeps quality with 1 call/query instead of 10.\n- Make it configurable: `knowledge_search_validation_mode: \"none\" | \"local\" | \"batch\" | \"per_document\"`.\n\n**Expected:** this stage is usually 80\u201395 % of `project_search` wall time.\n\n### B. Cache search results at the knowledge layer (shared, not per-chat)\n\nCache, not in the tool, but in `Knowledge`/`KnowledgeDB` so **every** consumer benefits (`project_search`, chat RAG, `knowledge_search` API, `ProjectSearchManager`).\n\n```text\nkey   = (project_id, normalized_query, search_type, limit, index_version)\nvalue = [ {page_content, metadata} ]        # JSON-serializable\n```\n\n- **Query normalization**: lowercase, collapse whitespace, drop punctuation/stopwords, sort terms \u2192 `\"User Session\"` and `\"user  session\"` hit the same entry.\n- **`index_version` invalidation**: reuse what already exists \u2014 `source_map[\"updated_at\"]`, `KnowledgeDB.last_update` (`db_file_list` mtime) and collection `row_count`. Any re-index bumps the version \u2192 stale entries are never served, no manual flush.\n- **TTL** (e.g. 10 min, configurable) as a second safety net, plus LRU bound (`max_entries`, e.g. 500).\n\nTwo storage tiers, same interface:\n1. **In-process** (default, zero infra): `dict` + TTL/LRU behind an `asyncio.Lock`.\n2. **Persistent/shared** (optional): JSON files under `{codx_path}/db/{index_name}_search_cache/`, written atomically like `_write_source_map` (tmp + `os.replace`). Survives restarts and is shared by workers on the same volume; if you later add Redis/NATS, only the backend changes.\n\n### C. Single-flight (request coalescing) \u2014 exactly your concurrent-tasks case\n\nWith an `asyncio` keyed lock per cache key, N concurrent identical searches \u2192 **1 execution, N waiters**:\n\n```python\nasync def search_cached(self, query, search_type, limit):\n    key = self.cache_key(query, search_type, limit)\n    hit = self.cache.get(key)\n    if hit is not None:\n        return hit\n    async with self._key_locks.lock(key):          # per-key mutex\n        hit = self.cache.get(key)                   # re-check after acquiring\n        if hit is not None:\n            return hit\n        result = await asyncio.to_thread(self._search_uncached, query, search_type, limit)\n        self.cache.set(key, result)\n        return result\n```\n\nAdd a **short-lived in-flight registry** so a search started 200 ms ago by another task can be awaited instead of restarted. This alone fixes \"two tasks searching the same thing at the same time\".\n\n### D. Cache the *inputs* too (cheap, huge)\n\n- **Embeddings**: `_embed_query` is deterministic \u2192 memoize by `(model_name, normalized_query)`. Avoids a SentenceTransformer encode on every repeat and on cache misses of the fuse step.\n- **Shallow query cache**: store the dense vector alongside the search result so a later near-identical query (same normalized text, different limit) can skip embedding.\n- **Repo file list**: memoize `Knowledge.get_all_repo_files()` and `project_tools.list_project_files()` with invalidation on `{codx_path}/db` mtime / a short TTL (2\u20135 s) \u2014 kills the repo walk and the two `git` subprocesses per search. Same for `_find_glob_files`.\n\n### E. Stop rebuilding `KnowledgeDB` (singleton per project)\n\nModule-level registry keyed by `settings.project_path`:\n\n```python\n_INSTANCES: Dict[str, KnowledgeDB] = {}\n\ndef get_knowledge_db(settings) -> KnowledgeDB:\n    key = settings.project_path\n    db = _INSTANCES.get(key)\n    if db is None:\n        db = _INSTANCES[key] = KnowledgeDB(settings=settings)   # loads model once\n    return db\n```\n\n`Knowledge.get_db()` returns the shared instance. The `create_db()` health checks (`list_databases`/`list_collections`/`describe_collection`) move to a **first-use / reconnect-only** path with a `_connected` flag, so a search no longer pays 3 Milvus round-trips before doing any work.\n\n### F. Cheaper retrieval per query\n\n- Forward `search_type` and `limit` in `Knowledge.search` (today both are silently dropped) \u2192 callers control cost.\n- Route **identifier/glob/filename queries** to `search_sparse` only (BM25) \u2014 no embedding, ~10\u00d7 cheaper; keep hybrid for natural language.\n- Lower `leg_limit` from `2\u00d7` to `1.5\u00d7`, or make it `_limit + 10`.\n- Optional: dedupe results by `source` inside `KnowledgeDB` **before** returning, so the tool-level merge (and per-doc work) has fewer items.\n\n### G. Make the tool layer cache-aware and parallel\n\nIn `project_search`:\n- Bulk queries \u2192 `asyncio.gather` (or `ThreadPoolExecutor`) over the cached search, bounded to ~4.\n- Emit cache stats (`hits`, `misses`, `duration_ms`) in the `TOOL_END` preview and log, so you can *see* the improvement instead of guessing.\n- Reuse `ToolCache` for the tool-level `(search, validation)` pair but **back it with the shared cache**, so it stops being per-chat-turn only.\n\n### H. Warm-up and observability\n\n- Pre-warm after `reload()` / `index_documents`: load the Milvus collection (`load_collection`) and populate the embedding model once, so the first user search isn't the one paying model load time.\n- Keep `@profile_function` but add explicit stage timings (`embed_ms`, `db_ms`, `filter_ms`) and a `knowledge_search.cache` counter \u2014 needed to prove the gain.\n- Optional analytics tag `search-cache:hit|miss` to correlate with `Chat.cost`.\n\n## 4. Suggested phasing (each step independently shippable)\n\n| Phase | Content | Files touched | Risk |\n|-------|---------|---------------|------|\n| **P0** | Stage timing logs only (measure before optimizing) | `knowledge_db.py`, `project_tools.py` | none |\n| **P1** | `KnowledgeDB` singleton + embedding/query cache + forward `limit`/`search_type` | `knowledge_db.py`, `knowledge_milvus.py`, `project_tools.py` | low |\n| **P2** | `knowledge_cache.py`: TTL/LRU + version invalidation + single-flight; in-process only | new file, `knowledge_db.py`, `knowledge_milvus.py` | low |\n| **P3** | Remove/batch the per-document LLM filtering (config-gated, default `local`) | `project_tools.py`, `settings.py` | medium (output shape changes) |\n| **P4** | File-list memoization (`get_all_repo_files`, `list_project_files`, glob) | `knowledge_milvus.py`, `project_tools.py` | low |\n| **P5** | Persistent cache backend under `{codx_path}/db`, atomic writes | `knowledge_cache.py` | low |\n| **P6** | Redis/semantic cache, warm-up hooks | backend + `reload()` | higher, optional |\n\n## 5. Decisions I need from you before writing code\n\n1. **Cache scope**: in-process only (P2), or also persistent/shared across workers (P5)?\n2. **Filtering default** for `project_search` after P3: `local` (fast, no LLM), `batch` (1 LLM call), or keep `per_document` with only the cheap caches?\n3. **Invalidation source**: OK to key the version on `source_map.updated_at` + `db_file_list` mtime + collection `row_count`?\n4. **Cache size/TTL defaults** \u2014 I'd propose `max_entries=500`, `ttl=600 s`, configurable in `CODXJuniorSettings`.\n5. Should the **glob/path query** fast path (sparse-only, no embedding) be included in this round?\n\nTell me the answers (or just \"P0\u2013P2 as proposed\") and I'll produce the file-by-file changes.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-21 05:51:22.705499",
+      "updated_at": "2026-10-21T05:52:29.134729",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1792561882.705419,
+        "cancellation_token_id": "4ff0e00b-435f-4375-8045-3f9f6b780d2c",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 194527,
+          "completion_tokens": 5881,
+          "total_tokens": 200408,
+          "tools": {
+            "project_read_file": {
+              "count": 2,
+              "errors": 0,
+              "total_ms": 188.42963129281998
+            },
+            "project_search": {
+              "count": 2,
+              "errors": 0,
+              "total_ms": 32214.414085261524
+            }
+          }
+        },
+        "time_taken": 66.42927479743958,
+        "first_chunk_time_taken": 0.4655880928039551
+      },
+      "tool_events": [
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_ovHvi9AVsWUY8MVKNFCx8599",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/knowledge/knowledge_db.py",
+              "codx/junior/ai/smol/tool_cache.py"
+            ]
+          },
+          "response": "```py codx/junior/knowledge/knowledge_db.py\nimport os\nimport re\nimport logging\nimport shutil\nimport json\nimport time\nfrom datetime import datetime\nfrom contextlib import contextmanager\nfrom functools import reduce\nfrom typing import Any, Dict, List, Optional, Set\n\nfrom slugify import slugify\nfrom pathlib import Path\n\nfrom pymilvus import (\n    MilvusClient,\n    DataType,\n    Function,\n    FunctionType,\n    AnnSearchRequest,\n    RRFRanker,\n    WeightedRanker,\n)\nfrom pymilvus.exceptions import MilvusException\n\nfrom langchain_core.documents import Document\n\nfrom codx.junior.model.model import CodxUser\n\nfrom codx.junior.ai import AI\nfrom codx.junior.settings import CODXJuniorSettings\nfrom codx.junior.knowledge.embeddings import LocalEmbeddingsModel, HybridEmbeddingsModel\n\nfrom codx.junior.utils.utils import calculate_md5\nfrom codx.junior.profiling.profiler import profile_function\n\nCODX_JUNIOR_MILVUS_URL = os.environ.get(\"CODX_JUNIOR_MILVUS_URL\", \"http://milvus:19530\")\n\nlogger = logging.getLogger(__name__)\n\n# Field names used in metrics queries\nFIELD_SOURCE = \"source\"\nFIELD_LAST_UPDATE = \"last_update\"\nFIELD_CATEGORY = \"category\"\nFIELD_KEYWORDS = \"keywords\"\nFIELD_PAGE_CONTENT = \"page_content\"\nFIELD_METADATA = \"metadata\"\nFIELD_SPARSE = \"sparse\"\nFIELD_DENSE = \"dense\"\n\n# Metadata key used to surface relevance score to callers\nFIELD_SCORE = \"score\"\n\n# Default search filter for non-empty sources\nNON_EMPTY_SOURCE_FILTER = 'source != \"\"'\n\n# Static file schema version \u2014 increment when the structure changes\nSOURCE_MAP_VERSION = 1\n\n# Dense embedding dimension for the local \"all-MiniLM-L6-v2\" model\nDENSE_EMBEDDING_DIM = int(os.environ.get(\"CODX_JUNIOR_DENSE_DIM\", \"384\"))\n\n\ndef connect_milvus_client() -> Optional[MilvusClient]:\n    \"\"\"\n    Attempt to create and store a MilvusClient connection.\n\n    Returns:\n        MilvusClient instance on success, None on failure.\n    \"\"\"\n    try:\n        MILVUS[\"client\"] = MilvusClient(\n            uri=CODX_JUNIOR_MILVUS_URL,\n            token=\"root:Milvus\"\n        )\n        return MILVUS[\"client\"]\n    except Exception as ex:\n        logger.exception(\"Milvus not ready: %s\", ex)\n    return None\n\n\nMILVUS: Dict[str, Any] = {}\nconnect_milvus_client()\n\n\ndef get_milvus_client() -> MilvusClient:\n    \"\"\"\n    Retrieve a healthy MilvusClient, reconnecting if necessary.\n\n    Returns:\n        A connected MilvusClient instance.\n\n    Raises:\n        Exception: If connection cannot be established.\n    \"\"\"\n    client = MILVUS.get(\"client\")\n    if not client:\n        if not connect_milvus_client():\n            raise Exception(\"Couldn't connect to MILVUS server, check logs.\")\n    try:\n        client.list_databases()\n        return client\n    except Exception as ex:\n        logger.exception(\"Error connecting to MilvusDB: %s\", ex)\n\n    connect_milvus_client()\n    return MILVUS[\"client\"]\n\n\nclass DBDocument(Document):\n    \"\"\"Document subclass that carries an additional database identifier.\"\"\"\n\n    db_id: str = None\n\n    def __init__(self, db_id: str, metadata: Dict[str, Any], page_content: str = \"\"):\n        Document.__init__(self, page_content=page_content, metadata=metadata)\n        self.db_id = db_id\n\n\nKNOWLEDGE_FIELDS: Dict[str, Any] = {\n    \"id\":           {\"datatype\": DataType.INT64, \"is_primary\": True, \"auto_id\": True},\n    \"metadata\":     {\"datatype\": DataType.JSON, \"enable_analyzer\": False},\n    \"page_content\": {\"datatype\": DataType.VARCHAR, \"max_length\": 65535, \"enable_analyzer\": True},\n    \"source\":       {\"datatype\": DataType.VARCHAR, \"max_length\": 200, \"enable_analyzer\": True},\n    \"keywords\":     {\"datatype\": DataType.VARCHAR, \"max_length\": 5000, \"enable_analyzer\": True},\n    \"category\":     {\"datatype\": DataType.VARCHAR, \"max_length\": 300, \"enable_analyzer\": True},\n    \"last_update\":  {\"datatype\": DataType.INT32, \"enable_analyzer\": True},\n}\n\n\n# \u2500\u2500 Source-map helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\ndef _build_empty_source_map(index_name: str) -> Dict[str, Any]:\n    \"\"\"\n    Return a fresh, em",
+          "output": "Read 2 file(s) | Successfully read: codx/junior/knowledge/knowledge_db.py, codx/junior/ai/smol/tool_cache.py",
+          "duration_ms": 97.0243364572525,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_tud82bnoc8mMsiAGuwM34248",
+          "status": "done",
+          "request": {
+            "search": [
+              "cache manager redis",
+              "knowledge search embedding",
+              "def search",
+              "**/cache*.py"
+            ]
+          },
+          "response": "> codx-api results for: 'cache manager redis, knowledge search embedding, def search, **/cache*.py'\n```py codx/junior/misc/github.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/misc/github.py\n:param title: Title of the issue.\n        :param url: URL of the issue.\n        :param comments: List of IssueComment instances related to the issue.\n        \"\"\"\n        self.title: str = title\n        self.url: str = url\n        self.comments: List[IssueComment] = comments if comments is not None else []\n        self.extra_data: dict = extra_data\n\n\ndef get_cache_filepath(url: str) -> str:\n    \"\"\"\n    Generate a safe cache file path within the system's temporary directory based on the URL.\n\n    :param url: The URL to generate cache filename for.\n    :return: Full path to the cache file.\n    \"\"\"\n    # Sanitize URL to create a filename\n    safe_filename = url.replace('/', '_').replace(':', '_').replace('?', '_').replace('&', '_').replace('=', '_')\n    return os.path.join(CACHE_DIR, f\"{safe_filename}.json\")\n\n\ndef load_cache_for_url(url: str) -> Optional[Union[List, str]]:\n    \"\"\"\n    Loads cached results for the given URL if cache exists and is valid.\n\n    :param url: The URL whose cache is to be loaded.\n    :return: Cached data (list) if valid, None otherwise.\n    \"\"\"\n    cache_filepath = get_cache_filepath(url)\n    if os.path.exists(cache_filepath):\n        try:\n            with open(cache_filepath, 'r') as cache_file:\n                cache_data = json.load(cache_file)\n                timestamp = cache_data.get('timestamp', 0)\n                if time.time() - timestamp < CACHE_EXPIRATION:\n                    logger.info(\"Loaded valid cache for URL: %s\", url)\n                    return cache_data.get('results')\n                else:\n                    logger.info(\"Cache expired for URL: %s\", url)\n        except Exception as e:\n            logger.warning(\"Failed to load cache for URL: %s, error: %s\", url, e)\n    return None\n\n\ndef save_cache_for_url(url: str, results: Union[List, str]) -> None:\n    \"\"\"\n    Save results to cache file for the specified URL.\n/home/codx-junior-projects/codx-junior/api/codx/junior/misc/github.py\n:param url: The URL to associate with the cache.\n    :param results: The results data to cache.\n    \"\"\"\n    cache_filepath = get_cache_filepath(url)\n    try:\n        with open(cache_filepath, 'w') as cache_file:\n            json.dump({'timestamp': time.time(), 'results': results}, cache_file)\n        logger.info(\"Saved cache for URL: %s\", url)\n    except Exception as e:\n        logger.warning(\"Failed to save cache for URL: %s, error: %s\", url, e)\n\ndef search_codx_junior_dependencies_project_isssues():\n    repos = [\n      \"BerriAI/litellm\",\n      \"ollama/ollama\",\n      \"milvus-io/pymilvus\",\n      \"gbrian/codx-junior\",\n      \"vuejs/vitepress\",\n      \"encode/uvicorn\",\n      \"fastapi/fastapi\",\n      \"axios/axios\",\n      \"vitejs/vite\",\n      \"openai/openai-python\"\n    ]\n    query = lambda r: f\"repo%3A{quote_plus(r)}\"\n    res = []\n    for repo in repos:\n      try:\n        res = res + search_github_issues(query=query(repo))[0:2]\n      except:\n        pass\n    return res\n\ndef search_github_issues(query: Optional[str] = None) -> Union[List, str]:\n    \"\"\"\n    Search GitHub issues labeled 'help wanted' with per-URL caching.\n\n    :param url: Optional URL to fetch data from; if None, defaults to GitHub search.\n    :return: List of results or response text if JSON parsing fails.\n    \"\"\"\n    query.replace(\" \", \"+\")\n    url = f\"https://github.com/search?q={query}+type%3Aissue+is%3Aopen&type=issues&s=updated&o=desc\"\n\n    # Check cache first\n    cached_results = load_cache_for_url(url)\n    if cached_results is not None:\n        logger.info(\"Returning cached results for URL: %s\", url)\n        return cached_results\n\n    headers = {\n        \"Accept\": \"*/*\",\n        \"User-Agent\": \"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) \"\n                      \"AppleWebKit/537.36 (KHTML, like Gecko) \"\n                      \"Chrome/136.0.0.0 Safari/",
+          "output": "Search completed: 4 queries executed, 40 documents found, 0 files matched",
+          "duration_ms": 14565.04916306585,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_nXp3Uhq4fhO9atM2J3fN1889",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/knowledge/embeddings.py"
+            ]
+          },
+          "response": "```py codx/junior/knowledge/embeddings.py\n\"\"\"\nIn-memory embeddings model for local embedding generation.\n\nThis module provides a lightweight, self-contained embeddings solution\nthat doesn't depend on external AI services.\n\"\"\"\n\nimport logging\nfrom typing import List, Union, Any\n\nlogger = logging.getLogger(__name__)\n\n\nclass LocalEmbeddingsModel:\n    \"\"\"\n    Wrapper around sentence-transformers for local, in-memory embeddings.\n    \n    Uses a lightweight model by default (all-MiniLM-L6-v2) which provides\n    a good balance between speed and quality for semantic search.\n    \"\"\"\n\n    def __init__(self, model_name: str = \"all-MiniLM-L6-v2\"):\n        \"\"\"\n        Initialize the local embeddings model.\n\n        Args:\n            model_name: HuggingFace model identifier.\n                       Defaults to all-MiniLM-L6-v2 (384 dims, ~22MB).\n        \"\"\"\n        self.model_name = model_name\n        self._model = None\n        self._embedding_dim = None\n\n    @property\n    def model(self):\n        \"\"\"Lazy-load the embeddings model on first access.\"\"\"\n        if self._model is None:\n            self._load_model()\n        return self._model\n\n    def _load_model(self) -> None:\n        \"\"\"\n        Load the sentence-transformer model.\n        \n        Raises:\n            ImportError: If sentence-transformers is not installed.\n            Exception: If model download/loading fails.\n        \"\"\"\n        try:\n            from sentence_transformers import SentenceTransformer\n        except ImportError as e:\n            raise ImportError(\n                \"sentence-transformers is required for local embeddings. \"\n                \"Install it with: pip install sentence-transformers\"\n            ) from e\n\n        try:\n            logger.info(\"Loading embeddings model: %s\", self.model_name)\n            self._model = SentenceTransformer(self.model_name)\n            self._embedding_dim = self._model.get_sentence_embedding_dimension()\n            logger.info(\n                \"Embeddings model loaded successfully. \"\n                \"Embedding dimension: %d\",\n                self._embedding_dim,\n            )\n        except Exception as e:\n            logger.error(\n                \"Failed to load embeddings model '%s': %s\",\n                self.model_name,\n                e,\n            )\n            raise\n\n    def embed_query(self, text: str) -> List[float]:\n        \"\"\"\n        Generate embedding for a single query string.\n\n        Args:\n            text: Text to embed.\n\n        Returns:\n            List of floats representing the embedding vector.\n        \"\"\"\n        if not text or not isinstance(text, str):\n            logger.warning(\"Invalid input for embed_query: %s\", text)\n            return [0.0] * self.embedding_dim\n\n        try:\n            embedding = self.model.encode(text, convert_to_numpy=True)\n            return embedding.tolist()\n        except Exception as e:\n            logger.error(\"Error embedding query: %s\", e)\n            raise\n\n    def embed_documents(self, texts: List[str]) -> List[List[float]]:\n        \"\"\"\n        Generate embeddings for multiple documents.\n\n        Args:\n            texts: List of text strings to embed.\n\n        Returns:\n            List of embedding vectors (List[List[float]]).\n        \"\"\"\n        if not texts or not all(isinstance(t, str) for t in texts):\n            logger.warning(\"Invalid input for embed_documents: %s\", texts)\n            return [[0.0] * self.embedding_dim for _ in texts]\n\n        try:\n            embeddings = self.model.encode(texts, convert_to_numpy=True)\n            return embeddings.tolist()\n        except Exception as e:\n            logger.error(\"Error embedding documents: %s\", e)\n            raise\n\n    @property\n    def embedding_dim(self) -> int:\n        \"\"\"Get the embedding dimension.\"\"\"\n        if self._embedding_dim is None:\n            _ = self.model  # Trigger lazy load\n        return self._embedding_dim\n\n\nclass HybridEmbeddingsModel:\n    \"\"\"\n    Hybrid embeddings that falls back to local",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/knowledge/embeddings.py",
+          "duration_ms": 91.40529483556747,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_nnNK34erENqAYBOdO6rL0463",
+          "status": "done",
+          "request": {
+            "search": [
+              "lru_cache TTL cache",
+              "cachetools",
+              "knowledge_search_type",
+              "@profile_function def project_search",
+              "get_rag_model"
+            ]
+          },
+          "response": "> codx-api results for: 'lru_cache TTL cache, cachetools, knowledge_search_type, @profile_function def project_search, get_rag_model'\n```py codx/junior/misc/github.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/misc/github.py\n:param title: Title of the issue.\n        :param url: URL of the issue.\n        :param comments: List of IssueComment instances related to the issue.\n        \"\"\"\n        self.title: str = title\n        self.url: str = url\n        self.comments: List[IssueComment] = comments if comments is not None else []\n        self.extra_data: dict = extra_data\n\n\ndef get_cache_filepath(url: str) -> str:\n    \"\"\"\n    Generate a safe cache file path within the system's temporary directory based on the URL.\n\n    :param url: The URL to generate cache filename for.\n    :return: Full path to the cache file.\n    \"\"\"\n    # Sanitize URL to create a filename\n    safe_filename = url.replace('/', '_').replace(':', '_').replace('?', '_').replace('&', '_').replace('=', '_')\n    return os.path.join(CACHE_DIR, f\"{safe_filename}.json\")\n\n\ndef load_cache_for_url(url: str) -> Optional[Union[List, str]]:\n    \"\"\"\n    Loads cached results for the given URL if cache exists and is valid.\n\n    :param url: The URL whose cache is to be loaded.\n    :return: Cached data (list) if valid, None otherwise.\n    \"\"\"\n    cache_filepath = get_cache_filepath(url)\n    if os.path.exists(cache_filepath):\n        try:\n            with open(cache_filepath, 'r') as cache_file:\n                cache_data = json.load(cache_file)\n                timestamp = cache_data.get('timestamp', 0)\n                if time.time() - timestamp < CACHE_EXPIRATION:\n                    logger.info(\"Loaded valid cache for URL: %s\", url)\n                    return cache_data.get('results')\n                else:\n                    logger.info(\"Cache expired for URL: %s\", url)\n        except Exception as e:\n            logger.warning(\"Failed to load cache for URL: %s, error: %s\", url, e)\n    return None\n\n\ndef save_cache_for_url(url: str, results: Union[List, str]) -> None:\n    \"\"\"\n    Save results to cache file for the specified URL.\n/home/codx-junior-projects/codx-junior/api/codx/junior/misc/github.py\n:param url: The URL to associate with the cache.\n    :param results: The results data to cache.\n    \"\"\"\n    cache_filepath = get_cache_filepath(url)\n    try:\n        with open(cache_filepath, 'w') as cache_file:\n            json.dump({'timestamp': time.time(), 'results': results}, cache_file)\n        logger.info(\"Saved cache for URL: %s\", url)\n    except Exception as e:\n        logger.warning(\"Failed to save cache for URL: %s, error: %s\", url, e)\n\ndef search_codx_junior_dependencies_project_isssues():\n    repos = [\n      \"BerriAI/litellm\",\n      \"ollama/ollama\",\n      \"milvus-io/pymilvus\",\n      \"gbrian/codx-junior\",\n      \"vuejs/vitepress\",\n      \"encode/uvicorn\",\n      \"fastapi/fastapi\",\n      \"axios/axios\",\n      \"vitejs/vite\",\n      \"openai/openai-python\"\n    ]\n    query = lambda r: f\"repo%3A{quote_plus(r)}\"\n    res = []\n    for repo in repos:\n      try:\n        res = res + search_github_issues(query=query(repo))[0:2]\n      except:\n        pass\n    return res\n\ndef search_github_issues(query: Optional[str] = None) -> Union[List, str]:\n    \"\"\"\n    Search GitHub issues labeled 'help wanted' with per-URL caching.\n\n    :param url: Optional URL to fetch data from; if None, defaults to GitHub search.\n    :return: List of results or response text if JSON parsing fails.\n    \"\"\"\n    query.replace(\" \", \"+\")\n    url = f\"https://github.com/search?q={query}+type%3Aissue+is%3Aopen&type=issues&s=updated&o=desc\"\n\n    # Check cache first\n    cached_results = load_cache_for_url(url)\n    if cached_results is not None:\n        logger.info(\"Returning cached results for URL: %s\", url)\n        return cached_results\n\n    headers = {\n        \"Accept\": \"*/*\",\n        \"User-Agent\": \"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) \"\n                      \"AppleWebKit/537.36 (KHTML, like Gecko) \"\n             ",
+          "output": "Search completed: 4 queries executed, 37 documents found, 0 files matched",
+          "duration_ms": 17649.364922195673,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "d86e681a8fad",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.03270764999999999,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.03270764999999999,
+        "chat_cost_cxjcoins": 0.03270764999999999,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 194527,
+        "output_tokens": 5881,
+        "total_tokens": 200408,
+        "input_cost_cxjcoins": 0.029179049999999995,
+        "output_cost_cxjcoins": 0.0035285999999999994,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "biblio",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-21 05:51:14.748548",
+  "updated_at": "2026-10-21T07:52:55.818376",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/knoeledge-search-improvement.23ad3721-0341-4cf4-8251-38cb12d6315d.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.03270764999999999,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-21T05:52:31.767642+00:00",
+      "summary": "**Conversation summary**\n\n1. You reported that many tasks run the same `project_search` calls concurrently or back-to-back, making knowledge search slow and expensive.\n2. I traced the search path and found the real costs: one LLM call per result document, a full repo walk plus two `git` subprocesses per query, and a `KnowledgeDB` rebuilt on every call.\n3. I also found no shared cache, no request coalescing, ignored `limit`/`search_type` args, and a 2\u00d7 hybrid over-fetch.\n4. I proposed ranked fixes: drop or batch the per-doc LLM filtering, add a version-keyed TTL/LRU cache with single-flight, memoize embeddings and file lists, and make `KnowledgeDB` a per-project singleton.\n5. I laid out a phased plan (P0 timing logs \u2192 P6 Redis/warm-up) and asked five open questions (cache scope, default filtering mode, invalidation source, size/TTL, glob fast path) before writing any code.",
+      "message_ids": [
+        "557790bd-158e-47c9-a10f-2977e475d9f7",
+        "8da5582e-78f1-4582-a42c-f3acfd37e561"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

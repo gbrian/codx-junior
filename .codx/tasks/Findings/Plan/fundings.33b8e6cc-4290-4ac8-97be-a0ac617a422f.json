@@ -1,0 +1,480 @@
+{
+  "id": "33b8e6cc-4290-4ac8-97be-a0ac617a422f",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "biblio"
+  ],
+  "users": [],
+  "name": "Fundings",
+  "pinned": false,
+  "is_template": false,
+  "description": "# Summary\n\n**codx-junior** (https://github.com/gbrian/codx-junior) is an open-source, AI-powered developer assistant and project management tool built with Python, Vue.js, and Docker, supporting local LLMs, RAG-based knowledge indexing, and code generation.\n\nThe goal is to **secure EU funding** to sustain and grow the project, leveraging its open-source nature, AI capabilities, and alignment with EU digital sovereignty goals.\n\nThe **top funding opportunities** identified are: **NLnet NGI Zero/Restack** (rolling grants, \u20ac5K\u2013\u20ac50K, best fit for open-source), **EIC Accelerator** (up to \u20ac2.5M grant + \u20ac10M equity), and **Digital Europe Programme** (AI adoption & digital transformation focus).\n\nKey **events to target** include **FOSDEM** (Brussels, open-source showcase), **Web Summit** (Lisbon, investor pitching), and **Slush** (Helsinki, startup competition with up to \u20ac1M prize).\n\nThe recommended strategy is to **apply to NLnet immediately** (rolling deadlines), **build a consortium** for Horizon Europe/EIC Pathfinder, and **gain visibility** through open-source events while framing codx-junior as a privacy-first, EU digital sovereignty enabler.",
+  "messages": [
+    {
+      "doc_id": "2d4d8af5-5de1-40a2-b1c5-11afab2c7e1d",
+      "role": "user",
+      "task_item": "",
+      "content": "We need fundings for https://github.com/gbrian/codx-junior\n\nFind eu programs and events\n",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-02 07:25:54.416106",
+      "updated_at": "2026-10-02T07:25:54.416181",
+      "attachments": [],
+      "files": [],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "3a9c1000-a8b1-43dc-8be5-b382097f7a2a",
+      "role": "assistant",
+      "task_item": "",
+      "content": "\n```\nDuckDuckGo WEB Search Results for 'EU funding programs for open source AI developer tools 2024 2025':\n\n[1] GenAI4EU: Funding opportunities to boost Generative AI \u201cmade ...\n    URL: https://digital-strategy.ec.europa.eu/en/policies/genai4eu\n    Aug 21, 2026 \u00b7 Researchers, innovators, industrial companies and others applying to these EU funding opportunities will become part of GenAI4EU. It is...\n\n[2] EU funding for AI projects: from research to usage\n    URL: https://hadea.ec.europa.eu/eu-funding-ai-projects-research-usage_en\n    Web Summit 2024 took place in Lisbon from 11 to 14 November 2024. On 13 November, HaDEA organised a workshop on \"EU funding for AI projects: from rese...\n\n[3] EU Funding & Tenders Portal\n    URL: https://ec.europa.eu/info/funding-tenders/opportunities/portal/\n    Sep 22, 2026 \u00b7 The Funding and Tenders Portal is the single entry point (the Single Electronic Data Interchange Area) for applicants, contractors and ...\n\n[4] Funding Opportunities for Open Source Software Projects in ...\n    URL: https://interoperable-europe.ec.europa.eu/collection/open-source-observatory-osor/funding-opportunities-open-source-software-projects-public-sector\n    Funding Opportunities for Open Source Software Projects in the Public Sector Securing sustainable funding is one of the key challenges for open source...\n\n[5] AI Grants - EU Grants Funding Portal\n    URL: https://eufundingportal.eu/tag/ai-grants/\n    Looking for AI grants? Explore AI grants / artificial intelligence grants and funding opportunities for your AI projects on the EU grants portal....\n```\n\n```\nDuckDuckGo WEB Search Results for 'European Union grants startups AI coding tools open source':\n\n[1] AI Technology - EU Grants Funding\n    URL: https://eufundingportal.eu/ai-technology/\n    Interested in AI technology? Explore exciting AI technology related grants and funding opportunities on the EUfundingportal.eu grants website....\n\n[2] EU Funding for Startups: The Complete Guide 2026 - euacc.ai\n    URL: https://www.euacc.ai/guides/eu-funding-101\n    The EU Funding Landscape in 2026 The European Union allocates more than 150 billion euros across dozens of funding programmes designed to help startup...\n\n[3] Funding Opportunities for Open Source Software Projects in the Public ...\n    URL: https://interoperable-europe.ec.europa.eu/collection/open-source-observatory-osor/funding-opportunities-open-source-software-projects-public-sector\n    Funding Opportunities for Open Source Software Projects in the Public Sector Securing sustainable funding is one of the key challenges for open source...\n\n[4] EU Grants for AI Startups in 2026: Relevant Programs and Readiness ...\n    URL: https://www.cogrant.eu/blog/articles/eu-grants-for-ai-startups-in-2026-relevant-programs-and-readiness-signals\n    EU grants for AI startups in 2026 are spread across several routes: EIC Accelerator for high-risk scale-up innovation, Horizon Europe for collaborativ...\n\n[5] AI Grants - EU Grants Funding Portal\n    URL: https://eufundingportal.eu/tag/ai-grants/\n    Looking for AI grants? Explore AI grants / artificial intelligence grants and funding opportunities for your AI projects on the EU grants portal....\n```\n\n```\nDuckDuckGo WEB Search Results for 'Horizon Europe AI open source developer tools funding 2024 2025':\n\n[1] Horizon Europe - Research and innovation - European Union\n    URL: https://research-and-innovation.ec.europa.eu/funding/funding-opportunities/funding-programmes-and-open-calls/horizon-europe_en\n    On 16 July 2025, the European Commission put forward its proposal for the Horizon Europe Framework Programme (2028\u20132034). With a proposed \u20ac 175 billio...\n\n[2] GenAI4EU: Funding opportunities to boost Generative AI \u201cmade ...\n    URL: https://digital-strategy.ec.europa.eu/en/policies/genai4eu\n    This initiative builds on the Horizon Europe's AI Boost project (2023), which awarded \u20ac1 million and 8 million GPU hours to four winners developing la...\n\n[3] Open-Source EDA Tools for European Chip Design - GrantBite\n    URL: https://www.grantbite.com/en/funding/open-source-eda-tools-development-horizon-chips\n    For 2025, the program has an allocated annual budget of 20,000,000 \u20ac. Individual grants are expected to range from a minimum contribution of 1,000,000...\n\n[4] The Digital Europe Programme\n    URL: https://digital-strategy.ec.europa.eu/en/activities/digital-programme\n    23 Jun 2026 \u00b7 The Digital Europe Programme (DIGITAL) is an EU funding programme focused on bringing digital technology to businesses, citizens and pub...\n\n[5] Horizon Europe Archives - Martel Innovate\n    URL: https://martel-innovate.com/our-projects/horizon-europe/\n    Launched in 2025, this \u20ac7.5 million initiative, co-funded by the European Union and the Swiss State Secretariat for Education, Research and Innovation...\n```\n\n```\nDuckDuckGo WEB Search Results for 'EU NGI program open source funding 2024 2025':\n\n[1] The European Union must keep funding free software\n    URL: https://nextgraph.org/eu-ngi-funding/\n    Jul 16, 2024 \u00b7 Open Letter to the European Commission. Since 2020, Next Generation Internet (NGI) programmes, part of European Commission\u2019s Horizon pr...\n\n[2] NGI Open Calls - Next Generation Internet\n    URL: https://www.ngi.eu/opencalls/\n    Open Internet Stack: Restack provides funding and support service with the goal to help deliver, mature and scale operational internet commons across ...\n\n[3] The European Union must keep funding free software \u2014 2024 ...\n    URL: https://guix.gnu.org/en/blog/2024/the-european-union-must-keep-funding-free-software/\n    Jul 23, 2024 \u00b7 While the USA, China or Russia deploy huge public and private resources to develop software and infrastructure that massively capture p...\n\n[4] The EU Must Keep Funding Open Source! - sparecores.comEU Funding & Tenders PortalKDE signs petition urging European Union to continue funding ...The European Union must keep funding free software\n    URL: https://sparecores.com/article/open-letter-to-eu-to-keep-ngi-funded\n    NGI programs have shown their strength and importance to support the European software infrastructure, as a generic funding instrument to fund digital...\n\n[5] EU Funding & Tenders Portal\n    URL: https://ec.europa.eu/info/funding-tenders/opportunities/portal/\n    Sep 22, 2026 \u00b7 The Funding and Tenders Portal is the single entry point (the Single Electronic Data Interchange Area) for applicants, contractors and ...\n```\n\n```\nAn error occurred during DuckDuckGo search: No results found.\n```\n\n```\nSearch completed: 1 queries executed, 1 documents found\n```\n\n```\nDuckDuckGo WEB Search Results for 'site:eic.ec.europa.eu AI developer tools funding call 2025':\n\n[1] EIC Info Day, Brussels 6. Nov. 2024\n    URL: https://eic.ec.europa.eu/document/download/37138e8b-0a43-4c71-9d0e-4c39a6985706_en?filename=3b.+GenAI4EU.+Creating+European+Champions+in+Generative+AI.pdf\n    GenAI4EU: Creating European Champions in Generative AI The aim of this Challenge is to support start-ups and SMEs committed to bringing transformative...\n\n[2] EIC Funding opportunities - European Innovation Council\n    URL: https://eic.ec.europa.eu/eic-funding-opportunities_en\n    EIC funding opportunities Equity investments to catalyse larger investments rounds of \u20ac50 million or above to companies with pre-commitments from inve...\n\n[3] EIC Pathfinder Challenges 2025 - European Innovation Council\n    URL: https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder/eic-pathfinder-challenges-2025_en\n    This document presents the 2025 European Innovation Council (EIC) Work Programme funded by the European Union\u2019s Horizon Europe Framework Programme for...\n\n[4] PATHFINDER CHALLENGE - eic.ec.europa.eu\n    URL: https://eic.ec.europa.eu/document/download/70cf9b95-1e09-4b21-b3ca-45f119ffa2af_en?filename=Challenge+Guide_genAI+for+medical+diagnosis.pdf\n    EIC Work Programme reference: HORIZON-EIC-2024-PATHFINDERCHALLENGES-01-02 Call deadline date: 29/10/2025 EIC Programme Manager: Federica ZANCA EIC wil...\n\n[5] EIC Pathfinder - eic.ec.europa.eu\n    URL: https://eic.ec.europa.eu/document/download/304feb43-664a-4b29-ad90-00934e87199c_en?filename=EIC+Info+Day+WP2025_EIC+Pathfinder.pdf\n    Tender You will be informed about the outcome of the evaluation within 5 months from the call deadline (indicative). If your proposal is selected for ...\n```\n\n```\nDuckDuckGo WEB Search Results for 'NGI Search NGI Zero EU open source AI funding application 2024 2025':\n\n[1] NGI Zero Commons Fund - Next Generation Internet\n    URL: https://www.ngi.eu/ngi-projects/ngi-zero-commons-fund/\n    In total the NGI Zero Commons Fund will distribute 21.6 million euros of R&D on technology commons that improve openness, trustworthiness, resilience ...\n\n[2] NGI Zero\n    URL: https://ngi-0.eu/\n    At the heart of NGI Zero are the people who are working on free and open source digital technologies to create a human-centered internet for all. We i...\n\n[3] EU Funding & Tenders Portal\n    URL: https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/competitive-calls-cs/6422\n    The main objective of the NGI Search Open Call is to attract entrepreneurs, tech-geeks, developers, socially engaged people, SMEs (including newly est...\n\n[4] NGI Search - Next Generation Internet\n    URL: https://www.ngi.eu/ngi-projects/ngi-search/\n    The NGI Search project is a European project designed to support entrepreneurs, tech-geeks, developers, and socially engaged people, who are capable o...\n\n[5] OW2 - NGI Zero commons fund\n    URL: https://www.ow2.org/view/commonsfund/\n    NGI Commons is NGI\u2019s vehicle for the next 3 years: its aim, to finance the future of a European Internet and digital commons based on open source, int...\n```\n\n```\nDuckDuckGo WEB Search Results for 'EU Digital Europe programme AI tools SME funding 2025':\n\n[1] Digital Europe Programme - European Commission\n    URL: https://commission.europa.eu/funding-and-tenders/find-funding/eu-funding-programmes/digital-europe-programme_en\n    Read about the Digital Europe Programme, funding for projects it provides in five crucial areas, and about budget and performance. Find funding opport...\n\n[2] Digital Europe Programme 2025\u20132027 \u2013 Strategic Sheet for SMEs ...\n    URL: https://theinnovationlawyers.eu/digital-europe-programme-2025-2027\n    Apr 12, 2025 \u00b7 On March 28, 2025, the European Commission adopted Implementing Decision C (2025) 1839 final, which approves the 2025\u20132027 multiannual ...\n\n[3] The Digital Europe Programme - Shaping Europe\u2019s digital future\n    URL: https://digital-strategy.ec.europa.eu/en/activities/digital-programme\n    Jun 23, 2026 \u00b7 The Digital Europe Programme (DIGITAL) is an EU funding programme focused on bringing digital technology to businesses, citizens and pu...\n\n[4] Funding Opportunities - European DIGITAL SME Alliance\n    URL: https://www.digitalsme.eu/funding-opportunities/\n    1 day ago \u00b7 Many different European funding opportunities for SMEs exist, but the good ones are often hidden in a jungle of too much information. To h...\n\n[5] EU Funding & Tenders Portal\n    URL: https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/programmes/digital\n    The Funding and Tenders Portal is the single entry point (the Single Electronic Data Interchange Area) for applicants, contractors and experts in fund...\n```\n\n```\nRead 1 file(s) | Successfully read: README.md\n```\n\n```\nDuckDuckGo WEB Search Results for 'EU Horizon Europe work programme 2025 AI software tools open call deadline':\n\n[1] Senior AI executive programme - Cambridge Judge Exec Ed\n    URL: https://www.bing.com/aclick?ld=e8a68KJFd5uAg4XaPhKIG_rjVUCUwHTS0SW3_8PleESW01mQmYb8lC_4bxCSnneUdhNjkwlNM3xKz1nGLrLgQXOeKtol5lQ3Z_6TKIlKEB0iW7-JxZ5sOBn3oqlU5q-R0srzS-DTc5_NbxiRPlqhoe0IZESnxK3NaQp3NRuSzZ1uEpwBzUkG7WrPwwrIePnIN_HxPsEw&u=aHR0cHMlM2ElMmYlMmZvbmxpbmUuZW0uamJzLmNhbS5hYy51ayUyZmFpLWxlYWRlcnNoaXAlM2Z1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjJTI2dXRtX2xvY2F0aW9uJTNkMTQ4NTM0JTI2dXRtX2NhbXBhaWduJTNkYi0zNjVkX3ItaW50X2JnX3NlX2NqLWFpc2Vfbm9uYnJhbmRfZXVyb3BlJTI2dXRtX2NvbnRlbnQlM2RBSV9QaHJhc2UlMjZ1dG1fdGVybSUzZGFydGlmaWNpYWwlMjUyMGludGVsbGlnZW5jZSUyNTIwcHJvZ3JhbSUyNm1zY2xraWQlM2RhNGY4NzA2MWEwY2UxZjQzMWFkYzFhZGVmYzdkYWQ0YQ&rlid=a4f87061a0ce1f431adc1adefc7dad4a\n    Build a global peer network through in-person modules at Cambridge Judge campus. Drive digital transformation through gen AI, ML and cloud computing t...\n\n[2] Horizon Europe work programmes - Research and innovation\n    URL: https://research-and-innovation.ec.europa.eu/funding/funding-opportunities/funding-programmes-and-open-calls/horizon-europe/horizon-europe-work-programmes_en\n    The opportunity to provide input for the development of the Horizon Europe \u2018main\u2019 work programme 2025 was open for 3 weeks from 15 April to 6 May 2024...\n\n[3] European Union Launches New Funding Calls for Digital and ...\n    URL: https://digital-strategy.ec.europa.eu/en/funding/european-union-launches-new-funding-calls-digital-and-technological-advancements\n    Jun 10, 2025 \u00b7 The Commission has opened two new digital calls under the \u2018Digital, Industry and Space\u2019 cluster of the Horizon Europe Work programme....\n\n[4] EN Horizon Europe Work Programme 2025\n    URL: https://research-and-innovation.ec.europa.eu/document/download/88368da6-fd77-4d76-8ef5-331d35b8b7e1_en\n    May 14, 2025 \u00b7 This work programme for 2025 is a key step towards achieving the research and innovation priorities outlined in the Horizon Europe stra...\n\n[5] Horizon Europe calendar updated with 497 open calls - kaila.eu\n    URL: https://kaila.eu/blog/horizon-europe-calendar-updated-with-497-open-calls/\n    Jun 23, 2025 \u00b7 The Horizon Europe Calls Calendar 2025 is now available for download. Created by Kaila (Zabala Innovation\u2019s platform), this document br...\n```\n\n```\nDuckDuckGo WEB Search Results for 'EU tech startup events hackathons AI open source funding 2025 Europe':\n\n[1] AI Summit Europe | AI Summit Barcelona\n    URL: https://aisummitbarcelona.com/resources/ai-summit-europe\n    European AI startups raised about $11 billion in 2024, with AI and deep tech taking 33% of all European venture funding that year (Atomico, 2024). At ...\n\n[2] EU-Startups | Spotlight on European startups\n    URL: https://www.eu-startups.com/\n    EU-Startups.com is the leading online magazine about startups in Europe. Funding AI sales startup Revnu raises \u20ac2.6 million to build team and accelera...\n\n[3] European Startup Events 2026/2027 - Black Unicorn PR\n    URL: https://www.blackunicornpr.com/definitive-guide-european-startup-events/\n    22 Nov 2025 \u00b7 The definitive list of startup events for European startups on their journey of storytelling and meeting partners, investors and clients...\n\n[4] HackTrack-EU is a platform for discovering hackathons across ...\n    URL: https://github.com/lorenzopalaia/HackTrack-EU\n    HackTrack-EU is a platform for discovering hackathons across Europe, helping developers and tech enthusiasts find upcoming events and opportunities...\n\n[5] Calling all AI innovators and challenge owners across Europe ...\n    URL: https://www.facebook.com/horizoneuropemalta/posts/-calling-all-ai-innovators-and-challenge-owners-across-europe-the-ai-challenge-2/1338364681632263/\n    17 Sept 2025 \u00b7 The AI Challenge 2025, powered by the EIT AI Community, Access Europe's most promising AI startups and scaleups. Win a \u20ac5,000 cash priz...\n```\n\n```\nDuckDuckGo WEB Search Results for 'Open Future Foundation EU open source AI tools funding grants 2025':\n\n[1] GenAI4EU: Funding opportunities to boost Generative AI \u201cmade ...\n    URL: https://digital-strategy.ec.europa.eu/en/policies/genai4eu\n    Researchers, innovators, companies and other interested organisations can find EU funding opportunities to join forces to develop and deploy generativ...\n\n[2] Innovation, Research & Smart Cities: June 2026 Funding ...\n    URL: https://impactfunding.substack.com/p/innovation-research-and-smart-cities-65e\n    1 Jun 2026 \u00b7 The EU funds across multiple layers: funding SMEs, mid-caps, and research organizations to integrate mature AI solutions into the AI-on-D...\n\n[3] Open Source as Europe's Strategic Advantage\n    URL: https://www.linuxfoundation.org/research/world-of-open-source-eu-2025\n    Now in its fourth year, the 2025 Europe Spotlight report explores this state of OSS and where the opportunities lie for the community. Despite acknowl...\n\n[4] In the latest issue of our newsletter, we explore how the EU is ...\n    URL: https://www.linkedin.com/posts/open-future-foundation_in-the-latest-issue-of-our-newsletter-activity-7477691525506981888-Poj7\n    In the latest issue of our newsletter, we explore how the EU is funding its AI ambitions, the importance of culture in shaping AI, and a missed opport...\n\n[5] Who we support - European AI & Society Fund\n    URL: https://europeanaifund.org/our-grantees/\n    Open Future Foundation. https://openfuture.eu/. Netherlands. AI Act Implementation. Jan 2025 - Sep 2025. \u20ac41.375. AI regulation Market power Economic ...\n```\n\n```\nDuckDuckGo WEB Search Results for '\"Horizon Europe\" \"cluster 4\" AI software digital tools SME open call 2025 deadline':\n\n[1] Horizon Europe Cluster 4 Call 4: Digital (2025) - European ...\n    URL: https://hadea.ec.europa.eu/calls-proposals/horizon-europe-cluster-4-call-4-digital-2025_en\n    A new Horizon Europe call has been published: \"HORIZON-CL4-2025-04: Digital\". Read more and apply on the Funding and Tenders portal....\n\n[2] Cluster 4: Digital, Industry and Space - Research and innovation\n    URL: https://research-and-innovation.ec.europa.eu/funding/funding-opportunities/funding-programmes-and-open-calls/horizon-europe/cluster-4-digital-industry-and-space_en\n    What this area covers, aims of funding and intervention areas in Horizon Europe for the digital, industry and space cluster....\n\n[3] European Union Launches New Funding Calls for Digital and ...\n    URL: https://digital-strategy.ec.europa.eu/en/funding/european-union-launches-new-funding-calls-digital-and-technological-advancements\n    Jun 10, 2025 \u00b7 The Commission has opened two new digital calls under the \u2018Digital, Industry and Space\u2019 cluster of the Horizon Europe Work programme....\n\n[4] Information about calls open for submission within the ...\n    URL: https://horizon-europe.org.ua/en/news/calls/information-about-calls-open-for-submission-within-the-horizon-europe-cluster-4-digital-industry-and-space/\n    Aug 19, 2025 \u00b7 Horizon Europe Office in Ukraine, NRFU, reminds that 82 calls are open for submission within Cluster 4 \u2018Digitalisation, Industry and Sp...\n\n[5] Horizon Europe \u2013 Digital Call 2025 open for submission ...\n    URL: https://hadea.ec.europa.eu/news/horizon-europe-digital-call-2025-open-submission-horizon-cl4-2025-03-horizon-cl4-2025-04-2025-06-12_en\n    Jun 12, 2025 \u00b7 With a total budget of \u20ac536.1 million, the Horizon Europe Cluster 4 Digital call 2025 covers 28 topics across 4 different destinations....\n```\n\n```\nDuckDuckGo WEB Search Results for 'EIC Accelerator AI software 2025 open call deadline grant amount':\n\n[1] EIC Accelerator - European Innovation Council\n    URL: https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en\n    If your application meets the basic criteria for EIC Accelerator funding, you will be invited to prepare a full proposal to submit to one of the perio...\n\n[2] EIC Accelerator Thematic Challenge: Creating European ...\n    URL: https://www.digitalsme.eu/fundings/eic-accelerator-thematic-challenge-creating-european-champions-in-generative-ai/\n    Oct 1, 2025 \u00b7 The total indicative budget for this challenge is part of the \u20ac250 million allocated for EIC Accelerator Challenges. Please follow this ...\n\n[3] EIC Accelerator Open - European Innovation Council\n    URL: https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator/eic-accelerator-open_en\n    The EIC Accelerator Open calls have no predefined topic: This call is for innovations in any field of technology and innovations that cut across diffe...\n\n[4] EIC Accelerator Open Call 2025 Details | Segler Consulting\n    URL: https://www.seglerconsulting.com/eic-accelerator-open-call-2025-details\n    The EIC Accelerator Open 2025 call has an indicative budget of EUR 384 million and is open to innovations in any field. It offers blended finance (gra...\n\n[5] EIC Accelerator 2025-26: How It Works & Funding Guide\n    URL: https://www.grantbite.com/en/blog/eic-accelerator-how-it-works\n    Aug 5, 2026 \u00b7 Discover how the EIC Accelerator works in 2025/2026: \u20ac634M budget, 3-stage application, 6\u20137% success rate, and eligibility for European ...\n```\n\n```\nDuckDuckGo WEB Search Results for 'EU startup events 2025 AI developer tools pitch competition Europe funding':\n\n[1] Are you ready to pitch? Applications for the EU-Startups ...\n    URL: https://www.eu-startups.com/2024/12/are-you-ready-to-pitch-applications-for-the-eu-startups-summit-2025-pitch-competition-are-officially-open/\n    Dec 4, 2024 \u00b7 Raised 0 or less than \u20ac750K in venture capital The application deadline is January 31, 2025, so don\u2019t delay! Apply here to secure your c...\n\n[2] The 10 Hottest Startup Events In Europe 2025 - ForbesTop startup events in Europe you should not miss in 202546 must-attend startup and VC events in 2025 - flyerone.vcHome - AI Pitch CompetitionEU-Startups Pitch Competition 2025 | StartupLinkXStartup Pitch | HumanX Amsterdam | 22-24 Sept\n    URL: https://www.forbes.com/sites/melindaelmborg/2025/02/04/the-10-hottest-startup-events-in-europe-2025/\n    Feb 4, 2025 \u00b7 The startup funding scene has been looking up in early 2025, thanks to lower interest rates and European VCs getting back in the game. T...\n\n[3] Top startup events in Europe you should not miss in 2025\n    URL: https://www.spinlab.co/blog/top-startup-events-in-europe-you-should-not-miss-2025\n    This event that originally started in Dubai is one of the largest global tech and startup events and will be expanding to Europe in 2025. The internat...\n\n[4] 46 must-attend startup and VC events in 2025 - flyerone.vc\n    URL: https://flyerone.vc/post/46-must-attend-startup-and-vc-events-in-2025\n    You\u2019ll also meet our team at some of these events. Startup events in 2025 sTARTUp Day calls itself \u201cthe most startup-minded business festival.\u201d In 202...\n\n[5] Home - AI Pitch Competition\n    URL: https://aipitchcompetition.com/\n    Are you an ambitious startup with a game-changing solution in the field of artificial intelligence? Join us and see the showcase of innovation in the ...\n```\n\n```\nDuckDuckGo WEB Search Results for 'FOSDEM 2025 2026 open source AI developer tools event Europe':\n\n[1] Internet Archive Europe at FOSDEM 2026: Let's Meet in Brussels\n    URL: https://www.internetarchive.eu/2026/01/22/internet-archive-europe-at-fosdem-2026-lets-meet-in-brussels/\n    22 Jan 2026 \u00b7 FOSDEM 2026, the Free and Open Source Software Developers' European Meeting, taking place in Brussels on 31 January and 1 February 2026....\n\n[2] Best Tech Events in Europe 2026: The Ultimate Conference ...\n    URL: https://www.bleap.finance/nl-nl/blog/best-tech-events-in-europe\n    Rating 4,6 (291) \u00b7 Free \u00b7 Finance 4 days ago \u00b7 FOSDEM 2026 is an open source event taking place on January 31 and February 1 in Brussels. It hosts ove...\n\n[3] What a fantastic weekend at FOSDEM in Brussels ... - Facebook\n    URL: https://www.facebook.com/LPIConnect/posts/what-a-fantastic-weekend-at-fosdem-in-brussels-it-was-great-to-meet-so-many-frie/1300019005490487/\n    4 Feb 2026 \u00b7 FOSDEM is the biggest free and open source software (FOSS) event in Europe, and will take place on 31 January and 1 February in Brussels ...\n\n[4] A list of Open Source conferences or events to look out for.\n    URL: https://github.com/EverythingOpenSource/open-source-events\n    FOSDEM 2026 Fringe: FOSS license and security compliance tools workshop Date: 30th January. Location: Brussels, Belgium. FOSDEM 26 Date: Halle (Saale)...\n\n[5] Top 50 Open Source Conferences in 2026\n    URL: https://opensource.org/blog/top-50-open-source-conferences-in-2026\n    22 Jan 2026 \u00b7 All Things AI \u2014 March 23\u201324, 2026 (Durham) Open Source tools, communities, and practices in AI....\n```\n\n```\nDuckDuckGo WEB Search Results for 'Web Summit Slush VivaTech 2025 AI startup pitch competition Europe':\n\n[1] Top Startup Events in Europe for 2026\n    URL: https://www.startupblink.com/blog/top-startup-events-in-europe/\n    4 Aug 2026 \u00b7 Viva Technology is one of Europe's largest technology and innovation events, Web Summit in Lisbon Location: Lisbon, Portugal Date: Novemb...\n\n[2] Top Tech Conferences for Startups and Innovators: 2025\u20132026\n    URL: https://www.uatech.today/top-tech-conferences-for-startups-and-innovators-2025-2026/\n    VivaTech 2025 \ud83d\udcc5 May 22\u201324, Slush 2025 \ud83d\udcc5 November 19-20, 2025 \ud83d\udccd Helsinki, Finland. Slush offers pitch competitions, mentorship opportunities, and indus...\n\n[3] Top European startup events to attend in 2026 - SeedBlink\n    URL: https://seedblink.com/blog/top-european-startup-events-to-attend-in-2026\n    Summit gathers Europe's most promising founders, VCs, and tech leaders for two days of insights, pitch competitions, and high-value networking. Web Su...\n\n[4] 4 Must-Attend Global Startup and Tech Conferences in 2025 for ...\n    URL: https://www.jumpstartmag.com/4-must-attend-global-startup-and-tech-conferences-in-2025-for-entrepreneurs/\n    3 Feb 2025 \u00b7 June 11-14, 2025. Compete in the Slush 100 Pitching Competition for early-stage investment. Engage with top experts on topics like AI, ro...\n\n[5] European Startup Events 2026/2027 - Black Unicorn PR\n    URL: https://www.blackunicornpr.com/definitive-guide-european-startup-events/\n    22 Nov 2025 \u00b7 Slush also runs what is probably the biggest startup pitch contest with the biggest award money of an incredible \u20ac1 million from top Eur...\n```\n\n```\nAn error occurred during DuckDuckGo search: No results found.\n```\nNow I have enough information to compile a comprehensive document. Let me put it all together:\n\n---\n\n# \ud83c\uddea\ud83c\uddfa EU Funding Programs & Events for codx-junior\n\n## About codx-junior\n\n[**codx-junior**](https://github.com/gbrian/codx-junior) is an **open-source, AI-powered project management and developer assistant** built with Python (API), Vue.js (frontend), and Docker. It features:\n\n- \ud83e\udd16 AI-Powered code generation, review, and automation\n- \ud83d\udccb Project & task management (Kanban, sync with codebase)\n- \ud83d\udcda RAG-based knowledge indexing\n- \ud83d\udc33 Docker-based deployment\n- \ud83e\udd1d Collaboration tools and LLM model support\n\nThis profile makes codx-junior a **strong candidate** for multiple EU funding programs targeting **open-source software, AI tools, digital infrastructure, and developer productivity**.\n\n---\n\n## \ud83c\udfe6 EU Funding Programs\n\n### 1. \ud83c\udf10 NLnet Foundation \u2014 NGI Zero & Restack\n> **Best Match \u2b50\u2b50\u2b50\u2b50\u2b50** \u2014 Specifically designed for open-source projects like codx-junior\n\n| Detail | Info |\n|---|---|\n| **Website** | [nlnet.nl/funding.html](https://nlnet.nl/funding.html) |\n| **Grant Amount** | \u20ac5,000 \u2013 \u20ac50,000 (scale-up possible) |\n| **Deadline** | Rolling \u2014 every 2 months (3rd of odd months) |\n| **Next Deadline** | November 3, 2026 |\n| **Eligibility** | Individuals, SMEs, nonprofits, research orgs |\n| **Requirement** | Must be **free/open source** licensed \u2705 |\n\n#### Why it fits:\n- NLnet's **NGI Zero** program funds internet commons and open-source tooling\n- The new **Restack** fund specifically targets \"open internet stack\" \u2014 from productivity tools to local-first infrastructure\n- codx-junior's focus on **open-source AI tooling, local LLM support, and developer autonomy** aligns perfectly\n\n> \ud83d\udca1 **Action:** Apply via [nlnet.nl/propose](https://nlnet.nl/propose) \u2014 a short, low-threshold form. Also attend their regular **Office Hours** and **webinars** for guidance.\n\n---\n\n### 2. \ud83d\ude80 European Innovation Council (EIC) \u2014 EIC Accelerator\n> **Best Match \u2b50\u2b50\u2b50\u2b50** \u2014 For market-disrupting startups and SMEs\n\n| Detail | Info |\n|---|---|\n| **Website** | [eic.ec.europa.eu/eic-accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en) |\n| **Grant Amount** | Up to **\u20ac2.5 million** (grant) + up to **\u20ac10 million** (equity investment) |\n| **Who can apply** | Startups, SMEs, individuals intending to launch an SME |\n| **TRL Level** | TRL 6\u20138 (technology ready to scale) |\n| **Program** | Horizon Europe (2021\u20132027) |\n\n#### Why it fits:\n- codx-junior can be positioned as a **market-disrupting AI developer platform**\n- The program specifically targets innovations that could **create or disrupt existing markets**\n- Includes **coaching, mentoring, and networking** via EIC Business Acceleration Services\n- Can apply for **grant-only** or **grant + equity** blend\n\n> \ud83d\udca1 **Action:** Apply at the [EU Funding & Tenders Portal](https://ec.europa.eu/info/funding-tenders/). Consider starting with a **short application** (first step). Look out for the EIC Accelerator open calls in 2025\u20132026.\n\n---\n\n### 3. \ud83d\udd2c EIC Pathfinder\n> **Good Match \u2b50\u2b50\u2b50** \u2014 For deep-tech R&D on novel AI concepts\n\n| Detail | Info |\n|---|---|\n| **Website** | [eic.ec.europa.eu/eic-pathfinder](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en) |\n| **Grant Amount** | Up to **\u20ac3 million** (Open) / up to **\u20ac4 million** (Challenges) |\n| **Who can apply** | Consortia (min. 3 partners from 3 EU countries) |\n| **Focus** | Visionary, high-risk research into transformative technologies |\n\n#### Why it fits:\n- If codx-junior is positioned as a **novel AI-human collaboration framework** for software development, Pathfinder's research lens applies\n- The **RAG-based knowledge engine** and **multi-LLM orchestration** are innovative research angles\n\n> \ud83d\udca1 **Action:** Identify academic or research partners across EU countries to form a consortium. Align proposal around the **AI-assisted software engineering** research challenge.\n\n---\n\n### 4. \ud83e\udde9 EIC Transition\n> **Good Match \u2b50\u2b50\u2b50** \u2014 Bridge from research to market\n\n| Detail | Info |\n|---|---|\n| **Website** | [eic.ec.europa.eu/eic-transition](https://eic.ec.europa.eu/eic-funding-opportunities/eic-transition_en) |\n| **Grant Amount** | Up to **\u20ac2.5 million** |\n| **Who can apply** | Beneficiaries of EIC Pathfinder / ERC projects |\n| **Focus** | Validating innovations for market readiness |\n\n---\n\n### 5. \ud83d\udcbb Digital Europe Programme (DIGITAL)\n> **Good Match \u2b50\u2b50\u2b50** \u2014 For AI & digital transformation tools\n\n| Detail | Info |\n|---|---|\n| **Website** | [digital-strategy.ec.europa.eu](https://digital-strategy.ec.europa.eu/en/activities/digital-programme) |\n| **Focus** | AI, cloud, cybersecurity, digital skills, data spaces |\n| **Budget** | ~\u20ac7.5 billion (2021\u20132027) |\n| **Funding Type** | Grants, procurement, deployment projects |\n\n#### Why it fits:\n- codx-junior's AI capabilities align with the EU's **AI adoption goals**\n- Projects supporting SME productivity and **open AI tooling** are in scope\n- Partnership with EU tech hubs or public institutions strengthens the application\n\n---\n\n### 6. \ud83c\udf93 EIT Digital \u2014 Startup Acceleration\n> **Good Match \u2b50\u2b50\u2b50** \u2014 For digital tech startups\n\n| Detail | Info |\n|---|---|\n| **Website** | [eitdigital.eu](https://www.eitdigital.eu) |\n| **Type** | Acceleration, investment readiness, co-investment |\n| **Focus** | Digital technology innovation across Europe |\n\n#### Why it fits:\n- EIT Digital has accelerator programs for **AI, software, and developer tools**\n- Provides access to investor networks, mentoring, and market access support\n- Strong footprint across EU countries\n\n---\n\n## \ud83d\udcc5 Key Events & Opportunities\n\n### Conferences & Pitch Events\n\n| Event | When | Why Attend |\n|---|---|---|\n| **Web Summit** (Lisbon) | Nov 2025 | Largest tech startup event in Europe; pitch competitions, investor access |\n| **Slush** (Helsinki) | Nov/Dec 2025 | Premier European startup/investor conference; strong AI track |\n| **VivaTech** (Paris) | June 2025/2026 | European digital innovation summit with startup competition |\n| **FOSDEM** (Brussels) | Feb 2026 | Largest open-source developer conference in Europe; showcase codx-junior |\n| **EIC Summit 2026** | TBD 2026 | EIC's flagship event \u2014 connect with evaluators and portfolio companies |\n| **NLnet Office Hours** | Monthly | Direct guidance from NLnet on how to apply for NGI/Restack funding |\n| **NLnet Webinars** | Rolling | Free webinars on open-source funding application best practices |\n\n---\n\n## \ud83d\uddfa\ufe0f Recommended Strategy\n\n```\nPriority 1 (Apply Now / Rolling)\n\u2514\u2500\u2500 NLnet NGI Zero / Restack \u2192 nlnet.nl/propose\n    \u2192 Short form, open-source aligned, rolling deadlines\n\nPriority 2 (Structured Application)\n\u2514\u2500\u2500 EIC Accelerator \u2192 EU Funding & Tenders Portal\n    \u2192 Market-disruption angle, \u20ac2.5M grant + equity\n\nPriority 3 (Consortium Building)\n\u2514\u2500\u2500 EIC Pathfinder / Horizon Europe Cluster 4\n    \u2192 Find 2+ EU research/tech partners\n\nPriority 4 (Visibility & Community)\n\u2514\u2500\u2500 FOSDEM, Web Summit, Slush\n    \u2192 Pitch, showcase, attract investors & contributors\n```\n\n---\n\n## \ud83d\udccc Quick Tips for Applications\n\n1. **Frame codx-junior as open-source digital infrastructure** \u2014 not just a tool, but a building block for developer autonomy and AI democratisation.\n2. **Highlight local-first & privacy-first** angles \u2014 EU regulators love alternatives to Big Tech AI tools.\n3. **Emphasize EU digital sovereignty** \u2014 codx-junior enables teams to run AI-assisted development with **local LLMs**, avoiding dependency on closed APIs.\n4. **Build a track record** \u2014 Add a `FUNDING.yml` to the GitHub repo and apply to GitHub Sponsors / Open Collective to show existing community support.\n5. **Join NLnet Office Hours** \u2014 Free expert guidance before submitting any application.",
+      "think": "\n```\nDuckDuckGo WEB Search Results for 'EU funding programs for open source AI developer tools 2024 2025':\n\n[1] GenAI4EU: Funding opportunities to boost Generative AI \u201cmade ...\n    URL: https://digital-strategy.ec.europa.eu/en/policies/genai4eu\n    Aug 21, 2026 \u00b7 Researchers, innovators, industrial companies and others applying to these EU funding opportunities will become part of GenAI4EU. It is...\n\n[2] EU funding for AI projects: from research to usage\n    URL: https://hadea.ec.europa.eu/eu-funding-ai-projects-research-usage_en\n    Web Summit 2024 took place in Lisbon from 11 to 14 November 2024. On 13 November, HaDEA organised a workshop on \"EU funding for AI projects: from rese...\n\n[3] EU Funding & Tenders Portal\n    URL: https://ec.europa.eu/info/funding-tenders/opportunities/portal/\n    Sep 22, 2026 \u00b7 The Funding and Tenders Portal is the single entry point (the Single Electronic Data Interchange Area) for applicants, contractors and ...\n\n[4] Funding Opportunities for Open Source Software Projects in ...\n    URL: https://interoperable-europe.ec.europa.eu/collection/open-source-observatory-osor/funding-opportunities-open-source-software-projects-public-sector\n    Funding Opportunities for Open Source Software Projects in the Public Sector Securing sustainable funding is one of the key challenges for open source...\n\n[5] AI Grants - EU Grants Funding Portal\n    URL: https://eufundingportal.eu/tag/ai-grants/\n    Looking for AI grants? Explore AI grants / artificial intelligence grants and funding opportunities for your AI projects on the EU grants portal....\n```\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-02 07:25:54.909619",
+      "updated_at": "2026-10-02T07:28:05.016948",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1790925954.9095237,
+        "cancellation_token_id": "75881e60-bd8b-43d8-b31f-4cb649fcdeac",
+        "model": "coding-claude",
+        "analytics": {
+          "prompt_tokens": 77512,
+          "completion_tokens": 4223,
+          "total_tokens": 81735,
+          "tools": {
+            "fetch_webpage": {
+              "count": 9,
+              "errors": 1,
+              "total_ms": 13197.807313874364
+            },
+            "web_search": {
+              "count": 17,
+              "errors": 0,
+              "total_ms": 29811.502078548074
+            },
+            "project_search": {
+              "count": 1,
+              "errors": 0,
+              "total_ms": 3453.798537142575
+            },
+            "project_read_file": {
+              "count": 1,
+              "errors": 0,
+              "total_ms": 75.05618687719107
+            }
+          }
+        },
+        "time_taken": 130.10739278793335,
+        "first_chunk_time_taken": 0.3207204341888428
+      },
+      "tool_events": [
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01MJCSMnNwpGdEADrUrTv6wD",
+          "status": "error",
+          "request": {
+            "url": "https://github.com/gbrian/codx-junior",
+            "include_images": false
+          },
+          "response": null,
+          "duration_ms": 10279.433108866215,
+          "error": "Failed to fetch webpage: HTTPSConnectionPool(host='github.com', port=443): Read timed out. (read timeout=10)"
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01CkhwjNYzjcpaJ8Swhh7vyX",
+          "status": "done",
+          "request": {
+            "query": "EU funding programs for open source AI developer tools 2024 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU funding programs for open source AI developer tools 2024 2025': Found 5 results.",
+          "duration_ms": 2360.4156067594886,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01NAaqiRxe8MbeDvNpoagxJu",
+          "status": "done",
+          "request": {
+            "query": "European Union grants startups AI coding tools open source"
+          },
+          "response": "DuckDuckGo WEB Search for 'European Union grants startups AI coding tools open source': Found 5 results.",
+          "duration_ms": 1745.9640493616462,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01LeYRfHj8vcxScNeU68mv1F",
+          "status": "done",
+          "request": {
+            "query": "Horizon Europe AI open source developer tools funding 2024 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'Horizon Europe AI open source developer tools funding 2024 2025': Found 5 results.",
+          "duration_ms": 2338.5134264826775,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01U7jD4URMUKqsqLvRKhb9d8",
+          "status": "done",
+          "request": {
+            "query": "EU NGI program open source funding 2024 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU NGI program open source funding 2024 2025': Found 5 results.",
+          "duration_ms": 2204.529670998454,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01RBWm6b9jgGe8QCDwCUkWVb",
+          "status": "done",
+          "request": {
+            "query": "European Innovation Council EIC AI startup funding program 2025"
+          },
+          "response": "DuckDuckGo Search Error: No results found.",
+          "duration_ms": 2275.2654887735844,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "toolu_01HLpDMGjd4XJ5hS5zXw2tge",
+          "status": "done",
+          "request": {
+            "search": "codx-junior description features AI"
+          },
+          "response": "> codx-junior results for: 'codx-junior description features AI'\n```sh build-docker.sh\n/home/codx-junior-projects/codx-junior/build-docker.sh\necho \"Build codx-junior:latest\"\nCWD=$PWD\ncd codx-junior-installer/codx-junior\n\ndocker-compose build codx-junior-debian-image \ndocker-compose build codx-junior-api-image codx-junior-image\n\ncd $CWD\nThe document provides a shell script used to build Docker images for the codx-junior software. Initially, it echoes a message indicating the start of building codx-junior with the 'latest' tag. It then stores the current working directory in a variable for later use. The script navigates to the codx-junior subdirectory within the installer directory. Using docker-compose, it builds the 'codx-junior-debian-image' and two other images: 'codx-junior-api-image' and 'codx-junior-image'. After building the images, it returns to the original working directory. This process ensures the proper build management of the codx-junior project using containerization.\n```",
+          "duration_ms": 3453.798537142575,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01Lxi5fPdPcjeY9Q9Yszva35",
+          "status": "done",
+          "request": {
+            "query": "site:eic.ec.europa.eu AI developer tools funding call 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'site:eic.ec.europa.eu AI developer tools funding call 2025': Found 5 results.",
+          "duration_ms": 1716.497720219195,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_014wrdGP1eaQHy8ogo8cec7J",
+          "status": "done",
+          "request": {
+            "query": "NGI Search NGI Zero EU open source AI funding application 2024 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'NGI Search NGI Zero EU open source AI funding application 2024 2025': Found 5 results.",
+          "duration_ms": 1527.7131795883179,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_018pDDHcEjGLrrqHiiY45A7A",
+          "status": "done",
+          "request": {
+            "query": "EU Digital Europe programme AI tools SME funding 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU Digital Europe programme AI tools SME funding 2025': Found 5 results.",
+          "duration_ms": 1655.2465008571744,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "toolu_01476pXcEWiwPFnfygaRRrQc",
+          "status": "done",
+          "request": {
+            "file_path": "README.md"
+          },
+          "response": "```md README.md\n<img width=\"100%\" src=\"assets/images/NOV2025/codx-junior-banner.png\" style=\"margin-bottom:10px;border-radius:20px\" />\n\n![Help wanted!](https://img.shields.io/badge/Help%20wanted!-8A2BE2)\n![AI](https://img.shields.io/badge/AI-always-blue)\n![API](https://img.shields.io/badge/API-python-blue)\n![Frontend](https://img.shields.io/badge/Frontend-vuejs-green)\n![Container](https://img.shields.io/badge/Container-docker-blue)\n\n\n# This is codx-junior...\nYour trusty sidekick in the vast world of open-source projects. Maintaining these projects is a labor of love, filled with endless tasks and challenges. But that's where I come in\u2014ready to lend a hand and lighten the load!\n\n## Let me introduce myself\n\nThink of me as your go-to collaborator for project management. I'm designed to guide you through every step of your journey. No task is too complex\u2014I'm here to simplify your workflow, enhance testing, and ensure everything is perfectly documented.\n\n### Key Features\n\n- **AI-Powered Assistance**: I automate and streamline tasks with the power of AI, making modern software development a breeze.\n- **Project Management**: I keep tasks in sync with your codebase, ensuring consistency and organization.\n- **Code Generation and Review**: I automate repetitive tasks and promote a structured code review process.\n- **Deployment and Operations**: With Docker support, I simplify deployment and automate related tasks.\n- **Collaboration and Communication**: Use mentions to collaborate effectively, and let me manage user profiles to tailor code to your preferences.\n- **Knowledge Sharing**: I leverage advanced RAG indexing for improved responses and knowledge dissemination.\n- **Development Tools**: I offer a suite of tools to aid in writing, testing, and debugging code.\n- **Settings Customization**: Tailor me to fit your project needs.\n\n### How I Learn\n\nI learn from the projects I work on, adapting to the unique styles and preferences of each repo owner. By analyzing profiles, I produce code that aligns with your vision and standards. Plus, I can learn and utilize multiple LLM models to enhance my capabilities and provide the best support possible.\n\n## How to Run Me\n\nRunning me, codx-junior, with Docker is straightforward:\n\n```bash\n# Run docker-compose with public image\ndocker-compose -f ./docker-compose-public.yaml up -d\n```\n\n> Check out `docker-compose-public.yaml` for custom settings.\n\n### Accessing Me\nOnce running, access me by navigating to `http://localhost:19981` (or any other port specified in your `.env` file).\n\n## Join the codx-junior <span style=\"color:#810582\">Revolution</span>!\n\nAre you ready to elevate your open-source project management? Streamline tasks, enhance collaboration, and automate your workflow with ease. Whether you're a newbie or a seasoned pro, I'm here to simplify your software journey. Dive into a seamless development experience today and discover how efficient coding can be. Try me now and join our growing community!\n\n## Find Me on ProductHunt\n\nDiscover codx-junior, your AI-powered project management sidekick for open-source development. Streamline your workflow, enhance collaboration, and automate tasks with ease. Ideal for developers seeking efficient code management and seamless deployment. Join our community and experience a new era of software development.\n\n```\nNote from the author\n\nI've developed codx-junior in the hope that someday it will totally free us from the tedious so we can focus on creativity.\n\n\n> You'll never code alone!\n```\n\n### Wait... heare you jave some nince pics\n\n<img src=\"assets/images/NOV2025/codx-junior-desktop.png\" />\n<img src=\"assets/images/NOV2025/codx-junior-kanban.png\" />\n<img src=\"assets/images/NOV2025/codx-junior-profiles.png\" />\n<img src=\"assets/images/NOV2025/codx-junior-pull-request.png\" />\n<img src=\"assets/images/NOV2025/codx-junior-rag-knowledge.png\" />\n<img src=\"assets/images/NOV2025/codx-junior-task-manager.png\" />\n```",
+          "duration_ms": 75.05618687719107,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_017vibfZCa1sCxnuSnv79m1M",
+          "status": "done",
+          "request": {
+            "url": "https://eic.ec.europa.eu/eic-funding-opportunities_en",
+            "include_images": false,
+            "max_length": 3000
+          },
+          "response": "[Skip to main content](https://eic.ec.europa.eu/eic-funding-opportunities_en#main-content)\n\n[ ](https://eic.ec.europa.eu/index_en)\n\n[]()\n\nSearch\n\nSearch\n\nEuropean Innovation Council\n\nMenuClose\n\nMenu\n\nBackPrevious itemsNext items\n\n  * [Home](https://eic.ec.europa.eu/index_en)\n  * [Get funding and support](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n    * [EIC Pathfinder](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en)\n    * [EIC Transition](https://eic.ec.europa.eu/eic-funding-opportunities/eic-transition_en)\n    * [EIC Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en)\n    * [STEP Scale Up](https://eic.ec.europa.eu/eic-funding-opportunities/step-scale_en)\n    * [EIC STEP Scale Up Defence](https://eic.ec.europa.eu/eic-funding-opportunities/eic-step-scale-defence_en)\n    * [EIC Pre-Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pre-accelerator_en)\n    * [Advanced Innovation Challenges- Pilot](https://eic.ec.europa.eu/eic-funding-opportunities/advanced-innovation-challenges-pilot_en)\n    * [ EIC Business Acceleration Services](https://eic.ec.europa.eu/eic-funding-opportunities/bas_en)\n    * [See all](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n  * [EIC Fund](https://eic.ec.europa.eu/eic-fund_en)\n\n    * [About the EIC Fund](https://eic.ec.europa.eu/eic-fund/about-eic-fund_en)\n    * [Investment opportunities](https://eic.ec.europa.eu/eic-fund/investment-opportunities_en)\n    * [EIC Fund invested companies](https://eic.ec.europa.eu/eic-fund/eic-fund-invested-companies_en)\n    * [EIC Fund Investment Guidelines & Approach](https://eic.ec.europa.eu/eic-fund/eic-fund-investment-guidelines-approach_en)\n    * [Trusted Investor Network](https://eic.ec.europa.eu/eic-fund/trusted-investor-network_en)\n    * [EIC Fund Board](https://eic.ec.europa.eu/eic-fund/eic-fund-board_en)\n    * [Advisory Committee Members](https://eic.ec.europa.eu/eic-fund/advisory-committee-members_en)\n    * [Company Board Representatives](https://eic.ec.europa.eu/eic-fund/company-board-representatives_en)\n    * [Scaleup Europe Fund](https://eic.ec.europa.eu/eic-fund/scaleup-europe-fund_en)\n    * [See all](https://eic.ec.europa.eu/eic-fund_en)\n\n  * [EIC Prizes](https://eic.ec.europa.eu/eic-prizes_en)\n\n    * [European Prize for Women Innovators powered by EIC & EIT ](https://eic.ec.europa.eu/eic-prizes/european-prize-women-innovators-powered-eic-eit_en)\n    * [The European Capital of Innovation Awards](https://eic.ec.europa.eu/eic-prizes/european-capital-innovation-awards_en)\n    * [Previous EIC Prizes](https://eic.ec.europa.eu/eic-prizes/previous-eic-prizes_en)\n    * [See all](https://eic.ec.europa.eu/eic-prizes_en)\n\n  * [Impact](https://eic.ec.europa.eu/impact_en)\n\n    * [EIC Impacts Stories](https://eic.ec.europa.eu/impact/eic-impacts-stories_en)\n    * [EIC Data Hub](https://eic.ec.europa.eu/impact/eic-data-hub_en)\n    * [EIC portfolios](https://eic.ec.europa.eu/impact/eic-portfolios_en)\n  \n...(truncated)",
+          "duration_ms": 401.42780914902687,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01DnyjT2jqt5PJjq4ewGtaFQ",
+          "status": "done",
+          "request": {
+            "url": "https://nlnet.nl/NGI0/",
+            "include_images": false,
+            "max_length": 3000
+          },
+          "response": "[To main content](https://nlnet.nl/NGI0/#main)\n\n**[Submit your proposals. Next deadline November 3, 2026](https://nlnet.nl/news/2026/20260903-call.html)**\n\n[](https://nlnet.nl/)\n\nMenu\n\n  * [Funding](https://nlnet.nl/NGI0/)\n    * [Apply for funding](https://nlnet.nl/funding.html)\n    * [Theme funds](https://nlnet.nl/themes/)\n    * [NGI Zero](https://nlnet.nl/NGI0/)\n    * [Support services](https://nlnet.nl/NGI0/services/)\n  * [Projects](https://nlnet.nl/NGI0/)\n    * [All projects](https://nlnet.nl/project/index.html)\n    * [Currently running](https://nlnet.nl/project/current.html)\n    * [Topic index](https://nlnet.nl/thema/)\n    * [Stories](https://nlnet.nl/stories/)\n  * [News & events](https://nlnet.nl/NGI0/)\n    * [News](https://nlnet.nl/news/)\n    * [Events](https://nlnet.nl/events/)\n    * [Webinars](https://nlnet.nl/webinars/)\n    * [Office Hour](https://nlnet.nl/officehour/)\n    * [Podcast](https://podcast.nlnet.nl/@NGIZero)\n    * [NGI Zero Tour Schedule](https://nlnet.nl/tour-schedule/)\n    * [Speaker Bureau](https://nlnet.nl/speakerbureau/)\n  * [Resources](https://nlnet.nl/NGI0/)\n    * [Best practices](https://nlnet.nl/NGI0/bestpractices/)\n    * [Presentations](https://nlnet.nl/pres/)\n    * [Hex stickers](https://nlnet.nl/hex/)\n  * [Support NLnet](https://nlnet.nl/NGI0/)\n    * [Financial contribution](https://nlnet.nl/donating/)\n    * [Join the OIN](https://nlnet.nl/help/)\n  * [About us](https://nlnet.nl/NGI0/)\n    * [Foundation](https://nlnet.nl/foundation/)\n    * [People](https://nlnet.nl/people/)\n    * [Press](https://nlnet.nl/press/)\n    * [In the media](https://nlnet.nl/foundation/media-coverage/)\n    * [Contact](https://nlnet.nl/contact/)\n\n\n\n  * [Funding](https://nlnet.nl/funding.html)\n  * [NGI0](https://nlnet.nl/NGI0/)\n\n\n\n# About NGI Zero\n\n**Paving the way to the Next Generation Internet**\n\nMore about: [Coalition partners](https://nlnet.nl/NGI0/partners/) | [Support services](https://nlnet.nl/NGI0/services/) | [Best practices](https://nlnet.nl/NGI0/bestpractices/) | [Acknowledgements](https://nlnet.nl/NGI0/#acknowledgements) | [Regional representatives](https://nlnet.nl/NGI0/regional/)\n\n[ ](https://nlnet.nl/NGI0/#attribution) Image: Daniel Thompson-Yvetot, [entire attribution](https://nlnet.nl/NGI0/#attribution).\n\nThe internet has grown very important to our societies, but there is much to be improved and in many places we need fundamentally better technologies to protect our security, our privacy and our way of life. NGI Zero is a joint not-for-profit effort by a [ coalition of organisations](https://nlnet.nl/NGI0/partners/) that supports the development of technology commons as building blocks for the [Next Generation Internet](https://NGI.eu) initiative. NGI Zero is led by NLnet foundation, a [public benefit organisation](https://nlnet.nl/foundation/ANBI.html) established by [pioneers of the European internet](https://nlnet.nl/foundation/history) to support the development of an open information society.\n\nNGI Zero supports strateg\n...(truncated)",
+          "duration_ms": 281.3652278855443,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01N4DcB7ynsuzugKuntbLzUy",
+          "status": "done",
+          "request": {
+            "query": "EU Horizon Europe work programme 2025 AI software tools open call deadline"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU Horizon Europe work programme 2025 AI software tools open call deadline': Found 5 results.",
+          "duration_ms": 1657.582577317953,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01LoJU6nJ98V8W3LjpDrBeZZ",
+          "status": "done",
+          "request": {
+            "url": "https://nlnet.nl/themes/",
+            "include_images": false,
+            "max_length": 4000
+          },
+          "response": "[To main content](https://nlnet.nl/themes/#main)\n\n**[Submit your proposals. Next deadline November 3, 2026](https://nlnet.nl/news/2026/20260903-call.html)**\n\n[](https://nlnet.nl/)\n\nMenu\n\n  * [Funding](https://nlnet.nl/themes/)\n    * [Apply for funding](https://nlnet.nl/funding.html)\n    * [Theme funds](https://nlnet.nl/themes/)\n    * [NGI Zero](https://nlnet.nl/NGI0/)\n    * [Support services](https://nlnet.nl/NGI0/services/)\n  * [Projects](https://nlnet.nl/themes/)\n    * [All projects](https://nlnet.nl/project/index.html)\n    * [Currently running](https://nlnet.nl/project/current.html)\n    * [Topic index](https://nlnet.nl/thema/)\n    * [Stories](https://nlnet.nl/stories/)\n  * [News & events](https://nlnet.nl/themes/)\n    * [News](https://nlnet.nl/news/)\n    * [Events](https://nlnet.nl/events/)\n    * [Webinars](https://nlnet.nl/webinars/)\n    * [Office Hour](https://nlnet.nl/officehour/)\n    * [Podcast](https://podcast.nlnet.nl/@NGIZero)\n    * [NGI Zero Tour Schedule](https://nlnet.nl/tour-schedule/)\n    * [Speaker Bureau](https://nlnet.nl/speakerbureau/)\n  * [Resources](https://nlnet.nl/themes/)\n    * [Best practices](https://nlnet.nl/NGI0/bestpractices/)\n    * [Presentations](https://nlnet.nl/pres/)\n    * [Hex stickers](https://nlnet.nl/hex/)\n  * [Support NLnet](https://nlnet.nl/themes/)\n    * [Financial contribution](https://nlnet.nl/donating/)\n    * [Join the OIN](https://nlnet.nl/help/)\n  * [About us](https://nlnet.nl/themes/)\n    * [Foundation](https://nlnet.nl/foundation/)\n    * [People](https://nlnet.nl/people/)\n    * [Press](https://nlnet.nl/press/)\n    * [In the media](https://nlnet.nl/foundation/media-coverage/)\n    * [Contact](https://nlnet.nl/contact/)\n\n\n\n  * [Funding](https://nlnet.nl/funding.html)\n  * [thematic funds](https://nlnet.nl/themes/)\n\n\n\n# Areas of special interest\n\nSince 1997 NLnet has been providing funding to a [large diversity of efforts](https://nlnet.nl/project) that all somehow improve the internet. These strategic efforts take place at many different layers of technology \u00e2\u0080\u0094 from better software that offers security by design to more trustworthy (open) hardware, from differential privacy to redesigning core technical protocols. NLnet believes [the internet is for end users](https://tools.ietf.org/html/rfc8890), but there are many interests and invisible hands in the market that push it in other directions \u00e2\u0080\u0094 meaning continuous effort is needed to take care the internet evolves in the right direction.\n\nIn order to cater for that wide spectrum of ideas and challenges, our preferred instrument is the _competitive open call_. ([your donation helps to fuel those open calls](https://nlnet.nl/donating)!)\n\nSometimes a more targeted approach is required. Pending availability of such funds we may put in targetted effort in areas of specific interest. Such a focus can help increase critical mass, and increase the impact of projects even further.\n\nWe also can operate [regional funds](https://nlnet.nl/themes/#RegionalFunds), donor advised funds as well as [Named Funds](https://nlnet.nl/themes/#namedFunds).\n\n## Current thematic funds\n\n[Restack](https://nlnet.nl/restack)\n    \n\n[](https://ec.europa.eu/info/departments/communications-networks-content-and-technology_en)\n\nThe goal of Restack is to build a healthy Open Internet Stack. The fund provides practical and financial support to projects contributing to an open, resilient and trustworthy digital infrastructure, paving the way to permissionless innovation and user autonomy. We support free and open source projects across the whole technology spectrum, from libre chips to middleware without a vendor lock-in, from productivity tools to 'local-first' infrastructure \u00e2\u0080\u0094 and of course the end user applications needed to operate those networked services.\n\nBetween Q3 2026 and 2030 we offer R&D grants between 5.000 to 50.000 euro with rolling open calls every two months. A scale-up programme is available for projects with proven potential. Interested? Continue readi",
+          "duration_ms": 329.1984722018242,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01CywFNoPjGDVmx3RzFtHPgh",
+          "status": "done",
+          "request": {
+            "url": "https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en",
+            "include_images": false,
+            "max_length": 3000
+          },
+          "response": "[Skip to main content](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en#main-content)\n\n[ ](https://eic.ec.europa.eu/index_en)\n\n[]()\n\nSearch\n\nSearch\n\nEuropean Innovation Council\n\nMenuClose\n\nMenu\n\nBackPrevious itemsNext items\n\n  * [Home](https://eic.ec.europa.eu/index_en)\n  * [Get funding and support](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n    * [EIC Pathfinder](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en)\n    * [EIC Transition](https://eic.ec.europa.eu/eic-funding-opportunities/eic-transition_en)\n    * [EIC Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en)\n    * [STEP Scale Up](https://eic.ec.europa.eu/eic-funding-opportunities/step-scale_en)\n    * [EIC STEP Scale Up Defence](https://eic.ec.europa.eu/eic-funding-opportunities/eic-step-scale-defence_en)\n    * [EIC Pre-Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pre-accelerator_en)\n    * [Advanced Innovation Challenges- Pilot](https://eic.ec.europa.eu/eic-funding-opportunities/advanced-innovation-challenges-pilot_en)\n    * [ EIC Business Acceleration Services](https://eic.ec.europa.eu/eic-funding-opportunities/bas_en)\n    * [See all](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n  * [EIC Fund](https://eic.ec.europa.eu/eic-fund_en)\n\n    * [About the EIC Fund](https://eic.ec.europa.eu/eic-fund/about-eic-fund_en)\n    * [Investment opportunities](https://eic.ec.europa.eu/eic-fund/investment-opportunities_en)\n    * [EIC Fund invested companies](https://eic.ec.europa.eu/eic-fund/eic-fund-invested-companies_en)\n    * [EIC Fund Investment Guidelines & Approach](https://eic.ec.europa.eu/eic-fund/eic-fund-investment-guidelines-approach_en)\n    * [Trusted Investor Network](https://eic.ec.europa.eu/eic-fund/trusted-investor-network_en)\n    * [EIC Fund Board](https://eic.ec.europa.eu/eic-fund/eic-fund-board_en)\n    * [Advisory Committee Members](https://eic.ec.europa.eu/eic-fund/advisory-committee-members_en)\n    * [Company Board Representatives](https://eic.ec.europa.eu/eic-fund/company-board-representatives_en)\n    * [Scaleup Europe Fund](https://eic.ec.europa.eu/eic-fund/scaleup-europe-fund_en)\n    * [See all](https://eic.ec.europa.eu/eic-fund_en)\n\n  * [EIC Prizes](https://eic.ec.europa.eu/eic-prizes_en)\n\n    * [European Prize for Women Innovators powered by EIC & EIT ](https://eic.ec.europa.eu/eic-prizes/european-prize-women-innovators-powered-eic-eit_en)\n    * [The European Capital of Innovation Awards](https://eic.ec.europa.eu/eic-prizes/european-capital-innovation-awards_en)\n    * [Previous EIC Prizes](https://eic.ec.europa.eu/eic-prizes/previous-eic-prizes_en)\n    * [See all](https://eic.ec.europa.eu/eic-prizes_en)\n\n  * [Impact](https://eic.ec.europa.eu/impact_en)\n\n    * [EIC Impacts Stories](https://eic.ec.europa.eu/impact/eic-impacts-stories_en)\n    * [EIC Data Hub](https://eic.ec.europa.eu/impact/eic-data-hub_en)\n    * [EIC portfolios](https://eic.ec.europa.eu/impact/eic-p\n...(truncated)",
+          "duration_ms": 527.3064356297255,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01LMUP8tWkrAsbEzgPrjXEMm",
+          "status": "done",
+          "request": {
+            "query": "EU tech startup events hackathons AI open source funding 2025 Europe"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU tech startup events hackathons AI open source funding 2025 Europe': Found 5 results.",
+          "duration_ms": 859.6587628126144,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01DHoAj3KsnKkebkGDBAXzNz",
+          "status": "done",
+          "request": {
+            "url": "https://nlnet.nl/funding.html",
+            "include_images": false,
+            "max_length": 4000
+          },
+          "response": "[To main content](https://nlnet.nl/funding.html#main)\n\n**[Submit your proposals. Next deadline November 3, 2026](https://nlnet.nl/news/2026/20260903-call.html)**\n\n[](https://nlnet.nl/)\n\nMenu\n\n  * [Funding](https://nlnet.nl/funding.html)\n    * [Apply for funding](https://nlnet.nl/funding.html)\n    * [Theme funds](https://nlnet.nl/themes/)\n    * [NGI Zero](https://nlnet.nl/NGI0/)\n    * [Support services](https://nlnet.nl/NGI0/services/)\n  * [Projects](https://nlnet.nl/funding.html)\n    * [All projects](https://nlnet.nl/project/index.html)\n    * [Currently running](https://nlnet.nl/project/current.html)\n    * [Topic index](https://nlnet.nl/thema/)\n    * [Stories](https://nlnet.nl/stories/)\n  * [News & events](https://nlnet.nl/funding.html)\n    * [News](https://nlnet.nl/news/)\n    * [Events](https://nlnet.nl/events/)\n    * [Webinars](https://nlnet.nl/webinars/)\n    * [Office Hour](https://nlnet.nl/officehour/)\n    * [Podcast](https://podcast.nlnet.nl/@NGIZero)\n    * [NGI Zero Tour Schedule](https://nlnet.nl/tour-schedule/)\n    * [Speaker Bureau](https://nlnet.nl/speakerbureau/)\n  * [Resources](https://nlnet.nl/funding.html)\n    * [Best practices](https://nlnet.nl/NGI0/bestpractices/)\n    * [Presentations](https://nlnet.nl/pres/)\n    * [Hex stickers](https://nlnet.nl/hex/)\n  * [Support NLnet](https://nlnet.nl/funding.html)\n    * [Financial contribution](https://nlnet.nl/donating/)\n    * [Join the OIN](https://nlnet.nl/help/)\n  * [About us](https://nlnet.nl/funding.html)\n    * [Foundation](https://nlnet.nl/foundation/)\n    * [People](https://nlnet.nl/people/)\n    * [Press](https://nlnet.nl/press/)\n    * [In the media](https://nlnet.nl/foundation/media-coverage/)\n    * [Contact](https://nlnet.nl/contact/)\n\n\n\n# Apply for funding\n\nWe support projects that contribute to an open, resilient, trustworthy, sustainable and human-centered internet. Are you working on open hardware, open software, open data or open standards? We financially support organisations and people who are developing open solutions that empower users on all layers of technology.\n\n#### What we offer\n\nWe provide grants between 5.000 and 50.000 euro \u00e2\u0080\u0094 with the possibility to scale them up if there is proven potential. In addition to these grants, depending on the fund in question, grantees can benefit from a variety [support services](https://nlnet.nl/NGI0/services/) such as security and accessibility audits, mentoring, testing expertise, and copyright & licensing advice. As a philanthropy, we do not pay commercial rates \u00e2\u0080\u0094 we provide a cost-recovery based mechanism, allowing people to freely work on what they believe in.\n\n#### How to apply\n\nWe have back-to-back open calls, so you can always submit a proposal. There is a deadline on the 3rd of every _odd_ month. We do our best to offer a low-threshold application mechanism. We've kept the [application form](https://nlnet.nl/propose) short so as not to waste your time.\n\n#### Eligibility\n\nIn principle anyone can apply: individuals, research organisations, non-profits, public institutions, companies of any size and type, etc. However, do read the eligiblity section of the fund you are applying for, as specific conditions may apply. All projects must be free/libre/open source: all scientific outcomes **must** be published as open access, and any software and hardware developed **must** be published under a recognised free and open source license in its entirety.\n\n[Submit a proposal](https://nlnet.nl/propose)\n\n## Active funds\n\nHere we'll give a basic overview of our currently active funds. You can find more information on each fund's main page. There you'll find the Guide for Applicants, FAQs and eligibility criteria. We advise you to have a thorough look. It gives you an idea of the type of projects we are looking for and which conditions apply. If you are unsure which fund best fits your project, submit to our open call.\n\n* * *\n\n[](https://nlnet.nl/restack/)\n\n#### Restack\n\n##### Building a healthy open internet stack\n\nThe",
+          "duration_ms": 255.54922595620155,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_019hN9SjWr6PTpPeFqCd81rw",
+          "status": "done",
+          "request": {
+            "query": "Open Future Foundation EU open source AI tools funding grants 2025"
+          },
+          "response": "DuckDuckGo WEB Search for 'Open Future Foundation EU open source AI tools funding grants 2025': Found 5 results.",
+          "duration_ms": 2061.2770691514015,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01AvdvXARHY1a4w8GHwFdKaJ",
+          "status": "done",
+          "request": {
+            "query": "\"Horizon Europe\" \"cluster 4\" AI software digital tools SME open call 2025 deadline"
+          },
+          "response": "DuckDuckGo WEB Search for '\"Horizon Europe\" \"cluster 4\" AI software digital tools SME open call 2025 deadline': Found 5 results.",
+          "duration_ms": 1662.9148414358497,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01BfpVb85bGX2GeTwTjwZbVw",
+          "status": "done",
+          "request": {
+            "url": "https://nlnet.nl/restack/",
+            "include_images": false,
+            "max_length": 4000
+          },
+          "response": "[To main content](https://nlnet.nl/restack/#main)\n\n**[Submit your proposals. Next deadline November 3, 2026](https://nlnet.nl/news/2026/20260903-call.html)**\n\n[](https://nlnet.nl/)\n\nMenu\n\n  * [Funding](https://nlnet.nl/restack/)\n    * [Apply for funding](https://nlnet.nl/funding.html)\n    * [Theme funds](https://nlnet.nl/themes/)\n    * [NGI Zero](https://nlnet.nl/NGI0/)\n    * [Support services](https://nlnet.nl/NGI0/services/)\n  * [Projects](https://nlnet.nl/restack/)\n    * [All projects](https://nlnet.nl/project/index.html)\n    * [Currently running](https://nlnet.nl/project/current.html)\n    * [Topic index](https://nlnet.nl/thema/)\n    * [Stories](https://nlnet.nl/stories/)\n  * [News & events](https://nlnet.nl/restack/)\n    * [News](https://nlnet.nl/news/)\n    * [Events](https://nlnet.nl/events/)\n    * [Webinars](https://nlnet.nl/webinars/)\n    * [Office Hour](https://nlnet.nl/officehour/)\n    * [Podcast](https://podcast.nlnet.nl/@NGIZero)\n    * [NGI Zero Tour Schedule](https://nlnet.nl/tour-schedule/)\n    * [Speaker Bureau](https://nlnet.nl/speakerbureau/)\n  * [Resources](https://nlnet.nl/restack/)\n    * [Best practices](https://nlnet.nl/NGI0/bestpractices/)\n    * [Presentations](https://nlnet.nl/pres/)\n    * [Hex stickers](https://nlnet.nl/hex/)\n  * [Support NLnet](https://nlnet.nl/restack/)\n    * [Financial contribution](https://nlnet.nl/donating/)\n    * [Join the OIN](https://nlnet.nl/help/)\n  * [About us](https://nlnet.nl/restack/)\n    * [Foundation](https://nlnet.nl/foundation/)\n    * [People](https://nlnet.nl/people/)\n    * [Press](https://nlnet.nl/press/)\n    * [In the media](https://nlnet.nl/foundation/media-coverage/)\n    * [Contact](https://nlnet.nl/contact/)\n\n\n\n  * [Funding](https://nlnet.nl/funding.html)\n  * [Restack](https://nlnet.nl/restack/)\n\n\n\n# Restack\n\n## Building a healthy open internet stack\n\nMore about: [Guide for Applicants](https://nlnet.nl/restack/guideforapplicants) | [Who is behind this?](https://nlnet.nl/restack/background/#organisation) | [Eligibility](https://nlnet.nl/restack/eligibility/) | [FAQ](https://nlnet.nl/restack/faq/)\n\nThe first call of Restack opened up on **September 3 rd 2026, with a deadline of **November 3 rd 2026** 12:00 CET** (noon). Check out the [guide for applicants](https://nlnet.nl/restack/guideforapplicants), the [eligibility](https://nlnet.nl/restack/eligibility) clauses, and the [frequently asked questions](https://nlnet.nl/restack/faq/).\n\n[Submit a proposal](https://nlnet.nl/propose)\n\n* * *\n\nIt is clear that the _commons_ model works, and continues to gain ground. Free and open source **software** and **hardware** , open **standards** , open **data** , open **science** , and open **core internet infrastructure** are democratising innovation and learning, and are together driving society and industry forward at an unprecedented pace. But it is also obvious that a limited set of actors has hijacked mainstream technology, and their domination is no longer serving users. The answer to this failing market lies in **collective action** and **public investment**.\n\nThis is where **Restack** comes into play. The goal of this fund is to help deliver, mature and scale **operational internet commons** across the technology stack to form connected collaborative computing networks: from libre chips to middleware without a vendor lock-in, from productivity tools to 'local-first' infrastructure \u00e2\u0080\u0094 and of course including the end user applications needed to consume those networked services. We **_re_ stack** because there is no other viable way. If we want to reclaim digital autonomy and self-sustainability, and yield the full benefits from technology as a society, we need to have an entire stack that is open from the ground up \u00e2\u0080\u0094 period.\n\nOnly through enough critical mass of **shared building blocks** and **collective pooling** of resources and capabilities will our governments, businesses and civil society be able to count on digital security and long term operational availability \u00e2\u0080",
+          "duration_ms": 416.55311081558466,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_016RSyMzDQZnc7Xwjvazfiwb",
+          "status": "done",
+          "request": {
+            "query": "EIC Accelerator AI software 2025 open call deadline grant amount"
+          },
+          "response": "DuckDuckGo WEB Search for 'EIC Accelerator AI software 2025 open call deadline grant amount': Found 5 results.",
+          "duration_ms": 1188.8335598632693,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01LA4V2B9F84ncaznVXYE2D3",
+          "status": "done",
+          "request": {
+            "query": "EU startup events 2025 AI developer tools pitch competition Europe funding"
+          },
+          "response": "DuckDuckGo WEB Search for 'EU startup events 2025 AI developer tools pitch competition Europe funding': Found 5 results.",
+          "duration_ms": 1376.7215181142092,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01WJsScvk3dfznuMC1NtJ66e",
+          "status": "done",
+          "request": {
+            "query": "FOSDEM 2025 2026 open source AI developer tools event Europe"
+          },
+          "response": "DuckDuckGo WEB Search for 'FOSDEM 2025 2026 open source AI developer tools event Europe': Found 5 results.",
+          "duration_ms": 939.3703807145357,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01378Rpigz3Xa4tUFxsQFETH",
+          "status": "done",
+          "request": {
+            "query": "Web Summit Slush VivaTech 2025 AI startup pitch competition Europe"
+          },
+          "response": "DuckDuckGo WEB Search for 'Web Summit Slush VivaTech 2025 AI startup pitch competition Europe': Found 5 results.",
+          "duration_ms": 1675.9644616395235,
+          "error": null
+        },
+        {
+          "tool": "web_search",
+          "tool_call_id": "toolu_01PsTxPX9TcoJnTJBUrBpEfX",
+          "status": "done",
+          "request": {
+            "query": "EIT Digital EIT InnoEnergy AI software startup acceleration program 2025"
+          },
+          "response": "DuckDuckGo Search Error: No results found.",
+          "duration_ms": 2565.0332644581795,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01USHBrDeE6dLC97NjFkYePW",
+          "status": "done",
+          "request": {
+            "url": "https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en",
+            "include_images": false,
+            "max_length": 5000
+          },
+          "response": "[Skip to main content](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en#main-content)\n\n[ ](https://eic.ec.europa.eu/index_en)\n\n[]()\n\nSearch\n\nSearch\n\nEuropean Innovation Council\n\nMenuClose\n\nMenu\n\nBackPrevious itemsNext items\n\n  * [Home](https://eic.ec.europa.eu/index_en)\n  * [Get funding and support](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n    * [EIC Pathfinder](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en)\n    * [EIC Transition](https://eic.ec.europa.eu/eic-funding-opportunities/eic-transition_en)\n    * [EIC Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en)\n    * [STEP Scale Up](https://eic.ec.europa.eu/eic-funding-opportunities/step-scale_en)\n    * [EIC STEP Scale Up Defence](https://eic.ec.europa.eu/eic-funding-opportunities/eic-step-scale-defence_en)\n    * [EIC Pre-Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pre-accelerator_en)\n    * [Advanced Innovation Challenges- Pilot](https://eic.ec.europa.eu/eic-funding-opportunities/advanced-innovation-challenges-pilot_en)\n    * [ EIC Business Acceleration Services](https://eic.ec.europa.eu/eic-funding-opportunities/bas_en)\n    * [See all](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n  * [EIC Fund](https://eic.ec.europa.eu/eic-fund_en)\n\n    * [About the EIC Fund](https://eic.ec.europa.eu/eic-fund/about-eic-fund_en)\n    * [Investment opportunities](https://eic.ec.europa.eu/eic-fund/investment-opportunities_en)\n    * [EIC Fund invested companies](https://eic.ec.europa.eu/eic-fund/eic-fund-invested-companies_en)\n    * [EIC Fund Investment Guidelines & Approach](https://eic.ec.europa.eu/eic-fund/eic-fund-investment-guidelines-approach_en)\n    * [Trusted Investor Network](https://eic.ec.europa.eu/eic-fund/trusted-investor-network_en)\n    * [EIC Fund Board](https://eic.ec.europa.eu/eic-fund/eic-fund-board_en)\n    * [Advisory Committee Members](https://eic.ec.europa.eu/eic-fund/advisory-committee-members_en)\n    * [Company Board Representatives](https://eic.ec.europa.eu/eic-fund/company-board-representatives_en)\n    * [Scaleup Europe Fund](https://eic.ec.europa.eu/eic-fund/scaleup-europe-fund_en)\n    * [See all](https://eic.ec.europa.eu/eic-fund_en)\n\n  * [EIC Prizes](https://eic.ec.europa.eu/eic-prizes_en)\n\n    * [European Prize for Women Innovators powered by EIC & EIT ](https://eic.ec.europa.eu/eic-prizes/european-prize-women-innovators-powered-eic-eit_en)\n    * [The European Capital of Innovation Awards](https://eic.ec.europa.eu/eic-prizes/european-capital-innovation-awards_en)\n    * [Previous EIC Prizes](https://eic.ec.europa.eu/eic-prizes/previous-eic-prizes_en)\n    * [See all](https://eic.ec.europa.eu/eic-prizes_en)\n\n  * [Impact](https://eic.ec.europa.eu/impact_en)\n\n    * [EIC Impacts Stories](https://eic.ec.europa.eu/impact/eic-impacts-stories_en)\n    * [EIC Data Hub](https://eic.ec.europa.eu/impact/eic-data-hub_en)\n    * [EIC portfolios](https://eic.ec.europa.eu/impact/eic-portfolios_en)\n    * [EIC Programme Managers](https://eic.ec.europa.eu/impact/eic-programme-managers_en)\n    * [EIC Ambassadors ](https://eic.ec.europa.eu/impact/eic-ambassadors_en)\n    * [See all](https://eic.ec.europa.eu/impact_en)\n\n  * [EIC Board](https://eic.ec.europa.eu/eic-board_en)\n  * [EIC Summit 2026](https://eic.ec.europa.eu/eic-summit-2026_en)\n  * [Events](https://eic.ec.europa.eu/events_en)\n  * [News](https://eic.ec.europa.eu/news_en)\n\n\n\n  1. [Home](https://eic.ec.europa.eu/index_en)\n  2. [Get funding and support](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n  3. EIC Accelerator\n\n\n\n# EIC Accelerator\n\nWhat for Develop and scaleup innovations\n\nDevelop and scaleup innovations with the potential to create or disrupt markets (TRL 6-8). Patient capital principle.\n\nWho can apply Startups and SMEs\n\nSingle start-ups and SMEs, individuals intending to launch a SME and small mid-caps (can apply for equity only).\n\nWhat you get Grants and investments\n\nGrant component below EUR ",
+          "duration_ms": 398.27139023691416,
+          "error": null
+        },
+        {
+          "tool": "fetch_webpage",
+          "tool_call_id": "toolu_01DPz2qG3oz2cuh84moY33KZ",
+          "status": "done",
+          "request": {
+            "url": "https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en",
+            "include_images": false,
+            "max_length": 3000
+          },
+          "response": "[Skip to main content](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en#main-content)\n\n[ ](https://eic.ec.europa.eu/index_en)\n\n[]()\n\nSearch\n\nSearch\n\nEuropean Innovation Council\n\nMenuClose\n\nMenu\n\nBackPrevious itemsNext items\n\n  * [Home](https://eic.ec.europa.eu/index_en)\n  * [Get funding and support](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n    * [EIC Pathfinder](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pathfinder_en)\n    * [EIC Transition](https://eic.ec.europa.eu/eic-funding-opportunities/eic-transition_en)\n    * [EIC Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en)\n    * [STEP Scale Up](https://eic.ec.europa.eu/eic-funding-opportunities/step-scale_en)\n    * [EIC STEP Scale Up Defence](https://eic.ec.europa.eu/eic-funding-opportunities/eic-step-scale-defence_en)\n    * [EIC Pre-Accelerator](https://eic.ec.europa.eu/eic-funding-opportunities/eic-pre-accelerator_en)\n    * [Advanced Innovation Challenges- Pilot](https://eic.ec.europa.eu/eic-funding-opportunities/advanced-innovation-challenges-pilot_en)\n    * [ EIC Business Acceleration Services](https://eic.ec.europa.eu/eic-funding-opportunities/bas_en)\n    * [See all](https://eic.ec.europa.eu/eic-funding-opportunities_en)\n\n  * [EIC Fund](https://eic.ec.europa.eu/eic-fund_en)\n\n    * [About the EIC Fund](https://eic.ec.europa.eu/eic-fund/about-eic-fund_en)\n    * [Investment opportunities](https://eic.ec.europa.eu/eic-fund/investment-opportunities_en)\n    * [EIC Fund invested companies](https://eic.ec.europa.eu/eic-fund/eic-fund-invested-companies_en)\n    * [EIC Fund Investment Guidelines & Approach](https://eic.ec.europa.eu/eic-fund/eic-fund-investment-guidelines-approach_en)\n    * [Trusted Investor Network](https://eic.ec.europa.eu/eic-fund/trusted-investor-network_en)\n    * [EIC Fund Board](https://eic.ec.europa.eu/eic-fund/eic-fund-board_en)\n    * [Advisory Committee Members](https://eic.ec.europa.eu/eic-fund/advisory-committee-members_en)\n    * [Company Board Representatives](https://eic.ec.europa.eu/eic-fund/company-board-representatives_en)\n    * [Scaleup Europe Fund](https://eic.ec.europa.eu/eic-fund/scaleup-europe-fund_en)\n    * [See all](https://eic.ec.europa.eu/eic-fund_en)\n\n  * [EIC Prizes](https://eic.ec.europa.eu/eic-prizes_en)\n\n    * [European Prize for Women Innovators powered by EIC & EIT ](https://eic.ec.europa.eu/eic-prizes/european-prize-women-innovators-powered-eic-eit_en)\n    * [The European Capital of Innovation Awards](https://eic.ec.europa.eu/eic-prizes/european-capital-innovation-awards_en)\n    * [Previous EIC Prizes](https://eic.ec.europa.eu/eic-prizes/previous-eic-prizes_en)\n    * [See all](https://eic.ec.europa.eu/eic-prizes_en)\n\n  * [Impact](https://eic.ec.europa.eu/impact_en)\n\n    * [EIC Impacts Stories](https://eic.ec.europa.eu/impact/eic-impacts-stories_en)\n    * [EIC Data Hub](https://eic.ec.europa.eu/impact/eic-data-hub_en)\n    * [EIC portfolios](https://eic.ec.europa.eu/impact/eic-po\n...(truncated)",
+          "duration_ms": 308.70253313332796,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "4595dfbeb000",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "profiles": [
+        "biblio",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-02 07:24:32.017170",
+  "updated_at": "2026-10-02T07:28:12.291241",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Findings",
+  "column": "Plan",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Findings/Plan/fundings.33b8e6cc-4290-4ac8-97be-a0ac617a422f.json",
+  "llm_model": "coding-claude",
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-02T07:28:12.288551+00:00",
+      "summary": "# Summary\n\n**codx-junior** (https://github.com/gbrian/codx-junior) is an open-source, AI-powered developer assistant and project management tool built with Python, Vue.js, and Docker, supporting local LLMs, RAG-based knowledge indexing, and code generation.\n\nThe goal is to **secure EU funding** to sustain and grow the project, leveraging its open-source nature, AI capabilities, and alignment with EU digital sovereignty goals.\n\nThe **top funding opportunities** identified are: **NLnet NGI Zero/Restack** (rolling grants, \u20ac5K\u2013\u20ac50K, best fit for open-source), **EIC Accelerator** (up to \u20ac2.5M grant + \u20ac10M equity), and **Digital Europe Programme** (AI adoption & digital transformation focus).\n\nKey **events to target** include **FOSDEM** (Brussels, open-source showcase), **Web Summit** (Lisbon, investor pitching), and **Slush** (Helsinki, startup competition with up to \u20ac1M prize).\n\nThe recommended strategy is to **apply to NLnet immediately** (rolling deadlines), **build a consortium** for Horizon Europe/EIC Pathfinder, and **gain visibility** through open-source events while framing codx-junior as a privacy-first, EU digital sovereignty enabler.",
+      "message_ids": [
+        "2d4d8af5-5de1-40a2-b1c5-11afab2c7e1d",
+        "3a9c1000-a8b1-43dc-8be5-b382097f7a2a"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

@@ -4,11 +4,13 @@
   "project_id": null,
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
   "status": "",
+  "tags": [],
   "file_list": [],
   "check_lists": [],
   "profiles": [],
@@ -17,6 +19,7 @@
   ],
   "name": "word replace",
   "pinned": false,
+  "is_template": false,
   "description": "The `replaceEmoji` function is designed to replace a word in the text with an emoji within a text editor. It logs the emoji, extracts necessary cursor information, slices the text before and after the word, and then reassembles the text with the emoji in place of the word using `setEditorText`. The cursor position is updated to follow the emoji insertion. The importance of using absolute file paths and ensuring integration with related components like `this.editor?.innerText` and `cursorWord` settings is emphasized.",
   "messages": [
     {
@@ -30,13 +33,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 4.124920845031738,
         "first_chunk_time_taken": 0.00019121170043945312,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -44,7 +49,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "d7a2c5d2-178f-4406-bb4c-017a64fc2dad",
@@ -57,13 +63,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 4.124920845031738,
         "first_chunk_time_taken": 0.00019121170043945312,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -71,7 +79,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "cf864483-0f11-468a-b9cd-a172f5d70d0b",
@@ -84,13 +93,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 3.162648916244507,
         "first_chunk_time_taken": 0.0001811981201171875,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -98,7 +109,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "3864229e-99d7-437b-b78b-ababb1ea9378",
@@ -111,13 +123,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 3.162648916244507,
         "first_chunk_time_taken": 0.0001811981201171875,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -125,7 +139,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "544d9372-90e5-4fe0-a91c-29457cf55f13",
@@ -138,13 +153,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 2.7132322788238525,
         "first_chunk_time_taken": 0.00022459030151367188,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": "admin",
       "knowledge_topics": [],
@@ -152,7 +169,8 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     },
     {
       "doc_id": "0a80dbd8-273c-4dda-80fb-f83206079b11",
@@ -165,13 +183,15 @@
       "improvement": false,
       "created_at": "2026-03-14 10:31:32.491136",
       "updated_at": "2026-03-14 10:31:32.491175",
-      "images": [],
+      "attachments": [],
       "files": [],
       "meta_data": {
         "time_taken": 2.7132322788238525,
         "first_chunk_time_taken": 0.00022459030151367188,
         "model": "gpt-4o"
       },
+      "tool_events": [],
+      "lifecycle_events": [],
       "profiles": [],
       "user": null,
       "knowledge_topics": [],
@@ -179,11 +199,12 @@
       "is_thinking": false,
       "disable_knowledge": false,
       "read_by": [],
-      "error": null
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-03-14 10:31:32.494176",
-  "updated_at": "2026-05-17T08:54:29.206595",
+  "updated_at": "2026-09-30T16:50:39.427447",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -197,7 +218,13 @@
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
+  "attachments": [],
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
 }

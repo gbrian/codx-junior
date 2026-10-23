@@ -1,22 +1,47 @@
-@import "tailwindcss";
+/*
+ * Tailwind is imported WITHOUT its Preflight (base) reset on purpose.
+ *
+ * Preflight resets global elements (`html`, `img`, `button`, lists, `*` borders
+ * and margins, headings, ...), which clashes with the VitePress default theme
+ * and breaks the navbar and page layout.
+ *
+ * We only import the design tokens (theme) and the utility classes used by the
+ * docs, so VitePress keeps full control of the navbar, sidebar and content.
+ *
+ * See: https://tailwindcss.com/docs/preflight#disabling-preflight
+ *
+ * NOTE: daisyUI is intentionally NOT loaded.
+ *
+ * daisyUI ships global *component* classes with very generic names
+ * (`.menu`, `.divider`, `.navbar`, `.footer`, ...). Some of them collide with
+ * class names the VitePress default theme already uses inside the navbar:
+ *
+ *   - VitePress renders the right-side nav menu as `<nav class="VPNavBarMenu menu">`
+ *     and the navbar separator as `<div class="divider">`.
+ *   - Because VitePress only declares `display` for `.VPNavBarMenu` and
+ *     `width`/`height` for `.divider`, the daisyUI rules for the remaining
+ *     properties leaked through: `flex-direction: column`, `width: fit-content`,
+ *     `padding`, `margin: 1rem 0`, plus extra `::before`/`::after` lines.
+ *
+ * That is what made the right menu look like a floating box. The docs only use
+ * plain Tailwind utilities (see `index.md`), so the plugin is not needed.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
-/* .vitepress/theme/custom.css */
+/* codx-junior brand colors for the VitePress default theme */
 :root {
   --vp-c-brand-1: #8f008f;
   --vp-c-brand-2: #cc0099;
   --vp-c-brand-3: #550e57;
 }
 
+/* Small helper used by the home page feature icons */
 .feature-icon {
   width: 40px;
   height: 40px;
   border-radius: 8px;
   float: left;
   margin-right: 8px;
-}
-
-@layer components {
-  .btn {
-    @apply flex gap-2 items-center cursor-pointer;
-  }
 }

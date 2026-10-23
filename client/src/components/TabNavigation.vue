@@ -23,12 +23,6 @@
       <i class="fa-solid fa-folder"></i> 
       <span class="hidden lg:inline">Files</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', 
-      disableProjectTabs && 'tab-disabled',
-      ($ui.activeTab === 'profiles') ? 'tab-active font-bold' : '']" 
-      @click="setActiveTab('profiles')">
-      <i class="fa-solid fa-circle-user"></i> <span class="hidden lg:inline">Profiles</span>
-    </a>
     
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
@@ -39,7 +33,7 @@
           <i class="fa-solid fa-ellipsis"></i>
           <span class="hidden lg:inline">App</span>
         </div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+        <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
           <li @click="showCoder()">
             <a><i class="fa-solid fa-code"></i> Coder</a></li>
           <li @click="showBrowser()">

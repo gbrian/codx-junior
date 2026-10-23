@@ -3,66 +3,76 @@ import FileActionMenu from './FileActionMenu.vue'
 </script>
 
 <template>
-  <div class="my-1 text-xs md:text-sm space-y-1 md:space-y-1.5 px-1 md:px-0">
-    <!-- Unified Files List (Chat first, then Conversation - sorted by filename length) -->
-    <div v-if="mergedFileStatuses.length > 0" class="space-y-1 md:space-y-1.5">
-      <div class="flex items-center gap-1 md:gap-1.5 px-2 md:px-2 py-0.5 text-xs font-semibold text-base-content/70 uppercase tracking-wider">
-        <i class="fa-solid fa-file text-base-content/60 flex-shrink-0"></i>
-        <span class="truncate">Files</span>
-        <span class="badge badge-xs badge-base-300 shrink-0">{{ mergedFileStatuses.length }}</span>
-      </div>
-      
-      <div class="flex flex-wrap gap-1 md:gap-1.5">
-        <div
-          v-for="file in mergedFileStatuses"
-          :key="file.path"
-          class="group flex items-center gap-0.5 md:gap-1"
+  <div class="my-1 space-y-1 px-1 text-xs md:space-y-1.5 md:px-0 md:text-sm">
+    <!-- Header -->
+    <div
+      v-if="mergedFileStatuses.length > 0"
+      class="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-base-content/60"
+    >
+      <i class="fa-solid fa-paperclip flex-shrink-0"></i>
+      <span class="truncate">Files</span>
+      <span class="badge badge-xs badge-ghost shrink-0">{{ mergedFileStatuses.length }}</span>
+    </div>
+
+    <!-- File chips — actions are ALWAYS visible (no hover reveal) so they
+         remain reachable on touch devices and keyboards. -->
+    <div v-if="mergedFileStatuses.length > 0" class="flex flex-wrap gap-1 md:gap-1.5">
+      <div
+        v-for="file in mergedFileStatuses"
+        :key="file.path"
+        class="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs transition-colors"
+        :class="[
+          file.exists === false
+            ? 'bg-error/10'
+            : (file.type === 'chat' ? 'bg-primary/10 hover:bg-primary/15' : 'bg-base-200 hover:bg-base-300')
+        ]"
+      >
+        <!-- Label → preview/open (real button for keyboard + touch) -->
+        <button
+          type="button"
+          class="flex min-w-0 items-center gap-1 rounded px-0.5 py-1 text-left"
+          :title="file.exists === false ? 'File not found: ' + file.path : file.path"
+          @click.stop="$emit('preview-file', file.path)"
         >
-          <!-- File Chip (Label + Icon) - Color coded by type -->
-          <div
-            class="flex items-center gap-0.5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full cursor-pointer transition-all duration-200 flex-shrink-0 text-xs md:text-sm"
-            @click="$emit('preview-file', file.path)"
-            :title="file.path"
-            :class="[
-              file.type === 'chat'
-                ? 'bg-primary/10 text-primary/80 hover:bg-primary/20'
-                : 'bg-info/10 text-info/70 hover:bg-info/20',
-              file.exists === false 
-                ? 'bg-error/10 text-error/60 hover:bg-error/20 opacity-60' 
-                : ''
-            ]"
-          >
-            <i class="fa-solid fa-file text-xs flex-shrink-0"></i>
-            <span class="font-medium max-w-[60px] md:max-w-[120px] truncate group-hover:max-w-full">
-              {{ file.label }}
-            </span>
-          </div>
+          <i
+            class="fa-solid flex-shrink-0 text-[10px]"
+            :class="file.exists === false
+              ? 'fa-circle-xmark text-error'
+              : (file.type === 'chat' ? 'fa-file text-primary' : 'fa-file text-info')"
+          ></i>
+          <span
+            class="max-w-[120px] truncate font-medium md:max-w-[220px]"
+            :class="file.exists === false ? 'text-error/70 line-through' : ''"
+          >{{ file.label }}</span>
+        </button>
 
-          <!-- Action Menu - Hidden on mobile, shown on desktop or when hovered -->
-          <FileActionMenu
-            v-if="file.exists !== false"
-            class="hidden md:flex group-hover:flex transition-opacity duration-200"
-            :file-path="file.path"
-            :file-type="file.type"
-            :is-notebook="isNotebook(file)"
-            @copy-path="$ui.copyTextToClipboard(file.path)"
-            @add-as-message="$emit('add-as-message', file.path)"
-            @sync-notebook="$emit('sync-notebook', file.path)"
-            @export-notebook="$emit('export-notebook', file.path)"
-            @preview-file="$emit('preview-file', file.path)"
-            @add-file="$emit('add-file', file.path)"
-            @remove-file="$emit('remove-file', file.path)"
-          />
+        <!-- Missing-file indicator (color alone is never the only signal) -->
+        <i
+          v-if="file.exists === false"
+          class="fa-solid fa-circle-xmark pr-1 text-xs text-error"
+          title="File not found"
+        ></i>
 
-          <!-- Missing file indicator -->
-          <i v-if="file.exists === false" class="fa-solid fa-circle-xmark text-error text-xs flex-shrink-0" title="File not found"></i>
-        </div>
+        <!-- Actions — inline & always visible -->
+        <FileActionMenu
+          v-if="file.exists !== false"
+          :file-path="file.path"
+          :file-type="file.type"
+          :is-notebook="isNotebook(file)"
+          @copy-path="$ui.copyTextToClipboard(file.path)"
+          @add-as-message="$emit('add-as-message', file.path)"
+          @sync-notebook="$emit('sync-notebook', file.path)"
+          @export-notebook="$emit('export-notebook', file.path)"
+          @preview-file="$emit('preview-file', file.path)"
+          @add-file="$emit('add-file', file.path)"
+          @remove-file="$emit('remove-file', file.path)"
+        />
       </div>
     </div>
 
     <!-- Empty state -->
-    <div v-if="mergedFileStatuses.length === 0" class="text-center py-1 md:py-2 text-base-content/40 text-xs md:text-sm">
-      <i class="fa-solid fa-paperclip block mb-0.5"></i>
+    <div v-else class="py-1 text-center text-base-content/40 md:py-2">
+      <i class="fa-solid fa-paperclip mb-0.5 block"></i>
       <span>No files</span>
     </div>
   </div>

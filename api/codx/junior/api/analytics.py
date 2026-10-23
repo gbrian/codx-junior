@@ -31,6 +31,30 @@ GET /api/analytics/admin/chat-sessions     – list all chat sessions with metri
 GET /api/analytics/admin/chat-sessions/{chat_id} – get specific chat with full context (admin)
 GET /api/analytics/admin/chat-sessions/{chat_id}/messages – get archived and tool call messages (admin)
 GET /api/analytics/admin/chat-sessions/{chat_id}/complete-context – get complete context (admin)
+
+DECISION MODEL ANALYTICS ENDPOINTS
+──────────────────────────────────
+GET  /api/analytics/decisions              – decision-model events (own data)
+GET  /api/analytics/decisions/metrics      – aggregated decision metrics (own data)
+GET  /api/analytics/admin/decisions        – decision-model events (all users)
+POST /api/analytics/admin/decisions/search – search decision-model events (all users)
+GET  /api/analytics/admin/decisions/metrics – aggregated decision metrics (all users)
+GET  /api/analytics/admin/chat-sessions/{chat_id}/decisions – decisions for a chat (admin)
+
+DECISION MODEL LOGS ENDPOINTS
+─────────────────────────────
+GET  /api/analytics/decision-model-logs               – decision-model events rendered as log
+                                                        records (own data)
+GET  /api/analytics/decision-model-logs/{log_id}      – single decision-model log (own data)
+GET  /api/analytics/admin/decision-model-logs         – decision-model events rendered as log
+                                                        records (all users)
+GET  /api/analytics/admin/decision-model-logs/{log_id} – single decision-model log (all users)
+
+The ``/decision-model-logs`` routes expose the decision events in the
+``{records, models, summary}`` shape log viewers expect, so clients that ask
+for decision-model logs get the same payload from every deployment. Extra
+query parameters sent by those clients (``codx_path``, …) are ignored; the
+decision events are already scoped by ``project_name`` / ``project_id``.
 """
 
 import logging
@@ -38,7 +62,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from codx.junior.api import require_admin, get_current_session
 from codx.junior.model.model import CodxUser
@@ -50,6 +74,11 @@ from codx.junior.analytics.model import (
     ChatMetrics,
     EnrichedTokenUsageEvent,
     EnrichedToolUsageEvent,
+)
+from codx.junior.analytics.decision_model import (
+    DecisionModelEventList,
+    DecisionModelMetrics,
+    DecisionModelQuery,
 )
 from codx.junior.global_settings import (
     read_global_settings,
@@ -301,6 +330,323 @@ class RecalculateRequest(BaseModel):
     output_k_tokens_cxjcoins: float
 
 
+# ── Decision-model log models & helpers ────────────────────────────────────────
+#
+# Decision-model events (see codx.junior.analytics.decision_model) are stored
+# as one record per model invocation. Log viewers, however, consume a flatter
+# shape – ``{records, models, summary}`` – so the ``/decision-model-logs``
+# endpoints render the events as log records. Everything below is that
+# rendering layer: the response models and the event → record mapper.
+
+# Characters per token used to approximate token usage when an event does not
+# carry explicit counters (the ``token_stats`` fields are named *estimated* for
+# that reason).
+CHARS_PER_TOKEN = 4
+
+
+def _estimate_tokens(text: Optional[str]) -> int:
+    """Approximate the token count of a text block (``len(text) // 4``)."""
+    if not text:
+        return 0
+    return max(1, len(text) // CHARS_PER_TOKEN)
+
+
+def _event_field(event, name: str, default: Any = None) -> Any:
+    """
+    Read a field from a stored decision event.
+
+    Storage may hand back pydantic models (the usual case) or plain dicts, so
+    both are supported. ``None`` always falls back to ``default``.
+    """
+    value = event.get(name) if isinstance(event, dict) else getattr(event, name, None)
+    return default if value is None else value
+
+
+class DecisionModelLogRecord(BaseModel):
+    """
+    A single decision-model invocation, rendered as a log record.
+
+    Mirrors the shape produced by the AI-log endpoints so a single log viewer
+    can render both: ``prompt`` is the state the model reasoned about,
+    ``decision`` its answer, ``reasoning`` the human readable explanation.
+    """
+
+    id: str = Field(default="", description="Decision event id")
+    timestamp: float = Field(default=0.0, description="Unix timestamp (UTC)")
+    direction: str = Field(
+        default="response", description="'request' or 'response'"
+    )
+    provider: str = Field(
+        default="", description="Engine that produced the decision"
+    )
+    model: str = Field(default="", description="Decision model name/variant")
+    decision: str = Field(default="", description="Chosen answer")
+    reasoning: str = Field(default="", description="Human readable explanation")
+    prompt: str = Field(
+        default="", description="State the model reasoned about"
+    )
+    tags: str = Field(default="", description="Comma separated tags")
+    session_id: Optional[str] = Field(
+        default=None, description="Session/chat the decision belongs to"
+    )
+    input_tokens: int = Field(default=0, description="Prompt tokens (estimated)")
+    output_tokens: int = Field(default=0, description="Answer tokens (estimated)")
+    duration_seconds: float = Field(
+        default=0.0, description="Wall-clock seconds for the decision call"
+    )
+    cached: bool = Field(default=False, description="Served from cache")
+    error: bool = Field(default=False, description="The call failed")
+    error_message: Optional[str] = Field(
+        default=None, description="Failure message when ``error`` is set"
+    )
+    details: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Decision metadata (type, probs, confidence, abstention…)",
+    )
+
+
+class DecisionModelLogsSummary(BaseModel):
+    """Aggregated statistics for the matching decision-model log records."""
+
+    total_log_records: int = Field(default=0, description="Matching records")
+    total_requests: int = Field(
+        default=0, description="Decision calls (one per record)"
+    )
+    total_responses: int = Field(
+        default=0, description="Calls that produced an answer"
+    )
+    total_duration_seconds: float = Field(
+        default=0.0, description="Sum of all decision durations"
+    )
+    average_request_duration_seconds: float = Field(
+        default=0.0, description="Mean decision duration"
+    )
+    token_stats: Dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "total_estimated_input_tokens / total_estimated_output_tokens / "
+            "total_estimated_tokens"
+        ),
+    )
+
+
+class DecisionModelLogsResponse(BaseModel):
+    """
+    Client response model for ``/decision-model-logs``.
+
+    ``records`` holds the requested page (newest first, ordered by timestamp),
+    ``total`` the full match count before pagination and ``models`` every model
+    seen in the *unpaginated* result so clients can build a model filter.
+    """
+
+    records: List[DecisionModelLogRecord] = Field(
+        default_factory=list, description="Decision log records (newest first)"
+    )
+    models: List[str] = Field(
+        default_factory=list, description="Distinct decision models found"
+    )
+    summary: DecisionModelLogsSummary = Field(
+        default_factory=DecisionModelLogsSummary,
+        description="Aggregated statistics for the matching records",
+    )
+    total: int = Field(
+        default=0, description="Total matching records (before pagination)"
+    )
+    limit: Optional[int] = Field(default=None, description="Applied limit")
+    offset: int = Field(default=0, description="Applied offset")
+
+
+def _decision_event_to_log_record(event) -> DecisionModelLogRecord:
+    """
+    Render a stored decision event as a log record.
+
+    Token counters are taken from the event ``details`` when the engine
+    recorded them and approximated from the text lengths otherwise.
+    """
+    details = dict(_event_field(event, "details", {}) or {})
+
+    choice = _event_field(event, "choice", "") or ""
+    if not choice and _event_field(event, "choices", {}):
+        choice = ", ".join(
+            f"{key}: {value}" for key, value in _event_field(event, "choices", {}).items()
+        )
+    if not choice and _event_field(event, "abstained", False):
+        choice = "(abstained)"
+
+    state = _event_field(event, "state", "") or ""
+
+    input_tokens = int(details.get("input_tokens") or 0) or _estimate_tokens(state)
+    output_tokens = int(details.get("output_tokens") or 0) or _estimate_tokens(choice)
+
+    return DecisionModelLogRecord(
+        id=_event_field(event, "event_id", "") or "",
+        timestamp=float(_event_field(event, "timestamp", 0.0) or 0.0),
+        direction="response",
+        provider=_event_field(event, "engine", "") or "",
+        model=_event_field(event, "model", "") or "",
+        decision=choice,
+        reasoning=_event_field(event, "reason", "") or "",
+        prompt=state,
+        tags=_event_field(event, "tags", "") or "",
+        session_id=_event_field(event, "session_id", None)
+                    or _event_field(event, "chat_id", None),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        duration_seconds=float(_event_field(event, "duration_seconds", 0.0) or 0.0),
+        cached=bool(details.get("cached", False)),
+        error=not bool(_event_field(event, "success", True)),
+        error_message=_event_field(event, "error", None),
+        details={
+            "decision_type": _event_field(event, "decision_type", ""),
+            "engine": _event_field(event, "engine", ""),
+            "questions": _event_field(event, "questions", []),
+            "choices": _event_field(event, "choices", {}),
+            "probs": _event_field(event, "probs", {}),
+            "confidence": _event_field(event, "confidence", None),
+            "abstained": _event_field(event, "abstained", False),
+            "chat_id": _event_field(event, "chat_id", None),
+            "request_id": _event_field(event, "request_id", None),
+            "username": _event_field(event, "username", ""),
+            "project_name": _event_field(event, "project_name", ""),
+            "project_id": _event_field(event, "project_id", ""),
+            **details,
+        },
+    )
+
+
+def _build_decision_logs_response(
+    events: List,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    direction: Optional[str] = None,
+) -> DecisionModelLogsResponse:
+    """
+    Build a paginated ``{records, models, summary}`` payload from raw events.
+
+    Records are sorted newest first (this feeds a log viewer) and the summary
+    is computed over the *whole* filtered set, not just the requested page.
+    """
+    records = [_decision_event_to_log_record(event) for event in (events or [])]
+    records.sort(key=lambda record: record.timestamp or 0.0, reverse=True)
+
+    if direction:
+        wanted = direction.strip().lower()
+        records = [record for record in records if record.direction == wanted]
+
+    total = len(records)
+    total_duration = sum(record.duration_seconds or 0.0 for record in records)
+    input_tokens = sum(record.input_tokens or 0 for record in records)
+    output_tokens = sum(record.output_tokens or 0 for record in records)
+
+    summary = DecisionModelLogsSummary(
+        total_log_records=total,
+        total_requests=total,
+        total_responses=sum(1 for record in records if not record.error),
+        total_duration_seconds=round(total_duration, 3),
+        average_request_duration_seconds=(
+            round(total_duration / total, 3) if total else 0.0
+        ),
+        token_stats={
+            "total_estimated_input_tokens": input_tokens,
+            "total_estimated_output_tokens": output_tokens,
+            "total_estimated_tokens": input_tokens + output_tokens,
+        },
+    )
+
+    offset = max(0, offset or 0)
+    page = records[offset:] if offset else records
+    if limit is not None:
+        page = page[:limit]
+
+    return DecisionModelLogsResponse(
+        records=page,
+        models=sorted({record.model for record in records if record.model}),
+        summary=summary,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def _read_decision_logs(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    chat_id: Optional[str] = None,
+    decision_type: Optional[str] = None,
+    engine: Optional[str] = None,
+    model: Optional[str] = None,
+    username: Optional[str] = None,
+    project_name: Optional[str] = None,
+    project_id: Optional[str] = None,
+    success: Optional[bool] = None,
+    session_id: Optional[str] = None,
+    tags: Optional[str] = None,
+    direction: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> DecisionModelLogsResponse:
+    """
+    Read decision events and render them as a decision-model log payload.
+
+    Filters supported by the storage layer (dates, chat, decision type, engine,
+    model, user, project, success) are pushed down to it; ``session_id`` and
+    ``tags`` are matched in memory because the storage does not index them
+    (``tags`` is a comma separated value and matches any of the requested tags).
+    """
+    analytics = _get_analytics()
+    events = analytics.storage.read_decision_events(
+        start_date=start_date,
+        end_date=end_date,
+        chat_id=chat_id,
+        decision_type=decision_type,
+        engine=engine,
+        model=model,
+        username=username,
+        project_name=project_name,
+        project_id=project_id,
+        success=success,
+    )
+
+    if session_id:
+        events = [
+            event for event in events
+            if (_event_field(event, "session_id", None)
+                or _event_field(event, "chat_id", None)) == session_id
+        ]
+
+    if tags:
+        wanted_tags = {tag.strip().lower() for tag in tags.split(",") if tag.strip()}
+        events = [
+            event for event in events
+            if wanted_tags.intersection(
+                tag.strip().lower()
+                for tag in (_event_field(event, "tags", "") or "").split(",")
+                if tag.strip()
+            )
+        ]
+
+    return _build_decision_logs_response(
+        events, limit=limit, offset=offset, direction=direction
+    )
+
+
+def _find_decision_log(
+    log_id: str, username: Optional[str] = None
+) -> Optional[DecisionModelLogRecord]:
+    """
+    Look up a single decision log by event id.
+
+    Event ids are not indexed, so this scans the stored decision events — it is
+    meant for one-off client lookups, not for listing.
+    """
+    analytics = _get_analytics()
+    events = analytics.storage.read_decision_events(username=username)
+    for event in events or []:
+        if _event_field(event, "event_id", "") == log_id:
+            return _decision_event_to_log_record(event)
+    return None
+
+
 # ── User-scoped endpoints ──────────────────────────────────────────────────────
 
 
@@ -476,6 +822,162 @@ def get_by_model(
         username=user.username,
         project_name=project_name,
     )
+
+
+# ── Decision-model analytics (own data) ────────────────────────────────────────
+
+
+@router.get(
+    "/decisions",
+    response_model=DecisionModelEventList,
+    summary="Decision-model events recorded for the current user",
+)
+def get_my_decisions(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    chat_id: Optional[str] = Query(None, description="Filter by chat id"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    engine: Optional[str] = Query(None, description="Filter by engine"),
+    model: Optional[str] = Query(None, description="Filter by decision model"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    success: Optional[bool] = Query(None, description="Filter by success flag"),
+    limit: Optional[int] = Query(None, description="Max events to return"),
+    offset: int = Query(0, description="Number of events to skip"),
+    user: CodxUser = Depends(get_authenticated_user),
+) -> DecisionModelEventList:
+    """
+    Return decision-model analytics events recorded for the authenticated user.
+
+    A decision-model event is one invocation of a typed decider (e.g. the
+    ``vegaml`` engine used to organize chats): the state it reasoned about, its
+    answers, calibrated probabilities, confidence and whether it abstained.
+
+    Returns:
+        ``DecisionModelEventList`` (paginated, ordered by timestamp).
+    """
+    analytics = _get_analytics()
+    events = analytics.storage.read_decision_events(
+        start_date=start_date,
+        end_date=end_date,
+        chat_id=chat_id,
+        decision_type=decision_type,
+        engine=engine,
+        model=model,
+        username=user.username,
+        project_name=project_name,
+        success=success,
+    )
+    return DecisionModelEventList.from_events(events, limit=limit, offset=offset)
+
+
+@router.get(
+    "/decisions/metrics",
+    response_model=DecisionModelMetrics,
+    summary="Decision-model metrics for the current user",
+)
+def get_my_decision_metrics(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    group_by: str = Query("model", description="Grouping key: model, engine, or decision_type"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    user: CodxUser = Depends(get_authenticated_user),
+) -> DecisionModelMetrics:
+    """
+    Return aggregated decision-model metrics for the authenticated user.
+
+    Returns:
+        ``DecisionModelMetrics`` with per-group calls, success/abstain counts,
+        durations and average confidence.
+    """
+    analytics = _get_analytics()
+    metrics = analytics.get_decision_metrics(
+        start_date=start_date,
+        end_date=end_date,
+        decision_type=decision_type,
+        group_by=group_by,
+        username=user.username,
+        project_name=project_name,
+    )
+    return DecisionModelMetrics.from_metrics(group_by=group_by, metrics=metrics)
+
+
+# ── Decision-model logs (own data) ─────────────────────────────────────────────
+
+
+@router.get(
+    "/decision-model-logs",
+    response_model=DecisionModelLogsResponse,
+    summary="Decision-model logs for the current user",
+)
+def get_my_decision_model_logs(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    chat_id: Optional[str] = Query(None, description="Filter by chat id"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    engine: Optional[str] = Query(None, description="Filter by engine"),
+    model: Optional[str] = Query(None, description="Filter by decision model"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    project_id: Optional[str] = Query(None, description="Filter by project id"),
+    success: Optional[bool] = Query(None, description="Filter by success flag"),
+    session_id: Optional[str] = Query(None, description="Filter by session/chat id"),
+    tags: Optional[str] = Query(None, description="Comma separated tags to match"),
+    direction: Optional[str] = Query(None, description="'request' or 'response'"),
+    limit: Optional[int] = Query(None, description="Max records to return"),
+    offset: int = Query(0, description="Number of records to skip"),
+    user: CodxUser = Depends(get_authenticated_user),
+) -> DecisionModelLogsResponse:
+    """
+    Return the decision-model logs recorded for the authenticated user.
+
+    Same decision events as ``GET /decisions``, but rendered in the
+    ``{records, models, summary}`` shape log viewers consume: each record
+    exposes the prompt (``state``), the chosen answer, the reasoning, timing,
+    (estimated) token usage and failure details.
+
+    Returns:
+        ``DecisionModelLogsResponse`` (records newest first, paginated).
+    """
+    return _read_decision_logs(
+        start_date=start_date,
+        end_date=end_date,
+        chat_id=chat_id,
+        decision_type=decision_type,
+        engine=engine,
+        model=model,
+        username=user.username,
+        project_name=project_name,
+        project_id=project_id,
+        success=success,
+        session_id=session_id,
+        tags=tags,
+        direction=direction,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/decision-model-logs/{log_id}",
+    response_model=DecisionModelLogRecord,
+    summary="Single decision-model log for the current user",
+)
+def get_my_decision_model_log(
+    log_id: str,
+    user: CodxUser = Depends(get_authenticated_user),
+) -> DecisionModelLogRecord:
+    """
+    Return the decision-model log with the given (event) id.
+
+    Raises HTTP 404 when no event with that id was recorded for the user.
+    """
+    record = _find_decision_log(log_id, username=user.username)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Decision log '{log_id}' not found.",
+        )
+    return record
 
 
 # ── Admin endpoints ────────────────────────────────────────────────────────────
@@ -951,6 +1453,238 @@ def admin_get_complete_chat_context(
         "tool_messages": complete_context["tool_call_messages"],
         "tool_metrics": complete_context["tool_metrics"],
     }
+
+
+# ── Admin-scoped decision-model analytics (Admin Only) ─────────────────────────
+
+
+@router.get(
+    "/admin/decisions",
+    response_model=DecisionModelEventList,
+    summary="[Admin] List decision-model analytics events across all users",
+)
+def admin_get_decisions(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    chat_id: Optional[str] = Query(None, description="Filter by chat id"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    engine: Optional[str] = Query(None, description="Filter by engine"),
+    model: Optional[str] = Query(None, description="Filter by decision model"),
+    username: Optional[str] = Query(None, description="Filter by username"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    project_id: Optional[str] = Query(None, description="Filter by project id"),
+    success: Optional[bool] = Query(None, description="Filter by success flag"),
+    limit: Optional[int] = Query(None, description="Max events to return"),
+    offset: int = Query(0, description="Number of events to skip"),
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelEventList:
+    """
+    Return decision-model analytics events across all users.
+
+    Enables admins to audit the decision process (typed deciders and LLM
+    fallbacks): what was asked, what was answered, calibrated probabilities,
+    abstentions, failures and timings.
+
+    Requires admin role.
+
+    Returns:
+        ``DecisionModelEventList`` (paginated, ordered by timestamp).
+    """
+    analytics = _get_analytics()
+    events = analytics.storage.read_decision_events(
+        start_date=start_date,
+        end_date=end_date,
+        chat_id=chat_id,
+        decision_type=decision_type,
+        engine=engine,
+        model=model,
+        username=username,
+        project_name=project_name,
+        project_id=project_id,
+        success=success,
+    )
+    return DecisionModelEventList.from_events(events, limit=limit, offset=offset)
+
+
+@router.post(
+    "/admin/decisions/search",
+    response_model=DecisionModelEventList,
+    summary="[Admin] Search decision-model analytics events across all users",
+)
+def admin_search_decisions(
+    body: DecisionModelQuery,
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelEventList:
+    """
+    Search decision-model analytics events using a JSON filter body.
+
+    Same data as ``GET /admin/decisions`` but with a request body, which is
+    convenient for clients that build complex filter sets programmatically.
+
+    Requires admin role.
+
+    Returns:
+        ``DecisionModelEventList`` (paginated, ordered by timestamp).
+    """
+    analytics = _get_analytics()
+    events = analytics.storage.read_decision_events(**body.filters())
+    return DecisionModelEventList.from_events(
+        events, limit=body.limit, offset=body.offset
+    )
+
+
+@router.get(
+    "/admin/decisions/metrics",
+    response_model=DecisionModelMetrics,
+    summary="[Admin] Aggregated decision-model analytics metrics across all users",
+)
+def admin_get_decision_metrics(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    group_by: str = Query("model", description="Grouping key: model, engine, or decision_type"),
+    username: Optional[str] = Query(None, description="Filter by username"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelMetrics:
+    """
+    Return aggregated decision-model metrics across all users.
+
+    Requires admin role.
+
+    Returns:
+        ``DecisionModelMetrics`` with per-group calls, success/failure/abstain
+        counts, durations and average confidence.
+    """
+    analytics = _get_analytics()
+    metrics = analytics.get_decision_metrics(
+        start_date=start_date,
+        end_date=end_date,
+        decision_type=decision_type,
+        group_by=group_by,
+        username=username,
+        project_name=project_name,
+    )
+    return DecisionModelMetrics.from_metrics(group_by=group_by, metrics=metrics)
+
+
+@router.get(
+    "/admin/chat-sessions/{chat_id}/decisions",
+    response_model=DecisionModelEventList,
+    summary="[Admin] Get decision-model events for a chat",
+)
+def admin_get_chat_decisions(
+    chat_id: str,
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    limit: Optional[int] = Query(None, description="Max events to return"),
+    offset: int = Query(0, description="Number of events to skip"),
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelEventList:
+    """
+    Retrieve the decision-model events recorded for a specific chat.
+
+    Provides the complete audit trail of the decision process (typed deciders
+    and LLM fallbacks) for one chat, complementing the existing chat context
+    and message endpoints.
+
+    Requires admin role.
+
+    Returns:
+        ``DecisionModelEventList`` (paginated, ordered by timestamp).
+    """
+    analytics = _get_analytics()
+    events = analytics.get_decisions_by_chat(
+        chat_id=chat_id,
+        start_date=start_date,
+        end_date=end_date,
+        decision_type=decision_type,
+    )
+    return DecisionModelEventList.from_events(events, limit=limit, offset=offset)
+
+
+# ── Admin-scoped decision-model logs (Admin Only) ──────────────────────────────
+
+
+@router.get(
+    "/admin/decision-model-logs",
+    response_model=DecisionModelLogsResponse,
+    summary="[Admin] Decision-model logs across all users",
+)
+def admin_get_decision_model_logs(
+    start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
+    chat_id: Optional[str] = Query(None, description="Filter by chat id"),
+    decision_type: Optional[str] = Query(None, description="Filter by decision type"),
+    engine: Optional[str] = Query(None, description="Filter by engine"),
+    model: Optional[str] = Query(None, description="Filter by decision model"),
+    username: Optional[str] = Query(None, description="Filter by username"),
+    project_name: Optional[str] = Query(None, description="Filter by project name"),
+    project_id: Optional[str] = Query(None, description="Filter by project id"),
+    success: Optional[bool] = Query(None, description="Filter by success flag"),
+    session_id: Optional[str] = Query(None, description="Filter by session/chat id"),
+    tags: Optional[str] = Query(None, description="Comma separated tags to match"),
+    direction: Optional[str] = Query(None, description="'request' or 'response'"),
+    limit: Optional[int] = Query(None, description="Max records to return"),
+    offset: int = Query(0, description="Number of records to skip"),
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelLogsResponse:
+    """
+    Return decision-model logs across all users.
+
+    Enables admins to audit the decision process from the log viewer: what was
+    asked (``prompt``), what was answered (``decision``), the reasoning trace,
+    calibrations (in ``details``), timings, abstentions and failures.
+
+    Requires admin role.
+
+    Returns:
+        ``DecisionModelLogsResponse`` (records newest first, paginated).
+    """
+    return _read_decision_logs(
+        start_date=start_date,
+        end_date=end_date,
+        chat_id=chat_id,
+        decision_type=decision_type,
+        engine=engine,
+        model=model,
+        username=username,
+        project_name=project_name,
+        project_id=project_id,
+        success=success,
+        session_id=session_id,
+        tags=tags,
+        direction=direction,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/admin/decision-model-logs/{log_id}",
+    response_model=DecisionModelLogRecord,
+    summary="[Admin] Get a single decision-model log",
+)
+def admin_get_decision_model_log(
+    log_id: str,
+    _: CodxUser = Depends(require_admin),
+) -> DecisionModelLogRecord:
+    """
+    Return the decision-model log with the given (event) id, for any user.
+
+    Requires admin role.
+
+    Raises:
+        HTTP 404 if no event with that id was recorded.
+    """
+    record = _find_decision_log(log_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Decision log '{log_id}' not found.",
+        )
+    return record
 
 
 # ── Admin pricing endpoints ────────────────────────────────────────────────────

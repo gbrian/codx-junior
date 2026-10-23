@@ -24,8 +24,9 @@ import { generateDiffFile } from "@git-diff-view/file"
       <!-- Spacer -->
       <div class="flex-1"></div>
 
-      <!-- Edit mode toggle button -->
+      <!-- Edit mode toggle (only when both versions are available) -->
       <button
+        v-if="!rawDiff"
         class="btn btn-xs gap-1"
         :class="editMode ? 'btn-warning' : 'btn-ghost'"
         @click="toggleEditMode"
@@ -54,15 +55,21 @@ import { generateDiffFile } from "@git-diff-view/file"
 
       <!-- View mode: Lightweight DiffViewer -->
       <DiffView
-        v-else-if="!editMode && diffFile"
+        v-else-if="!editMode && (diffFile || diffData)"
+        v-bind="diffViewData"
         :diff-view-font-size="14"
         :diff-view-highlight="true"
-        :diff-view-add-widget="false"
+        :diff-view-add-widget="addWidget"
         :diff-view-theme="'dark'"
         :diff-view-wrap="diffWrap"
         :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"
-        :diffFile="diffFile"
-      />
+        :extend-data="extendData"
+      >
+        <!-- Pass-through so callers can render per-line widgets (e.g. comments) -->
+        <template #widget="widgetProps">
+          <slot name="widget" v-bind="widgetProps" />
+        </template>
+      </DiffView>
 
       <!-- Empty state -->
       <div v-else class="flex flex-col items-center justify-center h-full gap-2 text-base-content/40 text-sm">
@@ -80,20 +87,46 @@ export default {
     DiffView,
     Editor
   },
-  props: ['orgContent', 'newContent', 'file', 'language', 'diff'],
+  props: {
+    orgContent: { type: String, default: null },
+    newContent: { type: String, default: null },
+    file: { type: String, default: '' },
+    language: { type: String, default: '' },
+    // Raw unified diff: used when there are no file contents available
+    // (PR review payloads only carry the patch)
+    diff: { type: String, default: null },
+    // git-diff-view widget button (per line) and per-line data (e.g. comments)
+    addWidget: { type: Boolean, default: false },
+    extendData: { type: Object, default: () => ({ oldFile: {}, newFile: {} }) }
+  },
   emits: ['update:newContent'],
   data() {
     return {
       DiffModeEnum,
       diffFile: null,
+      diffData: null,
       diffWrap: false,
       diffSplit: false,
       contentSameWarning: false,
       editMode: false
     }
   },
+  computed: {
+    /** Only a raw diff was given: render the patch instead of comparing contents */
+    rawDiff() {
+      return !!this.diff && !this.orgContent && !this.newContent
+    },
+
+    /** DiffView accepts either a pre-built DiffFile or raw diff data */
+    diffViewData() {
+      return this.diffFile ? { diffFile: this.diffFile } : { data: this.diffData }
+    }
+  },
   watch: {
     orgContent() {
+      this.buildDiff()
+    },
+    newContent() {
       this.buildDiff()
     },
     diff() {
@@ -105,18 +138,30 @@ export default {
   },
   methods: {
     buildDiff() {
-      const oldContent = this.orgContent || ''
-      const newContent = this.newContent || ''
       const lang = this.language || this.file?.split('.').reverse()[0] || ''
       const fileName = this.file || ''
 
-      if (oldContent === newContent) {
-        this.contentSameWarning = true
-        this.diffFile = null
+      this.contentSameWarning = false
+      this.diffFile = null
+      this.diffData = null
+
+      // Raw git diff mode: no contents to compare, render the hunks directly
+      if (this.rawDiff) {
+        this.diffData = {
+          oldFile: { fileName, fileLang: lang, content: '' },
+          newFile: { fileName, fileLang: lang, content: '' },
+          hunks: [this.diff]
+        }
         return
       }
 
-      this.contentSameWarning = false
+      const oldContent = this.orgContent || ''
+      const newContent = this.newContent || ''
+
+      if (oldContent === newContent) {
+        this.contentSameWarning = true
+        return
+      }
 
       try {
         const diffFile = generateDiffFile(

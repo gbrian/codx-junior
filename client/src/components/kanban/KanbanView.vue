@@ -112,7 +112,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           <button class="btn btn-sm tooltip tooltip-bottom" data-tip="More options">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
             <li>
               <a @click="showChildrenBoards = !showChildrenBoards" :class="{ 'text-warning': showChildrenBoards }">
                 <i class="fa-brands fa-trello"></i> Child boards

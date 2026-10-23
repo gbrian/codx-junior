@@ -14,7 +14,7 @@ import WorkspaceSettings from './WorkspaceSettings.vue'
       </button>
     </div>
 
-    <modal close="true" @close="showSettings = false" class="my-4 p-4 border rounded-md bg-base-100" v-if="showSettings">
+    <modal close="true" @close="showSettings = false" class="my-4 p-4 border rounded-md" v-if="showSettings">
       <h3 class="text-lg font-bold">Settings</h3>
       <div class="form-control mt-4">
         <label class="label">
@@ -37,8 +37,8 @@ import WorkspaceSettings from './WorkspaceSettings.vue'
     </modal>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-      <div v-for="workspace in workspaces" :key="workspace.id" class="card bg-base-100">
-        <div class="card-body p-6 border rounded-md click" @click="editWorkspace(workspace)">
+      <div v-for="workspace in workspaces" :key="workspace.id" class="card">
+        <div class="card-body p-6 border rounded-xl click" @click="editWorkspace(workspace)">
           <h2 class="card-title">{{ workspace.name }}</h2>
           {{ workspace.description }}
           <div class="flex justify-end gap-2 items-center">

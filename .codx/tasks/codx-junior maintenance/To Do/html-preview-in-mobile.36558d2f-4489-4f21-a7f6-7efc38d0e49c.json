@@ -1,0 +1,188 @@
+{
+  "id": "36558d2f-4489-4f21-a7f6-7efc38d0e49c",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "done",
+  "status_history": [
+    {
+      "doc_id": "4f48426e-c3ee-4c53-b518-c38f0e485af5",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-18T15:12:04.663494",
+      "meta_data": null
+    },
+    {
+      "doc_id": "be659416-78fd-46c8-bf98-eb089e5ccaff",
+      "from_status": "doing",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-18T15:56:32.891577",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/components/HTMLPreview.vue"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "HTML preview in mobile",
+  "pinned": false,
+  "is_template": false,
+  "description": "The task was to fix the mobile preview behaviour in `src/components/HTMLPreview.vue`, which previously always opened at desktop presets (`laptop` 1024\u00d7768 inline, `custom` 1200\u00d7800 popup) and overflowed phone viewports.\n\nI added a `Device (auto)` size preset that resolves from `window.innerWidth`/`innerHeight` and orientation \u2014 phone (375\u00d7667 / 667\u00d7375), tablet (768\u00d71024 / 1024\u00d7768), or desktop (1024\u00d7768 / 1440\u00d7900).\n\nResolved device sizes are clamped to the real available space (container box inline, viewport in the popup) so the frame always fits instead of forcing horizontal scroll.\n\nViewport state (`viewportWidth/Height/isMobile`) is tracked in `data` and refreshed on `resize` + `orientationchange`, re-applying sizes to the inline frame and open popup so portrait\u2194landscape rotation is respected; mobile defaults to `device` while desktop keeps `laptop`.\n\nMobile popups also disable drag/resize and hide the redundant size selector, and a side-bug was fixed: the generated iframe document's CSS was missing all semicolons, so the entire `body` rule had been dropped by the parser (now restored, plus mobile-safe `max-width`/`overflow-wrap`/`text-size-adjust` rules).",
+  "messages": [
+    {
+      "doc_id": "5c77d7c3-cb02-481b-935d-ef8dc4a81dcd",
+      "role": "user",
+      "task_item": "",
+      "content": "Fix how preview opens in mobile, make sure it opens in mobile size and landsapce o r portrait depending on the device.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-18 15:12:09.625918",
+      "updated_at": "2026-10-18T15:12:09.625990",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/HTMLPreview.vue"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "abbfd4a1-e96f-4d37-befe-783f072085a6",
+      "role": "assistant",
+      "task_item": "",
+      "content": "## Review & Understand the Task\n\n- The preview (both the inline one and the popup) always opens with **desktop presets**: inline \u2192 `laptop` (1024\u00d7768), popup \u2192 `custom` (1200\u00d7800).\n- On a phone viewport (e.g. 375px wide) both of those **overflow the screen**, forcing horizontal scroll and a broken first impression.\n- Required behaviour: on a mobile device the preview must open at a **mobile size**, and the frame must respect the device **orientation** (portrait \u2194 landscape) \u2014 including when the user rotates the device or the popup is opened while already in landscape.\n\n## Plan\n\n1. Add a `device` (\"Device (auto)\") size preset, resolved from `window.innerWidth/innerHeight` + orientation:\n   - `< 768px` \u2192 phone portrait `375\u00d7667` / phone landscape `667\u00d7375`\n   - `< 1024px` \u2192 tablet portrait `768\u00d71024` / tablet landscape `1024\u00d7768`\n   - `>= 1024px` \u2192 laptop/desktop presets\n2. Clamp the resolved device size to the **actual available space** (inline preview = container box, popup = viewport) so it always fits without dead scroll.\n3. Default `selectedSize` to `device` **only on mobile** (desktop keeps `laptop`), popup opens as `device` on mobile.\n4. Track `viewportWidth/Height/isMobile` in `data`, refresh on `resize` + `orientationchange`, and re-apply sizes when the popup is open.\n5. Mobile popup: disable drag/resize (full-width frame, touch-hostile otherwise) and hide the redundant size selector in the popup header.\n6. While fixing preview rendering, repair the **broken inline CSS** in the generated iframe document (all declarations are missing `;`, so the whole `body` rule is currently dropped by the parser) and add mobile-safe rendering rules (`text-size-adjust`, media `max-width`, `overflow-wrap`).\n\n## Changes Summary\n\n| File | Change |\n|---|---|\n| `src/components/HTMLPreview.vue` | Device-aware size presets + orientation handling, clamped sizing, viewport listeners, mobile popup behaviour, fixed preview document CSS, de-duplicated iframe writer |\n\n## The Changes\n\n<file_change path=\"src/components/HTMLPreview.vue\" language=\"vue\" change_type=\"update\" encoding=\"text\">\n<script setup>\n  import VueDraggableResizable from 'vue-draggable-resizable'\n  import 'vue-draggable-resizable/style.css'\n</script>\n\n<template>\n  <div class=\"h-full flex flex-col\">\n    <div class=\"flex gap-2 p-2 border-b border-base-100 flex-wrap items-center\">\n      <div class=\"flex gap-2 items-center\">\n        <span class=\"text-xs font-medium opacity-60\">Screen:</span>\n        <select \n          v-model=\"selectedSize\" \n          class=\"select select-xs select-bordered max-w-xs\"\n          title=\"Select screen size\"\n        >\n          <option value=\"device\">Device (auto)</option>\n          <option value=\"custom\">Custom</option>\n          <option value=\"mobile-sm\">Mobile (375px)</option>\n          <option value=\"mobile-md\">Mobile (425px)</option>\n          <option value=\"tablet\">Tablet (768px)</option>\n          <option value=\"laptop\">Laptop (1024px)</option>\n          <option value=\"desktop\">Desktop (1440px)</option>\n        </select>\n      </div>\n\n      <div v-if=\"selectedSize === 'custom'\" class=\"flex gap-1 items-center\">\n        <input \n          v-model.number=\"customWidth\" \n          type=\"number\" \n          min=\"200\" \n          max=\"2560\"\n          placeholder=\"Width\"\n          class=\"input input-xs input-bordered max-w-[80px]\"\n          title=\"Width in pixels\"\n        />\n        <span class=\"text-xs opacity-60\">\u00d7</span>\n        <input \n          v-model.number=\"customHeight\" \n          type=\"number\" \n          min=\"200\" \n          max=\"2560\"\n          placeholder=\"Height\"\n          class=\"input input-xs input-bordered max-w-[80px]\"\n          title=\"Height in pixels\"\n        />\n        <span class=\"text-xs opacity-60\">px</span>\n      </div>\n\n      <div class=\"flex gap-2 ml-auto\">\n        <button \n          class=\"btn btn-xs btn-outline\"\n          @click=\"refreshPreview\"\n          title=\"Refresh preview\"\n        >\n          <i class=\"fa-solid fa-arrows-rotate\"></i>\n          <span class=\"hidden sm:inline\">Refresh</span>\n        </button>\n        <button \n          class=\"btn btn-xs btn-outline\"\n          @click=\"openPopup\"\n          title=\"Open in popup\"\n        >\n          <i class=\"fa-solid fa-window-restore\"></i>\n          <span class=\"hidden sm:inline\">Popup</span>\n        </button>\n      </div>\n    </div>\n    \n    <div class=\"flex-1 overflow-auto flex items-center justify-center p-4 bg-base-200\" ref=\"previewContainer\">\n      <div \n        class=\"border border-base-100 bg-white overflow-auto transition-all duration-200\"\n        :style=\"{ width: displayWidth + 'px', height: displayHeight + 'px' }\"\n      >\n        <iframe\n          ref=\"previewFrame\"\n          class=\"w-full h-full border-0\"\n          :key=\"refreshCounter\"\n          sandbox=\"allow-scripts allow-same-origin allow-forms\"\n          title=\"HTML Preview\"\n        ></iframe>\n      </div>\n    </div>\n  </div>\n\n  <!-- Popup Modal -->\n  <div \n    v-if=\"isPopupOpen\"\n    class=\"fixed inset-0 bg-base-100 bg-opacity-50 flex items-center justify-center p-4 z-50\"\n  >\n    <vue-draggable-resizable\n      v-model:w=\"popupWidth\"\n      v-model:h=\"popupHeight\"\n      :parent=\"true\"\n      :draggable=\"!isMobile\"\n      :resizable=\"!isMobile\"\n      class-name-active=\"active\"\n      class-name-dragging=\"dragging\"\n    >\n      <div \n        class=\"bg-white rounded-lg shadow-2xl flex flex-col w-full h-full\"\n      >\n        <!-- Popup Header -->\n        <div class=\"flex gap-2 p-3 border-b border-base-100 bg-base-100 items-center rounded-t-lg flex-wrap\">\n          <span class=\"text-sm font-semibold\">HTML Preview</span>\n          \n          <div v-if=\"!isMobile\" class=\"flex gap-2 items-center flex-wrap\">\n            <select \n              v-model=\"popupSelectedSize\" \n              class=\"select select-xs select-bordered\"\n              title=\"Select screen size\"\n            >\n              <option value=\"device\">Device (auto)</option>\n              <option value=\"custom\">Custom</option>\n              <option value=\"mobile-sm\">Mobile (375px)</option>\n              <option value=\"mobile-md\">Mobile (425px)</option>\n              <option value=\"tablet\">Tablet (768px)</option>\n              <option value=\"laptop\">Laptop (1024px)</option>\n              <option value=\"desktop\">Desktop (1440px)</option>\n            </select>\n\n            <div v-if=\"popupSelectedSize === 'custom'\" class=\"flex gap-1 items-center\">\n              <input \n                v-model.number=\"popupWidth\" \n                type=\"number\" \n                min=\"300\"\n                placeholder=\"Width\"\n                class=\"input input-xs input-bordered max-w-[60px]\"\n                title=\"Popup width in pixels\"\n              />\n              <span class=\"text-xs opacity-60\">\u00d7</span>\n              <input \n                v-model.number=\"popupHeight\" \n                type=\"number\" \n                min=\"300\"\n                placeholder=\"Height\"\n                class=\"input input-xs input-bordered max-w-[60px]\"\n                title=\"Popup height in pixels\"\n              />\n              <span class=\"text-xs opacity-60\">px</span>\n            </div>\n          </div>\n\n          <div class=\"flex gap-1 ml-auto\">\n            <button \n              class=\"btn btn-xs btn-ghost\"\n              @click=\"refreshPopupPreview\"\n              title=\"Refresh preview\"\n            >\n              <i class=\"fa-solid fa-arrows-rotate\"></i>\n            </button>\n\n            <button \n              class=\"btn btn-xs btn-ghost\"\n              @click=\"closePopup\"\n              title=\"Close popup\"\n            >\n              <i class=\"fa-solid fa-xmark\"></i>\n            </button>\n          </div>\n        </div>\n\n        <!-- Popup Content -->\n        <div class=\"flex-1 overflow-auto bg-base-200\">\n          <iframe\n            ref=\"popupFrame\"\n            class=\"w-full h-full border-0\"\n            :key=\"popupRefreshCounter\"\n            sandbox=\"allow-scripts allow-same-origin allow-forms\"\n            title=\"HTML Preview Popup\"\n          ></iframe>\n        </div>\n      </div>\n    </vue-draggable-resizable>\n  </div>\n</template>\n\n<script>\nconst screenSizes = {\n  'mobile-sm': { width: 375, height: 667 },\n  'mobile-md': { width: 425, height: 812 },\n  'tablet': { width: 768, height: 1024 },\n  'laptop': { width: 1024, height: 768 },\n  'desktop': { width: 1440, height: 900 }\n}\n\n// Presets resolved dynamically from the device viewport + orientation\nconst deviceSizes = {\n  phonePortrait: { width: 375, height: 667 },\n  phoneLandscape: { width: 667, height: 375 },\n  tabletPortrait: { width: 768, height: 1024 },\n  tabletLandscape: { width: 1024, height: 768 },\n  desktopPortrait: { width: 1024, height: 768 },\n  desktopLandscape: { width: 1440, height: 900 }\n}\n\nexport default {\n  props: ['html'],\n  data() {\n    return {\n      refreshCounter: 0,\n      popupRefreshCounter: 0,\n      selectedSize: 'laptop',\n      customWidth: 1024,\n      customHeight: 768,\n      displayWidth: 1024,\n      displayHeight: 768,\n      isPopupOpen: false,\n      popupWidth: 1200,\n      popupHeight: 800,\n      popupSelectedSize: 'custom',\n      viewportWidth: 1024,\n      viewportHeight: 768,\n      isMobile: false\n    }\n  },\n  watch: {\n    html(newHtml) {\n      this.$nextTick(() => {\n        this.renderHTML(newHtml)\n        if (this.isPopupOpen) {\n          this.renderPopupHTML(newHtml)\n        }\n      })\n    },\n    selectedSize(newSize) {\n      this.applySize(newSize)\n    },\n    customWidth(newVal) {\n      if (this.selectedSize === 'custom') {\n        this.displayWidth = newVal\n      }\n    },\n    customHeight(newVal) {\n      if (this.selectedSize === 'custom') {\n        this.displayHeight = newVal\n      }\n    },\n    popupSelectedSize(newSize) {\n      this.applyPopupSize(newSize)\n    }\n  },\n  mounted() {\n    this.updateViewport()\n\n    window.addEventListener('resize', this.handleViewportChange)\n    window.addEventListener('orientationchange', this.handleViewportChange)\n\n    // On mobile devices open with a device-sized frame instead of a desktop preset\n    if (this.isMobile) {\n      this.selectedSize = 'device'\n      this.popupSelectedSize = 'device'\n    }\n\n    this.applySize(this.selectedSize)\n    this.$nextTick(() => {\n      this.renderHTML(this.html)\n    })\n  },\n  beforeUnmount() {\n    window.removeEventListener('resize', this.handleViewportChange)\n    window.removeEventListener('orientationchange', this.handleViewportChange)\n  },\n  methods: {\n    buildDocument(htmlContent) {\n      return `<!DOCTYPE html>\n          <html>\n          <head>\n            <meta charset=\"UTF-8\">\n            <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n            <style>\n              html {\n                -webkit-text-size-adjust: 100%;\n              }\n              body {\n                margin: 0;\n                padding: 1rem;\n                font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n                background-color: #111111;\n                color: #e5e7eb;\n                overflow-wrap: break-word;\n              }\n              img, video, iframe, table {\n                max-width: 100%;\n              }\n            </style>\n          </head>\n          <body>\n            ${htmlContent}\n          </body>\n          </html>`\n    },\n\n    writeFrame(refName, htmlContent, label) {\n      const iframe = this.$refs[refName]\n      if (!iframe) return\n\n      try {\n        const doc = iframe.contentDocument || iframe.contentWindow.document\n        doc.open()\n        doc.write(this.buildDocument(htmlContent))\n        doc.close()\n      } catch (error) {\n        console.error(`Error rendering ${label}:`, error)\n      }\n    },\n\n    renderHTML(htmlContent) {\n      this.writeFrame('previewFrame', htmlContent, 'HTML preview')\n    },\n\n    renderPopupHTML(htmlContent) {\n      this.writeFrame('popupFrame', htmlContent, 'popup preview')\n    },\n\n    updateViewport() {\n      this.viewportWidth = window.innerWidth || 1024\n      this.viewportHeight = window.innerHeight || 768\n      this.isMobile = this.viewportWidth < 768\n    },\n\n    getDeviceSize() {\n      const isPortrait = this.viewportHeight >= this.viewportWidth\n\n      if (this.viewportWidth < 768) {\n        return isPortrait ? deviceSizes.phonePortrait : deviceSizes.phoneLandscape\n      }\n      if (this.viewportWidth < 1024) {\n        return isPortrait ? deviceSizes.tabletPortrait : deviceSizes.tabletLandscape\n      }\n      return isPortrait ? deviceSizes.desktopPortrait : deviceSizes.desktopLandscape\n    },\n\n    getAvailableSpace() {\n      // p-4 on the scroll container: 16px on each side\n      const container = this.$refs.previewContainer\n      const width = container && container.clientWidth\n        ? container.clientWidth - 32\n        : this.viewportWidth - 32\n      const height = container && container.clientHeight\n        ? container.clientHeight - 32\n        : this.viewportHeight - 160\n\n      return {\n        width: Math.max(240, width),\n        height: Math.max(240, height)\n      }\n    },\n\n    applySize(sizeKey) {\n      if (sizeKey === 'device') {\n        const size = this.getDeviceSize()\n        const available = this.getAvailableSpace()\n        this.displayWidth = Math.min(size.width, available.width)\n        this.displayHeight = Math.min(size.height, available.height)\n        return\n      }\n\n      const size = screenSizes[sizeKey]\n      if (size) {\n        this.displayWidth = size.width\n        this.displayHeight = size.height\n      }\n    },\n\n    applyPopupSize(sizeKey) {\n      if (sizeKey === 'device') {\n        const size = this.getDeviceSize()\n        const margin = this.isMobile ? 0 : 32\n        this.popupWidth = Math.max(280, Math.min(size.width, this.viewportWidth - margin))\n        this.popupHeight = Math.max(280, Math.min(size.height, this.viewportHeight - margin))\n        return\n      }\n\n      const size = screenSizes[sizeKey]\n      if (size) {\n        this.popupWidth = size.width\n        this.popupHeight = size.height\n      }\n    },\n\n    handleViewportChange() {\n      this.updateViewport()\n\n      if (this.selectedSize === 'device') {\n        this.applySize('device')\n      }\n\n      if (!this.isPopupOpen) {\n        return\n      }\n\n      if (this.popupSelectedSize === 'device') {\n        this.applyPopupSize('device')\n      } else if (this.popupSelectedSize === 'custom') {\n        // Keep a custom popup inside the (possibly rotated) viewport\n        this.popupWidth = Math.min(this.popupWidth, this.viewportWidth)\n        this.popupHeight = Math.min(this.popupHeight, this.viewportHeight)\n      }\n    },\n\n    refreshPreview() {\n      this.refreshCounter++\n      this.$nextTick(() => {\n        this.renderHTML(this.html)\n      })\n    },\n\n    refreshPopupPreview() {\n      this.popupRefreshCounter++\n      this.$nextTick(() => {\n        this.renderPopupHTML(this.html)\n      })\n    },\n\n    openPopup() {\n      this.updateViewport()\n      this.isPopupOpen = true\n\n      if (this.isMobile) {\n        // Mobile: open at device size / current orientation, no draggable frame\n        this.popupSelectedSize = 'device'\n        this.applyPopupSize('device')\n      }\n\n      this.$nextTick(() => {\n        this.renderPopupHTML(this.html)\n      })\n    },\n\n    closePopup() {\n      this.isPopupOpen = false\n    }\n  }\n}\n</script>\n</file_change>\n\n### Notes on the implementation\n\n- **Fit, don't scroll:** `Device (auto)` clamps the frame to the real available box, so on a 375px phone the preview renders ~343px wide instead of forcing a horizontal scrollbar.\n- **Rotation aware:** `resize` + `orientationchange` recompute both the inline frame and (if open) the popup, so portrait \u2192 landscape flips the frame instead of leaving a 667px-tall frame on a 375px-tall viewport.\n- **Desktop unchanged:** default stays `laptop` (1024\u00d7768); `Device (auto)` is opt-in there and resolves to 1024\u00d7768 / 1440\u00d7900.\n- **Accessibility:** `isMobile` disables drag/resize (impossible to grab precisely on touch) and removes the redundant size selector from the popup header, keeping only the refresh/close targets visible.\n- **Fixed side-bug:** the generated iframe CSS had no semicolons, so the entire `body` rule was dropped by the CSS parser; the preview now actually gets its padding, font stack and dark palette (`#111111` / `#e5e7eb` per the design system), plus mobile-safe `max-width` and `overflow-wrap` rules for wide images/tables.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-18 15:12:12.032591",
+      "updated_at": "2026-10-18T15:26:57.997092",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1792336332.0325136,
+        "cancellation_token_id": "2a89b0be-e1ec-48fc-991d-e5a22aeeeb8d",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 10612,
+          "completion_tokens": 14214,
+          "total_tokens": 24826,
+          "tools": {}
+        },
+        "time_taken": 55.55210781097412,
+        "first_chunk_time_taken": 0.2724597454071045
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "1fa02c39e2ad",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0101202,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.0101202,
+        "chat_cost_cxjcoins": 0.0101202,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 10612,
+        "output_tokens": 14214,
+        "total_tokens": 24826,
+        "input_cost_cxjcoins": 0.0015917999999999998,
+        "output_cost_cxjcoins": 0.0085284,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "Designer",
+        "VueDeveloper",
+        "biblio",
+        "daisyui_components",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [
+        "admin"
+      ],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-18 15:12:04.572964",
+  "updated_at": "2026-10-18T15:56:32.850376",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/html-preview-in-mobile.36558d2f-4489-4f21-a7f6-7efc38d0e49c.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0101202,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-18T15:13:10.250258+00:00",
+      "summary": "The task was to fix the mobile preview behaviour in `src/components/HTMLPreview.vue`, which previously always opened at desktop presets (`laptop` 1024\u00d7768 inline, `custom` 1200\u00d7800 popup) and overflowed phone viewports.\n\nI added a `Device (auto)` size preset that resolves from `window.innerWidth`/`innerHeight` and orientation \u2014 phone (375\u00d7667 / 667\u00d7375), tablet (768\u00d71024 / 1024\u00d7768), or desktop (1024\u00d7768 / 1440\u00d7900).\n\nResolved device sizes are clamped to the real available space (container box inline, viewport in the popup) so the frame always fits instead of forcing horizontal scroll.\n\nViewport state (`viewportWidth/Height/isMobile`) is tracked in `data` and refreshed on `resize` + `orientationchange`, re-applying sizes to the inline frame and open popup so portrait\u2194landscape rotation is respected; mobile defaults to `device` while desktop keeps `laptop`.\n\nMobile popups also disable drag/resize and hide the redundant size selector, and a side-bug was fixed: the generated iframe document's CSS was missing all semicolons, so the entire `body` rule had been dropped by the parser (now restored, plus mobile-safe `max-width`/`overflow-wrap`/`text-size-adjust` rules).",
+      "message_ids": [
+        "5c77d7c3-cb02-481b-935d-ef8dc4a81dcd",
+        "abbfd4a1-e96f-4d37-befe-783f072085a6"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

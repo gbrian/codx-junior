@@ -1,24 +1,47 @@
 <script setup>
 import NavItem from './NavItem.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
-import ViewModeToggle from './ViewModeToggle.vue';
+import ViewModeToggle from './ViewModeToggle.vue'
+import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
+import { isMultiInstance } from '@/config/apps'
 </script>
 
 <template>
   <div class="px-2 py-3 shrink-0 border-b border-base-content/5">
-    <div class="flex gap-2 pb-1">  
+    <div class="flex gap-2 pb-1 min-w-0">  
       
       <!-- Project selector -->
       <ProjectDetailt 
         v-if="!isCollapsed"
+        class="flex-1 min-w-0"
         @click.stop=""
         :options="{ folders: true, showIcon: true }"
-        @select="$storex.projects.activeProjectChanged($event)"
+        @select="onProjectSelected"
+        @open="$emit('overlay-open')"
+        @close="$emit('overlay-close')"
       />
+
+      <!-- Pin / unpin the active project (quick switcher) -->
+      <button
+        v-if="!isCollapsed"
+        class="btn tooltip tooltip-right shrink-0"
+        :class="isActiveProjectPinned ? 'click text-primary' : 'click text-base-content/50'"
+        :data-tip="isActiveProjectPinned ? 'Unpin project' : 'Pin project'"
+        :aria-pressed="isActiveProjectPinned"
+        aria-label="Pin project"
+        @click.stop="togglePinCurrentProject"
+      >
+        <i class="fa-solid fa-thumbtack text-xs"></i>
+      </button>
+
       <ViewModeToggle v-if="!isCollapsed"
-       />
+        class="shrink-0" />
           
     </div>
+
+    <!-- Pinned projects quick switcher (icons only while the rail is collapsed) -->
+    <PinnedProjectsSwitcher :is-collapsed="isCollapsed" />
+
     <button
       v-if="!isCollapsed"
       class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-base-content/60 hover:text-base-content/80 transition-colors"
@@ -39,10 +62,31 @@ import ViewModeToggle from './ViewModeToggle.vue';
       />
 
       <NavItem
+        icon="fas fa-folder-plus"
+        label="New Project"
+        :is-collapsed="isCollapsed"
+        @click="handleNewProject"
+      />
+
+      <NavItem
+        icon="fas fa-clock-rotate-left"
+        label="Activity"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToActivity"
+      />
+
+      <NavItem
         icon="fas fa-list-check"
         label="Task Manager"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToKanban"
+      />
+
+      <NavItem
+        icon="fas fa-diagram-project"
+        label="Planning"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToPlanning"
       />
 
       <NavItem
@@ -53,10 +97,38 @@ import ViewModeToggle from './ViewModeToggle.vue';
       />
 
       <NavItem
+        icon="fas fa-video"
+        label="Meet"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToMeet"
+      />
+
+      <NavItem
+        icon="fas fa-people-group"
+        label="Team"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToTeam"
+      />
+
+      <NavItem
         icon="fas fa-folder-open"
         label="File Explorer"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToFileExplorer"
+      />
+
+      <NavItem
+        icon="fas fa-code-branch"
+        label="Git"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToGitView"
+      />
+
+      <NavItem
+        icon="fas fa-server"
+        label="Infrastructure"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToInfra"
       />
 
       <NavItem
@@ -76,36 +148,133 @@ export default {
     isCollapsed: { type: Boolean, default: false },
     moreExpanded: { type: Boolean, default: false }
   },
-  emits: ['update:moreExpanded', 'close'],
+  emits: ['update:moreExpanded', 'close', 'overlay-open', 'overlay-close'],
   data() {
     return {
       primaryNavExpanded: true
     }
   },
+  computed: {
+    // True when the active project is in the UI store's pinned list
+    isActiveProjectPinned() {
+      return this.$storex.ui.isActiveProjectPinned
+    }
+  },
   methods: {
+    // Project selector → switch the ACTIVE PROJECT IN PLACE.
+    //
+    // The switch is fully store-driven: `activeProjectChanged` reloads the
+    // project's settings, chats, models and boards while the shell (sidebar +
+    // desktop layout) stays mounted. It must never end in a URL/route change:
+    // navigating to "/<project_name>" leaves the desktop shell and reloads the
+    // document, which is exactly what we don't want when just picking another
+    // project.
+    async onProjectSelected(project) {
+      if (!project?.project_id) {
+        this.$ui.addNotification({ text: 'Invalid project', type: 'error' })
+        return
+      }
+
+      // Selecting the project that is already active is a no-op, not a reload.
+      if (project.project_id === this.$storex.projects.activeProject?.project_id) {
+        this.$emit('close')
+        return
+      }
+
+      try {
+        await this.$storex.projects.activeProjectChanged(project)
+      } catch (ex) {
+        console.error('Error switching project', ex)
+        this.$ui.addNotification({ text: `Error switching project: ${ex.message}`, type: 'error' })
+      } finally {
+        this.$emit('close')
+      }
+    },
+    // Single entry point for opening an app from this menu.
+    // On desktop a multi-instance app (declared in config/apps.js) opens a NEW
+    // tab each time so several instances can coexist — e.g. the Task Manager,
+    // where each tab is a board. Every other case keeps the original behaviour:
+    // setActiveTab focuses/creates the single desktop panel, or switches to the
+    // app's own route in single/mobile mode.
+    openApp(appKey) {
+      if (this.$ui.isDesktopMode && isMultiInstance(appKey)) {
+        // newInstance tells showApp to skip its per-key de-duplication and
+        // create a brand-new panel (see store/ui.js → showApp).
+        this.$ui.openApp({ appKey, payload: { newInstance: true } })
+      } else {
+        this.$ui.setActiveTab(appKey)
+      }
+      this.$emit('close')
+    },
+    // Pin/unpin the currently active project. Pins live in the UI store and are
+    // persisted in localStorage (uiState), then surfaced by PinnedProjectsSwitcher.
+    togglePinCurrentProject() {
+      const project = this.$storex.projects.activeProject
+      if (!project?.project_id) {
+        this.$ui.addNotification({ text: 'No active project to pin', type: 'warning' })
+        return
+      }
+      this.$ui.togglePinProject(project.project_id)
+      this.$ui.addNotification({
+        text: this.isActiveProjectPinned
+          ? `Pinned ${project.project_name}`
+          : `Unpinned ${project.project_name}`
+      })
+    },
+    // Opens the global "New project" modal. The modal itself is rendered once
+    // at the app root and driven by the ui store flag `newProject`.
+    handleNewProject() {
+      this.$ui.showNewProject(true)
+      this.$emit('close')
+    },
     handleNavigateToNewChat() {
-      if (this.$router.$navigation.isDesktopMode) {
+      if (this.$ui.isDesktopMode) {
         this.$service.chat.newQuickChat()
       } else {
         this.$storex.$router.$navigation.apps.openHome()
       }
       this.$emit('close')
     },
+    // Opens the project Activity Wall. The wall is registered as the home of
+    // the mobile view (see App.vue) and as the "activity" app everywhere else.
+    handleNavigateToActivity() {
+      this.openApp('activity')
+    },
     handleNavigateToKanban() {
-      this.$storex.$router.$navigation.apps.openKanban()
-      this.$emit('close')
+      this.openApp('tasks')
+    },
+    handleNavigateToPlanning() {
+      this.openApp('planning')
     },
     handleNavigateToMessenger() {
-      this.$storex.$router.$navigation.apps.openMessenger()
+      this.openApp('messenger')
+    },
+    handleNavigateToMeet() {
+      this.openApp('meet')
+    },
+    // Open the Team screen via the UI store opener, which routes through the
+    // unified openApp() (dockview panel on desktop / route in single mode).
+    handleNavigateToTeam() {
+      this.$storex.ui.openTeams()
       this.$emit('close')
     },
     handleNavigateToFileExplorer() {
-      this.$storex.$router.$navigation.apps.openFileExplorer()
-      this.$emit('close')
+      this.openApp('file-explorer')
+    },
+    handleNavigateToGitView() {
+      this.openApp('git-view')
+    },
+    // Docker infrastructure (containers, compose stacks, images, volumes,
+    // networks, daemon events). Uses the same unified opener as the other
+    // entries: a dockview panel on desktop, "/:projectName/infra" in
+    // single / mobile mode (see config/apps.js → infra).
+    // NOTE: `/api/infra/*` is admin-only on the backend; gate this NavItem with
+    // v-if="$users.isProjectAdmin" once the role is enforced server-side.
+    handleNavigateToInfra() {
+      this.openApp('infra')
     },
     handleNavigateToWiki() {
-      this.$storex.$router.$navigation.apps.openWiki()
-      this.$emit('close')
+      this.openApp('wiki')
     },
     toggleCollapse() {
       this.$emit('toggle-collapse')

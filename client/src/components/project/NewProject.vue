@@ -47,8 +47,8 @@
       </div>
     </div>
 
-    <!-- Prompt textarea -->
-    <div class="form-control">
+    <!-- Prompt textarea: DISABLED -->
+    <div class="hidden form-control">
       <label class="label py-1">
         <span class="label-text text-sm font-semibold flex items-center gap-1">
           <i class="fa-solid fa-wand-magic-sparkles text-secondary"></i>
@@ -67,8 +67,8 @@
       />
     </div>
 
-    <!-- Template carousel -->
-    <div class="flex flex-col gap-2">
+    <!-- Template carousel: DISABLED -->
+    <div class="hidden flex flex-col gap-2">
       <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wide">
         <i class="fa-solid fa-layer-group mr-1"></i> Templates
       </span>

@@ -3,14 +3,14 @@ import ChatIcon from './ChatIcon.vue'
 </script>
 
 <template>
-  <div class="w-full flex gap-2 select select-ghost">
+  <div class="w-full flex gap-2 select select-ghost bg-base-100">
     <ChatIcon :mode="selectedMode" />
     <select 
       :value="selectedMode"
       @change="selectMode"
     >
-      <option v-for="mode in availableModes" :key="mode" :value="mode" class="flex gap-1">
-        <ChatIcon :mode="mode" />
+      <option v-for="mode in availableModes" :key="mode.value" :value="mode.value" class="flex gap-1">
+        {{ mode.label }}
       </option>
     </select>
   </div>
@@ -25,9 +25,9 @@ export default {
     }
   },
   emits: ['mode-changed'],
-  data() {
-    return {
-      availableModes: ['chat', 'task', 'topic', 'prview', 'browser', 'slides', 'tutorial']
+  computed: {
+    availableModes() {
+      return this.$storex.chats.availableChatModes
     }
   },
   methods: {

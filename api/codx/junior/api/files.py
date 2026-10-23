@@ -16,13 +16,19 @@ async def list_files(request: Request):
     List files in a directory.
 
     Query params:
-    - path: Directory path (relative or absolute)
+    - path: Directory path (relative or absolute). Absolute paths may point to
+      files of the current project or of any of its child projects.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
 
     path = request.query_params.get("path", ".")
-    abs_path = file_engine.get_project_file_path(path)
+
+    try:
+        abs_path = file_engine.get_project_file_path(path)
+    except ValueError as ex:
+        logger.warning("Invalid directory path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
 
     if not os.path.isdir(abs_path):
         return Response(status_code=status.HTTP_404_NOT_FOUND)
@@ -36,7 +42,8 @@ async def read_file(request: Request):
     Read a file and return its content with metadata.
 
     Query params:
-    - path: File path (relative or absolute)
+    - path: File path (relative to the current project or to one of its child
+      projects, or absolute)
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -49,6 +56,9 @@ async def read_file(request: Request):
         return file_engine.read_file(path)
     except FileNotFoundError:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
+    except ValueError as ex:
+        logger.warning("Invalid file path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
 
 
 @router.get("/files/preview")
@@ -84,6 +94,59 @@ async def preview_file(request: Request):
             path=abs_file_path,
             media_type=media_type,
             filename=os.path.basename(abs_file_path)
+        )
+    except FileNotFoundError:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
+    except ValueError as ex:
+        logger.warning("Invalid file path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
+
+
+@router.get("/files/download")
+async def download_file(request: Request):
+    """
+    Download a file's binary content as an attachment.
+
+    Unlike /files/read (which returns binary content base64-encoded inside a
+    JSON payload), this endpoint streams the raw file bytes with the correct
+    Content-Type header and instructs the browser to save the file.
+
+    Useful for PDFs, documents, archives, images and any other binary file.
+
+    Query params:
+    - path: File path (relative or absolute)
+    - inline: If true, serve the file for inline display instead of forcing a
+      download (default false)
+
+    Returns:
+        FileResponse with the resolved media type and a Content-Disposition
+        header (attachment by default, inline when inline=true).
+    """
+    codx_junior_session = request.state.codx_junior_session
+    file_engine = codx_junior_session.get_file_engine()
+
+    path = request.query_params.get("path")
+    if not path:
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Missing 'path' parameter"
+        )
+
+    inline = request.query_params.get("inline", "").lower() == "true"
+
+    try:
+        abs_file_path = file_engine.get_project_file_path(path)
+
+        if not os.path.isfile(abs_file_path):
+            return Response(status_code=status.HTTP_404_NOT_FOUND)
+
+        media_type = file_engine.get_media_type(abs_file_path)
+
+        return FileResponse(
+            path=abs_file_path,
+            media_type=media_type,
+            filename=os.path.basename(abs_file_path),
+            content_disposition_type="inline" if inline else "attachment",
         )
     except FileNotFoundError:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
@@ -245,6 +308,99 @@ async def write_file(request: Request):
     except Exception as ex:
         logger.error("Error writing file %s: %s", path, ex)
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=str(ex))
+
+
+@router.post("/files/write-multiple")
+async def write_multiple_files(request: Request):
+    """
+    Write content to multiple project files in a single request.
+
+    Each file is written using the same logic as `/files/write`
+    (`CODXJuniorSession.write_project_file`), so path resolution, optional
+    profile processing and the returned per-file metadata are identical.
+    This endpoint exists only to avoid one HTTP round-trip per file.
+
+    Body params:
+    - files: List of file entries (required, non-empty). Each entry:
+        - path: File path (relative or absolute, required)
+        - page_content: Content to write to the file
+          ('content' is accepted as an alias)
+    - process: Whether to run file profiles before saving (default false,
+      same as `/files/write`)
+
+    Returns:
+        Dict with:
+        - written: List of per-file results (same shape as `/files/write`)
+        - failed: List of failures with 'path' and 'error'
+        - total_files: Total number of file entries received
+        - total_written: Number of successfully written files
+
+    Notes:
+        Files are written sequentially. A failure writing one file does not
+        abort the remaining ones: it is reported in `failed`.
+    """
+    try:
+        data = await request.json()
+    except Exception as ex:
+        logger.warning("Invalid JSON payload for multi file write: %s", ex)
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Invalid JSON payload"
+        )
+
+    files = data.get("files") or []
+    process = bool(data.get("process", False))
+
+    if not files:
+        return Response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content="Missing 'files' parameter"
+        )
+
+    codx_junior_session = request.state.codx_junior_session
+
+    written = []
+    failed = []
+
+    logger.info("Writing %d files (process: %s)", len(files), process)
+
+    for file_entry in files:
+        if not isinstance(file_entry, dict):
+            failed.append({"path": None, "error": "Invalid file entry"})
+            continue
+
+        path = file_entry.get("path")
+        page_content = file_entry.get("page_content")
+        if page_content is None:
+            page_content = file_entry.get("content", "")
+
+        if not path:
+            failed.append({"path": None, "error": "Missing 'path' parameter"})
+            continue
+
+        try:
+            result = await codx_junior_session.write_project_file(
+                file_path=path,
+                content=page_content,
+                process=process
+            )
+            written.append(result)
+        except Exception as ex:
+            logger.error("Error writing file %s: %s", path, ex)
+            failed.append({"path": path, "error": str(ex)})
+
+    logger.info(
+        "Multi file write completed: %d written, %d failed",
+        len(written),
+        len(failed)
+    )
+
+    return {
+        "written": written,
+        "failed": failed,
+        "total_files": len(files),
+        "total_written": len(written),
+    }
 
 
 @router.get("/files/reset")

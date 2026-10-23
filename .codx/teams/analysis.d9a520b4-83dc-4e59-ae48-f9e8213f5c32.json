@@ -1,0 +1,22 @@
+{
+  "id": "d9a520b4-83dc-4e59-ae48-f9e8213f5c32",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "name": "Analysis",
+  "description": "A group of experts assisting in analyzing tasks.",
+  "color": "#6366f1",
+  "logo": "",
+  "icon": "",
+  "profiles": [
+    "biblio",
+    "analyst",
+    "brainer",
+    "brainstormer",
+    "browser"
+  ],
+  "users": [],
+  "tags": [],
+  "created_by": "admin",
+  "updated_by": "admin",
+  "created_at": "2026-10-15T08:10:02.661539",
+  "updated_at": "2026-10-15T09:56:09.892670"
+}

@@ -6,13 +6,23 @@ Tools are organized as callable functions with associated metadata for
 integration with language models and the API.
 
 Tool Scope Levels:
-    - "global": Tools always included in conversations (e.g., code_block_generator)
+    - "global": Tools always included in conversations
     - "chat": Tools available based on conversation context and selection
 
 Tool Response Types:
     - str: Traditional single-string response (used for LLM context)
     - ToolResponse: Dual-return object for tools that need to produce both
                     user-facing content and LLM feedback
+
+Glob Patterns:
+    Glob patterns are only supported by search tools that return file paths
+    (e.g. ``project_search``). Reading tools always use literal paths.
+    Glob wildcards are:
+        - ``*``   matches any characters within a single path segment
+        - ``?``   matches a single character
+        - ``[abc]`` matches one character from the set
+        - ``**``  matches across multiple directories (recursive)
+    Example: ``web/src/components/**/*.vue``.
 
 Made with ❤️ by codx-junior
 """
@@ -30,11 +40,15 @@ from .project_structure import (
     READ_FOLDER_TOOL_JSON,
 )
 from .code_writer import code_writer
-from .code_block_generator import code_block_generator
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
 from .apply_file_changes import apply_file_changes
-from .git_tools import get_file_last_version
+from .git_tools import (
+    get_file_last_version,
+    create_pr_branch,
+    close_pr,
+    abandon_pr,
+)
 from .image_tools import explain_image, generate_image
 from .tutorial_tools import (
     tutorial_definition,
@@ -75,6 +89,19 @@ from .docker_tools import (
     DOCKER_COMPOSE_SERVICE_TOOL_JSON,
 )
 from .duckduckgo_search import duckduckgo_search, DUCKDUCKGO_SEARCH_TOOL_JSON
+from .browser_tools import (
+    start_session,
+    browse_action,
+    get_screenshot,
+    get_source_code,
+    finish_session,
+    START_SESSION_TOOL_JSON,
+    BROWSE_ACTION_TOOL_JSON,
+    GET_SCREENSHOT_TOOL_JSON,
+    GET_SOURCE_CODE_TOOL_JSON,
+    FINISH_SESSION_TOOL_JSON,
+    BROWSER_TOOL_SETTINGS,
+)
 from .model import ToolResponse, ToolSettings
 
 # Configure logging
@@ -92,7 +119,6 @@ __all__ = [
     "project_structure",
     "read_folder",
     "code_writer",
-    "code_block_generator",
     "create_task",
     "process_task",
     "apply_file_changes",
@@ -103,6 +129,9 @@ __all__ = [
     "modify_chapter",
     "delete_chapter",
     "get_file_last_version",
+    "create_pr_branch",
+    "close_pr",
+    "abandon_pr",
     "docker_ps",
     "docker_logs",
     "docker_stats",
@@ -119,6 +148,11 @@ __all__ = [
     "docker_container",
     "docker_compose_service",
     "duckduckgo_search",
+    "start_session",
+    "browse_action",
+    "get_screenshot",
+    "get_source_code",
+    "finish_session",
     "test_tool",
 ]
 
@@ -177,6 +211,12 @@ TOOLS = [
                 "name": "project_search",
                 "description": (
                     "Search for documents within a project using one or more search queries. "
+                    "Also finds project files whose path matches the query; the repository's "
+                    ".gitignore and the project's custom ignore patterns are honored so ignored "
+                    "folders and files are discarded. "
+                    "A query containing glob wildcards ('*', '?', '[') is treated as a glob "
+                    "pattern matched against project file paths (e.g. '**/*.py' returns every "
+                    "Python file). "
                     "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
                     "as a list instead of making separate calls. "
                     "Example: search=[\"authentication\", \"user session\"] instead of two separate calls."
@@ -188,7 +228,8 @@ TOOLS = [
                             "type": ["string", "array"],
                             "description": (
                                 "Single search query (string) or list of search queries (array of strings). "
-                                "Combining multiple related queries in one call is more efficient."
+                                "Combining multiple related queries in one call is more efficient. "
+                                "A query may contain glob wildcards to find files by pattern."
                             )
                         },
                         "validation": {
@@ -214,10 +255,12 @@ TOOLS = [
                 "name": "project_read_file",
                 "description": (
                     "Read project file content from one or multiple file paths. "
-                    "BULK OPERATION: To reduce tool calls, read multiple related files at once "
-                    "by providing a list of paths instead of making separate calls. "
-                    "Example: file_path=[\"src/main.py\", \"config/settings.py\"] "
-                    "instead of two separate calls. "
+                    "Paths are read literally: glob wildcards ('*', '?', '[') are NOT "
+                    "interpreted. Use project_search to discover files by pattern and then "
+                    "read the returned paths. "
+                    "\n\nBULK OPERATION: To reduce tool calls, read multiple related files "
+                    "at once by providing a list of paths instead of making separate calls. "
+                    "Example: file_path=[\"src/main.py\", \"config/settings.py\"]. "
                     "Invalid or missing files are returned as error blocks."
                 ),
                 "parameters": {
@@ -227,7 +270,8 @@ TOOLS = [
                             "type": ["string", "array"],
                             "description": (
                                 "Single file path (string) or list of file paths (array of strings). "
-                                "Supports relative or absolute paths and glob patterns. "
+                                "Supports relative and absolute paths. Glob wildcards are not "
+                                "interpreted. "
                                 "Reading multiple files in one call is more efficient."
                             )
                         }
@@ -562,9 +606,160 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(session=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "history", "file-operations"],
         "tool_call": get_file_last_version
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "create_pr_branch",
+                "description": (
+                    "Create a local PR branch from the current branch with the changes generated in this chat. "
+                    "PRs are reviewed locally by codx-junior, so nothing is pushed to the remote. "
+                    "The branch is created from the CURRENT branch unless 'base_branch' is provided. "
+                    "When 'files' is provided those contents are written before committing; when omitted the "
+                    "changes already present on disk are committed. "
+                    "With 'worktree' enabled the branch is created in a separate git worktree, leaving the "
+                    "project's working tree and its uncommitted changes untouched. "
+                    "On success the chat PR view is updated with status 'open'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "Target PR branch name (e.g. 'codx-junior/fix-login'). "
+                                "Generated automatically when omitted."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Base branch to branch off. Defaults to the current branch."
+                            )
+                        },
+                        "commit_message": {
+                            "type": "string",
+                            "description": "Commit message. Defaults to a generic AI changes message."
+                        },
+                        "files": {
+                            "type": "object",
+                            "description": (
+                                "Optional map of project-relative file path to full file content. "
+                                "Omit it to commit the changes already present in the working tree."
+                            ),
+                            "additionalProperties": {"type": "string"}
+                        },
+                        "worktree": {
+                            "type": "boolean",
+                            "description": (
+                                "Create the branch as a git worktree instead of switching the project's "
+                                "working tree. Defaults to false."
+                            ),
+                            "default": False
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "worktree"],
+        "tool_call": create_pr_branch
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "close_pr",
+                "description": (
+                    "Close a local PR by merging its branch changes into the base branch. "
+                    "The branch worktree is removed when one exists. Nothing is pushed: PRs are merged locally. "
+                    "The branch and base default to the chat PR view, so it can be called without arguments. "
+                    "On success the chat PR view is updated with status 'merged'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "PR branch to merge. Defaults to the branch stored in the chat PR view."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Branch to merge into. Defaults to the PR view base branch, "
+                                "the current branch, or the repository default branch."
+                            )
+                        },
+                        "commit_message": {
+                            "type": "string",
+                            "description": "Merge commit message. Defaults to a generated message."
+                        },
+                        "delete_branch": {
+                            "type": "boolean",
+                            "description": (
+                                "Delete the PR branch after merging. Defaults to false."
+                            ),
+                            "default": False
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "merge"],
+        "tool_call": close_pr
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "abandon_pr",
+                "description": (
+                    "Abandon a local PR: remove its git worktree (if any) and delete the branch, "
+                    "discarding the changes without merging them. "
+                    "The branch and base default to the chat PR view, so it can be called without arguments. "
+                    "On success the chat PR view is updated with status 'discarded'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch_name": {
+                            "type": "string",
+                            "description": (
+                                "PR branch to abandon. Defaults to the branch stored in the chat PR view."
+                            )
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": (
+                                "Branch to return to when the PR branch is checked out. "
+                                "Defaults to the PR view base branch or the repository default branch."
+                            )
+                        },
+                        "delete_branch": {
+                            "type": "boolean",
+                            "description": (
+                                "Delete the branch (default: true). Set false to keep the branch "
+                                "and only remove its worktree."
+                            ),
+                            "default": True
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "branch", "pull-request", "discard"],
+        "tool_call": abandon_pr
     },
     {
         "tool_json": DOCKER_PS_TOOL_JSON,
@@ -661,6 +856,36 @@ TOOLS = [
         "settings": ToolSettings(scope="chat", dual_response=True).dict(),
         "tags": ["web", "search", "external-data", "research"],
         "tool_call": duckduckgo_search
+    },
+    {
+        "tool_json": START_SESSION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "session"],
+        "tool_call": start_session
+    },
+    {
+        "tool_json": BROWSE_ACTION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "navigation"],
+        "tool_call": browse_action
+    },
+    {
+        "tool_json": GET_SCREENSHOT_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "vision"],
+        "tool_call": get_screenshot
+    },
+    {
+        "tool_json": GET_SOURCE_CODE_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "content"],
+        "tool_call": get_source_code
+    },
+    {
+        "tool_json": FINISH_SESSION_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "cleanup"],
+        "tool_call": finish_session
     },
 ]
 

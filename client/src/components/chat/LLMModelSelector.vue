@@ -10,7 +10,7 @@
       </span>
       <span class="text-xs opacity-50" v-else>default</span>
     </div>
-    <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-60 p-2 shadow max-h-60 overflow-auto gap-1">
+    <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-200 rounded-box z-[1] w-60 p-2 shadow max-h-60 overflow-auto gap-1">
       <li>
         <a class="btn btn-sm btn-ghost justify-start"
           :class="!selectedModel && 'btn-active'"

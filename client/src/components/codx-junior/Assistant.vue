@@ -19,7 +19,7 @@ import UserSelector from '../chat/UserSelector.vue'
           <div tabindex="0" role="button" class="btn btn-sm m-1">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-60 p-2 shadow-sm">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-300 rounded-box z-50 w-60 p-2 shadow-sm">
             <li>
               <a class="justify-between">
               <button class="btn btn-xs btn-outline tooltip" data-tip="New" @click="resetChat">

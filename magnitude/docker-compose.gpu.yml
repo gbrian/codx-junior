@@ -1,0 +1,39 @@
+#####################################################################################
+# Magnitude - NVIDIA CUDA override
+#
+# Requires the NVIDIA driver + NVIDIA Container Toolkit on the host:
+#     nvidia-smi                                   # driver sees the card
+#     docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+#
+# Usage:
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d magnitude
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml run --rm magnitude-test
+#
+# Magnitude acquires its own CUDA runtime components; only the driver must be
+# visible inside the container. The current CUDA builds target Ampere and newer.
+#####################################################################################
+services:
+
+  magnitude:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+  magnitude-test:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility

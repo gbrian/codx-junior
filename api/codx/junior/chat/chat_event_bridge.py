@@ -10,9 +10,19 @@ ChatEngine created BEFORE calling the AI — they are never emitted as separate
 chat messages:
 
     * ``response_message.tool_events``      → list of :class:`ToolEvent`
-      (one entry per tool call, updated in place: running → done/error)
+      (one entry per tool call, updated in place: running → done/error). Each
+      event also carries the tool's user-facing ``output`` so tool output can be
+      rendered collapsed/hidden instead of polluting ``Message.content``.
     * ``response_message.lifecycle_events`` → list of :class:`LifeCycleEvent`
       (one entry per agent run, updated in place)
+
+Tool output
+-----------
+TOOL_END events carry the dual-response tool's user-facing ``output``
+(``ToolResponse.user_response``). The bridge stores it on the matching
+:class:`ToolEvent` (``ToolEvent.output``) instead of it being merged into the
+chat content, so the client decides how to display it. Cached tool calls do not
+re-emit output (the first execution already delivered it).
 
 Crash-safety guarantee
 ----------------------
@@ -65,8 +75,8 @@ they are known, not only at the end of the turn.
         Bridge->>Response: tool_events.append(ToolEvent running)
         Bridge->>ChatManager: add_message (persist — crash-safe)
         Bridge->>EventManager: message_event (stream)
-        SmolAgent->>Bridge: TOOL_END (tool_call_id, duration, result)
-        Bridge->>Response: update SAME ToolEvent (done, response)
+        SmolAgent->>Bridge: TOOL_END (tool_call_id, duration, result, output)
+        Bridge->>Response: update SAME ToolEvent (done, response, output)
         Bridge->>ChatManager: update_message (persist)
         Bridge->>EventManager: message_event (stream)
         Engine->>Bridge: persist_message(hidden reasoning message)
@@ -270,6 +280,13 @@ class ChatEventBridge:
         else:
             tool_event.status = STATUS_DONE
             tool_event.response = _truncate(str(payload.get("result") or ""))
+            # Tool output (dual-response user_response) is attached as a
+            # collapsible message property instead of being merged into the
+            # chat content. Stored UNTRUNCATED so generated code/blocks are not
+            # lost. Cached tool calls do not carry an output (see SmolAgent).
+            output = payload.get("output")
+            if output:
+                tool_event.output = str(output)
 
         logger.info(
             "ChatEventBridge: tool '%s' %s in %.0f ms (chat='%s')",

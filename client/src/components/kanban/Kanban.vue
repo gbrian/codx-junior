@@ -105,12 +105,25 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
           </button>
         </div>
 
+        <!-- Board wall: recap of the tasks and events of THIS board.
+             It opens as its own Activity panel, exactly like a task opens its
+             chat panel (both go through the shared app opener). -->
+        <button
+          class="btn btn-ghost btn-sm shrink-0 gap-1.5 tooltip tooltip-bottom"
+          data-tip="Board wall"
+          aria-label="Board wall"
+          @click="openBoardWall"
+        >
+          <i class="fa-solid fa-newspaper"></i>
+          <span class="hidden md:inline text-xs">Wall</span>
+        </button>
+
         <!-- More options dropdown (desktop) -->
         <div class="hidden sm:block dropdown dropdown-left">
           <button class="btn btn-sm tooltip tooltip-bottom" data-tip="More options">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
+          <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
             <li>
               <a @click="showChildrenBoards = !showChildrenBoards"
                 :class="{ 'text-warning': showChildrenBoards }">
@@ -263,6 +276,12 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
 
 <script>
 const ALL_BOARD_TITLE_ID = '$ALL'
+// Fallback applied at VIEW time only — never written onto the chat object.
+// Writing it on the object (via spread) caused every chat to get a NEW
+// identity on each `chats` computed evaluation, which in turn invalidated
+// `boardChats`, `columnList`, `buildViewColumns` and the board canvas on
+// every store write.
+const NO_COLUMN_FALLBACK = '--none--'
 
 export default {
   props: ['project'],
@@ -275,7 +294,7 @@ export default {
       editingBoard: null,
       columnTitle: '',
       columnColor: '#000000',
-      isDropdownOpen: false,
+      isdropdownOpen: false,
       selectedColumn: null,
       editColumnError: null,
       viewColumns: [],
@@ -347,12 +366,15 @@ export default {
     activeKanbanBoard() {
       return this.kanban?.boards[this.board] || null
     },
+    // Return the stored chat objects AS-IS. The `column` fallback is applied
+    // at filtering/grouping sites (see NO_COLUMN_FALLBACK below). Wrapping
+    // every chat in `{ ...c, column }` gave each chat a NEW object identity
+    // on every evaluation, so the watchers and board column builders that
+    // compare by reference treated every store write as a full chat-list
+    // change — triggering `buildViewColumns` and re-rendering the entire
+    // board on unrelated writes.
     chats() {
-      const allChats = this.$projects.allChats
-      return Object.values(allChats || {}).map(c => ({
-        ...c,
-        column: c.column || '--none--'
-      }))
+      return Object.values(this.$projects.allChats || {})
     },
     lastMessages() {
       return this.chats.sort((a, b) => a.last_update > b.last_update ? -1 : 1)
@@ -374,7 +396,8 @@ export default {
     },
     columnList() {
       const kanbanColumns = this.activeKanbanBoard?.columns?.map(c => c.title) || []
-      const chatColumns = this.boardChats.map(c => c.column)
+      // Apply fallback here, not on the chat objects
+      const chatColumns = this.boardChats.map(c => c.column || NO_COLUMN_FALLBACK)
       return [...new Set([...kanbanColumns, ...chatColumns])]
     },
     visibleTasks() {
@@ -406,6 +429,10 @@ export default {
       this.projectChanged()
     },
     chats(newValue, oldValue) {
+      // Compare by chat ids. Since `chats` no longer clones the objects, a
+      // purely internal field update (e.g. `messages` merge) that does NOT
+      // add/remove chats must not trigger a full column rebuild — the cards
+      // themselves watch their own task prop for those changes.
       const ids = arr => arr.map(c => c.id).sort().join()
       if (ids(newValue) !== ids(oldValue)) this.buildViewColumns()
     },
@@ -420,8 +447,26 @@ export default {
     }
   },
   methods: {
+    // Board wall: opens the Activity app scoped to THIS board. It uses the same
+    // opener a task uses to show its chat (`$storex.ui.openApp`), so the wall is
+    // docked as its own panel next to the board instead of covering it — and it
+    // keeps working the same way in single/mobile mode (app route).
+    openBoardWall() {
+      if (!this.board) return
+      this.$storex.ui.openApp({
+        appKey: 'activity',
+        payload: {
+          board: this.board,
+          project: this.project || this.$projects.activeProject
+        }
+      })
+    },
     async setActiveChat(chat) {
-      chat && this.$chats.reloadChat(chat)
+      // `$chats.setActiveChat` already calls `reloadChat` internally before
+      // setting the active id. Calling `reloadChat` here too caused a DOUBLE
+      // fetch on every card click: two concurrent requests merged into the same
+      // chat object and each merge fired Vue reactivity, cascading a full
+      // rebuild of the board columns and every card.
       this.$chats.setActiveChat(chat)
       if (this.$ui.isVibeMode) {
         this.$ui.openVibeCoding()
@@ -440,7 +485,7 @@ export default {
         if (board !== this.board) {
           await this.$projects.setActiveBoard(board)
         }
-        this.isDropdownOpen = false
+        this.isdropdownOpen = false
         if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
           Object.keys(this.kanban.boards)
             .filter(b => this.kanban.boards[b])
@@ -477,8 +522,11 @@ export default {
           valid: !!storeColumn.id,
           position: ix,
           project: this.$projects.allProjectsById[storeColumn.project_id] || null,
+          // Apply the column fallback here (comparison site), not on the chat
+          // objects themselves. Spreading the fallback onto each chat produced
+          // new object identities on every evaluation.
           tasks: this.boardChats
-            .filter(t => (t.column || '--none--') === col)
+            .filter(t => (t.column || NO_COLUMN_FALLBACK) === col)
             .sort((a, b) => (a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1))
         }
       }).sort((a, b) => (a.position < b.position ? -1 : 1))

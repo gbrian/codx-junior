@@ -7,10 +7,11 @@
   >
     <button
       class="flex flex-col items-center gap-1 px-3 py-2 text-base-content/50 hover: transition-colors"
-      @click="$emit('show-menu')"
+      @click="handleOpenSidebar"
+      aria-label="Open sidebar"
     >
-      <i class="fas fa-ellipsis text-lg"></i>
-      <span class="text-[10px]">More</span>
+      <i class="fas fa-bars text-lg"></i>
+      <span class="text-[10px]">Menu</span>
     </button>
 
     <button
@@ -47,6 +48,14 @@ export default {
   },
   emits: ['show-menu'],
   methods: {
+    // Open the app sidebar. The open/close state lives in the ui store
+    // (`sidebarCollapsed`), so App.vue and DesktopSidebar stay in sync through
+    // a single source of truth. `show-menu` is still emitted for callers that
+    // prefer to react to the request themselves.
+    handleOpenSidebar() {
+      this.$storex.ui.expandSidebar()
+      this.$emit('show-menu')
+    },
     handleNavigateToNewChat() {
       this.$storex.$router.$navigation.apps.openHome()
     },

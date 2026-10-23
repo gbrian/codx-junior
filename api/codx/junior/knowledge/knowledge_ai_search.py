@@ -827,7 +827,7 @@ class KnowledgeAISearch:
         """
         Ask the AI whether the current document set is sufficient to answer the query.
 
-        Uses ``a_chat`` (async) so the call does not block the event loop.
+        Uses ``a_chat_run`` (async) so the call does not block the event loop.
 
         The AI may return up to ``MAX_REFINED_QUERIES`` alternative search
         queries in the ``refined_queries`` list when the current documents are
@@ -852,8 +852,8 @@ class KnowledgeAISearch:
         )
 
         logger.info("Checking sufficiency for query: %s", user_query)
-        messages = await self._get_ai().a_chat(prompt=prompt)
-        response_content = messages[-1].content.strip()
+        run_result = await self._get_ai().a_chat_run(prompt=prompt)
+        response_content = run_result.content.strip()
 
         # Extract the JSON block from the AI response
         json_blocks = list(extract_json_blocks(response_content))
@@ -913,8 +913,8 @@ class KnowledgeAISearch:
         )
 
         logger.info("Checking agent sufficiency for request: %s", user_request)
-        messages = await self._get_ai().a_chat(prompt=prompt)
-        response_content = messages[-1].content.strip()
+        run_result = await self._get_ai().a_chat_run(prompt=prompt)
+        response_content = run_result.content.strip()
 
         json_blocks = list(extract_json_blocks(response_content))
         if json_blocks:
@@ -945,7 +945,7 @@ class KnowledgeAISearch:
         """
         Generate the final answer to the user's question from the collected documents.
 
-        Uses ``a_chat`` (async) so the call does not block the event loop.
+        Uses ``a_chat_run`` (async) so the call does not block the event loop.
         The prompt instructs the AI to mention the originating project when
         referencing specific pieces of information.
 
@@ -964,8 +964,8 @@ class KnowledgeAISearch:
         )
 
         logger.info("Generating final answer for query: %s", user_query)
-        messages = await self._get_ai().a_chat(prompt=prompt)
-        return messages[-1].content.strip()
+        run_result = await self._get_ai().a_chat_run(prompt=prompt)
+        return run_result.content.strip()
 
     async def _generate_agent_resource_plan(
         self,
@@ -1002,8 +1002,8 @@ class KnowledgeAISearch:
         )
 
         logger.info("Generating agent resource plan for request: %s", user_request)
-        messages = await self._get_ai().a_chat(prompt=prompt)
-        response_content = messages[-1].content.strip()
+        run_result = await self._get_ai().a_chat_run(prompt=prompt)
+        response_content = run_result.content.strip()
 
         json_blocks = list(extract_json_blocks(response_content))
         if json_blocks:
@@ -1063,7 +1063,7 @@ class KnowledgeAISearch:
         projects are searched simultaneously.  All results are accumulated
         and deduplicated before the next sufficiency check.
 
-        All AI calls are made via ``a_chat`` (async) to avoid blocking the
+        All AI calls are made via ``a_chat_run`` (async) to avoid blocking the
         event loop.
 
         Diagram:

@@ -1,13 +1,11 @@
 <script setup>
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
-import highlight from 'markdown-it-highlightjs'
-import InteractiveTable from './InteractiveTable.vue'
 import Modal from './Modal.vue'
 </script>
 
 <template>
-  <div class="text-wrap overflow-y-auto prose-xs xl:prose max-w-full">
+  <div class="text-wrap overflow-y-auto prose-sm xl:prose max-w-full">
     <!-- Render markdown content with mixed elements -->
     <div class="space-y-4">
       <div 
@@ -18,69 +16,16 @@ import Modal from './Modal.vue'
         <!-- Markdown/HTML content -->
         <div 
           v-if="element.type === 'markdown'"
+          class="overflow-x-auto"
           v-html="element.content"
         ></div>
 
-        <!-- Table with toggle header -->
+        <!-- Standard markdown table (scrolls horizontally on narrow screens) -->
         <div 
           v-else-if="element.type === 'table'"
-          class="space-y-2"
-        >
-          <div class="flex items-center justify-end">
-            <label class="toggle toggle-sm text-base-content cursor-pointer">
-              <input 
-                type="checkbox"
-                :checked="element.viewMode === 'interactive'"
-                @change="toggleTableMode(idx, element.viewMode === 'markdown' ? 'interactive' : 'markdown')"
-              />
-              <svg 
-                aria-label="Interactive" 
-                xmlns="http://www.w3.org/2000/svg" 
-                viewBox="0 0 24 24"
-                class="w-4 h-4"
-              >
-                <g
-                  stroke-linejoin="round"
-                  stroke-linecap="round"
-                  stroke-width="2"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <path d="M9 11h6m-6 4h6" />
-                </g>
-              </svg>
-              <svg
-                aria-label="Standard"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M7 7h10M7 11h10M7 15h4" />
-              </svg>
-            </label>
-          </div>
-
-          <!-- Interactive table component -->
-          <InteractiveTable 
-            v-if="element.viewMode === 'interactive'"
-            :initial-data="element.data"
-            :table-index="idx"
-            @update-table="handleTableUpdate"
-          />
-
-          <!-- Standard markdown table -->
-          <div 
-            v-else
-            v-html="element.markdownHtml"
-          ></div>
-        </div>
+          class="overflow-x-auto"
+          v-html="element.markdownHtml"
+        ></div>
       </div>
     </div>
 
@@ -108,14 +53,15 @@ import Modal from './Modal.vue'
 <script>
 import MarkdownIt from 'markdown-it'
 import { full as emoji } from 'markdown-it-emoji'
-import highlight from 'markdown-it-highlightjs'
-import InteractiveTable from './InteractiveTable.vue'
 import Modal from './Modal.vue'
+import { highlightCode } from '@/utils/highlight'
+import parser from '@/utils/markdownParser'
 
 function createMd(documentId) {
-  const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
+  // `highlight` replaces markdown-it-highlightjs, which statically imports the
+  // FULL highlight.js language pack into whichever chunk renders markdown.
+  const md = new MarkdownIt({ html: true, linkify: true, typographer: true, highlight: highlightCode })
   md.use(emoji)
-  md.use(highlight)
 
   const defaultHeadingRenderer = md.renderer.rules.heading_open || function(tokens, idx, options, env, self) {
     return self.renderToken(tokens, idx, options)
@@ -146,25 +92,6 @@ function createMd(documentId) {
     }
     return defaultHeadingRenderer(tokens, idx, options, env, self)
   }
-
-  md.core.ruler.push('table_marker', (state) => {
-    let rowIdx = 0
-    for (let i = 0; i < state.tokens.length; i++) {
-      const token = state.tokens[i]
-      if (token.type === 'table_open') {
-        token.attrSet('data-interactive-table', 'true')
-        rowIdx = 0
-      }
-      if (token.type === 'tr_open') {
-        token.attrSet('data-row', rowIdx.toString())
-        rowIdx++
-      }
-      if (token.type === 'th_open' || token.type === 'td_open') {
-        const colIdx = token.map ? state.tokens.slice(0, i).filter(t => t.type === token.type && t.map && t.map[0] === token.map[0]).length : 0
-        token.attrSet('data-col', colIdx.toString())
-      }
-    }
-  })
 
   const defaultFenceRenderer = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
     return self.renderToken(tokens, idx, options)
@@ -209,34 +136,14 @@ function addFileUploadIcons(html) {
   )
 }
 
-function parseTableFromHtml(tableHtml) {
-  if (typeof document === 'undefined') return null
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(tableHtml, 'text/html')
-  const table = doc.querySelector('table')
-  if (!table) return null
-
-  const data = []
-  const rows = table.querySelectorAll('tr')
-  
-  rows.forEach(tr => {
-    const cells = tr.querySelectorAll('td, th')
-    const row = Array.from(cells).map(cell => cell.textContent.trim())
-    if (row.length > 0) data.push(row)
-  })
-
-  return data.length > 0 ? data : null
-}
-
 export default {
   props: {
     text: { type: String, default: '' },
     files: { type: Array, default: null },
     documentId: { type: String, default: '' }
   },
-  emits: ['add-file', 'table-updated', 'copy-chapter', 'create-task'],
+  emits: ['add-file', 'copy-chapter', 'create-task'],
   components: {
-    InteractiveTable,
     Modal
   },
   data() {
@@ -255,7 +162,9 @@ export default {
           .replace('```thymeleaf', '```html')
           .replace('```md', '')
       }
-      return text
+      // <file_change> envelopes are rendered as regular fenced code blocks so
+      // they get syntax highlighting and a scroll anchor like legacy fences.
+      return parser.fileChangeBlocksToFences(text)
     }
   },
   watch: {
@@ -301,13 +210,12 @@ export default {
         tables.push({
           start: match.index,
           end: match.index + match[0].length,
-          html: match[0],
-          data: parseTableFromHtml(match[0])
+          html: match[0]
         })
       }
 
       // Split content by tables
-      tables.forEach((table, idx) => {
+      tables.forEach((table) => {
         // Add markdown content before table
         if (table.start > lastIndex) {
           const mdHtml = html.substring(lastIndex, table.start).trim()
@@ -319,13 +227,11 @@ export default {
           }
         }
 
-        // Add table element with view mode toggle
-        if (table.data && table.data.length > 0) {
+        // Add standard markdown table element
+        if (table.html) {
           elements.push({
             type: 'table',
-            data: table.data,
-            markdownHtml: table.html,
-            viewMode: 'markdown'
+            markdownHtml: table.html
           })
         }
 
@@ -377,14 +283,6 @@ export default {
       this.showImageModal = false
       this.selectedImage = ''
       this.selectedImageAlt = ''
-    },
-    toggleTableMode(idx, mode) {
-      if (this.renderedElements[idx] && this.renderedElements[idx].type === 'table') {
-        this.renderedElements[idx].viewMode = mode
-      }
-    },
-    handleTableUpdate(payload) {
-      this.$emit('table-updated', payload)
     },
     handleClick(event) {
       const btn = event.target.closest('.file-path-upload-btn')

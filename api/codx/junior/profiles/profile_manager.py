@@ -5,7 +5,7 @@ import logging
 import re
 import shutil
 
-from typing import List
+from typing import Dict, List, Optional, Set
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model.model import Profile
@@ -277,36 +277,118 @@ class ProfileManager:
         profile.parsed_content = re.sub(pattern, replacement_logic, profile.content or "")
         return profile
 
+    def _profiles_by_name_registry(self) -> Dict[str, Profile]:
+        """
+        Build a ``name -> Profile`` index of every available profile.
+
+        Building the index once avoids repeated (and expensive) full profile
+        scans while resolving linked profile names recursively.
+
+        :return: Mapping of profile name to profile entity (with parsed content).
+        """
+        return {
+            profile.name: profile
+            for profile in self.list_all_profiles()
+            if profile and profile.name
+        }
+
+    def _expand_linked_profiles(
+        self,
+        profiles: List[Profile],
+        seen_names: Optional[Set[str]] = None
+    ) -> List[Profile]:
+        """
+        Expand a list of profiles with every profile they link to, recursively.
+
+        Algorithm (one pass per profile, breadth-first):
+
+        1. For each incoming profile we take its **name**.
+        2. We find the profile entity for that name (from the registry of all
+           available profiles).
+        3. We read the entity's ``profiles`` property — a list of linked profile
+           **names**.
+        4. For every linked name we resolve the profile entity and queue it, so
+           the operation repeats until no new profile is found.
+
+        Deduplication is done by profile **name** (never by object equality),
+        which makes the resolution deterministic and idempotent, and preserves
+        the order in which profiles are discovered.
+
+        :param profiles: Profiles referenced directly by the caller (the chat
+                         mentions, file profiles, ...).
+        :param seen_names: Optional set of already-resolved profile names,
+                           shared across calls to safely ignore circular links.
+        :return: The input profiles plus all their (recursively) linked profiles,
+                 with no duplicates.
+        """
+        if seen_names is None:
+            seen_names = set()
+
+        # Resolve every linked name against this single snapshot of the
+        # available profiles (avoids repeated, inconsistent disk reads).
+        registry = self._profiles_by_name_registry()
+
+        resolved: List[Profile] = []
+        pending: List[Profile] = [p for p in (profiles or []) if p and p.name]
+
+        while pending:
+            profile = pending.pop(0)
+
+            if profile.name in seen_names:
+                continue
+            seen_names.add(profile.name)
+
+            # Prefer the entity loaded from the registry: it carries the
+            # parsed content for use in the system prompt.
+            entity = registry.get(profile.name) or profile
+            resolved.append(entity)
+
+            # Read the "profiles" property: the list of linked profile names.
+            for linked_name in (entity.profiles or []):
+                if not linked_name or linked_name in seen_names:
+                    continue
+                linked_profile = registry.get(linked_name)
+                if linked_profile:
+                    pending.append(linked_profile)
+                else:
+                    logger.warning(
+                        "Profile '%s' links to unknown profile '%s'",
+                        entity.name,
+                        linked_name
+                    )
+
+        logger.info(
+            "Expanded %d profile(s) into %d profile(s) following linked profiles: %s",
+            len(profiles or []),
+            len(resolved),
+            [p.name for p in resolved]
+        )
+        return resolved
+
     def get_all_linked_profiles(self, profile: Profile, seen: set = None) -> List[Profile]:
-        # Fix: Initialize seen inside the function to avoid state leakage
-        if seen is None:
-            seen = []
-        
-        # We use a list for the return value to maintain order, but a set for O(1) lookups
-        results = []
-        
-        # Combine current profile with its neighbors
-        neighbors = [profile] + self.get_profiles_by_name(profile.profiles or [])
-        
-        for linked_profile in neighbors:
-            # Use a unique identifier (like an ID) for the set check
-            if linked_profile not in seen:
-                seen.append(linked_profile)
-                results.append(linked_profile)
-                # Extend results with nested links
-                results.extend(self.get_all_linked_profiles(linked_profile, seen))
-                
-        return results
+        """
+        Return *profile* plus every profile it links to, resolving links
+        recursively by profile NAME (see :meth:`_expand_linked_profiles`).
+
+        :param profile: The profile whose links to expand.
+        :param seen: Optional set of already-resolved profile names.
+        :return: The profile plus all (recursively) linked profiles.
+        """
+        if not profile or not profile.name:
+            return []
+        seen_names: Set[str] = set(seen or [])
+        return self._expand_linked_profiles(profiles=[profile], seen_names=seen_names)
 
     def reduce_linked_profiles(self, profiles: List[Profile]) -> List[Profile]:
-        all_unique_seen = []
-        deduplicated_list = []
-        
-        for profile in profiles:
-            # This will now correctly start fresh for each top-level profile
-            for linked in self.get_all_linked_profiles(profile):
-                if linked not in all_unique_seen:
-                    all_unique_seen.append(linked)
-                    deduplicated_list.append(linked)
-                    
-        return deduplicated_list
+        """
+        Expand a list of profiles with all the profiles they link to,
+        recursively, and return them without duplicates.
+
+        For each profile name we find the profile entity, read its ``profiles``
+        property (a list of profile names) and, for every linked name, repeat
+        the operation until all profiles are loaded.
+
+        :param profiles: Profiles referenced directly by the caller.
+        :return: The input profiles plus all their (recursively) linked profiles.
+        """
+        return self._expand_linked_profiles(profiles=profiles, seen_names=set())

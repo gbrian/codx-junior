@@ -1,6 +1,6 @@
 /**
  * Files API module
- * Handles file operations: list, read, search, upload
+ * Handles file operations: list, read, search, upload, binary download/preview
  */
 
 export const filesModule = (API) => ({
@@ -18,8 +18,16 @@ export const filesModule = (API) => ({
     })
   },
 
+  // Direct (streaming) URL to view a binary file's raw content inline.
+  // Same-origin relative URL, safe to use as <iframe>/<img>/<video> src.
   getFilePreviewUrl(path) {
-    return API.connection.prepareUrl("/api/files/preview?path=" + encodeURIComponent(path))
+    return API.connection.prepareUrl("/api/files/download?path=" + encodeURIComponent(path) + "&inline=true")
+  },
+
+  // Direct URL to download a binary file's raw content as an attachment.
+  // Pair with the anchor `download` attribute to force a save.
+  getFileDownloadUrl(path) {
+    return API.connection.prepareUrl("/api/files/download?path=" + encodeURIComponent(path))
   },
 
   search({ search, searchPath, page = 0, pageSize = 50, rawSearch = false, useRegex = false }) {
@@ -77,6 +85,15 @@ export const filesModule = (API) => ({
 
   write(source, page_content) {
     return API.post(`/api/files/write?path=${encodeURIComponent(source)}`, { page_content, metadata: { source } })
+  },
+
+  // Persist several editors in a single round-trip.
+  // `files` = [{ path, content }] — only dirty files should be sent.
+  // Mirrors `uploadMultiple` naming so the two bulk endpoints stay symmetrical.
+  writeMultiple(files) {
+    return API.post(`/api/files/write-multiple`, {
+      files: files.map(({ path, content }) => ({ path, content }))
+    })
   },
 
   reset(source) {

@@ -1,10 +1,8 @@
 <script setup>
-import RecentsSection from './RecentsSection.vue'
 import AppsSection from './AppsSection.vue'
 import WorkspacesSection from './WorkspacesSection.vue'
-import UserInfo from '../UserInfo.vue'
 import Notifications from '../Notifications.vue'
-import MainMenu from '../main-menu/MainMenu.vue'
+import WindowsMenu from '../main-menu/WindowsMenu.vue'
 </script>
 
 <template>
@@ -17,10 +15,10 @@ import MainMenu from '../main-menu/MainMenu.vue'
       @click="handleClose"
     ></div>
 
-    <!-- Mobile Sidebar -->
+    <!-- Mobile Sidebar (always the full panel, floats in from the left) -->
     <aside
       ref="sidebarEl"
-      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 border-r border-base-content/5 pointer-events-auto"
+      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 bg-base-100 border-r border-base-content/5 pointer-events-auto"
       :style="{
         transform: isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
         transition: 'transform 0.3s ease-out'
@@ -44,7 +42,7 @@ import MainMenu from '../main-menu/MainMenu.vue'
       </div>
 
       <!-- Scrollable Content Area -->
-      <div class="flex-1 overflow-y-auto flex flex-col">
+      <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
         <!-- Apps Section -->
         <AppsSection
           :is-collapsed="false"
@@ -62,201 +60,197 @@ import MainMenu from '../main-menu/MainMenu.vue'
           @close="handleClose"
         />
 
-        <!-- Recents Section -->
-        <RecentsSection
-          :is-collapsed="false"
-          :is-mobile="true"
-          @select-chat="handleSelectChat"
-        />
       </div>
 
       <!-- Footer -->
       <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
-          <div class="grow flex items-center gap-3 flex-1">
-            <UserInfo>
-              <template #trigger="{ togglePanel }">
-                <button
-                  class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-                  @click="togglePanel"
-                  :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-                >
-                  <div class="avatar tooltip" :data-tip="$user.username">
-                    <div class="w-8">
-                      <img :src="$user.avatar">
-                    </div>
-                  </div>
-                </button>
-              </template>
-            </UserInfo>
-            <div class="flex justify-between">
-              <div class="flex-1 min-w-0">
-                <div class="text-sm  truncate">{{ userName }}</div>
-                <div class="text-xs text-base-content/40">{{ userSubtitle }}</div>
+        <WindowsMenu 
+          :class="!connected && 'bg-error/20'"
+          @close="handleClose">
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
+            <div class="avatar tooltip shrink-0" :data-tip="$user.username">
+              <div class="w-8 rounded-full overflow-hidden">
+                <img :src="$user.avatar">
               </div>
-              <button class="p-1 text-base-content/30 hover:text-base-content/80 transition-colors">
-                <i class="fas fa-chevron-down text-xs"></i>
-              </button>
             </div>
-            <MainMenu
-              :is-project-admin="isProjectAdmin"
-              @close="handleClose"
-            >
-              <i class="fa-solid fa-ellipsis-vertical"></i>
-            </MainMenu>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm truncate">{{ userName }}</div>
+              <div class="text-xs text-base-content/40 truncate">{{ userSubtitle }}</div>
+            </div>
+            <i class="fas fa-chevron-down text-xs text-base-content/30 shrink-0"></i>
           </div>
-        </div>
+        </WindowsMenu>
       </div>
     </aside>
   </div>
 
   <!-- Desktop Sidebar -->
-  <aside
+  <!-- The WRAPPER lives in normal flow and owns the layout width:
+       w-16 when collapsed (icon rail), w-64 when expanded.
+       Expansion is ALWAYS explicit (click the rail indicator or the header
+       toggle). There is no hover-to-expand and no "floating/pinned" state:
+       opening a launcher overlay simply expands the sidebar and it stays
+       expanded, so wrapper and aside always share the same width. -->
+  <div
     v-else
     ref="sidebarEl"
-    class="flex flex-col h-full shrink-0 border-r border-base-content/5 transition-all duration-200"
-    :class="[isCollapsed ? 'w-20' : 'w-64']"
+    class="relative h-full shrink-0 transition-all duration-200"
+    :class="[isCollapsed ? 'w-16' : 'w-64']"
   >
-    <!-- Header Section -->
-    <div class="px-3 py-4 shrink-0 border-b border-base-content/5">
-      <div class="flex items-center justify-between gap-2">
-        <div v-if="!isCollapsed" class="flex items-center shrink-0 gap-2 flex-1">
-          <button
-            class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
-            @click="toggleCollapse"
-            title="Toggle sidebar"
-          >
-            <i class="fa-solid fa-angle-left text-base-content/40 text-xs"></i>
-          </button>
-          <span class="text-lg font-semibold">
-            <span class="text-codx-secondary">codx-</span>
-            <span class="text-codx-secondary">junior</span>
-          </span>
-        </div>
-        <div v-else class="flex justify-center w-full">
-          <button
-            class="click w-6 h-6 flex items-center justify-center hover:bg-white/5 transition-colors"
-            title="Expand sidebar"
-            @click="toggleCollapse()"
-          >
-            <img class="w-full" src="/only_icon.png" />
-          </button>
-        </div>
+    <aside
+      class="absolute left-0 top-0 bottom-0 h-full flex flex-col shrink-0 bg-base-100 border-r border-base-content/5 transition-all duration-200"
+      :class="isCollapsed ? 'w-16' : 'w-64'"
+    >
+      <!-- Header Section -->
+      <div class="px-2 py-4 shrink-0 border-b border-base-content/5">
+        <div class="flex items-center justify-between gap-2">
+          <div v-if="!isCollapsed" class="flex items-center shrink-0 gap-2 flex-1">
+            <!-- Expanded: Collapse back to the icon rail -->
+            <button
+              class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
+              @click="toggleCollapse"
+              title="Collapse sidebar"
+            >
+              <i class="fa-solid fa-angle-left text-base-content/40 text-xs"></i>
+            </button>
+            <span class="text-lg font-semibold">
+              <span class="text-codx-secondary">codx-</span>
+              <span class="text-codx-secondary">junior</span>
+            </span>
+          </div>
+          <!-- Collapsed: logo + chevron indicator inviting the user to expand -->
+          <div v-else class="flex justify-center w-full">
+            <button
+              class="click group w-10 flex flex-col items-center gap-1 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              @click="toggleCollapse"
+            >
+              <img class="w-6 h-6" src="/only_icon.png" alt="codx-junior" />
+              <i class="fa-solid fa-chevron-right text-[10px] text-base-content/40 group-hover:text-primary transition-colors"></i>
+            </button>
+          </div>
 
-        <div v-if="!isCollapsed" class="flex items-center gap-2">
-          <Notifications />
-        </div>        
+          <div v-if="!isCollapsed" class="flex items-center gap-2">
+            <Notifications />
+          </div>        
+        </div>
       </div>
-    </div>
 
-    <!-- Scrollable Content Area -->
-    <div class="flex-1 overflow-y-auto flex flex-col">
-      <!-- Apps Section -->
-      <AppsSection
-        :is-collapsed="isCollapsed"
-        :more-expanded="moreExpanded"
-        @update:moreExpanded="moreExpanded = $event"
-        @close="handleClose"
-        @toggle-collapse="toggleCollapse"
-      />
-      
-      <!-- Workspaces Section -->
-      <WorkspacesSection
-        :workspace-apps="workspaceApps"
-        :is-collapsed="isCollapsed"
-        :current-workspace-id="currentWorkspaceId"
-        @close="handleClose"
-      />
+      <!-- Scrollable Content Area -->
+      <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
+        <!-- Apps Section (renders the pinned projects quick switcher) -->
+        <AppsSection
+          :is-collapsed="isCollapsed"
+          :more-expanded="moreExpanded"
+          @update:moreExpanded="moreExpanded = $event"
+          @close="handleClose"
+          @toggle-collapse="toggleCollapse"
+          @overlay-open="onOverlayOpen"
+        />
+        
+        <!-- Workspaces Section -->
+        <WorkspacesSection
+          :workspace-apps="workspaceApps"
+          :is-collapsed="isCollapsed"
+          :current-workspace-id="currentWorkspaceId"
+          @close="handleClose"
+        />
 
-      <!-- Recents Section -->
-      <RecentsSection
-        :is-collapsed="isCollapsed"
-        :is-mobile="false"
-        @select-chat="handleSelectChat"
-      />
-    </div>
+      </div>
 
-    <!-- Footer -->
-    <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-      <div v-if="!isCollapsed" class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
-        <UserInfo>
-          <template #trigger="{ togglePanel }">
-            <div class="flex gap-3 items-center flex-1 min-w-0">
-              <button
-                class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0 shrink-0"
-                @click="togglePanel"
-                :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
-              >
-                <div class="avatar tooltip" :data-tip="$user.username">
-                  <div class="w-8">
-                    <img :src="$user.avatar">
-                  </div>
-                </div>
-              </button>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm  truncate">{{ userName }}</div>
-                <div class="text-xs"
-                  :class="connected ? 'text-success/60': 'text-error'"
-                >{{ connected ? 'online': 'offline' }}</div>
+      <!-- Footer -->
+      <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
+        <!-- Expanded Footer - opens the unified Windows-like menu -->
+        <WindowsMenu v-if="!isCollapsed" @open="onOverlayOpen">
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full"
+            :class="!connected && 'bg-error/20'"
+          >
+            <div class="avatar tooltip shrink-0" :data-tip="$user.username">
+              <div class="w-8 rounded-full overflow-hidden">
+                <img :src="$user.avatar">
               </div>
             </div>
-          </template>
-        </UserInfo>
-        <div class="flex items-center gap-2 shrink-0">
-          <MainMenu
-            :is-project-admin="isProjectAdmin"
-            @close="handleClose"
-          >
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-          </MainMenu>
-        </div>
-      </div>
-
-      <!-- Collapsed Footer - Icon Only -->
-      <div v-else class="flex items-center justify-center gap-3 py-2">
-        <UserInfo>
-          <template #trigger="{ togglePanel }">
-            <button
-              class="btn btn-xs btn-ghost p-1 w-6 h-6 min-h-0"
-              @click="togglePanel"
-              :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-info'"
+            <div class="flex-1 min-w-0">
+              <div class="text-sm truncate">{{ userName }}</div>
+              <div class="flex items-center gap-1.5 min-w-0 text-xs">
+                <span
+                  class="shrink-0"
+                  :class="connected ? 'text-success/60': 'text-error'"
+                >{{ connected ? 'online': 'offline' }}</span>
+                <!-- Daily spent: today's cxj consumption, always visible.
+                     Lives on the secondary line so the name keeps its width. -->
+                <span
+                  v-if="todaySpentFormatted != null"
+                  class="flex items-center gap-1 min-w-0 truncate transition-colors duration-150"
+                  :title="todaySpentTitle"
+                  :aria-label="todaySpentTitle"
+                >
+                  <i
+                    class="fa-solid fa-coins text-[10px] shrink-0"
+                    :class="dailyLimitExceeded ? 'text-error' : 'text-warning'"
+                    aria-hidden="true"
+                  ></i>
+                  <span
+                    class="font-mono font-semibold tabular-nums"
+                    :class="dailyLimitExceeded ? 'text-error' : 'text-warning'"
+                  >{{ todaySpentFormatted }}</span>
+                  <span class="text-base-content/40">today</span>
+                </span>
+              </div>
+            </div>
+            <!-- Wallet balance: always visible next to the chevron,
+                 independent of the menu open/closed state. -->
+            <span
+              v-if="walletBalance != null"
+              class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/15 text-success text-[11px] font-mono font-semibold leading-none whitespace-nowrap tabular-nums transition-colors duration-150"
+              :title="`Wallet balance: ${walletBalance} cxj coins`"
+              :aria-label="`Wallet balance: ${walletBalance} cxj coins`"
             >
+              <i class="fa-solid fa-wallet" aria-hidden="true"></i>{{ walletBalance }}
+            </span>
+            <i class="fas fa-chevron-down text-xs text-base-content/40 shrink-0"></i>
+          </div>
+        </WindowsMenu>
+
+        <!-- Collapsed Footer - Icon Only -->
+        <div v-else class="flex items-center justify-center py-2">
+          <WindowsMenu 
+            :class="!connected && 'bg-error/20 rounded-xl animate-pulse'"
+            @open="onOverlayOpen">
+            <div class="p-1 rounded-full hover:bg-white/5 transition-colors cursor-pointer">
               <div class="avatar tooltip tooltip-right" :data-tip="$user.username">
-                <div class="w-8">
+                <div class="w-8 rounded-full overflow-hidden">
                   <img :src="$user.avatar">
                 </div>
               </div>
-            </button>
-          </template>
-        </UserInfo>
-        <MainMenu
-          :is-project-admin="isProjectAdmin"
-          @close="handleClose"
-        >
-          <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
-        </MainMenu>
+            </div>
+          </WindowsMenu>
+        </div>
       </div>
-    </div>
-  </aside>
+    </aside>
+  </div>
 </template>
 
 <script>
 export default {
   props: {
-    isMobile: { type: Boolean, default: false },
-    isMobileExpanded: { type: Boolean, default: false }
+    isMobile: { type: Boolean, default: false }
   },
   emits: ['settings', 'close'],
   data() {
     return {
-      isCollapsed: true,
-      userCollapsed: false,
-      resizeObserver: null,
       dailyLimitStatus: 'normal',
-      moreExpanded: false
+      moreExpanded: false,
+      metricsInterval: null
     }
   },
   computed: {
+    // Collapsed (icon rail) state lives in the ui store so the shell (App.vue)
+    // and the sidebar share a single, persisted source of truth.
+    isCollapsed() {
+      return this.$storex.ui.sidebarCollapsed
+    },
     workspaceApps() {
       return this.$projects.projectApps || []
     },
@@ -284,55 +278,73 @@ export default {
     },
     connected() {
       return this.$session.connected
-    }
-  },
-  watch: {
-    isMobileExpanded(val) {
-      if (this.isMobile) {
-        this.isCollapsed = !val
-      }
+    },
+    // Wallet balance (cxj coins) shown next to the footer chevron.
+    // Always rendered — it does not depend on the WindowsMenu open state.
+    walletBalance() {
+      const balance = this.$storex?.users?.user?.wallet?.balance_cxjcoins
+      return balance != null ? Number(balance).toFixed(2) : null
+    },
+    // Amount spent today (cxj coins) — $storex.users.metrics.today.total_cxjcoins
+    todaySpent() {
+      const coins = this.$storex?.users?.metrics?.today?.total_cxjcoins
+      return coins != null ? Number(coins) : null
+    },
+    todaySpentFormatted() {
+      return this.todaySpent != null ? this.todaySpent.toFixed(2) : null
+    },
+    // Daily spending limit (if configured): { period, limit_cxjcoins }
+    dailyLimit() {
+      const limit = this.$storex?.users?.user?.wallet?.spending_limits?.find(l => l.period === 'daily')
+      return limit?.limit_cxjcoins ?? null
+    },
+    // Exceeded limit turns the value into an error state (never color-only:
+    // the tooltip/label carries the meaning).
+    dailyLimitExceeded() {
+      if (this.dailyLimit == null || this.todaySpent == null) return false
+      return this.todaySpent >= this.dailyLimit
+    },
+    todaySpentTitle() {
+      if (this.todaySpent == null) return null
+      if (this.dailyLimit == null) return `Spent today: ${this.todaySpentFormatted} cxj coins`
+      return `Spent today: ${this.todaySpentFormatted} of ${Number(this.dailyLimit).toFixed(2)} cxj coins (daily limit)`
     }
   },
   mounted() {
-    if (!this.isMobile) {
-      this.isCollapsed = false
-      this.$nextTick(() => this.setupResizeObserver())
-    } else {
-      this.isCollapsed = !this.isMobileExpanded
-    }
+    // Metrics are otherwise only loaded by UserInfo (inside the lazily
+    // rendered Windows menu), so the sidebar keeps its own fresh copy.
+    this.loadTodaySpend()
+    this.metricsInterval = setInterval(() => this.loadTodaySpend(), 60000)
   },
   beforeUnmount() {
-    this.resizeObserver?.disconnect()
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval)
+      this.metricsInterval = null
+    }
   },
   methods: {
-    setupResizeObserver() {
-      const el = this.$refs.sidebarEl
-      if (!el) return
-      const parent = el.parentElement
-      if (!parent) return
-      this.resizeObserver = new ResizeObserver(([entry]) => {
-        const width = entry.contentRect.width
-        if (!this.userCollapsed) {
-          this.isCollapsed = width < 600
-        }
-      })
-      this.resizeObserver.observe(parent)
-    },
+    // Toggle between the icon rail and the expanded sidebar.
     toggleCollapse() {
-      this.userCollapsed = !this.userCollapsed
-      this.isCollapsed = this.userCollapsed
+      return this.$storex.ui.toggleSidebar()
+    },
+    // A launcher overlay (project selector, windows menu, …) was opened.
+    // Expand the sidebar and keep it expanded so the launcher and its state
+    // stay visible — this replaces the old floating/pin behaviour.
+    onOverlayOpen() {
+      this.$storex.ui.expandSidebar()
+    },
+    async loadTodaySpend() {
+      try {
+        await this.$storex.users.loadMetrics()
+      } catch (ex) {
+        console.error('Error loading user metrics', ex)
+      }
     },
     handleClose() {
       if (this.isMobile) {
-        this.isCollapsed = true
+        this.$storex.ui.collapseSidebar()
       }
       this.$emit('close')
-    },
-    handleSelectChat(chat) {
-      this.$chats.setActiveChat(chat)
-      if (this.isMobile) {
-        this.handleClose()
-      }
     }
   }
 }

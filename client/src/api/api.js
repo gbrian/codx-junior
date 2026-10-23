@@ -6,7 +6,11 @@ import { analyticsModule } from './modules/analytics'
 import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
+import { teamsModule } from './modules/teams'
 import { workspacesModule } from './modules/workspaces'
+import { browsersModule } from './modules/browsers'
+import { meetsModule } from './modules/meets'
+import { infraModule } from './modules/infra'
 
 /**
  * In-flight request deduplication map.
@@ -463,12 +467,25 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
 
-    // CHANGED: Replace inline chats object with lazy-loaded module getter
     get chats() {
       if (!API._chatsModule) {
         API._chatsModule = chatsModule(API)
       }
       return API._chatsModule
+    },
+
+    get teams() {
+      if (!API._teamsModule) {
+        API._teamsModule = teamsModule(API)
+      }
+      return API._teamsModule
+    },
+
+    get meets() {
+      if (!API._meetsModule) {
+        API._meetsModule = meetsModule(API)
+      }
+      return API._meetsModule
     },
 
     run: {
@@ -603,10 +620,11 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.get('/api/update')
       }
     },
-    browser: {
-      message(chat) {
-        return API.post('/api/browser', chat)
-      },
+    get browsers() {
+      if (!API._browsersModule) {
+        API._browsersModule = browsersModule(API)
+      }
+      return API._browsersModule
     },
     tools: {
       async imageToText(file) {
@@ -644,6 +662,13 @@ const initializeAPI = ({ project, user } = {}) => {
         API._viewsModule = viewsModule(API)
       }
       return API._viewsModule
+    },
+
+    get infra() {
+      if (!API._infraModule) {
+        API._infraModule = infraModule(API)
+      }
+      return API._infraModule
     },
 
     screen: {

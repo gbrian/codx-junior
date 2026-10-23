@@ -2,7 +2,9 @@
 import Document from '../document/Document.vue';
 </script>
 <template>
-  <div class="dropdown click">
+  <div class="dropdown click"
+    :title="profile?.name"
+  >
     <div tabindex="0" class="avatar" v-if="profile">
       <div class="rounded-full bg-base-300" :class="avatarWidth">
         <img :src="avatarUrl" />
@@ -10,7 +12,7 @@ import Document from '../document/Document.vue';
     </div>
     <div
       tabindex="0"
-      class="dropdown-content card card-sm bg-base-300/90 border-base-100 z-10 w-96 shadow-md">
+      class="dropdown-content bg-base-100 card card-sm bg-base-300/90 border-base-100 z-10 w-96 shadow-md">
       <div class="card-body text-xs">
         <div class="badge badge-primary">{{ profile.name }}</div>
         <p>{{ profile.description }}</p>

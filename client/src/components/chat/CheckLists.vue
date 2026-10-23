@@ -13,7 +13,7 @@
             <i class="fa-solid fa-user-clock"></i>
           </div>
         </div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[100] w-96 p-2 shadow-sm text-xs">
+        <ul tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[100] w-96 p-2 shadow-sm text-xs">
           <li v-for="(item, index) in checkList.items" :key="index">
             <a class="flex gap-2 items-center">
               <input type="checkbox" v-model="item.checked" class="checkbox checkbox-xs"/>

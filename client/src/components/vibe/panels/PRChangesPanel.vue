@@ -5,7 +5,10 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full w-full overflow-hidden">
+  <!-- Rendered only for PR-view chats. Chat.vue keeps this panel mounted for
+       every chat (`v-show`), so the root is gated here: a non-PR chat builds
+       nothing at all — no header, no viewers, no branch/change requests. -->
+  <div v-if="isActive" class="flex flex-col h-full w-full overflow-hidden">
     <!-- Header -->
     <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
       <i class="fa-solid fa-code-pull-request text-info text-sm"></i>
@@ -26,8 +29,10 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       </button>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/50">
+    <!-- Loading state: only replaces the content while there is nothing to show
+         yet. Reloading (branch change, refresh) keeps the viewers mounted, so the
+         diff is not re-parsed and the PR↔chat correlation is not restarted. -->
+    <div v-if="loading && !repoChanges" class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/50">
       <i class="fa-solid fa-spinner text-3xl animate-spin"></i>
       <span class="text-sm font-medium">Loading changes...</span>
     </div>
@@ -64,7 +69,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
               :to-branch="compareBranch"
               :available-branches="branches"
               :project="project"
-              :repo-changes="repoChanges"
+              :repo-changes="splitRepoChanges"
               :loading="loading"
               @refresh="loadChanges"
               @comment="onComment"
@@ -85,7 +90,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
           :to-branch="compareBranch"
           :available-branches="branches"
           :project="project"
-          :repo-changes="repoChanges"
+          :repo-changes="fullRepoChanges"
           :loading="loading"
           @refresh="loadChanges"
           @comment="onComment"
@@ -114,20 +119,53 @@ export default {
       compareBranch: 'local',
       repoChanges: null,
       showSearch: false,
-      prFiles: []
+      prFiles: [],
+      // (chatId::projectId) this panel's data was initialised for. The chats
+      // store rewrites the chat record on every save, socket event or list
+      // refresh; re-initialising on each of those refetched the branches, the
+      // changes and (through PRViewer) the whole PR↔chat correlation.
+      initKey: null
     }
   },
   async created() {
-    if (this.chat) {
+    // Only a PR-view chat may load anything. Everything else stays inert.
+    if (this.chat && this.isActive) {
       await this.initialize()
     }
   },
   watch: {
-    chat(newChat) {
-      if (newChat?.id) this.initialize()
+    chat() {
+      this.onChatChanged()
+    },
+    // The store mutates `mode` in place, so the `chat` watcher may not fire when
+    // a chat becomes a PR view. Track the visibility flag itself.
+    isActive(active) {
+      if (active) this.initialize()
+      else this.release()
     }
   },
   computed: {
+    // Mirrors Chat.vue's `isPRView`: the panel is only visible for prview chats.
+    isActive() {
+      return this.chat?.mode === 'prview'
+    },
+    // Identity of the (chat, working project) pair this panel belongs to.
+    // Stable across store refreshes, which is exactly what the `chat` watcher
+    // needs to tell a real navigation apart from a mere record update.
+    chatKey() {
+      const projectId = this.chat?.project_id || this.chat?.owner_project_id || ''
+      return `${this.chat?.id || ''}::${projectId}`
+    },
+    // Hand the changes payload to the viewer currently on screen ONLY.
+    // PRViewer starts parsing the diff (and may start its chat correlation) as
+    // soon as `repoChanges` arrives, so giving it to both the split and the full
+    // instance (both are mounted) did the whole work twice.
+    splitRepoChanges() {
+      return this.showSearch ? this.repoChanges : null
+    },
+    fullRepoChanges() {
+      return this.showSearch ? null : this.repoChanges
+    },
     // Return the currently visible PRViewer ref
     activeViewer() {
       return this.showSearch ? this.$refs.prViewerSplit : this.$refs.prViewerFull
@@ -135,6 +173,7 @@ export default {
   },
   methods: {
     async initialize() {
+      this.initKey = this.chatKey
       this.loading = true
       try {
         const chatProject = this.$chats.chatProject(this.chat)
@@ -157,6 +196,39 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+
+    /**
+     * The chat record changed. Only a real navigation (another chat / another
+     * working project) rebuilds the panel; a record rewrite from the store
+     * (save, socket event, list refresh) must not refetch the branches nor the
+     * whole PR comparison.
+     */
+    onChatChanged() {
+      if (!this.isActive) return
+
+      if (this.chatKey !== this.initKey) {
+        this.initialize()
+        return
+      }
+
+      // Same chat and project: only reload when the branch pair really changed.
+      // Our own branch selections already match, so this does not double the
+      // request made by onBranchChanged/onCompareBranchChanged.
+      const from = this.chat?.pr_view?.from_branch
+      const to = this.chat?.pr_view?.to_branch
+      if ((from && from !== this.currentBranch) || (to && to !== this.compareBranch)) {
+        if (from) this.currentBranch = from
+        if (to) this.compareBranch = to
+        this.loadChanges()
+      }
+    },
+
+    /** The chat is not a PR view anymore: drop the payload, keep it inert. */
+    release() {
+      this.repoChanges = null
+      this.prFiles = []
+      this.initKey = null
     },
 
     async loadChanges() {
@@ -197,16 +269,15 @@ export default {
     },
 
     toggleSearch() {
-      this.showSearch = !this.showSearch
-      if (this.showSearch) {
-        // Seed prFiles from the full viewer's visible files
-        this.$nextTick(() => {
-          const viewer = this.$refs.prViewerFull
-          if (viewer?.visibleFiles) {
-            this.prFiles = viewer.visibleFiles
-          }
-        })
+      // Seed prFiles from the full viewer BEFORE hiding it: once search opens,
+      // the full viewer stops receiving `repoChanges` and clears its files.
+      if (!this.showSearch) {
+        const viewer = this.$refs.prViewerFull
+        if (viewer?.visibleFiles?.length) {
+          this.prFiles = viewer.visibleFiles
+        }
       }
+      this.showSearch = !this.showSearch
     },
 
     closeSearch() {

@@ -23,7 +23,7 @@ from codx.junior.model.model import CodxUser, Workspace
 from codx.junior.security.user_management import get_authenticated_user
 from codx.junior.api import require_admin
 from codx.junior.globals import CODX_JUNIOR_WORKSPACES_FOLDER
-from codx.junior.workspace.workspace_manager import WorkspaceManager
+from codx.junior.workspaces.workspace_manager import WorkspaceManager
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)

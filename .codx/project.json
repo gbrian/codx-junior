@@ -24,14 +24,21 @@
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://gbrian.codxjunior.com/only_icon.png",
   "log_ignore": "/var/log/supervisor,openai_ai chat_completions",
-  "last_access_time": "2026-09-02 17:50:20.960805",
+  "last_access_time": "2026-10-21 11:14:29.023872",
   "project_scripts": [],
   "embeddings_model": "",
   "llm_model": "",
   "rag_model": "",
   "wiki_model": "",
+  "guardrail_model": "",
+  "image_generation_model": "",
+  "image_vision_model": "",
+  "image_storage_folder": "images/generated",
+  "image_max_file_size_mb": 100,
   "last_error": "",
   "urls": [],
   "repo_url": null,
-  "mcp_servers": []
+  "mcp_servers": [],
+  "git_pr_branch_prefix": "codx-junior",
+  "git_worktrees_path": "/home/codx-junior-projects/codx-junior-worktrees"
 }

@@ -11,7 +11,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
         @select="$projects.activeProjectChanged($event)"
     />
     </div>
-    <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-60 p-2 shadow"
+    <ul class="dropdown-content bg-base-100 menu bg-base-300 rounded-box z-[150] w-60 p-2 shadow"
       @mouseleave="isOpen = false"
       @blur="isOpen = false"
       v-if="isOpen && false">

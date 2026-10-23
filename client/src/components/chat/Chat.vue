@@ -13,6 +13,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 import { ENTITY_STATUS } from '@/store/entityStatuses'
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 import Collapsible from '../Collapsible.vue'
+import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
 </script>
 
 <template>
@@ -59,8 +60,11 @@ import Collapsible from '../Collapsible.vue'
     <!-- Normal Chat Content -->
     <template v-else>
 
-
-      <Collapsible :defaultOpen="false" class="w-full">
+      <!-- ── Files + profiles strip ──
+           Hidden on mobile while the chat header details panel is collapsed
+           (`hideFilesHeader`, owned by ChatView) so the reading area keeps the
+           vertical space. Always rendered on desktop / expanded mobile. -->
+      <Collapsible v-if="!hideFilesHeader" :defaultOpen="false" class="w-full">
         <!-- Icon -->
         <template #icon>
           <span></span>
@@ -70,40 +74,40 @@ import Collapsible from '../Collapsible.vue'
         <template #title>
           <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/50 mt-0.5">
             <i class="fa-solid fa-file"></i>
-            Files: {{ allfiles.length }} +  
+            Files: {{ allFilesCount }} +
           </div>
         </template>
 
         <!-- Actions -->
         <template #actions>
-                  <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
-          <ChatProfileSelector
-            :project="chatProject"
-            :selected-profiles="chat.profiles"
-            :use-modal="true"
-            @profiles-changed="onProfilesChanged"
-          />
-          <CheckLists :chat="chat" :readOnly="readOnly" />
-        </div>
-
+          <div class="flex items-center gap-2" v-if="!isVibe && !isPRView">
+            <ChatProfileSelector
+              :project="chatProject"
+              :selected-profiles="chat.profiles"
+              :use-modal="true"
+              @profiles-changed="onProfilesChanged"
+            />
+            <CheckLists :chat="chat" :readOnly="readOnly" />
+          </div>
         </template>
-      <!-- File list + profile selector header -->
-      <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
-        <div class="w-full" v-if="chatFiles.length || messageFiles.length">
-          <ChatFileList
-            :files="chatFiles"
-            :message-files="messageFiles"
-            :chat-project="chatProject"
-            @remove-file="removeFileFromChat"
-            @add-file="onAddFileToChat"
-            @add-as-message="addFileContentAsMessage"
-            @sync-notebook="syncNotebook"
-            @export-notebook="exportNotebook"
-            @preview-file="openFilePreview"
-            v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
-          />
+
+        <!-- File list + profile selector header -->
+        <div class="shrink-0 flex gap-2 items-center justify-between overflow-auto">
+          <div class="w-full" v-if="chatFiles.length || messageFiles.length">
+            <ChatFileList
+              :files="chatFiles"
+              :message-files="messageFiles"
+              :chat-project="chatProject"
+              @remove-file="removeFileFromChat"
+              @add-file="onAddFileToChat"
+              @add-as-message="addFileContentAsMessage"
+              @sync-notebook="syncNotebook"
+              @export-notebook="exportNotebook"
+              @preview-file="openFilePreview"
+              v-if="(chatFiles?.length || messageFiles?.length) && !isPRView"
+            />
+          </div>
         </div>
-      </div>
       </Collapsible>
 
       <!-- PR View Section -->
@@ -131,6 +135,7 @@ import Collapsible from '../Collapsible.vue'
             :read-only="readOnly"
             :users-list="usersList"
             :children-chats="childrenChats"
+            :processing="isProcessing"
             @edited="onMessageEdited"
             @remove="removeMessage"
             @remove-file="removeFileFromMessage($event.message, $event.file)"
@@ -153,6 +158,7 @@ import Collapsible from '../Collapsible.vue'
             @run-agents="onMessageRunAgents"
             @preview-file="handleFilePreview"
             @search-files="onSelectionSearchFiles"
+            @update-attachment="onMessageAttachmentUpdated"
           >
             <!-- IntelliSense slot — floats above the composer -->
             <template #intellisense>
@@ -191,8 +197,14 @@ import Collapsible from '../Collapsible.vue'
                 :ai-models="aiModels"
                 :profiles="profiles"
                 :selected-profiles="selectedProfiles"
+                :project="messageTargetProject"
+                :chat-project="chatProject"
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                :chat="chat"
+                :collapsed="inputCollapsed"
+                :attachment-count="attachments?.length || 0"
+                :file-count="files?.length || 0"
                 @send="sendMessage"
                 @add-message="addNewMessage()"
                 @search-message="addSearchMessage"
@@ -202,25 +214,31 @@ import Collapsible from '../Collapsible.vue'
                 @drop.stop="onDropInputBox"
                 @model-changed="onLLMModelChanged"
                 @profiles-selected="onProfilesSelected"
+                @project-changed="onMessageProjectChanged"
+                @upload-files="onUploadFiles"
                 @toggle-voice="toggleVoiceSession"
+                @toggle-collapsed="toggleInputCollapsed"
               />
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatAttachmentPreview
                 :attachments="attachments"
                 @remove-attachment="removeAttachment"
-                v-if="attachments?.length"
+                @update-attachment="onAttachmentUpdated"
+                v-if="attachments?.length && !composerCollapsed"
               />
             </template>
 
             <!-- Per-message files slot (files attached to the current message being composed) -->
             <template #files>
+              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
               <ChatFileList
                 :files="files"
-                :message-files="[]"
+                :message-files="noMessageFiles"
                 :chat-project="chatProject"
                 @remove-file="removeFileFromFiles"
                 @add-file="addFileContentAsMessage"
                 @preview-file="handleFilePreview"
-                v-if="files?.length"
+                v-if="files?.length && !composerCollapsed"
               />
             </template>
           </ChatMessageList>
@@ -272,6 +290,12 @@ import Collapsible from '../Collapsible.vue'
 <script>
 import ChatAttachment from '@/api/model/ChatAttachment.js'
 
+// Stable empty list. Returning a brand new `[]` from a computed — or writing an
+// array literal in the template — gives the file list a NEW identity on every
+// render, which makes <ChatFileList> rebuild its chips and re-check every file
+// on the server (see ChatFileList.syncFiles).
+const EMPTY_FILE_LIST = Object.freeze([])
+
 export default {
   props: [
     'chat',
@@ -280,7 +304,10 @@ export default {
     'childrenChats',
     'readOnly',
     'message',
-    'input-only'
+    'input-only',
+    // Mobile: hide the files/profiles strip while the chat header details panel
+    // is collapsed (see ChatView), so the reading area keeps the vertical space.
+    'hideFilesHeader'
   ],
   data() {
     return {
@@ -297,6 +324,14 @@ export default {
       recognition: null,
       syncEditableTextInterval: null,
       selectedUser: null,
+      // Project the next message is addressed to (message.project_id).
+      // `null` keeps the chat's project, which is the default behaviour.
+      messageProject: null,
+      // True once the project picker was used while composing/editing. The
+      // message being edited only rewrites its `project_id` when the selection
+      // really changed, so an untouched edit never drops the stored project
+      // (see updateMessage).
+      messageProjectTouched: false,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
       uploadProjectFile: null,
@@ -323,13 +358,23 @@ export default {
       uploadPath: '',
       uploadContext: null,
       MAX_IMAGE_SIZE_MB: 50,
-      dragCounter: 0
+      dragCounter: 0,
+      inputCollapsed: false,
+      // In-flight attachment conversions (FileReader) — see flushPendingAttachments()
+      attachmentTasks: [],
+      // (chatId::projectId) the project state was last initialised for. The
+      // chat record is REPLACED by the store on every update (reload, socket
+      // event, list refresh), so this key — not the object — tells a real
+      // navigation apart from a mere refresh (see the `chat` watcher).
+      projectInitKey: null
     }
   },
   created() {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    // Collapse the composer by default on mobile to leave more room for reading
+    this.inputCollapsed = this.$ui.isMobile
     this.initProject()
   },
   mounted() {
@@ -348,25 +393,64 @@ export default {
     isChatLoading() {
       return !this.chat?.id || this.chat?.status === ENTITY_STATUS.LOADING
     },
+    // True while the chat is being processed (waiting for the server's first
+    // chunk or streaming). Driven by the shared chats store flag, which is set
+    // immediately on send and auto-resets on a timeout if the server never replies.
+    isProcessing() {
+      return !!this.chat?.id && this.$chats.isChatUpdating(this.chat.id)
+    },
     aiModels() {
       return this.isTopic ? [] : this.$projects.ai.models || []
     },
+    // Files attached to the chat. `file_list` belongs to the chat record, so its
+    // identity is stable until the list really changes; EMPTY_FILE_LIST keeps the
+    // "no files" case stable too (`|| []` used to return a new array on every
+    // evaluation, re-arming the <ChatFileList> watcher).
     chatFiles() {
-      return this.chat.file_list || []
+      return this.chat?.file_list || EMPTY_FILE_LIST
     },
+    // Files referenced by the conversation: the ones linked to each message plus
+    // the paths found in its code blocks / <file_change> envelopes.
+    //
+    // This is evaluated on EVERY message update (streaming included), so it must
+    // not produce new data when nothing changed:
+    //  * the (expensive) markdown parsing is cached per message and only re-runs
+    //    when that message's content changes;
+    //  * the resulting array keeps its identity while the file list is the same,
+    //    otherwise <ChatFileList> would rebuild its chips — and re-check every
+    //    file on the server — on each streamed chunk.
     messageFiles() {
-      const allMsgFiles = new Set()
-      this.messages?.forEach(msg => {
-        msg.files?.forEach(f => allMsgFiles.add(f))
-        if (msg.content) {
-          const extractedFiles = this.extractFilesFromCodeBlocks(msg.content)
-          extractedFiles.forEach(f => allMsgFiles.add(f))
-        }
+      const parseCache = this.parsedMessageFiles || (this.parsedMessageFiles = new Map())
+      const nextParseCache = new Map()
+      const files = new Set()
+
+      ;(this.messages || []).forEach(message => {
+        const key = message.doc_id || message.id || null
+        const content = message.content || ''
+        const cached = key ? parseCache.get(key) : null
+        const parsed = cached && cached.content === content
+          ? cached.files
+          : this.extractFilesFromCodeBlocks(content)
+        if (key) nextParseCache.set(key, { content, files: parsed })
+
+        ;(message.files || []).forEach(file => files.add(file))
+        parsed.forEach(file => files.add(file))
       })
-      return Array.from(allMsgFiles)
+
+      this.parsedMessageFiles = nextParseCache
+
+      const next = Array.from(files)
+      // Same list → keep the very same array (no prop change downstream)
+      if (this.lastMessageFiles && this.sameList(this.lastMessageFiles, next)) {
+        return this.lastMessageFiles
+      }
+      this.lastMessageFiles = next
+      return next
     },
-    allfiles() {
-      return [...this.chatFiles || [], ...this.messageFiles || []]
+    // Number of distinct files shown in the files strip header. A count, not a
+    // collection, so nothing is recreated when the conversation updates.
+    allFilesCount() {
+      return new Set([...this.chatFiles, ...this.messageFiles]).size
     },
     isPRView() {
       return this.chat.mode === 'prview'
@@ -401,8 +485,20 @@ export default {
       }
       return messages?.filter(m => !m.hide || this.showHidden) || []
     },
+    // Messages rendered by the list.
+    //
+    // The chats store patches the conversation IN PLACE (see `mergeMessages`),
+    // so a refresh streaming a new chunk mutates `message.content` without
+    // touching the array. This computed filters — and a `filter()` always
+    // returns a NEW array — which would give the whole message list a new prop
+    // identity and re-render every child of `ChatMessageList`: the composer,
+    // the intellisense dropdown and every modal living in its slots. Keeping
+    // the previous array while the items are the same prevents that cascade.
     messages() {
-      return this.activeMessages.filter(message => !message.hide || this.showHidden)
+      const next = this.activeMessages.filter(message => !message.hide || this.showHidden)
+      if (this.lastMessages && this.sameList(this.lastMessages, next)) return this.lastMessages
+      this.lastMessages = next
+      return next
     },
     canPost() {
       return this.editorText || this.attachments?.length
@@ -417,8 +513,32 @@ export default {
       return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
         || this.$project
     },
+    // Project the message being composed is addressed to: the explicitly selected
+    // one or, by default, the chat's working project.
+    messageTargetProject() {
+      return this.messageProject || this.chatProject
+    },
+    // Identity of the (chat, working project) pair the project state belongs to.
+    // Stable across store refreshes: `registerChat()` replaces the chat object
+    // but never this key, which is exactly what the `chat` watcher needs.
+    chatProjectKey() {
+      return `${this.chat?.id || ''}::${this.chatProject?.project_id || ''}`
+    },
     mentionList() {
-      return (this.chatProject?.$state || this.$projects).mentionList
+      // Mentions resolve against the same project the message is addressed to
+      return this.messageTargetProject?.$state?.mentionList
+        || this.chatProject?.$state?.mentionList
+        || this.$projects.mentionList
+    },
+    // On mobile the composer collapses while reading the messages; the image/files
+    // previews are hidden too so the reading area stays clean.
+    composerCollapsed() {
+      return this.$ui.isMobile && this.inputCollapsed
+    },
+    // Stable empty list handed to the composer's file list: an inline `[]` in the
+    // template would be a brand new array on every render of this component.
+    noMessageFiles() {
+      return EMPTY_FILE_LIST
     },
     messageMentions() {
       const mentions = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []].map(w => w[1]) || []
@@ -452,7 +572,15 @@ export default {
     }
   },
   watch: {
+    // The store REPLACES the chat object on every update (load, reload, socket
+    // "changed" event, chats-list refresh). Initialising the project state on
+    // each of those re-entered the loaders that produce those updates
+    // (`initProjectState` → reload chats/kanban → registerChat → new object),
+    // which cascaded into an endless rebuild of every column and task of the
+    // board. Only a real navigation (another chat / another working project)
+    // may initialise the project state.
     chat() {
+      if (this.projectInitKey === this.chatProjectKey) return
       this.initProject()
     },
     uploadProjectFile(newVal, oldVal) {
@@ -464,26 +592,42 @@ export default {
       this.updateCursorWord()
       this.updateProfileMentionsFromText()
       this.scheduleIntelliSense()
+    },
+    editMessage(newVal) {
+      // Always expand the composer while editing a message
+      if (newVal) this.inputCollapsed = false
+    },
+    // Suggestions belong to the project they were searched in: drop them when
+    // the message starts targeting another project (message.project_id).
+    messageProject() {
+      this.cancelIntelliSense()
+      this.intelliSenseDismissed = false
     }
   },
   methods: {
+    toggleInputCollapsed() {
+      this.inputCollapsed = !this.inputCollapsed
+      if (!this.inputCollapsed) {
+        this.$nextTick(() => this.$refs.inputBox?.focusEditor())
+      }
+    },
     initProject() {
+      // Remember what was initialised so the `chat` watcher can tell a store
+      // refresh (same key → ignore) from a real navigation (new key → init).
+      this.projectInitKey = this.chatProjectKey
       this.$projects.initProjectState(this.chatProject)
     },
     extractFilesFromCodeBlocks(content) {
-      if (!content) return []
-      const codeBlockRegex = /```([a-zA-Z0-9+\-_.]*)\s+([^\n\s][^\n]*?)(?:\n|$)/g
-      const files = []
-      let match
-      while ((match = codeBlockRegex.exec(content)) !== null) {
-        const filePath = match[2].trim()
-        if (filePath && (filePath.includes('/') || filePath.includes('.'))) {
-          if (!filePath.includes(' ') || filePath.split(' ')[0].includes('/')) {
-            files.push(filePath.split(' ')[0])
-          }
-        }
-      }
-      return files
+      return extractCodeBlocks(content)
+        .map(block => block.filePath)
+        .filter(Boolean)
+    },
+    // Same items, same order. Used to keep collection identities stable so
+    // downstream components are not re-rendered with identical data.
+    sameList(previous, next) {
+      if (previous === next) return true
+      if (!previous || !next || previous.length !== next.length) return false
+      return next.every((item, index) => item === previous[index])
     },
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
@@ -556,19 +700,11 @@ export default {
     validateImageSize(file) {
       const maxSizeBytes = this.MAX_IMAGE_SIZE_MB * 1024 * 1024
       if (file.size > maxSizeBytes) {
-        const errorMsg = `Image exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
+        const errorMsg = `File exceeds maximum size of ${this.MAX_IMAGE_SIZE_MB}MB`
         this.$ui?.addNotification?.({ text: errorMsg, type: 'error' })
         return false
       }
       return true
-    },
-    async fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result.split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
     },
     async prepareAttachmentFromFile(file) {
       if (!this.validateImageSize(file)) return null
@@ -592,7 +728,7 @@ export default {
         const file = new File([blob], this.extractFileNameFromUrl(imgUrl), { type: blob.type })
         return await ChatAttachment.fromFile(file)
       } catch (error) {
-        console.error("Error preparing attachment from URL:", error)
+        console.error("Error preparing image URL:", error)
         this.$ui?.addNotification?.({ text: "Failed to process image URL", type: 'error' })
         return null
       }
@@ -626,6 +762,30 @@ export default {
         }
       }
       return validImageFiles.length > 0
+    },
+    async onUploadFiles(files) {
+      // Reading the file is asynchronous (FileReader). Keep the task around so a
+      // save triggered right after stopping a recording can wait for it instead
+      // of dropping the attachment.
+      const task = this.addAttachmentsFromFiles(files)
+      this.attachmentTasks.push(task)
+      try {
+        await task
+      } finally {
+        this.attachmentTasks = this.attachmentTasks.filter(t => t !== task)
+      }
+    },
+    async addAttachmentsFromFiles(files) {
+      for (const file of files) {
+        const attachment = await this.prepareAttachmentFromFile(file)
+        if (attachment) this.attachments = [...this.attachments, attachment]
+      }
+    },
+    // A voice note stopped right before saving may still be being read.
+    // Never persist (or post) a message before its attachments are ready.
+    async flushPendingAttachments() {
+      if (!this.attachmentTasks.length) return
+      await Promise.allSettled([...this.attachmentTasks])
     },
     showUploadConfirmation(fileList, uploadPath, context) {
       this.pendingUploadFiles = Array.from(fileList)
@@ -705,14 +865,18 @@ export default {
       if (!rawQuery || rawQuery.trim().length < 3) { this.cancelIntelliSense(); return }
       if (this.previousQuery !== rawQuery && this.searchController) this.cancelIntelliSense()
       this.previousQuery = rawQuery
+      // Messages can override the chat's working project (message.project_id):
+      // suggestions must come from the project the message is addressed to.
+      const project = await this.resolveMentionProject()
+      if (!project) { this.cancelIntelliSense(); return }
       this.searchController = await this.$storex.projects.createSearchController()
       this.intelliSenseQuery = rawQuery
       this.intelliSenseIndex = 0
-      this.searchController.onProgress = ({ stage, project }) => {
-        this.intelliSenseProgress = `${stage}: ${project}`
+      this.searchController.onProgress = ({ stage, project: progressProject }) => {
+        this.intelliSenseProgress = `${stage}: ${progressProject}`
       }
       try {
-        await this.chatProject?.$state?.searchMentions?.({
+        await project.$state.searchMentions({
           query: rawQuery,
           limit: 10,
           controller: this.searchController,
@@ -731,6 +895,25 @@ export default {
         if (error.message !== 'Search cancelled') console.error('[IntelliSense] Search error:', error)
       }
       this.intelliSenseProgress = ''
+    },
+    /**
+     * Project whose mentions are searched: the message's own project when the
+     * composer overrides it (message.project_id), the chat's working project
+     * otherwise. Only the chat's project is initialised up front, so the target
+     * is prepared on demand before querying its `searchMentions`.
+     */
+    async resolveMentionProject() {
+      const target = this.messageTargetProject
+      if (target && !target.$state?.searchMentions) {
+        await this.$projects.initProjectState(target)
+      }
+      if (target?.$state?.searchMentions) return target
+      // Fall back to the chat's project when the target could not be prepared
+      const chatTarget = this.chatProject
+      if (chatTarget && chatTarget !== target && !chatTarget.$state?.searchMentions) {
+        await this.$projects.initProjectState(chatTarget)
+      }
+      return chatTarget?.$state?.searchMentions ? chatTarget : null
     },
     cancelIntelliSense() {
       if (this.searchController) { this.searchController.cancel(); this.searchController = null }
@@ -819,6 +1002,13 @@ export default {
       this.editMessage = message
       this.setEditorText(message.content || '')
       this.selectorProfileNames = [...(message.profiles || [])]
+      // Start from the project the message already targets. The stored value is
+      // NOT written back unless the user picks another one (see updateMessage),
+      // so an edit never clears a project_id it did not touch.
+      this.messageProjectTouched = false
+      this.messageProject = message.project_id
+        ? this.$projects.allProjectsById[message.project_id] || null
+        : null
       this.files = [...(message.files || [])]
       this.attachments = (message.attachments || []).map(a => {
         try { return typeof a === 'string' ? JSON.parse(a) : a } catch { return a }
@@ -831,29 +1021,55 @@ export default {
       this.setEditorText('')
       this.files = []
       this.attachments = []
+      this.messageProject = null
+      this.messageProjectTouched = false
       this.selectorProfileNames = []
       this.textProfileNames = []
       this.previousEditorText = ''
     },
     async updateMessage() {
+      const message = this.editMessage
+      if (!message?.doc_id) return
+      // A voice note stopped right before clicking Edit may still be being read:
+      // wait for it, otherwise the audio is dropped from the saved message.
+      await this.flushPendingAttachments()
       const content = this.$refs.inputBox?.getEditorText() ?? ''
       const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.chatSvc.updateExistingMessage({
-        chat: this.chat,
-        doc_id: this.editMessage.doc_id,
-        update: {
-          content,
-          profiles,
-          files,
-          attachments: this.attachments.map(a => a.toJSON?.() || a),
-          updated_at: new Date().toISOString()
-        }
-      })
+      const update = {
+        content,
+        profiles,
+        files,
+        attachments: this.attachments.map(a => a.toJSON?.() || a),
+        updated_at: new Date().toISOString()
+      }
+      // A message can be addressed to its own project (message.project_id).
+      // Persist the selection whenever the user changed it, `null` included:
+      // picking the chat's project must CLEAR the stored override, while an
+      // untouched edit keeps the project the message already had.
+      if (this.messageProjectTouched) {
+        update.project_id = this.messageProject?.project_id || null
+      }
+      try {
+        await this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id: message.doc_id,
+          update
+        })
+      } catch (error) {
+        // Stay in edit mode (attachments included) so the user can retry
+        // instead of silently losing the recorded audio.
+        console.error('[chat] Failed to update message', error)
+        this.$ui?.addNotification?.({ text: 'Failed to save the message, please retry', type: 'error' })
+        return
+      }
       this.onResetEdit()
     },
-    toggleHide({ doc_id, hide }) {
-      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+    toggleHide({ doc_id, is_answer, hide }) {
+      // Answer messages can not be hidden.
+      if (!is_answer) {
+        this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { hide: !hide } })
+      }
     },
     toggleAnswer({ doc_id, is_answer }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { is_answer: !is_answer } })
@@ -894,9 +1110,10 @@ export default {
     getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
+        project_id: this.messageProject?.project_id,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
-        attachments: this.attachments.map(a => a.toJSON()),
+        attachments: this.attachments.map(a => a.toJSON?.() || a),
         metadata: this.metadata,
         user: this.$user.username,
         task_item
@@ -913,11 +1130,15 @@ export default {
       this.attachments = []
       this.files = []
       this.mentions = []
+      this.messageProject = null
+      this.messageProjectTouched = false
       this.textProfileNames = []
       this.metadata = null
       this.previousEditorText = ''
     },
     async addNewMessage({ task_item } = {}) {
+      // Never post without a voice note that is still being read
+      await this.flushPendingAttachments()
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
         await this.updateMessage()
@@ -951,6 +1172,14 @@ export default {
     },
     async sendChatMessage(chat) {
       this.waiting = true
+
+      // Notify the UI immediately that the chat is processing, before the
+      // server streams its first chunk back (which can take several seconds).
+      // The store auto-resets this after a timeout if the server never replies.
+      if (chat?.id) {
+        this.$chats.startChatProcessing({ chatId: chat.id })
+      }
+
       try {
         return await this.$storex.projects.chatWihProject(chat)
       } finally {
@@ -1044,7 +1273,7 @@ export default {
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
       if (imageFile) {
         const attachment = await this.prepareAttachmentFromFile(imageFile)
-        this.attachments.push(attachment)
+        if (attachment) this.attachments.push(attachment)
         return stop()
       }
       const textContent = await this.chatSvc.parseTextFromPaste(e)
@@ -1082,6 +1311,31 @@ export default {
     },
     removeAttachment(idx) {
       this.attachments = this.attachments.filter((_, ix) => ix !== idx)
+    },
+    onAttachmentUpdated({ index, attachment }) {
+      this.attachments.splice(index, 1, attachment)
+      if (this.editMessage) {
+        this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id: this.editMessage.doc_id,
+          update: {
+            attachments: this.attachments.map(a => a.toJSON?.() || a),
+            updated_at: new Date().toISOString()
+          }
+        })
+      }
+    },
+    onMessageAttachmentUpdated({ message, index, attachment }) {
+      const attachments = (message.attachments || []).map(a => a.toJSON?.() || a)
+      attachments.splice(index, 1, attachment.toJSON?.() || attachment)
+      this.chatSvc.updateExistingMessage({
+        chat: this.chat,
+        doc_id: message.doc_id || message.id,
+        update: {
+          attachments,
+          updated_at: new Date().toISOString()
+        }
+      })
     },
     removeAttachmentByIndex(idx) {
       this.removeAttachment(idx)
@@ -1164,12 +1418,32 @@ export default {
     async onReloadMessageFile({ file, message }) {
       message.content = await this.chatSvc.fileToMessage({ file })
     },
-    async onSaveFile({ file, content }) {
-      await this.$storex.chats.writeFile({ chat: this.chat, file, content })
-      this.$ui.addNotification({ text: `File ${file.split("/").reverse()[0]} saved` })
+    // Persist a code block coming from the viewer/save button.
+    //
+    // The block belongs to a project and its path is relative to THAT project:
+    // `project` travels with the `save-file` event (CodeViewer resolves it from
+    // `Message.project_id` when the message overrides the chat's working
+    // project). Writing through the chat's project — as before — sent the
+    // request with another `codx_path` and the write failed, so the project's
+    // own API instance is used, falling back to the chats store.
+    async onSaveFile({ file, content, project }) {
+      const target = project || this.chatProject
+      const name = file.split("/").reverse()[0]
+      try {
+        if (target?.$api?.files?.write) {
+          await target.$api.files.write(file, content)
+        } else {
+          await this.$storex.chats.writeFile({ chat: this.chat, file, content })
+        }
+        this.$ui.addNotification({ text: `File ${name} saved`, type: 'success' })
+      } catch (error) {
+        console.error('[chat] Failed to save file', { file, project: target?.project_id, error })
+        this.$ui.addNotification({ text: `Error saving ${name}: ${error?.message || error}`, type: 'error' })
+      }
     },
     onOpenFile(file) {
-      this.chatProject.$api.coder.openFile(file)
+      const project = this.chatProject
+      project.$api.coder.openFile(file)
     },
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
@@ -1235,8 +1509,12 @@ export default {
     createBlock() {
       this.setEditorText(this.editorText + "```\n\n```")
     },
-    onNewThread(message) {
-      this.$chats.createNewThread({ chat: this.chat, message })
+    async onNewThread(message) {
+      await this.$chats.createNewThread({
+        chat: this.chat,
+        mode: this.chat.mode,
+        message
+      })
     },
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })
@@ -1248,6 +1526,17 @@ export default {
     },
     onProfilesSelected(selectedProfiles) {
       this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
+    },
+    // Selecting the chat's own project (or clearing it) falls back to the default
+    // instead of storing a redundant copy on the message. The selection is
+    // flagged so `updateMessage` persists it — `null` included, which is how a
+    // message stops overriding the chat's project.
+    onMessageProjectChanged(project) {
+      const projectId = project?.project_id
+      this.messageProject = !projectId || projectId === this.chatProject?.project_id
+        ? null
+        : project
+      this.messageProjectTouched = true
     },
     onProfilesChanged(selectedProfiles) {
       this.chat.profiles = selectedProfiles.map(p => p.name || p)

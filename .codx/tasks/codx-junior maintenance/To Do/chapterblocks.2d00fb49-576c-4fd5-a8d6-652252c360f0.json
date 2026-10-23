@@ -1,0 +1,245 @@
+{
+  "id": "2d00fb49-576c-4fd5-a8d6-652252c360f0",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "doing",
+  "status_history": [
+    {
+      "doc_id": "82aecf27-5caa-44ca-9989-497dbda88413",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-15T12:40:51.031543",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/components/document/ChapterBlock.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/components/document/Document.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/utils/markdownParser.js"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "ChapterBlocks",
+  "pinned": false,
+  "is_template": false,
+  "description": "1. User reported that chapter blocks' copy action (copying a section's underlying markdown) was missing on many headings.\n2. Root cause traced to `parseChapter()` in `src/utils/markdownParser.js`: only headings with `level + 1` became chapters, while level-skipping headings were flattened into parent markdown and rendered by `MarkdownViewer` (no copy menu).\n3. Fix: treat **any** deeper heading as a child chapter, so every heading renders as a `ChapterBlock` and inherits the Edit / Copy / Create-task menu.\n4. Only one file changed \u2014 `src/utils/markdownParser.js` (`parseChapter()`) \u2014 keeping `collectAllChildContent()` and code-fence protection intact.\n5. Optional follow-up proposed: render `ChapterMenu` on `:focus-within` instead of hover-only, so keyboard users can reach the copy action.",
+  "messages": [
+    {
+      "doc_id": "d076796e-0331-4836-9aab-a8c2a598e554",
+      "role": "user",
+      "task_item": "",
+      "content": "Chpater blocks are really useful to work with long messages. It's so useful to be able to copy a section of the markdown underlaying message instead the rendered text.\n\nMany heading has no option to copy",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-15 12:40:55.391670",
+      "updated_at": "2026-10-15T12:40:55.391752",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/document/ChapterBlock.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/document/Document.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/utils/markdownParser.js"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "98d55a45-175f-438d-a065-de8ce51dace3",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll explore the relevant files first to understand how chapters and the copy menu work.Let me look at how chapters are consumed elsewhere (summary/outline) to ensure a parser change is safe.## 1. Analysis & Pre-Thinking\n\n**Core Requirements**\nThe user loves the per\u2011chapter **Copy** action in chapter blocks (it copies the *underlying markdown* of a section instead of the rendered text). Their complaint: **many headings have no copy option at all**. They want *every* heading to expose the copy/view menu.\n\n**Root\u2011cause (traced through the code)**\n\nThe copy menu lives in `ChapterBlock.vue` \u2192 only rendered for real chapter objects (`chapter.level > 0`) that come out of `parser.parseChapters()`. So a heading only gets a menu if the parser turns it into a chapter.\n\nIn `markdownParser.js` \u2192 `parseChapter()`:\n\n```js\nif (nextLevel === level + 1) {            // \u2705 becomes a child chapter (has menu)\n  const childChapter = parseChapter(lines, i)\n  children.push(childChapter)\n  ...\n}\nif (nextLevel > level + 1) {              // \u274c pushed into parent content\n  content.push(line)                      //    \u2192 rendered by MarkdownViewer as\n  i++                                     //      plain HTML, NO copy menu\n  continue\n}\n```\n\nSo whenever heading levels **skip** (a very common LLM output pattern: `# Title` then `### Sub`, or `## A` then `#### B`), those \"deep\" headings are flattened into the parent's markdown `content`. They are then rendered by `MarkdownViewer` (which has no copy UI \u2014 it only *emits* leftover `copy-chapter`/`create-task` events that nothing renders). That is exactly \"many headings have no option to copy\".\n\n`DocumentSummary.vue` already lists *all* headings (its regex matches `#{1,6}` regardless of nesting), so the table of contents and the chapter blocks are currently out of sync \u2014 another symptom of the same bug.\n\n**Strategic Approach**\nFix the source, not the symptom: make `parseChapter()` treat **any deeper heading** as a child chapter (not only `level + 1`). Nesting is then driven purely by relative depth, every heading becomes a `ChapterBlock`, and it automatically inherits the existing Copy / Create\u2011task / Edit menu. No UI changes needed, and `collectAllChildContent()` still reconstructs the original markdown in document order.\n\n**Dependencies & Risks**\n- `collectAllChildContent()` / `stripHeaderFromContent()` are generic recursions \u2192 safe with arbitrary depth.\n- `DocumentSummary` parses headings independently \u2192 unaffected, now consistent with chapters.\n- Rendering switches from `MarkdownViewer` prose to `ChapterBlock` heading classes for the previously\u2011flattened headings \u2014 this is the intended gain (consistent headings + copy menu), and heading order/levels are preserved.\n- Code\u2011fence protection is unchanged (`isInsideCodeFence` is still checked before nesting).\n\n**Target Files**\n- `src/utils/markdownParser.js` \u2014 modify `parseChapter()`.\n\n---\n\n## 2. Minimum Changes Approach\n\n**`src/utils/markdownParser.js` \u2192 `parseChapter()`**\nReplace the two\u2011branch logic (`=== level+1` vs `> level+1`) with a single \"deeper \u21d2 child\" branch. The `nextLevel <= level` early\u2011`break` already guarantees we only reach the nesting code when the heading is deeper, so the change is small and localized.\n\n- [ ] Apply the single edit below.\n\n---\n\n## 3. File changes, Code Block Formatting & Proposed Changes\n\n@@ CODX_FILE @@\npath: src/utils/markdownParser.js\nlanguage: javascript\nchange_type: update\nencoding: text\n@@ CODX_CONTENT @@\n/**\n * Hash generator for stable block keys\n */\nfunction generateHash(str) {\n  let hash = 0\n  for (const char of str) {\n    hash = (hash << 5) - hash + char.charCodeAt(0)\n    hash |= 0\n  }\n  return hash\n}\n\n/**\n * Heading detection helpers\n */\nfunction isHeading(line) {\n  return /^#{1,6}\\s+/.test(line)\n}\n\nfunction getHeadingLevel(line) {\n  const match = line.match(/^(#+)\\s+/)\n  return match ? match[1].length : 0\n}\n\nfunction getHeadingText(line) {\n  return line.replace(/^#+\\s+/, '').trim()\n}\n\nfunction getHeaderLine(content) {\n  const lines = content.split('\\n')\n  return lines.length > 0 && isHeading(lines[0]) ? lines[0] : ''\n}\n\nfunction isMarkdownBlockType(blockType) {\n  return ['markdown', 'md', 'text'].includes(blockType)\n}\n\n/**\n * Get common file extension for language\n */\nfunction getExtensionForLanguage(language) {\n  const extensions = {\n    'js': 'js',\n    'javascript': 'js',\n    'ts': 'ts',\n    'typescript': 'ts',\n    'python': 'py',\n    'py': 'py',\n    'java': 'java',\n    'c': 'c',\n    'cpp': 'cpp',\n    'csharp': 'cs',\n    'cs': 'cs',\n    'php': 'php',\n    'ruby': 'rb',\n    'rb': 'rb',\n    'go': 'go',\n    'rust': 'rs',\n    'rs': 'rs',\n    'html': 'html',\n    'css': 'css',\n    'scss': 'scss',\n    'json': 'json',\n    'yaml': 'yaml',\n    'yml': 'yml',\n    'xml': 'xml',\n    'sql': 'sql',\n    'bash': 'sh',\n    'sh': 'sh',\n    'shell': 'sh',\n    'vue': 'vue',\n    'react': 'jsx',\n    'jsx': 'jsx',\n    'tsx': 'tsx'\n  }\n  return extensions[language.toLowerCase()] || language.toLowerCase()\n}\n\n/**\n * Generate synthetic filename from language type\n */\nfunction generateFileName(language) {\n  if (!language || language === 'text') return 'content.txt'\n  const ext = getExtensionForLanguage(language)\n  return `content.${ext}`\n}\n\n/**\n * Strip first heading line from content\n */\nfunction stripHeaderFromContent(content) {\n  const lines = content.split('\\n')\n  if (lines.length > 0 && isHeading(lines[0])) {\n    return lines.slice(1).join('\\n').trim()\n  }\n  return content\n}\n\n/**\n * Select renderer based on block type and file path\n */\nfunction getRenderer(blockType, fileName) {\n  if (fileName) return 'code'\n  if (blockType === 'markdown' || blockType === 'md') return 'md'\n  if (blockType === 'html') return blockType\n  return 'code'\n}\n\n/**\n * Detect fence markers (``` or ~~~) with optional info string\n */\nfunction getFence(line) {\n  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/)\n  if (!match) return null\n  return {\n    char: match[2][0],\n    length: match[2].length,\n    info: match[3].trim()\n  }\n}\n\n/**\n * Check if a line is a valid closing fence for the given opening fence.\n * A closing fence must:\n * - Use the same character (` or ~)\n * - Have length >= opening fence length\n * - Have no info string\n */\nfunction isClosingFence(line, fence) {\n  const lineFence = getFence(line)\n  return !!(\n    lineFence &&\n    fence &&\n    lineFence.char === fence.char &&\n    lineFence.length >= fence.length &&\n    !lineFence.info\n  )\n}\n\n/**\n * Count matching closing fences ahead from index\n */\nfunction countClosingFencesAhead(lines, fromIndex, fence) {\n  let count = 0\n  for (let i = fromIndex + 1; i < lines.length; i++) {\n    if (isClosingFence(lines[i], fence)) count++\n  }\n  return count\n}\n\n/**\n * Decide if an anonymous fence should open a nested block or close the outer one\n */\nfunction isNestedAnonymousFence(lines, index, currentType, currentFence) {\n  const isMarkdownBlock = isMarkdownBlockType(currentType)\n  return isMarkdownBlock && countClosingFencesAhead(lines, index, currentFence) >= 2\n}\n\n/**\n * CODX file block syntax\n * -------------------------------------------------------------------------\n * In addition to legacy ```lang path fences, markdown may carry code blocks\n * using sentinel lines:\n *\n *   @@ CODX_FILE @@\n *   path: <project-relative path>\n *   language: <language id>\n *   change_type: <new|update|delete>\n *   encoding: text\n *   @@ CODX_CONTENT @@\n *   <full file content, verbatim - may itself contain code fences>\n *   @@ CODX_END @@\n *\n * The body between CONTENT and END is taken verbatim, so nested ``` fences\n * (and even heading-looking lines) never leak out of the block.\n */\n\n/**\n * Detect one of the sentinel markers on a single line.\n * Returns 'file' | 'content' | 'end' | null\n */\nfunction getCodedFileMarkers(line) {\n  if (line?.indexOf('@') !== 0) return null\n  const match = line.trim().match(/^@{2}\\s+CODX_(FILE|CONTENT|END)\\s+@{2}$/)\n  if (!match) return null\n  if (match[1] === 'FILE') return 'file'\n  if (match[1] === 'CONTENT') return 'content'\n  return 'end'\n}\n\n/**\n * Parse a single \"key: value\" metadata line found between FILE and CONTENT\n */\nfunction parseCodedFileMetaLine(line) {\n  const match = line.match(/^\\s*([A-Za-z_][\\w-]*)\\s*:\\s*(.*?)\\s*$/)\n  if (!match) return null\n  return { key: match[1].toLowerCase().replace(/-/g, '_'), value: match[2] }\n}\n\n/**\n * Parse a full CODX file block starting at `startIndex` (the FILE marker).\n *\n * Returns { block, endIndex } where `endIndex` is the last consumed line so\n * the caller can resume right after it. Returns null when the start marker is\n * immediately followed by another FILE marker (malformed nested start).\n *\n * Streaming friendly: when CONTENT/END markers are missing the block is\n * emitted as unfinished with whatever content has arrived so far.\n */\nfunction parseCodedFileBlock(lines, startIndex, getRendererFn = getRenderer) {\n  const meta = {}\n  let i = startIndex + 1\n  let contentStart = -1\n  let contentEnd = -1\n\n  // Read metadata until the CONTENT or END marker\n  while (i < lines.length) {\n    const marker = getCodedFileMarkers(lines[i])\n    if (marker === 'content') {\n      contentStart = i + 1\n      break\n    }\n    if (marker === 'end') {\n      // Empty body: the CONTENT marker was omitted\n      contentStart = i\n      contentEnd = i\n      break\n    }\n    if (marker === 'file') {\n      // Malformed: a new block opened before this one closed\n      return null\n    }\n    const parsed = parseCodedFileMetaLine(lines[i])\n    if (parsed) meta[parsed.key] = parsed.value\n    i++\n  }\n\n  if (contentStart === -1) {\n    // Metadata still streaming - no CONTENT marker yet\n    contentStart = lines.length\n    contentEnd = lines.length\n  } else if (contentEnd === -1) {\n    // Find the END marker from the content start\n    for (let j = contentStart; j < lines.length; j++) {\n      if (getCodedFileMarkers(lines[j]) === 'end') {\n        contentEnd = j\n        break\n      }\n    }\n    if (contentEnd === -1) contentEnd = lines.length\n  }\n\n  const finished = contentEnd < lines.length\n  const content = lines.slice(contentStart, contentEnd).join('\\n')\n  const language = meta.language || 'text'\n  const fileName = meta.path || generateFileName(language)\n\n  const block = {\n    type: language,\n    content,\n    hash: generateHash(content),\n    fileName,\n    renderer: getRendererFn(language, fileName),\n    finished,\n    // Marks a block that came from the sentinel syntax (always rendered as code)\n    isFileBlock: true,\n    fileChangeType: meta.change_type || '',\n    encoding: meta.encoding || 'text'\n  }\n\n  return { block, endIndex: finished ? contentEnd : lines.length - 1 }\n}\n\n/**\n * Check if position is inside a code fence (any nesting level) OR inside a\n * CODX file block (whose body is verbatim and must not be re-parsed).\n */\nfunction isInsideCodeFence(lines, lineIndex) {\n  let currentFence = null\n  let nestStack = []\n  let inCodedFile = false\n\n  for (let i = 0; i < lineIndex; i++) {\n    const line = lines[i]\n    const marker = getCodedFileMarkers(line)\n\n    if (inCodedFile) {\n      // Inside a CODX block everything is verbatim until the END marker,\n      // including nested fences and heading-looking lines.\n      if (marker === 'end') inCodedFile = false\n      continue\n    }\n\n    // A CODX FILE marker only opens a block when we are not already inside a\n    // legacy fence (mirrors parseBlocks, where fences win inside code blocks).\n    if (marker === 'file' && !currentFence) {\n      inCodedFile = true\n      continue\n    }\n\n    const fence = getFence(line)\n    if (!fence) continue\n\n    if (!currentFence) {\n      currentFence = fence\n      nestStack = [fence]\n      continue\n    }\n\n    const lastNested = nestStack[nestStack.length - 1]\n    if (lastNested && isClosingFence(lines[i], lastNested)) {\n      nestStack.pop()\n      continue\n    }\n\n    if (!nestStack.length && isClosingFence(lines[i], currentFence)) {\n      if (isNestedAnonymousFence(lines, i, 'unknown', currentFence)) {\n        nestStack.push(fence)\n        continue\n      }\n      currentFence = null\n      nestStack = []\n    }\n  }\n\n  return !!currentFence || inCodedFile\n}\n\n/**\n * Parse content string into typed blocks with fence handling.\n *\n * CORE BEHAVIOR:\n * - When inside any named code block (type='py', 'js', 'vue', etc.) ALL inner\n *   fences (including mermaid, other language fences, etc.) are treated as\n *   plain content. Only the matching closing fence ends the block.\n * - Markdown blocks (type='markdown') also treat inner fences as content.\n * - A closing fence must match the OUTER opening fence character and length.\n * - CODX sentinel blocks (@@ CODX_FILE @@ ... @@ CODX_END @@) are\n *   parsed as verbatim file blocks: their body may contain fences and headings\n *   without affecting the surrounding markdown.\n *\n * NESTED BLOCK DEPTH TRACKING:\n * - When a named inner fence opens inside a code block, nestDepth increases.\n * - A closing fence only ends the outer block when nestDepth === 0.\n * - This handles cases like a py file containing a mermaid diagram in its\n *   docstring: the inner ```mermaid...``` does not close the outer ```py block.\n *\n * KEY STABILITY DURING STREAMING:\n * - Finished blocks use content-based hash (stable once closed)\n * - Open/streaming blocks use a structural hash so Vue :key stays stable\n *\n * SINGLE-LINE CONTENT FIX:\n * - All non-empty content generates at least one block\n * - Plain markdown (no fences) defaults to type='markdown'\n */\nfunction parseBlocks(content, getRendererFn = getRenderer) {\n  const blocks = []\n  const lines = content.split('\\n')\n  let currentType = 'markdown'\n  let currentContent = []\n  let currentFileName = ''\n  let inCodeBlock = false\n  let currentFence = null\n  let isAnonymousFence = false\n  let blockIndex = 0\n  // Tracks how many named inner fences are open inside the current outer block.\n  // A closing fence only closes the outer block when nestDepth === 0.\n  let nestDepth = 0\n\n  function addBlock(isFinished = false) {\n    const blockContent = currentContent.join('\\n')\n    const trimmedContent = blockContent.trim()\n\n    if (!trimmedContent) {\n      resetBlock()\n      return\n    }\n\n    let finalFileName = currentFileName\n    let finalType = currentType\n\n    if (finalType && !isMarkdownBlockType(finalType) && !finalFileName && !isAnonymousFence) {\n      finalFileName = generateFileName(finalType)\n    }\n\n    const contentHash = generateHash(blockContent)\n\n    blocks.push({\n      type: finalType,\n      content: blockContent,\n      hash: contentHash,\n      fileName: finalFileName,\n      renderer: getRendererFn(finalType, finalFileName),\n      finished: isFinished\n    })\n\n    blockIndex++\n    resetBlock()\n  }\n\n  function resetBlock() {\n    currentType = 'markdown'\n    currentContent = []\n    currentFileName = ''\n    currentFence = null\n    isAnonymousFence = false\n    nestDepth = 0\n  }\n\n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i]\n\n    // CODX file block takes priority when not already inside a legacy fence\n    if (!inCodeBlock && getCodedFileMarkers(line) === 'file') {\n      const coded = parseCodedFileBlock(lines, i, getRendererFn)\n      if (coded) {\n        if (blocks.length > 0) {\n          blocks[blocks.length - 1].finished = true\n        }\n        if (currentContent.length) addBlock(true)\n        blocks.push(coded.block)\n        blockIndex++\n        i = coded.endIndex\n        continue\n      }\n    }\n\n    const fence = getFence(line)\n\n    if (inCodeBlock && fence) {\n      if (isClosingFence(line, currentFence)) {\n        if (nestDepth > 0) {\n          // This closes an inner named fence, not the outer block\n          nestDepth--\n          currentContent.push(line)\n        } else {\n          // nestDepth === 0: this closes the outer block\n          addBlock(true)\n          inCodeBlock = false\n        }\n      } else {\n        // Any opening fence inside a code block (named or not) increases depth\n        // so the corresponding closing fence is correctly consumed as content.\n        if (fence.info && fence.info.trim()) {\n          nestDepth++\n        }\n        currentContent.push(line)\n      }\n      continue\n    }\n\n    if (!inCodeBlock && fence) {\n      const hasLanguageInfo = fence.info && fence.info.trim()\n\n      if (hasLanguageInfo) {\n        // Mark previous block finished when a new fence opens\n        if (blocks.length > 0) {\n          blocks[blocks.length - 1].finished = true\n        }\n\n        if (currentContent.length) addBlock(true)\n\n        const parts = fence.info.split(/\\s+/).filter(Boolean)\n        inCodeBlock = true\n        currentFence = fence\n        currentType = parts[0] || 'text'\n        currentFileName = parts[1] || ''\n        isAnonymousFence = false\n        nestDepth = 0\n        continue\n      } else {\n        // Anonymous fence (no language) - treat as markdown content\n        currentContent.push(line)\n        continue\n      }\n    }\n\n    currentContent.push(line)\n  }\n\n  if (currentContent.length) {\n    addBlock(false)\n  }\n\n  // All blocks except the last are finished. CODX file blocks keep the\n  // finished flag resolved during parsing so an open (streaming) file block\n  // is not force-completed.\n  for (let i = 0; i < blocks.length - 1; i++) {\n    if (!blocks[i].isFileBlock) {\n      blocks[i].finished = true\n    }\n  }\n\n  return blocks\n}\n\n/**\n * Collect full markdown output of a chapter with children\n */\nfunction collectAllChildContent(chapter) {\n  const headerLine = getHeaderLine(chapter.content.split('\\n')[0])\n  let contentWithoutHeader = stripHeaderFromContent(chapter.content || '')\n  let allContent = contentWithoutHeader\n\n  if (chapter.children && chapter.children.length > 0) {\n    for (let i = 0; i < chapter.children.length; i++) {\n      const childFullContent = collectAllChildContent(chapter.children[i])\n      allContent += '\\n' + childFullContent\n    }\n  }\n\n  return headerLine ? headerLine + '\\n\\n' + allContent : allContent\n}\n\n/**\n * Parse content into chapter objects with nested children\n */\nfunction parseChapters(content, loading) {\n  const lines = content.split('\\n')\n  const chapters = []\n  let i = 0\n\n  while (i < lines.length) {\n    const line = lines[i]\n\n    if (isHeading(line) && !isInsideCodeFence(lines, i)) {\n      const chapter = parseChapter(lines, i)\n      chapters.push(chapter)\n      i = chapter.endIndex\n    } else if (!chapters.length) {\n      const noHeadingContent = []\n      while (i < lines.length && (!isHeading(lines[i]) || isInsideCodeFence(lines, i))) {\n        noHeadingContent.push(lines[i])\n        i++\n      }\n      const fullContent = noHeadingContent.join('\\n').trim()\n      if (fullContent) {\n        chapters.push({\n          level: 0,\n          title: null,\n          content: fullContent,\n          children: [],\n          hash: generateHash(fullContent),\n          finished: false\n        })\n      }\n    } else {\n      i++\n    }\n  }\n\n  if (!loading) {\n    markAllFinished(chapters)\n  } else if (chapters.length > 0) {\n    markLastUnfinished(chapters)\n  }\n\n  return chapters\n}\n\n/**\n * Parse a single chapter from lines, including child/chapter sections\n */\nfunction parseChapter(lines, startIndex) {\n  const headingLine = lines[startIndex]\n  const level = getHeadingLevel(headingLine)\n  const title = getHeadingText(headingLine)\n  const content = [headingLine]\n  const children = []\n  let i = startIndex + 1\n\n  while (i < lines.length) {\n    const line = lines[i]\n\n    if (isHeading(line) && !isInsideCodeFence(lines, i)) {\n      const nextLevel = getHeadingLevel(line)\n\n      if (nextLevel <= level) break\n\n      // Any deeper heading becomes a child chapter, even when levels are\n      // skipped (e.g. \"## A\" followed by \"#### B\"). This guarantees EVERY\n      // heading renders as its own ChapterBlock, so it always exposes the\n      // copy / create-task / edit menu instead of being flattened into the\n      // parent markdown content (which has no copy UI).\n      const childChapter = parseChapter(lines, i)\n      children.push(childChapter)\n      i = childChapter.endIndex\n      continue\n    }\n\n    content.push(line)\n    i++\n  }\n\n  return {\n    level,\n    title,\n    content: content.join('\\n'),\n    children,\n    hash: generateHash(content),\n    endIndex: i,\n    finished: false\n  }\n}\n\n/**\n * Recursively mark all chapters as completed\n */\nfunction markAllFinished(chapters) {\n  for (let i = 0; i < chapters.length; i++) {\n    const chapter = chapters[i]\n    chapter.finished = true\n    if (chapter.children && chapter.children.length > 0) {\n      markAllFinished(chapter.children)\n    }\n  }\n}\n\n/**\n * Recursively find last chapter and mark it unfinished\n */\nfunction markLastUnfinished(chapters) {\n  if (!chapters.length) return\n  for (let i = chapters.length - 1; i >= 0; i--) {\n    const chapter = chapters[i]\n    if (chapter.children && chapter.children.length > 0) {\n      markLastUnfinished(chapter.children)\n      return\n    }\n    chapter.finished = false\n    return\n  }\n}\n\n/**\n * Parse blocks inside a child chapter content\n */\nfunction parseChildBlocks(contentWithoutHeader, getRendererFn = getRenderer) {\n  return parseBlocks(contentWithoutHeader || '', getRendererFn)\n}\n\nexport default {\n  generateHash,\n  isHeading,\n  getHeadingLevel,\n  getHeadingText,\n  stripHeaderFromContent,\n  getRenderer,\n  getFence,\n  isClosingFence,\n  countClosingFencesAhead,\n  isNestedAnonymousFence,\n  getCodedFileMarkers,\n  parseCodedFileMetaLine,\n  parseCodedFileBlock,\n  isInsideCodeFence,\n  parseBlocks,\n  collectAllChildContent,\n  parseChapters,\n  parseChapter,\n  markAllFinished,\n  markLastUnfinished,\n  parseChildBlocks,\n  generateFileName,\n  getExtensionForLanguage\n}\n@@ CODX_END @@\n\n| File Path | Action | Component / Section | Change Description |\n| :--- | :--- | :--- | :--- |\n| `src/utils/markdownParser.js` | Modify | `parseChapter()` | Nest **any** deeper heading as a child chapter (not only `level + 1`), so level\u2011skipping headings are no longer flattened into parent markdown and instead render as `ChapterBlock`s with the copy/view menu. |\n\n---\n\n**Result / behaviour after the change**\n\n```md\n# Report\nintro text\n### Findings      \u2190 was flattened into \"# Report\" content (no menu)\ndetail\n#### Roots       \u2190 was flattened too\ndetail\n## Next steps\n```\n\n- Before: only `# Report` and `## Next steps` had a **Copy** menu; `### Findings` / `#### Roots` rendered inside `MarkdownViewer` with no menu.\n- After: **every** heading is its own `ChapterBlock`, so each exposes **Edit / Copy / Create task** and copies its real underlying markdown.\n\n> Note: the copy menu is still hover\u2011revealed by design (`ChapterMenu` shows on `group-hover/header`). If you also want keyboard\u2011only users to reach it, the next (separate) step would be to render `ChapterMenu` unconditionally and reveal it on `:focus-within` instead of only `v-if=\"isHovered\"` \u2014 say the word and I'll follow up with that accessibility polish.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-15 12:40:56.603348",
+      "updated_at": "2026-10-15T12:43:53.469785",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1792068056.6032577,
+        "cancellation_token_id": "85dead82-117d-4537-82e0-18d6cea77b07",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 126977,
+          "completion_tokens": 18193,
+          "total_tokens": 145170,
+          "tools": {
+            "project_read_file": {
+              "count": 1,
+              "errors": 0,
+              "total_ms": 126.32842641323805
+            },
+            "project_search": {
+              "count": 2,
+              "errors": 0,
+              "total_ms": 22756.150127388537
+            }
+          }
+        },
+        "time_taken": 119.16344690322876,
+        "first_chunk_time_taken": 1.363905668258667
+      },
+      "tool_events": [
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_cPZnZnhLGqJB5ppwb3nh8508",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/components/document/ChapterMenu.vue",
+              "src/components/MarkdownViewer.vue",
+              "src/components/BlockEditor.vue"
+            ]
+          },
+          "response": "```vue src/components/document/ChapterMenu.vue\n<script setup>\n</script>\n\n<template>\n  <div \n    class=\"absolute -top-1 right-0 z-20 flex gap-1 items-center bg-base-100/95 backdrop-blur-sm rounded-lg px-1 py-1 shadow-md border border-base-100 transition-all opacity-0 group-hover/header:opacity-100\"\n    @click.stop\n  >\n    <button\n      class=\"btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom\"\n      data-tip=\"Edit chapter\"\n      @click=\"$emit('edit')\"\n    >\n      <i class=\"fa-solid fa-pen\"></i>\n    </button>\n    <button\n      class=\"btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom\"\n      data-tip=\"Copy chapter\"\n      @click=\"$emit('copy')\"\n    >\n      <i class=\"fa-solid fa-copy\"></i>\n    </button>\n    <button\n      class=\"btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom\"\n      data-tip=\"Create task\"\n      @click=\"$emit('create-task')\"\n    >\n      <i class=\"fa-solid fa-plus\"></i>\n    </button>\n    <slot name=\"chapter-actions\"></slot>\n  </div>\n</template>\n\n<script>\nexport default {\n  emits: ['edit', 'copy', 'create-task']\n}\n</script>\n```\n```vue src/components/MarkdownViewer.vue\n<script setup>\nimport { full as emoji } from 'markdown-it-emoji'\nimport MarkdownIt from 'markdown-it'\nimport highlight from 'markdown-it-highlightjs'\nimport InteractiveTable from './InteractiveTable.vue'\nimport Modal from './Modal.vue'\n</script>\n\n<template>\n  <div class=\"text-wrap overflow-y-auto prose-sm xl:prose max-w-full\">\n    <!-- Render markdown content with mixed elements -->\n    <div class=\"space-y-4\">\n      <div \n        v-for=\"(element, idx) in renderedElements\" \n        :key=\"`element-${idx}`\"\n        @click=\"handleClick\"\n      >\n        <!-- Markdown/HTML content -->\n        <div \n          v-if=\"element.type === 'markdown'\"\n          class=\"overflow-x-auto\"\n          v-html=\"element.content\"\n        ></div>\n\n        <!-- Table with toggle header -->\n        <div \n          v-else-if=\"element.type === 'table'\"\n          class=\"space-y-2\"\n        >\n          <div class=\"flex items-center justify-end\">\n            <label class=\"toggle toggle-sm text-base-content cursor-pointer\">\n              <input \n                type=\"checkbox\"\n                :checked=\"element.viewMode === 'interactive'\"\n                @change=\"toggleTableMode(idx, element.viewMode === 'markdown' ? 'interactive' : 'markdown')\"\n              />\n              <svg \n                aria-label=\"Interactive\" \n                xmlns=\"http://www.w3.org/2000/svg\" \n                viewBox=\"0 0 24 24\"\n                class=\"w-4 h-4\"\n              >\n                <g\n                  stroke-linejoin=\"round\"\n                  stroke-linecap=\"round\"\n                  stroke-width=\"2\"\n                  fill=\"none\"\n                  stroke=\"currentColor\"\n                >\n                  <rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" />\n                  <path d=\"M9 11h6m-6 4h6\" />\n                </g>\n              </svg>\n              <svg\n                aria-label=\"Standard\"\n                xmlns=\"http://www.w3.org/2000/svg\"\n                viewBox=\"0 0 24 24\"\n                class=\"w-4 h-4\"\n                fill=\"none\"\n                stroke=\"currentColor\"\n                stroke-width=\"2\"\n                stroke-linecap=\"round\"\n                stroke-linejoin=\"round\"\n              >\n                <rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" />\n                <path d=\"M7 7h10M7 11h10M7 15h4\" />\n              </svg>\n            </label>\n          </div>\n\n          <!-- Interactive table component -->\n          <InteractiveTable \n            v-if=\"element.viewMode === 'interactive'\"\n            :initial-data=\"element.data\"\n            :table-index=\"idx\"\n            @update-table=\"handleTableUpdate\"\n          />\n\n          <!-- Standard markdown table (scrolls horizontally on narrow screens) -->\n          <div \n            v-else\n            class=\"overflow-x-auto\"\n            v-html=\"element.markdownHtml\"\n          ></div>\n        </div>\n      </div>\n    </div>\n\n    <!-- Image ",
+          "output": "Read 3 file(s) | Successfully read: src/components/document/ChapterMenu.vue, src/components/MarkdownViewer.vue, src/components/BlockEditor.vue",
+          "duration_ms": 126.32842641323805,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_j3Fpyle4W9nzKZEBvBLv5505",
+          "status": "done",
+          "request": {
+            "search": [
+              "chapter-actions copy chapter",
+              "copy-chapter",
+              "ChapterMenu"
+            ]
+          },
+          "response": "> codx-junior-ui results for: 'chapter-actions copy chapter, copy-chapter, ChapterMenu'\n```vue src/components/document/ChapterBlock.vue\n/home/codx-junior-projects/codx-junior/client/src/components/document/ChapterBlock.vue\n<script setup>\nimport MarkdownViewer from '../MarkdownViewer.vue'\nimport Code from '../Code.vue'\nimport ChapterBlock from './ChapterBlock.vue'\nimport parser from '@/utils/markdownParser'\n</script>\n\n<template>\n  <div \n    class=\"chapter-block transition-all duration-200 mb-4\"\n    @mouseenter=\"isHovered = true\"\n    @mouseleave=\"isHovered = false\"\n  >\n    <!-- Chapter header with copy button -->\n    <div v-if=\"chapter.level > 0\">\n      <div class=\"flex items-center justify-between group/header\">\n        <div :class=\"'heading-' + chapter.level\">\n          <h1 v-if=\"chapter.level === 1\" class=\"text-3xl font-bold\">{{ chapter.title }}</h1>\n          <h2 v-else-if=\"chapter.level === 2\" class=\"text-2xl font-bold\">{{ chapter.title }}</h2>\n          <h3 v-else-if=\"chapter.level === 3\" class=\"text-xl font-bold\">{{ chapter.title }}</h3>\n          <h4 v-else-if=\"chapter.level === 4\" class=\"text-lg font-bold\">{{ chapter.title }}</h4>\n          <h5 v-else-if=\"chapter.level === 5\" class=\"font-bold\">{{ chapter.title }}</h5>\n          <h6 v-else class=\"font-bold text-sm\">{{ chapter.title }}</h6>\n        </div>\n        <div class=\"hidden group-hover/header:flex gap-2 items-center\">\n          <slot \n            name=\"chapter-actions\" \n            :chapter=\"chapter\"\n            :full-content=\"fullChapterContent\"\n          >\n            <button\n              class=\"btn btn-sm btn-ghost gap-2\"\n              @click=\"copyChapterMarkdown\"\n              :title=\"'Copy chapter: ' + chapter.title\"\n            >\n              <i class=\"fa-solid fa-copy\"></i>\n              Copy\n            </button>\n            <button\n              class=\"btn btn-sm btn-ghost gap-2\"\n              @click=\"createTaskFromChapter\"\n              :title=\"'Create task from chapter: ' + chapter.title\"\n            >\n              <i class=\"fa-solid fa-plus\"></i> Task\n            </button>\n          </slot>\n        </div>\n      </div>\n    </div>\n\n    <!-- Render blocks within chapter -->\n    <div class=\"space-y-4\">\n      <!-- CHANGED: Use block.hash as stable key to prevent unmounting during streaming -->\n      <div v-for=\"block in blocks\" \n        :key=\"block.hash\">\n        <!-- Code block: has fileName or has type with synthetic fileName -->\n        <Code\n          v-if=\"isCodeBlock(block)\"\n          :text=\"block.content\"\n          :text-language=\"block.type\"\n          :fileName=\"block.fileName\"\n          :files=\"files\"\n          :project=\"docProject\"\n          :finished=\"block.finished\"\n          :loading=\"loading\"\n          :chat=\"chat\"\n          :message=\"message\"\n          :block-hash=\"block.hash\"\n          @generate-code=\"$emit('generate-code', $event)\"\n          @reload-file=\"$emit('reload-file', $event)\"\n          @open-file=\"$emit('open-file', $event)\"\n          @save-file=\"$emit('save-file', $event)\"\n          @add-file=\"$emit('add-file', $event)\"\n          @edit-message=\"$emit('edit-message', $event)\"\n          @sub-task=\"onCodeSubTask\"\n        />\n        <!-- Markdown block: no fileName and markdown/md type -->\n        <MarkdownViewer\n          v-else\n          :files=\"files\"\n          :documentId=\"documentId\"\n          :text=\"block.content\"\n          @add-file=\"$emit('add-file', $event)\"\n          @copy-chapter=\"$emit('copy-chapter', $event)\"\n          @create-task=\"onCreateTask\"\n        />        \n      </div>\n    </div>\n\n    <!-- Render child chapters -->\n    <div v-if=\"chapter.children && chapter.children.length\">\n      <ChapterBlock\n        v-for=\"childChapter in chapter.children\"\n        :key=\"childChapter.hash\"\n        :chapter=\"childChapter\"\n        :blocks=\"getChildChapterBlocks(childChapter)\"\n        :files=\"files\"\n        :documentId=\"documentId\"\n        :docProject=\"docProject\"\n        :loading=\"loading\"\n        :chat=\"chat\"\n        :message",
+          "output": "Search completed: 3 queries executed, 30 documents found, 0 files matched",
+          "duration_ms": 9829.51885741204,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_Z2UL7ivWQEeVZoMStnJE8420",
+          "status": "done",
+          "request": {
+            "search": [
+              "parseChapters",
+              "DocumentSummary",
+              "collectAllChildContent",
+              "chapter.level"
+            ]
+          },
+          "response": "> codx-junior-ui results for: 'parseChapters, DocumentSummary, collectAllChildContent, chapter.level'\n```js src/utils/markdownParser.js\n/home/codx-junior-projects/codx-junior/client/src/utils/markdownParser.js\n// CHANGED: always finalize remaining content (single-line or multi-line plain markdown)\n  // using isFinished=false so streaming blocks get structural hash stability\n  if (currentContent.length) {\n    addBlock(false)\n  }\n\n  // All blocks except the last are finished\n  for (let i = 0; i < blocks.length - 1; i++) {\n    blocks[i].finished = true\n  }\n\n  return blocks\n}\n\n/**\n * Collect full markdown output of a chapter with children\n */\nfunction collectAllChildContent(chapter) {\n  const headerLine = getHeaderLine(chapter.content.split('\\n')[0])\n  let contentWithoutHeader = stripHeaderFromContent(chapter.content || '')\n  let allContent = contentWithoutHeader\n\n  if (chapter.children && chapter.children.length > 0) {\n    for (let i = 0; i < chapter.children.length; i++) {\n      const childFullContent = collectAllChildContent(chapter.children[i])\n      allContent += '\\n' + childFullContent\n    }\n  }\n\n  return headerLine ? headerLine + '\\n\\n' + allContent : allContent\n}\n\n/**\n * Parse content into chapter objects with nested children\n */\nfunction parseChapters(content, loading) {\n  const lines = content.split('\\n')\n  const chapters = []\n  let i = 0\n\n  while (i < lines.length) {\n    const line = lines[i]\n\n    if (isHeading(line) && !isInsideCodeFence(lines, i)) {\n      const chapter = parseChapter(lines, i)\n      chapters.push(chapter)\n      i = chapter.endIndex\n    } else if (!chapters.length) {\n      // CHANGED: Collect all leading content (with or without headings)\n      const noHeadingContent = []\n      while (i < lines.length && (!isHeading(lines[i]) || isInsideCodeFence(lines, i))) {\n        noHeadingContent.push(lines[i])\n        i++\n      }\n      const fullContent = noHeadingContent.join('\\n').trim()\n      if (fullContent) {\n        chapters.push({\n          level: 0,\n          title: null,\n          content: fullContent,\n          children: [],\n          hash: generateHash(fullContent),\n          finished: false\n        })\n      }\n    } else {\n      i++\n    }\n  }\n\n  if (!loading) {\n    markAllFinished(chapters)\n  } else if (chapters.length > 0) {\n    markLastUnfinished(chapters)\n  }\n\n  return chapters\n}\n\n/**\n * Parse a single chapter from lines, including child/chapter sections\n */\nfunction parseChapter(lines, startIndex) {\n  const headingLine = lines[startIndex]\n  const level = getHeadingLevel(headingLine)\n  const title = getHeadingText(headingLine)\n  const content = [headingLine]\n  const children = []\n  let i = startIndex + 1\n\n  while (i < lines.length) {\n    const line = lines[i]\n\n    if (isHeading(line) && !isInsideCodeFence(lines, i)) {\n      const nextLevel = getHeadingLevel(line)\n\n      if (nextLevel <= level) break\n\n      if (nextLevel === level + 1) {\n        const childChapter = parseChapter(lines, i)\n        children.push(childChapter)\n        i = childChapter.endIndex\n        continue\n      }\n\n      if (nextLevel > level + 1) {\n        content.push(line)\n        i++\n        continue\n      }\n    }\n\n    content.push(line)\n    i++\n  }\n\n  return {\n    level,\n    title,\n    content: content.join('\\n'),\n    children,\n    hash: generateHash(content),\n    endIndex: i,\n    finished: false\n  }\n}\n\n/**\n * Recursively mark all chapters as completed\n */\nfunction markAllFinished(chapters) {\n  for (let i = 0; i < chapters.length; i++) {\n    const chapter = chapters[i]\n    chapter.finished = true\n    if (chapter.children && chapter.children.length > 0) {\n      markAllFinished(chapter.children)\n    }\n  }\n}\n\n/**\n * Recursively find last chapter and mark it unfinished\n */\nfunction markLastUnfinished(chapters) {\n  if (!chapters.length) return\n  for (let i = chapters.length - 1; i >= 0; i--) {\n    const chapter = chapters[i]\n    if (chapter.children && chapter.children.length > 0) {\n      markLastUnfinished(chapter.children)\n      r",
+          "output": "Search completed: 4 queries executed, 40 documents found, 0 files matched",
+          "duration_ms": 12926.631269976497,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "984aca8cf6bd",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.02996235,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.02996235,
+        "chat_cost_cxjcoins": 0.02996235,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 126977,
+        "output_tokens": 18193,
+        "total_tokens": 145170,
+        "input_cost_cxjcoins": 0.01904655,
+        "output_cost_cxjcoins": 0.0109158,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "Designer",
+        "VueDeveloper",
+        "biblio",
+        "daisyui_components",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [
+        "admin"
+      ],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-15 12:40:50.952790",
+  "updated_at": "2026-10-15T12:43:53.470475",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/chapterblocks.2d00fb49-576c-4fd5-a8d6-652252c360f0.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.02996235,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-15T12:42:58.543560+00:00",
+      "summary": "1. User reported that chapter blocks' copy action (copying a section's underlying markdown) was missing on many headings.\n2. Root cause traced to `parseChapter()` in `src/utils/markdownParser.js`: only headings with `level + 1` became chapters, while level-skipping headings were flattened into parent markdown and rendered by `MarkdownViewer` (no copy menu).\n3. Fix: treat **any** deeper heading as a child chapter, so every heading renders as a `ChapterBlock` and inherits the Edit / Copy / Create-task menu.\n4. Only one file changed \u2014 `src/utils/markdownParser.js` (`parseChapter()`) \u2014 keeping `collectAllChildContent()` and code-fence protection intact.\n5. Optional follow-up proposed: render `ChapterMenu` on `:focus-within` instead of hover-only, so keyboard users can reach the copy action.",
+      "message_ids": [
+        "d076796e-0331-4836-9aab-a8c2a598e554",
+        "98d55a45-175f-438d-a065-de8ce51dace3"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

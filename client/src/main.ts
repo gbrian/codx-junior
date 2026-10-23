@@ -1,6 +1,6 @@
 import './assets/main.css'
 
-import { createApp, onBeforeMount, onBeforeUnmount, watch } from 'vue'
+import { createApp, defineAsyncComponent, onBeforeMount, onBeforeUnmount, watch } from 'vue'
 import store, { $storex } from "./store"
 import service from "./service"
 
@@ -8,49 +8,42 @@ import App from './App.vue'
 import Modal from './components/Modal.vue'
 import Toast from './components/Toast.vue'
 import router from './router'
-import Markdown from '@/components/Markdown.vue'
 
 import 'vuefinder/dist/style.css'
 import VueFinder from 'vuefinder/dist/vuefinder'
 
-// BUG: error loading module. Keep it here
-import highlightjs from 'highlight.js'
+// Markdown is only needed once a message containing markdown is rendered. It
+// used to be imported eagerly here, which dragged the whole editor graph
+// (monaco-editor, @git-diff-view, vue-code-highlighter, highlight.js) into the
+// entry chunk and blocked the first paint.
+const Markdown = defineAsyncComponent(() => import('@/components/Markdown.vue'))
 
-// Monaco editor
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
-
-self.MonacoEnvironment = {
-  getWorker(_, label) {
-    if (label === 'json') {
-      return new jsonWorker()
-    }
-    if (label === 'css' || label === 'scss' || label === 'less') {
-      return new cssWorker()
-    }
-    if (label === 'html' || label === 'handlebars' || label === 'razor') {
-      return new htmlWorker()
-    }
-    if (label === 'typescript' || label === 'javascript') {
-      return new tsWorker()
-    }
-    return new editorWorker()
-  },
-}
+// Monaco workers are registered on the first editor mount by
+// src/components/monaco/monacoWorkers.js (see src/components/monaco/Editor.vue).
+//
+// highlight.js is imported by its consumers through src/utils/highlight.js, so
+// only the languages actually supported are bundled. Vite keeps it
+// pre-bundled via `optimizeDeps.include` (see vite.config.ts) — that is what
+// the previous entry-level import used to force.
 
 function generateUID(length) {
   return window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(length * 2)))).replace(/[+/=]/g, "").substring(0, length)
 }
 
+// The mixin is applied app-wide, so anything in its lifecycle hooks runs once
+// per component instance — every panel, list row and toolbar button. The
+// lifecycle logs below were a measurable share of the mount cost in the
+// production profile, so they are now dev-only (stripped by esbuild `define`).
 const globalMixin = {
   onBeforeMount() {
-    console.log("Before mount. Events: ", this.events, this.$root)
+    if (import.meta.env.DEV) {
+      console.log("Before mount. Events: ", this.events, this.$root)
+    }
   },
   onBeforeUnmount() {
-    console.log("Before Unmount. Events: ", this.events)
+    if (import.meta.env.DEV) {
+      console.log("Before Unmount. Events: ", this.events)
+    }
   },
   computed: {
     $storex () {

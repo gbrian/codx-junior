@@ -1,96 +1,53 @@
-After installing and running **codx-junior**, navigate to `http://localhost:19981` or any other port defined in your environment settings.
+# Initial setup
 
-## First Login
+After [installing codx-junior](/getting-started), open it in your browser.
 
-Log in using the `admin` user and your chosen password. This password will be set as the admin password and can later be changed in **Account Settings**.
+## 1. First login
 
-## Projects
+Log in with the `admin` user. The first password you type becomes the admin password; you can change it later in **Settings → User account**.
 
-Once logged in, the dashboard will display all projects managed by codx-junior. You can select an existing project or add a new one.
+## 2. Add an AI provider and models
 
-### Adding a New Project
+Open **Settings → Global settings → AI Models**.
 
-New projects can be added in one of two ways:
+1. Add a **provider**: a name, its OpenAI-compatible API URL and an API key. OpenAI, Ollama, LocalAI, LiteLLM and vLLM all work. You can also set the provider's pricing page and its cost in cxjcoins per 1K tokens.
+2. Add the **models** you want to use from that provider.
+3. Pick the default model for each purpose:
 
-- Clone a project from a Git repository
-- Provide a full path to an existing folder
+| Setting | Used for |
+| --- | --- |
+| LLM model | Chats, tasks and agents |
+| RAG model | Knowledge search and summaries |
+| Embeddings model | Indexing project files |
+| Wiki model | Wiki generation |
+| Vision model | Understanding images and screenshots |
+| Image model | Image generation |
 
-Paste the URL or local path into the input field and click the `+` button. The added project becomes the active project.
+More in [AI providers and models](/features/ai-providers).
 
-### Project Settings
+## 3. Add a project
 
-Review the **Project Settings** to configure options specific to the project.  
-By default, all new projects inherit the settings from the **Global Settings**.
+From the projects menu, paste a **Git URL** to clone a repository or the **path of a folder** that already exists on the server, then press `+`. The new project becomes the active one.
 
-## Global Settings
+Each project has its own **Project settings**: models (defaulting to the global ones), knowledge options, scripts, preview URL, wiki, MCP servers and member permissions.
 
-Global settings define the behavior of codx-junior across all projects. These include model configurations, access rules, and environment preferences.
+## 4. Index the knowledge
 
-## Knowledge Setup
+Open **Settings → Knowledge settings**, review the ignore patterns and start indexing. Agents use this index to find the right files. See [Knowledge](/features/knowledge).
 
-To improve codx-junior’s understanding of your codebase, configure the **Knowledge Settings**.
+## 5. Invite your team
 
-### Profiles
+In **Global settings → Users** create users, set their role (`admin` or `user`), grant access to projects and apps, and configure their wallet and spending limits. Users can also sign in with GitHub when an OAuth provider is configured. See [Users and security](/features/users-and-security).
 
-Profiles define how codx-junior should interact with your project. You can create multiple profiles to:
+## 6. Create a workspace
 
-- Enforce coding standards
-- Control code generation
-- Guide change suggestions
+Open **Workspaces** and create one from a template to get a dev container with VS Code in the browser, a virtual desktop and your app's preview. See [Workspaces](/features/workspaces).
 
-Profiles are used across tasks, file updates, content generation, and code review.
+## A quick tour
 
-## Quick Tour
-
-### Tasks
-
-The **Kanban board** organizes project tasks. Use it to:
-
-- Manage backlog and priorities
-- Create and track new features
-- Collaborate with the team
-
-Tasks can drive code generation and content creation without writing manual code.
-
-### Changes Review
-
-The **Changes** view displays all tracked file modifications.
-
-- View diffs for committed and uncommitted changes
-- Ask codx-junior for explanations or improvement suggestions
-
-### Coder
-
-The **Coder** tool is a web-based IDE based on Visual Studio Code, integrated into the codx-junior environment.
-
-#### Features
-
-- Full-featured VS Code interface
-- Support for all standard VS Code extensions
-- Container support via Docker (if configured)
-
-#### Requirements
-
-Docker must be installed and set up during installation to support containerized environments.
-
-### Mentions
-
-You can mention `@codx` in any project file. This triggers codx-junior to:
-
-- Modify the file
-- Explain specific parts of the code
-- Suggest improvements
-
-### Preview
-
-The **Preview** feature opens a desktop-like environment that allows you to inspect changes before committing them.
-
-### Wiki (Optional)
-
-The **Wiki** lets you document the project and share technical details with the team.
-
-> The Wiki must be enabled in the Project Settings to be available.
-
-### User and Global Settings
-
-Configure user-specific or global options to personalize the codx-junior environment.
+* **Home** is the quick chat launcher: start a chat, pick a profile and a model, and reopen recent chats.
+* **Kanban** holds your boards and tasks.
+* **Messenger** has your teams, channels and direct messages.
+* **Workspaces** lists your dev containers and their apps.
+* **Analytics** shows AI usage and cost.
+* **Settings** has your account, project, knowledge and global settings, plus logs for admins.

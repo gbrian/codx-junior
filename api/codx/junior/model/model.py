@@ -214,6 +214,7 @@ class GlobalSettings(BaseModel):
     wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     vision_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     image_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    guardrail_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
 
     git: GitSettings = Field(default=GitSettings())
 

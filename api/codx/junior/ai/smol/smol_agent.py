@@ -1,7 +1,8 @@
 """
 SmolAgent: a small, async-only OpenAI chat agent.
 
-Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
+Compared to the removed :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this
+implementation:
     * exposes a single async ``chat()`` method (no sync variant),
     * uses an **iterative** tool loop instead of recursion,
     * delegates loop protection to :class:`LoopGuard`,
@@ -9,23 +10,60 @@ Compared to :class:`codx.junior.ai.openai_ai.OpenAI_AI`, this implementation:
       :class:`engine.agent_runtime.AgentRunContext`,
     * keeps streaming, callbacks, cancellation and analytics.
     * caches tool results per conversation to avoid re-execution.
+    * returns a typed :class:`AgentRunResult` (no untyped ``additional_kwargs``).
 
 Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
 so listeners (e.g. the ChatEventBridge) can surface tool executions as chat
-messages in real time. Tool logs are emitted for forensic audit trail.
+messages in real time. ``TOOL_END`` additionally carries the dual-response tool's
+user-facing ``output`` (see Message Structure below). Tool logs are emitted for
+forensic audit trail.
+
+Loop-Limit Handling
+When :class:`LoopGuard` stops the run (max rounds, max tool calls or stuck
+loop), the run is **not** aborted. Instead the tool-usage value is summarised
+by the project's knowledge/RAG model and appended to the assistant answer, so
+the findings survive in the persisted message and the next iteration can
+continue without re-running the same tools. The summary request is
+best-effort, does not count towards the loop limits, and its token usage is
+recorded separately with the ``tool-analysis`` tag.
+
+Cost-Limit Handling
+Every round (iteration) computes its cost in cxjcoins from the provider usage
+and the model price settings, accumulates it into the chat total and reports it
+on the returned :class:`AgentRunResult` (``result.cost``). Tools that report
+their own cost through :attr:`ToolResponse.cost` are summed into both the
+per-run total and the chat total. The chat total is seeded from ``Chat.cost``
+(the accumulated, deletion-safe value maintained by ChatManager) so the budget
+applies to the whole chat and is not reset when messages are deleted. When the
+chat reaches its estimated cost (``Chat.estimation_cost``), the run stops
+gracefully — before executing further tools — to keep the chat within budget.
 
 Message Structure
-When tools are used in a conversation, the agent now produces a single final
-answer message that combines all tool user_response outputs (thinking content)
-with the final LLM answer. This ensures that all tool-generated user-facing
-content is preserved in the persisted message. The thinking content is also streamed
-live to the client via send_callback during tool rounds for real-time feedback.
+A single final assistant message is always produced. Its ``content`` holds only
+the model's own text: reasoning emitted between tool rounds plus the final
+answer. Tool output is NO LONGER merged into the message content. For
+dual-response tools, ``ToolResponse.user_response`` is emitted on the ``TOOL_END``
+event and attached to the response message as a collapsible property
+(``ToolEvent.output``), so the client decides how to render it (collapsed or
+hidden) and the chat stays clean.
 
 Vision API Support
 Binary files (PDFs, images) are passed as vision content when models support it.
 The content is merged into the final user message to enable vision-capable models
 to process images and documents alongside text.
+
+Error Visibility
+Every AI provider interaction (the completion request, the streaming of its
+response and the tool-usage summary request) is guarded so failures are logged
+VERBATIM: phase, model, provider, endpoint, whether an API key is configured,
+message/tool counts, request/chat/run identifiers, HTTP status, provider
+``code``/``param``/``request_id``, provider request-id header, response body
+(truncated) and the chained root cause (``httpx.ConnectError``, DNS, TLS,
+timeout, proxy, ...) — always followed by a full traceback. A short Markdown
+notice with the same details is also streamed to the client, because previously
+a failed connection surfaced as nothing more than the provider's generic
+``"Connection error."`` string in both the logs and the chat.
 """
 import json
 import logging
@@ -50,8 +88,16 @@ from codx.junior.ai.wallet_check import check_user_wallet
 from codx.junior.ai.smol.constants import (
     CALLBACK_FLUSH_SECONDS,
     TOOL_RESULT_PREVIEW_MAX_CHARS,
+    TOOL_ANALYSIS_TAG,
+    TOOL_ANALYSIS_RESULT_MAX_CHARS,
+    TOOL_ANALYSIS_TASK_MAX_CHARS,
+    TOOL_ANALYSIS_MAX_TOKENS,
+    TOOL_ANALYSIS_HEADING,
+    TOOL_ANALYSIS_SYSTEM_PROMPT,
+    TOOL_ANALYSIS_FALLBACK_NOTE,
+    ESTIMATION_COST_EXCEEDED_MSG,
 )
-from codx.junior.ai.smol.loop_guard import LoopGuard
+from codx.junior.ai.smol.loop_guard import LoopGuard, ToolLoopError
 from codx.junior.ai.smol.messages import (
     ToolCallAccumulator,
     make_assistant_tool_calls_message,
@@ -62,6 +108,13 @@ from codx.junior.ai.smol.tool_cache import ToolCache
 from codx.junior.analytics import Analytics
 from codx.junior.analytics.model import ArchivedMessage, ToolCallMessage
 from codx.junior.analytics.token_counter import count_tokens
+from codx.junior.model.agent import (
+    AgentRunResult,
+    CostInfo,
+    RoundCost,
+    ToolCacheStats,
+    ToolRunSummary,
+)
 from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.tools import (
@@ -86,20 +139,30 @@ TOOL_SCOPE_CHAT: str = "chat"
 # An empty or None tool message causes the model to re-issue the same call.
 _TOOL_NO_OUTPUT: str = "(tool returned no output)"
 
+# Maximum characters of an AI provider error body (HTTP response) included in
+# AI error log lines. Keeps the (verbose) log line readable while still
+# capturing the provider's error detail.
+AI_ERROR_BODY_MAX_CHARS: int = 2000
 
-HARDCODED_SYSTEM_RULES = "\n".join([
-    "## Working with files",
-    "When working with files always use a 'code blocks' and add the file name after the code block language.",
-    "See an example:",
-    "```js folder/file_name.js",
-    "  import dummy from 'module'",
-    "```"
-    "### Observe this rules when working with files",
-    "* Use valid file path (absolute or relative) based on the project and conversation context.",
-    "* New file changes must follow original file formating and identation.",
-    "* Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.",
-    "* Keep changes simple and easy to review by the user."
-])
+# Replace the GLOBAL_CHAT_INSTRUCTIONS constant (also mirrored in engine/session.py)
+
+HARDCODED_SYSTEM_RULES = """
+CRITICAL INFORMATION — FILE CHANGES:
+Never wrap a file change inside a plain markdown code fence. Propose file changes only as follows.
+
+Use xml envelope per file with the changes like in the example:
+
+<file_change path="<project-relative path>" language="<language id>" change_type"<new|update|delete>" encoding="text">
+<full file content, verbatim — markdown/fences allowed here>
+<file_change/>
+
+### Observe this rules when working with files
+ * Use valid file path (absolute or relative) based on the project and conversation context.
+ * New file changes must follow original file formating and indentation.
+ * Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
+ * Keep changes simple and easy to review by the user.
+"""
+
 
 
 def _get_analytics() -> Analytics:
@@ -222,6 +285,68 @@ def _normalise_tool_result(result: Any, func_name: str) -> str:
         return serialized
 
 
+def _format_ai_error(ex: BaseException) -> str:
+    """
+    Build a verbose, single-line description of an AI provider error.
+
+    Connection failures against the LLM provider previously reached the logs
+    only as ``str(ex)`` (e.g. ``"Connection error."``), which made them
+    impossible to diagnose. This helper extracts every diagnostic the
+    the OpenAI/httpx clients expose — HTTP status, error code/param, provider
+    request id, response body — plus the chained root cause
+    (``httpx.ConnectError``, ``socket.gaierror``, ``ReadTimeout``, TLS/proxy
+    failures, ...) so the origin of the failure is visible from the log line
+    alone.
+
+    Args:
+        ex: The exception raised while talking to the AI provider.
+
+    Returns:
+        A pipe-separated description of the error, safe for logging.
+    """
+    parts: List[str] = [f"type={type(ex).__name__}", f"message={ex}"]
+
+    # Provider errors (openai.APIStatusError / APIConnectionError) may carry
+    # an HTTP response with status code, headers and body.
+    response = getattr(ex, "response", None)
+    if response is not None:
+        parts.append(f"http_status={getattr(response, 'status_code', '?')}")
+        headers = getattr(response, "headers", None) or {}
+        provider_request_id = None
+        try:
+            provider_request_id = (
+                headers.get("x-request-id")
+                or headers.get("request-id")
+                or headers.get("x-litellm-call-id")
+            )
+        except (AttributeError, TypeError):
+            # Defensive: unusual header container — request id is optional.
+            provider_request_id = None
+        if provider_request_id:
+            parts.append(f"provider_request_id={provider_request_id}")
+        body = ""
+        try:
+            body = response.text or ""
+        except Exception:  # pragma: no cover - defensive: unreadable body
+            body = ""
+        if body:
+            parts.append(f"body={body[:AI_ERROR_BODY_MAX_CHARS]}")
+
+    # Attributes exposed directly by the provider client errors.
+    for attr in ("code", "param", "status_code", "request_id", "body"):
+        value = getattr(ex, attr, None)
+        if value is not None:
+            parts.append(f"{attr}={value}")
+
+    # The real root cause (DNS, connection refused, timeout, TLS, proxy, ...)
+    # is usually chained on the provider error.
+    cause = ex.__cause__ or ex.__context__
+    if cause is not None:
+        parts.append(f"cause={type(cause).__name__}: {cause}")
+
+    return " | ".join(str(part) for part in parts)
+
+
 class SmolAgent:
     """
     Async-only streaming chat agent with multi-step tool support.
@@ -246,24 +371,25 @@ class SmolAgent:
             G -->|tool_calls| H[Check ToolCache]
             H -->|HIT| H1[Skip _execute_tool - use cached]
             H -->|HIT| H2[Emit TOOL_END with cached=true]
-            H -->|HIT - ToolResponse| H3[Surface user_response to thinking_content]
+            H -->|HIT - ToolResponse| H3[No output re-emitted - first run delivered it]
             H -->|MISS| I[LoopGuard.check - depth & breadth & stuck]
-            I -->|ok| J[Execute tool - TOOL_START/END/ERROR/LOGS]
+            I -->|ok| J[Execute tool - TOOL_START/END/ERROR/LOGS + output]
             H1 --> K{Dual-response tool?}
             J --> K
-            K -->|yes| K1[Append user_response to thinking_content]
+            K -->|yes| K1[user_response - collapsible TOOL_END output property]
             K -->|yes| K2[Send llm_response as tool result to model only]
             K -->|no| K3[Send normalised result as tool result to model only]
-            K1 --> K4[Flush full thinking_content to callback]
-            K2 --> L[Append to openai_messages]
+            K1 --> L[Append to openai_messages]
+            K2 --> L
             K3 --> L
-            K4 --> L
             L --> F
-            I -->|limit exceeded| M[Raise ToolLoopError - RUN_ERROR]
+            I -->|limit exceeded| M[Summarise tool usage and finish gracefully]
             G -->|stop / length| N[Append final LLM text to final_answer_content]
-            N --> O[Emit single final answer AIMessage combining thinking + final]
+            N --> O[Append final AIMessage + return typed AgentRunResult]
+            M --> O
             O --> P[Record usage + cache stats - RUN_END]
             F -->|cancelled| Q[RUN_CANCELLED - raise CancelledError]
+            F -->|provider error| R[Verbose AI error log + client notice - raise]
     ```
     """
 
@@ -345,7 +471,7 @@ class SmolAgent:
         self,
         messages: List[Union[AIMessage, HumanMessage]],
         config: Optional[Dict[str, Any]] = None,
-    ) -> List[Union[AIMessage, HumanMessage]]:
+    ) -> AgentRunResult:
         """
         Run a streaming chat completion with iterative multi-step tool support.
 
@@ -356,11 +482,27 @@ class SmolAgent:
         Tool results are cached within this conversation to avoid re-execution
         if the model requests the same tool with identical arguments.
 
+        Loop limits are handled gracefully: instead of raising, the run is
+        stopped and a summary of the tools used is appended to the assistant
+        answer (see :meth:`_summarize_tool_usage`). This keeps the work in the
+        persisted message so the next iteration can continue without repeating
+        the same tools.
+
+        Cost limits are handled gracefully too: every round's cost (plus any
+        cost reported by tools via :attr:`ToolResponse.cost`) is accumulated and
+        returned in the typed :class:`AgentRunResult`. Once the chat reaches
+        ``Chat.estimation_cost``, the run stops before executing further tools so
+        the chat never exceeds its budget.
+
+        Provider errors (connection refused, DNS, timeout, TLS, bad request,
+        ...) are logged verbosely with a traceback and mirrored to the client
+        before being re-raised (see :meth:`_log_ai_error`).
+
         Message Structure
-        The response always appends a single final answer AIMessage that
-        combines thinking content (tool user_response outputs) with the final
-        LLM answer. This ensures all tool-generated user-facing content is
-        persisted correctly.
+        The response always appends a single final answer AIMessage containing
+        the model's own text. Tool output is delivered separately as a
+        collapsible message property (``ToolEvent.output``) instead of being
+        merged into the content, so the client can decide how to render it.
 
         Args:
             messages: Conversation history as LangChain message objects.
@@ -372,19 +514,18 @@ class SmolAgent:
                       ``vision_content`` (optional vision API content blocks).
 
         Returns:
-            Updated *messages* list with the final assistant reply appended.
-            Tool results (llm_response, plain outputs) are never included.
+            The typed :class:`AgentRunResult` for this run. Its ``messages``
+            attribute contains the updated conversation (with the final
+            assistant reply appended); ``cost`` carries the cost breakdown.
 
         Raises:
-            ToolLoopError:  If max tool rounds, max tool calls, or a stuck
-                           loop is detected.
             CancelledError: If the request is cancelled by the caller.
         """
         config = config or {}
         self._preflight_limit_check()
 
         run_context = self._resolve_run_context(config)
-        result: Optional[List[Union[AIMessage, HumanMessage]]] = None
+        result: Optional[AgentRunResult] = None
 
         # run_context.run() emits RUN_* lifecycle events. It swallows
         # AgentCancelled (emitting RUN_CANCELLED), so we translate the
@@ -403,28 +544,45 @@ class SmolAgent:
         messages: List[Union[AIMessage, HumanMessage]],
         config: Dict[str, Any],
         run_context: AgentRunContext,
-    ) -> List[Union[AIMessage, HumanMessage]]:
+    ) -> AgentRunResult:
         """
         Execute the iterative streaming/tool loop for one conversation.
 
         Response accumulation strategy:
-        - ``thinking_content``: Accumulates LLM text and dual-response
-          user_response strings during tool-calling rounds. Streamed live
-          to the client via send_callback. ALSO included in the final AIMessage
-          so all tool-generated user-facing content is persisted correctly.
+        - ``thinking_content``: Accumulates the model's OWN text (reasoning)
+          produced during tool-calling rounds. Streamed live to the client via
+          send_callback and included in the final AIMessage. Tool output is NOT
+          added here: dual-response tool ``user_response`` values are emitted on
+          the ``TOOL_END`` event and attached to the response message as a
+          collapsible property (``ToolEvent.output``).
         - ``final_answer_content``: Accumulates LLM text during the final
           round (after the model stops making tool calls).
 
         Message generation:
-        - Always emits exactly one AIMessage combining thinking_content and
-          final_answer_content so the persisted message contains everything
-          the user saw during streaming.
+        - Always emits exactly one AIMessage containing thinking_content and
+          final_answer_content. Since tool output is no longer merged into the
+          content, the message may legitimately be empty (a run that only
+          executed tools); the assistant message is still appended so callers
+          can rely on ``messages[-1]``. All run information (cost, usage, tool
+          summaries) is returned in the typed :class:`AgentRunResult`.
 
         Tool caching:
         - Identical tool calls (same name + args) are cached per conversation.
         - Cached results bypass LoopGuard checks (don't count towards limits).
-        - Cached ToolResponse results surface user_response to thinking_content
-          exactly like uncached ones.
+        - Cached tool results are only reused for the model message; they do NOT
+          re-emit tool output (the first execution already delivered it).
+
+        Loop limits:
+        - When LoopGuard raises, the loop is broken gracefully (no exception
+          propagates) and a summary of the tools used is appended to
+          ``thinking_content`` so it is streamed to the user and persisted in
+          the final answer.
+
+        Cost limits:
+        - Every round is priced in cxjcoins from provider usage + model prices
+          and accumulated into the chat total. When the chat reaches its
+          ``estimation_cost``, the loop is broken gracefully (before running
+          more tools) and a notice is appended to the answer.
 
         Args:
             messages:    Conversation history as LangChain message objects.
@@ -432,11 +590,9 @@ class SmolAgent:
             run_context: Unified runtime context for this run.
 
         Returns:
-            Updated *messages* list with the final assistant reply appended.
+            The typed :class:`AgentRunResult` for this run.
 
         Raises:
-            ToolLoopError:  If max iterations, max tool calls, or stuck loop
-                           is detected.
             AgentCancelled: If cancellation is requested mid-run.
         """
         chat_id: Optional[str] = config.get("chat_id")
@@ -473,17 +629,49 @@ class SmolAgent:
         # Cached results bypass LoopGuard checks and don't count towards limits.
         tool_cache = ToolCache()
 
+        # Chat cost budget: seed the accumulated chat cost from Chat.cost, the
+        # deletion-safe accumulator maintained by ChatManager. Falling back to
+        # summing the message costs keeps this working for chats persisted
+        # before the accumulator existed.
+        chat_cost: float = self._accumulated_chat_cost(current_chat)
+        # Cost of THIS run (this SmolAgent iteration).
+        iteration_cost: float = 0.0
+
+        # Typed run accumulators (replace the previous additional_kwargs contract).
+        # They feed the returned AgentRunResult.cost breakdown.
+        total_input_tokens: int = 0
+        total_output_tokens: int = 0
+        total_input_cost: float = 0.0
+        total_output_cost: float = 0.0
+        total_tool_cost: float = 0.0
+        tool_cost_by_name: Dict[str, float] = {}
+
         request_start = time.monotonic()
 
         # Track whether any tools were used in this conversation.
         tools_were_used: bool = False
 
-        # thinking_content: accumulates tool user_response outputs and LLM text
-        # during tool-calling rounds. Streamed live to client AND included in
-        # the final AIMessage so persisted content matches what was streamed.
+        # thinking_content: accumulates the model's OWN text (reasoning) during
+        # tool-calling rounds. Streamed live to client AND included in the final
+        # AIMessage. Tool output is NOT added here — it is delivered via the
+        # TOOL_END event as a collapsible message property (ToolEvent.output).
         # final_answer_content: the final LLM response after all tool calls.
         thinking_content: str = ""
         final_answer_content: str = ""
+
+        # Set when LoopGuard stops the run. The loop is then broken gracefully
+        # and a tool-usage summary is produced so the work is not lost.
+        loop_limit_error: Optional[str] = None
+
+        # Set when the chat reaches its estimated cost. The loop is then broken
+        # gracefully (before executing more tools) and a notice is appended.
+        cost_limit_error: Optional[str] = None
+
+        # Initialised before the loop so they are always defined for the
+        # post-loop analytics call, even when the very first budget check stops
+        # the run before any completion is performed.
+        request_id: Optional[str] = None
+        usage_info: Any = None
 
         # Extract vision content from config (optional)
         vision_content: Optional[List[Dict[str, Any]]] = config.get("vision_content")
@@ -491,6 +679,23 @@ class SmolAgent:
         # Iterative tool loop: keep streaming completions until the model
         # produces a final answer (no more tool_calls finish reason).
         while True:
+            # Stop BEFORE spending more when the chat already reached its
+            # estimated cost (covers the case where a previous round pushed the
+            # chat over budget).
+            if self._cost_limit_exceeded(current_chat, chat_cost):
+                cost_limit_error = ESTIMATION_COST_EXCEEDED_MSG.format(
+                    spent=chat_cost,
+                    limit=current_chat.estimation_cost,
+                )
+                logger.warning(
+                    "SmolAgent: chat cost limit reached before round %d "
+                    "(spent=%.4f, limit=%.4f); stopping gracefully",
+                    loop_guard.rounds + 1,
+                    chat_cost,
+                    current_chat.estimation_cost,
+                )
+                break
+
             request_id = str(uuid.uuid4())
             content, tool_calls, usage_info = await self._stream_completion(
                 kwargs=kwargs,
@@ -505,11 +710,48 @@ class SmolAgent:
                 vision_content=vision_content,
             )
 
+            # Register the cost of this round (iteration) in cxjcoins and add
+            # it to both the iteration total and the chat total.
+            round_cost = self._compute_cost(
+                usage_info=usage_info,
+                content=content,
+                openai_messages=openai_messages,
+            )
+            iteration_cost += round_cost.total_cost_cxjcoins
+            chat_cost += round_cost.total_cost_cxjcoins
+            total_input_tokens += round_cost.input_tokens
+            total_output_tokens += round_cost.output_tokens
+            total_input_cost += round_cost.input_cost_cxjcoins
+            total_output_cost += round_cost.output_cost_cxjcoins
+            logger.info(
+                "SmolAgent: round cost %.6f cxjcoins "
+                "(iteration total %.6f, chat total %.6f)",
+                round_cost.total_cost_cxjcoins,
+                iteration_cost,
+                chat_cost,
+            )
+
             if not tool_calls:
                 # Final response (no tool calls): accumulate in final_answer_content
                 # and exit the loop.
                 if content:
                     final_answer_content += content
+                break
+
+            # Enforce the chat cost budget BEFORE executing more tools so the
+            # chat does not spend beyond the estimated cost the user set.
+            if self._cost_limit_exceeded(current_chat, chat_cost):
+                cost_limit_error = ESTIMATION_COST_EXCEEDED_MSG.format(
+                    spent=chat_cost,
+                    limit=current_chat.estimation_cost,
+                )
+                logger.warning(
+                    "SmolAgent: chat cost limit reached at round %d "
+                    "(spent=%.4f, limit=%.4f); stopping before tools",
+                    loop_guard.rounds + 1,
+                    chat_cost,
+                    current_chat.estimation_cost,
+                )
                 break
 
             # Tool calls detected: mark that tools were used and accumulate LLM
@@ -548,7 +790,22 @@ class SmolAgent:
             # LoopGuard checks entirely (don't count towards max_tool_calls
             # or max_iterations).
             if uncached_calls:
-                loop_guard.check(uncached_calls)
+                try:
+                    loop_guard.check(uncached_calls)
+                except ToolLoopError as ex:
+                    # Limits reached: do NOT let the exception abort the run
+                    # (that would discard every tool result gathered so far).
+                    # Stop the loop and summarise the tools used so the work
+                    # survives in the response message and can be reused in the
+                    # next iteration without re-executing the same tools.
+                    loop_limit_error = str(ex)
+                    logger.warning(
+                        "SmolAgent: tool loop limit reached at round %d (%s); "
+                        "stopping gracefully and summarising tool usage",
+                        loop_guard.rounds,
+                        loop_limit_error,
+                    )
+                    break
 
             total_tools = len(tool_calls)
             cached_count = len(cached_calls)
@@ -602,20 +859,13 @@ class SmolAgent:
                         logs=result.logs,
                     )
 
-                # FIX Issue 1: cached ToolResponse must surface user_response
-                # into thinking_content exactly like the uncached path does.
+                # Tool output is NOT merged into the chat content anymore: it is
+                # delivered as a collapsible message property
+                # (``ResponseMessage.tool_events[].output``) via the TOOL_END
+                # event emitted when the tool actually executed. Cache hits only
+                # reuse the tool result sent to the model, so no output is
+                # re-emitted here (avoids duplicating the same output block).
                 if isinstance(result, ToolResponse):
-                    if result.user_response:
-                        thinking_content += (
-                            f"\n```\n{result.user_response}\n```\n"
-                        )
-                        send_callback(thinking_content, True)
-                        logger.debug(
-                            "SmolAgent: cached dual-response tool '%s' produced "
-                            "%d bytes of user content; flushed full accumulated thinking",
-                            func_name,
-                            len(result.user_response),
-                        )
                     llm_response = _normalise_tool_result(
                         result.llm_response, func_name
                     )
@@ -661,22 +911,11 @@ class SmolAgent:
 
                 if isinstance(tool_result, ToolResponse):
                     # Dual-response tool:
-                    # - user_response → thinking_content (streamed live AND
-                    #   included in final AIMessage for persistence)
+                    # - user_response → delivered as a collapsible message
+                    #   property (``ResponseMessage.tool_events[].output``) via
+                    #   the TOOL_END event emitted by ``_execute_tool``; it is
+                    #   NOT merged into the chat content.
                     # - llm_response → model tool message only (NOT in response)
-                    if tool_result.user_response:
-                        thinking_content += (
-                            f"\n```\n{tool_result.user_response}\n```\n"
-                        )
-                        # Flush the FULL accumulated thinking content to client
-                        # immediately so user_response is visible during processing.
-                        send_callback(thinking_content, True)
-                        logger.debug(
-                            "SmolAgent: dual-response tool '%s' produced %d bytes "
-                            "of user content; flushed full accumulated thinking",
-                            tool_call["function"],
-                            len(tool_result.user_response),
-                        )
                     # Normalise LLM feedback – the model must never receive
                     # an empty tool message or it will repeat the same call.
                     llm_response = _normalise_tool_result(
@@ -691,7 +930,7 @@ class SmolAgent:
                 else:
                     # Traditional single-response tool: normalise and send to
                     # the model only. Plain tool results are NOT added to any
-                    # response (thinking or final).
+                    # response (thinking, final or tool output).
                     normalised = _normalise_tool_result(
                         tool_result, tool_call["function"]
                     )
@@ -700,6 +939,30 @@ class SmolAgent:
                             tool_call_id=tool_id,
                             content=normalised,
                         )
+                    )
+
+                # Register any cost reported by the tool itself (e.g. a tool
+                # that performs its own AI call) into this iteration and the
+                # chat total, so it is billed on the response message and
+                # counted towards the estimation_cost budget. Cached results
+                # are intentionally skipped: no new cost is incurred when a
+                # tool result is reused within the same run.
+                tool_cost = self._tool_cost(tool_result)
+                if tool_cost:
+                    iteration_cost += tool_cost
+                    chat_cost += tool_cost
+                    total_tool_cost += tool_cost
+                    tool_cost_by_name[tool_call["function"]] = (
+                        tool_cost_by_name.get(tool_call["function"], 0.0)
+                        + tool_cost
+                    )
+                    logger.info(
+                        "SmolAgent: tool '%s' reported cost %.6f cxjcoins "
+                        "(iteration total %.6f, chat total %.6f)",
+                        tool_call["function"],
+                        tool_cost,
+                        iteration_cost,
+                        chat_cost,
                     )
 
                 logger.debug(
@@ -745,11 +1008,45 @@ class SmolAgent:
             tool_cache=tool_cache,
         )
 
-        # thinking_content is streamed live via send_callback during tool rounds
-        # AND must be included in the final AIMessage so that chat_engine.py
-        # persists it correctly. Without this, response_message.content only
-        # gets final_answer_content and all tool user_response outputs are lost
-        # from the saved message even though they were streamed to the client.
+        # When the run was stopped by LoopGuard, append a summary of the tools
+        # used (findings + useless calls) produced by the knowledge/RAG model.
+        # This preserves the tool context in the response message so the next
+        # iteration can continue without re-executing the same tools, and gives
+        # the user visibility into what was learned before the run stopped.
+        if loop_limit_error:
+            summary_block = self._summarize_tool_usage(
+                openai_messages=openai_messages,
+                loop_error=loop_limit_error,
+                chat_id=chat_id,
+                session_id=session_id,
+            )
+            if summary_block:
+                thinking_content += summary_block
+                # Stream the summary live so the user sees it as it is produced.
+                send_callback(summary_block, True)
+                logger.info(
+                    "SmolAgent: appended tool usage summary (%d chars) after "
+                    "loop limit was reached",
+                    len(summary_block),
+                )
+
+        # When the chat reached its estimated cost, append a notice so the user
+        # understands why the run stopped. No extra model request is made here
+        # (that would spend more of the budget).
+        if cost_limit_error:
+            thinking_content += cost_limit_error
+            # Stream the notice live so the user sees it immediately.
+            send_callback(cost_limit_error, True)
+            logger.info(
+                "SmolAgent: appended chat cost limit notice (%d chars) after "
+                "estimation_cost was reached",
+                len(cost_limit_error),
+            )
+
+        # thinking_content (the model's own reasoning text) is streamed live via
+        # send_callback during tool rounds AND is included in the final AIMessage
+        # so that chat_engine.py persists it correctly. Tool output is NOT part
+        # of it anymore (it lives on the response message tool_events).
         if tools_were_used and thinking_content:
             logger.info(
                 "SmolAgent: thinking content assembled with %d characters "
@@ -757,30 +1054,71 @@ class SmolAgent:
                 len(thinking_content),
             )
 
-        # Always emit exactly one final answer AIMessage combining thinking
-        # content (tool user_response outputs) and the final LLM answer.
-        # This ensures the persisted message matches what was streamed.
+        # Always emit exactly one final answer AIMessage containing the model's
+        # own text (thinking content + final answer). Tool output is delivered
+        # separately via the response message tool_events.
+        # The message is ALWAYS appended — even when empty — because a run that
+        # only executed tools legitimately produces no content and callers rely
+        # on ``messages[-1]`` being the assistant reply.
         combined_content = ""
         if thinking_content:
             combined_content += thinking_content
         if final_answer_content:
             combined_content += final_answer_content
 
-        if combined_content:
-            logger.info(
-                "SmolAgent: final answer message assembled with %d characters "
-                "(%d thinking + %d final answer)",
-                len(combined_content),
-                len(thinking_content),
-                len(final_answer_content),
-            )
-            messages.append(AIMessage(content=combined_content))
-        elif not tools_were_used:
-            # Edge case: no tools used and no content (shouldn't happen, but handle it)
-            logger.warning("SmolAgent: no content produced in chat")
-            messages.append(AIMessage(content=""))
+        logger.info(
+            "SmolAgent: final answer message assembled with %d characters "
+            "(%d thinking + %d final answer, %.6f cxjcoins)",
+            len(combined_content),
+            len(thinking_content),
+            len(final_answer_content),
+            iteration_cost,
+        )
+        messages.append(AIMessage(content=combined_content))
 
-        return messages
+        # Build the typed run result (replaces the previous untyped
+        # ``additional_kwargs = {"cost": ..., "chat_cost": ...}`` contract).
+        analytics_summary = run_context.analytics.summary()
+        tool_stats: Dict[str, Dict[str, Any]] = analytics_summary.get("tools", {}) or {}
+        cache_stats = tool_cache.stats()
+
+        cost_info = CostInfo(
+            iteration_cost_cxjcoins=iteration_cost,
+            chat_cost_cxjcoins=chat_cost,
+            estimation_cost_cxjcoins=getattr(current_chat, "estimation_cost", None),
+            budget_reached=bool(cost_limit_error),
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
+            total_tokens=total_input_tokens + total_output_tokens,
+            input_cost_cxjcoins=total_input_cost,
+            output_cost_cxjcoins=total_output_cost,
+            tool_cost_cxjcoins=total_tool_cost,
+        )
+
+        return AgentRunResult(
+            content=combined_content,
+            messages=messages,
+            cost=cost_info,
+            iterations=loop_guard.rounds,
+            tools_used=tools_were_used,
+            tools=[
+                ToolRunSummary(
+                    tool=name,
+                    calls=stats.get("count", 0),
+                    errors=stats.get("errors", 0),
+                    duration_ms=stats.get("total_ms", 0.0),
+                    cost_cxjcoins=tool_cost_by_name.get(name, 0.0),
+                )
+                for name, stats in tool_stats.items()
+            ],
+            cache=ToolCacheStats(
+                hits=cache_stats.get("hits", 0),
+                misses=cache_stats.get("misses", 0),
+                size=cache_stats.get("size", 0),
+                hit_rate=cache_stats.get("hit_rate", 0),
+            ),
+            loop_limit_reached=bool(loop_limit_error),
+        )
 
     # ── Runtime context ────────────────────────────────────────────────────────
 
@@ -871,6 +1209,91 @@ class SmolAgent:
 
         return True
 
+    def _log_ai_error(
+        self,
+        ex: BaseException,
+        phase: str,
+        request_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        message_count: Optional[int] = None,
+        tool_count: Optional[int] = None,
+        run_id: Optional[str] = None,
+    ) -> str:
+        """
+        Log an AI provider failure with full diagnostics AND a traceback.
+
+        MUST be called from inside an ``except`` block so ``logger.exception``
+        captures the stack trace. This is the single place where AI errors
+        become verbose: model, provider, endpoint, API-key presence, message
+        and tool counts, request/chat/run identifiers and the provider's own
+        diagnostics (HTTP status, ``code``, ``param``, request id, response
+        body) plus the chained root cause.
+
+        Args:
+            ex:            The exception raised by the AI provider.
+            phase:         Where the failure happened: ``"request"`` (completion
+                           call), ``"stream"`` (reading the stream) or
+                           ``"tool-analysis"`` (tool usage summary request).
+            request_id:    Identifier of the triggering LLM request.
+            chat_id:       Chat identifier.
+            message_count: Number of messages sent to the model.
+            tool_count:    Number of tools sent to the model.
+            run_id:        Agent run identifier.
+
+        Returns:
+            The verbose error description (see :func:`_format_ai_error`) so
+            callers can also surface it to the client.
+        """
+        details = _format_ai_error(ex)
+        logger.error(
+            "SmolAgent: AI %s FAILED. model=%s provider=%s base_url=%s "
+            "api_key_set=%s messages=%s tools=%s request_id=%s chat_id=%s "
+            "run=%s | %s",
+            phase,
+            self.model,
+            self.llm_settings.provider or "?",
+            self.base_url,
+            bool(self.api_key),
+            message_count if message_count is not None else "?",
+            tool_count if tool_count is not None else "?",
+            request_id,
+            chat_id,
+            run_id,
+            details,
+        )
+        # Separate call so the traceback is always emitted, even when the
+        # verbose line above is truncated by the log formatter.
+        logger.exception(
+            "SmolAgent: AI %s traceback (model=%s, request_id=%s)",
+            phase,
+            self.model,
+            request_id,
+        )
+        return details
+
+    def _ai_error_notice(self, details: str) -> str:
+        """
+        Build the client-facing notice for an AI provider failure.
+
+        The owning chat engine reports failures with the provider's generic
+        message only (e.g. ``"Connection error."``), which left the client with
+        no actionable information. This notice mirrors the verbose log line so
+        the user sees model, provider and endpoint — it is streamed through the
+        normal callback, therefore it is also persisted on the response message.
+
+        Args:
+            details: Verbose description produced by :func:`_format_ai_error`.
+
+        Returns:
+            A Markdown block ready to be streamed to the client.
+        """
+        return (
+            "\n\n> ⚠️ **AI request failed** — "
+            f"model `{self.model}`, provider `{self.llm_settings.provider or '?'}`, "
+            f"endpoint `{self.base_url}`\n>\n"
+            f"> `{details}`\n\n"
+        )
+
     async def _stream_completion(
         self,
         kwargs: Dict[str, Any],
@@ -894,6 +1317,13 @@ class SmolAgent:
 
         ADDED: vision_content (images, PDFs) can be merged into the final
         user message for models that support vision APIs.
+
+        ADDED — verbose AI error logging: BOTH failure points (creating the
+        completion and reading its stream) are guarded. On failure the error is
+        logged verbatim with a traceback (see :meth:`_log_ai_error`) and a short
+        notice is streamed to the client before the exception is re-raised.
+        Cancellation handling is unchanged (``AgentCancelled`` is never wrapped
+        or re-logged as a provider error).
 
         Args:
             kwargs:             Base OpenAI request kwargs.
@@ -966,11 +1396,44 @@ class SmolAgent:
             model=self.model,
             message_count=len(openai_messages),
         )
-        response_stream = self.client.chat.completions.create(
-            **kwargs,
-            messages=openai_messages,
-            extra_headers=headers,
+        # Verbose request trace: makes it possible to correlate a later failure
+        # (or a hung request) with the exact model, endpoint and payload size.
+        logger.info(
+            "SmolAgent: LLM request -> model=%s provider=%s base_url=%s "
+            "messages=%d tools=%d stream=%s request_id=%s chat_id=%s run=%s",
+            self.model,
+            self.llm_settings.provider or "?",
+            self.base_url,
+            len(openai_messages),
+            len(kwargs.get("tools") or []),
+            kwargs.get("stream"),
+            request_id,
+            chat_id,
+            run_context.run_id,
         )
+        try:
+            response_stream = self.client.chat.completions.create(
+                **kwargs,
+                messages=openai_messages,
+                extra_headers=headers,
+            )
+        except Exception as ex:
+            # VERBOSE AI ERROR LOGGING (request phase): without this a failed
+            # connection produced nothing diagnosable — the raised message is a
+            # generic "Connection error." and the httpx/openai loggers are
+            # muted in app.py.
+            details = self._log_ai_error(
+                ex,
+                phase="request",
+                request_id=request_id,
+                chat_id=chat_id,
+                message_count=len(openai_messages),
+                tool_count=len(kwargs.get("tools") or []),
+                run_id=run_context.run_id,
+            )
+            # Mirror the details to the client (also persisted on the message).
+            send_callback(self._ai_error_notice(details), True)
+            raise
 
         content_parts: List[str] = []
         accumulator = ToolCallAccumulator()
@@ -1014,6 +1477,34 @@ class SmolAgent:
             except OSError:
                 pass
             send_callback("", True)
+            raise
+        except Exception as ex:
+            # VERBOSE AI ERROR LOGGING (stream phase): connection dropped,
+            # read timeout, malformed stream payload, etc. Log the full context
+            # + traceback, notify the client, then let the error propagate.
+            details = self._log_ai_error(
+                ex,
+                phase="stream",
+                request_id=request_id,
+                chat_id=chat_id,
+                message_count=len(openai_messages),
+                tool_count=len(kwargs.get("tools") or []),
+                run_id=run_context.run_id,
+            )
+            # Mirror the details to the client (also persisted on the message).
+            send_callback(self._ai_error_notice(details), True)
+            try:
+                response_stream.close()
+            except OSError:
+                pass
+            if content_parts:
+                logger.warning(
+                    "SmolAgent: stream failed after %d chunk(s) (%d chars "
+                    "received) — partial content is discarded (run=%s)",
+                    len(content_parts),
+                    len("".join(content_parts)),
+                    run_context.run_id,
+                )
             raise
 
         send_callback("", True)
@@ -1090,20 +1581,24 @@ class SmolAgent:
         Emits ``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS`` 
         events on the run context. Event payloads carry the ``tool_call_id``,
         the parsed JSON request args (``args``) and a truncated ``result`` 
-        preview so listeners can render tool executions as chat messages. 
-        Tool logs are emitted for forensic audit trail. Errors never propagate 
-        to the caller: ALL exceptions are caught and returned as error strings 
-        so the model can react to failed tool invocations and never receives 
-        an empty tool message that would cause it to repeat the same call.
+        preview so listeners can render tool executions as chat messages. The
+        ``TOOL_END`` event also carries the dual-response tool's user-facing
+        ``output`` (``ToolResponse.user_response``) which listeners attach to the
+        response message as a collapsible property instead of merging it into the
+        chat content. Tool logs are emitted for forensic audit trail. Errors never
+        propagate to the caller: ALL exceptions are caught and returned as error
+        strings so the model can react to failed tool invocations and never
+        receives an empty tool message that would cause it to repeat the same call.
 
         Results are cached by tool name + parameters hash for reuse within
         the conversation.
 
         Tools can return either:
             - str: Traditional single-response (used for LLM context only)
-            - ToolResponse: Dual-response; user_response goes to the thinking
-              message, llm_response goes to the model only. ToolResponse can
-              include logs for forensic audit trail.
+            - ToolResponse: Dual-response; user_response is surfaced as the
+              collapsible ``TOOL_END`` output property, llm_response goes to the
+              model only. ToolResponse can include logs for forensic audit trail
+              and a cost (cxjcoins) which is summed into the response/chat cost.
 
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
@@ -1211,12 +1706,23 @@ class SmolAgent:
             duration_seconds = time.monotonic() - tool_start
 
             if success:
+                # Surface the dual-response tool's user-facing output on the
+                # TOOL_END event. The ChatEventBridge stores it on the response
+                # message as a collapsible property (``ToolEvent.output``)
+                # instead of merging it into the chat content, so clients decide
+                # how to render it.
+                tool_output: Optional[str] = (
+                    result.user_response
+                    if isinstance(result, ToolResponse) and result.user_response
+                    else None
+                )
                 run_context.emit(
                     AgentEventType.TOOL_END,
                     tool=func_name,
                     tool_call_id=tool_call_id,
                     duration_ms=duration_ms,
                     result=result_preview,
+                    output=tool_output,
                 )
                 
                 # Emit tool logs if ToolResponse has any
@@ -1283,6 +1789,388 @@ class SmolAgent:
                 chat_id=chat_id,
                 request_id=request_id,
             )
+
+    # ── Tool usage summary (generated only when the tool loop breaks) ──────────
+
+    @staticmethod
+    def _collect_tool_usage(
+        openai_messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, str]]:
+        """
+        Extract the tool calls executed during this run and their results.
+
+        Only messages produced by this run are present in *openai_messages*
+        (the original conversation carries no tool messages), so every
+        ``assistant.tool_calls`` / ``tool`` pair gathered here belongs to the
+        current run, whether it was executed or served from the cache.
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+
+        Returns:
+            List of ``{"name", "args", "result"}`` dicts in execution order.
+        """
+        pending: Dict[Optional[str], Dict[str, str]] = {}
+        usages: List[Dict[str, str]] = []
+
+        for msg in openai_messages:
+            role = msg.get("role")
+            if role == "assistant" and msg.get("tool_calls"):
+                for call in msg["tool_calls"]:
+                    fn = call.get("function") or {}
+                    pending[call.get("id")] = {
+                        "name": fn.get("name", ""),
+                        "args": fn.get("arguments", ""),
+                    }
+            elif role == "tool":
+                info = pending.pop(msg.get("tool_call_id"), None)
+                if info is not None:
+                    info["result"] = msg.get("content", "")
+                    usages.append(info)
+
+        return usages
+
+    def _build_tool_usage_prompt(
+        self,
+        openai_messages: List[Dict[str, Any]],
+        tool_usages: List[Dict[str, str]],
+        loop_error: str,
+    ) -> str:
+        """
+        Build the user prompt for the tool usage summary request.
+
+        Includes the original request, why the run stopped, and a truncated
+        listing of the executed tools with their results.
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+            tool_usages:     Collected tool usages (see :meth:`_collect_tool_usage`).
+            loop_error:      The LoopGuard message that stopped the run.
+
+        Returns:
+            The prompt content for the summary request.
+        """
+        task = ""
+        for msg in openai_messages:
+            content = msg.get("content")
+            if msg.get("role") == "user" and isinstance(content, str) and content.strip():
+                task = content.strip()[:TOOL_ANALYSIS_TASK_MAX_CHARS]
+                break
+
+        lines: List[str] = []
+        for idx, usage in enumerate(tool_usages, start=1):
+            result = (usage.get("result") or "")[:TOOL_ANALYSIS_RESULT_MAX_CHARS]
+            lines.append(
+                f"{idx}. {usage['name']}({usage['args']})\n   -> {result}"
+            )
+        tools_block = "\n".join(lines) if lines else "(no tools were executed)"
+
+        return (
+            "## User request\n"
+            f"{task}\n\n"
+            "## Why the run stopped\n"
+            f"{loop_error}\n\n"
+            "## Tools executed this run (name, arguments, result)\n"
+            f"{tools_block}\n\n"
+            "Write the summary now, following the system instructions."
+        )
+
+    @staticmethod
+    def _tool_usage_fallback(tool_usages: List[Dict[str, str]]) -> str:
+        """
+        Build the deterministic fallback used when no model summary is available.
+
+        Still lists the tools already executed so the next iteration is never
+        worse off than before this feature existed.
+
+        Args:
+            tool_usages: Collected tool usages.
+
+        Returns:
+            Markdown fallback block (without the heading).
+        """
+        lines: List[str] = ["", TOOL_ANALYSIS_FALLBACK_NOTE, ""]
+        for usage in tool_usages:
+            lines.append(f"- `{usage['name']}({usage['args']})`")
+        return "\n".join(lines)
+
+    def _summarize_tool_usage(
+        self,
+        openai_messages: List[Dict[str, Any]],
+        loop_error: str,
+        chat_id: Optional[str],
+        session_id: Optional[str],
+    ) -> str:
+        """
+        Produce a Markdown summary of the value of the tools used this run.
+
+        Runs a single best-effort request against the project's knowledge/RAG
+        model (``settings.get_rag_model()``) — intended for this kind of
+        lightweight analysis and typically smaller/cheaper than the chat model.
+
+        The request does NOT count towards the loop limits and its token usage
+        is recorded separately with the ``tool-analysis`` tag. Any failure is
+        swallowed and a deterministic fallback is returned instead, so this can
+        never turn a graceful stop into a hard error. Failures ARE logged
+        verbosely (model, endpoint, provider diagnostics and traceback).
+
+        Args:
+            openai_messages: Current OpenAI-format conversation history.
+            loop_error:      The LoopGuard message that stopped the run.
+            chat_id:         Chat identifier for analytics.
+            session_id:      Session identifier for analytics.
+
+        Returns:
+            A ready-to-append Markdown block (heading included), or an empty
+            string when there is nothing to report.
+        """
+        heading = f"\n\n---\n\n{TOOL_ANALYSIS_HEADING}\n\n"
+        tool_usages = self._collect_tool_usage(openai_messages)
+
+        # Resolve the knowledge/RAG model dedicated to analysis-type tasks.
+        try:
+            rag_model = self.settings.get_rag_model()
+            rag_settings = self.settings.get_llm_settings(llm_model=rag_model)
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: tool usage summary skipped, cannot resolve "
+                "analysis model: %s",
+                ex,
+            )
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+        # Nothing was executed (e.g. the breadth guard tripped on round 1):
+        # emit only the deterministic fallback.
+        if not tool_usages:
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+        prompt = self._build_tool_usage_prompt(
+            openai_messages=openai_messages,
+            tool_usages=tool_usages,
+            loop_error=loop_error,
+        )
+
+        try:
+            client = OpenAI(
+                api_key=rag_settings.api_key,
+                base_url=rag_settings.api_url,
+            )
+            analysis_start = time.monotonic()
+            response = client.chat.completions.create(
+                model=rag_settings.model,
+                stream=False,
+                temperature=0,
+                max_tokens=TOOL_ANALYSIS_MAX_TOKENS,
+                messages=[
+                    {"role": "system", "content": TOOL_ANALYSIS_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            summary = (response.choices[0].message.content or "").strip()
+
+            self._record_tool_analysis_usage(
+                rag_settings=rag_settings,
+                usage=getattr(response, "usage", None),
+                duration_seconds=time.monotonic() - analysis_start,
+                chat_id=chat_id,
+                session_id=session_id,
+            )
+
+            if summary:
+                return f"{heading}{summary}\n"
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+        except Exception as ex:
+            # Best-effort request: log verbosely but never fail the run.
+            self._log_ai_error(
+                ex,
+                phase="tool-analysis",
+                chat_id=chat_id,
+            )
+            return heading + self._tool_usage_fallback(tool_usages) + "\n"
+
+    def _record_tool_analysis_usage(
+        self,
+        rag_settings: Any,
+        usage: Any,
+        duration_seconds: float,
+        chat_id: Optional[str],
+        session_id: Optional[str],
+    ) -> None:
+        """
+        Record token usage of the tool usage summary request (non-fatal).
+
+        Tagged with ``tool-analysis`` and attributed to the analysis model so
+        its cost is visible but separable from the main chat run.
+
+        Args:
+            rag_settings:    Resolved AISettings of the analysis model.
+            usage:           Provider-reported usage (may be ``None``).
+            duration_seconds: Wall-clock duration of the request.
+            chat_id:         Chat identifier.
+            session_id:      Session identifier.
+        """
+        try:
+            input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+            output_tokens = getattr(usage, "completion_tokens", 0) or 0
+            if not input_tokens and not output_tokens:
+                return
+
+            _get_analytics().record_token_usage(
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                model=rag_settings.model,
+                provider=rag_settings.provider or "",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_seconds=duration_seconds,
+                session_id=session_id,
+                tags=TOOL_ANALYSIS_TAG,
+                input_k_tokens_cxjcoins=getattr(
+                    rag_settings, "input_k_tokens_cxjcoins", 0.0
+                ) or 0.0,
+                output_k_tokens_cxjcoins=getattr(
+                    rag_settings, "output_k_tokens_cxjcoins", 0.0
+                ) or 0.0,
+                request_id=None,
+                chat_id=chat_id,
+                tokens_from_provider=True,
+            )
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: failed to record tool analysis usage (non-fatal): %s",
+                ex,
+            )
+
+    # ── Cost tracking (Chat.estimation_cost) ───────────────────────────────────
+
+    @staticmethod
+    def _accumulated_chat_cost(current_chat: Optional[Any]) -> float:
+        """
+        Return the accumulated cost of the chat in cxjcoins.
+
+        Prefers ``Chat.cost`` — the deletion-safe accumulator maintained by
+        ``ChatManager`` (it is NOT reduced when messages are deleted). Falls
+        back to summing the cost registered on the chat's messages for chats
+        persisted before the accumulator existed.
+
+        Args:
+            current_chat: The Chat object in context (may be ``None``).
+
+        Returns:
+            Total cost in cxjcoins accumulated so far (0.0 when unknown).
+        """
+        if not current_chat:
+            return 0.0
+
+        accumulated = getattr(current_chat, "cost", None)
+        if accumulated is not None and accumulated > 0:
+            return float(accumulated)
+
+        return sum(
+            getattr(message, "cost", 0.0) or 0.0
+            for message in (getattr(current_chat, "messages", None) or [])
+        )
+
+    @staticmethod
+    def _tool_cost(tool_result: Any) -> float:
+        """
+        Return the cost in cxjcoins reported by a tool result.
+
+        Tools that perform their own AI calls (or otherwise incur cost) can
+        report it on the :class:`ToolResponse` ``cost`` field. The cost is
+        summed into the iteration total (billed on the returned message) and
+        the chat total (used to enforce ``Chat.estimation_cost``).
+
+        Args:
+            tool_result: The value returned by a tool (str, ToolResponse, ...).
+
+        Returns:
+            The reported cost in cxjcoins (0.0 when not a ToolResponse or unset).
+        """
+        if isinstance(tool_result, ToolResponse):
+            try:
+                return float(getattr(tool_result, "cost", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "SmolAgent: ignoring invalid ToolResponse.cost value: %r",
+                    getattr(tool_result, "cost", None),
+                )
+                return 0.0
+        return 0.0
+
+    def _compute_cost(
+        self,
+        usage_info: Any,
+        content: str,
+        openai_messages: List[Dict[str, Any]],
+    ) -> RoundCost:
+        """
+        Compute the token usage and cost in cxjcoins of a single completion round.
+
+        Uses the provider-reported usage when available, falling back to a
+        token-count estimate otherwise. Only the input/output token prices of
+        the active model (``AISettings``) are used, matching the pricing model
+        used by the analytics subsystem.
+
+        Args:
+            usage_info:      Provider-reported usage for this round (may be ``None``).
+            content:         Text generated in this round (for output fallback).
+            openai_messages: Conversation history sent in this round (for input fallback).
+
+        Returns:
+            A :class:`RoundCost` with tokens and input/output costs in cxjcoins
+            (zeroed when no pricing is configured).
+        """
+        input_price = getattr(self.llm_settings, "input_k_tokens_cxjcoins", 0.0) or 0.0
+        output_price = getattr(self.llm_settings, "output_k_tokens_cxjcoins", 0.0) or 0.0
+        if not input_price and not output_price:
+            return RoundCost()
+
+        input_tokens = getattr(usage_info, "prompt_tokens", 0) or 0
+        output_tokens = getattr(usage_info, "completion_tokens", 0) or 0
+
+        if not input_tokens:
+            input_text = "\n".join(
+                m.get("content", "")
+                for m in openai_messages
+                if isinstance(m.get("content"), str)
+            )
+            input_tokens = count_tokens(input_text, model=self.model)
+        if not output_tokens and content:
+            output_tokens = count_tokens(content, model=self.model)
+
+        return RoundCost(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            input_cost_cxjcoins=(input_tokens / 1000.0) * input_price,
+            output_cost_cxjcoins=(output_tokens / 1000.0) * output_price,
+        )
+
+    @staticmethod
+    def _cost_limit_exceeded(
+        current_chat: Optional[Any],
+        chat_cost: float,
+    ) -> bool:
+        """
+        Return True when the accumulated chat cost reached ``estimation_cost``.
+
+        A limit is enforced only when ``Chat.estimation_cost`` is set to a
+        positive value; ``None`` or non-positive values disable the limit.
+
+        Args:
+            current_chat: The Chat object in context (may be ``None``).
+            chat_cost:    Accumulated chat cost in cxjcoins.
+
+        Returns:
+            True when the chat budget has been reached or exceeded.
+        """
+        if not current_chat:
+            return False
+        limit = getattr(current_chat, "estimation_cost", None)
+        if limit is None or limit <= 0:
+            return False
+        return chat_cost >= limit
 
     @staticmethod
     def _parse_tool_arguments(raw_arguments: Any, func_name: str) -> Dict[str, Any]:
@@ -1477,6 +2365,11 @@ class SmolAgent:
         """
         Return a closure that batches streamed chunks and flushes the FULL
         ACCUMULATED response to callbacks.
+
+        The argument passed to ``send_callback`` is treated as a **delta**
+        (a new chunk). It is appended to the internal buffer/accumulator and
+        the FULL accumulated response is emitted on flush. Callers MUST NOT
+        pass content that has already been sent — doing so would re-emit it.
 
         flowchart TD
             A[chunk arrives] --> B[Append to buffer]

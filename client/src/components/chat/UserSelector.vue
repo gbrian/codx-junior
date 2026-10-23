@@ -4,7 +4,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 
 <template>
     <div class="dropdown click" @click.stop="">
-        <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggleDropdown">
+        <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggledropdown">
           <UserAvatar class="ring rounded-full h-6" :title="selectedUser.avatar" :user="selectedUser" width="6" v-if="selectedUser" />
           <div v-else>
             <i class="fa-solid fa-plus"></i>
@@ -13,7 +13,7 @@ import UserAvatar from '../user/UserAvatar.vue'
             {{ selectedUser?.name || selectedUser?.username }}
           </div>
         </div>
-        <ul v-if="isOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[150] w-52 p-2 shadow">
+        <ul v-if="isOpen" tabindex="0" class="dropdown-content bg-base-100 menu bg-base-100 rounded-box z-[150] w-52 p-2 shadow">
           <li v-for="user in usersList" :key="user.id" @click="selectUser(user)">
               <a>
                 <UserAvatar :user="user" width="6" />
@@ -40,11 +40,11 @@ export default {
     }
   },
   methods: {
-    toggleDropdown() {
+    toggledropdown() {
       this.isOpen = !this.isOpen
     },
     selectUser(user) {
-      this.toggleDropdown()
+      this.toggledropdown()
       this.$emit('user-changed', user)
     }
   }

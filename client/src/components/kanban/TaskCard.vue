@@ -90,6 +90,13 @@ import ChatIcon from '../chat/ChatIcon.vue'
             <i class="fa-regular fa-file-lines"></i>
             {{ subTasks.length }}
           </div>
+          <!-- Cost pill -->
+          <div v-if="task.cost"
+            class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 text-xs font-bold tooltip"
+            :data-tip="costTooltip">
+            <i class="fa-solid fa-coins text-xs"></i>
+            {{ formatCoins(task.cost) }}
+          </div>
           <!-- Updating indicator -->
           <span v-if="updating" class="loading loading-dots loading-xs text-primary"></span>
         </div>
@@ -147,9 +154,22 @@ export default {
     },
     profile() {
       return this.$projects.profiles?.find(p => p.name === this.task.profiles[0])
+    },
+    costTooltip() {
+      const spent = this.formatCoins(this.task?.cost || 0)
+      if (this.task?.estimation_cost) {
+        return `Cost: ${spent} of ${this.formatCoins(this.task.estimation_cost)} cxj`
+      }
+      return `Cost: ${spent} cxj`
     }
   },
   methods: {
+    formatCoins(val) {
+      if (val == null) return '-'
+      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
+      if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
+      return Number(val).toFixed(2)
+    },
     openSettingsModal() {
       this.isSettingsModalOpen = true
       this.taskData = { ...this.task }

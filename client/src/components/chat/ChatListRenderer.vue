@@ -52,7 +52,7 @@ import ChatSidebarNode from './ChatSidebarNode.vue'
     <!-- Empty state -->
     <div v-if="chatList.length === 0 && !isLoading" class="text-center py-8 text-base-content/30 text-xs">
       <i class="fas fa-inbox text-2xl mb-2 block"></i>
-      <p>No chats</p>
+      <p>{{ emptyText }}</p>
     </div>
 
     <!-- Chat items -->
@@ -99,7 +99,8 @@ export default {
     allChats: { type: Array, default: () => [] },
     useExtended: { type: Boolean, default: false },
     visibleChatIds: { type: Set, default: () => new Set() },
-    unreadCountCache: { type: Object, default: () => ({}) }
+    unreadCountCache: { type: Object, default: () => ({}) },
+    emptyText: { type: String, default: 'No chats' }
   },
   emits: ['select', 'add-subtask', 'delete-chat', 'load-more'],
   computed: {

@@ -33,13 +33,6 @@ import QuickChatSelector from '../QuickChatSelector.vue'
       <i class="fa-solid fa-people-group"></i>
     </BarButton>
 
-    <BarButton tab="profiles"
-      @click="$ui.setActiveTab('profiles')"
-      v-if="$users.isProjectAdmin"
-    >
-      <i class="fa-solid fa-user-group"></i>
-    </BarButton>
-
     <BarButton tab="knowledge"
       @click="$ui.setActiveTab('knowledge')"
       v-if="$users.isProjectAdmin"

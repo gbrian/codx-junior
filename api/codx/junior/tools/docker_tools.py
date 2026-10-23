@@ -156,6 +156,31 @@ def _safe_exec_docker(command: List[str], timeout: int = 30) -> Tuple[str, Optio
         raise RuntimeError(f"Failed to execute Docker command: {error_msg}") from e
 
 
+def _format_command_feedback(operation: str, output: str, empty_text: str = "_(no output)_") -> str:
+    """
+    Build user-facing feedback that always shows the executed Docker operation
+    together with its output, so the chat never displays an empty result.
+
+    Args:
+        operation: Human-readable description of the Docker command executed
+                   (e.g. "docker-compose run --rm api").
+        output: Captured command output (stdout). May be empty.
+        empty_text: Placeholder shown when there is no output.
+
+    Returns:
+        str: Markdown block using the format::
+
+            > Running: `<operation>`
+            Output:
+
+            <output or empty_text>
+    """
+    output = (output or "").strip()
+    if not output:
+        output = empty_text
+    return f"> Running: `{operation}`\nOutput:\n\n{output}"
+
+
 def docker_ps(filters: Optional[str] = None, **kwargs) -> ToolResponse:
     """
     List Docker containers.
@@ -224,10 +249,17 @@ def docker_ps(filters: Optional[str] = None, **kwargs) -> ToolResponse:
 
         logger.info("Listed %d containers for user %s", len(lines), user.username if user else "unknown")
 
-        user_response = f"✓ Found {len(lines)} container(s)\n\n" + "\n".join(formatted_lines)
+        operation = "docker ps -a" + (f" --filter {filters}" if filters else "")
+        user_response = _format_command_feedback(operation, "\n".join(formatted_lines))
+        # llm_response is the ONLY content the model receives (user_response is
+        # shown in the chat but not sent to the model). Include the real data.
+        llm_response = (
+            f"Found {len(lines)} container(s). Raw `docker ps -a` output "
+            f"(ID\tName\tStatus\tPorts):\n{stdout.strip()}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Listed {len(lines)} containers"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -294,10 +326,16 @@ def docker_logs(container_name: str, tail: int = 100, **kwargs) -> ToolResponse:
         logger.info("Retrieved logs for container %s (tail=%d) by user %s", 
                    container_name, tail, user.username if user else "unknown")
 
-        user_response = f"📋 **Logs for `{container_name}` (last {tail} lines):**\n\n```\n{stdout}\n```"
+        user_response = _format_command_feedback(
+            f"docker logs --tail {tail} {container_name}", stdout
+        )
+        # Provide the actual log content to the model (not just a summary).
+        llm_response = (
+            f"Logs for container '{container_name}' (last {tail} lines):\n{stdout}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Retrieved {len(stdout.split(chr(10)))} log lines from {container_name}"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -364,10 +402,15 @@ def docker_stats(container_name: Optional[str] = None, **kwargs) -> ToolResponse
         logger.info("Retrieved stats for %s by user %s",
                    container_name or "all containers", user.username if user else "unknown")
 
-        user_response = f"📊 **Container Statistics:**\n\n```\n{stdout}\n```"
+        operation = "docker stats --no-stream" + (f" {container_name}" if container_name else "")
+        user_response = _format_command_feedback(operation, stdout)
+        # Provide the actual statistics to the model (not just a summary).
+        llm_response = (
+            f"Container statistics for {container_name or 'all containers'}:\n{stdout}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Retrieved container statistics"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -427,10 +470,14 @@ def docker_inspect(container_name: str, inspect_type: str = "container", **kwarg
         logger.info("Inspected %s %s by user %s", inspect_type, container_name, 
                    user.username if user else "unknown")
 
-        user_response = f"🔍 **{inspect_type.title()} Info for `{container_name}`:**\n\n```json\n{stdout}\n```"
+        user_response = _format_command_feedback(f"docker inspect {container_name}", stdout)
+        # Provide the actual inspect JSON to the model (not just a summary).
+        llm_response = (
+            f"Inspect output for {inspect_type} '{container_name}':\n{stdout}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Retrieved detailed information for {container_name}"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -496,10 +543,15 @@ def docker_images(**kwargs) -> ToolResponse:
 
         logger.info("Listed Docker images for user %s: %d images", user.username if user else "unknown", len(lines))
 
-        user_response = f"✓ Found {len(lines)} Docker image(s)\n\n" + "\n".join(formatted_lines)
+        user_response = _format_command_feedback("docker images", "\n".join(formatted_lines))
+        # Provide the actual image list to the model (not just a summary).
+        llm_response = (
+            f"Found {len(lines)} Docker image(s). Raw `docker images` output "
+            f"(Repository\tTag\tID\tSize\tCreatedAt):\n{stdout.strip()}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Listed {len(lines)} Docker images"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -582,7 +634,11 @@ def docker_run(image: str, container_name: str, **kwargs) -> ToolResponse:
         logger.info("Started container %s (image=%s) for user %s", container_name, image, 
                    user.username if user else "unknown")
 
-        user_response = f"✓ Container `{container_name}` started successfully\n\n**Container ID:** `{container_id}`"
+        operation = f"docker run {'-d' if detach else '-it'} --name {container_name} {image}"
+        user_response = _format_command_feedback(
+            operation,
+            f"Container `{container_name}` started successfully (ID: `{container_id}`)"
+        )
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully started container {container_name}"
@@ -640,7 +696,7 @@ def docker_start(container_name: str, **kwargs) -> ToolResponse:
 
         logger.info("Started container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = f"✓ Container `{container_name}` started successfully"
+        user_response = _format_command_feedback(f"docker start {container_name}", stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully started container {container_name}"
@@ -702,7 +758,9 @@ def docker_stop(container_name: str, timeout: int = 10, **kwargs) -> ToolRespons
 
         logger.info("Stopped container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = f"✓ Container `{container_name}` stopped successfully"
+        user_response = _format_command_feedback(
+            f"docker stop -t {timeout} {container_name}", stdout
+        )
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully stopped container {container_name}"
@@ -764,7 +822,9 @@ def docker_restart(container_name: str, timeout: int = 10, **kwargs) -> ToolResp
 
         logger.info("Restarted container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = f"✓ Container `{container_name}` restarted successfully"
+        user_response = _format_command_feedback(
+            f"docker restart -t {timeout} {container_name}", stdout
+        )
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully restarted container {container_name}"
@@ -832,10 +892,21 @@ def docker_compose_run(service: str, command: Optional[str] = None, **kwargs) ->
         logger.info("Executed compose run on service %s by user %s", service, 
                    user.username if user else "unknown")
 
-        user_response = f"✓ Command executed on `{service}` service\n\n```\n{stdout}\n```"
+        operation = f"docker-compose run --rm {service}"
+        if command:
+            operation += f" {command}"
+        # Always show the executed command and its output (placeholder when empty),
+        # so the user never sees an empty result.
+        user_response = _format_command_feedback(operation, stdout)
+        # Provide the command output to the model (not just a status summary).
+        llm_response = (
+            f"Command executed on '{service}' service"
+            + (f" (command: {command})" if command else "")
+            + f". Output:\n{stdout}"
+        )
         return ToolResponse(
             user_response=user_response,
-            llm_response=f"Successfully executed command on {service} service"
+            llm_response=llm_response
         )
 
     except Exception as e:
@@ -896,7 +967,8 @@ def docker_compose_start(service: Optional[str] = None, **kwargs) -> ToolRespons
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        user_response = f"✓ Docker Compose {target} started successfully"
+        operation = "docker-compose start" + (f" {service}" if service else "")
+        user_response = _format_command_feedback(operation, stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully started compose {target}"
@@ -964,7 +1036,8 @@ def docker_compose_stop(service: Optional[str] = None, timeout: int = 10, **kwar
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        user_response = f"✓ Docker Compose {target} stopped successfully"
+        operation = f"docker-compose stop -t {timeout}" + (f" {service}" if service else "")
+        user_response = _format_command_feedback(operation, stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully stopped compose {target}"
@@ -1032,7 +1105,8 @@ def docker_compose_restart(service: Optional[str] = None, timeout: int = 10, **k
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        user_response = f"✓ Docker Compose {target} restarted successfully"
+        operation = f"docker-compose restart -t {timeout}" + (f" {service}" if service else "")
+        user_response = _format_command_feedback(operation, stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully restarted compose {target}"

@@ -90,19 +90,79 @@ function extractAppsFromLayout(layout) {
   if (!layout.panels) return apps
 
   for (const panel of Object.values(layout.panels)) {
-    if (panel.params) {
-      apps.push({
-        tabId: panel.id || panel.tabId,
-        name: panel.name || panel.componentName || 'Unknown',
-        component: panel.componentName || 'unknown',
-        key: panel.key,
-        params: panel.params,
-        openedAt: panel.openedAt || Date.now()
-      })
-    }
+    // Dockview persists each panel's `params` verbatim. We always embed the
+    // originating app snapshot under `params.app` when the panel is created
+    // (see addPanelToDesktop / syncPanelsWithApps), so read the tab's display
+    // name/component/key from there. Dockview's serialized panel only exposes
+    // `title` and `contentComponent` - reading `panel.name`/`panel.componentName`
+    // restored every tab as "Unknown", which is why the tab name was lost.
+    const params = panel.params || {}
+    const app = params.app || {}
+
+    apps.push({
+      tabId: panel.id || panel.tabId,
+      name: app.name || params.tabName || panel.title || app.title || 'Unknown',
+      component: app.component || panel.contentComponent || 'unknown',
+      key: app.key || panel.key,
+      params,
+      openedAt: panel.openedAt || Date.now()
+    })
   }
 
   return apps
+}
+
+// ── Layout persistence (debounced) ────────────────────────────────────────
+//
+// `onLayoutChanged` is wired to dockview's `onDidLayoutChange` and
+// `onDidAddPanel`, which fire continuously while a splitter or panel is
+// dragged, and again on every tab activation. Serializing the layout
+// (`toJSON`) and writing it to localStorage synchronously on each of those
+// events ran on the main thread during exactly the interactions reported as
+// "slow".
+//
+// Writes are coalesced and happen once the interaction settles. The trailing
+// flush on `pagehide`/`visibilitychange` makes sure the last change still
+// survives the tab being closed.
+const LAYOUT_SAVE_DELAY = 300
+
+let layoutSaveTimer = null
+
+function saveLayoutNow() {
+  if (layoutSaveTimer !== null) {
+    clearTimeout(layoutSaveTimer)
+    layoutSaveTimer = null
+  }
+
+  // Nothing loaded yet: there is no layout worth persisting.
+  if (!$storex.views?.loadedView) return
+
+  try {
+    const desktopApi = $storex.views._desktopApi
+    if (!desktopApi) return
+
+    const key = getProjectStorageKey()
+    if (!key) return
+
+    localStorage.setItem(key, JSON.stringify(desktopApi.toJSON()))
+  } catch (error) {
+    console.error('Error saving layout:', error)
+  }
+}
+
+function scheduleLayoutSave() {
+  if (layoutSaveTimer !== null) clearTimeout(layoutSaveTimer)
+  layoutSaveTimer = setTimeout(() => {
+    layoutSaveTimer = null
+    saveLayoutNow()
+  }, LAYOUT_SAVE_DELAY)
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', saveLayoutNow)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveLayoutNow()
+  })
 }
 
 export const actions = actionTree(
@@ -200,23 +260,13 @@ export const actions = actionTree(
       }
     },
 
-    async onLayoutChanged({ state }) {
+    onLayoutChanged({ state }) {
       // Only save if a layout has been loaded/initialized for this session
       if (!state.loadedView) {
         return
       }
-      try {
-        const desktopApi = state._desktopApi
-        if (!desktopApi) return
-
-        const key = getProjectStorageKey()
-        if (!key) return
-
-        const layout = desktopApi.toJSON()
-        localStorage.setItem(key, JSON.stringify(layout))
-      } catch (error) {
-        console.error('Error saving layout:', error)
-      }
+      // Coalesced: dockview emits this on every frame of a drag.
+      scheduleLayoutSave()
     },
 
     async onPanelActive(_, panel) {
@@ -250,9 +300,21 @@ export const actions = actionTree(
         const desktopApi = $storex.views._desktopApi
         if (!desktopApi) return
 
-        const panel = desktopApi.getPanel(panelId)
-        if (panel) {
+        const panel = desktopApi.getPanel?.(panelId)
+        if (!panel) return
+
+        // A dockview panel is focused through its OWN api (`panel.api.setActive()`);
+        // there is no top-level `desktopApi.setActivePanel`. We try the panel APIs
+        // first and keep the old top-level call as a guarded last resort so this
+        // keeps working regardless of the desktop api version in use.
+        if (typeof panel.api?.setActive === 'function') {
+          panel.api.setActive()
+        } else if (typeof panel.setActive === 'function') {
+          panel.setActive()
+        } else if (typeof desktopApi.setActivePanel === 'function') {
           desktopApi.setActivePanel(panel)
+        } else {
+          console.warn(`[Views] Unable to activate panel ${panelId}: no setActive API available`)
         }
       } catch (error) {
         console.error(`Error activating panel ${panelId}:`, error)

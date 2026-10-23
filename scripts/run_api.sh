@@ -2,7 +2,9 @@
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
-echo "Starting api USER: ${USER} HOME: ${HOME}"
+echo "Starting api USER: ${USER} ($(id -u):$(id -g)) HOME: ${HOME}"
+echo "Fix permissions"
+sudo chown -R ${USER} ${HOME}
 
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
@@ -12,13 +14,16 @@ cd ${CODX_JUNIOR_PATH}/api
 
 
 # Run the FastAPI application using uvicorn
-echo "Activate venv: ${CODX_JUNIOR_API_VENV}"
+echo "Checking venv: '${CODX_JUNIOR_API_VENV}' ..."
 if [ ! -d "${CODX_JUNIOR_API_VENV}/bin" ]; then
   echo "!!! venv not found. Installing at: ${CODX_JUNIOR_API_VENV}"
   bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
+else
+  echo "venv found!"
 fi
 
 source ${CODX_JUNIOR_API_VENV}/bin/activate
+uv sync
 
 echo "codx-junior api BACKGROUND: '${CODX_JUNIOR_API_BACKGROUND}' DEBUG: '${DEBUG}'"
 

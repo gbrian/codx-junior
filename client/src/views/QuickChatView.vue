@@ -53,13 +53,15 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
     <main
       v-if="isMobile || !activeChat"
       class="flex-1 flex flex-col min-w-0 h-full relative"
-      :class="[isMobile ? 'pb-20' : '']"
+      :class="[mobileBottomBarVisible ? 'pb-20' : '']"
     >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
+      <!-- Hidden while a chatId is present in the URL: the "new message" input
+           box must not show; the loading splash takes over instead. -->
       <transition name="fade">
         <div
-          v-if="!activeChat"
+          v-if="!activeChat && !chatId"
           class="absolute inset-0 flex flex-col items-center justify-center gap-8 z-10"
         >
           <!-- Radial gradient glow -->
@@ -164,6 +166,20 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       </transition>
 
     </main>
+
+    <!-- ══ LOADING SPLASH: chat loaded from URL ══ -->
+    <transition name="fade">
+      <div
+        v-if="chatLoading"
+        class="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-base-300"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="text-sm font-medium text-base-content/60">Loading chat…</p>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -174,7 +190,6 @@ export default {
   data() {
     return {
       activeChatId: null,
-      chatLoading: false,
       waiting: false,
       cursorWord: {},
       intelliSenseSuggestions: [],
@@ -191,7 +206,6 @@ export default {
       selectedProject: null,
       rightSidebarCollapsed: false,
       MAX_IMAGE_SIZE_MB: 50,
-      loadingTimeout: null,
       homeMessage: {
         content: '',
         attachments: [],
@@ -210,7 +224,6 @@ export default {
   },
   unmounted() {
     clearInterval(this.syncInterval)
-    clearTimeout(this.loadingTimeout)
     clearTimeout(this.intelliSenseDebounce)
     this.cancelIntelliSense()
   },
@@ -227,12 +240,28 @@ export default {
     isMobile() {
       return this.$ui.isMobile
     },
+    // Mirrors App.vue's bottom bar visibility: the fixed bottom bar is hidden
+    // while a chat is open, so we must not reserve its space then.
+    mobileBottomBarVisible() {
+      return this.isMobile && !this.chatId
+    },
     isHomePage() {
-      return this.$route.path === '/'
+      // Home now lives at "/:projectName" (name 'home'); "/" is the unscoped
+      // bootstrap route (name 'root') used before a project is active.
+      return this.$route.name === 'home'
+        || this.$route.name === 'root'
+        || this.$route.path === '/'
     },
     activeChat() {
       if (!this.activeChatId) return null
       return this.$chats.chats[this.activeChatId] || null
+    },
+    // True while a chat referenced by the URL is still being fetched. Drives
+    // both the loading splash and the hiding of the "new message" input box.
+    // Deterministic (independent of async timing in created/openChat) so the
+    // input box can never flash behind the splash during a URL-driven load.
+    chatLoading() {
+      return !!this.chatId && !this.activeChat
     },
     chatProject() {
       return this.$projects.allProjectsById[this.activeChat?.project_id || this.activeChat?.owner_project_id]
@@ -276,19 +305,9 @@ export default {
     },
     chatId() {
       this.openChat()
-    },
-    activeChatId() {
-      this.onActiveChatIdChange()
     }
   },
   methods: {
-    onActiveChatIdChange() {
-      clearTimeout(this.loadingTimeout)
-      this.chatLoading = true
-      this.loadingTimeout = setTimeout(() => {
-        this.chatLoading = false
-      }, 600)
-    },
     onChatChanged(chat) {
       if (chat && chat.id) {
         this.activeChatId = chat.id
@@ -360,17 +379,26 @@ export default {
       }
     },
     async openChat() {
+      this.activeChatId = this.chatId
+
+      // No chat in the URL → nothing to load (home view)
+      if (!this.chatId) return
+
+      // The `chatLoading` computed stays true until the chat is resolved into
+      // the store (activeChat), keeping the splash up and the input box hidden.
       try {
-        this.activeChatId = this.chatId  
-        if (this.chatId) {
-          const chat = { id: this.chatId }
-          await this.$chats.loadChat(chat)
+        const chat = { id: this.chatId }
+        await this.$chats.loadChat(chat)
+
+        // ChatId present but the chat could not be resolved → go home
+        if (!this.$chats.chats[this.chatId]) {
+          this.activeChatId = null
+          this.$router.$navigation.apps.openHome()
         }
       } catch (err) {
         console.error('[QuickChat] openChat error', err)
         this.activeChatId = null
-      } finally {
-        this.chatLoading = false
+        this.$router.$navigation.apps.openHome()
       }
     },
     async onHomeSubmit() {

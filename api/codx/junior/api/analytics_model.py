@@ -3,10 +3,17 @@ Pydantic models for Analytics API responses.
 
 These models define the exact types returned by all analytics endpoints,
 ensuring type safety and proper documentation for both backend and client.
+
+.. note::
+    Pydantic v2 removed the special ``__root__`` field in favour of the
+    dedicated :class:`pydantic.RootModel` base class.  The container
+    wrappers below (``ToolMetricsMap``, ``AggregatedUsageByKey``,
+    ``DatesList``, ``ChatSessionsList`` and ``PricingList``) therefore
+    subclass ``RootModel`` and expose their wrapped value through ``.root``.
 """
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 
 # ── Token Usage Models ─────────────────────────────────────────────────────────
@@ -175,18 +182,18 @@ class ToolExecutionMetrics(BaseModel):
     error_details: List[ErrorDetail] = Field(default_factory=list, description="Failed execution details")
 
 
-class ToolMetricsMap(BaseModel):
-    """Metrics for all tools executed in a chat."""
-    
-    __root__: Dict[str, ToolExecutionMetrics] = Field(
-        description="Map of tool_name → ToolExecutionMetrics"
-    )
+class ToolMetricsMap(RootModel[Dict[str, ToolExecutionMetrics]]):
+    """
+    Metrics for all tools executed in a chat.
+
+    Root model wrapping ``Dict[tool_name, ToolExecutionMetrics]``.
+    """
 
     def __iter__(self):
-        return iter(self.__root__)
+        return iter(self.root)
 
     def __getitem__(self, key):
-        return self.__root__[key]
+        return self.root[key]
 
 
 # ── Chat Context Models ────────────────────────────────────────────────────────
@@ -256,48 +263,48 @@ class ChatContextWithToolDetails(BaseModel):
 
 # ── Aggregation Models ─────────────────────────────────────────────────────────
 
-class AggregatedUsageByKey(BaseModel):
-    """Token usage aggregated by a specific key (user, project, model)."""
-    
-    __root__: Dict[str, TokenUsageMetrics] = Field(
-        description="Map of key → TokenUsageMetrics"
-    )
+class AggregatedUsageByKey(RootModel[Dict[str, TokenUsageMetrics]]):
+    """
+    Token usage aggregated by a specific key (user, project, model).
+
+    Root model wrapping ``Dict[key, TokenUsageMetrics]``.
+    """
 
     def __iter__(self):
-        return iter(self.__root__)
+        return iter(self.root)
 
     def __getitem__(self, key):
-        return self.__root__[key]
+        return self.root[key]
 
 
 # ── List Response Models ───────────────────────────────────────────────────────
 
-class DatesList(BaseModel):
-    """List of available dates with data."""
-    
-    __root__: List[str] = Field(
-        description="List of YYYY-MM-DD date strings"
-    )
+class DatesList(RootModel[List[str]]):
+    """
+    List of available dates with data.
+
+    Root model wrapping a ``List[str]`` of ``YYYY-MM-DD`` date strings.
+    """
 
     def __iter__(self):
-        return iter(self.__root__)
+        return iter(self.root)
 
     def __len__(self):
-        return len(self.__root__)
+        return len(self.root)
 
 
-class ChatSessionsList(BaseModel):
-    """List of chat sessions with metrics."""
-    
-    __root__: List[ChatContextSummary] = Field(
-        description="List of chat sessions with their summaries"
-    )
+class ChatSessionsList(RootModel[List[ChatContextSummary]]):
+    """
+    List of chat sessions with metrics.
+
+    Root model wrapping ``List[ChatContextSummary]``.
+    """
 
     def __iter__(self):
-        return iter(self.__root__)
+        return iter(self.root)
 
     def __len__(self):
-        return len(self.__root__)
+        return len(self.root)
 
 
 # ── Pricing Models ─────────────────────────────────────────────────────────────
@@ -320,17 +327,17 @@ class ProviderPricingInfo(BaseModel):
     models: List[ModelPricingInfo] = Field(description="Model-level pricing overrides")
 
 
-class PricingList(BaseModel):
-    """List of providers with their pricing information."""
-    
-    __root__: List[ProviderPricingInfo] = Field(
-        description="List of providers with models and pricing"
-    )
+class PricingList(RootModel[List[ProviderPricingInfo]]):
+    """
+    List of providers with their pricing information.
+
+    Root model wrapping ``List[ProviderPricingInfo]``.
+    """
 
     def __iter__(self):
-        return iter(self.__root__)
+        return iter(self.root)
 
     def __len__(self):
-        return len(self.__root__)
+        return len(self.root)
 
 # Made with ❤️ by codx-junior

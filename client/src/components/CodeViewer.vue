@@ -1,15 +1,19 @@
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import moment from 'moment'
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
-import hljs from 'highlight.js'
-import Editor from './monaco/Editor.vue'
+import hljs from '@/utils/highlight'
 import Collapsible from './Collapsible.vue'
-import Document from './document/Document.vue'
-import DiffViewer from './DiffViewer.vue'
 import "@git-diff-view/vue/styles/diff-view.css"
 import { EXTENSION_LANGUAGE_MAP } from '../store'
 
+// Monaco (~1 MB) and the git-diff renderer are only required when a block is
+// opened, edited or diffed: keep them in their own chunks instead of evaluating
+// them with the first rendered message.
+const Editor = defineAsyncComponent(() => import('./monaco/Editor.vue'))
+const DiffViewer = defineAsyncComponent(() => import('./DiffViewer.vue'))
+const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 </script>
 
 <template>
@@ -96,7 +100,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </span>
 
           <!-- Change stats bar (wrap on mobile) -->
-          <div v-if="stats && !editMode && !isNoChange && !isMarkdown" class="flex items-center gap-2">
+          <div v-if="stats && !editMode && !isNoChange && !isMarkdown && !showPreviousDiff" class="flex items-center gap-2">
             <div
               class="flex h-2 rounded-full overflow-hidden bg-base-200 w-16 md:w-24 relative transition-all duration-300"
               :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
@@ -137,8 +141,49 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           <span class="hidden sm:inline">Save</span>
         </button>
 
-        <!-- No Changes Text -->
-        <span class="text-success font-console text-xs py-2" v-if="isNoChange">No changes</span>
+        <!-- Compare with a previous message's version of this code block (dropdown) -->
+        <div class="dropdown dropdown-end shrink-0" v-if="hasPreviousVersion && finished && !editMode">
+          <button
+            tabindex="0"
+            class="btn btn-sm btn-info btn-outline snap-start shrink-0"
+            :class="{ 'btn-active': showPreviousDiff }"
+            title="Compare with a previous version"
+            aria-label="Compare with a previous version"
+            @click.stop
+          >
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span class="hidden sm:inline">Compare</span>
+            <i class="fa-solid fa-caret-down text-[10px]"></i>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-72 p-2 shadow border border-base-content/10">
+            <li class="menu-title text-xs">
+              <span>Compare with</span>
+            </li>
+            <li v-for="(block, idx) in previousCodeBlocks" :key="block.messageId">
+              <a
+                @click.stop="selectPreviousVersion(block)"
+                :class="{ 'active': showPreviousDiff && selectedPreviousBlock?.messageId === block.messageId }"
+              >
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="flex flex-col items-start min-w-0">
+                  <span class="text-xs font-medium truncate">
+                    {{ block.user || 'Assistant' }}
+                    <span class="badge badge-xs badge-ghost ml-1" v-if="idx === 0">latest</span>
+                  </span>
+                  <span class="text-[10px] opacity-60">
+                    {{ block.when ? moment(block.when).fromNow() : 'unknown time' }}
+                  </span>
+                </span>
+              </a>
+            </li>
+            <li v-if="showPreviousDiff">
+              <a @click.stop="clearPreviousDiff">
+                <i class="fa-solid fa-file"></i>
+                <span class="text-xs">File on disk</span>
+              </a>
+            </li>
+          </ul>
+        </div>
 
         <!-- Patch Button (AI Pattern) -->
         <button class="btn btn-sm btn-info btn-outline snap-start shrink-0"
@@ -234,34 +279,49 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div v-if="isContentOutdated" class="alert alert-sm text-error">
-        <i class="fa-solid fa-exclamation-circle text-error"></i>
-        <span class="text-xs md:text-sm">
-          <strong>Base file has changed:</strong> This content was generated {{ moment(contentCreatedAt).fromNow() }}, but the file was last modified {{ moment(last_modification).fromNow() }}. Consider refreshing the diff to ensure accuracy.
+      <div
+        v-if="isContentOutdated"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-error/10 text-error text-xs"
+        :title="`Base file has changed: This content was generated ${moment(contentCreatedAt).fromNow()}, but the file was last modified ${moment(last_modification).fromNow()}. Consider refreshing the diff to ensure accuracy.`"
+      >
+        <i class="fa-solid fa-exclamation-circle shrink-0"></i>
+        <span class="truncate">
+          <strong>Base file has changed:</strong> generated {{ moment(contentCreatedAt).fromNow() }}, file modified {{ moment(last_modification).fromNow() }} — refresh diff to ensure accuracy.
         </span>
       </div>
 
-      <div v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown" class="alert alert-warning alert-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
-        </svg>
-        <span class="text-xs md:text-sm">
+      <div
+        v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/10 text-warning text-xs"
+        :title="`Heavy modification detected: ${changeRiskMessage}`"
+      >
+        <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+        <span class="truncate">
           <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
         </span>
       </div>
 
-      <div v-if="changesetErrors.length" class="alert alert-error alert-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
-        </svg>
-        <div class="flex flex-col gap-1">
-          <span class="font-bold text-xs">Changeset Errors:</span>
-          <div class="text-xs space-y-1">
-            <div v-for="(error, idx) in changesetErrors" :key="idx" class="text-xs">
-              • {{ error }}
-            </div>
-          </div>
-        </div>
+      <!-- Previous-version comparison banner -->
+      <div
+        v-if="showPreviousDiff"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
+      >
+        <i class="fa-solid fa-clock-rotate-left shrink-0"></i>
+        <span class="truncate">Comparing with {{ previousCodeLabel }}</span>
+        <button class="ml-auto shrink-0 opacity-70 hover:opacity-100" @click.stop="clearPreviousDiff" title="Exit comparison" aria-label="Exit comparison">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div
+        v-if="changesetErrors.length"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-error/10 text-error text-xs"
+        :title="changesetErrors.join(' • ')"
+      >
+        <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+        <span class="truncate">
+          <strong>Changeset errors ({{ changesetErrors.length }}):</strong> {{ changesetErrors[0] }}
+        </span>
       </div>
 
       <!-- Main content area with diff or code views -->
@@ -270,9 +330,9 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
           <!-- DiffViewer with edit mode toggle (Monaco DiffEditor when in edit mode) -->
           <DiffViewer
-            v-if="showDiff && orgContent"
-            :org-content="orgContent"
-            :new-content="diffEditContent"
+            v-if="showDiff && comparisonOrgContent"
+            :org-content="comparisonOrgContent"
+            :new-content="diffEditContent || effectiveCode"
             :file="file"
             :language="fileLanguage"
             class="h-full"
@@ -294,7 +354,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
               v-if="isMarkdown"
               :content="effectiveCode"
               :files="files"
-              :project="project"
+              :project="effectiveProject"
               :chat="chat"
               :message="message"
               :loading="!finished"
@@ -347,16 +407,58 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
           </button>
         </div>
     </modal>
+
+    <!-- Heavy change confirmation modal -->
+    <modal v-if="showHeavyChangeConfirmModal">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+          Confirm Heavy Changes
+        </h3>
+        <div class="flex flex-col gap-2 py-2">
+          <p>
+            This save will apply a significant modification to
+            <strong>{{ fileName }}</strong>. Please review before continuing.
+          </p>
+          <div class="flex items-center gap-2 p-2 rounded bg-warning/10 text-warning text-sm">
+            <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+            <span>{{ changeRiskMessage }}</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs opacity-70">
+            <span class="text-error inline-flex items-center gap-1">
+              <i class="fa-solid fa-minus"></i> {{ deletionCount }} deletions
+            </span>
+            <span class="text-success inline-flex items-center gap-1">
+              <i class="fa-solid fa-plus"></i> {{ additionCount }} additions
+            </span>
+          </div>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-ghost" @click="cancelHeavyChangeSave">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </button>
+          <button class="btn btn-warning" @click="confirmHeavyChangeSave">
+            <i class="fa-solid fa-check"></i> Save Anyway
+          </button>
+        </div>
+    </modal>
   </Collapsible>
 </template>
 
 <script>
+// Old code blocks are compared against a file that most likely moved on:
+// loading their diff automatically is expensive and usually meaningless, so it
+// is only fetched on demand (refresh icon / save / rollback).
+const AUTO_DIFF_MAX_AGE_HOURS = 5
+
 export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
-      showDiff: this.diffOption,
+      // When no explicit `diff-option` prop is given, start on the content view.
+      // The default (diff vs. content) is resolved in applyDefaultDiffView()
+      // once we know whether the on-disk file actually changed.
+      showDiff: this.diffOption != undefined ? this.diffOption : false,
       orgContent: null,
       diffEditContent: null,
       diffBaseContent: null,
@@ -383,6 +485,7 @@ export default {
       localCode: null,
       showConfirmModal: false,
       showRollbackModal: false,
+      showHeavyChangeConfirmModal: false,
       isRollingBack: false,
       pendingViewSwitch: null,
       changesetErrors: [],
@@ -391,6 +494,8 @@ export default {
       codeHash: 0,
       lastCodeValue: null,
       baseFileChanged: false,
+      showPreviousDiff: false,
+      selectedPreviousId: null,
       actionFeedback: {
         copy: false,
         save: false,
@@ -401,6 +506,76 @@ export default {
   computed: {
     effectiveCode() {
       return this.localCode !== null ? this.localCode : this.code
+    },
+
+    /**
+     * All previous versions of THIS file found in PREVIOUS messages (newest first).
+     * Mapping uses the code block file name (```language filename).
+     * Blocks without a file name are skipped.
+     */
+    previousCodeBlocks() {
+      const messages = this.chat?.messages
+      if (!this.file || !this.message || !messages?.length) return []
+      // Skip synthetic file names generated for blocks without a real file name
+      if (/^content\.[a-z0-9]+$/i.test(this.file)) return []
+
+      const currentId = this.message.doc_id || this.message.id
+      const currentIndex = messages.findIndex((m) => (m.doc_id || m.id) === currentId)
+      if (currentIndex <= 0) return []
+
+      const results = []
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        const blocks = this.$service.chat.extractCodeBlocksFromMessage(messages[i])
+        const match = blocks.find((block) => block.filePath === this.file)
+        if (match) {
+          results.push({
+            ...match,
+            message: messages[i],
+            messageId: messages[i].doc_id || messages[i].id,
+            user: messages[i].user,
+            when: messages[i].updated_at || messages[i].created_at
+          })
+        }
+      }
+      return results
+    },
+
+    /**
+     * The previous version currently chosen for comparison.
+     * Falls back to the most recent one when none has been picked explicitly.
+     */
+    selectedPreviousBlock() {
+      if (!this.previousCodeBlocks.length) return null
+      if (this.selectedPreviousId) {
+        const found = this.previousCodeBlocks.find((block) => block.messageId === this.selectedPreviousId)
+        if (found) return found
+      }
+      return this.previousCodeBlocks[0]
+    },
+
+    previousCodeContent() {
+      return this.selectedPreviousBlock?.content ?? null
+    },
+
+    previousCodeLabel() {
+      const block = this.selectedPreviousBlock
+      if (!block) return 'previous version'
+      const user = block.user || 'assistant'
+      const time = block.when ? moment(block.when).fromNow() : ''
+      return time ? `previous version by ${user} (${time})` : `previous version by ${user}`
+    },
+
+    hasPreviousVersion() {
+      return this.previousCodeBlocks.length > 0
+    },
+
+    /**
+     * The "old" side of the diff:
+     * - previous-version compare -> the selected block from a previous message
+     * - file diff                -> the file currently on disk
+     */
+    comparisonOrgContent() {
+      return this.showPreviousDiff ? this.previousCodeContent : this.orgContent
     },
 
     hasLocalChanges() {
@@ -462,18 +637,45 @@ export default {
       return 'markdown'
     },
 
+    /**
+     * Project the message is addressed to (Message.project_id).
+     * A message can target a project different from the chat's working project.
+     */
+    messageProject() {
+      const projectId = this.message?.project_id
+      if (!projectId) return null
+      return this.$storex.projects.allProjectsById?.[projectId] || null
+    },
+
+    /**
+     * Project the chat belongs to (`project_id` is the working one, falling back
+     * to the owner for chats that never overrode it).
+     */
+    chatProject() {
+      const projectId = this.chat?.project_id || this.chat?.owner_project_id
+      if (!projectId) return null
+      return this.$storex.projects.allProjectsById?.[projectId] || null
+    },
+
+    /**
+     * Project this code block belongs to.
+     *
+     * Order matters: a message can target another project than the chat
+     * (`Message.project_id`) and every file path of the block is relative to
+     * THAT project. The `project` prop comes from the chat/document context
+     * (i.e. the chat's project), so it must never win over the message's own
+     * project — otherwise the diff/read requests are sent with the wrong
+     * `codx_path` and the diff comes back empty.
+     */
+    effectiveProject() {
+      return this.messageProject || this.project || this.chatProject
+    },
+
     $api() {
-      if (this.project?.$api) {
-        return this.project.$api
+      if (this.effectiveProject?.$api) {
+        return this.effectiveProject.$api
       }
-      
-      if (this.chat?.project_id) {
-        const chatProject = this.$storex.projects.allProjectsById[this.chat.project_id]
-        if (chatProject?.$api) {
-          return chatProject.$api
-        }
-      }
-      
+
       return this.$storex.projects.activeProject?.$api || this.$storex.api
     },
 
@@ -497,6 +699,17 @@ export default {
     contentCreatedAt() {
       return this.message?.updated_at
     },
+    /**
+     * True when the code block belongs to an old message (> AUTO_DIFF_MAX_AGE_HOURS).
+     * Those blocks skip the automatic diff/read requests and rely on the manual
+     * refresh action instead. Missing timestamps are considered fresh.
+     */
+    isMessageStale() {
+      const createdAt = this.message?.updated_at || this.message?.created_at
+      if (!createdAt) return false
+      const age = Date.now() - new Date(createdAt).getTime()
+      return age > AUTO_DIFF_MAX_AGE_HOURS * 60 * 60 * 1000
+    },
     isContentOutdated() {
       if (this.isNoChange || !this.contentCreatedAt || !this.last_modification) {
         return false
@@ -511,11 +724,14 @@ export default {
       if (this.finished) {
         this.isUserScrolledUp = false
         this.shouldForceScrollToBottom = false
-        
-        await this.loadDiffInfo()
+
+        if (!this.isMessageStale) {
+          await this.loadDiffInfo()
+        }
       }
       if (this.chat?.mode === 'vibe') {
-        this.saveToFile()
+        // Automatic save in vibe mode - bypass heavy change prompt
+        this.saveToFile(true)
       }
     },
     last_modification() {
@@ -553,7 +769,7 @@ export default {
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
-    if (this.finished && this.showCode) {
+    if (this.finished && this.showCode && !this.isMessageStale) {
       this.loadDiffInfo()
     }
     this.detectPatchPattern()
@@ -662,6 +878,7 @@ export default {
       this.diffEditContent = newContent
       this.diffBaseContent = newContent
       this.editMode = false
+      this.showPreviousDiff = false
       this.showDiff = !!this.orgContent
       this.hasUnsavedFileChanges = true
     },
@@ -671,6 +888,7 @@ export default {
       this.diffEditContent = this.code
       this.diffBaseContent = this.code
       this.hasUnsavedFileChanges = false
+      this.showPreviousDiff = false
       this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
     },
 
@@ -727,7 +945,9 @@ export default {
     },
 
     applyPatch() {
-      this.$projects.applyPatch({ patch: this.code })
+      // Same project as the diff/read requests: the patch route is scoped by the
+      // API instance's `codx_path`, so the global API wrote to the active project.
+      this.$api.run.patch({ patch: this.code })
     },
 
     toggleView() {
@@ -735,9 +955,45 @@ export default {
         this.pendingViewSwitch = 'toggle'
         this.showConfirmModal = true
       } else {
+        this.showPreviousDiff = false
         this.showDiff = !this.showDiff
       }
     },
+
+    /**
+     * Compares this block against a specific previous version from an earlier
+     * message instead of against the file currently on disk.
+     */
+    selectPreviousVersion(block) {
+      this.selectedPreviousId = block.messageId
+      this.showPreviousDiff = true
+      this.editMode = false
+      this.showDiff = true
+    },
+
+    /**
+     * Exits the previous-version comparison and returns to the on-disk diff.
+     */
+    clearPreviousDiff() {
+      this.showPreviousDiff = false
+      this.selectedPreviousId = null
+      this.showDiff = !!this.orgContent && !this.isNoChange && !this.isMarkdown
+    },
+
+    /**
+     * Resolves the default view (diff vs. plain content).
+     * - If the `diff-option` prop is set, the user's choice always wins.
+     * - Otherwise show the diff only when the on-disk file actually changed:
+     *   new/empty files and unchanged files fall back to the content view.
+     */
+    applyDefaultDiffView() {
+      if (this.diffOption != undefined) {
+        this.showDiff = this.diffOption
+        return
+      }
+      this.showDiff = !!this.orgContent && !this.isNewFile && !this.isNoChange && !this.isMarkdown
+    },
+
     async loadDiffInfo() {
       const diffRequest = {
         path: this.file,
@@ -773,6 +1029,8 @@ export default {
       this.diffEditContent = this.effectiveCode
       this.diffBaseContent = this.effectiveCode
       this.calculateDiffPercentages()
+      // Decide default view now that orgContent / isNewFile are known
+      this.applyDefaultDiffView()
     },
     async showDiffInfo() {
       try {
@@ -781,10 +1039,6 @@ export default {
         
         if (this.file) {
           await this.loadDiffInfo()
-    
-          if (!this.isNewFile && this.stats && !this.isNoChange && !this.isMarkdown) {
-            this.showDiff = true
-          }
 
           if (this.isJSONChangeset) {
             this.applyChangeset()
@@ -800,6 +1054,7 @@ export default {
         this.cancelEdit()
         return
       }
+      this.showPreviousDiff = false
       this.editContent = this.effectiveCode
       this.editMode = true
       this.showDiff = false
@@ -833,6 +1088,7 @@ export default {
     discardDiffChanges() {
       this.diffEditContent = this.diffBaseContent
       this.showDiff = false
+      this.showPreviousDiff = false
     },
 
     confirmApplyDiff() {
@@ -886,7 +1142,20 @@ export default {
       }
     },
 
-    async saveToFile() {
+    /**
+     * Entry point for saving. Guards against accidentally persisting a heavy
+     * modification by asking for explicit confirmation first.
+     * Pass `skipConfirm = true` for automated flows (e.g. vibe mode).
+     */
+    saveToFile(skipConfirm = false) {
+      if (!skipConfirm && this.isDangerousChange) {
+        this.showHeavyChangeConfirmModal = true
+        return
+      }
+      this.performSave()
+    },
+
+    async performSave() {
       this.triggerActionFeedback('save')
       let content
       if (this.editMode && this.editContent) {
@@ -896,14 +1165,32 @@ export default {
       } else {
         content = this.effectiveCode
       }
-      this.$emit('save-file', { file: this.file, content })
+      // The file path is relative to THIS block's project, so the write must be
+      // sent with its `codx_path`. Hand the project over: the parent (Chat.vue)
+      // used to resolve it from the chat and every save of a message addressing
+      // another project (`Message.project_id`) was written to the wrong root.
+      this.$emit('save-file', {
+        file: this.file,
+        content,
+        project: this.effectiveProject
+      })
       this.hasUnsavedFileChanges = false
       if (this.editMode) this.cancelEdit()
       this.showDiff = false
+      this.showPreviousDiff = false
       this.localCode = null
       this.diffEditContent = null
       this.diffBaseContent = null
       await this.loadDiffInfo()
+    },
+
+    confirmHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
+      this.performSave()
+    },
+
+    cancelHeavyChangeSave() {
+      this.showHeavyChangeConfirmModal = false
     },
 
     triggerActionFeedback(action) {
@@ -913,7 +1200,8 @@ export default {
     },
 
     runCommand() {
-      this.$storex.api.apps.runScript(this.code)
+      // Scripts run inside the project the block belongs to
+      this.$api.apps.runScript(this.code)
     },
 
     onCopy() {

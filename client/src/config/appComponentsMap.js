@@ -1,66 +1,57 @@
 // Shared app-to-component mapping for desktop views
-import Window from '../components/desktop/Window.vue'
-import AppWindow from '../components/windowManager/AppWindow.vue'
-import LogViewer from '../components/LogViewer.vue'
-import KnowledgeViewVue from '../views/KnowledgeView.vue'
-import KnowledgeSettingsVue from '../views/KnowledgeSettings.vue'
-import ProfileViewVue from '../views/ProfileView.vue'
-import CodxWelcomeView from '../views/CodxWelcomeView.vue'
-import ProjectSettingsVue from '../views/ProjectSettings.vue'
-import WikiViewVue from '../views/WikiView.vue'
-import DocsViewVue from '../views/DocsView.vue'
-import GlobalSettingsVue from '../views/GlobalSettings.vue'
-import KanbanContainerVue from '../components/kanban/KanbanContainer.vue'
-import MetricsViewer from '../components/metrics/MetricsViewer.vue'
-import AccountSettings from '../components/security/AccountSettings.vue'
-import FileExplorerPanel from '../components/filebrowser/FileExplorerPanel.vue'
-import FileViewer from '../components/filebrowser/FileViewer.vue'
-import ProjectOverview from '../components/project/ProjectOverview.vue'
-import Wall from '../components/wall/Wall.vue'
-import ChatView from '../views/ChatView.vue'
+//
+// Every app screen is code-split: `AppRouteView` resolves the component from
+// this map at render time, and importing all of them eagerly put the entire
+// application (plus the monaco / syntax-highlighting graph behind it) into the
+// entry chunk.
+import { defineAsyncComponent } from 'vue'
+
+// Small desktop shell helpers stay eager: they are cheap and rendered with the
+// first paint of the desktop layout.
 import ViewProperties from '../components/main-menu/ViewProperties.vue'
-import MetricsDashboard from '../components/analytics/MetricsDashboard.vue'
-import LogsAnalyzerDashboard from '../components/logs/LogsAnalyzerDashboard.vue'
-import TeamChannel from '../components/teams/TeamChannel.vue'
-import TeamDM from '../components/teams/TeamDM.vue'
-import TeamMediaLibrary from '../components/teams/TeamMediaLibrary.vue'
-import VibeCodingView from '../views/VibeCodingView.vue'
-// CHANGED: Use WorkspacesManager as the app entry point instead of WorkspacesList
-import WorkspacesManager from '../components/workspaces/WorkspacesManager.vue'
 import EmptyStateWelcome from '../components/desktop/EmptyStateWelcome.vue'
 import Tab from '../components/desktop/Tab.vue'
-import KanbanBoardView from '../components/kanban/board/KanbanBoardView.vue'
 
+const lazy = (loader) => defineAsyncComponent(loader)
 
 // Component registration map
 export const APP_COMPONENTS_MAP = {
-  'window': Window,
-  'app-window': AppWindow,
-  'log-viewer': LogViewer,
-  'knowledge': KnowledgeViewVue,
-  'knowledge_settings': KnowledgeSettingsVue,
-  'profiles': ProfileViewVue,
-  'home': CodxWelcomeView,
-  'settings': ProjectSettingsVue,
-  'wiki': WikiViewVue,
-  'docs': DocsViewVue,
-  'global-settings': GlobalSettingsVue,
-  'tasks': KanbanBoardView,
-  'metrics': MetricsViewer,
-  'account': AccountSettings,
-  'file-explorer': FileExplorerPanel,
-  'file-viewer': FileViewer,
-  'projects': ProjectOverview,
-  'activity': Wall,
-  'chat': ChatView,
-  'analytics': MetricsDashboard,
-  'chat-logs': LogsAnalyzerDashboard,
-  'team-channel': TeamChannel,
-  'team-dm': TeamDM,
-  'team-media-library': TeamMediaLibrary,
-  'vibe-coding': VibeCodingView,
-  // CHANGED: WorkspacesManager replaces WorkspacesList as the registered component
-  'workspaces': WorkspacesManager
+  'window': lazy(() => import('../components/desktop/Window.vue')),
+  'app-window': lazy(() => import('../components/windowManager/AppWindow.vue')),
+  'workspace': lazy(() => import('../components/windowManager/AppWindow.vue')),
+  'browser-sessions': lazy(() => import('../components/browsers/BrowserSessionList.vue')),
+  'log-viewer': lazy(() => import('../components/LogViewer.vue')),
+  'knowledge': lazy(() => import('../views/KnowledgeView.vue')),
+  'knowledge_settings': lazy(() => import('../views/KnowledgeSettings.vue')),
+  'team': lazy(() => import('../views/TeamView.vue')),
+  'home': lazy(() => import('../views/CodxWelcomeView.vue')),
+  'settings': lazy(() => import('../views/ProjectSettings.vue')),
+  'wiki': lazy(() => import('../views/WikiView.vue')),
+  'docs': lazy(() => import('../views/DocsView.vue')),
+  'global-settings': lazy(() => import('../views/GlobalSettings.vue')),
+  'tasks': lazy(() => import('../components/kanban/board/KanbanBoardView.vue')),
+  'metrics': lazy(() => import('../components/metrics/MetricsViewer.vue')),
+  'account': lazy(() => import('../components/security/AccountSettings.vue')),
+  'file-explorer': lazy(() => import('../components/filebrowser/FileExplorerPanel.vue')),
+  'file-viewer': lazy(() => import('../components/filebrowser/FileViewer.vue')),
+  'git-view': lazy(() => import('../components/repo/GitView.vue')),
+  'messenger': lazy(() => import('../views/MessengerView.vue')),
+  'meet': lazy(() => import('../views/MeetView.vue')),
+  'projects': lazy(() => import('../components/project/ProjectOverview.vue')),
+  'activity': lazy(() => import('../components/wall/Wall.vue')),
+  'chat': lazy(() => import('../views/ChatView.vue')),
+  'analytics': lazy(() => import('../components/analytics/MetricsDashboard.vue')),
+  'chat-logs': lazy(() => import('../components/logs/LogsAnalyzerDashboard.vue')),
+  'decision-model-logs': lazy(() => import('../components/DecisionModelLogs.vue')),
+  'team-channel': lazy(() => import('../components/teams/TeamChannel.vue')),
+  'team-dm': lazy(() => import('../components/teams/TeamDM.vue')),
+  'team-media-library': lazy(() => import('../components/teams/TeamMediaLibrary.vue')),
+  'vibe-coding': lazy(() => import('../views/VibeCodingView.vue')),
+  'workspaces': lazy(() => import('../components/workspaces/WorkspacesManager.vue')),
+  'infra': lazy(() => import('../views/infra/InfraView.vue')),
+  // Solopreneur mode as a desktop panel (single/mobile mode uses the
+  // "/solopreneur" route — see router/index.ts).
+  'solopreneur': lazy(() => import('../views/SolopreneurView.vue'))
 }
 
 // Additional components not mapped to apps

@@ -52,7 +52,6 @@ export const state = () => ({
 export const getters = getterTree(state, {
   lastEvent: state => state.events[state.events.length - 1]?.data,
   wikiEvents: ({ events }) => events.filter(e => e.data?.type === 'wiki'),
-  /** Expose the SocketManager so components can call API.socket directly */
   socket: () => API.socket
 })
 
@@ -91,11 +90,6 @@ export const actions = actionTree(
       }
     },
 
-    /**
-     * (Re-)connect the socket via the API layer.
-     * All socket lifecycle callbacks are handled here and delegate into
-     * the store actions so the rest of the app stays decoupled from socket.io.
-     */
     connect () {
       if (!API.user) {
         API.disconnectSocket()
@@ -105,6 +99,10 @@ export const actions = actionTree(
       API.initSocket({
         onConnect(socketId) {
           console.log('[session] socket connected', socketId)
+          // Expose the live socket id on the API connection so REST requests
+          // carry the `x-sid` header (used by the meets API to target
+          // signaling at this session).
+          if (API.connection) API.connection.sid = socketId
           $storex.session.setConnected(true)
           $storex.session.login()
         },
@@ -140,6 +138,16 @@ export const actions = actionTree(
       if (event === 'codx-junior-online-users') {
         $storex.users.setOnlineUsers(data.users)
       }
+
+      // ──── MEET EVENTS (WebRTC calls) ───────────────────────
+      // Lifecycle delivered as `codx-junior-meet` and WebRTC signalling as
+      // `codx-junior-meet-signal` (see the meets API integration guide).
+      if (event === 'codx-junior-meet') {
+        $storex.meets.handleMeetEvent(data)
+      }
+      if (event === 'codx-junior-meet-signal') {
+        $storex.meets.handleMeetSignal(data)
+      }
     },
 
     onInfo(_, notification) {
@@ -161,9 +169,6 @@ export const actions = actionTree(
       $storex.session.addNotification({ ...notification, type: 'error' })
     },
 
-    /**
-     * Emit a socket event.  Delegates entirely to API.socket.
-     */
     emit(_, { event, data }) {
       API.socket?.emit(event, data || {})
     }

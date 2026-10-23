@@ -358,7 +358,7 @@
                   <div class="space-y-1">
                     <label class="text-xs font-bold text-base-content/70">Response:</label>
                     <div class="bg-base-100 p-2 rounded text-xs max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono text-base-content/80">
-                      {{ record.response_content?.slice(0, 500) }}{{ record.response_content?.length > 500 ? '...' : '' }}
+                      {{ record.response_content }}
                     </div>
                   </div>
 
@@ -366,7 +366,7 @@
                   <div v-if="record.system_prompt" class="space-y-1">
                     <label class="text-xs font-bold text-base-content/70">System Prompt:</label>
                     <div class="bg-base-100 p-2 rounded text-xs max-h-32 overflow-y-auto whitespace-pre-wrap break-words font-mono text-base-content/80">
-                      {{ record.system_prompt?.slice(0, 300) }}{{ record.system_prompt?.length > 300 ? '...' : '' }}
+                      {{ record.system_prompt }}
                     </div>
                   </div>
 
@@ -400,8 +400,8 @@
                     <div class="bg-base-100 p-2 rounded text-xs max-h-24 overflow-y-auto">
                       <div v-for="(msg, mIdx) in record.request_messages?.slice(0, 5)" :key="mIdx" class="pb-1 border-b border-base-100 last:border-0">
                         <strong class="text-base-content/70">{{ msg.role }}:</strong>
-                        <div class="text-base-content/60 truncate">
-                          {{ typeof msg.content === 'string' ? msg.content.slice(0, 60) : '[non-text content]' }}
+                        <div class="text-base-content/60">
+                          {{ msg.content }}
                         </div>
                       </div>
                       <div v-if="record.request_messages?.length > 5" class="text-base-content/40 pt-1">

@@ -1,0 +1,179 @@
+{
+  "id": "482cb540-5c53-49bf-95cb-5c430779aa12",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "done",
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+    "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Tab.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/router/navigate.js"
+  ],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Open workspace not showing name in the tab",
+  "pinned": false,
+  "is_template": false,
+  "description": "- **Problem:** Open workspace tabs displayed the generic app title (\"Workspace\") instead of the workspace's `name` property.\n- **Root cause:** `workspaces.open()` never forwarded the resolved `name` on the normal branch, and `Tab.vue`'s `tabName` never consulted `this.app?.name`.\n- **Fix 1:** In `navigate.js`, pass `{ workspace, name }` to `openApp('workspace', \u2026)` so the panel/app carries the workspace name.\n- **Fix 2:** In `Tab.vue`, added `this.app?.name` to the `tabName` fallback chain, placed after chat/board/workspace checks to avoid affecting other panel types.\n- **Result:** Workspace tabs now show the correct `name`, while chat and board tab labels remain unchanged.",
+  "messages": [
+    {
+      "doc_id": "cc74239b-b399-4f19-9ce6-f8f1a8d1e3a2",
+      "role": "user",
+      "task_item": "",
+      "content": "open workspace is not showing the workspace \"name\" in the tab. workspace has a \"name\" property that must be shown in the tab. review logic and avoid affecting other types",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-09 08:04:24.357462",
+      "updated_at": "2026-10-09T08:04:24.357525",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/store/ui.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Tab.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/router/navigate.js"
+      ],
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "29e81dc2-9de6-4296-900f-46ad03c4330d",
+      "role": "assistant",
+      "task_item": "",
+      "content": "## Direct Recommendation\n\nThe workspace's display `name` never reaches the tab because it is not carried on the **app object**. `workspaces.open()` forwards the workspace object into params, but the tab's `name` resolution only ever sees the generic app title (`def.title`). Fix: name the app after the workspace in `navigate.js`, and let `Tab.vue` fall back to the app's `name` (never touching the chat/board precedence).\n\n## Root Cause\n\nTracing `openApp('workspace', { workspace })`:\n\n```js\n// navigate.js \u2192 openApp()\nname: payload.name || def.title   // \u2190 payload.name is never set for a workspace\n```\n\n`workspaces.open()` computes `const name = workspace.name || \u2026` but **only uses it in the chat branch**. In the normal branch it passes just `{ workspace }`, so the app is named `def.title` (\"Workspace\"). In `Tab.vue`:\n\n```js\ntabName() {\n  return this.chat?.name ||          // ok for chats\n    this.boardName ||                // ok for boards\n    this.workspace?.name ||          // params snapshot \u2014 often missing the name\n    this.workspace?.title ||\n    this.app?.title ||               // \u2190 generic \"Workspace\" leaks through here\n    this.params?.params?.tabName\n}\n```\n\n`this.app?.name` (the natural display name for a panel) is **never consulted**, so the workspace `name` has no path to the label.\n\n## Specifications\n\n| Dimension | Decision |\n|---|---|\n| **Source of truth** | The workspace object's `name` \u2192 lifted onto the app/panel `name` |\n| **Fallback order** | `chat.name` \u2192 `boardName` \u2192 `workspace.name` \u2192 `workspace.title` \u2192 **`app.name`** \u2192 `app.title` \u2192 `params.tabName` |\n| **Isolation** | Chat panels are resolved first (unchanged); boards keep precedence (unchanged); only workspace payloads gain a name |\n| **Data flow** | `workspaces.open()` \u2192 `openApp('workspace', { workspace, name })` \u2192 `showApp({ name })` \u2192 `Tab` reads `app.name` |\n\n## Code Changes\n\n### 1. `src/router/navigate.js` \u2014 forward the resolved name (workspace-only)\n\nIn `workspaces.open()`, the computed `name` was only forwarded in the chat branch. Forward it in the normal branch too, so the panel/app is labelled with the workspace `name`:\n\n```js router/navigate.js\n        // Forward the whole workspace under the `workspace` key (same\n        // convention as `chat`) so name/path reach the panel params, and pass\n        // the resolved name so the panel is labelled with the workspace `name`\n        // (the tab falls back to the app `name` when the params carry none).\n        openApp('workspace', { workspace, name })\n```\n\n> Only the `workspaces.open` call site changes \u2014 `chats.open`, `chats.openWithWorkspace`, `meets.*` and the `workspaces.list()` opener are untouched.\n\n### 2. `src/components/desktop/Tab.vue` \u2014 consult the app `name`\n\n```vue src/components/desktop/Tab.vue\n<script setup>\nimport AppIcon from '../apps/AppIcon.vue'\n</script>\n<template>\n  <div\n    class=\"codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md\"\n    :draggable=\"!!chat\"\n    :class=\"{ 'cursor-grab active:cursor-grabbing': !!chat }\"\n    @dragstart=\"onDragStart\"\n  >\n    <div class=\"w-4/5 flex gap-1 items-center truncate overflow-hidden\">\n      <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->\n      <AppIcon :app=\"app || workspace\" :loading=\"isUpdating\" />\n      <div class=\"grow truncate overflow-hidden\">{{ tabName }}</div>\n    </div>\n    <div class=\"click hover:text-warning shrink-0 mr-2\" @click=\"onClose\">\n      <i class=\"fa-solid fa-xmark fa-sm\"></i>\n    </div>\n  </div>\n</template>\n<script>\n\nexport default {\n  props: ['params'],\n  data() {\n    return {\n      project: null,\n    }\n  },\n  async created() {\n    this.project = this.$projects.allProjectsById[this.projectId]\n  },\n  computed: {\n    chat() {\n      const chatId = this.params?.params?.chat?.id\n      return this.$storex.chats.chats[chatId]\n    },\n    // Read the app from the live store (not the static panel snapshot) so\n    // runtime app-info updates \u2014 such as the active board name \u2014 are reflected\n    // in the tab without recreating the panel.\n    app() {\n      const app = this.params?.params?.app\n      return (app?.tabId && this.$storex.ui.openApps[app.tabId]) || app\n    },\n    // Workspace panels carry the raw workspace (name, path, \u2026) in params under\n    // the `workspace` key; fall back to the legacy `app` slot for old payloads.\n    workspace() {\n      return this.params?.params?.workspace || this.app\n    },\n    // Name of the board the panel is currently showing. The board view\n    // publishes it into the app params when the active board changes.\n    boardName() {\n      return this.app?.params?.boardName || null\n    },\n    tabName() {\n      // Precedence matters: chats and boards keep their name first, then the\n      // workspace object, then the app name/title. Adding `app?.name` lets a\n      // workspace opened with a name-only payload (no `workspace` in params)\n      // still surface the workspace `name` instead of the generic title.\n      return this.chat?.name ||\n        this.boardName ||\n        this.workspace?.name ||\n        this.workspace?.title ||\n        this.app?.name ||\n        this.app?.title ||\n        this.params?.params?.tabName\n    },\n    api() {\n      return this.params.api\n    },\n    containerApi() {\n      return this.params.containerApi\n    },\n    panel() {\n      return this.api.panel\n    },\n    projectId() {\n      return this.params?.params?.project_id\n    },\n    isUpdating() {\n      return this.$storex.chats.isChatUpdating(this.chat?.id)\n    }\n  },\n  methods: {\n    onDragStart(event) {\n      // Only register a sprint task id when the tab is backed by a chat\n      if (!this.chat) return\n      event.dataTransfer.setData('sprintTaskId', this.chat.id)\n      event.dataTransfer.effectAllowed = 'move'\n    },\n    onClose() {\n      this.containerApi.removePanel(this.panel)\n    }\n  }\n}\n</script>\n```\n\n## Anti-Patterns Avoided\n\n- \u274c Reading the name from `this.params.params.name` blindly \u2014 that slot is used by other payload shapes and would leak a wrong label into chats/boards.\n- \u274c Reordering the precedence so `app.name` beats `workspace.name`/`chat.name` \u2014 that would show the generic app title on a chat-workspace panel.\n- \u274c Setting the workspace name inside `Tab` \u2014 the name belongs on the app/panel so it survives layout persistence and reloads.\n\n## Accessibility Checklist\n\n- [x] No behavior change for keyboard/focus; only the visible label text changes.\n- [x] Long workspace names remain truncated (`truncate overflow-hidden`) \u2014 no layout break, no loss of the tooltip-free affordance.\n- [x] The label is the only difference; icon/close affordances untouched.\n\n## Implementation Steps\n\n1. In `src/router/navigate.js` \u2192 `workspaces.open()`, change `openApp('workspace', { workspace })` to `openApp('workspace', { workspace, name })`.\n2. In `src/components/desktop/Tab.vue` \u2192 `tabName()`, insert `this.app?.name ||` between `this.workspace?.title` and `this.app?.title`.\n3. Verify: open a workspace from the Workspaces list \u2192 tab shows the workspace `name`; open a chat and a board \u2192 labels unchanged (chat name / board name still win).",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-09 08:04:25.097551",
+      "updated_at": "2026-10-09T08:06:38.689965",
+      "attachments": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1791533065.097501,
+        "cancellation_token_id": "38fbdbf0-85a0-40a7-b336-df2bb23ef662",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 15836,
+          "completion_tokens": 31840,
+          "total_tokens": 47676,
+          "tools": {}
+        },
+        "time_taken": 133.59241151809692,
+        "first_chunk_time_taken": 0.8424227237701416,
+        "files": [
+          {
+            "language": "js",
+            "file_path": "router/navigate.js",
+            "content": "        // Forward the whole workspace under the `workspace` key (same\n        // convention as `chat`) so name/path reach the panel params, and pass\n        // the resolved name so the panel is labelled with the workspace `name`\n        // (the tab falls back to the app `name` when the params carry none).\n        openApp('workspace', { workspace, name })"
+          },
+          {
+            "language": "vue",
+            "file_path": "src/components/desktop/Tab.vue",
+            "content": "<script setup>\nimport AppIcon from '../apps/AppIcon.vue'\n</script>\n<template>\n  <div\n    class=\"codx-tab flex gap-1 items-center justify-between px-1 py-0.5 border rounded-xl w-40 text-md\"\n    :draggable=\"!!chat\"\n    :class=\"{ 'cursor-grab active:cursor-grabbing': !!chat }\"\n    @dragstart=\"onDragStart\"\n  >\n    <div class=\"w-4/5 flex gap-1 items-center truncate overflow-hidden\">\n      <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->\n      <AppIcon :app=\"app || workspace\" :loading=\"isUpdating\" />\n      <div class=\"grow truncate overflow-hidden\">{{ tabName }}</div>\n    </div>\n    <div class=\"click hover:text-warning shrink-0 mr-2\" @click=\"onClose\">\n      <i class=\"fa-solid fa-xmark fa-sm\"></i>\n    </div>\n  </div>\n</template>\n<script>\n\nexport default {\n  props: ['params'],\n  data() {\n    return {\n      project: null,\n    }\n  },\n  async created() {\n    this.project = this.$projects.allProjectsById[this.projectId]\n  },\n  computed: {\n    chat() {\n      const chatId = this.params?.params?.chat?.id\n      return this.$storex.chats.chats[chatId]\n    },\n    // Read the app from the live store (not the static panel snapshot) so\n    // runtime app-info updates \u2014 such as the active board name \u2014 are reflected\n    // in the tab without recreating the panel.\n    app() {\n      const app = this.params?.params?.app\n      return (app?.tabId && this.$storex.ui.openApps[app.tabId]) || app\n    },\n    // Workspace panels carry the raw workspace (name, path, \u2026) in params under\n    // the `workspace` key; fall back to the legacy `app` slot for old payloads.\n    workspace() {\n      return this.params?.params?.workspace || this.app\n    },\n    // Name of the board the panel is currently showing. The board view\n    // publishes it into the app params when the active board changes.\n    boardName() {\n      return this.app?.params?.boardName || null\n    },\n    tabName() {\n      // Precedence matters: chats and boards keep their name first, then the\n      // workspace object, then the app name/title. Adding `app?.name` lets a\n      // workspace opened with a name-only payload (no `workspace` in params)\n      // still surface the workspace `name` instead of the generic title.\n      return this.chat?.name ||\n        this.boardName ||\n        this.workspace?.name ||\n        this.workspace?.title ||\n        this.app?.name ||\n        this.app?.title ||\n        this.params?.params?.tabName\n    },\n    api() {\n      return this.params.api\n    },\n    containerApi() {\n      return this.params.containerApi\n    },\n    panel() {\n      return this.api.panel\n    },\n    projectId() {\n      return this.params?.params?.project_id\n    },\n    isUpdating() {\n      return this.$storex.chats.isChatUpdating(this.chat?.id)\n    }\n  },\n  methods: {\n    onDragStart(event) {\n      // Only register a sprint task id when the tab is backed by a chat\n      if (!this.chat) return\n      event.dataTransfer.setData('sprintTaskId', this.chat.id)\n      event.dataTransfer.effectAllowed = 'move'\n    },\n    onClose() {\n      this.containerApi.removePanel(this.panel)\n    }\n  }\n}\n</script>"
+          }
+        ]
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "10d8efd26a46",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0214794,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.0214794,
+        "chat_cost_cxjcoins": 0.0214794,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 15836,
+        "output_tokens": 31840,
+        "total_tokens": 47676,
+        "input_cost_cxjcoins": 0.0023753999999999997,
+        "output_cost_cxjcoins": 0.019104,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "Designer",
+        "VueDeveloper",
+        "daisyui_components",
+        "project",
+        "store_module"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-09 08:04:22.273714",
+  "updated_at": "2026-10-09T08:09:07.385507",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/open-workspace-not-showing-name-in-the-tab.482cb540-5c53-49bf-95cb-5c430779aa12.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0214794,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-10-09T08:06:40.390309+00:00",
+      "summary": "- **Problem:** Open workspace tabs displayed the generic app title (\"Workspace\") instead of the workspace's `name` property.\n- **Root cause:** `workspaces.open()` never forwarded the resolved `name` on the normal branch, and `Tab.vue`'s `tabName` never consulted `this.app?.name`.\n- **Fix 1:** In `navigate.js`, pass `{ workspace, name }` to `openApp('workspace', \u2026)` so the panel/app carries the workspace name.\n- **Fix 2:** In `Tab.vue`, added `this.app?.name` to the `tabName` fallback chain, placed after chat/board/workspace checks to avoid affecting other panel types.\n- **Result:** Workspace tabs now show the correct `name`, while chat and board tab labels remain unchanged.",
+      "message_ids": [
+        "cc74239b-b399-4f19-9ce6-f8f1a8d1e3a2",
+        "29e81dc2-9de6-4296-900f-46ad03c4330d"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

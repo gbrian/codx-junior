@@ -14,9 +14,10 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 <template>
   <div class="flex h-full overflow-hidden" v-if="theChat">
     <!-- ─────────────────────────────────────────────────────────────
-         SIDEBAR: Persistent left navigation with hierarchy
+         SIDEBAR: Persistent on desktop, overlay drawer on mobile
          ───────────────────────────────────────────────────────────── -->
     <ChatSidebar
+      v-if="!isMobile"
       :workingChat="theChat"
       :rootChat="rootChat"
       :allChats="hierarchyChats"
@@ -25,22 +26,54 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       :chatSearch="chatSearch"
       :isCompact="compactSidebar"
       :chatProfiles="chatProfiles"
-      :targetProject="targetProject"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
       @remove-attachment="onSidebarRemoveAttachment"
-      @select-project="setChatProject"
     />
+
+    <!-- Mobile sidebar drawer -->
+    <template v-if="isMobile">
+      <div
+        v-if="showMobileSidebar"
+        class="fixed inset-0 z-40 bg-base-300/60 backdrop-blur-sm animate-fade-in"
+        @click="closeMobileSidebar"
+      ></div>
+      <div
+        v-if="showMobileSidebar"
+        class="fixed left-0 top-0 bottom-0 z-50 w-64 shadow-xl flex"
+      >
+        <ChatSidebar
+          :workingChat="theChat"
+          :rootChat="rootChat"
+          :allChats="hierarchyChats"
+          :selectedChatId="theChat?.id"
+          :workingChatMode="theChat?.mode"
+          :chatSearch="chatSearch"
+          :isCompact="false"
+          :chatProfiles="chatProfiles"
+          @select="onSelectSidebarChat"
+          @add-subtask="onSidebarAddSubtask"
+          @action="handleSidebarAction"
+          @toggle-compact="compactSidebar = !compactSidebar"
+          @delete-chat="onSidebarDeleteChat"
+          @remove-attachment="onSidebarRemoveAttachment"
+        />
+      </div>
+    </template>
 
     <!-- ─────────────────────────────────────────────────────────────
          MAIN CONTENT AREA: Header + Chat View OR Logs View
          ───────────────────────────────────────────────────────────── -->
-    <div class="flex-1 flex flex-col min-w-0 md:p-2 gap-2">
+    <div
+      class="flex-1 flex flex-col min-w-0"
+      :class="isMobile ? 'p-0 gap-1' : 'md:p-2 gap-2'"
+    >
       
       <!-- MINIMAL HEADER -->
+      <!-- Mobile runs it collapsed: only back + title + details toggle. -->
       <ChatViewHeader
         :chat="theChat"
         :rootChat="rootChat"
@@ -49,6 +82,9 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         :hiddenCount="hiddenCount"
         :showHidden="showHidden"
         :isSelectedChatChild="isSelectedChatChild"
+        :targetProject="targetProject"
+        :mobile-expanded="showMobileDetails"
+        @toggle-mobile-details="showMobileDetails = $event"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
         @toggle-pinned="toggleChatPinned"
@@ -63,6 +99,10 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @toggle-ignore-parent-knowledge="onIgnoreParentKnowledgeChanged"
         @toggle-ignore-parent-files="onIgnoreParentFilesChanged"
         @status-changed="onStatusChanged"
+        @cost-changed="onCostChanged"
+        @select-project="setChatProject"
+        @back="onBack"
+        @show-sidebar="toggleMobileSidebar"
       />
 
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
@@ -82,12 +122,15 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         />
 
         <!-- Normal Chat View -->
+        <!-- On mobile the chat files strip is only rendered while the header
+             details panel is expanded, so the reading area keeps the space. -->
         <Chat 
           v-else
           :chat="theChat" 
           :showHidden="showHidden" 
           :childrenChats="childrenChats"
           :filter="chatSearch" 
+          :hide-files-header="isMobile && !showMobileDetails"
           @refresh-chat="reloadChat" 
           @remove-file="onRemoveFile"
           @delete="confirmDelete = true" 
@@ -208,13 +251,20 @@ export default {
       showLogs: false,
       compactSidebar: true,
       chatProfiles: [],
-      activeChatId: null
+      activeChatId: null,
+      showMobileSidebar: false,
+      // Mobile: chat header details (and the chat files strip) stay collapsed
+      // until the user expands them from the header toggle.
+      showMobileDetails: false
     }
   },
   created() {
     this.init()
   },
   computed: {
+    isMobile() {
+      return this.$ui?.isMobile
+    },
     theChat() {
       const chatId = this.activeChatId || this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
@@ -301,6 +351,8 @@ export default {
       if (!oldVal || oldVal.id !== newVal.id) {
         this.showHistoryWall = false
         this.showLogs = false
+        // A freshly opened chat starts with the compact mobile header
+        this.showMobileDetails = false
         this.loadHierarchy()
         this.loadChatProfiles()
         if (newVal) {
@@ -340,7 +392,6 @@ export default {
     async loadHierarchy() {
       if (!this.theChat) return
       try {
-        await this.$chats.loadChats()
         await this.$chats.ensureChatRoot(this.theChat)
       } catch (error) {
         console.error('Failed to load hierarchy:', error)
@@ -371,6 +422,7 @@ export default {
     },
     async saveChatInfo(chat) {
       this.editName = false
+      chat.auto_initialize = false
       return this.$chats.saveChatInfo(chat || this.theChat)
     },
     async confirmDeleteChat() {
@@ -390,6 +442,31 @@ export default {
     },
     resetConfirmDelete() {
       this.confirmDelete = false
+    },
+    onBack() {
+      const parent = this.parentChat
+      if (parent) {
+        this.activeChatId = parent.id
+        this.$chats.setActiveChat(parent)
+        this.$emit('chat', parent)
+      } else {
+        this.closeChat()
+      }
+    },
+    // Leaves the current chat. On mobile a chat IS a route (see
+    // QuickChatView), so clearing the store is not enough: the URL must
+    // change, otherwise the reader stays on the same screen and the header
+    // "back" arrow looks dead.
+    closeChat() {
+      this.activeChatId = null
+      this.$chats.setActiveChat(null)
+      this.navigateToChats()
+    },
+    toggleMobileSidebar() {
+      this.showMobileSidebar = !this.showMobileSidebar
+    },
+    closeMobileSidebar() {
+      this.showMobileSidebar = false
     },
     onSidebarDeleteChat(chat) {
       if (!chat) return
@@ -448,8 +525,27 @@ export default {
       await this.saveChatInfo(chat)
     },
     navigateToChats() {
-      if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
-      this.$emit('chats', this.kanban?.title || this.theChat?.board || this.theChat?.board)
+      const board = this.kanban?.title || this.theChat?.board
+      this.$emit('chats', board)
+
+      // Desktop (dockview): the chat lives in a panel, so switching the active
+      // tab is enough — the host opens the board.
+      if (this.$ui.isDesktopMode) {
+        if (this.$ui.activeTab !== 'tasks') this.$ui.setActiveTab('tasks')
+        return
+      }
+
+      // Mobile / single mode: go back in history so the user lands where the
+      // chat was opened from (activity wall, board…). The old `activeTab`
+      // check made this a no-op whenever the tab was already 'tasks', which is
+      // exactly why the header back arrow stopped working on mobile.
+      if (window.history.state?.back) {
+        this.$router.back()
+        return
+      }
+
+      // Deep link / page reload (no in-app history): chat list route.
+      this.$storex.$navigation?.chats?.list?.()
     },
     onSidebarAddSubtask(parentChat) {
       if (!parentChat) return
@@ -543,10 +639,11 @@ export default {
     onSelectSidebarChat(chat) {
       if (!chat) return
       this.activeChatId = chat.id
-      this.$ui.isMobile && this.$chats.setActiveChat(chat)
-      this.$emit('chat', chat)
-      if (chat && !chat.messages?.length) {
-        this.$chats.reloadChat(chat)
+      this.closeMobileSidebar()
+      if (this.$ui.isMobile) {
+        this.$chats.setActiveChat(chat)
+      } else {
+        this.$chats.loadChat(chat)
       }
     },
     onSelectBreadcrumbChat(chat) {
@@ -671,6 +768,11 @@ export default {
     onStatusChanged(newStatus) {
       if (!this.theChat) return
       this.theChat.status = newStatus
+      this.saveChatInfo(this.theChat)
+    },
+    onCostChanged(estimationCost) {
+      if (!this.theChat) return
+      this.theChat.estimation_cost = estimationCost
       this.saveChatInfo(this.theChat)
     }
   }

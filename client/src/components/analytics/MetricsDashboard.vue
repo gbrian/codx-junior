@@ -703,7 +703,7 @@ export default {
         {
           label: 'Total Cost',
           value: this.totalStats.total_cxjcoins != null ? this.formatCoins(this.totalStats.total_cxjcoins) : 'N/A',
-          sub: 'cxjcoins spent',
+          sub: 'cxj spent',
           faIcon: 'fa-solid fa-coins',
           accentColor: '#a855f7'
         }
