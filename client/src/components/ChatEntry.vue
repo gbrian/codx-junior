@@ -691,7 +691,9 @@ export default {
   },
   created() {
     this.loadThreadChat()
-    this.loadActiveBranch()
+    // `activeBranch` is only consumed by the Review (PR) view and is loaded by
+    // `togglePRView()`. Loading it here fired one `repo.info()` request per
+    // rendered entry — entries are now mounted/unmounted while scrolling.
     this.collapsed = this.displayMessage.hide
   },
   computed: {

@@ -15,6 +15,10 @@ Routes are mounted under ``/api`` by the dynamic router loader
 (``codx.junior.api.discover_routers``), so the final paths look like
 ``/api/git/repo/branches``.
 
+Staging is the only write operation that never fails as a whole: each path is
+staged on its own, so a failing path is reported in ``errors`` while the
+remaining ones are already in the index.
+
 ```mermaid
 sequenceDiagram
     participant UI as GitView
@@ -24,9 +28,18 @@ sequenceDiagram
 
     UI->>API: POST /api/git/repo/stage { paths }
     API->>Engine: stage_files(paths)
-    Engine->>Git: git add -A -- <paths>
-    Git-->>Engine: ok
-    Engine-->>API: { success, paths }
+    loop each path
+        Engine->>Git: git add -A -- <path>
+        Git-->>Engine: ok | pathspec error
+    end
+    Engine-->>API: { success, staged, errors }
+    API-->>UI: 200 result (failed paths listed in errors)
+
+    UI->>API: POST /api/git/repo/commit { message }
+    API->>Engine: commit_changes(message)
+    Engine->>Git: git commit -m <message>
+    Git-->>Engine: ok | error
+    Engine-->>API: { success, commit }
     API-->>UI: 200 result | 400 { detail }
 ```
 
@@ -269,8 +282,40 @@ def api_git_repo_stage(
     payload: FilePathsRequest,
     user: CodxUser = Depends(get_authenticated_user),
 ):
-    """Stage the given files (untracked files and deletions included)."""
-    return _ensure_success(_git_engine(request).stage_files(payload.paths))
+    """
+    Stage the given files (untracked files and deletions included).
+
+    Staging never fails as a whole: each path is staged on its own, so the
+    paths that could be staged are already in the index when the response is
+    returned. A failing path (removed from disk, unknown pathspec, ignored...)
+    only affects itself and is listed in ``errors``; the request still answers
+    **200** so the caller can refresh the status and show the failed paths.
+
+    Args:
+        payload: ``paths`` to stage (``include_staged`` is ignored here).
+
+    Returns:
+        Staging result with 'success' (False when at least one path failed),
+        'paths' (requested), 'staged' (paths staged successfully) and 'errors'
+        (one message per failed path).
+
+    Example:
+        POST /api/git/repo/stage {"paths": ["app.py", "gone.json"]}
+
+        200 OK
+        {
+          "success": false,
+          "paths": ["app.py", "gone.json"],
+          "staged": ["app.py"],
+          "errors": ["gone.json: pathspec 'gone.json' did not match any files"]
+        }
+    """
+    result = _git_engine(request).stage_files(payload.paths)
+    return {
+        **result,
+        "staged": result.get("staged", []),
+        "errors": [e for e in (result.get("errors") or []) if e],
+    }
 
 
 @router.post("/git/repo/unstage")
@@ -411,6 +456,9 @@ def api_git_repo_commit(
 
     ``stage_all=True`` stages every change first; with ``stage_all=False`` only
     the changes already in the index are committed.
+
+    Staging failures are returned in ``staging_errors`` without blocking the
+    commit of the changes that could be staged.
     """
     return _ensure_success(
         _git_engine(request).commit_changes(

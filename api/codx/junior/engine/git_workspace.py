@@ -203,22 +203,38 @@ class GitWorkspaceEngine(GitEngine):
         """
         Stage files, including deletions and untracked files.
 
+        Each path is staged on its own: when one of them cannot be staged
+        (removed from disk, unknown pathspec...) the remaining ones are still
+        staged and the failure is returned in 'errors'.
+
         Args:
             paths: Single path or list of paths.
 
         Returns:
-            Operation result dict with 'action' and 'paths'.
+            Operation result dict with 'action', 'paths' (requested),
+            'staged' (paths staged successfully) and 'errors' (one message per
+            failed path).
 
         Example:
             >>> engine.stage_files(["app.py", "config/settings.json"])["success"]
             True
+            >>> engine.stage_files(["gone.json"])["errors"]
+            ["gone.json: pathspec 'gone.json' did not match any files"]
         """
         cleaned = self._clean_paths(paths)
         if not cleaned:
             return self._git_operation_error("No file paths provided")
 
-        result = self._run_git(["add", "-A", "--"] + cleaned)
-        return self._git_operation_result(result, action="stage", paths=cleaned)
+        staging = self.stage_changes(files=cleaned)
+        return {
+            "success": staging["ok"],
+            "action": "stage",
+            "paths": cleaned,
+            "staged": staging["staged"],
+            "command": "",
+            "output": staging["output"],
+            "errors": staging["errors"],
+        }
 
     def unstage_files(self, paths) -> dict:
         """

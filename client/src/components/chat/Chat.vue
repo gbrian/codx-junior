@@ -912,7 +912,7 @@ export default {
     async resolveMentionProject() {
       const target = this.messageTargetProject
       if (target && !target.$state?.searchMentions) {
-        await this.$projects.initProjectState(target)
+        await this.$projects.loadProject(target)
       }
       if (target?.$state?.searchMentions) return target
       // Fall back to the chat's project when the target could not be prepared

@@ -58,6 +58,7 @@ class GitEngine:
         GE --> get_file_version_at_depth
         GE --> get_working_tree_status
         GE --> get_status_changes
+        GE --> stage_changes
         GE --> build_branch_name
         GE --> create_pr_branch
         GE --> close_pr_branch
@@ -1055,6 +1056,37 @@ class GitEngine:
             "status": PORCELAIN_STATUS.get(code, "modified"),
         }
 
+    def _status_paths(self, cwd: Optional[str] = None) -> List[str]:
+        """
+        Return the paths currently reported by ``git status --porcelain``.
+
+        Ignored files (``!`` entries) are skipped: they cannot be staged.
+
+        Args:
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            De-duplicated, repo-relative paths.
+
+        Example:
+            >>> engine._status_paths()
+            ['app.py', 'new.json']
+        """
+        result = self._run_git(["status", "--porcelain"], cwd=cwd, strip_output=False)
+        paths: List[str] = []
+
+        for line in result["output"].split("\n"):
+            parsed = self._parse_status_line(line)
+            if not parsed:
+                continue
+            index_code, worktree_code, path = parsed
+            if index_code == "!" or worktree_code == "!":
+                continue
+            if path not in paths:
+                paths.append(path)
+
+        return paths
+
     def get_status_changes(self, files: Optional[List[str]] = None) -> dict:
         """
         Split the working tree status into staged and unstaged file lists.
@@ -1118,6 +1150,59 @@ class GitEngine:
             "dirty": bool(files),
             "files": files,
             "error": result["error"],
+        }
+
+    def stage_changes(
+        self, files: Optional[List[str]] = None, cwd: Optional[str] = None
+    ) -> dict:
+        """
+        Stage working tree changes without aborting on individual failures.
+
+        A single ``git add`` for every path fails as a whole as soon as one of
+        them cannot be staged (removed from disk, unknown pathspec...), leaving
+        the remaining changes unstaged. Each path is therefore staged on its
+        own, so a failure only affects that path and every failure is collected
+        in 'errors'.
+
+        Args:
+            files: Paths to stage. Defaults to every change in the worktree.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            Dict with 'ok' (True when no path failed), 'staged' (paths staged
+            successfully), 'errors' (one message per failed path) and 'output'.
+
+        Example:
+            >>> engine.stage_changes(["app.py", "gone.json"])
+            {'ok': False, 'staged': ['app.py'],
+             'errors': ["gone.json: pathspec 'gone.json' did not match..."],
+             'output': ''}
+        """
+        cwd = cwd or self._get_repo_root()
+        if files is None:
+            files = self._status_paths(cwd=cwd)
+
+        staged: List[str] = []
+        errors: List[str] = []
+        outputs: List[str] = []
+
+        for path in files:
+            result = self._run_git(["add", "-A", "--", path], cwd=cwd)
+            if result["ok"]:
+                staged.append(path)
+                if result["output"]:
+                    outputs.append(result["output"])
+                continue
+
+            error = result["error"] or result["output"] or "could not be staged"
+            logger.warning("Could not stage %s: %s", path, error)
+            errors.append(f"{path}: {error}")
+
+        return {
+            "ok": not errors,
+            "staged": staged,
+            "errors": errors,
+            "output": "\n".join(outputs),
         }
 
     def build_branch_name(self, name: Optional[str] = None, prefix: Optional[str] = None) -> str:
@@ -1425,22 +1510,42 @@ class GitEngine:
         """
         Stage every change and commit it.
 
+        Staging never aborts on a single failing path: the paths that could be
+        staged are committed and the failures are returned in 'staging_errors'.
+
         Args:
             cwd: Working directory (repository root or worktree path).
             message: Commit message.
             allow_empty: Allow commits without content changes.
 
         Returns:
-            Result dict of the commit command.
+            Result dict of the commit command, extended with 'staged' (paths
+            staged) and 'staging_errors' (staging failures).
         """
-        add = self._run_git(["add", "-A"], cwd=cwd)
-        if not add["ok"]:
-            return add
+        staging = self.stage_changes(cwd=cwd)
+
+        if not staging["ok"] and not staging["staged"]:
+            # Nothing could be staged: report why instead of committing
+            return {
+                "ok": False,
+                "command": "git add",
+                "output": staging["output"],
+                "error": "; ".join(staging["errors"]),
+                "returncode": -1,
+                "staged": [],
+                "staging_errors": staging["errors"],
+            }
 
         args = ["commit", "-m", message]
         if allow_empty:
             args.append("--allow-empty")
-        return self._run_git(args, cwd=cwd)
+        commit = self._run_git(args, cwd=cwd)
+
+        return {
+            **commit,
+            "staged": staging["staged"],
+            "staging_errors": staging["errors"],
+        }
 
     def create_pr_branch(
         self,
@@ -2196,13 +2301,18 @@ class GitEngine:
         """
         Commit the working tree changes.
 
+        Staging is done path by path: a path that cannot be staged is reported
+        in 'staging_errors' and never blocks the commit of the remaining
+        changes.
+
         Args:
             message: Commit message.
             stage_all: Stage every change before committing (``git add -A``).
             allow_empty: Allow commits with no content changes.
 
         Returns:
-            Operation result dict with 'commit' (full hash) and 'short_commit'.
+            Operation result dict with 'commit' (full hash), 'short_commit'
+            and 'staging_errors'.
 
         Example:
             >>> engine.commit_changes("feat: add git management")
@@ -2224,7 +2334,10 @@ class GitEngine:
             result = self._run_git(args, cwd=repo_path)
 
         response = self._git_operation_result(
-            result, message=message, stage_all=stage_all
+            result,
+            message=message,
+            stage_all=stage_all,
+            staging_errors=result.get("staging_errors", []),
         )
         if not response["success"]:
             error = (result["error"] or result["output"] or "").strip()

@@ -117,9 +117,14 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
           <div class="max-w-[860px] mx-auto flex flex-col px-3 py-3 @lg/panel:px-4 @lg/panel:py-6">
 
             <!-- ── Message Blocks ── -->
+            <!-- Lazy rendering: a message mounts only while it is (or is about to
+                 be) visible. Off-screen messages keep their wrapper in the DOM —
+                 so the mini-map keeps a 1:1 index mapping and the scroll height —
+                 but render a skeleton that reserves the height measured the last
+                 time the message was mounted (see `measuredHeights`). -->
             <template v-for="(message, ix) in messages" :key="message.doc_id || message.id">
               <div
-                :ref="el => setMessageRef(el, ix)"
+                :ref="el => setMessageRef(el, ix, message)"
                 :class="[
                   'group/block relative rounded-lg transition-all duration-150',
                   isNewSpeaker(message, ix) ? 'mt-4 @lg/panel:mt-6' : 'mt-0.5',
@@ -131,6 +136,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                 ]"
               >
                 <ChatEntry
+                  v-if="shouldRenderMessage(message)"
                   :chat="chat"
                   :message="message"
                   :mentionList="mentionList"
@@ -166,6 +172,22 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
                   @show-events-drawer="onShowEventsDrawer"
                   @update-attachment="$emit('update-attachment', $event)"
                 />
+
+                <!-- Placeholder: reserves exactly the space the message needs.
+                     Static (no shimmer) — it is mostly painted while scrolling,
+                     where animation would be noise and extra compositor work. -->
+                <div
+                  v-else
+                  class="rounded-lg overflow-hidden select-none"
+                  :style="{ height: placeholderHeight(message) + 'px' }"
+                  aria-hidden="true"
+                >
+                  <div class="h-full w-full rounded-lg bg-base-200/25 border border-base-content/5 px-2 py-2 space-y-2">
+                    <div class="h-2.5 w-24 rounded-full bg-base-content/10"></div>
+                    <div class="h-2.5 w-11/12 rounded-full bg-base-content/10"></div>
+                    <div class="h-2.5 w-3/4 rounded-full bg-base-content/10"></div>
+                  </div>
+                </div>
               </div>
             </template>
 
@@ -294,6 +316,28 @@ export default {
       // Distance (px) from the bottom still considered "at the bottom". Handles
       // fractional scroll positions and short-content rounding.
       bottomThreshold: 80,
+      // ─── Lazy message rendering ───────────────────────────────────────────
+      // key (doc_id) -> true while the heavy <ChatEntry> is mounted.
+      renderedKeys: {},
+      // key -> Date.now() when the message left the viewport (unload countdown).
+      hiddenAt: {},
+      // key -> last measured height (px). Reserves the space of unmounted
+      // messages so the scroll position and the mini-map stay accurate.
+      measuredHeights: {},
+      // Fallback reservation for a message never rendered yet.
+      estimatedHeight: 96,
+      // Keep off-screen messages mounted this long before unloading them, so a
+      // quick scroll back and forth doesn't thrash mount/unmount.
+      unloadDelay: 30000,
+      unloadSweepInterval: 2000,
+      // Pre-render band around the viewport (pixels) — makes scrolling seamless.
+      visibilityMargin: '600px 0px',
+      // Messages rendered immediately at the bottom on chat open (no skeleton
+      // flash for the content the user is looking at).
+      initialRenderCount: 10,
+      intersectionObserver: null,
+      resizeObserver: null,
+      unloadTimer: null,
     }
   },
   computed: {
@@ -357,6 +401,9 @@ export default {
     'chat.id': function() {
       this.closeEventsPanel()
       this.eventsOpenKey = null
+      // Lazy state is per conversation: never carry rendered/hidden keys over.
+      this.resetLazyRendering()
+      this.primeVisibleMessages()
       // Opening a different chat: start pinned to the bottom so the latest
       // messages are visible.
       this.autoScroll = true
@@ -370,6 +417,9 @@ export default {
       this.lastMessageCount = count
 
       if (grew) {
+        // A new message is exactly what the user is looking at: mount it right
+        // away instead of waiting for the visibility observer.
+        this.primeLastMessage()
         // A brand new message (user send or assistant start) always pulls the
         // view back to the bottom, even if the user had scrolled up.
         this.autoScroll = true
@@ -393,8 +443,13 @@ export default {
   mounted() {
     this.scrollContainerEl = this.$refs.scrollContainer
     this.lastMessageCount = (this.messages || []).length
+    this.primeVisibleMessages()
+    this.setupLazyRendering()
     // Land at the bottom on first render.
     this.scrollToBottom(false)
+  },
+  beforeUnmount() {
+    this.teardownLazyRendering()
   },
   methods: {
     // Whether the scroll container is currently at (or very near) the bottom.
@@ -432,10 +487,21 @@ export default {
       const prev = this.messages[ix - 1]
       return prev.role !== message.role || prev.user !== message.user
     },
-    setMessageRef(el, ix) {
-      // Vue 3 dynamic array refs — collect DOM elements by index
+    setMessageRef(el, ix, message) {
+      // Vue 3 dynamic array refs — collect DOM elements by index.
+      // `messageElRefs` must stay aligned with `messages` (1:1) for the mini-map,
+      // so the wrapper stays in the DOM even when its content is not mounted.
       if (el) {
-        this.messageElRefs[ix] = el
+        if (this.messageElRefs[ix] !== el) {
+          this.messageElRefs[ix] = el
+        }
+        this.observeMessageElement(el, this.messageKey(message))
+        return
+      }
+      const removed = this.messageElRefs[ix]
+      if (removed) {
+        this.unobserveMessageElement(removed)
+        this.messageElRefs[ix] = null
       }
     },
     // Inline tools list (rendered inside the message bubble). The parent only
@@ -475,6 +541,216 @@ export default {
       if (!seconds) return '0s'
       const baseMoment = moment({ h: 0, m: 0, s: 0, ms: 0 })
       return baseMoment.add(Math.floor(seconds), 'seconds').format('mm:ss')
+    },
+
+    // ─────────────────────────────────────────────────────────────
+    // Lazy rendering — only visible messages are mounted
+    // ─────────────────────────────────────────────────────────────
+
+    // Stable identity of a message (the same key the v-for uses).
+    messageKey(message) {
+      const key = message?.doc_id || message?.id
+      return key ? String(key) : ''
+    },
+    // Messages whose child keeps live UI state and must never be unmounted:
+    // still streaming, currently being edited, inline tools open, or the target
+    // of the processing-details drawer.
+    isPinnedMessage(message) {
+      const key = this.messageKey(message)
+      if (!message?.done) return true
+      if (this.editMessage && this.messageKey(this.editMessage) === key) return true
+      if (this.eventsOpenKey === key) return true
+      if (this.showEventsPanel && this.activeEventsMessageKey === key) return true
+      return false
+    },
+    shouldRenderMessage(message) {
+      if (this.renderedKeys[this.messageKey(message)]) return true
+      return this.isPinnedMessage(message)
+    },
+    // Reserved space for an unmounted message: its last real height, or the
+    // estimate when it was never mounted.
+    placeholderHeight(message) {
+      const height = this.measuredHeights[this.messageKey(message)] || this.estimatedHeight
+      return Math.max(Math.round(height), 56)
+    },
+    elementFor(key) {
+      return (this.messageElRefs || []).find(el => el && el.dataset.lazyKey === key) || null
+    },
+    setupLazyRendering() {
+      if (typeof IntersectionObserver === 'undefined') return
+      this.intersectionObserver = new IntersectionObserver(this.handleIntersections, {
+        root: this.scrollContainerEl,
+        rootMargin: this.visibilityMargin,
+        threshold: 0
+      })
+      this.resizeObserver = new ResizeObserver(this.handleMessageResize)
+      // Elements rendered before the observers existed (first mount) register here.
+      ;(this.messageElRefs || []).forEach((el, ix) => {
+        if (el) this.observeMessageElement(el, this.messageKey(this.messages[ix]))
+      })
+    },
+    teardownLazyRendering() {
+      this.stopUnloadTimer()
+      if (this.intersectionObserver) {
+        this.intersectionObserver.disconnect()
+        this.intersectionObserver = null
+      }
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect()
+        this.resizeObserver = null
+      }
+    },
+    observeMessageElement(el, key) {
+      if (!key) return
+      if (el.dataset.lazyKey !== key) el.dataset.lazyKey = key
+      // Idempotent: the ref callback runs on every patch.
+      if (!this.intersectionObserver || el.dataset.lazyObserved === '1') return
+      el.dataset.lazyObserved = '1'
+      this.intersectionObserver.observe(el)
+      this.resizeObserver?.observe(el)
+    },
+    unobserveMessageElement(el) {
+      this.intersectionObserver?.unobserve(el)
+      this.resizeObserver?.unobserve(el)
+      delete el.dataset.lazyObserved
+    },
+    handleIntersections(entries) {
+      entries.forEach(entry => {
+        const key = entry.target.dataset.lazyKey
+        if (!key) return
+        if (entry.isIntersecting) {
+          this.markMessageVisible(key)
+        } else {
+          this.markMessageHidden(key)
+        }
+      })
+    },
+    markMessageVisible(key) {
+      delete this.hiddenAt[key]
+      if (this.renderedKeys[key]) return
+      this.renderedKeys[key] = true
+      this.$nextTick(() => this.onMessageRendered(key))
+    },
+    markMessageHidden(key) {
+      // Nothing mounted -> nothing to unload.
+      if (!this.renderedKeys[key]) return
+      if (this.hiddenAt[key]) return
+      this.hiddenAt[key] = Date.now()
+      this.startUnloadTimer()
+    },
+    // A message just got its real DOM: cache its height and keep the view steady.
+    onMessageRendered(key) {
+      const el = this.elementFor(key)
+      if (!el) return
+      const height = Math.round(el.getBoundingClientRect().height)
+      if (!height) return
+      const previous = this.measuredHeights[key]
+      if (previous !== height) this.measuredHeights[key] = height
+      // First measurement replaces the estimate -> the layout above may shift.
+      if (!previous) this.keepViewportStable(el, height - this.estimatedHeight)
+    },
+    keepViewportStable(el, delta) {
+      if (!delta) return
+      if (this.autoScroll) {
+        // Pinned to the bottom: just stay there.
+        this.scrollToBottom(false)
+        return
+      }
+      const container = this.scrollContainerEl
+      if (!container) return
+      const containerTop = container.getBoundingClientRect().top
+      const rect = el.getBoundingClientRect()
+      // Only content ABOVE the viewport can shift what the user is looking at.
+      if (rect.bottom <= containerTop + 1) {
+        container.scrollTop += delta
+      }
+    },
+    handleMessageResize(entries) {
+      entries.forEach(entry => {
+        const key = entry.target.dataset.lazyKey
+        if (!key) return
+        const box = entry.borderBoxSize?.[0]
+        const height = Math.round(box ? box.blockSize : entry.contentRect.height)
+        if (!height) return
+        if (this.measuredHeights[key] === height) return
+        this.measuredHeights[key] = height
+      })
+    },
+    // Store the current height BEFORE the child is removed, so the placeholder
+    // reserves exactly the same space and the scroll position doesn't jump.
+    cacheMessageHeight(key) {
+      const el = this.elementFor(key)
+      if (!el) return
+      const height = Math.round(el.getBoundingClientRect().height)
+      if (height > 0 && this.measuredHeights[key] !== height) {
+        this.measuredHeights[key] = height
+      }
+    },
+    startUnloadTimer() {
+      if (this.unloadTimer) return
+      this.unloadTimer = setInterval(() => this.sweepHiddenMessages(), this.unloadSweepInterval)
+    },
+    stopUnloadTimer() {
+      if (this.unloadTimer) {
+        clearInterval(this.unloadTimer)
+        this.unloadTimer = null
+      }
+    },
+    // Unmount messages that have been off-screen longer than `unloadDelay`.
+    sweepHiddenMessages() {
+      const now = Date.now()
+      const keys = Object.keys(this.hiddenAt)
+      if (!keys.length) {
+        this.stopUnloadTimer()
+        return
+      }
+      keys.forEach(key => {
+        if (now - this.hiddenAt[key] < this.unloadDelay) return
+        if (!this.renderedKeys[key]) {
+          delete this.hiddenAt[key]
+          return
+        }
+        const message = (this.messages || []).find(m => this.messageKey(m) === key)
+        // Dropped from the list (filter/delete) — just forget it.
+        if (!message) {
+          delete this.renderedKeys[key]
+          delete this.hiddenAt[key]
+          return
+        }
+        // Live UI state (streaming, editing, events open) — pin it, retry later.
+        if (this.isPinnedMessage(message)) {
+          delete this.hiddenAt[key]
+          return
+        }
+        this.cacheMessageHeight(key)
+        delete this.renderedKeys[key]
+        delete this.hiddenAt[key]
+      })
+      if (!Object.keys(this.hiddenAt).length) this.stopUnloadTimer()
+    },
+    resetLazyRendering() {
+      this.renderedKeys = {}
+      this.hiddenAt = {}
+      this.stopUnloadTimer()
+    },
+    // Mount the last messages right away (they are what the user opens a chat
+    // for) plus every message still generating.
+    primeVisibleMessages() {
+      const list = this.messages || []
+      const from = Math.max(0, list.length - this.initialRenderCount)
+      for (let ix = from; ix < list.length; ix++) {
+        const key = this.messageKey(list[ix])
+        if (key) this.renderedKeys[key] = true
+      }
+      list.filter(m => !m.done).forEach(m => {
+        const key = this.messageKey(m)
+        if (key) this.renderedKeys[key] = true
+      })
+    },
+    primeLastMessage() {
+      const list = this.messages || []
+      const key = this.messageKey(list[list.length - 1])
+      if (key) this.renderedKeys[key] = true
     }
   }
 }
