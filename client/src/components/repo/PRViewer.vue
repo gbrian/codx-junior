@@ -66,8 +66,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
       </div>
     </header>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="flex items-center justify-center grow gap-2 text-base-content/50">
+    <!-- Loading state: only while there is nothing to render yet, so a reload
+         keeps the diff viewer mounted instead of rebuilding every file -->
+    <div v-if="loading && !files" class="flex items-center justify-center grow gap-2 text-base-content/50">
       <i class="fa-solid fa-spinner animate-spin text-xl"></i>
       <span>Loading changes...</span>
     </div>
@@ -542,7 +543,9 @@ export default {
       chatAnalysisError: null,
       showProbableChats: false,
       analysisToken: 0,
-      analysisTimer: null
+      analysisTimer: null,
+      // A scan was requested while another one was running (see refreshChatAnalysis)
+      analysisPending: false
     }
   },
   created() {
@@ -688,6 +691,15 @@ export default {
     /** Chats store revision: re-scan when a chat changes */
     activityRevision() {
       return this.$storex?.chats?.activityRevision || 0
+    },
+
+    /**
+     * Whether the PR ↔ chat correlation is worth keeping fresh. Computing it
+     * loads the history of every candidate chat, so it may only run while it is
+     * actually on screen: the chat grouping (or a result already displayed).
+     */
+    isChatAnalysisVisible() {
+      return this.groupMode === 'chat' || !!this.chatAnalysis
     }
   },
   watch: {
@@ -698,6 +710,12 @@ export default {
         this.files = null
         this.selectedFile = null
         this.chatAnalysis = null
+        // Discard any scan still in flight: its result belongs to the previous
+        // payload (another branch pair, or a viewer that is no longer on screen).
+        this.analysisToken++
+        this.analysisPending = false
+        this.chatAnalysisLoading = false
+        clearTimeout(this.analysisTimer)
       }
     },
     fileFilter() {
@@ -711,11 +729,18 @@ export default {
       this.visibleLineComments.clear()
     },
     activityRevision() {
+      // Socket chat events arrive in bursts while an agent streams. Re-scanning
+      // reloads every candidate chat history, so it must never happen for a
+      // correlation nobody is looking at.
+      if (!this.isChatAnalysisVisible) return
       this.scheduleChatAnalysis()
     }
   },
   beforeUnmount() {
     clearTimeout(this.analysisTimer)
+    // Invalidate the in-flight scan so a late result is not applied to a viewer
+    // that is already gone.
+    this.analysisToken++
   },
   methods: {
     onFromBranchChanged(branch) {
@@ -754,7 +779,13 @@ export default {
       }
 
       this.$emit('visible-files-changed', this.visibleFiles)
-      this.refreshChatAnalysis()
+
+      // The correlation is a lazy feature (it loads the history of every
+      // candidate chat). Rebuild it only while the chat grouping is displayed;
+      // opening a PR in folder mode must not scan the whole project.
+      if (this.groupMode === 'chat') {
+        this.scheduleChatAnalysis()
+      }
     },
 
     buildDiffFile(diff, repoPath, entry = {}) {
@@ -871,8 +902,15 @@ export default {
 
     setGroupMode(mode) {
       this.groupMode = mode
-      if (mode === 'chat' && !this.chatAnalysis) {
+      if (mode !== 'chat') {
+        // Nothing displays the correlation in folder mode: stop refreshing it.
+        clearTimeout(this.analysisTimer)
+        return
+      }
+      if (!this.chatAnalysis) {
         this.refreshChatAnalysis()
+      } else {
+        this.scheduleChatAnalysis()
       }
     },
 
@@ -917,6 +955,16 @@ export default {
         return
       }
 
+      // One scan at a time: `findChatsForPR` loads the history of every
+      // candidate chat. A chat write arriving mid-scan (socket events are
+      // frequent while an agent streams) only flags a re-run instead of
+      // stacking another full scan on top of the running one.
+      if (this.chatAnalysisLoading) {
+        this.analysisPending = true
+        return
+      }
+
+      this.analysisPending = false
       const token = ++this.analysisToken
       this.chatAnalysisLoading = true
       this.chatAnalysisError = null
@@ -939,6 +987,11 @@ export default {
       } finally {
         if (token === this.analysisToken) {
           this.chatAnalysisLoading = false
+          // Re-run once for the changes requested during the scan
+          if (this.analysisPending && this.isChatAnalysisVisible) {
+            this.analysisPending = false
+            this.scheduleChatAnalysis()
+          }
         }
       }
     },

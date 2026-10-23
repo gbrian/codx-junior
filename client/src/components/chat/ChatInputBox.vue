@@ -95,6 +95,8 @@ import FindReplaceBox from './FindReplaceBox.vue'
         :images="images"
         :profiles="profiles"
         :selected-profiles="selectedProfiles"
+        :project="project"
+        :chat-project="chatProject"
         :voice-language-label="voiceLanguageLabel"
         :is-recording="isRecording"
         :recording-label="recordingLabel"
@@ -105,6 +107,7 @@ import FindReplaceBox from './FindReplaceBox.vue'
         @remove-image="$emit('remove-image', $event)"
         @preview-image="$emit('preview-image', $event)"
         @profiles-selected="$emit('profiles-selected', $event)"
+        @project-changed="$emit('project-changed', $event)"
         @upload-files="$emit('upload-files', $event)"
         @start-voice-note="startVoiceNoteRecording"
         @stop-voice-note="stopVoiceNoteRecording(false)"
@@ -128,6 +131,10 @@ export default {
     voiceLanguageLabel: String,
     profiles: { type: Array, default: () => [] },
     selectedProfiles: { type: Array, default: () => [] },
+    // Project the message is addressed to (message.project_id) and the chat's
+    // project used as default / override detection.
+    project: { type: Object, default: null },
+    chatProject: { type: Object, default: null },
     cursorWord: { type: Object, default: () => ({}) },
     collapsed: { type: Boolean, default: false },
     // Counters shown on the collapsed pill (previews are hidden while collapsed)
@@ -137,7 +144,8 @@ export default {
   emits: [
     'send', 'add-message', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'keydown', 'paste',
-    'drop', 'profiles-selected', 'upload-files', 'focus', 'blur', 'toggle-collapsed', 'update:cursor-word'
+    'drop', 'profiles-selected', 'project-changed', 'upload-files',
+    'focus', 'blur', 'toggle-collapsed', 'update:cursor-word'
   ],
   data() {
     return {

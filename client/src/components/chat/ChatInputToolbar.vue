@@ -2,6 +2,7 @@
 import ChatLLMModelSelector from './ChatLLMModelSelector.vue'
 import ChatProfileSelector from './ChatProfileSelector.vue'
 import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
@@ -18,6 +19,28 @@ import FileExplorerPanel from '../filebrowser/FileExplorerPanel.vue'
     <div class="grow flex gap-2 items-end" v-else>
       <!-- Selectors on the left -->
       <div class="flex gap-2 items-center flex-wrap" v-if="!readOnly">
+        <!-- Project the message is addressed to.
+             Messages can define their own project_id: the picker defaults to the
+             chat's project and only overrides it when another project is chosen. -->
+        <div class="shrink-0" :class="isMobile ? 'w-14' : 'w-36'" v-if="activeProject">
+          <ProjectDetailt
+            :model-value="activeProject"
+            :iconify="isMobile"
+            @select="onProjectSelected"
+          />
+        </div>
+
+        <!-- Shown only when the message targets a project other than the chat's -->
+        <button
+          class="btn btn-sm btn-ghost btn-circle tooltip text-warning"
+          data-tip="Back to the chat's project"
+          aria-label="Back to the chat's project"
+          v-if="isProjectOverridden"
+          @click="onProjectSelected(chatProject)"
+        >
+          <i class="fa-solid fa-rotate-left text-xs"></i>
+        </button>
+
         <ChatLLMModelSelector
           :selected-model="selectedModel"
           :models="aiModels"
@@ -226,7 +249,8 @@ export default {
     ChatImageCarousel,
     ChatLLMModelSelector,
     ChatProfileSelector,
-    FileExplorerPanel
+    FileExplorerPanel,
+    ProjectDetailt
   },
   props: {
     waiting: Boolean,
@@ -240,6 +264,11 @@ export default {
     voiceLanguageLabel: String,
     profiles: { type: Array, default: () => [] },
     selectedProfiles: { type: Array, default: () => [] },
+    // ── Project the message is addressed to (message.project_id) ──
+    // `project` is the effective target, `chatProject` the default one used to
+    // detect when the message overrides the chat's project.
+    project: { type: Object, default: null },
+    chatProject: { type: Object, default: null },
     // ── Voice note recorder (state owned by ChatInputBox) ──
     isRecording: { type: Boolean, default: false },
     recordingLabel: { type: String, default: '' }
@@ -247,7 +276,7 @@ export default {
   emits: [
     'send', 'cancel-edit', 'model-changed',
     'toggle-voice', 'remove-image', 'preview-image', 'profiles-selected',
-    'file-selected', 'upload-files',
+    'file-selected', 'upload-files', 'project-changed',
     'start-voice-note', 'stop-voice-note', 'cancel-voice-note'
   ],
   data() {
@@ -256,8 +285,23 @@ export default {
     }
   },
   computed: {
+    isMobile() {
+      return this.$ui.isMobile
+    },
+    // Message project when present, chat project otherwise: everything this
+    // toolbar resolves (picker, file browsing) must follow the same target.
+    activeProject() {
+      return this.project || this.chatProject
+    },
     projectRootPath() {
-      return this.$project?.abs_project_path || '/'
+      return this.activeProject?.abs_project_path || '/'
+    },
+    // The composer defaults to the chat's project: only a real override is worth
+    // showing the "back to the chat's project" reset action.
+    isProjectOverridden() {
+      const projectId = this.activeProject?.project_id
+      const chatProjectId = this.chatProject?.project_id
+      return !!projectId && !!chatProjectId && projectId !== chatProjectId
     }
   },
   beforeUnmount() {
@@ -266,6 +310,9 @@ export default {
     document.removeEventListener('keydown', this.onModalKeydown)
   },
   methods: {
+    onProjectSelected(project) {
+      this.$emit('project-changed', project)
+    },
     openFileModal() {
       this.showFileModal = true
       document.addEventListener('keydown', this.onModalKeydown)

@@ -116,6 +116,16 @@ class ChatEngine:
     :meth:`ChatEventBridge.persist_message` instead of waiting for the
     end-of-turn chat save.
 
+    ADDED — turn project scope: the current USER message may declare its own
+    ``project_id`` (like ``Chat.project_id``). When set, that project becomes
+    the MAIN project of the turn and the engine switches its context to it
+    before processing (see :meth:`_resolve_turn_project_id`).
+
+    ADDED — response project scope: the assistant response message is stamped
+    with the ACTIVE project of the turn (``self.settings.project_id`` once the
+    engine switched its context to the turn project), so every response states
+    the project it was produced in.
+
     COST TRACKING: the AI call returns a typed :class:`AgentRunResult`. Its
     ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
     registered on the response message (``Message.cost``) so ``ChatManager``
@@ -601,6 +611,10 @@ class ChatEngine:
         resolved against; files missing from the map fall back to the current
         engine project path.
 
+        ADDED: files attached to a message that declares its own ``project_id``
+        map to THAT project's root, so a single chat can work on files living
+        in another project (see :meth:`_resolve_message_project_path`).
+
         CHANGED: Now returns a tuple of (text_content, binary_files_list).
         Binary files are detected and separated for potential vision API processing.
 
@@ -701,6 +715,29 @@ class ChatEngine:
         ])
 
     # -------------------------------------------------------------------------
+    # Helper: resolve a project id to its absolute project path
+    # -------------------------------------------------------------------------
+    def _resolve_project_path(self, project_id: Optional[str]) -> Optional[str]:
+        """
+        Resolve a project id to the absolute path of its project.
+
+        Uses the current engine settings when they already match *project_id*
+        (fast path) and falls back to project discovery otherwise.
+
+        :param project_id: The project id to resolve (may be None).
+        :return: The absolute project path, or None when it cannot be resolved.
+        """
+        if not project_id:
+            return None
+        # Fast path: the engine is already scoped to this project.
+        if project_id == self.settings.project_id:
+            return self.settings.abs_project_path
+        project_settings = find_project_by_id(project_id=project_id)
+        if project_settings and project_settings.abs_project_path:
+            return project_settings.abs_project_path
+        return None
+
+    # -------------------------------------------------------------------------
     # Helper: resolve the project path a chat's files are relative to
     # -------------------------------------------------------------------------
     def _resolve_chat_project_path(self, chat: Chat) -> str:
@@ -720,15 +757,96 @@ class ChatEngine:
         """
         if chat:
             for project_id in (chat.project_id, chat.owner_project_id):
-                if not project_id:
-                    continue
-                # Fast path: the engine is already scoped to this project.
-                if project_id == self.settings.project_id:
-                    return self.settings.abs_project_path
-                project_settings = find_project_by_id(project_id=project_id)
-                if project_settings and project_settings.abs_project_path:
-                    return project_settings.abs_project_path
+                project_path = self._resolve_project_path(project_id=project_id)
+                if project_path:
+                    return project_path
         return self.settings.abs_project_path
+
+    # -------------------------------------------------------------------------
+    # Helper: resolve the project the CURRENT turn works on (ADDED)
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _resolve_turn_project_id(chat: Chat) -> Optional[str]:
+        """
+        Resolve the project the CURRENT turn works on.
+
+        The user message of the turn may declare its own ``project_id`` (like a
+        :class:`Chat` does). When set, that project becomes the MAIN project of
+        the turn: it takes precedence over ``chat.project_id``, the engine
+        switches its context to it and every file of the turn is resolved
+        against it.
+
+        ``owner_project_id`` is NOT a working project — it only tells where the
+        chat is persisted — so it is never used here.
+
+        flowchart TD
+            A[Last visible user message] --> B{project_id set?}
+            B -->|Yes| C[Main project = message.project_id]
+            B -->|No| D[Main project = chat.project_id]
+            D --> E{defined?}
+            E -->|No| F[None - engine project is used]
+
+        :param chat: The chat being processed.
+        :return: The project id the turn works on, or None when unknown.
+        """
+        for message in reversed(chat.messages or []):
+            if message.hide or message.improvement or message.role != "user":
+                continue
+            if message.project_id:
+                return message.project_id
+            # Only the CURRENT request defines the turn scope: previous user
+            # messages must not leak their project into this turn.
+            break
+        return chat.project_id or None
+
+    # -------------------------------------------------------------------------
+    # Helper: resolve the project path a MESSAGE's files are relative to (ADDED)
+    # -------------------------------------------------------------------------
+    def _resolve_message_project_path(
+        self,
+        message: Optional[Message],
+        chat: Optional[Chat]
+    ) -> str:
+        """
+        Resolve the absolute project path that a message's file references are
+        relative to.
+
+        A message may declare its own ``project_id`` (like a ``Chat`` does), so
+        a single chat can work on files that live in another project. When the
+        message does not define one — or it points to an unknown project — the
+        chat's project path is used.
+
+        The engine project is NOT switched here: the chat (and therefore its
+        persistence) still belongs to its own project. Only the file resolution
+        of the message is affected.
+
+        flowchart TD
+            A[message.project_id] --> B{defined?}
+            B -->|No| C[chat project path]
+            B -->|Yes| D[resolve project path]
+            D -->|found| E[message project path]
+            D -->|not found| F[log warning + chat project path]
+
+        :param message: The message whose project to resolve (may be None).
+        :param chat: The chat that owns the message (may be None).
+        :return: Absolute project path used as the base for the message's files.
+        """
+        message_project_path = self._resolve_project_path(
+            project_id=message.project_id if message else None
+        )
+        if message_project_path:
+            return message_project_path
+
+        chat_project_path = self._resolve_chat_project_path(chat=chat)
+        if message and message.project_id:
+            logger.warning(
+                "Message '%s' declares unknown project_id '%s'; falling back to "
+                "the chat project path '%s'",
+                message.doc_id,
+                message.project_id,
+                chat_project_path,
+            )
+        return chat_project_path
 
     def _resolve_chat_file_path(
         self,
@@ -1725,6 +1843,23 @@ class ChatEngine:
         from the correct project even when it differs from the current engine
         settings.
 
+        ADDED — per-message project scope: a message may also declare its OWN
+        ``project_id`` (like ``Chat.project_id``). When the current USER message
+        sets it, that project becomes the MAIN project of the turn: the engine
+        switches its context to it (see :meth:`_resolve_turn_project_id`) and
+        chat-level files are resolved against it. Files attached to any other
+        message are resolved against the project that message declares (see
+        :meth:`_resolve_message_project_path`), so a single chat can work on
+        files that live in another project. Messages without ``project_id``
+        keep resolving against the project of the chat that owns them, and
+        :meth:`Message.get_project_id` returns ``None`` instead of inheriting
+        the chat's project.
+
+        ADDED — response project scope: the response message is stamped with
+        the ACTIVE project of the turn (``self.settings.project_id`` once the
+        engine switched its context), falling back to the project declared by
+        the user message only when the engine has none.
+
         COST: the AI call returns a typed :class:`AgentRunResult`. Its cost is
         registered on the response message so ``ChatManager`` accumulates it
         into ``Chat.cost`` (compared against ``Chat.estimation_cost`` to stop
@@ -1739,7 +1874,8 @@ class ChatEngine:
         contain a ``"cancelled_at"`` key with an ISO-8601 UTC timestamp.
 
         flowchart TD
-            A[Start] --> A1[Register CancellationToken]
+            A[Start] --> A0[Resolve turn project: user message project_id]
+            A0 --> A1[Register CancellationToken]
             A1 --> A2[Create response_message + stamp token_id]
             A2 --> A3[ChatEventBridge created EARLY - persists on every event]
             A3 --> B{Project match?}
@@ -1760,7 +1896,7 @@ class ChatEngine:
             L --> O[Record Chat Session START]
             M --> O
             N --> O
-            O --> P[Load chat files + detect binary]
+            O --> P[Load chat files - per message project_id]
             P --> Q[Prepare vision content]
             Q --> R[AI Chat - AgentRunResult]
             R -->|cost| R1[Register cost + cost_info on response_message]
@@ -1787,21 +1923,36 @@ class ChatEngine:
         :param system: Optional system prompt override.
         :return: Tuple of (updated Chat, list of Documents).
         """
-        # --- Delegate to sibling engine if chat belongs to a different project ---
-        if chat.project_id and chat.project_id != self.settings.project_id:
+        # --- Delegate to sibling engine when the turn works on another project ---
+        #
+        # CHANGED: the current USER message may declare the project it works on
+        # (like ``Chat.project_id``). When set, that project becomes the MAIN
+        # project of the turn and takes precedence over the chat's project, so
+        # the engine switches its context to it before processing.
+        turn_project_id = self._resolve_turn_project_id(chat=chat)
+        if turn_project_id and turn_project_id != self.settings.project_id:
             logger.info(
-                "chat project_id is not the same as current project, switching contexts:"
+                "turn project_id is not the same as current project, switching contexts:"
                 " '%s' -> '%s'",
                 self.settings.project_id,
-                chat.project_id
+                turn_project_id
             )
-            return await self.switch_project(chat.project_id).chat_with_project(
-                chat=chat,
-                disable_knowledge=disable_knowledge,
-                callback=callback,
-                append_references=append_references,
-                chat_mode=chat_mode,
-                iteration=iteration
+            engine = self.switch_project(turn_project_id)
+            if engine.settings.project_id == turn_project_id:
+                return await engine.chat_with_project(
+                    chat=chat,
+                    disable_knowledge=disable_knowledge,
+                    callback=callback,
+                    append_references=append_references,
+                    chat_mode=chat_mode,
+                    iteration=iteration
+                )
+            # CRASH-SAFETY: an unresolvable project must never recurse forever;
+            # the turn simply continues on the current project.
+            logger.warning(
+                "Turn project '%s' could not be resolved; keeping project '%s'",
+                turn_project_id,
+                self.settings.project_id
             )
 
         # ------------------------------------------------------------------
@@ -1937,6 +2088,22 @@ class ChatEngine:
             #    every change.
             # ------------------------------------------------------------------
             response_message = self._new_chat_message("assistant")
+            # CHANGED: the response message records the ACTIVE project of the
+            # turn — the project the engine is working on after switching its
+            # context (`self.settings.project_id`), not just the project the
+            # user message happens to declare. The message project is only a
+            # fallback for the case where the engine has no project at all.
+            active_project_id = (
+                self.settings.project_id
+                or user_message.get_project_id()
+            )
+            response_message.project_id = active_project_id
+            logger.debug(
+                "Response message stamped with active project_id='%s' "
+                "(user message project_id='%s')",
+                active_project_id,
+                user_message.get_project_id(),
+            )
             response_message.meta_data = {"start_time": timing_info["start_time"]}
             if cancellation_token:
                 response_message.meta_data["cancellation_token_id"] = cancellation_token.token_id
@@ -1993,14 +2160,20 @@ class ChatEngine:
             #    Files referenced in query_mentions and parent_chat are also
             #    merged in. Duplicates are removed via set union in the helper.
             #
-            #    CHANGED: chat files are relative to the project that owns the
-            #    chat (``project_id`` when present, otherwise
-            #    ``owner_project_id``). Parent chat files may therefore live in
-            #    a DIFFERENT project than the current engine settings, so we
-            #    track the base project path per file (``file_base_paths``) and
-            #    use it when reading the file content.
+            #    CHANGED: the user message may declare the project the turn
+            #    works on. When set it is the MAIN project of the turn (the
+            #    engine already switched to it in ``chat_with_project``), so
+            #    chat-level files are resolved against it and NOT against the
+            #    chat's project. Parent chat files may live in a DIFFERENT
+            #    project, so the base project path is tracked per file
+            #    (``file_base_paths``) and used when reading file content.
             # ------------------------------------------------------------------
-            chat_project_path = self._resolve_chat_project_path(chat=chat)
+            chat_project_path = (
+                self._resolve_project_path(
+                    project_id=self._resolve_turn_project_id(chat=chat)
+                )
+                or self._resolve_chat_project_path(chat=chat)
+            )
             parent_project_path = (
                 self._resolve_chat_project_path(chat=parent_chat)
                 if parent_chat else chat_project_path
@@ -2017,9 +2190,44 @@ class ChatEngine:
             if query_mentions.files:
                 chat_files = sorted(set(chat_files + query_mentions.files))
 
-            # All files originating from THIS chat resolve against its project
+            # CHANGED: a message may declare its own ``project_id`` (like a chat
+            # does), so the files attached to it are resolved against THAT
+            # project instead of the chat's. Messages without ``project_id``
+            # keep resolving against the project of the chat that owns them, so
+            # behaviour is unchanged for them.
+            for visible_message in valid_messages:
+                if not visible_message.files:
+                    continue
+                message_project_path = self._resolve_message_project_path(
+                    message=visible_message,
+                    chat=chat
+                )
+                for message_file in visible_message.files:
+                    known_project_path = file_base_paths.get(message_file)
+                    if known_project_path and known_project_path != message_project_path:
+                        logger.warning(
+                            "File '%s' is attached to messages working on "
+                            "different projects ('%s' / '%s'); the most recent "
+                            "reference wins",
+                            message_file,
+                            known_project_path,
+                            message_project_path,
+                        )
+                    file_base_paths[message_file] = message_project_path
+                if message_project_path != chat_project_path:
+                    logger.info(
+                        "Message '%s' resolves its %d file(s) against project "
+                        "path '%s' (turn project path '%s')",
+                        visible_message.doc_id,
+                        len(visible_message.files),
+                        message_project_path,
+                        chat_project_path,
+                    )
+
+            # Chat-level files (chat.file_list, @file mentions) resolve against
+            # the project of the turn. Message-level resolutions win (setdefault).
             for chat_file in chat_files:
-                file_base_paths[chat_file] = chat_project_path
+                file_base_paths.setdefault(chat_file, chat_project_path)
 
             # Merge in parent chat file list if present and not ignored
             if parent_chat and parent_chat.file_list and not chat.ignore_parent_files:

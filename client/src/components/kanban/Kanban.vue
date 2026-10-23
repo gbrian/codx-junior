@@ -276,6 +276,12 @@ import KanbanBoardModal from './KanbanBoardModal.vue'
 
 <script>
 const ALL_BOARD_TITLE_ID = '$ALL'
+// Fallback applied at VIEW time only — never written onto the chat object.
+// Writing it on the object (via spread) caused every chat to get a NEW
+// identity on each `chats` computed evaluation, which in turn invalidated
+// `boardChats`, `columnList`, `buildViewColumns` and the board canvas on
+// every store write.
+const NO_COLUMN_FALLBACK = '--none--'
 
 export default {
   props: ['project'],
@@ -360,12 +366,15 @@ export default {
     activeKanbanBoard() {
       return this.kanban?.boards[this.board] || null
     },
+    // Return the stored chat objects AS-IS. The `column` fallback is applied
+    // at filtering/grouping sites (see NO_COLUMN_FALLBACK below). Wrapping
+    // every chat in `{ ...c, column }` gave each chat a NEW object identity
+    // on every evaluation, so the watchers and board column builders that
+    // compare by reference treated every store write as a full chat-list
+    // change — triggering `buildViewColumns` and re-rendering the entire
+    // board on unrelated writes.
     chats() {
-      const allChats = this.$projects.allChats
-      return Object.values(allChats || {}).map(c => ({
-        ...c,
-        column: c.column || '--none--'
-      }))
+      return Object.values(this.$projects.allChats || {})
     },
     lastMessages() {
       return this.chats.sort((a, b) => a.last_update > b.last_update ? -1 : 1)
@@ -387,7 +396,8 @@ export default {
     },
     columnList() {
       const kanbanColumns = this.activeKanbanBoard?.columns?.map(c => c.title) || []
-      const chatColumns = this.boardChats.map(c => c.column)
+      // Apply fallback here, not on the chat objects
+      const chatColumns = this.boardChats.map(c => c.column || NO_COLUMN_FALLBACK)
       return [...new Set([...kanbanColumns, ...chatColumns])]
     },
     visibleTasks() {
@@ -419,6 +429,10 @@ export default {
       this.projectChanged()
     },
     chats(newValue, oldValue) {
+      // Compare by chat ids. Since `chats` no longer clones the objects, a
+      // purely internal field update (e.g. `messages` merge) that does NOT
+      // add/remove chats must not trigger a full column rebuild — the cards
+      // themselves watch their own task prop for those changes.
       const ids = arr => arr.map(c => c.id).sort().join()
       if (ids(newValue) !== ids(oldValue)) this.buildViewColumns()
     },
@@ -448,7 +462,11 @@ export default {
       })
     },
     async setActiveChat(chat) {
-      chat && this.$chats.reloadChat(chat)
+      // `$chats.setActiveChat` already calls `reloadChat` internally before
+      // setting the active id. Calling `reloadChat` here too caused a DOUBLE
+      // fetch on every card click: two concurrent requests merged into the same
+      // chat object and each merge fired Vue reactivity, cascading a full
+      // rebuild of the board columns and every card.
       this.$chats.setActiveChat(chat)
       if (this.$ui.isVibeMode) {
         this.$ui.openVibeCoding()
@@ -504,8 +522,11 @@ export default {
           valid: !!storeColumn.id,
           position: ix,
           project: this.$projects.allProjectsById[storeColumn.project_id] || null,
+          // Apply the column fallback here (comparison site), not on the chat
+          // objects themselves. Spreading the fallback onto each chat produced
+          // new object identities on every evaluation.
           tasks: this.boardChats
-            .filter(t => (t.column || '--none--') === col)
+            .filter(t => (t.column || NO_COLUMN_FALLBACK) === col)
             .sort((a, b) => (a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1))
         }
       }).sort((a, b) => (a.position < b.position ? -1 : 1))

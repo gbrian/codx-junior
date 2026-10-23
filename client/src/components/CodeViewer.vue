@@ -354,7 +354,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
               v-if="isMarkdown"
               :content="effectiveCode"
               :files="files"
-              :project="project"
+              :project="effectiveProject"
               :chat="chat"
               :message="message"
               :loading="!finished"
@@ -632,18 +632,45 @@ export default {
       return 'markdown'
     },
 
+    /**
+     * Project the message is addressed to (Message.project_id).
+     * A message can target a project different from the chat's working project.
+     */
+    messageProject() {
+      const projectId = this.message?.project_id
+      if (!projectId) return null
+      return this.$storex.projects.allProjectsById?.[projectId] || null
+    },
+
+    /**
+     * Project the chat belongs to (`project_id` is the working one, falling back
+     * to the owner for chats that never overrode it).
+     */
+    chatProject() {
+      const projectId = this.chat?.project_id || this.chat?.owner_project_id
+      if (!projectId) return null
+      return this.$storex.projects.allProjectsById?.[projectId] || null
+    },
+
+    /**
+     * Project this code block belongs to.
+     *
+     * Order matters: a message can target another project than the chat
+     * (`Message.project_id`) and every file path of the block is relative to
+     * THAT project. The `project` prop comes from the chat/document context
+     * (i.e. the chat's project), so it must never win over the message's own
+     * project — otherwise the diff/read requests are sent with the wrong
+     * `codx_path` and the diff comes back empty.
+     */
+    effectiveProject() {
+      return this.messageProject || this.project || this.chatProject
+    },
+
     $api() {
-      if (this.project?.$api) {
-        return this.project.$api
+      if (this.effectiveProject?.$api) {
+        return this.effectiveProject.$api
       }
-      
-      if (this.chat?.project_id) {
-        const chatProject = this.$storex.projects.allProjectsById[this.chat.project_id]
-        if (chatProject?.$api) {
-          return chatProject.$api
-        }
-      }
-      
+
       return this.$storex.projects.activeProject?.$api || this.$storex.api
     },
 
@@ -900,7 +927,9 @@ export default {
     },
 
     applyPatch() {
-      this.$projects.applyPatch({ patch: this.code })
+      // Same project as the diff/read requests: the patch route is scoped by the
+      // API instance's `codx_path`, so the global API wrote to the active project.
+      this.$api.run.patch({ patch: this.code })
     },
 
     toggleView() {
@@ -1118,7 +1147,15 @@ export default {
       } else {
         content = this.effectiveCode
       }
-      this.$emit('save-file', { file: this.file, content })
+      // The file path is relative to THIS block's project, so the write must be
+      // sent with its `codx_path`. Hand the project over: the parent (Chat.vue)
+      // used to resolve it from the chat and every save of a message addressing
+      // another project (`Message.project_id`) was written to the wrong root.
+      this.$emit('save-file', {
+        file: this.file,
+        content,
+        project: this.effectiveProject
+      })
       this.hasUnsavedFileChanges = false
       if (this.editMode) this.cancelEdit()
       this.showDiff = false
@@ -1145,7 +1182,8 @@ export default {
     },
 
     runCommand() {
-      this.$storex.api.apps.runScript(this.code)
+      // Scripts run inside the project the block belongs to
+      this.$api.apps.runScript(this.code)
     },
 
     onCopy() {

@@ -3,10 +3,12 @@ import Service from "./service"
 import { extractCodeBlocks, hasCodeBlocksWithPaths } from '../utils/codeBlockExtractor'
 
 export class ChatService extends Service {
-  getUserMessage({ message, files, profiles, attachments, metadata, user, taskItem, task_item }) {
+  getUserMessage({ message, files, profiles, attachments, metadata, user, taskItem, task_item, project_id }) {
     return {
       role: "user",
       content: message,
+      // Project this message is addressed to. When omitted the chat's project applies.
+      project_id,
       files,
       profiles,
       attachments,

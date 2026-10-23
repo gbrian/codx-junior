@@ -332,8 +332,17 @@ export default {
     activeBoardTitle() {
       return this.activeBoard?.title || 'Sprint'
     },
+    // Sprints listed in the selector.
+    //
+    // Built from `storedBoards` (the persisted kanban document) instead of the
+    // `sprintBoards`/`allBoards` getters: those append the chats-derived virtual
+    // "No board" board, which reads `updated_at` / `lastMessageAt` / `board` /
+    // `mode` of EVERY chat. Reading it made this view depend on the whole chats
+    // store, so any chat write (a socket event, a status change, a message
+    // reload…) re-rendered the board view and its header for nothing. The
+    // virtual board can never be a sprint target anyway.
     sprintBoards() {
-      return this.$storex.kanban.sprintBoards
+      return (this.$storex.kanban.storedBoards || []).filter(b => b.type === 'sprint')
     },
     // Task to highlight: the parent-provided selection wins over the global one
     activeSelectionId() {
@@ -557,7 +566,7 @@ export default {
       // status, parentId, profiles, llm_model). Every other preference the user
       // picked in the dialog — project, assignees, deadline, cost budget and the
       // referenced files — is persisted afterwards through the shared metadata
-      // endpoint so none of them are silently dropped.
+      // endpoint so none of them is silently dropped.
       const { project_id, users, deadline, estimation_cost, message, files, attachments, profiles, run } = payload
       const chat = await this.$storex.kanban.newSprintTask({ ...payload, sprintId: this.boardId })
       if (!chat) return

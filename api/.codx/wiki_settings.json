@@ -455,6 +455,16 @@
           "path": "/codx/junior/api/global_settings.py",
           "slug": "global-settings.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/global-settings.md"
+        },
+        {
+          "path": "/codx/junior/api/git.py",
+          "slug": "git.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git.md"
+        },
+        {
+          "path": "/codx/junior/engine/git_workspace.py",
+          "slug": "git-workspace.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-workspace.md"
         }
       ],
       "id": "project-overview",

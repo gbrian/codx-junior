@@ -179,6 +179,18 @@ class Message(BaseModel):
     :class:`AgentRunResult`. It is streamed to clients together with the
     message via ``message-event``.
 
+    **Project Scope (`project_id` field)**
+
+    Like :attr:`Chat.project_id`, a message may declare the project it works
+    on. When the current USER message sets it, that project becomes the MAIN
+    project of the turn: the chat engine switches its context to it and
+    resolves file references (``files``) against it, so a single chat can work
+    on files that live in another project.
+
+    The field is NOT inherited from the chat: :meth:`get_project_id` returns
+    ``None`` when the message does not declare a project, leaving the fallback
+    (``Chat.project_id`` / ``Chat.owner_project_id``) to the caller.
+
     **Message Read Tracking (`read_by` field)**
     
     The `read_by` field tracks which users have viewed a message in collaborative chats.
@@ -225,6 +237,17 @@ class Message(BaseModel):
     updated_at: str = Field(default_factory=lambda: str(datetime.now()))
     attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this message")
     files: List[str] = Field(default=[])
+    project_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Project this message works on, like Chat.project_id. When the "
+            "current user message sets it, it becomes the MAIN project of the "
+            "turn and the message's file references (files) are resolved "
+            "against it instead of the chat's project, so a single chat can "
+            "work on files that live in another project. It is NOT inherited: "
+            "None means the message declares no project (see get_project_id())."
+        )
+    )
     meta_data: Optional[Dict[str, Any]] = Field(default=None, description="Free-form supplementary metadata (timings, model, analytics...)")
     tool_events: List[ToolEvent] = Field(default=[], description="Tool execution events associated with this response message")
     lifecycle_events: List[LifeCycleEvent] = Field(default=[], description="Agent run lifecycle events associated with this response message")
@@ -255,6 +278,20 @@ class Message(BaseModel):
     read_by: List[str] = Field(default=[], description="List of usernames who have viewed this assistant message; automatically populated when users view the message")
     error: Optional[str] = Field(default=None)
     linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
+
+    def get_project_id(self) -> Optional[str]:
+        """
+        Return the project this message declares, or None when it declares
+        none.
+
+        Unlike :attr:`Chat.project_id`, the message does NOT inherit the
+        project of its chat: the fallback (chat ``project_id`` first, then
+        ``owner_project_id``) is the caller's responsibility, so callers can
+        tell an explicitly scoped message from an unscoped one.
+
+        :return: The project id this message declares, or None.
+        """
+        return self.project_id
 
 
 class ChatHistoryEntry(BaseModel):

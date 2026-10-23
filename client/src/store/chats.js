@@ -72,11 +72,85 @@ function sameArrayValues(current, next) {
   return current.every((value, index) => value === next[index])
 }
 
-// Collections that ARE the payload: the freshly loaded ones always win.
-const CHAT_PAYLOAD_FIELDS = ['messages', 'attachments']
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+// Write `next` over `current` keeping the identity of everything that did not
+// really change. The API rebuilds every object/array on each read, so a plain
+// assignment re-rendered every component reading ANY field of it (a message
+// `meta_data`, for instance, is rebuilt on every reload).
+function mergeValue(current, next) {
+  if (current === next) return current
+  if (sameArrayValues(current, next)) return current
+  if (!isPlainObject(current) || !isPlainObject(next)) return next
+
+  Object.keys(next).forEach(key => {
+    const value = mergeValue(current[key], next[key])
+    if (current[key] !== value) current[key] = value
+  })
+  return current
+}
+
+// Identity of a message inside a chat. `doc_id` is the server key; `id` covers
+// the messages created locally before their first save.
+function messageKey(message) {
+  return message?.doc_id || message?.id || null
+}
+
+// Same messages, same order, same objects.
+function sameMessages(current, next) {
+  if (current === next) return true
+  if (!Array.isArray(current) || !Array.isArray(next)) return false
+  if (current.length !== next.length) return false
+  return next.every((message, index) => current[index] === message)
+}
+
+// Patch ONE message IN PLACE. The object keeps its identity, so only the
+// components that read a field that really changed are re-rendered: a streamed
+// `content` chunk no longer rebuilds the entry, its siblings, the composer or
+// any modal rendered around the chat.
+function mergeMessage(target, source) {
+  Object.keys(source).forEach(key => {
+    const value = mergeValue(target[key], source[key])
+    if (target[key] !== value) target[key] = value
+  })
+  return target
+}
+
+// Patch the conversation message by message (see `mergeMessage`). The array
+// keeps its identity while the MESSAGE LIST is the same, so `chat.messages` is
+// not invalidated by a mere content refresh.
+function mergeMessages(current, next) {
+  if (!Array.isArray(next)) return next
+  if (!Array.isArray(current) || !current.length) return next
+
+  const byKey = new Map()
+  current.forEach(message => {
+    const key = messageKey(message)
+    if (key) byKey.set(key, message)
+  })
+
+  const merged = next.map(incoming => {
+    const key = messageKey(incoming)
+    const existing = key ? byKey.get(key) : null
+    return existing ? mergeMessage(existing, incoming) : incoming
+  })
+
+  return sameMessages(current, merged) ? current : merged
+}
+
+// Store a conversation returned by a message endpoint (add/update/remove),
+// patching the messages instead of replacing them.
+function applyChatMessages(state, chatId, messages) {
+  const chat = state.chats?.[chatId]
+  if (!chat || !Array.isArray(messages)) return
+  const merged = mergeMessages(chat.messages, messages)
+  if (merged !== chat.messages) chat.messages = merged
+}
 
 // Merge `source` INTO `target`, keeping `target`'s identity and the identity of
-// every collection whose values did not really change.
+// every value whose content did not really change.
 //
 // The chat object identity is what the board compares to decide whether anything
 // changed (`SprintBoardCanvas.sameColumns` / `SprintBoardColumn.sameTasks`), so
@@ -85,15 +159,17 @@ const CHAT_PAYLOAD_FIELDS = ['messages', 'attachments']
 // chat in the sprint board cascade into a render loop.
 function mergeChat(target, source) {
   Object.keys(source).forEach(key => {
-    const next = source[key]
     const current = target[key]
+    const next = source[key]
     if (current === next) return
-    if (CHAT_PAYLOAD_FIELDS.includes(key)) {
-      target[key] = next
+    // The conversation is patched message by message (see `mergeMessages`).
+    if (key === 'messages') {
+      const merged = mergeMessages(current, next)
+      if (merged !== current) target[key] = merged
       return
     }
-    if (sameArrayValues(current, next)) return
-    target[key] = next
+    const value = mergeValue(current, next)
+    if (value !== current) target[key] = value
   })
 }
 
@@ -118,7 +194,9 @@ function registerChat(state, chat) {
 
   // Merge INTO the existing object so the chat keeps its identity (see
   // `mergeChat`). Only the fields that really changed are written, so a chat
-  // refresh no longer invalidates the getters the board is built from.
+  // refresh no longer invalidates the getters the board is built from. The
+  // messages themselves are patched one by one, so an entry whose content did
+  // not change is never re-rendered.
   mergeChat(existingChat, chat)
   if (existingChat.lastMessageAt !== lastMessageAt) {
     existingChat.lastMessageAt = lastMessageAt
@@ -292,7 +370,7 @@ export const mutations = mutationTree(state, {
     state.searchResults = results
   },
 
-  clearSearchResults(state) {
+  clearSearchResults() {
     state.searchResults = null
   },
 
@@ -664,11 +742,12 @@ export const actions = actionTree(
       const request = (async () => {
         const freshChat = await project.$api.chats.loadChat(chat)
         if (freshChat && state.chats[chatId]) {
-          // Merge in place, keeping the chat identity AND the identity of the
-          // collections that did not change (`sprints`, `board`, `profiles`…).
-          // A plain `Object.assign` re-assigned them with brand-new arrays, which
-          // invalidated `sprintBoardChats`/`sprintColumns` (and therefore every
-          // column and card of the board) on every socket event.
+          // Merge in place, keeping the chat identity, the identity of the
+          // collections that did not change (`sprints`, `board`, `profiles`…)
+          // AND the identity of every message/metadata object that did not
+          // change: a plain `Object.assign` re-assigned them with brand-new
+          // objects, which re-rendered every entry of the conversation, its
+          // composer and every modal around it on each streamed chunk.
           mergeChat(state.chats[chatId], freshChat)
           if (freshChat.lastMessageAt) state.chats[chatId].lastMessageAt = freshChat.lastMessageAt
         } else if (freshChat && isActiveProjectChat(freshChat)) {
@@ -700,7 +779,9 @@ export const actions = actionTree(
         const updatedChat = await project.$api.chats.addMessage(chat.id, message)
 
         if (updatedChat && updatedChat.messages) {
-          state.chats[chat.id].messages = updatedChat.messages
+          // Patch the conversation in place: the messages that did not change
+          // keep their identity, so their entries are not re-rendered.
+          applyChatMessages(state, chat.id, updatedChat.messages)
           // Update lastMessageAt with the latest message timestamp
           const lastMessage = updatedChat.messages[updatedChat.messages.length - 1]
           if (lastMessage) {
@@ -724,7 +805,7 @@ export const actions = actionTree(
         const updatedChat = await project.$api.chats.removeMessage(chat.id, messageDocId)
 
         if (updatedChat && updatedChat.messages) {
-          state.chats[chat.id].messages = updatedChat.messages
+          applyChatMessages(state, chat.id, updatedChat.messages)
         }
 
         return updatedChat
@@ -788,7 +869,7 @@ export const actions = actionTree(
         }
 
         if (lastResult?.messages) {
-          state.chats[chat.id].messages = lastResult.messages
+          applyChatMessages(state, chat.id, lastResult.messages)
           // Update lastMessageAt with the latest message timestamp
           const lastMessage = lastResult.messages[lastResult.messages.length - 1]
           if (lastMessage) {

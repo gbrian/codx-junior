@@ -197,6 +197,8 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
                 :ai-models="aiModels"
                 :profiles="profiles"
                 :selected-profiles="selectedProfiles"
+                :project="messageTargetProject"
+                :chat-project="chatProject"
                 :cursor-word="cursorWord"
                 :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
                 :chat="chat"
@@ -212,6 +214,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
                 @drop.stop="onDropInputBox"
                 @model-changed="onLLMModelChanged"
                 @profiles-selected="onProfilesSelected"
+                @project-changed="onMessageProjectChanged"
                 @upload-files="onUploadFiles"
                 @toggle-voice="toggleVoiceSession"
                 @toggle-collapsed="toggleInputCollapsed"
@@ -321,6 +324,14 @@ export default {
       recognition: null,
       syncEditableTextInterval: null,
       selectedUser: null,
+      // Project the next message is addressed to (message.project_id).
+      // `null` keeps the chat's project, which is the default behaviour.
+      messageProject: null,
+      // True once the project picker was used while composing/editing. The
+      // message being edited only rewrites its `project_id` when the selection
+      // really changed, so an untouched edit never drops the stored project
+      // (see updateMessage).
+      messageProjectTouched: false,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
       uploadProjectFile: null,
@@ -430,7 +441,7 @@ export default {
 
       const next = Array.from(files)
       // Same list → keep the very same array (no prop change downstream)
-      if (this.lastMessageFiles && this.sameFiles(this.lastMessageFiles, next)) {
+      if (this.lastMessageFiles && this.sameList(this.lastMessageFiles, next)) {
         return this.lastMessageFiles
       }
       this.lastMessageFiles = next
@@ -474,8 +485,20 @@ export default {
       }
       return messages?.filter(m => !m.hide || this.showHidden) || []
     },
+    // Messages rendered by the list.
+    //
+    // The chats store patches the conversation IN PLACE (see `mergeMessages`),
+    // so a refresh streaming a new chunk mutates `message.content` without
+    // touching the array. This computed filters — and a `filter()` always
+    // returns a NEW array — which would give the whole message list a new prop
+    // identity and re-render every child of `ChatMessageList`: the composer,
+    // the intellisense dropdown and every modal living in its slots. Keeping
+    // the previous array while the items are the same prevents that cascade.
     messages() {
-      return this.activeMessages.filter(message => !message.hide || this.showHidden)
+      const next = this.activeMessages.filter(message => !message.hide || this.showHidden)
+      if (this.lastMessages && this.sameList(this.lastMessages, next)) return this.lastMessages
+      this.lastMessages = next
+      return next
     },
     canPost() {
       return this.editorText || this.attachments?.length
@@ -490,6 +513,11 @@ export default {
       return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
         || this.$project
     },
+    // Project the message being composed is addressed to: the explicitly selected
+    // one or, by default, the chat's working project.
+    messageTargetProject() {
+      return this.messageProject || this.chatProject
+    },
     // Identity of the (chat, working project) pair the project state belongs to.
     // Stable across store refreshes: `registerChat()` replaces the chat object
     // but never this key, which is exactly what the `chat` watcher needs.
@@ -497,7 +525,10 @@ export default {
       return `${this.chat?.id || ''}::${this.chatProject?.project_id || ''}`
     },
     mentionList() {
-      return (this.chatProject?.$state || this.$projects).mentionList
+      // Mentions resolve against the same project the message is addressed to
+      return this.messageTargetProject?.$state?.mentionList
+        || this.chatProject?.$state?.mentionList
+        || this.$projects.mentionList
     },
     // On mobile the composer collapses while reading the messages; the image/files
     // previews are hidden too so the reading area stays clean.
@@ -565,6 +596,12 @@ export default {
     editMessage(newVal) {
       // Always expand the composer while editing a message
       if (newVal) this.inputCollapsed = false
+    },
+    // Suggestions belong to the project they were searched in: drop them when
+    // the message starts targeting another project (message.project_id).
+    messageProject() {
+      this.cancelIntelliSense()
+      this.intelliSenseDismissed = false
     }
   },
   methods: {
@@ -585,12 +622,12 @@ export default {
         .map(block => block.filePath)
         .filter(Boolean)
     },
-    // Same file paths, same order. Used to keep collection identities stable so
+    // Same items, same order. Used to keep collection identities stable so
     // downstream components are not re-rendered with identical data.
-    sameFiles(previous, next) {
+    sameList(previous, next) {
       if (previous === next) return true
       if (!previous || !next || previous.length !== next.length) return false
-      return next.every((file, index) => file === previous[index])
+      return next.every((item, index) => item === previous[index])
     },
     updateProfileMentionsFromText() {
       const mentionMatches = [...this.editorText?.matchAll(/@([^\s]+)/mg) || []]
@@ -691,7 +728,7 @@ export default {
         const file = new File([blob], this.extractFileNameFromUrl(imgUrl), { type: blob.type })
         return await ChatAttachment.fromFile(file)
       } catch (error) {
-        console.error("Error preparing attachment from URL:", error)
+        console.error("Error preparing image URL:", error)
         this.$ui?.addNotification?.({ text: "Failed to process image URL", type: 'error' })
         return null
       }
@@ -828,14 +865,18 @@ export default {
       if (!rawQuery || rawQuery.trim().length < 3) { this.cancelIntelliSense(); return }
       if (this.previousQuery !== rawQuery && this.searchController) this.cancelIntelliSense()
       this.previousQuery = rawQuery
+      // Messages can override the chat's working project (message.project_id):
+      // suggestions must come from the project the message is addressed to.
+      const project = await this.resolveMentionProject()
+      if (!project) { this.cancelIntelliSense(); return }
       this.searchController = await this.$storex.projects.createSearchController()
       this.intelliSenseQuery = rawQuery
       this.intelliSenseIndex = 0
-      this.searchController.onProgress = ({ stage, project }) => {
-        this.intelliSenseProgress = `${stage}: ${project}`
+      this.searchController.onProgress = ({ stage, project: progressProject }) => {
+        this.intelliSenseProgress = `${stage}: ${progressProject}`
       }
       try {
-        await this.chatProject?.$state?.searchMentions?.({
+        await project.$state.searchMentions({
           query: rawQuery,
           limit: 10,
           controller: this.searchController,
@@ -854,6 +895,25 @@ export default {
         if (error.message !== 'Search cancelled') console.error('[IntelliSense] Search error:', error)
       }
       this.intelliSenseProgress = ''
+    },
+    /**
+     * Project whose mentions are searched: the message's own project when the
+     * composer overrides it (message.project_id), the chat's working project
+     * otherwise. Only the chat's project is initialised up front, so the target
+     * is prepared on demand before querying its `searchMentions`.
+     */
+    async resolveMentionProject() {
+      const target = this.messageTargetProject
+      if (target && !target.$state?.searchMentions) {
+        await this.$projects.initProjectState(target)
+      }
+      if (target?.$state?.searchMentions) return target
+      // Fall back to the chat's project when the target could not be prepared
+      const chatTarget = this.chatProject
+      if (chatTarget && chatTarget !== target && !chatTarget.$state?.searchMentions) {
+        await this.$projects.initProjectState(chatTarget)
+      }
+      return chatTarget?.$state?.searchMentions ? chatTarget : null
     },
     cancelIntelliSense() {
       if (this.searchController) { this.searchController.cancel(); this.searchController = null }
@@ -942,6 +1002,13 @@ export default {
       this.editMessage = message
       this.setEditorText(message.content || '')
       this.selectorProfileNames = [...(message.profiles || [])]
+      // Start from the project the message already targets. The stored value is
+      // NOT written back unless the user picks another one (see updateMessage),
+      // so an edit never clears a project_id it did not touch.
+      this.messageProjectTouched = false
+      this.messageProject = message.project_id
+        ? this.$projects.allProjectsById[message.project_id] || null
+        : null
       this.files = [...(message.files || [])]
       this.attachments = (message.attachments || []).map(a => {
         try { return typeof a === 'string' ? JSON.parse(a) : a } catch { return a }
@@ -954,6 +1021,8 @@ export default {
       this.setEditorText('')
       this.files = []
       this.attachments = []
+      this.messageProject = null
+      this.messageProjectTouched = false
       this.selectorProfileNames = []
       this.textProfileNames = []
       this.previousEditorText = ''
@@ -967,17 +1036,25 @@ export default {
       const content = this.$refs.inputBox?.getEditorText() ?? ''
       const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const update = {
+        content,
+        profiles,
+        files,
+        attachments: this.attachments.map(a => a.toJSON?.() || a),
+        updated_at: new Date().toISOString()
+      }
+      // A message can be addressed to its own project (message.project_id).
+      // Persist the selection whenever the user changed it, `null` included:
+      // picking the chat's project must CLEAR the stored override, while an
+      // untouched edit keeps the project the message already had.
+      if (this.messageProjectTouched) {
+        update.project_id = this.messageProject?.project_id || null
+      }
       try {
         await this.chatSvc.updateExistingMessage({
           chat: this.chat,
           doc_id: message.doc_id,
-          update: {
-            content,
-            profiles,
-            files,
-            attachments: this.attachments.map(a => a.toJSON?.() || a),
-            updated_at: new Date().toISOString()
-          }
+          update
         })
       } catch (error) {
         // Stay in edit mode (attachments included) so the user can retry
@@ -1033,6 +1110,7 @@ export default {
     getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
+        project_id: this.messageProject?.project_id,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
         attachments: this.attachments.map(a => a.toJSON?.() || a),
@@ -1052,6 +1130,8 @@ export default {
       this.attachments = []
       this.files = []
       this.mentions = []
+      this.messageProject = null
+      this.messageProjectTouched = false
       this.textProfileNames = []
       this.metadata = null
       this.previousEditorText = ''
@@ -1338,12 +1418,32 @@ export default {
     async onReloadMessageFile({ file, message }) {
       message.content = await this.chatSvc.fileToMessage({ file })
     },
-    async onSaveFile({ file, content }) {
-      await this.$storex.chats.writeFile({ chat: this.chat, file, content })
-      this.$ui.addNotification({ text: `File ${file.split("/").reverse()[0]} saved` })
+    // Persist a code block coming from the viewer/save button.
+    //
+    // The block belongs to a project and its path is relative to THAT project:
+    // `project` travels with the `save-file` event (CodeViewer resolves it from
+    // `Message.project_id` when the message overrides the chat's working
+    // project). Writing through the chat's project — as before — sent the
+    // request with another `codx_path` and the write failed, so the project's
+    // own API instance is used, falling back to the chats store.
+    async onSaveFile({ file, content, project }) {
+      const target = project || this.chatProject
+      const name = file.split("/").reverse()[0]
+      try {
+        if (target?.$api?.files?.write) {
+          await target.$api.files.write(file, content)
+        } else {
+          await this.$storex.chats.writeFile({ chat: this.chat, file, content })
+        }
+        this.$ui.addNotification({ text: `File ${name} saved`, type: 'success' })
+      } catch (error) {
+        console.error('[chat] Failed to save file', { file, project: target?.project_id, error })
+        this.$ui.addNotification({ text: `Error saving ${name}: ${error?.message || error}`, type: 'error' })
+      }
     },
     onOpenFile(file) {
-      this.chatProject.$api.coder.openFile(file)
+      const project = this.chatProject
+      project.$api.coder.openFile(file)
     },
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
@@ -1426,6 +1526,17 @@ export default {
     },
     onProfilesSelected(selectedProfiles) {
       this.selectorProfileNames = selectedProfiles.map(p => p.name || p)
+    },
+    // Selecting the chat's own project (or clearing it) falls back to the default
+    // instead of storing a redundant copy on the message. The selection is
+    // flagged so `updateMessage` persists it — `null` included, which is how a
+    // message stops overriding the chat's project.
+    onMessageProjectChanged(project) {
+      const projectId = project?.project_id
+      this.messageProject = !projectId || projectId === this.chatProject?.project_id
+        ? null
+        : project
+      this.messageProjectTouched = true
     },
     onProfilesChanged(selectedProfiles) {
       this.chat.profiles = selectedProfiles.map(p => p.name || p)

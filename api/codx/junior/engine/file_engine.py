@@ -327,6 +327,8 @@ class FileEngine:
         FE --> get_file_info
         FE --> _build_gitignore_manager
         FE --> get_media_type
+        FE --> get_project_roots
+        FE --> get_project_root_for_path
     ```
     """
 
@@ -355,6 +357,94 @@ class FileEngine:
         """
         logger.debug("Building GitIgnoreManager for root: %s", search_root)
         return GitIgnoreManager(root_path=search_root)
+
+    # ------------------------------------------------------------------
+    # Project scopes (current project + child projects)
+    # ------------------------------------------------------------------
+
+    def _is_path_within(self, abs_path: str, root_path: str) -> bool:
+        """
+        Check that ``abs_path`` is ``root_path`` itself or a descendant of it.
+
+        Uses a separator-aware comparison instead of a plain ``startswith`` so
+        that sibling roots sharing a prefix (``/projects/app`` and
+        ``/projects/app-2``) are never confused.
+
+        Args:
+            abs_path: Absolute path to test.
+            root_path: Absolute project root to test against.
+
+        Returns:
+            True when the path belongs to the project root tree.
+        """
+        if not abs_path or not root_path:
+            return False
+
+        abs_path = os.path.normpath(abs_path)
+        root_path = os.path.normpath(root_path)
+        return abs_path == root_path or abs_path.startswith(root_path + os.sep)
+
+    def get_project_roots(self) -> List[Tuple[str, any]]:
+        """
+        Return every project root file operations may work with.
+
+        The current project always comes first, followed by its child (sub)
+        projects sorted deepest path first, so the most specific project wins
+        when several roots could match the same path.
+
+        Child projects are resolved from the filesystem (``get_sub_projects``)
+        and the scan is only triggered by callers that actually need it, so
+        paths inside the current project never pay for it.
+
+        Returns:
+            List of ``(absolute_project_path, project_settings)`` tuples.
+        """
+        current_root = os.path.normpath(self.settings.abs_project_path)
+        roots: List[Tuple[str, any]] = [(current_root, self.settings)]
+
+        try:
+            sub_projects = self.settings.get_sub_projects()
+        except Exception as ex:
+            logger.warning(
+                "Could not resolve child projects for '%s': %s",
+                self.settings.project_name,
+                ex,
+            )
+            sub_projects = []
+
+        child_roots = [
+            (os.path.normpath(project.abs_project_path), project)
+            for project in sub_projects
+            if project and project.abs_project_path
+        ]
+        # Deepest path first: the most specific project must win
+        child_roots.sort(key=lambda root: len(root[0]), reverse=True)
+
+        return roots + child_roots
+
+    def get_project_root_for_path(self, abs_path: str) -> str:
+        """
+        Return the most specific known project root containing ``abs_path``.
+
+        Used to scope folder scans (.gitignore loading) to the project that
+        actually owns a directory. Falls back to the current project root when
+        the path does not belong to any known project.
+
+        Args:
+            abs_path: Absolute path of the file or directory.
+
+        Returns:
+            Absolute path of the owning project root.
+        """
+        current_root = os.path.normpath(self.settings.abs_project_path)
+        if self._is_path_within(abs_path, current_root):
+            return current_root
+
+        for root, _project in self.get_project_roots()[1:]:
+            if self._is_path_within(abs_path, root):
+                return root
+
+        return current_root
 
     def _compile_regex_pattern(self, pattern: str, case_sensitive: bool = False) -> Optional[Pattern]:
         """
@@ -477,6 +567,12 @@ class FileEngine:
         folder are correctly marked as ignored even when their own path
         does not match any .gitignore pattern directly.
 
+        Entries are always reported with an absolute ``file_path``. Paths that
+        live outside the current project (e.g. a child project configured with
+        its own absolute ``project_path``) are returned untouched - prefixing
+        them again would produce paths that do not exist on disk and break
+        subsequent read requests.
+
         Args:
             file: Relative file name.
             base_path: Base directory path.
@@ -490,8 +586,11 @@ class FileEngine:
             last_modification, and size.
         """
         file_path = os.path.join(base_path, file)
-        if not file_path.startswith(self.settings.abs_project_path):
-            file_path = f"{self.settings.abs_project_path}/{file_path}"
+        if not os.path.isabs(file_path):
+            # Entries come as paths relative to the project root
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
+        file_path = os.path.normpath(file_path)
+
         is_dir = os.path.isdir(file_path)
 
         # A path is ignored if its parent is already ignored (cascade) OR if it
@@ -524,11 +623,14 @@ class FileEngine:
         If the directory being listed is itself git-ignored, all of its
         children are also marked as ignored (cascade behaviour matching git).
 
-        The GitIgnoreManager is rooted at the project root so that rules
-        defined above the listed directory (e.g. a top-level .gitignore
-        that ignores this folder) are taken into account.  When ``path``
-        is outside the project root the manager will simply return
-        ``is_ignored=False`` for every entry rather than raising an error.
+        The GitIgnoreManager is rooted at the project owning the directory:
+        the current project when ``path`` lives inside it, otherwise the child
+        project that contains it. This way rules defined above the listed
+        directory (e.g. a top-level .gitignore that ignores this folder) are
+        taken into account and child projects keep their own rules. When the
+        directory belongs to no known project the manager is rooted at the
+        project root and simply reports ``is_ignored=False`` for every entry
+        rather than raising an error.
 
         Args:
             path: Absolute path to the directory.
@@ -538,10 +640,10 @@ class FileEngine:
         """
         files = os.listdir(path)
 
-        # Root the GitIgnoreManager at the project root so that rules defined
-        # outside the listed directory (e.g. a top-level .gitignore that ignores
+        # Root the GitIgnoreManager at the project owning the directory so that
+        # rules defined outside of it (e.g. a top-level .gitignore that ignores
         # this folder) are still taken into account.
-        project_root = self.settings.abs_project_path
+        project_root = self.get_project_root_for_path(path)
         gitignore_manager = self._build_gitignore_manager(project_root)
 
         # Determine whether the directory being listed is itself ignored.
@@ -752,8 +854,10 @@ class FileEngine:
         Validate and resolve a file path within the user's allowed projects.
 
         Handles both absolute and relative paths:
-        - Absolute paths: Must be within a user's project directory
-        - Relative paths: Resolved within the current project root
+        - Absolute paths: Must be within the current project, one of its child
+          projects, or a project the user has access to
+        - Relative paths: Resolved within the current project root, falling back
+          to the child projects when the path only exists there
 
         Prevents path traversal attacks using '..' sequences.
 
@@ -764,7 +868,8 @@ class FileEngine:
             Tuple of (absolute_path, project_settings).
 
         Raises:
-            ValueError: If path is outside user projects or traversal is attempted.
+            ValueError: If path is outside the allowed projects or traversal is
+                attempted.
         """
         norm_input_path = os.path.normpath(file_path.lstrip("/"))
 
@@ -775,7 +880,14 @@ class FileEngine:
 
     def _resolve_absolute_path(self, file_path: str) -> Tuple[str, any]:
         """
-        Resolve and validate an absolute file path against all allowed projects.
+        Resolve and validate an absolute file path against the allowed projects.
+
+        Lookup order:
+        1. Current project (fast path, also covers child projects nested inside it).
+        2. Child projects of the current project (deepest path first) - a child
+           project may declare its own absolute ``project_path`` outside of the
+           parent tree.
+        3. Any project the user has access to.
 
         Args:
             file_path: Absolute file path to validate.
@@ -784,37 +896,75 @@ class FileEngine:
             Tuple of (absolute_path, project_settings).
 
         Raises:
-            ValueError: If path is outside all user projects.
+            ValueError: If path is outside all allowed projects.
         """
         abs_file_path = os.path.normpath(file_path)
 
         # Check current project first (fast path)
-        try:
-            rel_path = os.path.relpath(abs_file_path, self.settings.abs_project_path)
-            if not rel_path.startswith(".."):
-                return abs_file_path, self.settings
-        except ValueError:
-            pass
+        if self._is_path_within(abs_file_path, self.settings.abs_project_path):
+            return abs_file_path, self.settings
+
+        # Child projects of the current project
+        for root, project in self.get_project_roots()[1:]:
+            if self._is_path_within(abs_file_path, root):
+                return abs_file_path, project
 
         # Fall back to checking all user projects
-        for project in find_all_user_projects(self.session.user):
-            try:
-                rel_path = os.path.relpath(abs_file_path, project.abs_project_path)
-                if not rel_path.startswith(".."):
+        try:
+            for project in find_all_user_projects(self.session.user):
+                if self._is_path_within(abs_file_path, project.abs_project_path):
                     return abs_file_path, project
-            except ValueError:
-                continue
+        except Exception as ex:
+            logger.warning(
+                "Could not resolve user projects while validating %s: %s",
+                abs_file_path,
+                ex,
+            )
 
         raise ValueError(
             "Access denied: absolute path is outside all allowed projects: %s"
             % abs_file_path
         )
 
+    def _join_relative_to(
+        self, root_path: str, norm_input_path: str, original_path: str
+    ) -> str:
+        """
+        Join a normalised relative path to a project root and validate it.
+
+        Args:
+            root_path: Absolute project root to resolve the path against.
+            norm_input_path: Normalised (lstripped) relative path.
+            original_path: Original path string for error messages.
+
+        Returns:
+            Absolute resolved path.
+
+        Raises:
+            ValueError: If the result escapes the given project root.
+        """
+        abs_path = os.path.normpath(os.path.join(root_path, norm_input_path))
+        if not self._is_path_within(abs_path, root_path):
+            raise ValueError(
+                "Access denied: path traversal outside project root: %s"
+                % original_path
+            )
+        return abs_path
+
     def _resolve_relative_path(
         self, norm_input_path: str, original_path: str
     ) -> Tuple[str, any]:
         """
-        Resolve and validate a relative file path within the current project root.
+        Resolve and validate a relative file path within the allowed projects.
+
+        The current project is always tried first, so reading, writing and
+        creating files inside it keeps its current behaviour. Only when the
+        path does not exist under the current project root are the child
+        projects tried (deepest path first), which makes paths relative to a
+        child project work the same way.
+
+        When the path exists nowhere, the current project resolution is
+        returned so new files are still created inside the current project.
 
         Args:
             norm_input_path: Normalised (lstripped) relative path.
@@ -824,27 +974,31 @@ class FileEngine:
             Tuple of (absolute_path, project_settings).
 
         Raises:
-            ValueError: If path escapes the project root.
+            ValueError: If path escapes the resolved project root.
         """
-        new_abs_file_path = os.path.normpath(
-            os.path.join(self.settings.abs_project_path, norm_input_path)
+        current_root = os.path.normpath(self.settings.abs_project_path)
+        current_candidate = self._join_relative_to(
+            current_root, norm_input_path, original_path
         )
+        if os.path.exists(current_candidate):
+            return current_candidate, self.settings
 
-        try:
-            rel_path = os.path.relpath(
-                new_abs_file_path, self.settings.abs_project_path
+        # Not found in the current project: the path may be relative to a
+        # child project (e.g. the UI browsing a child project's file tree).
+        for root, project in self.get_project_roots()[1:]:
+            child_candidate = self._join_relative_to(
+                root, norm_input_path, original_path
             )
-            if rel_path.startswith(".."):
-                raise ValueError(
-                    "Access denied: path traversal outside project root: %s"
-                    % original_path
+            if os.path.exists(child_candidate):
+                logger.debug(
+                    "Resolved relative path %s into child project %s: %s",
+                    original_path,
+                    project.project_name,
+                    child_candidate,
                 )
-        except ValueError:
-            raise ValueError(
-                "Access denied: path is on different drive: %s" % original_path
-            )
+                return child_candidate, project
 
-        return new_abs_file_path, self.settings
+        return current_candidate, self.settings
 
     async def write_project_file(
         self, file_path: str, content: str, process: bool = True

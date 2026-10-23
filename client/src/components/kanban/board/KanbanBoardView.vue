@@ -69,7 +69,22 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
     </div>
 
     <!-- ── Kanban board view ── -->
-    <div v-show="activeView === 'board' && !isSprintBoard" class="flex-1 min-h-0 flex overflow-hidden relative">
+    <!--
+      `v-if` (not only `v-show`): a sprint board must not MOUNT the kanban
+      workspace. While it was just hidden, the sidebar and the canvas stayed
+      mounted behind `display:none` with the sprint tasks rendered as a hidden
+      kanban column — and a hidden task list reports no height, so its windowing
+      could not measure it and mounted EVERY task of the sprint, each of them
+      running chats-wide getters. That invisible duplicate of the board was
+      re-rendered (and re-computed) on every chat write.
+      The inner `v-show` is kept so switching views (board / planning /
+      follow-up) on a KANBAN board still keeps its scroll and selection.
+    -->
+    <div
+      v-if="!isSprintBoard"
+      v-show="activeView === 'board'"
+      class="flex-1 min-h-0 flex overflow-hidden relative"
+    >
       <!-- Board (left) + inline task detail (right) split — desktop only -->
       <VerticalSplitter
         class="flex-1 min-h-0"

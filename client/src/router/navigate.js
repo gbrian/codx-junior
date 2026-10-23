@@ -131,7 +131,20 @@ export default function Navigate({ $router, $storex }) {
     if (!isDesktopMode()) {
       setPendingParams(def.id, params)
       // The project prefix is injected centrally by the router's push wrapper.
-      $router.push(def.route(payload))
+      const location = def.route(payload)
+      // A route declared in config/apps.js but never registered in
+      // router/index.ts used to make this push fail silently, so the sidebar
+      // item looked dead — most visibly on mobile, where the route is the ONLY
+      // way to open an app. Fail loudly instead of swallowing it.
+      if (location?.name && !$router.hasRoute(location.name)) {
+        console.warn(`[Navigation] openApp: route "${location.name}" is not registered (app "${appKey}")`)
+        $storex.ui.addNotification({ text: `Cannot open ${def.title}`, type: 'error' })
+        return
+      }
+      Promise.resolve($router.push(location)).catch(error => {
+        console.warn(`[Navigation] openApp: cannot open "${appKey}"`, error)
+        $storex.ui.addNotification({ text: `Cannot open ${def.title}`, type: 'error' })
+      })
       return
     }
 
@@ -534,6 +547,23 @@ export default function Navigate({ $router, $storex }) {
 
       openFileExplorer() {
         openApp('file-explorer')
+      },
+
+      // Activity Wall (see router/index.ts → "/:projectName/activity")
+      openActivity() {
+        openApp('activity')
+      },
+
+      // Git repository view, rendered by components/repo/GitView.vue
+      // (see router/index.ts → "/:projectName/git-view")
+      openGitView() {
+        openApp('git-view')
+      },
+
+      // Docker infrastructure, rendered by views/infra/InfraView.vue
+      // (see router/index.ts → "/:projectName/infra")
+      openInfra() {
+        openApp('infra')
       },
 
       openWiki() {

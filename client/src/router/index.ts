@@ -160,6 +160,21 @@ const router = createRouter({
     { path: '/:projectName/decision-model-logs', name: 'decision-model-logs', component: AppRouteView, meta: { app: 'decision-model-logs' } },
     { path: '/:projectName/metrics', name: 'metrics', component: AppRouteView, meta: { app: 'metrics' } },
     { path: '/:projectName/infra', name: 'infra', component: AppRouteView, meta: { app: 'infra' } },
+    // Activity wall. It is the default screen of the mobile home AND the target
+    // of the sidebar "Activity" item (config/apps.js → activity), so it needs a
+    // named route of its own: both the mobile home redirect (router/navigate.js
+    // → { name: 'activity' }) and openApp('activity') push that name. Without
+    // this route those pushes matched nothing and the item looked dead on
+    // mobile. The wall itself lives in components/wall/Wall.vue and is resolved
+    // by <AppRouteView> through APP_COMPONENTS_MAP['activity'].
+    { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity' } },
+    // Git repository view (branches, commits, merges and working-tree diffs).
+    // The screen already exists (components/repo/GitView.vue) and is registered
+    // in config/appComponentsMap.js as 'git-view'; only the route was missing,
+    // which made the sidebar "Git" item a no-op in single / mobile mode. Same
+    // pattern as every other app: <AppRouteView> resolves meta.app, and on
+    // desktop the very same key opens a dockview panel.
+    { path: '/:projectName/git-view', name: 'git-view', component: AppRouteView, meta: { app: 'git-view' } },
     { path: '/:projectName/team-channel/:channelId', name: 'team-channel', component: AppRouteView, meta: { app: 'team-channel' } },
     { path: '/:projectName/team-dm/:dmId', name: 'team-dm', component: AppRouteView, meta: { app: 'team-dm' } },
     { path: '/:projectName/team-media-library/:teamId', name: 'team-media-library', component: AppRouteView, meta: { app: 'team-media-library' } },

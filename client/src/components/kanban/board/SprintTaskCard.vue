@@ -233,8 +233,18 @@ export default {
     parentChat() {
       return this.task.parent_id ? this.$storex.chats.chats?.[this.task.parent_id] : null
     },
+    // Board membership chips.
+    //
+    // Uses `storedBoards` (the kanban document) instead of `allBoards`:
+    // `allBoards` also carries the chats-derived virtual "No board" board,
+    // which reads `updated_at` / `lastMessageAt` / `board` / `mode` of EVERY
+    // chat. Reading it made every card depend on the whole chats map, so any
+    // chat write (a socket event, a status change, a message reload, the
+    // `lastMessageAt` update of an unrelated task…) invalidated `sprintChips`
+    // for ALL the cards of the board and re-rendered them even though nothing
+    // on the board had changed — the "board keeps refreshing" symptom.
     sprintChips() {
-      const boards = this.$storex.kanban.allBoards
+      const boards = this.$storex.kanban.storedBoards || []
       return (this.task.sprints || []).map(id => {
         const board = boards.find(b => b.id === id)
         const title = board?.title || id

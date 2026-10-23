@@ -22,6 +22,8 @@ export interface Message {
   error?: string
   cost?: number
   cost_info?: Record<string, any>
+  // Project this message is addressed to. Overrides the chat's project when set.
+  project_id?: string
 }
 
 export interface ChatId {

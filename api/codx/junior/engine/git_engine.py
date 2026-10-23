@@ -12,7 +12,7 @@ import re
 import subprocess
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from codx.junior.project.project_discover import find_project_parents
 from codx.junior.utils.utils import exec_command
@@ -24,6 +24,19 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BRANCH_PREFIX = "codx-junior"
 DEFAULT_COMMIT_MESSAGE = "feat: apply AI-generated code changes"
+DEFAULT_REMOTE = "origin"
+
+# Porcelain status code -> semantic status name
+PORCELAIN_STATUS = {
+    "A": "added",
+    "M": "modified",
+    "D": "deleted",
+    "R": "renamed",
+    "C": "copied",
+    "T": "typechange",
+    "U": "conflict",
+    "?": "untracked",
+}
 
 
 class GitEngine:
@@ -44,11 +57,22 @@ class GitEngine:
         GE --> diff_file
         GE --> get_file_version_at_depth
         GE --> get_working_tree_status
+        GE --> get_status_changes
         GE --> build_branch_name
         GE --> create_pr_branch
         GE --> close_pr_branch
         GE --> abandon_pr_branch
         GE --> get_worktrees_path
+        GE --> get_repo_info
+        GE --> get_repo_status
+        GE --> fetch_remote
+        GE --> pull_remote
+        GE --> push_remote
+        GE --> create_branch
+        GE --> checkout_branch
+        GE --> delete_branch
+        GE --> commit_changes
+        GE --> merge_branches
     ```
     """
 
@@ -93,7 +117,12 @@ class GitEngine:
         """
         return self.find_git_root_path() or self.settings.abs_project_path
 
-    def _run_git(self, args: List[str], cwd: Optional[str] = None) -> dict:
+    def _run_git(
+        self,
+        args: List[str],
+        cwd: Optional[str] = None,
+        strip_output: bool = True,
+    ) -> dict:
         """
         Run a git command without a shell and return a structured result.
 
@@ -104,6 +133,9 @@ class GitEngine:
         Args:
             args: Git arguments, e.g. ``["checkout", "-b", "feature/x"]``.
             cwd: Working directory. Defaults to the repository root.
+            strip_output: Strip leading/trailing whitespace from stdout. Set it
+                to False for commands whose leading spaces carry meaning, such
+                as ``git status --porcelain``.
 
         Returns:
             Dict with 'ok', 'command', 'output', 'error' and 'returncode'.
@@ -126,7 +158,8 @@ class GitEngine:
                 "returncode": -1,
             }
 
-        output = (completed.stdout or "").strip()
+        raw_output = completed.stdout or ""
+        output = raw_output.strip() if strip_output else raw_output
         error = (completed.stderr or "").strip()
         ok = completed.returncode == 0
         if not ok:
@@ -180,6 +213,117 @@ class GitEngine:
 
         logger.warning("Base branch not found: %s", base_branch)
         return None
+
+    def _get_remote_url(self, remote: str = DEFAULT_REMOTE) -> str:
+        """
+        Return the configured URL for a remote.
+
+        Args:
+            remote: Remote name.
+
+        Returns:
+            Remote URL, or an empty string when the remote is not configured.
+        """
+        result = self._run_git(["config", "--get", f"remote.{remote}.url"])
+        return result["output"] if result["ok"] else ""
+
+    def _get_ahead_behind(
+        self, branch: str, remote: str = DEFAULT_REMOTE
+    ) -> Tuple[int, int]:
+        """
+        Return how many commits the local branch is ahead/behind its remote.
+
+        Args:
+            branch: Local branch name.
+            remote: Remote name.
+
+        Returns:
+            Tuple of ``(ahead, behind)``; ``(0, 0)`` when there is no upstream.
+        """
+        if not branch:
+            return 0, 0
+
+        upstream = f"{remote}/{branch}"
+        if not self._ref_exists(f"refs/remotes/{upstream}"):
+            return 0, 0
+
+        result = self._run_git(
+            ["rev-list", "--left-right", "--count", f"{upstream}...{branch}"]
+        )
+        if not result["ok"] or not result["output"]:
+            return 0, 0
+
+        try:
+            behind, ahead = result["output"].split()
+        except ValueError:
+            return 0, 0
+        return int(ahead), int(behind)
+
+    def _ensure_local_branch(
+        self, branch: str, remote: str = DEFAULT_REMOTE
+    ) -> dict:
+        """
+        Make sure a branch exists locally, creating it from the remote if needed.
+
+        Args:
+            branch: Branch name.
+            remote: Remote name.
+
+        Returns:
+            Dict with 'ok', 'created' and 'error'.
+        """
+        if self._ref_exists(f"refs/heads/{branch}"):
+            return {"ok": True, "created": False, "error": ""}
+
+        if self._ref_exists(f"refs/remotes/{remote}/{branch}"):
+            result = self._run_git(
+                ["checkout", "-b", branch, f"{remote}/{branch}"]
+            )
+            return {
+                "ok": result["ok"],
+                "created": result["ok"],
+                "error": result["error"],
+            }
+
+        return {
+            "ok": False,
+            "created": False,
+            "error": f"Branch '{branch}' does not exist",
+        }
+
+    def _git_operation_result(self, command_result: dict, **extra) -> dict:
+        """
+        Convert a ``_run_git`` result into an operation result dict.
+
+        Args:
+            command_result: Dict returned by ``_run_git``.
+            extra: Additional fields merged into the result.
+
+        Returns:
+            Dict with 'success', 'command', 'output' and 'errors'.
+        """
+        ok = bool(command_result.get("ok"))
+        error = command_result.get("error") or ""
+        return {
+            "success": ok,
+            "command": command_result.get("command", ""),
+            "output": command_result.get("output", ""),
+            "errors": [] if ok else [error or "git command failed"],
+            **extra,
+        }
+
+    def _git_operation_error(self, message: str, **extra) -> dict:
+        """
+        Build a failed operation result dict.
+
+        Args:
+            message: Human readable error message.
+            extra: Additional fields merged into the result.
+
+        Returns:
+            Dict with 'success' set to False and the message in 'errors'.
+        """
+        return {"success": False, "errors": [message], **extra}
 
     def _get_file_last_modification(self, file_path: str) -> Optional[str]:
         """
@@ -844,6 +988,117 @@ class GitEngine:
 
         return changes
 
+    def _clean_status_path(self, path: str) -> str:
+        """
+        Return the target path of a porcelain status entry.
+
+        Rename entries keep only the destination path and quoted paths (paths
+        with spaces or special characters) are unquoted.
+
+        Args:
+            path: Raw path read from ``git status --porcelain``.
+
+        Returns:
+            Cleaned, repo-relative file path.
+        """
+        path = (path or "").strip()
+        if " -> " in path:
+            path = path.split(" -> ")[-1].strip()
+        return path.strip('"')
+
+    def _parse_status_line(self, line: str) -> Optional[Tuple[str, str, str]]:
+        """
+        Split a porcelain v1 status line into its parts.
+
+        The format is ``XY <path>``: X is the staged (index) status and Y the
+        unstaged (worktree) status. The leading space of a line may have been
+        trimmed when reading the command output, so the separator position is
+        used to detect the shifted format.
+
+        Args:
+            line: One line of ``git status --porcelain`` output.
+
+        Returns:
+            Tuple of ``(index_code, worktree_code, path)``, or None when the
+            line has no usable entry.
+        """
+        if not line or not line.strip():
+            return None
+
+        if len(line) >= 3 and line[2] == " ":
+            index_code, worktree_code, path = line[0], line[1], line[3:]
+        elif len(line) >= 2:
+            # Leading space was trimmed: only the worktree status is left
+            index_code, worktree_code, path = " ", line[0], line[2:]
+        else:
+            return None
+
+        path = self._clean_status_path(path)
+        if not path:
+            return None
+        return index_code, worktree_code, path
+
+    def _status_entry(self, code: str, path: str) -> dict:
+        """
+        Build a staged/unstaged status entry.
+
+        Args:
+            code: Porcelain status code (``M``, ``A``, ``D``, ``?``...).
+            path: Repo-relative file path.
+
+        Returns:
+            Dict with 'path', 'code' and 'status'.
+        """
+        return {
+            "path": path,
+            "code": code,
+            "status": PORCELAIN_STATUS.get(code, "modified"),
+        }
+
+    def get_status_changes(self, files: Optional[List[str]] = None) -> dict:
+        """
+        Split the working tree status into staged and unstaged file lists.
+
+        Args:
+            files: Porcelain status lines. Read from git when omitted.
+
+        Returns:
+            Dict with 'staged' and 'unstaged' lists of
+            ``{path, code, status}`` entries.
+
+        Example:
+            >>> engine.get_status_changes()
+            {'staged': [{'path': 'app.py', 'code': 'M', 'status': 'modified'}],
+             'unstaged': [{'path': 'new.json', 'code': '?', 'status': 'untracked'}]}
+        """
+        if files is None:
+            files = self.get_working_tree_status()["files"]
+
+        staged: List[dict] = []
+        unstaged: List[dict] = []
+
+        for line in files:
+            parsed = self._parse_status_line(line)
+            if not parsed:
+                continue
+
+            index_code, worktree_code, path = parsed
+
+            # '!' entries are ignored files: never shown as changes
+            if index_code == "!" or worktree_code == "!":
+                continue
+
+            if index_code == "?" and worktree_code == "?":
+                unstaged.append(self._status_entry("?", path))
+                continue
+
+            if index_code != " ":
+                staged.append(self._status_entry(index_code, path))
+            if worktree_code not in (" ", "?"):
+                unstaged.append(self._status_entry(worktree_code, path))
+
+        return {"staged": staged, "unstaged": unstaged}
+
     def get_working_tree_status(self) -> dict:
         """
         Return the working tree status of the repository.
@@ -855,7 +1110,8 @@ class GitEngine:
             >>> engine.get_working_tree_status()
             {'ok': True, 'dirty': True, 'files': [' M codx/junior/app.py'], 'error': ''}
         """
-        result = self._run_git(["status", "--porcelain"])
+        # Leading spaces are part of the porcelain format (index vs worktree)
+        result = self._run_git(["status", "--porcelain"], strip_output=False)
         files = [line for line in result["output"].split("\n") if line.strip()]
         return {
             "ok": result["ok"],
@@ -896,11 +1152,26 @@ class GitEngine:
         """
         Return the folder where PR worktrees are created.
 
+        The base path is read from the project settings
+        (`git_worktrees_path` / `get_worktrees_path()`, which already resolves
+        relative values against the project path). `~` is expanded and the
+        result normalized, so every worktree path is built from the same base.
+
         Returns:
-            Absolute path, taken from the project's `get_worktrees_path()` setting.
+            Absolute, normalized worktrees base path.
         """
-        if hasattr(self.settings, "get_worktrees_path"):
-            return self.settings.get_worktrees_path()
+        getter = getattr(self.settings, "get_worktrees_path", None)
+        base_path = getter() if callable(getter) else ""
+        if not base_path:
+            # Settings object without the getter: use the raw setting
+            base_path = getattr(self.settings, "git_worktrees_path", "") or ""
+        base_path = str(base_path).strip()
+
+        if base_path:
+            base_path = os.path.expanduser(base_path)
+            if not os.path.isabs(base_path):
+                base_path = os.path.join(self.settings.abs_project_path, base_path)
+            return os.path.normpath(base_path)
 
         repo_path = self._get_repo_root().rstrip("/")
         return os.path.join(
@@ -968,14 +1239,17 @@ class GitEngine:
             branch_name: Branch to check out in the worktree.
             base_ref: Ref used to create the branch when it does not exist yet.
             branch_exists: Whether the branch already exists locally.
-            worktree_path: Optional target path. Defaults to
-                `<worktrees path>/<branch slug>`.
+            worktree_path: Optional target path. Relative paths are resolved
+                against the worktrees base path (never against the repository).
+                Defaults to `<worktrees path>/<branch slug>`.
 
         Returns:
             Dict with 'ok', 'path', 'output' and 'error'.
         """
+        repo_root = os.path.normpath(repo_path)
+
         existing_path = self.get_worktree_path_for_branch(branch_name)
-        if existing_path:
+        if existing_path and os.path.isdir(existing_path):
             return {
                 "ok": True,
                 "path": existing_path,
@@ -983,13 +1257,35 @@ class GitEngine:
                 "error": "",
             }
 
+        if existing_path:
+            # Stale registration: the folder was removed outside git and would
+            # block the path, prune the administration data
+            logger.warning(
+                "Stale worktree registration for '%s': %s", branch_name, existing_path
+            )
+            self._run_git(["worktree", "prune"], cwd=repo_root)
+
         target_path = worktree_path or os.path.join(
             self.get_worktrees_path(),
             re.sub(r"[^a-zA-Z0-9_.-]+", "-", branch_name).strip("-"),
         )
         if not os.path.isabs(target_path):
-            target_path = os.path.join(repo_path, target_path)
+            # Resolve against the worktrees base: resolving against the
+            # repository would create the worktree inside the working tree
+            target_path = os.path.join(self.get_worktrees_path(), target_path)
         target_path = os.path.normpath(target_path)
+
+        if target_path == repo_root or target_path.startswith(repo_root + os.sep):
+            return {
+                "ok": False,
+                "path": target_path,
+                "output": "",
+                "error": (
+                    f"Worktree path '{target_path}' must be outside the "
+                    f"repository '{repo_root}'; check the project's "
+                    "git_worktrees_path setting"
+                ),
+            }
 
         try:
             os.makedirs(target_path, exist_ok=True)
@@ -1006,7 +1302,7 @@ class GitEngine:
         else:
             args = ["worktree", "add", "-b", branch_name, target_path, base_ref]
 
-        result = self._run_git(args, cwd=repo_path)
+        result = self._run_git(args, cwd=repo_root)
         return {
             "ok": result["ok"],
             "path": target_path,
@@ -1179,7 +1475,8 @@ class GitEngine:
             base_branch: Base branch. Defaults to the current branch.
             commit_message: Commit message. Defaults to a generic message.
             use_worktree: Create the branch as a worktree (default: False).
-            worktree_path: Custom worktree folder. Defaults to
+            worktree_path: Custom worktree folder (absolute, or relative to the
+                worktrees base path). Defaults to
                 `<worktrees path>/<branch slug>`.
             allow_empty: Allow commits with no content changes.
 
@@ -1600,6 +1897,512 @@ class GitEngine:
 
         result["success"] = not result["errors"]
         return result
+
+    # -------------------------------------------------------------------------
+    # Repository management (fetch/pull/push, branches, commit, merge)
+    # -------------------------------------------------------------------------
+
+    def get_repo_info(self) -> dict:
+        """
+        Return a summary of the repository state used by the git view header.
+
+        Returns:
+            Dict with repo path, project path, active/default branch, remote
+            url, ahead/behind counters, working tree state (including the
+            staged and unstaged file lists), worktrees and the last commit.
+
+        Example:
+            >>> engine.get_repo_info()["active_branch"]
+            'main'
+        """
+        current_branch = self._sanitize_branch_name(
+            self.get_project_current_branch()
+        )
+        status = self.get_working_tree_status()
+        changes = self.get_status_changes(status["files"])
+        remote_url = self._get_remote_url()
+        ahead, behind = self._get_ahead_behind(current_branch)
+        commits = self.get_commit_list(limit=1)
+
+        return {
+            "repo_path": self._get_repo_root(),
+            "project_path": self.settings.abs_project_path,
+            "active_branch": current_branch,
+            "default_branch": self.get_default_branch(),
+            "remote_url": remote_url,
+            "has_remote": bool(remote_url),
+            "ahead": ahead,
+            "behind": behind,
+            "dirty": status["dirty"],
+            "changed_files": status["files"],
+            "staged": changes["staged"],
+            "unstaged": changes["unstaged"],
+            "worktrees": self.list_worktrees(),
+            "last_commit": commits[0] if commits else None,
+        }
+
+    def get_repo_status(self) -> dict:
+        """
+        Return the working tree status.
+
+        Returns:
+            Dict with 'success', 'dirty', 'files', 'staged', 'unstaged' and
+            'errors'.
+
+        Example:
+            >>> engine.get_repo_status()["staged"]
+            [{'path': 'app.py', 'code': 'M', 'status': 'modified'}]
+        """
+        status = self.get_working_tree_status()
+        changes = self.get_status_changes(status["files"])
+        return {
+            "success": status["ok"],
+            "dirty": status["dirty"],
+            "files": status["files"],
+            "staged": changes["staged"],
+            "unstaged": changes["unstaged"],
+            "errors": [] if status["ok"] else [status["error"]],
+        }
+
+    def fetch_remote(
+        self, remote: str = DEFAULT_REMOTE, prune: bool = True
+    ) -> dict:
+        """
+        Fetch refs (and prune deleted ones) from a remote.
+
+        Args:
+            remote: Remote name.
+            prune: Remove remote-tracking refs that no longer exist.
+
+        Returns:
+            Operation result dict.
+        """
+        if not self._get_remote_url(remote):
+            return self._git_operation_error(f"No remote '{remote}' configured")
+
+        args: List[str] = ["fetch", remote]
+        if prune:
+            args.append("--prune")
+        return self._git_operation_result(self._run_git(args))
+
+    def pull_remote(
+        self, remote: str = DEFAULT_REMOTE, branch: Optional[str] = None
+    ) -> dict:
+        """
+        Pull the current (or given) branch from a remote.
+
+        Args:
+            remote: Remote name.
+            branch: Branch to pull. Defaults to the checked out branch.
+
+        Returns:
+            Operation result dict.
+
+        Example:
+            >>> engine.pull_remote()
+            {'success': True, 'branch': 'main', ...}
+        """
+        if not self._get_remote_url(remote):
+            return self._git_operation_error(f"No remote '{remote}' configured")
+
+        branch = self._sanitize_branch_name(branch) or (
+            self.get_project_current_branch()
+        )
+        if not branch:
+            return self._git_operation_error("Cannot pull while HEAD is detached")
+
+        result = self._run_git(
+            ["pull", "--no-rebase", "--no-edit", remote, branch]
+        )
+        return self._git_operation_result(result, branch=branch)
+
+    def push_remote(
+        self,
+        remote: str = DEFAULT_REMOTE,
+        branch: Optional[str] = None,
+        set_upstream: bool = True,
+    ) -> dict:
+        """
+        Push the current (or given) branch to a remote.
+
+        Args:
+            remote: Remote name.
+            branch: Branch to push. Defaults to the checked out branch.
+            set_upstream: Set the upstream tracking reference (``-u``).
+
+        Returns:
+            Operation result dict.
+
+        Example:
+            >>> engine.push_remote()
+            {'success': True, 'branch': 'main', ...}
+        """
+        if not self._get_remote_url(remote):
+            return self._git_operation_error(f"No remote '{remote}' configured")
+
+        branch = self._sanitize_branch_name(branch) or (
+            self.get_project_current_branch()
+        )
+        if not branch:
+            return self._git_operation_error("Cannot push while HEAD is detached")
+
+        args: List[str] = ["push"]
+        if set_upstream:
+            args.append("--set-upstream")
+        args += [remote, branch]
+
+        return self._git_operation_result(self._run_git(args), branch=branch)
+
+    def create_branch(
+        self,
+        branch: str,
+        from_branch: Optional[str] = None,
+        checkout: bool = False,
+    ) -> dict:
+        """
+        Create a branch from another branch (or HEAD).
+
+        Args:
+            branch: New branch name.
+            from_branch: Base branch. Defaults to the checked out branch.
+            checkout: Switch to the new branch after creating it.
+
+        Returns:
+            Operation result dict with 'branch' and 'base_ref'.
+
+        Example:
+            >>> engine.create_branch("feature/login", from_branch="main")
+            {'success': True, 'branch': 'feature/login', ...}
+        """
+        branch = self._sanitize_branch_name(branch)
+        if not branch:
+            return self._git_operation_error("Branch name is required")
+
+        check = self._run_git(["check-ref-format", "--branch", branch])
+        if not check["ok"]:
+            return self._git_operation_error(
+                f"Invalid branch name '{branch}': {check['error']}", branch=branch
+            )
+
+        if self._ref_exists(f"refs/heads/{branch}"):
+            return self._git_operation_error(
+                f"Branch '{branch}' already exists", branch=branch
+            )
+
+        base_ref = self._resolve_base_ref(from_branch, self._get_repo_root()) or "HEAD"
+        result = self._run_git(["branch", branch, base_ref])
+        response = self._git_operation_result(
+            result, branch=branch, base_ref=base_ref
+        )
+        if not response["success"]:
+            return response
+
+        if checkout:
+            switch = self._run_git(["checkout", branch])
+            response["steps"] = [self._git_operation_result(switch)]
+            if not switch["ok"]:
+                response.update(
+                    success=False,
+                    errors=[f"Branch created but checkout failed: {switch['error']}"],
+                )
+
+        return response
+
+    def checkout_branch(self, branch: str) -> dict:
+        """
+        Check out a local branch, tracking the remote branch when needed.
+
+        Args:
+            branch: Branch name.
+
+        Returns:
+            Operation result dict with 'branch'.
+        """
+        branch = self._sanitize_branch_name(branch)
+        if not branch:
+            return self._git_operation_error("Branch name is required")
+
+        if self._ref_exists(f"refs/heads/{branch}"):
+            result = self._run_git(["checkout", branch])
+            return self._git_operation_result(result, branch=branch)
+
+        if self._ref_exists(f"refs/remotes/{DEFAULT_REMOTE}/{branch}"):
+            result = self._run_git(
+                ["checkout", "-b", branch, f"{DEFAULT_REMOTE}/{branch}"]
+            )
+            return self._git_operation_result(
+                result, branch=branch, created_from_remote=True
+            )
+
+        return self._git_operation_error(
+            f"Branch '{branch}' not found", branch=branch
+        )
+
+    def delete_branch(self, branch: str, force: bool = True) -> dict:
+        """
+        Delete a local branch, removing its worktree first when it has one.
+
+        Args:
+            branch: Branch name.
+            force: Delete even when the branch is not merged (``-D``).
+
+        Returns:
+            Operation result dict with 'branch', 'deleted' and
+            'worktree_removed'.
+        """
+        branch = self._sanitize_branch_name(branch)
+        if not branch:
+            return self._git_operation_error("Branch name is required")
+
+        repo_path = self._get_repo_root()
+        current_branch = self._sanitize_branch_name(
+            self.get_project_current_branch()
+        )
+        if branch == current_branch:
+            return self._git_operation_error(
+                f"Cannot delete '{branch}' while it is checked out", branch=branch
+            )
+
+        worktree = self._remove_worktree(branch, cwd=repo_path)
+        if not worktree["ok"]:
+            return self._git_operation_error(
+                f"Could not remove worktree '{worktree['path']}': "
+                f"{worktree['error']}",
+                branch=branch,
+            )
+
+        deleted = self._delete_branch(branch, cwd=repo_path, force=force)
+        if not deleted["ok"]:
+            return self._git_operation_error(
+                f"Could not delete branch '{branch}': {deleted['error']}",
+                branch=branch,
+            )
+
+        return {
+            "success": True,
+            "branch": branch,
+            "deleted": deleted["deleted"],
+            "worktree_removed": worktree["removed"],
+            "output": deleted["output"],
+            "errors": [],
+        }
+
+    def commit_changes(
+        self,
+        message: str,
+        stage_all: bool = True,
+        allow_empty: bool = False,
+    ) -> dict:
+        """
+        Commit the working tree changes.
+
+        Args:
+            message: Commit message.
+            stage_all: Stage every change before committing (``git add -A``).
+            allow_empty: Allow commits with no content changes.
+
+        Returns:
+            Operation result dict with 'commit' (full hash) and 'short_commit'.
+
+        Example:
+            >>> engine.commit_changes("feat: add git management")
+            {'success': True, 'commit': 'a1b2c3...', ...}
+        """
+        message = (message or "").strip()
+        if not message:
+            return self._git_operation_error("Commit message is required")
+
+        repo_path = self._get_repo_root()
+        if stage_all:
+            result = self._commit_all(
+                cwd=repo_path, message=message, allow_empty=allow_empty
+            )
+        else:
+            args: List[str] = ["commit", "-m", message]
+            if allow_empty:
+                args.append("--allow-empty")
+            result = self._run_git(args, cwd=repo_path)
+
+        response = self._git_operation_result(
+            result, message=message, stage_all=stage_all
+        )
+        if not response["success"]:
+            error = (result["error"] or result["output"] or "").strip()
+            response["errors"] = [error or "Could not commit changes"]
+            return response
+
+        head = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
+        if head["ok"]:
+            response["commit"] = head["output"]
+            response["short_commit"] = head["output"][:8]
+
+        return response
+
+    def merge_branches(
+        self,
+        from_branch: str,
+        to_branch: Optional[str] = None,
+        message: Optional[str] = None,
+        delete_branch: bool = False,
+    ) -> dict:
+        """
+        Merge a branch into another one (PR close workflow).
+
+        Workflow:
+            1. Resolve the target branch: ``to_branch``, the checked out branch,
+               or the repository default branch.
+            2. Stash local changes so the checkout never fails.
+            3. Check out the target branch and ``git merge --no-ff <source>``;
+               conflicting merges are aborted and the conflicts reported.
+            4. Restore the stashed changes.
+
+        Args:
+            from_branch: Branch to merge (source).
+            to_branch: Branch to merge into (target).
+            message: Merge commit message. Defaults to
+                ``"Merge branch '<source>' into '<target>'"``.
+            delete_branch: Delete the source branch after merging.
+
+        Returns:
+            Operation result dict with 'from_branch', 'to_branch', 'commit',
+            'conflicts', 'branch_deleted' and 'steps'.
+
+        Example:
+            >>> engine.merge_branches("codx-junior/fix-login", "main")
+            {'success': True, 'from_branch': 'codx-junior/fix-login', ...}
+        """
+        source = self._sanitize_branch_name(from_branch)
+        if not source:
+            return self._git_operation_error("Source branch is required")
+
+        repo_path = self._get_repo_root()
+        if not self._ref_exists(f"refs/heads/{source}"):
+            return self._git_operation_error(
+                f"Branch '{source}' not found", branch=source
+            )
+
+        current_branch = self._sanitize_branch_name(
+            self.get_project_current_branch()
+        )
+        target = self._sanitize_branch_name(to_branch) or (
+            current_branch
+            if current_branch and current_branch != source
+            else self.get_default_branch()
+        )
+        if not target:
+            return self._git_operation_error(
+                "Could not determine the target branch to merge into"
+            )
+        if target == source:
+            return self._git_operation_error(
+                f"Branch '{source}' cannot be merged into itself",
+                from_branch=source,
+                to_branch=target,
+            )
+
+        result = {
+            "success": False,
+            "from_branch": source,
+            "to_branch": target,
+            "original_branch": current_branch,
+            "commit": "",
+            "conflicts": [],
+            "branch_deleted": False,
+            "steps": [],
+            "errors": [],
+        }
+
+        status = self.get_working_tree_status()
+        result["steps"].append(
+            {
+                "name": "status",
+                "ok": status["ok"],
+                "output": f"{len(status['files'])} changed file(s)",
+            }
+        )
+        if not status["ok"]:
+            result["errors"].append(f"Could not read git status: {status['error']}")
+            return result
+
+        local_branch = self._ensure_local_branch(target)
+        result["steps"].append({"name": "ensure-target", **local_branch})
+        if not local_branch["ok"]:
+            result["errors"].append(local_branch["error"])
+            return result
+
+        message = message or f"Merge branch '{source}' into '{target}'"
+        stashed = False
+        try:
+            if status["dirty"]:
+                stash = self._run_git(
+                    [
+                        "stash",
+                        "push",
+                        "-u",
+                        "-m",
+                        f"codx-junior: auto-stash before merging {source}",
+                    ],
+                    cwd=repo_path,
+                )
+                result["steps"].append({"name": "stash", **stash})
+                if not stash["ok"]:
+                    result["errors"].append(
+                        f"Could not stash local changes: {stash['error']}"
+                    )
+                    return result
+                stashed = True
+
+            if current_branch != target:
+                checkout = self._run_git(["checkout", target], cwd=repo_path)
+                result["steps"].append({"name": "checkout", **checkout})
+                if not checkout["ok"]:
+                    result["errors"].append(
+                        f"Could not checkout '{target}': {checkout['error']}"
+                    )
+                    return result
+
+            merge = self._run_git(
+                ["merge", "--no-ff", source, "-m", message], cwd=repo_path
+            )
+            result["steps"].append({"name": "merge", **merge})
+            if not merge["ok"]:
+                conflicts = self._run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], cwd=repo_path
+                )
+                result["conflicts"] = [
+                    f.strip() for f in conflicts["output"].split("\n") if f.strip()
+                ]
+                self._run_git(["merge", "--abort"], cwd=repo_path)
+                result["errors"].append(
+                    f"Could not merge '{source}' into '{target}': "
+                    f"{merge['error'] or merge['output']}"
+                )
+                return result
+
+            head = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
+            if head["ok"]:
+                result["commit"] = head["output"]
+
+            if delete_branch:
+                deleted = self._delete_branch(source, cwd=repo_path)
+                result["steps"].append({"name": "branch-delete", **deleted})
+                result["branch_deleted"] = deleted["deleted"]
+                if not deleted["ok"]:
+                    result["errors"].append(
+                        f"Could not delete branch '{source}': {deleted['error']}"
+                    )
+
+            return result
+        finally:
+            if stashed:
+                pop = self._run_git(["stash", "pop"], cwd=repo_path)
+                result["steps"].append({"name": "stash-pop", **pop})
+                if not pop["ok"]:
+                    result["errors"].append(
+                        "Could not restore stashed local changes. "
+                        "Run 'git stash pop' manually."
+                    )
+            result["success"] = not result["errors"]
 
     def reset_project_file(self, file_path: str) -> None:
         """Reset file's last change."""

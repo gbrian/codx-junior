@@ -76,6 +76,16 @@ let splitterUid = 0
 // NON-reactive instance state and committed once the gesture settles.
 const LAYOUT_SETTLE_MS = 150
 
+// How long after mount we ignore layout events from radix-vue.
+// On mount radix emits an initial @layout with the panel sizes it computed
+// from `defaultSize`. If a concurrent store write (e.g. opening a chat
+// reloads it and merges new fields) causes the SplitterGroup to re-mount,
+// that fresh @layout event looks identical to a user drag and used to enter
+// a commitLayout → seededLayout write → panel defaultSize change → re-mount
+// → @layout loop. Ignoring events for a short window after mount breaks the
+// cycle while still letting genuine drags commit normally.
+const MOUNT_SETTLE_MS = 300
+
 export default {
   props: {
     // Per-panel sizing/class config: { left: {...}, right: {...} }
@@ -127,6 +137,17 @@ export default {
       }
     }
   },
+  mounted() {
+    // Mark the mount timestamp so `onLayout` can ignore the initial radix-vue
+    // @layout event that fires immediately after mount. Without this guard,
+    // any concurrent store write that causes the SplitterGroup to re-mount
+    // (e.g. opening a chat reloads its messages → chats computed changes →
+    // buildViewColumns → viewColumns array replaced → slot content re-renders)
+    // would produce a mount-time @layout that commitLayout treated as a user
+    // drag, writing seededLayout, which re-seeded the panels, which fired
+    // another @layout — a tight render loop.
+    this.dragState().mountedAt = Date.now()
+  },
   beforeUnmount() {
     const state = this.dragState()
     clearTimeout(state.timer)
@@ -140,7 +161,7 @@ export default {
     // on every pointer move.
     dragState() {
       if (!this.splitterDragState) {
-        this.splitterDragState = { sizes: null, lastCommitted: null, timer: null }
+        this.splitterDragState = { sizes: null, lastCommitted: null, timer: null, mountedAt: 0 }
       }
       return this.splitterDragState
     },
@@ -183,6 +204,14 @@ export default {
       if (!Array.isArray(sizes) || sizes.length < 2) return
 
       const state = this.dragState()
+
+      // Ignore radix-vue's automatic @layout event that fires right after
+      // mount. When the SplitterGroup re-mounts because its slot content
+      // changed (e.g. viewColumns was replaced after a chat reload), that
+      // event would otherwise be treated as a real user drag and trigger
+      // commitLayout → seededLayout write → panel re-seed → re-mount loop.
+      if (Date.now() - (state.mountedAt || 0) < MOUNT_SETTLE_MS) return
+
       state.sizes = [sizes[0], sizes[1]]
 
       // Echo of a layout we already committed — nothing to do

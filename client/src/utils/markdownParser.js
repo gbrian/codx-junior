@@ -378,6 +378,12 @@ function isInsideCodeFence(lines, lineIndex) {
  * SINGLE-LINE CONTENT FIX:
  * - All non-empty content generates at least one block
  * - Plain markdown (no fences) defaults to type='markdown'
+ *
+ * MARKDOWN FENCES AS CODE BLOCKS:
+ * - Fenced blocks tagged markdown/md/text get a synthetic fileName like every
+ *   other fenced block, so they render through the Code component (highlighted
+ *   code) instead of being re-rendered as markdown. Plain prose (no fence) is
+ *   left as markdown so it keeps normal document formatting.
  */
 function parseBlocks(content, getRendererFn = getRenderer) {
   const blocks = []
@@ -392,6 +398,9 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   // Tracks how many named inner fences are open inside the current outer block.
   // A closing fence only closes the outer block when nestDepth === 0.
   let nestDepth = 0
+  // Tracks whether the block being built originates from a fence (```...```).
+  // Used so fenced markdown/md/text blocks also become code blocks.
+  let currentIsFence = false
 
   function addBlock(isFinished = false) {
     const blockContent = currentContent.join('\n')
@@ -405,7 +414,12 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     let finalFileName = currentFileName
     let finalType = currentType
 
-    if (finalType && !isMarkdownBlockType(finalType) && !finalFileName && !isAnonymousFence) {
+    // Generate a synthetic fileName when the block comes from a fence (any
+    // language, including markdown/md/text) OR when its type is a real
+    // language. This routes fenced markdown blocks through the Code component
+    // so they render as code blocks as well, while plain prose (no fence)
+    // keeps rendering as markdown.
+    if (finalType && !finalFileName && !isAnonymousFence && (currentIsFence || !isMarkdownBlockType(finalType))) {
       finalFileName = generateFileName(finalType)
     }
 
@@ -431,6 +445,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     currentFence = null
     isAnonymousFence = false
     nestDepth = 0
+    currentIsFence = false
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -491,6 +506,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
         currentFileName = parts[1] || ''
         isAnonymousFence = false
         nestDepth = 0
+        currentIsFence = true
         continue
       } else {
         // Anonymous fence (no language) - treat as markdown content

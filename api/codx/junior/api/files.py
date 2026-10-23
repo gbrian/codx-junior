@@ -16,13 +16,19 @@ async def list_files(request: Request):
     List files in a directory.
 
     Query params:
-    - path: Directory path (relative or absolute)
+    - path: Directory path (relative or absolute). Absolute paths may point to
+      files of the current project or of any of its child projects.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
 
     path = request.query_params.get("path", ".")
-    abs_path = file_engine.get_project_file_path(path)
+
+    try:
+        abs_path = file_engine.get_project_file_path(path)
+    except ValueError as ex:
+        logger.warning("Invalid directory path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
 
     if not os.path.isdir(abs_path):
         return Response(status_code=status.HTTP_404_NOT_FOUND)
@@ -36,7 +42,8 @@ async def read_file(request: Request):
     Read a file and return its content with metadata.
 
     Query params:
-    - path: File path (relative or absolute)
+    - path: File path (relative to the current project or to one of its child
+      projects, or absolute)
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -49,6 +56,9 @@ async def read_file(request: Request):
         return file_engine.read_file(path)
     except FileNotFoundError:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
+    except ValueError as ex:
+        logger.warning("Invalid file path: %s", ex)
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
 
 
 @router.get("/files/preview")

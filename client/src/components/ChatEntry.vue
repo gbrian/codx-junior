@@ -132,6 +132,26 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             />
           </div>
 
+          <!-- Project override — a message can target a project different from
+               the chat's working project (message.project_id): show which one so
+               the files/code it mentions are not read in the wrong context.
+               Narrow panels keep only the icon; the name appears at @lg/panel. -->
+          <span
+            v-if="isProjectOverridden"
+            class="badge badge-xs badge-info badge-outline gap-1 shrink-0 max-w-[9rem] tooltip tooltip-bottom"
+            :data-tip="projectLabel"
+            :aria-label="projectLabel"
+          >
+            <img
+              v-if="messageProject?.project_icon"
+              :src="messageProject.project_icon"
+              alt=""
+              class="w-3 h-3 rounded-full object-cover shrink-0"
+            />
+            <i v-else class="fa-solid fa-folder shrink-0"></i>
+            <span class="hidden @lg/panel:inline truncate">{{ messageProject?.project_name || 'Project' }}</span>
+          </span>
+
           <!-- Status badges -->
           <span v-if="cancellationTime" class="badge badge-xs badge-error">
             <i class="fa-solid fa-ban mr-0.5"></i>Cancelled
@@ -794,6 +814,49 @@ export default {
       }
       return this.$project
     },
+    // Project the chat works in: `project_id` is the working one, falling back
+    // to the owner for chats that never overrode it. Baseline a message is
+    // compared against (see `isProjectOverridden`).
+    chatProjectId() {
+      return this.chat?.project_id || this.chat?.owner_project_id || null
+    },
+    // Project the rendered message is addressed to (Message.project_id).
+    // `displayMessage` is used so a topic reply shows the project of the content
+    // actually on screen.
+    messageProjectId() {
+      return this.displayMessage?.project_id || null
+    },
+    // Resolved project of the rendered message.
+    messageProject() {
+      const projectId = this.messageProjectId
+      if (!projectId) return null
+      return this.$projects.allProjectsById?.[projectId]
+        || (this.$projects.allProjects || []).find(p => p.project_id === projectId)
+        || null
+    },
+    // Project the code blocks of this message belong to.
+    //
+    // A message can target another project than the chat (`Message.project_id`)
+    // and every block path is relative to THAT project: file writes must be
+    // sent through its own API instance, otherwise the request carries the
+    // chat's `codx_path` and the write fails.
+    codeWriteProject() {
+      return this.messageProject || this.chatProject || this.$project
+    },
+    // A message can target another project than the chat's. Without this the
+    // files/code it mentions would be read in the chat's project context.
+    isProjectOverridden() {
+      const projectId = this.messageProjectId
+      return !!projectId && projectId !== this.chatProjectId
+    },
+    // Tooltip / accessible text of the project badge
+    projectLabel() {
+      const project = this.messageProject
+      if (!project) return 'This message targets another project'
+      return project.abs_project_path
+        ? `${project.project_name} · ${project.abs_project_path}`
+        : project.project_name
+    },
     chatFiles() {
       return this.chat.file_list
     },
@@ -1058,10 +1121,14 @@ export default {
       this.savingCodeBlocks = true
       this.codeBlockSaveStatus = null
 
+      // The blocks belong to the project THIS message targets, not necessarily
+      // to the chat's one (see `codeWriteProject`).
+      const writeProject = this.codeWriteProject
+
       try {
         const resolved = selected
           .map(item => item.file || this.resolveCodeBlockFile(item.block))
-        const api = (this.chatProject || this.$project)?.$api
+        const api = writeProject?.$api
         const canBulkWrite = resolved.every(file => !!file) && !!api?.files?.writeMultiple
 
         if (canBulkWrite) {
@@ -1078,9 +1145,13 @@ export default {
           selected.forEach((item, ix) => {
             const file = resolved[ix]
             if (file) {
-              this.$emit('save-file', { file: file.path, content: file.content })
+              this.$emit('save-file', {
+                file: file.path,
+                content: file.content,
+                project: writeProject
+              })
             } else {
-              this.$emit('save-file', item.block)
+              this.$emit('save-file', { ...item.block, project: writeProject })
             }
           })
           this.selectedCodeBlockKeys = []
