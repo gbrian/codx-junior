@@ -1,15 +1,19 @@
 <script setup>
-import moment from 'moment'
+import DiffViewer from '@/components/DiffViewer.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full min-h-0 overflow-hidden">
+  <div class="flex flex-col h-full min-h-0 overflow-hidden bg-base-100">
     <!-- ── File header ──────────────────────────────────────────────────── -->
     <div class="flex items-center gap-1.5 px-2 py-1.5 border-b border-base-content/10 shrink-0 flex-wrap">
-      <i class="fa-solid text-[11px] shrink-0" :class="[file.icon, file.color]"></i>
-      <span class="font-mono text-xs font-semibold truncate" :title="file.path">{{ fileName }}</span>
-      <span class="font-mono text-[10px] opacity-40 truncate hidden sm:inline">{{ fileDir }}</span>
-      <span class="badge badge-xs badge-ghost shrink-0">{{ file.label }}</span>
+      <i class="fa-solid text-[11px] shrink-0" :class="[fileIcon, fileColor]"></i>
+      <button
+        class="font-mono text-xs font-semibold truncate max-w-[45%] hover:underline"
+        :title="`${file.path} — open in editor`"
+        @click="openFile"
+      >{{ fileName }}</button>
+      <span class="font-mono text-[10px] opacity-40 truncate hidden sm:inline" :title="file.path">{{ fileDir }}</span>
+      <span class="badge badge-xs badge-ghost shrink-0">{{ fileLabel }}</span>
       <span v-if="additions || deletions" class="text-[10px] font-mono shrink-0">
         <span class="text-success">+{{ additions }}</span>
         <span class="text-error">-{{ deletions }}</span>
@@ -17,32 +21,34 @@ import moment from 'moment'
 
       <div class="grow"></div>
 
-      <button
-        v-if="file.group === 'changes'"
-        class="btn btn-xs btn-ghost gap-1"
-        :disabled="busy"
-        title="Stage this file"
-        @click="stage"
-      >
-        <i class="fa-solid fa-plus text-[10px]"></i> Stage
-      </button>
-      <button
-        v-else
-        class="btn btn-xs btn-ghost gap-1"
-        :disabled="busy"
-        title="Remove this file from the index"
-        @click="unstage"
-      >
-        <i class="fa-solid fa-minus text-[10px]"></i> Unstage
-      </button>
-      <button
-        class="btn btn-xs btn-ghost gap-1 text-error"
-        :disabled="busy"
-        title="Roll back this file to the last commit"
-        @click="rollback"
-      >
-        <i class="fa-solid fa-rotate-left text-[10px]"></i> Rollback
-      </button>
+      <template v-if="!selectedCommit">
+        <button
+          v-if="file.group === 'changes'"
+          class="btn btn-xs btn-ghost gap-1"
+          :disabled="busy"
+          title="Stage this file"
+          @click="stage"
+        >
+          <i class="fa-solid fa-plus text-[10px]"></i> Stage
+        </button>
+        <button
+          v-else
+          class="btn btn-xs btn-ghost gap-1"
+          :disabled="busy"
+          title="Remove this file from the index"
+          @click="unstage"
+        >
+          <i class="fa-solid fa-minus text-[10px]"></i> Unstage
+        </button>
+        <button
+          class="btn btn-xs btn-ghost gap-1 text-error"
+          :disabled="busy"
+          title="Roll back this file to the last commit"
+          @click="rollback"
+        >
+          <i class="fa-solid fa-rotate-left text-[10px]"></i> Rollback
+        </button>
+      </template>
       <button class="btn btn-xs btn-ghost" title="Open file in editor" aria-label="Open file in editor" @click="openFile">
         <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
       </button>
@@ -57,7 +63,7 @@ import moment from 'moment'
         <button
           class="join-item btn btn-xs"
           :class="view === 'changes' ? 'btn-primary' : 'btn-ghost'"
-          @click="view = 'changes'"
+          @click="backToWorkingChanges"
         >
           <i class="fa-solid fa-code-compare"></i> Changes
         </button>
@@ -104,16 +110,19 @@ import moment from 'moment'
     </div>
 
     <!-- ── Feedback ─────────────────────────────────────────────────────── -->
-    <div v-if="error" class="alert alert-error rounded-none py-1 px-2 text-[11px] flex items-center gap-2 shrink-0">
-      <i class="fa-solid fa-triangle-exclamation"></i>
-      <span class="grow truncate" :title="error">{{ error }}</span>
-      <button class="btn btn-ghost btn-xs" aria-label="Dismiss error" @click="error = null">
-        <i class="fa-solid fa-xmark"></i>
+    <div v-if="error" class="alert alert-error rounded-none py-1 px-2 text-[11px] flex items-start gap-2 shrink-0">
+      <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+      <div class="grow min-w-0">
+        <div class="break-words">{{ error }}</div>
+        <div v-if="errorHint" class="opacity-80 mt-0.5 break-words">{{ errorHint }}</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" title="Retry" aria-label="Retry" @click="reload">
+        <i class="fa-solid fa-rotate-right"></i>
       </button>
     </div>
 
     <!-- ── History ──────────────────────────────────────────────────────── -->
-    <div v-if="view === 'history'" class="grow overflow-auto">
+    <div v-if="view === 'history'" class="grow min-h-0 overflow-auto">
       <div v-if="historyLoading" class="p-3 text-xs opacity-50 flex items-center gap-2">
         <i class="fa-solid fa-spinner animate-spin"></i> Loading history...
       </div>
@@ -135,20 +144,37 @@ import moment from 'moment'
     </div>
 
     <!-- ── Diff ─────────────────────────────────────────────────────────── -->
-    <div v-else class="grow overflow-auto font-mono text-[11px] leading-5">
-      <div v-if="loading" class="p-3 text-xs opacity-50 font-sans flex items-center gap-2">
+    <div v-else class="grow min-h-0 flex flex-col overflow-hidden">
+      <div v-if="loading" class="p-3 text-xs opacity-50 flex items-center gap-2">
         <i class="fa-solid fa-spinner animate-spin"></i> Loading diff...
       </div>
-      <div v-else-if="!diffLines.length" class="p-3 text-xs opacity-40 font-sans">No changes</div>
-      <table v-else class="w-full border-collapse">
-        <tbody>
-          <tr v-for="(line, index) in diffLines" :key="index" :class="lineClass(line)">
-            <td class="w-9 pr-2 text-right opacity-30 select-none align-top">{{ line.oldNo }}</td>
-            <td class="w-9 pr-2 text-right opacity-30 select-none align-top">{{ line.newNo }}</td>
-            <td class="pr-2 align-top whitespace-pre-wrap break-all">{{ line.text }}</td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div v-else-if="!hasDiff" class="p-3 flex flex-col gap-2 text-xs opacity-50">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-circle-info"></i>
+          <span v-if="selectedCommit">This commit did not change this file</span>
+          <span v-else>No changes to show for this file</span>
+        </div>
+        <pre v-if="header" class="font-mono text-[10px] whitespace-pre-wrap opacity-70">{{ header }}</pre>
+        <button class="btn btn-xs btn-ghost self-start gap-1" @click="reload">
+          <i class="fa-solid fa-rotate-right text-[10px]"></i> Reload
+        </button>
+      </div>
+
+      <!-- Same renderer used by the Review panel (PRViewer / CodeViewer) -->
+      <template v-else>
+        <pre
+          v-if="header"
+          class="m-0 px-2 py-1 font-mono text-[10px] leading-4 opacity-50 border-b border-base-content/10 whitespace-pre-wrap shrink-0"
+        >{{ header }}</pre>
+        <DiffViewer
+          :key="viewerKey"
+          class="flex-1 min-h-0 overflow-hidden"
+          :diff="diff"
+          :file="fileName"
+          :language="language"
+        />
+      </template>
     </div>
   </div>
 </template>
@@ -166,15 +192,20 @@ export default {
   data() {
     return {
       view: 'changes',
+      // Unified patch only: the renderer must not receive commit metadata
       diff: '',
+      header: '',
       additions: 0,
       deletions: 0,
       loading: false,
+      error: null,
+      errorHint: '',
       history: [],
       historyLoading: false,
       selectedCommit: null,
-      error: null,
-      busy: false
+      busy: false,
+      // Guards against an out-of-order response overwriting the current file
+      requestToken: 0
     }
   },
   computed: {
@@ -186,8 +217,30 @@ export default {
       parts.pop()
       return parts.join('/')
     },
-    diffLines() {
-      return this.parseDiff(this.diff)
+    fileIcon() {
+      return this.file?.icon || 'fa-file'
+    },
+    fileColor() {
+      return this.file?.color || 'text-base-content/60'
+    },
+    fileLabel() {
+      return this.file?.label || 'Changed'
+    },
+    /** Mode sent to the API: the staged list diffs the index, the rest the worktree */
+    mode() {
+      if (this.selectedCommit) return 'commit'
+      return this.file?.group === 'staged' ? 'staged' : 'worktree'
+    },
+    language() {
+      const extension = (this.file?.path || '').split('.').pop()
+      return extension && extension !== this.file?.path ? extension : ''
+    },
+    hasDiff() {
+      return !!this.diff && this.diff.trim().length > 0
+    },
+    /** Remount the renderer whenever the shown content changes */
+    viewerKey() {
+      return `${this.file?.path || ''}:${this.mode}:${this.selectedCommit?.commit || ''}`
     }
   },
   watch: {
@@ -207,10 +260,12 @@ export default {
       this.selectedCommit = null
       this.view = 'changes'
       this.diff = ''
+      this.header = ''
       this.additions = 0
       this.deletions = 0
       this.history = []
       this.error = null
+      this.errorHint = ''
       this.loadDiff()
     },
 
@@ -218,25 +273,35 @@ export default {
       return this.view === 'history' ? this.loadHistory() : this.loadDiff()
     },
 
-    /** Working tree (or index) diff of the current file group */
+    /** Working tree / index / commit diff of the current file */
     async loadDiff() {
       if (!this.api || !this.file?.path) return
+
+      const token = ++this.requestToken
       this.loading = true
       this.error = null
-      this.selectedCommit = null
+      this.errorHint = ''
+
       try {
-        const staged = this.file.group === 'staged'
-        const result = await this.api.get(
-          `/api/git/repo/file/diff?path=${encodeURIComponent(this.file.path)}&staged=${staged ? 'true' : 'false'}`
-        )
-        this.applyDiff(result)
+        const query = [
+          `path=${encodeURIComponent(this.file.path)}`,
+          `mode=${encodeURIComponent(this.mode)}`
+        ]
+        if (this.selectedCommit?.commit) {
+          query.push(`commit=${encodeURIComponent(this.selectedCommit.commit)}`)
+        }
+        const response = await this.api.get(`/api/git/repo/file/diff?${query.join('&')}`)
+        if (token !== this.requestToken) return
+        this.applyDiff(this.unwrap(response))
       } catch (ex) {
-        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
+        if (token !== this.requestToken) return
         this.diff = ''
+        this.header = ''
         this.additions = 0
         this.deletions = 0
+        this.setError(ex)
       } finally {
-        this.loading = false
+        if (token === this.requestToken) this.loading = false
       }
     },
 
@@ -249,17 +314,18 @@ export default {
       if (!this.api || !this.file?.path) return
       this.historyLoading = true
       this.error = null
+      this.errorHint = ''
       try {
-        const result = await this.api.get(
+        const result = this.unwrap(await this.api.get(
           `/api/git/repo/file/history?path=${encodeURIComponent(this.file.path)}&limit=25`
-        )
+        ))
         this.history = (result?.commits || []).map(commit => ({
           ...commit,
-          relative: commit.date ? this.relativeDate(commit.date) : ''
+          relative: this.relativeDate(commit.date)
         }))
       } catch (ex) {
-        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
         this.history = []
+        this.setError(ex)
       } finally {
         this.historyLoading = false
       }
@@ -268,35 +334,67 @@ export default {
     /** Show the changes introduced by a single commit */
     async openCommit(commit) {
       if (!this.api || !commit?.commit) return
+      this.selectedCommit = commit
       this.view = 'changes'
-      this.loading = true
-      this.error = null
-      try {
-        const result = await this.api.get(
-          `/api/git/repo/file/diff?path=${encodeURIComponent(this.file.path)}&commit=${encodeURIComponent(commit.commit)}`
-        )
-        this.selectedCommit = commit
-        this.applyDiff(result)
-      } catch (ex) {
-        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
-      } finally {
-        this.loading = false
-      }
+      await this.loadDiff()
     },
 
     backToWorkingChanges() {
-      this.loadDiff()
+      this.view = 'changes'
+      if (!this.selectedCommit) {
+        return this.loadDiff()
+      }
+      this.selectedCommit = null
+      return this.loadDiff()
     },
 
-    applyDiff(result) {
-      this.diff = result?.diff || ''
-      this.additions = result?.additions || 0
-      this.deletions = result?.deletions || 0
+    // ── Response handling ───────────────────────────────────────────────
+    /**
+     * The API layer resolves with the payload, but some clients (and the
+     * `del` helper) resolve with the raw axios response. Unwrap `data` so both
+     * shapes work and the diff is never `undefined`.
+     */
+    unwrap(response) {
+      if (!response || typeof response !== 'object') return {}
+      if (!('diff' in response) && response.data && typeof response.data === 'object') {
+        return response.data
+      }
+      return response
     },
 
+    applyDiff(payload) {
+      this.diff = payload?.diff || ''
+      this.header = payload?.header || ''
+      this.additions = payload?.additions || 0
+      this.deletions = payload?.deletions || 0
+    },
+
+    setError(ex) {
+      const detail = ex?.response?.data?.detail || ex?.message || String(ex)
+      this.error = detail
+      const status = ex?.response?.status
+      if (status === 404 || /not found/i.test(detail)) {
+        this.errorHint = 'The git diff endpoint (/api/git/repo/file/diff) is not available on the running API. Restart the codx-junior API so the repository routes are loaded, then retry.'
+      } else {
+        this.errorHint = ''
+      }
+    },
+
+    /** Relative time without pulling a date library into this component */
     relativeDate(date) {
-      const value = moment(date)
-      return value.isValid() ? value.fromNow() : date
+      if (!date) return ''
+      const value = new Date(date)
+      if (isNaN(value.getTime())) return date
+
+      const minutes = Math.round((Date.now() - value.getTime()) / 60000)
+      const abs = Math.abs(minutes)
+      if (abs < 1) return 'just now'
+      if (abs < 60) return `${minutes}m ago`
+      const hours = Math.round(minutes / 60)
+      if (Math.abs(hours) < 24) return `${hours}h ago`
+      const days = Math.round(hours / 24)
+      if (Math.abs(days) < 30) return `${days}d ago`
+      return value.toISOString().slice(0, 10)
     },
 
     // ── Actions ─────────────────────────────────────────────────────────
@@ -304,28 +402,33 @@ export default {
       if (!this.api || this.busy) return
       this.busy = true
       this.error = null
+      this.errorHint = ''
       try {
         await fn()
         this.$emit('changed')
         await this.loadDiff()
       } catch (ex) {
-        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
+        this.setError(ex)
       } finally {
         this.busy = false
       }
     },
 
     stage() {
-      this.runAction(() => this.api.post('/api/git/repo/stage', { paths: [this.file.path] }))
+      return this.runAction(
+        () => this.api.post('/api/git/repo/stage', { paths: [this.file.path] })
+      )
     },
 
     unstage() {
-      this.runAction(() => this.api.post('/api/git/repo/unstage', { paths: [this.file.path] }))
+      return this.runAction(
+        () => this.api.post('/api/git/repo/unstage', { paths: [this.file.path] })
+      )
     },
 
     rollback() {
       if (!window.confirm(`Roll back "${this.file.path}" to the last commit? This cannot be undone.`)) return
-      this.runAction(() => this.api.post('/api/git/repo/discard', {
+      return this.runAction(() => this.api.post('/api/git/repo/discard', {
         paths: [this.file.path],
         include_staged: true
       }))
@@ -334,77 +437,6 @@ export default {
     openFile() {
       if (!this.file?.path || !this.$ui?.openProjectFile) return
       this.$ui.openProjectFile(this.file.path)
-    },
-
-    // ── Rendering ───────────────────────────────────────────────────────
-    /**
-     * Split a unified diff into renderable lines with old/new line numbers.
-     * Everything before the first diff/hunk line is a header block (e.g. the
-     * commit metadata printed by `git show`).
-     */
-    parseDiff(diff) {
-      const lines = []
-      let oldNo = 0
-      let newNo = 0
-      let inDiff = false
-
-      const push = (text, type, oldNumber = '', newNumber = '') => {
-        lines.push({ text, type, oldNo: oldNumber, newNo: newNumber })
-      }
-
-      ;(diff || '').split('\n').forEach(text => {
-        if (!inDiff && /^(diff --git |--- |\+\+\+ |@@ )/.test(text)) inDiff = true
-
-        if (!inDiff) {
-          push(text, 'meta')
-          return
-        }
-
-        if (/^(diff --git |index |new file mode|deleted file mode|old mode|new mode|similarity index|rename |Binary files )/.test(text)) {
-          push(text, 'meta')
-          return
-        }
-
-        const hunk = text.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
-        if (hunk) {
-          oldNo = Number(hunk[1])
-          newNo = Number(hunk[2])
-          push(text, 'hunk')
-          return
-        }
-
-        if (/^(--- |\+\+\+ )/.test(text)) {
-          push(text, 'file')
-          return
-        }
-
-        if (text.startsWith('+')) {
-          push(text, 'add', '', newNo)
-          newNo += 1
-          return
-        }
-
-        if (text.startsWith('-')) {
-          push(text, 'del', oldNo, '')
-          oldNo += 1
-          return
-        }
-
-        push(text, 'context', oldNo, newNo)
-        oldNo += 1
-        newNo += 1
-      })
-
-      return lines
-    },
-
-    lineClass(line) {
-      if (line.type === 'add') return 'bg-success/15 text-success'
-      if (line.type === 'del') return 'bg-error/15 text-error'
-      if (line.type === 'hunk') return 'bg-info/10 text-info font-semibold'
-      if (line.type === 'file') return 'text-base-content/50'
-      if (line.type === 'meta') return 'text-base-content/40'
-      return ''
     }
   }
 }

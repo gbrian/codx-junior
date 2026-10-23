@@ -160,6 +160,11 @@ export default {
     },
     canCommit() {
       return !!this.commitMessage.trim() && this.workingTreeCount > 0
+    },
+    /** Identity of the open diff: remounts the pane for every file / group */
+    diffKey() {
+      if (!this.selectedFile) return null
+      return `${this.selectedFile.group}:${this.selectedFile.path}`
     }
   },
   created() {
@@ -441,6 +446,8 @@ export default {
 
     openDiff(group, file) {
       if (!file?.path) return
+      // Same file/group already open: keep it (no remount, no extra request)
+      if (this.isFileOpen(group, file.path)) return
       this.selectedFile = {
         path: file.path,
         group,
@@ -451,20 +458,25 @@ export default {
       }
     },
 
+    closeDiff() {
+      this.selectedFile = null
+    },
+
     /** Keep the diff pane in sync with the reloaded working tree */
     syncSelectedFile() {
       if (!this.selectedFile) return
-      const current = this.selectedFile.group
-      const order = current === 'staged'
+
+      const { path, group } = this.selectedFile
+      const order = group === 'staged'
         ? ['staged', 'changes']
         : ['changes', 'staged']
 
-      for (const group of order) {
-        const match = this.groupFiles(group).find(file => file.path === current.path || file.path === this.selectedFile.path)
+      for (const key of order) {
+        const match = this.groupFiles(key).find(file => file.path === path)
         if (match) {
           this.selectedFile = {
             path: match.path,
-            group,
+            group: key,
             code: match.code,
             icon: match.icon,
             color: match.color,
@@ -1091,18 +1103,19 @@ export default {
             </button>
           </div>
 
-          <!-- File diff (open from the working tree) -->
+          <!-- File diff (open from the working tree or the commits list) -->
           <RepoFileDiff
             v-if="selectedFile && api"
+            :key="diffKey"
             :api="api"
             :file="selectedFile"
-            class="grow min-h-0"
-            @close="selectedFile = null"
+            class="flex-1 min-h-0"
+            @close="closeDiff"
             @changed="onFileChanged"
           />
 
           <!-- Commits -->
-          <div v-else class="grow overflow-auto p-3 flex flex-col gap-2">
+          <div v-else class="flex-1 min-h-0 overflow-auto p-3 flex flex-col gap-2">
             <div v-if="commitsLoading" class="flex items-center gap-2 text-base-content/50 text-sm">
               <i class="fa-solid fa-spinner animate-spin"></i> Loading commits...
             </div>

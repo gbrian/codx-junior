@@ -373,6 +373,14 @@ export default {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    // Identity-stable collection caches used by the `messages` / `messageFiles`
+    // computeds. They are plain instance state (deliberately NOT reactive: they
+    // are written while the computed is being evaluated), so they must exist
+    // before the first render or Vue warns
+    // "Property ... was accessed during render but is not defined on instance".
+    this.lastMessages = null
+    this.lastMessageFiles = null
+    this.parsedMessageFiles = new Map()
     // Collapse the composer by default on mobile to leave more room for reading
     this.inputCollapsed = this.$ui.isMobile
     this.initProject()
@@ -420,14 +428,13 @@ export default {
     //    otherwise <ChatFileList> would rebuild its chips — and re-check every
     //    file on the server — on each streamed chunk.
     messageFiles() {
-      const parseCache = this.parsedMessageFiles || (this.parsedMessageFiles = new Map())
       const nextParseCache = new Map()
       const files = new Set()
 
       ;(this.messages || []).forEach(message => {
         const key = message.doc_id || message.id || null
         const content = message.content || ''
-        const cached = key ? parseCache.get(key) : null
+        const cached = key ? this.parsedMessageFiles.get(key) : null
         const parsed = cached && cached.content === content
           ? cached.files
           : this.extractFilesFromCodeBlocks(content)

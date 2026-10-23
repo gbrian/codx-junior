@@ -22,6 +22,7 @@ flowchart TD
     GWE --> _status_codes
     GWE --> _is_untracked
     GWE --> _count_diff_lines
+    GWE --> _split_patch
 ```
 
 Made with ❤️ by codx-junior
@@ -29,12 +30,16 @@ Made with ❤️ by codx-junior
 
 import logging
 import os
+import re
 
 from typing import Dict, List, Optional, Tuple
 
 from codx.junior.engine.git_engine import GitEngine
 
 logger = logging.getLogger(__name__)
+
+# First line of a unified patch: anything before it is command metadata
+PATCH_START_PATTERN = re.compile(r"^(diff --git |--- )", re.MULTILINE)
 
 
 class GitWorkspaceEngine(GitEngine):
@@ -165,6 +170,34 @@ class GitWorkspaceEngine(GitEngine):
             elif line.startswith("-"):
                 deletions += 1
         return {"additions": additions, "deletions": deletions}
+
+    def _split_patch(self, diff: str) -> Tuple[str, str]:
+        """
+        Split command output into its metadata header and the unified patch.
+
+        ``git show`` prints the commit metadata (hash, author, date, message)
+        before the patch, and diff renderers expect the patch to start at
+        ``diff --git``/``---``. Separating both keeps the renderer from drawing
+        the metadata as diff content.
+
+        Args:
+            diff: Raw output of a diff/show command.
+
+        Returns:
+            Tuple of ``(header, patch)``.
+
+        Example:
+            >>> engine._split_patch("commit abc\\n\\ndiff --git a/x b/x")
+            ('commit abc', 'diff --git a/x b/x')
+        """
+        text = diff or ""
+        match = PATCH_START_PATTERN.search(text)
+        if not match:
+            # No patch at all: everything is header (e.g. an empty result)
+            return text.strip(), ""
+
+        index = match.start()
+        return text[:index].strip(), text[index:]
 
     def stage_files(self, paths) -> dict:
         """
@@ -317,63 +350,93 @@ class GitWorkspaceEngine(GitEngine):
         path: str,
         staged: bool = False,
         commit: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> dict:
         """
         Return the diff of a single file.
 
         Sources, in precedence order:
-            1. ``commit``: the commit's changes for the file (``git show``).
-            2. ``staged``: index against HEAD (``git diff --cached``).
+            1. ``commit`` (or ``mode="commit"``): the commit's changes for the
+               file (``git show``), metadata returned in 'header'.
+            2. ``staged`` (or ``mode="staged"``): index against HEAD
+               (``git diff --cached``).
             3. working tree against the index (``git diff``).
 
         Untracked files have no git diff, so a synthetic "new file" diff is
-        generated from their content.
+        generated from their content. A file with nothing to show is **not** an
+        error: the result carries an empty 'diff' and the UI renders its empty
+        state.
 
         Args:
             path: File path (absolute or repo-relative).
             staged: Diff the staged (index) changes instead of the worktree.
             commit: Commit hash to diff instead of the worktree.
+            mode: Explicit source ('worktree', 'staged' or 'commit'); overrides
+                the ``staged``/``commit`` flags.
 
         Returns:
-            Dict with 'success', 'path', 'mode', 'diff', 'additions',
-            'deletions' and 'error'.
+            Dict with 'success', 'path', 'file_name', 'language', 'mode',
+            'commit', 'header', 'diff', 'additions', 'deletions' and 'error'.
 
         Example:
             >>> engine.get_file_diff("app.py")["mode"]
             'unstaged'
+            >>> engine.get_file_diff("app.py", mode="staged")["diff"][:11]
+            'diff --git '
         """
         rel_path = self._to_repo_path(path)
         if not rel_path:
             return {
                 "success": False,
                 "path": "",
+                "file_name": "",
+                "language": "",
                 "mode": "",
                 "commit": "",
+                "header": "",
                 "diff": "",
                 "additions": 0,
                 "deletions": 0,
                 "error": "path is required",
             }
 
-        if commit:
-            mode = "commit"
+        mode = mode or ("commit" if commit else "staged" if staged else "unstaged")
+        repo_root = self._get_repo_root()
+
+        if mode == "commit":
+            if not commit:
+                return {
+                    "success": False,
+                    "path": rel_path,
+                    "file_name": os.path.basename(rel_path),
+                    "language": "",
+                    "mode": mode,
+                    "commit": "",
+                    "header": "",
+                    "diff": "",
+                    "additions": 0,
+                    "deletions": 0,
+                    "error": "commit is required for the commit mode",
+                }
             args = ["show", "--no-color", "--format=medium", commit, "--", rel_path]
-        elif staged:
-            mode = "staged"
+        elif mode == "staged":
             args = ["diff", "--cached", "--no-color", "--", rel_path]
         else:
             mode = "unstaged"
             args = ["diff", "--no-color", "--", rel_path]
 
-        result = self._run_git(args, cwd=self._get_repo_root())
+        result = self._run_git(args, cwd=repo_root)
         diff = result["output"]
 
         if mode == "commit" and not result["ok"] and not diff.strip():
             return {
                 "success": False,
                 "path": rel_path,
+                "file_name": os.path.basename(rel_path),
+                "language": "",
                 "mode": mode,
-                "commit": commit,
+                "commit": commit or "",
+                "header": "",
                 "diff": "",
                 "additions": 0,
                 "deletions": 0,
@@ -384,17 +447,22 @@ class GitWorkspaceEngine(GitEngine):
             # Untracked file: diff it against /dev/null (exit code 1 is expected)
             synthetic = self._run_git(
                 ["diff", "--no-color", "--no-index", "--", os.devnull, rel_path],
-                cwd=self._get_repo_root(),
+                cwd=repo_root,
             )
             diff = synthetic["output"]
 
-        counts = self._count_diff_lines(diff)
+        header, patch = self._split_patch(diff)
+        counts = self._count_diff_lines(patch)
+
         return {
             "success": True,
             "path": rel_path,
+            "file_name": os.path.basename(rel_path),
+            "language": os.path.splitext(rel_path)[1].lstrip("."),
             "mode": mode,
             "commit": commit or "",
-            "diff": diff,
+            "header": header,
+            "diff": patch,
             "additions": counts["additions"],
             "deletions": counts["deletions"],
             "error": "",
