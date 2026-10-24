@@ -51,6 +51,7 @@
         "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py",
         "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py"
       ],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -81,6 +82,7 @@
       "updated_at": "2026-10-18T10:03:50.406899",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792316808.466781,
         "cancellation_token_id": "e94c37e2-b7c7-4043-a680-fa6ac55a580b",
@@ -351,6 +353,7 @@
       "updated_at": "2026-10-18T10:10:35.832812",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -379,6 +382,7 @@
       "updated_at": "2026-10-18T10:16:34.225300",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792318237.8782308,
         "cancellation_token_id": "0e00afdb-1980-4e81-93fe-b29835a6ec57",
@@ -532,6 +536,7 @@
       "updated_at": "2026-10-18T10:18:01.066481",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -557,9 +562,10 @@
       "is_answer": true,
       "improvement": false,
       "created_at": "2026-10-18 10:18:03.727126",
-      "updated_at": "2026-10-18T10:24:09.273325",
+      "updated_at": "2026-10-24T05:21:25.469360",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792318683.726409,
         "cancellation_token_id": "a7679637-a331-4ed2-aac6-1f768f3632e9",
@@ -723,13 +729,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-18 09:46:43.627845",
-  "updated_at": "2026-10-18T10:24:09.275133",
+  "updated_at": "2026-10-24T05:21:25.470647",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

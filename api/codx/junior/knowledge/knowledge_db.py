@@ -29,7 +29,12 @@ from codx.junior.model.model import CodxUser
 
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.knowledge.embeddings import LocalEmbeddingsModel, HybridEmbeddingsModel
+from codx.junior.knowledge.embeddings import (
+    LocalEmbeddingsModel,
+    HybridEmbeddingsModel,
+    get_local_embeddings_model,
+    DEFAULT_EMBEDDINGS_MODEL,
+)
 
 from codx.junior.utils.utils import calculate_md5
 from codx.junior.profiling.profiler import profile_function
@@ -314,6 +319,10 @@ class KnowledgeDB:
         self.db_file = f"{self.db_path}/milvus.db"
         # Static source-map file lives next to the Milvus DB file
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
+
+        # In-memory cache of the source-map JSON, invalidated by file mtime
+        self._source_map_cache: Optional[Dict[str, Any]] = None
+        self._source_map_mtime: Optional[int] = None
         
         # Initialize embeddings model (use local by default)
         self.embeddings_model = self._init_embeddings_model()
@@ -326,21 +335,17 @@ class KnowledgeDB:
 
     def _init_embeddings_model(self) -> LocalEmbeddingsModel:
         """
-        Initialize the embeddings model.
-        
-        Uses local in-memory embeddings by default.
-        Can be configured to use hybrid approach if AI service is available.
-        
+        Return the shared local embeddings model for this process.
+
+        Loading a sentence-transformers model is expensive (disk + RAM), so a
+        single instance per model name is cached at module level and reused
+        across every KnowledgeDB / project instead of being rebuilt each time.
+
         Returns:
-            Initialized embeddings model.
+            Shared, cached embeddings model.
         """
         try:
-            # Try local embeddings first (no external dependencies)
-            logger.info(
-                "Initializing local embeddings model for project '%s'", 
-                self.settings.project_name
-            )
-            return LocalEmbeddingsModel(model_name="all-MiniLM-L6-v2")
+            return get_local_embeddings_model(DEFAULT_EMBEDDINGS_MODEL)
         except ImportError:
             logger.warning(
                 "sentence-transformers not available. Install with: "
@@ -447,6 +452,9 @@ class KnowledgeDB:
         if os.path.isfile(self.db_file_list):
             os.remove(self.db_file_list)
         self.last_update = None
+        # Invalidate the in-memory source-map cache
+        self._source_map_cache = None
+        self._source_map_mtime = None
 
         self.db.drop_collection(collection_name=self.index_fulltext_name)
         self.create_db()
@@ -487,6 +495,10 @@ class KnowledgeDB:
         """
         Return the source-map, initialising from the DB if the file is absent.
 
+        The parsed map is cached in memory and only re-read from disk when the
+        file's ``st_mtime_ns`` changes, avoiding repeated JSON parsing on every
+        ``get_all_sources`` / ``get_all_categoties`` call.
+
         Diagram:
         flowchart TD
             A[_load_source_map] --> B{File exists?}
@@ -501,6 +513,20 @@ class KnowledgeDB:
         Returns:
             Valid source-map dict (never None).
         """
+        current_mtime = (
+            os.stat(self.db_file_list).st_mtime_ns
+            if os.path.isfile(self.db_file_list)
+            else None
+        )
+
+        # Serve from memory while the file on disk is unchanged
+        if (
+            current_mtime is not None
+            and current_mtime == self._source_map_mtime
+            and self._source_map_cache is not None
+        ):
+            return self._source_map_cache
+
         source_map = _read_source_map(self.db_file_list)
 
         if source_map is None or source_map.get("version") != SOURCE_MAP_VERSION:
@@ -510,6 +536,9 @@ class KnowledgeDB:
             )
             source_map = self._init_source_map_from_db()
             self._save_source_map(source_map)
+        else:
+            self._source_map_cache = source_map
+            self._source_map_mtime = current_mtime
 
         return source_map
 
@@ -517,11 +546,20 @@ class KnowledgeDB:
         """
         Persist *source_map* and refresh the cached last-update timestamp.
 
+        Also refreshes the in-memory cache so subsequent reads skip disk I/O.
+
         Args:
             source_map: Source-map dict to write.
         """
         _write_source_map(self.db_file_list, source_map)
         self.refresh_last_update()
+        # Keep the in-memory cache in sync with the freshly written file
+        self._source_map_cache = source_map
+        self._source_map_mtime = (
+            os.stat(self.db_file_list).st_mtime_ns
+            if os.path.isfile(self.db_file_list)
+            else None
+        )
 
     def _init_source_map_from_db(self) -> Dict[str, Any]:
         """

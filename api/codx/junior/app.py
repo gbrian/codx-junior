@@ -108,7 +108,7 @@ from codx.junior.background import start_background_services, stop_background_se
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 os.makedirs(f"{CODX_JUNIOR_STATIC_FOLDER}/uploads", exist_ok=True)
 
-GLOBAL_REQUEST_TIMEOUT=280
+GLOBAL_REQUEST_TIMEOUT_SECONDS=30
 
 
 app = FastAPI(
@@ -210,10 +210,11 @@ async def timeout_middleware(request: Request, call_next):
     try:
         start_time = time.time()
         logger.info("HTTP starting: %s", request.url)
-        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT)
+        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT_SECONDS)
 
     except asyncio.TimeoutError:
         process_time = time.time() - start_time
+        logger.error("HTTP TIMEOUT: %s", request.url)
         return JSONResponse({'detail': 'Request processing time exceeded limit',
                              'processing_time': process_time},
                             status_code=HTTP_504_GATEWAY_TIMEOUT)

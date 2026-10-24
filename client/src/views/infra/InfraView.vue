@@ -50,10 +50,26 @@
           </button>
         </div>
 
-        <label class="label cursor-pointer gap-2 py-0">
+        <!-- Sampling cadence: the Monitoring charts are built from these
+             samples, so the selector lives next to the switch. Default 5s.
+             Disabled (not hidden) while Live is off, so the preference stays
+             visible and adjustable without resuming polling. -->
+        <select class="select select-bordered select-xs w-20"
+                aria-label="Refresh interval"
+                :value="monitoring.interval"
+                :disabled="!monitoring.live"
+                :title="monitoring.live
+                  ? 'How often the host snapshot is sampled'
+                  : 'Enable Live to sample the host again'"
+                @change="setRefreshInterval($event.target.value)">
+          <option v-for="opt in REFRESH_INTERVALS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+
+        <label class="label cursor-pointer gap-2 py-0"
+               title="Sample the host continuously (5s by default)">
           <span class="label-text text-xs">Live</span>
           <input type="checkbox" class="toggle toggle-sm toggle-primary"
-                 :checked="state.autoRefresh" @change="toggleLive($event.target.checked)" />
+                 :checked="monitoring.live" @change="setLive($event.target.checked)" />
         </label>
 
         <button class="btn btn-sm" @click="reloadAll">
@@ -138,12 +154,14 @@
 
     <!-- ── Tabs ─────────────────────────────────────────────────────────── -->
     <div role="tablist" class="tabs tabs-boxed bg-base-200 w-full flex-wrap justify-start">
-      <button v-for="t in TABS" :key="t.id" role="tab"
+      <button v-for="t in tabs" :key="t.id" role="tab"
               class="tab gap-2" :class="{ 'tab-active': state.route === t.id }"
               @click="setRoute(t.id)">
         <i class="fas" :class="t.icon"></i>
         {{ t.label }}
-        <span class="badge badge-sm" :class="state.route === t.id ? 'badge-primary' : 'badge-ghost'">{{ tabCount(t.id) }}</span>
+        <span class="badge badge-sm" :class="state.route === t.id ? 'badge-primary' : 'badge-ghost'">
+          {{ t.id === 'monitoring' ? monitoring.samples.length : tabCount(t.id) }}
+        </span>
       </button>
     </div>
 
@@ -167,9 +185,11 @@
 
       <template v-else>
         <!-- filters (each control takes its own row in a narrow panel).
-             Maintenance carries its own toolbar + search-less review list, so
-             the shared container/image/volume filters would only be noise. -->
-        <div v-if="state.route !== 'maintenance'" class="flex flex-wrap items-center gap-2 mb-3">
+             Maintenance carries its own toolbar + search-less review list, and
+             Monitoring is a dashboard, so the shared container/image/volume
+             filters would only be noise on both. -->
+        <div v-if="!['maintenance', 'monitoring'].includes(state.route)"
+             class="flex flex-wrap items-center gap-2 mb-3">
           <label class="input input-bordered input-sm flex items-center gap-2"
                  :class="layout.compact ? 'w-full' : 'flex-1 min-w-56 max-w-96'">
             <i class="fas fa-magnifying-glass opacity-50"></i>
@@ -217,7 +237,8 @@
 
         <!-- panels -->
         <template v-else>
-          <ContainersPanel v-if="state.route === 'containers'" />
+          <MonitoringPanel v-if="state.route === 'monitoring'" />
+          <ContainersPanel v-else-if="state.route === 'containers'" />
           <StacksPanel v-else-if="state.route === 'stacks'" />
           <ImagesPanel v-else-if="state.route === 'images'" />
           <VolumesPanel v-else-if="state.route === 'volumes'" />
@@ -347,7 +368,12 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import {
   useInfra, TABS, fmtTime, fmtBytes, tone
 } from './useInfra'
+import {
+  monitoring, MONITORING_TAB, REFRESH_INTERVALS,
+  startMonitoring, stopMonitoring, setLive, setRefreshInterval
+} from './useInfraMonitor'
 import { layout, observePanelWidth } from './useInfraLayout'
+import MonitoringPanel from './MonitoringPanel.vue'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
 import HostSettingsModal from './HostSettingsModal.vue'
@@ -363,9 +389,17 @@ const {
   state, filteredList, tabCount,
   loadHosts, selectedHost, openHostModal, openHostSettings, openCloudModal,
   loadAll, setRoute, setHost, setFilter,
-  openRunModal, submitRun, updateRunField,
-  toggleLive
+  openRunModal, submitRun, updateRunField
 } = useInfra()
+
+/**
+ * Tab strip.
+ *
+ * The monitoring overview is prepended because it is the "is anything on fire?"
+ * answer, but `state.route` still defaults to `containers`, so the view keeps
+ * opening exactly where it always did.
+ */
+const tabs = [MONITORING_TAB, ...TABS]
 
 /* ── panel width tracking (this view lives in a resizable dockview panel) ─── */
 const rootEl = ref(null)
@@ -431,13 +465,17 @@ onMounted(async () => {
   await loadHosts()
   // 2. Then the host snapshot (loadAll re-uses the cached host list).
   await loadAll()
+  // 3. Start sampling. Live is ON by default (5s), and the first snapshot
+  //    already recorded one point, so the charts have something to draw.
+  startMonitoring()
 })
 onBeforeUnmount(() => {
   if (disposeLayout) {
     disposeLayout()
     disposeLayout = null
   }
-  // stop polling when the view unmounts
-  if (state.autoRefresh) toggleLive(false)
+  // Stop polling when the view unmounts; the live/interval preference is kept
+  // so the next mount resumes with the operator's choice.
+  stopMonitoring()
 })
 </script>

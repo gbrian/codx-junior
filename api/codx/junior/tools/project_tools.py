@@ -29,6 +29,10 @@ BULK_OPERATION_THRESHOLD = 3
 FILE_READ_ERROR_TEMPLATE = "error [%s]\nERROR: %s %s"
 MAX_FILES_BULK_OP = 10
 MAX_QUERIES_BULK_OP = 5
+# Maximum characters returned per document so search responses stay fast and small.
+# Documents are built from chunks and may be concatenated per source; capping the
+# content avoids giant payloads without paying for an AI call per document.
+MAX_SEARCH_DOC_CHARS = 8000
 # Glob wildcards are recognized only by search tools that return file paths
 # (see find_project_files). Reading tools always use literal paths.
 GLOB_PATTERN_CHARS = ("*", "?", "[")
@@ -518,13 +522,19 @@ def project_search(
     ('*', '?', '[') is treated as a glob pattern matched against the project
     file paths (e.g. ``**/*.py``).
 
+    This tool is optimized for speed: a single knowledge DB connection is reused
+    across all queries and no AI call is made per document. Each document's
+    content is returned directly and capped to ``MAX_SEARCH_DOC_CHARS`` so the
+    response stays fast even for large files.
+
     Supports bulk searching to reduce tool calls. For optimal performance,
     search for multiple related concepts in a single call.
 
     Args:
         search: Single search query (str) or list of queries to execute.
-        validation: Optional text to validate and filter search results.
-                   Helps extracting only relevant content from large documents.
+        validation: Kept for backward compatibility. Previously used to filter
+                   each document with an AI call; filtering is no longer
+                   performed so the search stays fast.
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings.
 
@@ -571,8 +581,10 @@ def project_search(
             MAX_QUERIES_BULK_OP,
         )
 
-    ai = get_ai(settings=settings, tool_name=__name__)
-    validation_text = validation or ", ".join(search_queries)
+    # Reuse a single knowledge DB (and its embeddings model) across every query.
+    # Creating ``KnowledgeDB`` is expensive (embeddings model + Milvus connect),
+    # so it must not happen inside the query loop.
+    knowledge_db = Knowledge(settings=settings).get_db()
 
     all_results = []
     queries_executed = 0
@@ -580,7 +592,7 @@ def project_search(
 
     for query in search_queries:
         logger.debug("Executing search query: %s", query)
-        documents = Knowledge(settings=settings).get_db().search(query=query, _limit=10)
+        documents = knowledge_db.search(query=query, _limit=10)
 
         if not documents:
             logger.info("No results found for query: %s", query)
@@ -601,25 +613,19 @@ def project_search(
             else:
                 doc_sources[source].page_content += "\n" + doc.page_content
 
-        # Filter documents using validation text if AI is available
+        # Return document content directly (no per-document AI call) and cap the
+        # size so the tool stays fast even on large files.
         for doc in doc_sources.values():
-            if ai:
-                try:
-                    filtered_content = ai.chat(
-                        prompt=(
-                            f"Content:\n```\n{doc.page_content}\n```\n"
-                            f"Extract from the content all lines related with: {validation_text}"
-                        )
-                    )[-1].content
-                    doc.page_content = filtered_content
-                except Exception as e:
-                    logger.error("Error filtering document content: %s", str(e))
-
             # Convert document source to relative path if it belongs to project
             source = doc.metadata.get("source", "")
             if source and source.startswith(settings.abs_project_path):
                 rel_source = _to_relative_path(settings=settings, abs_path=source)
                 doc.metadata["source"] = rel_source
+
+            if len(doc.page_content) > MAX_SEARCH_DOC_CHARS:
+                doc.page_content = (
+                    doc.page_content[:MAX_SEARCH_DOC_CHARS] + "\n... (truncated)"
+                )
 
             all_results.append(document_to_code_block(doc))
 

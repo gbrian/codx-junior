@@ -58,16 +58,16 @@ class KnowledgeLoader:
 
     def is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
         if not os.path.isfile(file):
-            logger.error(f"File '{file}' is not a valid file (not found or not a regular file).")
+            # logger.error(f"File '{file}' is not a valid file (not found or not a regular file).")
             return False
 
         if path and (path not in file):
-            logger.error(f"File '{file}' does not match the specified path '{path}'.")
+            # logger.error(f"File '{file}' does not match the specified path '{path}'.")
             return False
 
         file_errors = [err for err in knowledge_file_ignore if err in file]
         if file_errors:
-            logger.error(f"File '{file}' is ignored due to matching ignore patterns: {file_errors}.")
+            # logger.error(f"File '{file}' is ignored due to matching ignore patterns: {file_errors}.")
             return False
 
         last_update = None
@@ -255,8 +255,8 @@ class KnowledgeLoader:
                                 path=path,
                                 current_sources=current_sources,
                                 knowledge_file_ignore=knowledge_file_ignore)
-            if not is_valid:
-                logger.error("File '%s' is not valid for indexing.", file_path)
+            #if not is_valid:
+            #    logger.error("File '%s' is not valid for indexing.", file_path)
             return is_valid
 
         changed_file_paths = [file for file in full_file_paths \

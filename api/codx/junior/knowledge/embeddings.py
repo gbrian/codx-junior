@@ -6,9 +6,12 @@ that doesn't depend on external AI services.
 """
 
 import logging
+import threading
 from typing import List, Union, Any
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_EMBEDDINGS_MODEL = "all-MiniLM-L6-v2"
 
 
 class LocalEmbeddingsModel:
@@ -121,6 +124,48 @@ class LocalEmbeddingsModel:
         return self._embedding_dim
 
 
+# ── Process-wide embeddings model cache ──────────────────────────────────────
+# Loading a sentence-transformers model is expensive (disk I/O + RAM), so we
+# keep one instance per model name and share it across every KnowledgeDB /
+# project. The model is therefore built once per process instead of once per
+# caller, and "Loading embeddings model: ..." is emitted only once.
+_LOCAL_EMBEDDINGS_CACHE = {}
+_LOCAL_EMBEDDINGS_CACHE_LOCK = threading.Lock()
+
+
+def get_local_embeddings_model(
+    model_name: str = DEFAULT_EMBEDDINGS_MODEL,
+) -> "LocalEmbeddingsModel":
+    """
+    Return a process-wide cached :class:`LocalEmbeddingsModel` for *model_name*.
+
+    Thread-safe: the underlying ``SentenceTransformer`` is created at most once
+    per model name, regardless of how many ``KnowledgeDB`` / callers ask for it.
+
+    Args:
+        model_name: HuggingFace model identifier.
+
+    Returns:
+        Shared ``LocalEmbeddingsModel`` instance.
+    """
+    cached = _LOCAL_EMBEDDINGS_CACHE.get(model_name)
+    if cached is not None:
+        return cached
+    with _LOCAL_EMBEDDINGS_CACHE_LOCK:
+        cached = _LOCAL_EMBEDDINGS_CACHE.get(model_name)
+        if cached is None:
+            logger.info("Creating shared local embeddings model '%s'", model_name)
+            cached = LocalEmbeddingsModel(model_name=model_name)
+            _LOCAL_EMBEDDINGS_CACHE[model_name] = cached
+        return cached
+
+
+def clear_local_embeddings_cache() -> None:
+    """Release all cached embeddings models (mainly for tests / hot reloads)."""
+    with _LOCAL_EMBEDDINGS_CACHE_LOCK:
+        _LOCAL_EMBEDDINGS_CACHE.clear()
+
+
 class HybridEmbeddingsModel:
     """
     Hybrid embeddings that falls back to local model when AI service is unavailable.
@@ -138,7 +183,8 @@ class HybridEmbeddingsModel:
             local_model_name: Fallback local model name.
         """
         self.ai_embeddings = ai_embeddings
-        self.local_model = LocalEmbeddingsModel(model_name=local_model_name)
+        # Reuse the shared local model instead of building a private instance
+        self.local_model = get_local_embeddings_model(model_name=local_model_name)
         self._use_local = ai_embeddings is None
 
     def embed_query(self, text: str) -> List[float]:

@@ -1,11 +1,14 @@
 <script>
 import ChangesPanel from '@/components/vibe/panels/ChangesPanel.vue'
 import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
+import GitGraph from '@/components/repo/GitGraph.vue'
+import CommitDetail from '@/components/repo/CommitDetail.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import moment from 'moment'
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff },
+  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, ConfirmDialog },
   props: {
     params: { type: Object, default: () => ({}) }
   },
@@ -25,6 +28,10 @@ export default {
       rawCommits: [],
       commitsLoading: false,
       collapsedSections: {},
+      // graph
+      selectedCommit: null,
+      // Bumped after every git operation so the graph reloads its commits
+      graphRefreshToken: 0,
       // working tree
       selection: {},
       // Anchor for shift+click range selection: { group, path }
@@ -44,7 +51,10 @@ export default {
       mergeMessage: '',
       mergePreview: null,
       mergePreviewLoading: false,
-      merging: false
+      merging: false,
+      // Pending confirmation: { title, message, details, hint, icon, iconClass,
+      // confirmLabel, confirmIcon, confirmClass, resolve }
+      confirmRequest: null
     }
   },
   computed: {
@@ -170,6 +180,10 @@ export default {
   created() {
     this.loadRepo()
   },
+  beforeUnmount() {
+    // Never leave a pending confirmation promise unresolved
+    this.resolveConfirmation(false)
+  },
   methods: {
     sameBranch(a, b) {
       const clean = value => (value || '').replace(/^[*+\s]+/, '').trim()
@@ -199,6 +213,40 @@ export default {
     branchCommitCount(branch) {
       const tree = this.repoTree.find(b => this.sameBranch(b.branch_name, branch))
       return tree?.commits?.length || 0
+    },
+
+    // ── Confirmations ───────────────────────────────────────────────────
+    /**
+     * Ask the user to confirm an operation with the app modal.
+     *
+     * Resolves `true` when the user accepts and `false` when the dialog is
+     * cancelled or dismissed. A new request settles the pending one first, so
+     * an awaited confirmation is never left hanging.
+     *
+     * @param {Object} options - Modal content (title, message, details, hint)
+     * and confirm button style (confirmLabel, confirmIcon, confirmClass).
+     * @returns {Promise<boolean>} User decision.
+     *
+     * @example
+     * const accepted = await this.confirmAction({
+     *   title: 'Delete branch',
+     *   message: `Delete branch "${branch}"?`,
+     *   confirmLabel: 'Delete',
+     *   confirmClass: 'btn-error'
+     * })
+     */
+    confirmAction(options = {}) {
+      this.resolveConfirmation(false)
+      return new Promise(resolve => {
+        this.confirmRequest = { ...options, resolve }
+      })
+    },
+
+    /** Settle the pending confirmation (no-op when there is none) */
+    resolveConfirmation(accepted) {
+      const request = this.confirmRequest
+      this.confirmRequest = null
+      if (request?.resolve) request.resolve(accepted)
     },
 
     // ── Working tree ────────────────────────────────────────────────────
@@ -494,12 +542,91 @@ export default {
       return this.loadRepo()
     },
 
+    // ── Graph ───────────────────────────────────────────────────────────
+    onSelectCommit(commit) {
+      this.selectedCommit = commit
+    },
+
+    closeCommit() {
+      this.selectedCommit = null
+    },
+
+    /**
+     * Branch action requested from the commit panel (which only lists the refs
+     * pointing to the selected commit): checkout, merge into the current
+     * branch, rebase the current branch onto it, or delete the branch.
+     */
+    async onCommitBranchAction({ action, branch } = {}) {
+      if (!branch || !this.api) return
+
+      if (action === 'checkout') {
+        return this.onCheckout(branch)
+      }
+
+      if (action === 'delete') {
+        await this.deleteBranch(branch)
+        this.selectedCommit = null
+        return
+      }
+
+      const target = this.currentBranch
+      if (!target) {
+        this.error = 'No branch is checked out'
+        return
+      }
+      if (this.sameBranch(branch, target)) {
+        this.error = `"${branch}" is already the current branch`
+        return
+      }
+
+      if (action === 'merge') {
+        const accepted = await this.confirmAction({
+          title: 'Merge branch',
+          message: `Merge "${branch}" into "${target}"?`,
+          hint: 'A merge commit is created on the current branch. Nothing is pushed.',
+          icon: 'fa-code-merge',
+          iconClass: 'text-warning',
+          confirmLabel: 'Merge',
+          confirmIcon: 'fa-code-merge',
+          confirmClass: 'btn-warning'
+        })
+        if (!accepted) return
+
+        await this.runOperation(
+          () => this.api.repo.merge({ from_branch: branch, to_branch: target }),
+          `Merged ${branch} into ${target}`
+        )
+        this.selectedCommit = null
+        return
+      }
+
+      if (action === 'rebase') {
+        const accepted = await this.confirmAction({
+          title: 'Rebase branch',
+          message: `Rebase "${target}" onto "${branch}"?`,
+          hint: 'Rebasing rewrites the commits of the current branch: their hashes change. Nothing is pushed.',
+          icon: 'fa-arrows-rotate',
+          iconClass: 'text-warning',
+          confirmLabel: 'Rebase',
+          confirmIcon: 'fa-arrows-rotate',
+          confirmClass: 'btn-warning'
+        })
+        if (!accepted) return
+
+        await this.runOperation(
+          () => this.api.repo.rebase({ onto_branch: branch, branch: target }),
+          `Rebased ${target} onto ${branch}`
+        )
+        this.selectedCommit = null
+      }
+    },
+
     // ── Working tree operations ─────────────────────────────────────────
     async stagePaths(paths) {
       const list = paths || []
       if (!list.length || !this.api) return
       await this.runOperation(
-        () => this.api.post('/api/git/repo/stage', { paths: list }),
+        () => this.api.repo.stage(list),
         `${list.length} file(s) staged`
       )
       this.clearSelection()
@@ -509,7 +636,7 @@ export default {
       const list = paths || []
       if (!list.length || !this.api) return
       await this.runOperation(
-        () => this.api.post('/api/git/repo/unstage', { paths: list }),
+        () => this.api.repo.unstage(list),
         `${list.length} file(s) unstaged`
       )
       this.clearSelection()
@@ -518,10 +645,24 @@ export default {
     async discardPaths(paths) {
       const list = paths || []
       if (!list.length || !this.api) return
-      const label = list.length === 1 ? `"${list[0]}"` : `${list.length} files`
-      if (!window.confirm(`Roll back ${label} to the last commit? This cannot be undone.`)) return
+
+      const accepted = await this.confirmAction({
+        title: 'Roll back changes',
+        message: list.length === 1
+          ? `Roll back "${list[0]}" to the last commit?`
+          : `Roll back ${list.length} files to the last commit?`,
+        details: list,
+        hint: 'Tracked files are restored from the last commit. Untracked and newly added files are deleted. This cannot be undone.',
+        icon: 'fa-rotate-left',
+        iconClass: 'text-error',
+        confirmLabel: 'Roll back',
+        confirmIcon: 'fa-rotate-left',
+        confirmClass: 'btn-error'
+      })
+      if (!accepted) return
+
       await this.runOperation(
-        () => this.api.post('/api/git/repo/discard', { paths: list, include_staged: true }),
+        () => this.api.repo.discard(list, true),
         `${list.length} file(s) rolled back`
       )
       this.clearSelection()
@@ -610,6 +751,8 @@ export default {
         await fn()
         if (successMessage) this.notice = successMessage
         await this.loadRepo()
+        // Branches, hashes and lanes changed: reload the graph too
+        this.graphRefreshToken += 1
       } catch (ex) {
         this.error = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
@@ -619,20 +762,20 @@ export default {
 
     // ── Remote operations ───────────────────────────────────────────────
     onFetch() {
-      this.runOperation(() => this.api.post('/api/git/repo/fetch', {}), 'Fetched from remote')
+      this.runOperation(() => this.api.repo.fetch(), 'Fetched from remote')
     },
     onPull() {
-      this.runOperation(() => this.api.post('/api/git/repo/pull', {}), 'Pulled from remote')
+      this.runOperation(() => this.api.repo.pull(), 'Pulled from remote')
     },
     onPush() {
-      this.runOperation(() => this.api.post('/api/git/repo/push', {}), 'Pushed to remote')
+      this.runOperation(() => this.api.repo.push(), 'Pushed to remote')
     },
 
     // ── Branch operations ───────────────────────────────────────────────
     onCheckout(branch) {
       if (!branch || this.sameBranch(branch, this.currentBranch)) return
       this.runOperation(
-        () => this.api.post('/api/git/repo/branch/checkout', { branch }),
+        () => this.api.repo.checkoutBranch(branch),
         `Checked out ${branch}`
       )
     },
@@ -647,7 +790,7 @@ export default {
       const name = this.newBranchName.trim()
       if (!name || !this.api) return
       await this.runOperation(
-        () => this.api.post('/api/git/repo/branch', {
+        () => this.api.repo.createBranch({
           branch: name,
           from_branch: this.newBranchFrom || this.currentBranch
         }),
@@ -660,9 +803,21 @@ export default {
 
     async deleteBranch(branch) {
       if (!branch || !this.api) return
-      if (!window.confirm(`Delete branch "${branch}"?`)) return
+
+      const accepted = await this.confirmAction({
+        title: 'Delete branch',
+        message: `Delete branch "${branch}"?`,
+        hint: 'The branch is removed locally. Commits that are not reachable from another branch are lost.',
+        icon: 'fa-trash',
+        iconClass: 'text-error',
+        confirmLabel: 'Delete branch',
+        confirmIcon: 'fa-trash',
+        confirmClass: 'btn-error'
+      })
+      if (!accepted) return
+
       await this.runOperation(
-        () => this.api.delete(`/api/git/repo/branch?branch=${encodeURIComponent(branch)}`),
+        () => this.api.repo.deleteBranch(branch),
         `Branch ${branch} deleted`
       )
     },
@@ -677,11 +832,12 @@ export default {
       this.error = null
       this.notice = null
       try {
-        await this.api.post('/api/git/repo/commit', { message, stage_all: stageAll })
+        await this.api.repo.commit({ message, stage_all: stageAll })
         this.notice = 'Changes committed'
         this.commitMessage = ''
         this.clearSelection()
         await this.loadRepo()
+        this.graphRefreshToken += 1
       } catch (ex) {
         this.error = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
@@ -730,7 +886,7 @@ export default {
       this.merging = true
       this.error = null
       try {
-        await this.api.post('/api/git/repo/merge', {
+        await this.api.repo.merge({
           from_branch: this.mergeFrom,
           to_branch: this.mergeTo,
           message: this.mergeMessage.trim() || undefined
@@ -738,6 +894,7 @@ export default {
         this.notice = `Merged ${this.mergeFrom} into ${this.mergeTo}`
         this.showMerge = false
         await this.loadRepo()
+        this.graphRefreshToken += 1
       } catch (ex) {
         this.error = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
@@ -787,6 +944,14 @@ export default {
         </button>
         <button
           class="join-item btn btn-xs"
+          :class="activeTab === 'graph' ? 'btn-primary' : 'btn-ghost'"
+          @click="activeTab = 'graph'"
+          title="Commit graph of every branch"
+        >
+          <i class="fa-solid fa-diagram-project"></i> Graph
+        </button>
+        <button
+          class="join-item btn btn-xs"
           :class="activeTab === 'review' ? 'btn-primary' : 'btn-ghost'"
           @click="activeTab = 'review'"
           title="Compare branches and review diffs"
@@ -826,6 +991,35 @@ export default {
         :project="project"
         class="grow min-h-0 overflow-hidden"
       />
+
+      <!-- ── Graph: commit graph + commit details ────────────────────────── -->
+      <div v-show="activeTab === 'graph'" class="grow flex overflow-hidden">
+        <GitGraph
+          v-if="api"
+          :api="api"
+          :branches="branches"
+          :current-branch="currentBranch || ''"
+          :default-branch="info.default_branch || ''"
+          :refresh-token="graphRefreshToken"
+          class="grow min-w-0"
+          @select-commit="onSelectCommit"
+        />
+        <div v-else class="grow flex items-center justify-center text-sm text-base-content/40">
+          No project API available
+        </div>
+
+        <CommitDetail
+          v-if="selectedCommit && api"
+          :key="selectedCommit.hash"
+          :api="api"
+          :commit="selectedCommit"
+          :current-branch="currentBranch || ''"
+          :busy="busy"
+          class="w-full md:w-[46%] md:max-w-[720px] shrink-0 border-l border-base-content/10"
+          @close="closeCommit"
+          @branch-action="onCommitBranchAction"
+        />
+      </div>
 
       <!-- ── Repository: working tree + branches + diff/commits ─────────── -->
       <div v-show="activeTab === 'repository'" class="grow flex overflow-hidden">
@@ -1211,5 +1405,22 @@ export default {
         </div>
       </div>
     </div>
+
+    <!-- ── Confirmation dialog (replaces window.confirm) ─────────────────── -->
+    <ConfirmDialog
+      v-if="confirmRequest"
+      :title="confirmRequest.title"
+      :message="confirmRequest.message"
+      :details="confirmRequest.details"
+      :hint="confirmRequest.hint"
+      :icon="confirmRequest.icon"
+      :icon-class="confirmRequest.iconClass"
+      :confirm-label="confirmRequest.confirmLabel"
+      :confirm-icon="confirmRequest.confirmIcon"
+      :confirm-class="confirmRequest.confirmClass"
+      :busy="busy"
+      @confirm="resolveConfirmation(true)"
+      @cancel="resolveConfirmation(false)"
+    />
   </div>
 </template>

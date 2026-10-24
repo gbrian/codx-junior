@@ -465,6 +465,36 @@
           "path": "/codx/junior/engine/git_workspace.py",
           "slug": "git-workspace.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-workspace.md"
+        },
+        {
+          "path": "/src/components/repo/GitGraph.vue",
+          "slug": "gitgraph.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/gitgraph.md"
+        },
+        {
+          "path": "/codx/junior/engine/git_graph.py",
+          "slug": "git-graph.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-graph.md"
+        },
+        {
+          "path": "/src/api/modules/repo.js",
+          "slug": "repo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/repo.md"
+        },
+        {
+          "path": "/src/components/repo/CommitDetail.vue",
+          "slug": "commitdetail.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/commitdetail.md"
+        },
+        {
+          "path": "/src/api/models/gitGraph.js",
+          "slug": "gitgraph.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/gitgraph.md"
+        },
+        {
+          "path": "/codx/junior/knowledge/knowledge_db.py",
+          "slug": "knowledge-db.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/knowledge-db.md"
         }
       ],
       "id": "project-overview",

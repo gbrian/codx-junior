@@ -1,0 +1,600 @@
+import asyncio
+import faulthandler
+import logging
+import os
+import shutil
+import time
+import traceback
+import uuid
+
+import socketio
+from flask import jsonify
+
+from concurrent.futures import ThreadPoolExecutor
+
+faulthandler.enable()
+
+from codx.junior.ai import AIManager
+
+from codx.junior.sio.sio import sio
+from codx.junior.sio.session_channel import SessionChannel
+
+from codx.junior.profiling.profiler import profile_function
+
+# Dynamic router loading
+from codx.junior.api import discover_routers
+
+from codx.junior.security.user_management import get_authenticated_user
+
+from codx.junior.chat.chat_export import ExportedDocument
+
+from codx.junior.globals import LOGS_FOLDER, API_LOGS_DATA_PATH
+
+from codx.junior.api_logs import ApiLogs
+
+
+CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
+
+logger = logging.getLogger(__name__)
+
+def disable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.WARNING)
+
+def enable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.DEBUG)
+
+disable_logs([
+    'httpx',
+    'httpcore.http11',
+    'httpcore.connection',
+    'openai._base_client',
+    'watchfiles.main',
+    'asyncio',
+    'codx.junior.project_watcher',
+    'selenium.webdriver.common.selenium_manager'
+])
+
+from fastapi import FastAPI, Request, status, Response, Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from starlette.status import HTTP_504_GATEWAY_TIMEOUT
+
+from contextlib import asynccontextmanager
+
+from codx.junior.db import (
+    Chat
+)
+from codx.junior.model.model import (
+    KnowledgeReloadPath,
+    KnowledgeSearch,
+    KnowledgeDeleteSources,
+    Profile,
+    Document,
+    GlobalSettings,
+    Screen,
+    CodxUser,
+    AIModel
+)
+
+from codx.junior.settings import (
+  CODXJuniorSettings
+)
+from codx.junior.global_settings import (
+  read_global_settings
+)
+
+from codx.junior.engine import (
+    CODXJuniorSession
+)
+
+from codx.junior.project.project_discover import (
+    find_all_projects,
+    find_all_user_projects,  
+    is_project_visible
+)
+
+from codx.junior.project.project_manager import (
+    create_project,
+)
+
+from codx.junior.utils.utils import (
+    exec_command,
+)
+
+from codx.junior.background import start_background_services, stop_background_services
+
+
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
+os.makedirs(f"{CODX_JUNIOR_STATIC_FOLDER}/uploads", exist_ok=True)
+
+GLOBAL_REQUEST_TIMEOUT_SECONDS=30
+
+# ── API performance logging ───────────────────────────────────────────────────
+# Records every HTTP call's duration/status into the API logs storage so that
+# performance issues can be inspected through the /api/api-logs endpoints.
+
+_api_logs_instance = ApiLogs(logs_path=API_LOGS_DATA_PATH)
+API_LOGS_ENABLED = os.environ.get("CODX_JUNIOR_API_LOGS_ENABLED", "1").lower() in ["1", "true"]
+
+_API_LOG_SKIP_PREFIXES = ("/api/static", "/api/socket.io")
+_API_LOG_SKIP_PATHS = ("/api/health",)
+
+
+def record_api_call(request: Request, duration_seconds: float, status_code: int, response=None, error=None) -> None:
+    """
+    Persist a single API call performance event.
+
+    Best-effort: this never raises, so recording failures cannot break a request.
+    Recording is skipped for static/socket.io/health paths and can be disabled
+    entirely via the ``CODX_JUNIOR_API_LOGS_ENABLED`` env var.
+
+    Args:
+        request:          The incoming starlette request.
+        duration_seconds: Wall-clock seconds taken to process the request.
+        status_code:      Response status code.
+        response:         The outgoing response (for size header), when available.
+        error:            Error message if the request failed.
+    """
+    if not API_LOGS_ENABLED:
+        return
+    try:
+        path = request.url.path
+        if path in _API_LOG_SKIP_PATHS or path.startswith(_API_LOG_SKIP_PREFIXES):
+            return
+
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", None) or path
+        endpoint_name = getattr(route, "name", "") or ""
+
+        session = getattr(request.state, "codx_junior_session", None)
+        username = ""
+        project_name = ""
+        project_id = ""
+        if session is not None:
+            try:
+                username = session.user.username if session.user else ""
+            except Exception:
+                username = ""
+            try:
+                project_name = session.settings.project_name or ""
+                project_id = session.settings.project_id or ""
+            except Exception:
+                project_name = ""
+                project_id = ""
+
+        response_size = 0
+        if response is not None:
+            try:
+                response_size = int(response.headers.get("content-length", 0) or 0)
+            except (ValueError, AttributeError):
+                response_size = 0
+
+        _api_logs_instance.record(
+            path=route_path,
+            method=request.method,
+            status_code=status_code,
+            duration_seconds=duration_seconds,
+            endpoint=endpoint_name,
+            request_id=request.headers.get("x-request-id"),
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            session_id=request.headers.get("x-sid"),
+            client_ip=request.client.host if request.client else "",
+            query_string=str(request.url.query or ""),
+            response_size_bytes=response_size,
+            error=error,
+        )
+    except Exception as ex:
+        logger.error("record_api_call failed: %s", ex)
+
+
+app = FastAPI(
+    title="codx-junior API",
+    description="API for codx-junior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+# Dynamically load and register all routers
+def load_routers():
+    """Load all discovered routers and register them with the FastAPI app."""
+    routers = discover_routers()
+    for router_config in routers:
+        try:
+            app.include_router(
+                router_config['router'],
+                prefix=router_config['prefix']
+            )
+            logger.info(f"Registered router from {router_config['module']}")
+        except Exception as e:
+            logger.error(f"Failed to register router {router_config['module']}: {e}")
+
+load_routers()
+
+APP_STOP_EVENT = asyncio.Event()
+    
+@app.on_event("startup")
+async def startup_event():
+    start_background_services(APP_STOP_EVENT)
+    logger.info("FASTAPI startup")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("FASTAPI shutdown")
+    APP_STOP_EVENT.set()
+    await stop_background_services()
+    
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+	logger.error(f"%s: %s", request, exc_str)
+	content = {'status_code': 10422, 'message': exc_str, 'data': None}
+	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+@app.on_event("startup")
+def startup_event():
+    logger.info("Creating FASTAPI (BACKGROUND: %s): %s", CODX_JUNIOR_API_BACKGROUND, app.__dict__)
+
+@app.exception_handler(Exception)
+async def my_exception_handler(request: Request, ex: Exception):
+    return JSONResponse(status_code=500, 
+        content=traceback.format_exception(ex))
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = None
+    status_code = 500
+    error_message = None
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        status_code = response.status_code
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    except Exception as ex:
+        error_message = str(ex)
+        raise
+    finally:
+        process_time = time.time() - start_time
+        logger.info("Request %s - %d ms", request.url, time.time() - start_time)
+        record_api_call(
+            request=request,
+            duration_seconds=process_time,
+            status_code=status_code,
+            response=response,
+            error=error_message,
+        )
+
+
+def get_codx_junior_session(request, codx_path):
+    user = get_authenticated_user(request=request)
+    sid = request.headers.get("x-sid")
+    channel = SessionChannel(sid=sid, sio=sio)
+    return CODXJuniorSession(codx_path=codx_path, 
+                              channel=channel,
+                              user=user)
+
+@app.middleware("http")
+async def add_codx_junior_settings(request: Request, call_next):
+    codx_path = request.query_params.get("codx_path")
+    if codx_path and codx_path not in ["undefined", "null"]:
+        try:
+            codx_path = request.query_params.get("codx_path")
+            codx_path = request.headers.get("x-codx-path", codx_path)
+            request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
+            request.state.codx_junior_session.update_last_access_time()
+        except Exception as ex:
+            logger.error("Error loading settings %s: %s\n%s", codx_path, ex, request.url)
+    return await call_next(request)
+
+# Adding a middleware returning a 504 error if the request processing time is above a certain threshold
+@app.middleware("http")
+async def timeout_middleware(request: Request, call_next):
+    try:
+        start_time = time.time()
+        logger.info("HTTP starting: %s", request.url)
+        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT_SECONDS)
+
+    except asyncio.TimeoutError:
+        process_time = time.time() - start_time
+        logger.error("HTTP TIMEOUT: %s", request.url)
+        return JSONResponse({'detail': 'Request processing time exceeded limit',
+                             'processing_time': process_time},
+                            status_code=HTTP_504_GATEWAY_TIMEOUT)
+
+@app.get("/api/health")
+def api_health_check():
+    return "ok"
+
+@app.post("/api/run/improve")
+async def api_run_improve(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.improve_existing_code(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@app.post("/api/run/improve/patch")
+async def api_run_improve_patch(data: dict, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_full_file_content(file_path=data["file_path"], partial_content=data["partial_content"])
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
+
+@app.get("/api/test/sio")
+def test_sio(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    message = request.query_params.get("message") or "sio_test"
+    return codx_junior_session.send_event(message=message)
+
+@app.get("/api/settings")
+def api_settings_check(request: Request):
+    logger.info("/api/settings")
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.check_project()
+    return codx_junior_session.settings
+
+@app.put("/api/settings")
+async def api_save_settings(request: Request):
+    settings = await request.json()
+    settings = CODXJuniorSettings.from_json(settings).save_project()
+    find_all_projects()
+    return api_settings_check(request)
+
+@app.get("/api/profiles")
+def api_list_profile(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.list_profiles()
+
+@app.get("/api/profiles/tools")
+def api_list_profile_tools(request: Request):
+    from codx.junior.tools import TOOLS
+    return TOOLS
+
+@app.post("/api/profiles")
+async def api_create_profile(profile: Profile, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.save_profile(profile=profile)
+    
+@app.get("/api/profiles/{profile_name}")
+def api_read_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.read_profile(profile_name)
+
+@app.delete("/api/profiles/{profile_name}")
+def api_delete_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_profile(profile_name)
+    return
+
+@app.get("/api/project/watch")
+def api_project_watch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.watch_project(True)
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/projects")
+def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    projects = [p for p in list(find_all_user_projects(user)) if is_project_visible(p)]
+    workspaces = read_global_settings().workspaces
+
+    user_role = user.role
+
+    def user_has_workspace_access(workspace) -> bool:
+        """
+        Check if the user has access to the workspace.
+        - Admins always have access.
+        - If workspace.user_ids is empty, all users have access.
+        - Otherwise, only users whose username is in user_ids have access.
+        """
+        if user_role == "admin":
+            return True
+        if not workspace.user_ids:
+            return True
+        return user and user.username in workspace.user_ids
+
+    user_workspaces = [w for w in workspaces \
+        if user_has_workspace_access(w) and \
+        ("*" in w.project_ids or next((p for p in projects if p.project_id in w.project_ids), None))] 
+
+    if user_role != "admin":
+        for workspace in user_workspaces:
+            workspace.apps = [app for app in workspace.apps if not app.roles or user_role in app.roles]
+
+    return {
+        "projects": projects,
+        "workspaces": user_workspaces
+    }
+
+@app.get("/api/projects/metrics")
+async def api_chat_metrics(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.project_metrics()
+
+@app.get("/api/projects/readme")
+def api_project_readme(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    document = codx_junior_session.get_readme()
+    return Response(content=document or "> Not found", media_type="text/html")
+
+@app.get("/api/projects/ai/models")
+def api_project_ai_models(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.settings.get_project_ai_models()
+
+@app.post("/api/projects/ai/models/reload")
+def api_project_ai_models_reload(request: Request, model: AIModel):
+    return AIManager().reload_model(model)
+
+@app.post("/api/projects")
+def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    project_path = request.query_params.get("project_path")
+    try:
+        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
+    except Exception:
+        return create_project(project_path=project_path, user=user)
+
+@app.delete("/api/projects")
+def api_project_delete(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_project()
+    return { "ok": 1 }
+
+@app.get("/api/project/unwatch")
+def api_project_unwatch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.watch_project(False)
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/code-server/file/open")
+def api_file_open(request: Request):
+    file_name = request.query_params.get("file_name")
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.coder_open_file(file_name=file_name)
+
+@app.post("/api/files/diff")
+async def api_get_file_diff(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    data = await request.json()
+    return codx_junior_session.diff_file(
+        path=data["path"],
+        content=data["content"],
+        from_branch=data.get("from_branch"),
+        to_branch=data.get("to_branch")
+    )
+
+@app.post("/api/files/diff/comments")
+async def api_get_file_diff_comments(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    data = await request.json()
+    return codx_junior_session.diff_file_comments(path=data["path"], content=data["content"], comments=data["comments"])
+
+@app.post("/api/files/write")
+async def api_post_file(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("path")
+    try:
+        return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
+    except Exception as ex:
+        logger.error("Error writing file: %s: %s", file_path, str(ex))
+
+@app.get("/api/files/reset")
+async def api_reset_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("path")
+    return await codx_junior_session.reset_project_file(file_path=file_path)
+
+@app.get("/api/files/find")
+def api_find_files(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    search = request.query_params.get("search")
+    return codx_junior_session.search_files(search=search)
+
+@app.get("/api/apps")
+def api_apps_list(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_apps()
+
+@app.get("/api/apps/run")
+def api_apps_run(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    app_name = request.query_params.get("app")
+    return codx_junior_session.run_app(app_name=app_name)
+    
+@app.post("/api/run/script")
+def run_script(data: dict, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.abs_project_path)
+    return std
+
+@app.get("/api/system/logs")
+def api_logs_list():
+    stdout, _ = exec_command("sudo docker ps --format {{.Names}}")
+    containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+   
+    stdout, _ = exec_command(f"ls {LOGS_FOLDER}")
+    files = [f"🗃️:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+   
+    return sorted(containers + files)
+
+@app.get("/api/system/logs/{log_name}")
+def api_logs_tail(log_name: str, request: Request):
+    log_size = request.query_params.get("log_size")
+    if not str(log_size).isnumeric():
+        log_size = 100
+
+    if "🐋" in log_name:
+        stdout, err_logs = exec_command(f"sudo docker logs -n {log_size} {log_name.split(':')[1]}")
+        if err_logs:
+            logger.error("Error reading logs %s: %s", log_name, err_logs)
+        return stdout.split("\n")
+    else:   
+        log_name = log_name.split(":")[-1]
+        log_file = f"{LOGS_FOLDER}/{log_name}.log"
+        cmd = f"tail -n {log_size} {log_file}"
+        try:
+            logs, err_logs = exec_command(cmd)
+            if err_logs:
+                logger.error("Error reading logs %s: %s", log_name, err_logs)
+
+            def is_valid_log(line: str) -> bool:
+                """Filter out log lines related to the logs endpoint itself."""
+                return "/api/system/logs" not in line
+
+            return [line for line in logs.split("\n") if is_valid_log(line)]
+        except OSError as ex:
+            logger.exception("Error reading logs: %s", ex)
+
+@app.post("/api/screen")
+def api_screen_set(screen: Screen):
+    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    try:
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except (IndexError, KeyError) as ex:
+        logger.error("Error extracting screen resolutions %s", ex)
+    return screen
+
+@app.post("/api/restart")
+def api_restart():
+    logger.info("****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
+
+@app.post("/api/shutdown")
+def api_shutdown():
+    """API endpoint to shut down the server."""
+    logger.info("Received request to shut down the server. Terminating...")
+    os._exit(0)
+    
+logger.info("API Static folder: %s", CODX_JUNIOR_STATIC_FOLDER)
+logger.info("API Uploads folder: %s", os.path.join(CODX_JUNIOR_STATIC_FOLDER, "uploads"))
+
+app.mount("/api/static", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="static")
+
+# Made with ❤️ by codx-junior

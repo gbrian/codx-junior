@@ -1,5 +1,6 @@
 <script setup>
 import DiffViewer from '@/components/DiffViewer.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 </script>
 
 <template>
@@ -176,6 +177,22 @@ import DiffViewer from '@/components/DiffViewer.vue'
         />
       </template>
     </div>
+
+    <!-- ── Rollback confirmation (replaces window.confirm) ──────────────── -->
+    <ConfirmDialog
+      v-if="confirmRollback"
+      title="Roll back file"
+      :message="`Roll back '${file.path}' to the last commit?`"
+      hint="The file is restored from the last commit. Untracked and newly added files are deleted. This cannot be undone."
+      icon="fa-rotate-left"
+      icon-class="text-error"
+      confirm-label="Roll back"
+      confirm-icon="fa-rotate-left"
+      confirm-class="btn-error"
+      :busy="busy"
+      @cancel="confirmRollback = false"
+      @confirm="runRollback"
+    />
   </div>
 </template>
 
@@ -204,6 +221,8 @@ export default {
       historyLoading: false,
       selectedCommit: null,
       busy: false,
+      // Rollback confirmation dialog visibility
+      confirmRollback: false,
       // Guards against an out-of-order response overwriting the current file
       requestToken: 0
     }
@@ -266,6 +285,7 @@ export default {
       this.history = []
       this.error = null
       this.errorHint = ''
+      this.confirmRollback = false
       this.loadDiff()
     },
 
@@ -426,9 +446,17 @@ export default {
       )
     },
 
+    /** Ask for confirmation with the app modal instead of `window.confirm` */
     rollback() {
-      if (!window.confirm(`Roll back "${this.file.path}" to the last commit? This cannot be undone.`)) return
-      return this.runAction(() => this.api.post('/api/git/repo/discard', {
+      if (!this.file?.path) return
+      this.confirmRollback = true
+    },
+
+    /** Rollback accepted in the confirmation dialog */
+    async runRollback() {
+      this.confirmRollback = false
+      if (!this.file?.path) return
+      await this.runAction(() => this.api.post('/api/git/repo/discard', {
         paths: [this.file.path],
         include_staged: true
       }))

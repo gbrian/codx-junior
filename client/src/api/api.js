@@ -11,6 +11,7 @@ import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
 import { infraModule } from './modules/infra'
+import { repoModule } from './modules/repo'
 
 /**
  * In-flight request deduplication map.
@@ -304,23 +305,18 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       }
     },
-    repo: {
-      info() {
-        return API.get('/api/git/repo/info')
-      },
-      branches() {
-        return API.get('/api/git/repo/branches')
-      },
-      commits(branch) {
-        return API.get(`/api/git/repo/branch/commits?branch=${encodeURIComponent(branch)}`)
-      },
-      changes({ from_branch, to_branch }) {
-        return API.get(`/api/git/repo/changes?from_branch=${encodeURIComponent(from_branch)}&to_branch=${encodeURIComponent(to_branch)}`)
-      },
-      readFromBranch(path, branch) {
-        return API.get(`/api/git/files/content?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`)
-      },
+
+    /**
+     * Git repository API: branches, commits, graph, working tree, remotes
+     * and the local PR lifecycle. See `api/modules/repo.js`.
+     */
+    get repo() {
+      if (!API._repoModule) {
+        API._repoModule = repoModule(API)
+      }
+      return API._repoModule
     },
+
     settings: {
       async read() {
         const data = await API.get('/api/settings')
