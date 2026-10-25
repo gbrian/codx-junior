@@ -46,6 +46,14 @@ ANALYTICS_DATA_PATH = os.environ.get(
     "/home/codx-junior/analytics"
 )
 
+# Global path for API performance logs, shared across all projects.
+# Each HTTP request handled by the API is appended here as a JSONL event.
+# Defaults to /home/codx-junior/api-logs when the env var is not set.
+API_LOGS_DATA_PATH = os.environ.get(
+    "CODX_JUNIOR_API_LOGS_DATA_PATH",
+    "/home/codx-junior/api-logs"
+)
+
 CODX_JUNIOR_AI_RAW_LOG_PATH = os.environ.get(
     "CODX_JUNIOR_AI_RAW_LOG_PATH",
     "/home/codx-junior/analytics/chats"

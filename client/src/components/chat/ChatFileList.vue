@@ -139,21 +139,10 @@ export default {
         ...conversationFileStatuses.sort((a, b) => a.nameLength - b.nameLength)
       ]
 
-      // Check existence for each file
-      this.mergedFileStatuses.forEach(entry => this.checkFileExists(entry))
     },
 
     normalizeFilePath(path) {
       return path?.toLowerCase().trim() || ''
-    },
-
-    async checkFileExists(entry) {
-      try {
-        await this.chatProject.$api.files.read(entry.path)
-        entry.exists = true
-      } catch {
-        entry.exists = false
-      }
     },
 
     isNotebook(file) {

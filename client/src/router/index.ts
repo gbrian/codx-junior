@@ -159,6 +159,11 @@ const router = createRouter({
     { path: '/:projectName/chat-logs', name: 'chat-logs', component: AppRouteView, meta: { app: 'chat-logs' } },
     { path: '/:projectName/decision-model-logs', name: 'decision-model-logs', component: AppRouteView, meta: { app: 'decision-model-logs' } },
     { path: '/:projectName/metrics', name: 'metrics', component: AppRouteView, meta: { app: 'metrics' } },
+    // Per-request API performance (latency / throughput / errors) recorded by the
+    // backend and served from /api/api-logs/*. Same pattern as every other app:
+    // <AppRouteView> resolves meta.app, and on desktop the very same key opens a
+    // dockview panel (see config/apps.js + views/api-monitoring/).
+    { path: '/:projectName/api-monitoring', name: 'api-monitoring', component: AppRouteView, meta: { app: 'api-monitoring' } },
     { path: '/:projectName/infra', name: 'infra', component: AppRouteView, meta: { app: 'infra' } },
     // Activity wall. It is the default screen of the mobile home AND the target
     // of the sidebar "Activity" item (config/apps.js → activity), so it needs a

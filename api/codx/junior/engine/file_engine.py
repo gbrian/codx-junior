@@ -8,6 +8,7 @@ Made with ❤️ by codx-junior
 import logging
 import os
 import re
+import shlex
 import subprocess
 import base64
 import shutil
@@ -310,6 +311,7 @@ class FileEngine:
     ```mermaid
     flowchart TD
         FE[FileEngine]
+        FE --> resolve_file_target
         FE --> read_file
         FE --> write_project_file
         FE --> upload_file
@@ -446,6 +448,39 @@ class FileEngine:
 
         return current_root
 
+    def resolve_file_target(self, file_path: str) -> Tuple[str, any, str]:
+        """
+        Resolve the target project that owns ``file_path``.
+
+        File operations run inside a session bound to the *current* project, but
+        the paths they receive may belong to a child (sub) project instead. Every
+        read/write operation must therefore resolve the owning project **before**
+        touching the filesystem, git or the project profiles, and then use that
+        project for anything project-scoped (git cwd, relative paths, profiles).
+
+        Args:
+            file_path: Relative (to any known project) or absolute file path.
+
+        Returns:
+            Tuple of:
+            - absolute file path,
+            - settings of the project owning the path,
+            - path relative to that project root (used for git commands).
+
+        Raises:
+            ValueError: If the path is outside all allowed projects, or if a
+                relative path escapes the resolved project root.
+        """
+        abs_file_path, file_project = self.get_valid_project_file_path(file_path)
+        rel_file_path = os.path.relpath(abs_file_path, file_project.abs_project_path)
+        logger.debug(
+            "Resolved file target '%s' -> project '%s' (%s)",
+            file_path,
+            file_project.project_name,
+            abs_file_path,
+        )
+        return abs_file_path, file_project, rel_file_path
+
     def _compile_regex_pattern(self, pattern: str, case_sensitive: bool = False) -> Optional[Pattern]:
         """
         Compile a regex pattern with error handling.
@@ -536,14 +571,23 @@ class FileEngine:
         """
         Return metadata for a file: last_modification (ISO 8601) and size in bytes.
 
+        Relative paths are resolved against the project that owns them (the
+        current project or one of its child projects), so callers may pass either
+        the absolute path reported by the API or a project-relative path.
+
         Args:
-            file_path: Absolute or relative (to project root) path to the file.
+            file_path: Absolute or relative (to the owning project root) path.
 
         Returns:
             Dict with 'last_modification' (str or None) and 'size' (int or None).
         """
         if not os.path.isabs(file_path):
-            file_path = os.path.join(self.settings.abs_project_path, file_path)
+            try:
+                file_path, _file_project, _rel_path = self.resolve_file_target(file_path)
+            except ValueError:
+                # Outside all known projects: keep the previous behaviour and
+                # resolve it against the current project root.
+                file_path = os.path.join(self.settings.abs_project_path, file_path)
         if not os.path.isfile(file_path):
             return {"last_modification": None, "size": None}
         stat = os.stat(file_path)
@@ -620,49 +664,59 @@ class FileEngine:
         """
         List the contents of a directory, flagging git-ignored entries.
 
+        The directory path may be relative or belong to a child project, so the
+        project owning it is resolved before listing. Paths that belong to no
+        known project are listed as given (e.g. while browsing the filesystem),
+        without raising an error.
+
         If the directory being listed is itself git-ignored, all of its
         children are also marked as ignored (cascade behaviour matching git).
 
-        The GitIgnoreManager is rooted at the project owning the directory:
-        the current project when ``path`` lives inside it, otherwise the child
-        project that contains it. This way rules defined above the listed
-        directory (e.g. a top-level .gitignore that ignores this folder) are
-        taken into account and child projects keep their own rules. When the
-        directory belongs to no known project the manager is rooted at the
-        project root and simply reports ``is_ignored=False`` for every entry
-        rather than raising an error.
+        The GitIgnoreManager is rooted at the deepest project owning the
+        directory: the current project when ``path`` lives inside it, otherwise
+        the child project that contains it. This way rules defined above the
+        listed directory (e.g. a top-level .gitignore that ignores this folder)
+        are taken into account and child projects keep their own rules.
 
         Args:
-            path: Absolute path to the directory.
+            path: Absolute or project-relative path to the directory.
 
         Returns:
             Dict with path, full_path, is_ignored, and files list.
         """
-        files = os.listdir(path)
+        try:
+            abs_path, _file_project, _rel_path = self.resolve_file_target(path)
+        except ValueError:
+            logger.debug(
+                "Directory is outside all known projects, listing it as given: %s", path
+            )
+            abs_path = path
+
+        files = os.listdir(abs_path)
 
         # Root the GitIgnoreManager at the project owning the directory so that
         # rules defined outside of it (e.g. a top-level .gitignore that ignores
         # this folder) are still taken into account.
-        project_root = self.get_project_root_for_path(path)
+        project_root = self.get_project_root_for_path(abs_path)
         gitignore_manager = self._build_gitignore_manager(project_root)
 
         # Determine whether the directory being listed is itself ignored.
         # If so, every child inherits that status.
-        dir_is_ignored = gitignore_manager.is_ignored(path)
+        dir_is_ignored = gitignore_manager.is_ignored(abs_path)
         if dir_is_ignored:
             logger.debug(
                 "Directory is git-ignored; all children will be marked ignored: %s",
-                path,
+                abs_path,
             )
 
         return {
             "path": path,
-            "full_path": path,
+            "full_path": abs_path,
             "is_ignored": dir_is_ignored,
             "files": [
                 self.parse_file_line(
                     file,
-                    path,
+                    abs_path,
                     gitignore_manager,
                     parent_is_ignored=dir_is_ignored,
                 )
@@ -687,6 +741,9 @@ class FileEngine:
         """
         Read a project file and return its content along with file metadata.
 
+        The project owning the path is resolved first, so files of child
+        projects are read (and reported) as part of their own project.
+
         For binary files (images, PDFs, etc.), content is returned as base64.
         For text files, content is returned as plain text.
 
@@ -695,9 +752,10 @@ class FileEngine:
 
         Returns:
             Dict with 'content' (base64 for binary, text for text files), 
-            'last_modification', 'size', and 'is_binary' flag.
+            'last_modification', 'size', 'is_binary' flag and the owning
+            project ('file_project', 'file_project_path').
         """
-        abs_path = self.get_project_file_path(path=path)
+        abs_path, file_project, _rel_path = self.resolve_file_target(path)
         is_binary = self._is_binary_file(abs_path)
 
         try:
@@ -717,6 +775,9 @@ class FileEngine:
             return {
                 "content": content,
                 "is_binary": is_binary,
+                "file_project": file_project.project_name,
+                "file_project_path": file_project.abs_project_path,
+                "abs_file_path": abs_path,
                 **info,
             }
         except OSError as ex:
@@ -732,6 +793,9 @@ class FileEngine:
     ) -> dict:
         """
         Diff a project file against provided content using git diff --no-index.
+
+        The project owning the path is resolved first, so relative paths coming
+        from a child project are diffed against the right file.
 
         The provided content is streamed to git through stdin (via
         ``subprocess.run(input=...)``) instead of being embedded in a shell
@@ -749,22 +813,22 @@ class FileEngine:
         Returns:
             Dict with 'diff', 'stats', 'last_modification', and 'size'.
         """
-        path = self.get_project_file_path(path=path)
+        abs_path, _file_project, _rel_path = self.resolve_file_target(path)
 
         # Full diff: compare the working-tree file against the provided content.
         # Content is piped through stdin so large files never hit ARG_MAX.
-        cmd = ["git", "diff", "--no-index", path, "-"]
+        cmd = ["git", "diff", "--no-index", abs_path, "-"]
         result = subprocess.run(cmd, input=content, text=True, capture_output=True)
         diff_out = result.stdout
 
         # Short stats: same piping strategy, no shell heredoc.
-        stats_cmd = ["git", "diff", "--shortstat", "--no-index", path, "-"]
+        stats_cmd = ["git", "diff", "--shortstat", "--no-index", abs_path, "-"]
         stats_result = subprocess.run(
             stats_cmd, input=content, text=True, capture_output=True
         )
         diff_stats_out = stats_result.stdout
 
-        info = self.get_file_info(path)
+        info = self.get_file_info(abs_path)
         return {
             "diff": diff_out.strip(),
             "stats": diff_stats_out.strip(),
@@ -790,6 +854,11 @@ class FileEngine:
         """
         Apply all matching file profiles to content before saving.
 
+        The project owning the file is resolved first, so the profiles of the
+        child project the file belongs to are applied (each project defines its
+        own `file_match` profiles). When the path cannot be resolved the current
+        project profiles are used.
+
         Args:
             file_path: Absolute file path.
             content: File content to process.
@@ -797,18 +866,29 @@ class FileEngine:
         Returns:
             Processed file content.
         """
-        file_profiles = self.session.get_profile_manager().get_file_profiles_by_file_path(
-            file_path=file_path
-        )
+        try:
+            abs_file_path, file_project, _rel_path = self.resolve_file_target(file_path)
+        except ValueError as ex:
+            logger.warning(
+                "Could not resolve the project owning %s, using the current project profiles: %s",
+                file_path,
+                ex,
+            )
+            abs_file_path, file_project = file_path, self.settings
+
+        file_profiles = self.session.get_profile_manager(
+            settings=file_project
+        ).get_file_profiles_by_file_path(file_path=abs_file_path)
         self.session.log_info(
-            "Applying file profiles %s to %s",
+            "Applying file profiles %s to %s (project %s)",
             [p.name for p in file_profiles],
-            file_path,
+            abs_file_path,
+            file_project.project_name,
         )
         if file_profiles:
             for profile in file_profiles:
                 content = await self.apply_file_profile(
-                    file_path=file_path, content=content, profile=profile
+                    file_path=abs_file_path, content=content, profile=profile
                 )
         return content
 
@@ -1146,17 +1226,21 @@ class FileEngine:
 
     async def rename_file(self, old_path: str, new_path: str) -> dict:
         """
-        Rename or move a file or directory within the project.
+        Rename or move a file or directory.
+
+        Both paths are resolved to the project that owns them first, so a file
+        can be moved into (or out of) a child project. ``shutil.move`` is used
+        because a cross-project move may also cross filesystem boundaries, where
+        a plain ``os.rename`` would fail.
 
         Creates parent directories for the destination as needed.
-        Both paths must be within the project root.
 
         Args:
             old_path: Current file/directory path (relative to project root).
             new_path: New file/directory path (relative to project root).
 
         Returns:
-            Dict with old path, new path, and status message.
+            Dict with old path, new path, destination project and status message.
 
         Raises:
             FileNotFoundError: If source path does not exist.
@@ -1165,8 +1249,8 @@ class FileEngine:
             OSError: If rename fails.
         """
         try:
-            old_abs_path, _ = self.get_valid_project_file_path(old_path)
-            new_abs_path, _ = self.get_valid_project_file_path(new_path)
+            old_abs_path, _old_project, _old_rel_path = self.resolve_file_target(old_path)
+            new_abs_path, new_project, _new_rel_path = self.resolve_file_target(new_path)
         except ValueError as ex:
             logger.error("Invalid file path: %s", ex)
             raise
@@ -1184,13 +1268,20 @@ class FileEngine:
         try:
             # Ensure parent directory of destination exists
             os.makedirs(os.path.dirname(new_abs_path), exist_ok=True)
-            # Rename/move file or directory
-            os.rename(old_abs_path, new_abs_path)
-            logger.info("Renamed %s to %s", old_path, new_path)
+            # Move file or directory (also handles cross-project/cross-device)
+            shutil.move(old_abs_path, new_abs_path)
+            logger.info(
+                "Renamed %s to %s (project %s)",
+                old_path,
+                new_path,
+                new_project.project_name,
+            )
 
             return {
                 "old_path": old_path,
                 "new_path": new_path,
+                "file_project": new_project.project_name,
+                "file_project_path": new_project.abs_project_path,
                 "message": "Renamed successfully"
             }
         except OSError as ex:
@@ -1200,6 +1291,11 @@ class FileEngine:
     async def reset_file(self, file_path: str) -> dict:
         """
         Reset a file to its last committed git version.
+
+        The project owning the file is resolved first and git is executed inside
+        that project root with a project-relative path, so files belonging to a
+        child project are reset against their own repository (which may be a
+        nested repo or the parent one).
 
         Requires the file to be tracked by git. Uses 'git checkout'
         to restore the file to its HEAD version.
@@ -1215,7 +1311,7 @@ class FileEngine:
             RuntimeError: If git reset fails or file is not tracked.
         """
         try:
-            abs_path, _ = self.get_valid_project_file_path(file_path)
+            abs_path, file_project, rel_path = self.resolve_file_target(file_path)
         except ValueError as ex:
             logger.error("Invalid file path: %s", ex)
             raise
@@ -1226,10 +1322,11 @@ class FileEngine:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         try:
-            # Use git to reset the file to HEAD version
+            # Use git to reset the file to HEAD version, running it inside the
+            # project that owns the file and referencing it relative to that root.
             stdout, stderr = exec_command(
-                f"git checkout -- {file_path}",
-                cwd=self.settings.abs_project_path
+                f"git checkout -- {shlex.quote(rel_path)}",
+                cwd=file_project.abs_project_path
             )
 
             if stderr and "error" in stderr.lower():
@@ -1238,10 +1335,16 @@ class FileEngine:
                     f"Failed to reset file (file may not be tracked by git): {stderr}"
                 )
 
-            logger.info("Reset file to git version: %s", file_path)
+            logger.info(
+                "Reset file to git version: %s (project %s)",
+                rel_path,
+                file_project.project_name,
+            )
             info = self.get_file_info(abs_path)
             return {
                 "path": file_path,
+                "file_project": file_project.project_name,
+                "file_project_path": file_project.abs_project_path,
                 "message": "File reset to git HEAD version",
                 **info,
             }

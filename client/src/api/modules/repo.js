@@ -2,7 +2,8 @@
  * Repository (git) API module
  * Handles every git operation used by the Git view: repository info, branches,
  * commits, the commit graph, working tree actions, remote sync, branch
- * synchronisation and the local PR (branch) lifecycle.
+ * synchronisation, commit message generation and the local PR (branch)
+ * lifecycle.
  *
  * Backend routes: `api/codx/junior/api/git.py` (engine:
  * `api/codx/junior/engine/git_graph.py`).
@@ -19,15 +20,26 @@
  *   GET    /api/git/repo/commit/detail
  *   GET    /api/git/repo/file/diff
  *   GET    /api/git/repo/file/history
+ *   GET    /api/git/repo/lock
+ *   GET    /api/git/repo/staged
  *   GET    /api/git/files/content
- *   POST   /api/git/repo/stage | unstage | discard | commit
+ *   POST   /api/git/repo/stage | unstage | discard | commit | commit/message
  *   POST   /api/git/repo/fetch | pull | push
+ *   POST   /api/git/repo/lock/release
  *   POST   /api/git/repo/branch | branch/checkout | merge | rebase
  *   DELETE /api/git/repo/branch
  *   POST   /api/git/repo/pr | pr/close | pr/abandon
+ *
+ * File diffs and commit details go through the short-term request cache
+ * (`api/requestCache.js`): both are expensive and are requested repeatedly by
+ * the diff panels while the user clicks through the file list. File diffs also
+ * go through the `files:diff` request queue (`api/requestQueue.js`), so they are
+ * serialized with the editor diffs instead of being fired in parallel.
  */
 
 import { buildGraphLayout, normalizeGraphPayload } from '../models/gitGraph'
+import { CACHE_TTL, normalizePath } from '../requestCache'
+import { QUEUE_NAMES } from '../requestQueue'
 
 const GRAPH_ENDPOINT = '/api/git/repo/graph'
 const COMMIT_DETAIL_ENDPOINT = '/api/git/repo/commit/detail'
@@ -62,10 +74,22 @@ const asList = (paths) => {
   return Array.isArray(paths) ? paths : [paths]
 }
 
+/**
+ * Drop the cached file diffs of the current project.
+ *
+ * Working tree mutations (stage, unstage, discard, commit, checkout) change
+ * what those diffs contain, so their cached entries must not survive them.
+ *
+ * @param {Object} API - API instance.
+ */
+const invalidateDiffs = (API) => {
+  API.invalidateCache(API.cacheKey('repo:fileDiff'))
+}
+
 export const repoModule = (API) => ({
   // ── Repository overview ───────────────────────────────────────────────────
 
-  /** Repository summary: branches, counters, worktrees, last commit. */
+  /** Repository summary: branches, counters, lock state, worktrees, last commit. */
   info() {
     return API.get('/api/git/repo/info')
   },
@@ -139,18 +163,23 @@ export const repoModule = (API) => ({
    * with its patch diffed against the first parent (previous version).
    *
    * The backend reads the whole commit with a single `git diff`, so no extra
-   * request is needed to render a file diff.
+   * request is needed to render a file diff. A commit never changes once
+   * created, so the payload is cached for longer than a working tree diff.
    *
-   * @param {Object} params - `{ hash }`.
+   * @param {Object} params - `{ hash, force }`.
+   * @param {string} params.hash - Commit hash.
+   * @param {boolean} [params.force] - Bypass the cache and refresh the entry.
    * @returns {Promise<Object>} `{ commit, stat, total_additions, total_deletions, files }`.
    *
    * @example
    * const detail = await api.repo.commitDetail({ hash: 'a2d3b55' })
    * detail.files[0].diff // patch against the previous version
    */
-  async commitDetail({ hash } = {}) {
-    const payload = await API.get(
-      `${COMMIT_DETAIL_ENDPOINT}${toQuery({ commit: hash })}`
+  async commitDetail({ hash, force = false } = {}) {
+    const payload = await API.cached(
+      API.cacheKey('repo:commitDetail', hash),
+      () => API.get(`${COMMIT_DETAIL_ENDPOINT}${toQuery({ commit: hash })}`),
+      { ttl: CACHE_TTL.commitDetail, force }
     )
     const files = (payload?.files || []).map((file) => ({
       path: file.path,
@@ -177,12 +206,28 @@ export const repoModule = (API) => ({
   /**
    * Diff of one file.
    *
-   * @param {Object} params - `{ path, mode, commit }`; mode is
+   * Cached for a few seconds: the diff panels request it again on every
+   * selection change and on every re-render. Working tree mutations invalidate
+   * the entry, so a stale diff cannot survive a stage / discard / commit.
+   *
+   * It runs in the `files:diff` queue together with `files.diff`, so only one
+   * diff is on the wire at a time whatever panel asked for it.
+   *
+   * @param {Object} params - `{ path, mode, commit, force }`; mode is
    * `worktree`, `staged` or `commit`.
+   * @param {boolean} [params.force] - Bypass the cache and refresh the entry.
    * @returns {Promise<Object>} `{ diff, header, additions, deletions }`.
+   *
+   * @example
+   * const { diff } = await api.repo.fileDiff({ path, mode: 'worktree' })
    */
-  fileDiff({ path, mode = 'worktree', commit } = {}) {
-    return API.get(`/api/git/repo/file/diff${toQuery({ path, mode, commit })}`)
+  fileDiff({ path, mode = 'worktree', commit, force = false } = {}) {
+    return API.get(`/api/git/repo/file/diff${toQuery({ path, mode, commit })}`, {
+      key: API.cacheKey('repo:fileDiff', normalizePath(path), mode, commit || ''),
+      ttl: CACHE_TTL.fileDiff,
+      force,
+      queue: QUEUE_NAMES.fileDiff
+    })
   },
 
   /**
@@ -257,11 +302,19 @@ export const repoModule = (API) => ({
   /** Stage files (defaults to every change when no path is given). */
   stage(paths) {
     return API.post('/api/git/repo/stage', { paths: asList(paths) })
+      .then((result) => {
+        invalidateDiffs(API)
+        return result
+      })
   },
 
   /** Remove files from the index. */
   unstage(paths) {
     return API.post('/api/git/repo/unstage', { paths: asList(paths) })
+      .then((result) => {
+        invalidateDiffs(API)
+        return result
+      })
   },
 
   /** Roll files back to the last commit. */
@@ -269,7 +322,58 @@ export const repoModule = (API) => ({
     return API.post('/api/git/repo/discard', {
       paths: asList(paths),
       include_staged: includeStaged
+    }).then((result) => {
+      invalidateDiffs(API)
+      return result
     })
+  },
+
+  /**
+   * Repository lock state (a stale `.git/index.lock` blocks every write).
+   *
+   * @returns {Promise<Object>} `{ locked, path, git_dir, repository, age_seconds }`.
+   *
+   * @example
+   * const { locked, path } = await api.repo.lock()
+   */
+  lock() {
+    return API.get('/api/git/repo/lock')
+  },
+
+  /**
+   * Release the stale `.git/index.lock` file.
+   *
+   * Only safe when no git process is running: the UI must confirm it first.
+   *
+   * @returns {Promise<Object>} `{ success, released, path, lock }`.
+   */
+  releaseLock() {
+    return API.post('/api/git/repo/lock/release', {})
+  },
+
+  /**
+   * Changes summary of the index: exactly what the next commit will contain.
+   *
+   * The staged files (path + code + status), the diff stat and, unless
+   * `include_diff` is false, the staged patch. This is the same payload the
+   * commit message generator reads, so the UI and the generated message can
+   * never describe different changes.
+   *
+   * @param {Object} [params] - Options.
+   * @param {boolean} [params.include_diff] - Include the staged patch.
+   * @param {number} [params.max_diff_chars] - Patch budget (0 = no limit).
+   * @returns {Promise<Object>} `{ success, repo_path, files, file_count, stat, diff, diff_truncated, errors }`.
+   *
+   * @example
+   * const { files, stat } = await api.repo.staged({ include_diff: false })
+   */
+  staged({ include_diff = true, max_diff_chars } = {}) {
+    return API.get(
+      `/api/git/repo/staged${toQuery({
+        include_diff: include_diff ? 1 : 0,
+        max_diff_chars
+      })}`
+    )
   },
 
   /**
@@ -280,6 +384,41 @@ export const repoModule = (API) => ({
    */
   commit({ message, stage_all = true, allow_empty = false } = {}) {
     return API.post('/api/git/repo/commit', { message, stage_all, allow_empty })
+      .then((result) => {
+        invalidateDiffs(API)
+        return result
+      })
+  },
+
+  // ── Commit message ────────────────────────────────────────────────────────
+
+  /**
+   * Generate a commit message for the staged changes (50/72 rule).
+   *
+   * The backend reads the staged patch, asks the project LLM for the message
+   * and normalizes the answer: subject of at most 50 characters, body lines of
+   * at most 72, separated by one blank line. Nothing is committed: the message
+   * is returned so the user can review and edit it first.
+   *
+   * When the AI is unavailable the answer carries `fallback = true` and a
+   * message built from the staged file names, so the commit box is never left
+   * empty. Nothing staged answers **400**.
+   *
+   * @param {Object} [params] - Options.
+   * @param {string} [params.hint] - Intent (issue reference, reason for the change).
+   * @param {boolean} [params.include_body] - Ask only for the subject when false.
+   * @param {number} [params.max_diff_chars] - Prompt budget for the patch.
+   * @returns {Promise<Object>} `{ success, title, body, message, fallback, files, file_count, stat, diff_truncated, errors }`.
+   *
+   * @example
+   * const { message, fallback } = await api.repo.commitMessage({ hint: 'fixes #42' })
+   */
+  commitMessage({ hint, include_body = true, max_diff_chars } = {}) {
+    return API.post('/api/git/repo/commit/message', {
+      hint: hint || null,
+      include_body,
+      max_diff_chars
+    })
   },
 
   // ── Remote operations ─────────────────────────────────────────────────────
@@ -315,6 +454,10 @@ export const repoModule = (API) => ({
   /** Check out a branch (tracks the remote branch when needed). */
   checkoutBranch(branch) {
     return API.post('/api/git/repo/branch/checkout', { branch })
+      .then((result) => {
+        invalidateDiffs(API)
+        return result
+      })
   },
 
   /** Delete a local branch (and its worktree when it has one). */

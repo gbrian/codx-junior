@@ -270,9 +270,19 @@ import CreateFileDialog from './CreateFileDialog.vue'
       :hasSelection="selectedEntries.length > 0"
       :isMultiSelect="selectedEntries.length > 1"
       :selectionCount="selectedEntries.length"
+      @upload="handleContextUpload"
       @create="handleContextCreate"
       @rename="handleContextRename"
       @delete="handleContextDelete"
+    />
+
+    <!-- Hidden picker used by the "Upload files" context menu action -->
+    <input
+      ref="uploadInput"
+      type="file"
+      multiple
+      class="hidden"
+      @change="onUploadInputChange"
     />
 
     <!-- Create File/Folder Dialog -->
@@ -709,6 +719,8 @@ export default {
       return daysDiff < 5 ? modified.fromNow() : modified.format('MMM DD, YYYY')
     },
     onContextMenu(event) {
+      // Right clicking the empty area targets the current folder
+      this.clearSelection()
       this.contextMenuPosition = {
         x: event.clientX,
         y: event.clientY
@@ -730,6 +742,22 @@ export default {
     },
     closeContextMenu() {
       this.contextMenuVisible = false
+    },
+    handleContextUpload() {
+      this.closeContextMenu()
+      this.triggerUpload()
+    },
+    // Opens the native file picker; uploads always go to the folder currently open
+    triggerUpload() {
+      this.$refs.uploadInput?.click()
+    },
+    async onUploadInputChange(event) {
+      const input = event.target
+      try {
+        await this.handleFilesUpload(this.getAbsolutePath(this.currentPath), input.files)
+      } finally {
+        input.value = ''
+      }
     },
     handleContextCreate({ isDir }) {
       this.closeContextMenu()
@@ -862,7 +890,7 @@ export default {
       await this.handleFilesUpload(targetPath, files)
     },
     async handleFilesUpload(targetPath, fileList) {
-      if (fileList.length === 0) return
+      if (!fileList || fileList.length === 0) return
       
       this.isUploading = true
       this.uploadProgress = 0

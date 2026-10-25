@@ -6,6 +6,10 @@ import CommitDetail from '@/components/repo/CommitDetail.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import moment from 'moment'
 
+// 50/72 rule: maximum subject length and maximum body line width
+const COMMIT_SUBJECT_LIMIT = 50
+const COMMIT_BODY_LIMIT = 72
+
 export default {
   name: 'GitView',
   components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, ConfirmDialog },
@@ -37,13 +41,15 @@ export default {
       // Anchor for shift+click range selection: { group, path }
       selectionAnchor: null,
       selectedFile: null,
-      // new branch
+      // create branch (modal, shared by the sidebar and the headers)
       showNewBranch: false,
       newBranchName: '',
       newBranchFrom: '',
+      newBranchCheckout: false,
       // commit
       commitMessage: '',
       committing: false,
+      generatingMessage: false,
       // merge
       showMerge: false,
       mergeFrom: '',
@@ -76,6 +82,13 @@ export default {
     },
     currentBranch() {
       return this.info?.active_branch || this.branches[0] || null
+    },
+    /** Repository is locked by a stale .git/index.lock */
+    locked() {
+      return !!this.info?.locked
+    },
+    lockPath() {
+      return this.info?.lock_path || ''
     },
     filteredBranches() {
       const filter = this.branchFilter.trim().toLowerCase()
@@ -170,6 +183,42 @@ export default {
     },
     canCommit() {
       return !!this.commitMessage.trim() && this.workingTreeCount > 0
+    },
+    /** Length of the commit subject (first line of the message) */
+    subjectLength() {
+      return (this.commitMessage.split('\n')[0] || '').trim().length
+    },
+    /** Subject exceeds the 50 characters of the 50/72 rule */
+    subjectTooLong() {
+      return this.subjectLength > COMMIT_SUBJECT_LIMIT
+    },
+    /**
+     * Feedback for the message being written: the 50/72 counters once there is
+     * a subject, otherwise the working tree hint.
+     */
+    messageHint() {
+      const lines = this.commitMessage.split('\n')
+      const subject = (lines[0] || '').trim()
+      if (!subject) return this.commitHint
+
+      const body = lines.slice(1).map(line => line.trim()).filter(Boolean)
+      const longest = body.length ? Math.max(...body.map(line => line.length)) : 0
+      const parts = [`Subject ${subject.length}/${COMMIT_SUBJECT_LIMIT}`]
+      if (body.length) parts.push(`body ${longest}/${COMMIT_BODY_LIMIT}`)
+      return parts.join(' · ')
+    },
+    /** Only the staged changes can be described: the generator reads the index */
+    canGenerateMessage() {
+      return !!this.api && !this.busy && !this.generatingMessage && this.stagedFiles.length > 0
+    },
+    /** Tooltip explaining why the generate button is disabled */
+    generateTitle() {
+      if (this.generatingMessage) return 'Generating the commit message...'
+      if (!this.api) return 'No project API available'
+      if (!this.stagedFiles.length) {
+        return 'Stage the files to commit first: the message is built from the staged changes'
+      }
+      return 'Generate a commit message from the staged changes (50/72 rule)'
     },
     /** Identity of the open diff: remounts the pane for every file / group */
     diffKey() {
@@ -668,6 +717,34 @@ export default {
       this.clearSelection()
     },
 
+    // ── Repository lock ─────────────────────────────────────────────────
+    /**
+     * Remove the stale `.git/index.lock` after the user confirms it.
+     *
+     * The lock is only safe to release when no git process is running, so the
+     * confirmation warns about it before deleting the file.
+     */
+    async releaseLock() {
+      if (!this.api) return
+      const accepted = await this.confirmAction({
+        title: 'Release repository lock',
+        message: 'Remove the git lock file and unlock the repository?',
+        details: this.lockPath ? [this.lockPath] : [],
+        hint: 'Only do this if no git process is running. Removing index.lock while git is writing can corrupt the repository.',
+        icon: 'fa-lock-open',
+        iconClass: 'text-warning',
+        confirmLabel: 'Release lock',
+        confirmIcon: 'fa-lock-open',
+        confirmClass: 'btn-warning'
+      })
+      if (!accepted) return
+
+      await this.runOperation(
+        () => this.api.repo.releaseLock(),
+        'Repository lock released'
+      )
+    },
+
     // ── Loading ─────────────────────────────────────────────────────────
     async loadRepo() {
       if (!this.api) return
@@ -748,13 +825,23 @@ export default {
       this.notice = null
       this.busy = true
       try {
-        await fn()
+        const result = await fn()
+        const errors = (result && Array.isArray(result.errors) ? result.errors : []).filter(Boolean)
+        // Some endpoints answer 200 with success:false (e.g. stage): never
+        // report them as succeeded
+        if (result && result.success === false) {
+          throw new Error(errors.join('; ') || 'Git operation failed')
+        }
         if (successMessage) this.notice = successMessage
         await this.loadRepo()
         // Branches, hashes and lanes changed: reload the graph too
         this.graphRefreshToken += 1
+        return result
       } catch (ex) {
         this.error = ex?.response?.data?.detail || ex?.message || String(ex)
+        // Reflect whatever could be applied (e.g. a partial staging)
+        await this.loadRepo()
+        this.graphRefreshToken += 1
       } finally {
         this.busy = false
       }
@@ -780,25 +867,37 @@ export default {
       )
     },
 
-    toggleNewBranch() {
-      this.showNewBranch = !this.showNewBranch
+    /** Open the create-branch modal, pre-filling the base branch */
+    openNewBranch(from = '') {
       this.newBranchName = ''
-      this.newBranchFrom = this.selectedBranch || this.currentBranch || ''
+      this.newBranchCheckout = false
+      this.newBranchFrom = from || this.selectedBranch || this.currentBranch || ''
+      this.showNewBranch = true
+    },
+
+    closeNewBranch() {
+      this.showNewBranch = false
+      this.newBranchName = ''
+      this.newBranchCheckout = false
     },
 
     async createBranch() {
       const name = this.newBranchName.trim()
       if (!name || !this.api) return
+      const from = this.newBranchFrom || this.currentBranch || ''
       await this.runOperation(
         () => this.api.repo.createBranch({
           branch: name,
-          from_branch: this.newBranchFrom || this.currentBranch
+          from_branch: from,
+          checkout: this.newBranchCheckout
         }),
-        `Branch ${name} created`
+        `Branch ${name} created from ${from}`
       )
-      this.showNewBranch = false
-      this.selectedBranch = name
-      this.loadCommitsForBranch(name)
+      if (!this.error) {
+        this.closeNewBranch()
+        this.selectedBranch = name
+        this.loadCommitsForBranch(name)
+      }
     },
 
     async deleteBranch(branch) {
@@ -820,6 +919,50 @@ export default {
         () => this.api.repo.deleteBranch(branch),
         `Branch ${branch} deleted`
       )
+    },
+
+    // ── Commit message ──────────────────────────────────────────────────
+    /**
+     * Ask the backend to write a commit message for the staged changes.
+     *
+     * The message is generated from the index (what the next commit will
+     * contain) and normalized to the 50/72 rule: subject of at most 50
+     * characters and body lines of at most 72. Whatever is already written in
+     * the box is sent as `hint`, so a user draft steers the result instead of
+     * being discarded.
+     *
+     * When the AI is unavailable the backend answers a message built from the
+     * staged file names with `fallback = true`: it is still inserted, and the
+     * user is told it must be reviewed. Nothing staged answers 400.
+     *
+     * @returns {Promise<void>}
+     *
+     * @example
+     * // Commit box contains "fix login timeout" -> sent as hint
+     * await this.generateCommitMessage()
+     */
+    async generateCommitMessage() {
+      if (!this.canGenerateMessage) return
+      this.generatingMessage = true
+      this.error = null
+      this.notice = null
+      try {
+        const result = await this.api.repo.commitMessage({
+          hint: this.commitMessage.trim() || undefined,
+          include_body: true
+        })
+        const message = (result?.message || '').trim()
+        if (!message) throw new Error('The AI returned an empty commit message')
+        this.commitMessage = message
+        const files = result.file_count || this.stagedFiles.length
+        this.notice = result.fallback
+          ? `AI unavailable: inserted a message built from the ${files} staged file(s), review it before committing`
+          : `Commit message generated from ${files} staged file(s)`
+      } catch (ex) {
+        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        this.generatingMessage = false
+      }
     },
 
     // ── Commit ──────────────────────────────────────────────────────────
@@ -911,8 +1054,13 @@ export default {
     <header class="flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 shrink-0 flex-wrap">
       <i class="fa-solid fa-folder-tree text-warning"></i>
       <span class="font-mono text-sm font-semibold truncate min-w-0" :title="projectPath">{{ projectName }}</span>
-      <span v-if="currentBranch" class="badge badge-sm badge-primary badge-outline gap-1" title="Current branch">
-        <i class="fa-solid fa-check text-[9px]"></i> {{ currentBranch }}
+      <span
+        v-if="currentBranch"
+        class="badge badge-sm badge-primary badge-outline gap-1 max-w-[220px]"
+        :title="`Current branch: ${currentBranch}`"
+      >
+        <i class="fa-solid fa-check text-[9px] shrink-0"></i>
+        <span class="truncate">{{ currentBranch }}</span>
       </span>
 
       <div class="grow"></div>
@@ -977,6 +1125,17 @@ export default {
       </button>
     </div>
 
+    <!-- ── Repository locked (stale .git/index.lock) ─────────────────────── -->
+    <div v-if="locked" class="alert alert-warning rounded-none py-1 px-3 text-xs flex items-center gap-2 shrink-0">
+      <i class="fa-solid fa-lock"></i>
+      <span class="grow truncate" :title="lockPath ? `Locked by ${lockPath}` : 'Repository locked'">
+        Repository is locked<span v-if="lockPath" class="font-mono opacity-70"> — {{ lockPath }}</span>
+      </span>
+      <button class="btn btn-xs btn-warning gap-1 shrink-0" :disabled="busy" @click="releaseLock">
+        <i class="fa-solid fa-lock-open"></i> Release lock
+      </button>
+    </div>
+
     <!-- ── No project ───────────────────────────────────────────────────── -->
     <div v-if="!project" class="grow flex flex-col items-center justify-center gap-3 text-base-content/40">
       <i class="fa-solid fa-code-branch text-4xl"></i>
@@ -1027,28 +1186,9 @@ export default {
         <aside class="hidden lg:flex lg:w-52 shrink-0 border-r border-base-content/10 flex-col overflow-hidden">
           <div class="flex items-center gap-1 px-2 py-1.5 border-b border-base-content/10 shrink-0">
             <span class="text-xs font-bold uppercase tracking-wide opacity-50 grow">Branches</span>
-            <button class="btn btn-xs btn-ghost" @click="toggleNewBranch" title="New branch" aria-label="New branch">
+            <button class="btn btn-xs btn-ghost" @click="openNewBranch(selectedBranch || currentBranch)" title="New branch" aria-label="New branch">
               <i class="fa-solid fa-plus text-[10px]"></i>
             </button>
-          </div>
-
-          <!-- New branch form -->
-          <div v-if="showNewBranch" class="p-2 border-b border-base-content/10 flex flex-col gap-1 shrink-0">
-            <input
-              v-model="newBranchName"
-              type="text"
-              placeholder="new-branch-name"
-              class="input input-xs input-bordered w-full"
-              @keyup.enter="createBranch"
-              @keyup.esc="showNewBranch = false"
-            />
-            <select v-model="newBranchFrom" class="select select-xs select-bordered w-full" title="Branch from">
-              <option v-for="b in branches" :key="`from-${b}`" :value="b">{{ b }}</option>
-            </select>
-            <div class="flex gap-1 justify-end">
-              <button class="btn btn-xs btn-ghost" @click="showNewBranch = false">Cancel</button>
-              <button class="btn btn-xs btn-primary" :disabled="!newBranchName.trim() || busy" @click="createBranch">Create</button>
-            </div>
           </div>
 
           <div class="px-2 py-1.5 border-b border-base-content/10 shrink-0">
@@ -1066,14 +1206,15 @@ export default {
                 selectedBranch === branch ? 'bg-primary/15 text-primary' : 'hover:bg-base-200',
                 sameBranch(branch, currentBranch) ? 'font-semibold' : ''
               ]"
+              :title="branch"
               @click="selectBranch(branch)"
             >
               <i
-                class="fa-solid"
+                class="fa-solid shrink-0"
                 :class="sameBranch(branch, currentBranch) ? 'fa-circle-check text-success' : 'fa-code-branch opacity-50'"
               ></i>
-              <span class="truncate grow" :title="branch">{{ branch }}</span>
-              <span v-if="branchCommitCount(branch)" class="badge badge-xs badge-ghost">{{ branchCommitCount(branch) }}</span>
+              <span class="truncate grow min-w-0" :title="branch">{{ branch }}</span>
+              <span v-if="branchCommitCount(branch)" class="badge badge-xs badge-ghost shrink-0">{{ branchCommitCount(branch) }}</span>
             </button>
           </div>
         </aside>
@@ -1090,6 +1231,15 @@ export default {
             >{{ workingTreeCount }}</span>
             <button
               class="btn btn-xs btn-ghost"
+              @click="openNewBranch(currentBranch)"
+              :disabled="busy || !currentBranch"
+              title="Create a branch from the current changes"
+              aria-label="Create a branch from the current changes"
+            >
+              <i class="fa-solid fa-code-branch text-[10px]"></i>
+            </button>
+            <button
+              class="btn btn-xs btn-ghost"
               @click="loadRepo"
               :disabled="loading"
               title="Reload working tree"
@@ -1101,16 +1251,31 @@ export default {
 
           <!-- Commit composer -->
           <div class="p-2 border-b border-base-content/10 flex flex-col gap-1.5 shrink-0">
-            <input
+            <textarea
               v-model="commitMessage"
-              type="text"
-              class="input input-xs input-bordered w-full"
+              rows="2"
+              class="textarea textarea-xs textarea-bordered w-full resize-y font-mono leading-tight"
               :placeholder="`Message (Ctrl+Enter to commit on '${currentBranch || 'HEAD'}')`"
               aria-label="Commit message"
               @keydown.ctrl.enter.prevent="doCommit"
               @keydown.meta.enter.prevent="doCommit"
-            />
-            <p class="text-[10px] opacity-50 leading-tight">{{ commitHint }}</p>
+            ></textarea>
+            <div class="flex items-start gap-1">
+              <p
+                class="text-[10px] leading-tight grow"
+                :class="subjectTooLong ? 'text-error' : 'opacity-50'"
+              >{{ messageHint }}</p>
+              <button
+                class="btn btn-xs btn-ghost btn-square shrink-0"
+                :disabled="!canGenerateMessage"
+                :title="generateTitle"
+                aria-label="Generate commit message"
+                @click="generateCommitMessage"
+              >
+                <i class="fa-solid fa-spinner animate-spin text-[10px]" v-if="generatingMessage"></i>
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]" v-else></i>
+              </button>
+            </div>
             <button
               class="btn btn-xs btn-primary w-full gap-1"
               :disabled="committing || !canCommit"
@@ -1272,10 +1437,18 @@ export default {
         <div class="grow flex flex-col overflow-hidden min-w-0">
           <div class="flex items-center gap-2 px-3 py-1.5 border-b border-base-content/10 shrink-0 flex-wrap">
             <i class="fa-solid fa-code-commit text-warning text-xs"></i>
-            <span class="font-mono text-sm font-semibold truncate" :title="selectedBranch">{{ selectedBranch || 'Select a branch' }}</span>
+            <span class="font-mono text-sm font-semibold truncate min-w-0 max-w-[40%]" :title="selectedBranch">{{ selectedBranch || 'Select a branch' }}</span>
             <span v-if="sameBranch(selectedBranch, currentBranch)" class="badge badge-xs badge-success">current</span>
             <div class="grow"></div>
 
+            <button
+              class="btn btn-xs btn-ghost gap-1"
+              @click="openNewBranch(selectedBranch)"
+              :disabled="busy || !selectedBranch"
+              title="Create a branch from the selected branch"
+            >
+              <i class="fa-solid fa-code-branch"></i> New branch
+            </button>
             <button class="btn btn-xs btn-ghost gap-1" @click="openMerge" :disabled="!branches.length || busy" title="Merge a branch into another">
               <i class="fa-solid fa-code-merge"></i> Merge
             </button>
@@ -1329,6 +1502,54 @@ export default {
         </div>
       </div>
     </template>
+
+    <!-- ── Create branch modal ───────────────────────────────────────────── -->
+    <div v-if="showNewBranch" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="closeNewBranch">
+      <div class="bg-base-100 border border-base-content/10 rounded-xl w-full max-w-md shadow-xl">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-base-content/10">
+          <h2 class="text-sm font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-code-branch text-warning"></i> New branch
+          </h2>
+          <button class="btn btn-xs btn-ghost" @click="closeNewBranch" aria-label="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="px-4 py-3 flex flex-col gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs opacity-60" for="new-branch-name">Branch name</label>
+            <input
+              id="new-branch-name"
+              v-model="newBranchName"
+              type="text"
+              placeholder="new-branch-name"
+              class="input input-sm input-bordered w-full"
+              @keyup.enter="createBranch"
+              @keyup.esc="closeNewBranch"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs opacity-60" for="new-branch-from">Create from</label>
+            <select id="new-branch-from" v-model="newBranchFrom" class="select select-sm select-bordered w-full">
+              <option v-for="b in branches" :key="`new-from-${b}`" :value="b">{{ b }}</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <input v-model="newBranchCheckout" type="checkbox" class="checkbox checkbox-xs" />
+            Checkout the new branch (keeps the current changes)
+          </label>
+        </div>
+
+        <div class="flex gap-2 px-4 py-3 border-t border-base-content/10">
+          <button class="btn btn-sm btn-ghost grow" @click="closeNewBranch">Cancel</button>
+          <button class="btn btn-sm btn-primary grow" :disabled="!newBranchName.trim() || busy" @click="createBranch">
+            <i class="fa-solid fa-spinner animate-spin" v-if="busy"></i>
+            <i class="fa-solid fa-code-branch" v-else></i>
+            Create branch
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Merge modal ───────────────────────────────────────────────────── -->
     <div v-if="showMerge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="showMerge = false">

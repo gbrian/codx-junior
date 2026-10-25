@@ -212,8 +212,9 @@ class GitWorkspaceEngine(GitEngine):
 
         Returns:
             Operation result dict with 'action', 'paths' (requested),
-            'staged' (paths staged successfully) and 'errors' (one message per
-            failed path).
+            'staged' (paths staged successfully), 'errors' (one message per
+            failed path) and 'locked'/'lock_path' (set when the repository is
+            locked by a stale ``.git/index.lock``).
 
         Example:
             >>> engine.stage_files(["app.py", "config/settings.json"])["success"]
@@ -234,6 +235,8 @@ class GitWorkspaceEngine(GitEngine):
             "command": "",
             "output": staging["output"],
             "errors": staging["errors"],
+            "locked": staging.get("locked", False),
+            "lock_path": staging.get("lock_path", ""),
         }
 
     def unstage_files(self, paths) -> dict:

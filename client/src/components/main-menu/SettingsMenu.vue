@@ -53,6 +53,15 @@ import MenubarItem from './MenubarItem.vue'
                     Decision model logs
                 </a>
             </MenubarItem>
+            <MenubarItem v-if="$storex.api.permissions.isAdmin">
+                <!-- Uses the unified opener so it works in BOTH modes: desktop
+                     opens the dockview panel, single/mobile pushes the
+                     "/:projectName/api-monitoring" route (see config/apps.js). -->
+                <a class="flex gap-1 tooltip tooltip-right click" data-tip="API latency, throughput and errors"
+                    @click.stop="openApiMonitoring()">
+                    API monitoring
+                </a>
+            </MenubarItem>
             <MenubarItem class="flex gap-2 hover:bg-base-300" v-if="$ui.isMobile" @click="showEruda">
                 Mobile console
             </MenubarItem>
@@ -100,6 +109,16 @@ export default {
                 left: !app?.left,
                 ts: new Date().getTime()
             })
+        },
+        // Opens the API monitoring screen through the unified opener
+        // (panel in desktop mode, route in single/mobile mode).
+        openApiMonitoring() {
+            const navigation = this.$storex.$navigation
+            if (!navigation) {
+                console.warn('[SettingsMenu] navigation is not ready')
+                return
+            }
+            navigation.openApp('api-monitoring')
         },
         showEruda() {
             window.eruda.init()

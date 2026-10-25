@@ -1,11 +1,11 @@
 /**
  * Repository (git) API module
  * Handles every git operation used by the Git view: repository info, branches,
- * commits, the commit graph, working tree actions, remote sync and the local PR
- * (branch) lifecycle.
+ * commits, the commit graph, working tree actions, remote sync, the repository
+ * lock, commit message generation and the local PR (branch) lifecycle.
  *
  * Backend routes: `api/codx/junior/api/git.py` (engine:
- * `codx/junior/engine/git_graph.py`).
+ * `codx/junior/engine/git_commit_message.py`).
  *
  *   GET    /api/git/repo/info
  *   GET    /api/git/repo/status
@@ -19,10 +19,13 @@
  *   GET    /api/git/repo/commit/detail
  *   GET    /api/git/repo/file/diff
  *   GET    /api/git/repo/file/history
+ *   GET    /api/git/repo/lock
+ *   GET    /api/git/repo/staged
  *   GET    /api/git/files/content
- *   POST   /api/git/repo/stage | unstage | discard | commit
+ *   POST   /api/git/repo/stage | unstage | discard | commit | commit/message
  *   POST   /api/git/repo/fetch | pull | push
- *   POST   /api/git/repo/branch | branch/checkout | merge
+ *   POST   /api/git/repo/lock/release
+ *   POST   /api/git/repo/branch | branch/checkout | merge | rebase
  *   DELETE /api/git/repo/branch
  *   POST   /api/git/repo/pr | pr/close | pr/abandon
  */
@@ -110,7 +113,7 @@ export const normalizeCommitFiles = (payload = {}) => {
 export const repoModule = (API) => ({
   // ── Repository overview ───────────────────────────────────────────────────
 
-  /** Repository summary: branches, counters, worktrees, last commit. */
+  /** Repository summary: branches, counters, lock state, worktrees, last commit. */
   info() {
     return API.get('/api/git/repo/info')
   },
@@ -311,6 +314,54 @@ export const repoModule = (API) => ({
   },
 
   /**
+   * Repository lock state (a stale `.git/index.lock` blocks every write).
+   *
+   * @returns {Promise<Object>} `{ locked, path, git_dir, repository, age_seconds }`.
+   *
+   * @example
+   * const { locked, path } = await api.repo.lock()
+   */
+  lock() {
+    return API.get('/api/git/repo/lock')
+  },
+
+  /**
+   * Release the stale `.git/index.lock` file.
+   *
+   * Only safe when no git process is running: the UI must confirm it first.
+   *
+   * @returns {Promise<Object>} `{ success, released, path, lock }`.
+   */
+  releaseLock() {
+    return API.post('/api/git/repo/lock/release', {})
+  },
+
+  /**
+   * Changes summary of the index: exactly what the next commit will contain.
+   *
+   * The staged files (path + code + status), the diff stat and, unless
+   * `include_diff` is false, the staged patch. This is the same payload the
+   * commit message generator reads, so the UI and the generated message can
+   * never describe different changes.
+   *
+   * @param {Object} [params] - Options.
+   * @param {boolean} [params.include_diff] - Include the staged patch.
+   * @param {number} [params.max_diff_chars] - Patch budget (0 = no limit).
+   * @returns {Promise<Object>} `{ success, repo_path, files, file_count, stat, diff, diff_truncated, errors }`.
+   *
+   * @example
+   * const { files, stat } = await api.repo.staged({ include_diff: false })
+   */
+  staged({ include_diff = true, max_diff_chars } = {}) {
+    return API.get(
+      `/api/git/repo/staged${toQuery({
+        include_diff: include_diff ? 1 : 0,
+        max_diff_chars
+      })}`
+    )
+  },
+
+  /**
    * Commit the working tree.
    *
    * @param {Object} params - `{ message, stage_all, allow_empty }`.
@@ -318,6 +369,37 @@ export const repoModule = (API) => ({
    */
   commit({ message, stage_all = true, allow_empty = false } = {}) {
     return API.post('/api/git/repo/commit', { message, stage_all, allow_empty })
+  },
+
+  // ── Commit message ────────────────────────────────────────────────────────
+
+  /**
+   * Generate a commit message for the staged changes (50/72 rule).
+   *
+   * The backend reads the staged patch, asks the project LLM for the message
+   * and normalizes the answer: subject of at most 50 characters, body lines of
+   * at most 72, separated by one blank line. Nothing is committed: the message
+   * is returned so the user can review and edit it first.
+   *
+   * When the AI is unavailable the answer carries `fallback = true` and a
+   * message built from the staged file names, so the commit box is never left
+   * empty. Nothing staged answers **400**.
+   *
+   * @param {Object} [params] - Options.
+   * @param {string} [params.hint] - Intent (issue reference, reason for the change).
+   * @param {boolean} [params.include_body] - Ask only for the subject when false.
+   * @param {number} [params.max_diff_chars] - Prompt budget for the patch.
+   * @returns {Promise<Object>} `{ success, title, body, message, fallback, files, file_count, stat, diff_truncated, errors }`.
+   *
+   * @example
+   * const { message, fallback } = await api.repo.commitMessage({ hint: 'fixes #42' })
+   */
+  commitMessage({ hint, include_body = true, max_diff_chars } = {}) {
+    return API.post('/api/git/repo/commit/message', {
+      hint: hint || null,
+      include_body,
+      max_diff_chars
+    })
   },
 
   // ── Remote operations ─────────────────────────────────────────────────────
@@ -374,6 +456,26 @@ export const repoModule = (API) => ({
       to_branch,
       message: message || undefined,
       delete_branch
+    })
+  },
+
+  /**
+   * Rebase a branch onto another one.
+   *
+   * Rewrites the history of the rebased branch, so the UI must confirm it with
+   * the user first.
+   *
+   * @param {Object} params - `{ onto_branch, branch }`; `branch` defaults to
+   * the checked out branch.
+   * @returns {Promise<Object>} `{ branch, onto_branch, commit, up_to_date, conflicts }`.
+   *
+   * @example
+   * await api.repo.rebase({ onto_branch: 'main', branch: 'fix-login' })
+   */
+  rebase({ onto_branch, branch } = {}) {
+    return API.post('/api/git/repo/rebase', {
+      onto_branch,
+      branch: branch || undefined
     })
   },
 

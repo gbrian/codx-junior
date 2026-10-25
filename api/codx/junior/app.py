@@ -28,7 +28,9 @@ from codx.junior.security.user_management import get_authenticated_user
 
 from codx.junior.chat.chat_export import ExportedDocument
 
-from codx.junior.globals import LOGS_FOLDER
+from codx.junior.globals import LOGS_FOLDER, API_LOGS_DATA_PATH
+
+from codx.junior.api_logs import ApiLogs
 
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
@@ -110,6 +112,85 @@ os.makedirs(f"{CODX_JUNIOR_STATIC_FOLDER}/uploads", exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT_SECONDS=30
 
+# ── API performance logging ────────────────────────────────────────────────────
+# Records every HTTP call's duration/status into the API logs storage so that
+# performance issues can be inspected through the /api/api-logs endpoints.
+
+_api_logs_instance = ApiLogs(logs_path=API_LOGS_DATA_PATH)
+API_LOGS_ENABLED = os.environ.get("CODX_JUNIOR_API_LOGS_ENABLED", "1").lower() in ["1", "true"]
+
+_API_LOG_SKIP_PREFIXES = ("/api/static", "/api/socket.io")
+_API_LOG_SKIP_PATHS = ("/api/health",)
+
+
+def record_api_call(request: Request, duration_seconds: float, status_code: int, response=None, error=None) -> None:
+    """
+    Persist a single API call performance event.
+
+    Best-effort: this never raises, so recording failures cannot break a request.
+    Recording is skipped for static/socket.io/health paths and can be disabled
+    entirely via the ``CODX_JUNIOR_API_LOGS_ENABLED`` env var.
+
+    Args:
+        request:          The incoming starlette request.
+        duration_seconds: Wall-clock seconds taken to process the request.
+        status_code:      Response status code.
+        response:         The outgoing response (for size header), when available.
+        error:            Error message if the request failed.
+    """
+    if not API_LOGS_ENABLED:
+        return
+    try:
+        path = request.url.path
+        if path in _API_LOG_SKIP_PATHS or path.startswith(_API_LOG_SKIP_PREFIXES):
+            return
+
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", None) or path
+        endpoint_name = getattr(route, "name", "") or ""
+
+        session = getattr(request.state, "codx_junior_session", None)
+        username = ""
+        project_name = ""
+        project_id = ""
+        if session is not None:
+            try:
+                username = session.user.username if session.user else ""
+            except Exception:
+                username = ""
+            try:
+                project_name = session.settings.project_name or ""
+                project_id = session.settings.project_id or ""
+            except Exception:
+                project_name = ""
+                project_id = ""
+
+        response_size = 0
+        if response is not None:
+            try:
+                response_size = int(response.headers.get("content-length", 0) or 0)
+            except (ValueError, AttributeError):
+                response_size = 0
+
+        _api_logs_instance.record(
+            path=route_path,
+            method=request.method,
+            status_code=status_code,
+            duration_seconds=duration_seconds,
+            endpoint=endpoint_name,
+            request_id=request.headers.get("x-request-id"),
+            username=username,
+            project_name=project_name,
+            project_id=project_id,
+            session_id=request.headers.get("x-sid"),
+            client_ip=request.client.host if request.client else "",
+            query_string=str(request.url.query or ""),
+            response_size_bytes=response_size,
+            error=error,
+        )
+    except Exception as ex:
+        logger.error("record_api_call failed: %s", ex)
+
 
 app = FastAPI(
     title="codx-junior API",
@@ -172,15 +253,29 @@ async def my_exception_handler(request: Request, ex: Exception):
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
-    process_time = None
     start_time = time.time()
+    response = None
+    status_code = 500
+    error_message = None
     try:
         response = await call_next(request)
+        status_code = response.status_code
         process_time = time.time() - start_time
         response.headers["X-Process-Time"] = str(process_time)
         return response
+    except Exception as ex:
+        error_message = str(ex)
+        raise
     finally:
-        logger.info("Request %s - %d ms", request.url, time.time() - start_time)
+        process_time = time.time() - start_time
+        logger.info("Request %s - %d ms", request.url, process_time * 1000)
+        record_api_call(
+            request=request,
+            duration_seconds=process_time,
+            status_code=status_code,
+            response=response,
+            error=error_message,
+        )
 
 
 def get_codx_junior_session(request, codx_path):
@@ -214,7 +309,6 @@ async def timeout_middleware(request: Request, call_next):
 
     except asyncio.TimeoutError:
         process_time = time.time() - start_time
-        logger.error("HTTP TIMEOUT: %s", request.url)
         return JSONResponse({'detail': 'Request processing time exceeded limit',
                              'processing_time': process_time},
                             status_code=HTTP_504_GATEWAY_TIMEOUT)

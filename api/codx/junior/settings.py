@@ -103,6 +103,16 @@ class CODXJuniorSettings(BaseModel):
         description="Folder where PR worktrees are created (absolute or relative to the project path)"
     )
 
+    # Git identity used by codx-junior when it signs commits on this project
+    git_user_name: Optional[str] = Field(
+        default="",
+        description="Git user name used for commits made by codx-junior (falls back to the global git settings)"
+    )
+    git_user_email: Optional[str] = Field(
+        default="",
+        description="Git user email used for commits made by codx-junior (falls back to the global git settings)"
+    )
+
     def __str__(self):
         return str(self.model_dump())
 
@@ -154,6 +164,45 @@ class CODXJuniorSettings(BaseModel):
         return os.path.join(
             os.path.dirname(project_path), f"{os.path.basename(project_path)}-worktrees"
         )
+
+    def get_git_identity(self) -> Dict[str, str]:
+        """
+        Return the git user name and email configured for this project.
+
+        The project values win over the global ones, so a single project can
+        commit with a different author than the rest of the installation. Empty
+        values are returned when nothing is configured: the git engine then
+        falls back to the repository git configuration.
+
+        Returns:
+            Dict with 'name', 'email' and 'source' ('project', 'global' or ''
+            when nothing is configured).
+
+        Example:
+            >>> settings.git_user_name = "Jane Doe"
+            >>> settings.git_user_email = "jane@acme.com"
+            >>> settings.get_git_identity()
+            {'name': 'Jane Doe', 'email': 'jane@acme.com', 'source': 'project'}
+        """
+        name = str(self.git_user_name or "").strip()
+        email = str(self.git_user_email or "").strip()
+        source = "project" if (name or email) else ""
+
+        if name and email:
+            return {"name": name, "email": email, "source": source}
+
+        global_git = getattr(get_global_settings(), "git", None)
+        global_name = str(getattr(global_git, "username", "") or "").strip()
+        global_email = str(getattr(global_git, "email", "") or "").strip()
+
+        if not name and global_name:
+            name = global_name
+            source = source or "global"
+        if not email and global_email:
+            email = global_email
+            source = source or "global"
+
+        return {"name": name, "email": email, "source": source}
 
     def get_active_mcp_servers(self) -> List[MCPServer]:
         """Get list of active MCP servers."""

@@ -116,14 +116,36 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
 
           <!-- Avatars — DaisyUI overlapping avatar group to save space -->
           <div
-            v-if="isAssistant || messageProfiles.length"
-            class="avatar-group -space-x-3 rtl:space-x-reverse shrink-0"
+            class="avatar-group -space-x-1 rtl:space-x-reverse shrink-0"
           >
-            <div v-if="isAssistant" class="avatar">
+            <!-- Project override — a message can target a project different from
+                the chat's working project (message.project_id): show which one so
+                the files/code it mentions are not read in the wrong context.
+                Narrow panels keep only the icon; the name appears at @lg/panel. -->
+            <span
+              v-if="isProjectOverridden"
+              class="avatar tooltip tooltip-bottom"
+              :data-tip="projectLabel"
+              :title="projectLabel"
+              :aria-label="projectLabel"
+            >
+              <img
+                v-if="messageProject?.project_icon"
+                :src="messageProject.project_icon"
+                alt=""
+                class="w-4 h-4 rounded-full object-cover shrink-0"
+              />
+              <i v-else class="fa-solid fa-folder shrink-0"></i>
+              <span class="hidden @lg/panel:inline truncate">{{ messageProject?.project_name || 'Project' }}</span>
+            </span>
+
+
+            <div v-if="isAssistant" class=" bg-base-100">
               <div class="w-5">
                 <img src="/only_icon.png" alt="Assistant" />
               </div>
             </div>
+
             <ProfileAvatar
               v-for="profile in messageProfiles"
               :key="profile.name"
@@ -131,26 +153,6 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               width="5"
             />
           </div>
-
-          <!-- Project override — a message can target a project different from
-               the chat's working project (message.project_id): show which one so
-               the files/code it mentions are not read in the wrong context.
-               Narrow panels keep only the icon; the name appears at @lg/panel. -->
-          <span
-            v-if="isProjectOverridden"
-            class="badge badge-xs badge-info badge-outline gap-1 shrink-0 max-w-[9rem] tooltip tooltip-bottom"
-            :data-tip="projectLabel"
-            :aria-label="projectLabel"
-          >
-            <img
-              v-if="messageProject?.project_icon"
-              :src="messageProject.project_icon"
-              alt=""
-              class="w-3 h-3 rounded-full object-cover shrink-0"
-            />
-            <i v-else class="fa-solid fa-folder shrink-0"></i>
-            <span class="hidden @lg/panel:inline truncate">{{ messageProject?.project_name || 'Project' }}</span>
-          </span>
 
           <!-- Status badges -->
           <span v-if="cancellationTime" class="badge badge-xs badge-error">

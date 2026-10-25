@@ -251,6 +251,15 @@ export const APPS = {
     route: () => ({ name: 'analytics' })
   },
 
+  // Per-request API performance (latency / throughput / errors) recorded by the
+  // backend and exposed at /api/api-logs/*. Desktop mode → dockview panel;
+  // single/mobile mode → "/:projectName/api-monitoring".
+  // Data comes from src/api/modules/apiLogs.js.
+  'api-monitoring': {
+    id: 'api-monitoring', title: 'API monitoring', component: 'api-monitoring', icon: 'fa-solid fa-gauge-high',
+    route: () => ({ name: 'api-monitoring' })
+  },
+
   // ── Team ──────────────────────────────────────────────────────────────────
   'team-channel': {
     id: 'team-channel', title: 'Channel', component: 'team-channel', icon: 'fa-solid fa-hashtag',

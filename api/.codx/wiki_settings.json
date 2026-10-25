@@ -495,6 +495,51 @@
           "path": "/codx/junior/knowledge/knowledge_db.py",
           "slug": "knowledge-db.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/knowledge-db.md"
+        },
+        {
+          "path": "/codx/junior/api_logs/storage.py",
+          "slug": "storage.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/storage.md"
+        },
+        {
+          "path": "/codx/junior/api_logs/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/api_logs/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/api_logs/api_logs.py",
+          "slug": "api-logs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/api-logs.md"
+        },
+        {
+          "path": "/codx/junior/api/api_logs.py",
+          "slug": "api-logs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/api-logs.md"
+        },
+        {
+          "path": "/codx/junior/profiles/repository.profile",
+          "slug": "repository.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/repository.md"
+        },
+        {
+          "path": "/codx/junior/tools/repository_tools.py",
+          "slug": "repository-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/repository-tools.md"
+        },
+        {
+          "path": "/codx/junior/engine/git_commit_message.py",
+          "slug": "git-commit-message.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/git-commit-message.md"
+        },
+        {
+          "path": "/src/components/repo/GitView.vue",
+          "slug": "gitview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/gitview.md"
         }
       ],
       "id": "project-overview",

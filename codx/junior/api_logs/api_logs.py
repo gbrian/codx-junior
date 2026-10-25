@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from codx.junior.api_logs.model import ApiCallEvent
@@ -7,6 +8,107 @@ from codx.junior.api_logs.storage import ApiLogStorage
 from codx.junior.globals import API_LOGS_DATA_PATH
 
 logger = logging.getLogger(__name__)
+
+# ── Groupings ─────────────────────────────────────────────────────────────────
+#: Named bucket sizes understood by :meth:`ApiLogs.get_daily`, in seconds.
+#:
+#: Sub-minute buckets (``5s`` / ``10s`` / ``30s``) are what the live API
+#: monitoring dashboard polls; ``minute`` / ``hour`` / ``day`` answer the
+#: historical questions. A grouping is only a bucket SIZE: the router forwards
+#: it verbatim and any ``<n>s`` / ``<n>m`` / ``<n>h`` / ``<n>d`` variant is
+#: accepted too (see :func:`resolve_grouping_seconds`).
+GROUPING_SECONDS: Dict[str, int] = {
+    "1s": 1,
+    "5s": 5,
+    "10s": 10,
+    "15s": 15,
+    "30s": 30,
+    "minute": 60,
+    "5m": 300,
+    "15m": 900,
+    "hour": 3600,
+    "day": 86400,
+}
+
+#: Bucket used when the caller does not request one.
+DEFAULT_GROUPING = "day"
+
+#: Unit suffixes accepted by :func:`resolve_grouping_seconds`.
+_UNIT_SECONDS: Dict[str, int] = {
+    "s": 1, "sec": 1, "secs": 1, "second": 1, "seconds": 1,
+    "m": 60, "min": 60, "mins": 60, "minute": 60, "minutes": 60,
+    "h": 3600, "hr": 3600, "hrs": 3600, "hour": 3600, "hours": 3600,
+    "d": 86400, "day": 86400, "days": 86400,
+}
+
+_GROUPING_RE = re.compile(r"^(?P<value>\d+)\s*(?P<unit>[a-z]+)$")
+
+#: Largest bucket accepted, so a typo cannot ask for a one-bucket chart.
+_MAX_GROUPING_SECONDS = 30 * 86400
+
+#: Bucket label formats — the frontend parses these exact shapes.
+_SECOND_FORMAT = "%Y-%m-%d %H:%M:%S"
+_MINUTE_FORMAT = "%Y-%m-%d %H:%M"
+_HOUR_FORMAT = "%Y-%m-%d %H:00"
+_DAY_FORMAT = "%Y-%m-%d"
+
+
+def resolve_grouping_seconds(grouping: Optional[str]) -> int:
+    """
+    Translate a grouping name into a bucket size in seconds.
+
+    Accepts the named groupings (:data:`GROUPING_SECONDS`) and any
+    ``<n>s`` / ``<n>m`` / ``<n>h`` / ``<n>d`` variant, so callers can ask for
+    buckets the UI does not offer yet (``'45s'``, ``'2h'``…) without a code
+    change. Unknown values fall back to :data:`DEFAULT_GROUPING`: a bad query
+    parameter must never break the dashboard.
+
+    Args:
+        grouping: Grouping name, e.g. ``'5s'``, ``'10s'``, ``'30s'``,
+                  ``'minute'``, ``'hour'``, ``'day'``.
+
+    Returns:
+        Bucket size in seconds (``1`` … ``2592000``).
+    """
+    value = str(grouping or "").strip().lower()
+    if not value:
+        return GROUPING_SECONDS[DEFAULT_GROUPING]
+    if value in GROUPING_SECONDS:
+        return GROUPING_SECONDS[value]
+
+    seconds = 0
+    match = _GROUPING_RE.match(value)
+    if match:
+        seconds = int(match.group("value")) * _UNIT_SECONDS.get(match.group("unit"), 0)
+
+    if seconds <= 0:
+        logger.warning(
+            "resolve_grouping_seconds: unknown grouping %r — falling back to %r",
+            grouping,
+            DEFAULT_GROUPING,
+        )
+        return GROUPING_SECONDS[DEFAULT_GROUPING]
+
+    return min(seconds, _MAX_GROUPING_SECONDS)
+
+
+def _grouping_format(seconds: int) -> str:
+    """
+    Return the label format matching a bucket size.
+
+    Args:
+        seconds: Bucket size in seconds.
+
+    Returns:
+        ``strftime`` pattern producing the label the charts expect.
+    """
+    if seconds < 60:
+        return _SECOND_FORMAT
+    if seconds < 3600:
+        return _MINUTE_FORMAT
+    if seconds < 86400:
+        return _HOUR_FORMAT
+    return _DAY_FORMAT
 
 
 class ApiLogs:
@@ -21,7 +123,7 @@ class ApiLogs:
     - Recording every HTTP call duration, status and context
     - Aggregated summaries (calls, error rate, avg/min/max/p95 durations)
     - Grouping by endpoint, status code, user and project
-    - Time-series aggregation (minute / hour / day)
+    - Time-series aggregation with configurable buckets (1 s … day)
     - Slowest calls and failed calls listings
 
     Diagram:
@@ -224,22 +326,73 @@ class ApiLogs:
         return buckets
 
     @staticmethod
-    def _get_grouping_key_fn(grouping: str):
+    def _bucket_start(moment: datetime, seconds: int) -> datetime:
         """
-        Return key function based on grouping level.
+        Floor a timestamp (local time) to the start of its bucket.
+
+        Flooring is computed from the START OF THE DAY rather than from the unix
+        epoch: epoch alignment only matches the operator's clock when the UTC
+        offset is a whole number of buckets (it is not, for instance, in a
+        ``+05:30`` timezone).
 
         Args:
-            grouping: One of 'minute', 'hour', or 'day'
+            moment:  Event timestamp (local time).
+            seconds: Bucket size in seconds.
 
         Returns:
-            Callable that extracts the grouping key from an ApiCallEvent
+            Bucket start as a naive local ``datetime``.
         """
-        if grouping == "minute":
-            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d %H:%M")
-        elif grouping == "hour":
-            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d %H:00")
-        else:  # default to day
-            return lambda e: datetime.fromtimestamp(e.timestamp).strftime("%Y-%m-%d")
+        if seconds >= 86400:
+            days = seconds // 86400
+            start = moment.replace(hour=0, minute=0, second=0, microsecond=0)
+            if days > 1:
+                # Ordinal alignment keeps every bucket the same width, whatever
+                # the month length.
+                ordinal = start.toordinal()
+                start = datetime.fromordinal(ordinal - (ordinal % days))
+            return start
+
+        day_start = moment.replace(hour=0, minute=0, second=0, microsecond=0)
+        elapsed = int((moment - day_start).total_seconds())
+        return day_start + timedelta(seconds=(elapsed // seconds) * seconds)
+
+    @staticmethod
+    def _get_grouping_key_fn(grouping: str):
+        """
+        Return the key function that maps an event to its time bucket.
+
+        Bucket labels line up with what the operator sees on the clock:
+
+        ============= ==================== ==========================
+        grouping      bucket size          label
+        ============= ==================== ==========================
+        ``1s``        1 s                  ``YYYY-MM-DD HH:MM:SS``
+        ``5s``        5 s                  ``YYYY-MM-DD HH:MM:SS``
+        ``10s``       10 s                 ``YYYY-MM-DD HH:MM:SS``
+        ``15s``       15 s                 ``YYYY-MM-DD HH:MM:SS``
+        ``30s``       30 s                 ``YYYY-MM-DD HH:MM:SS``
+        ``minute``    1 min                ``YYYY-MM-DD HH:MM``
+        ``5m``/``15m`` 5 / 15 min          ``YYYY-MM-DD HH:MM``
+        ``hour``      1 h                  ``YYYY-MM-DD HH:00``
+        ``day``       1 d                  ``YYYY-MM-DD``
+        ============= ==================== ==========================
+
+        Args:
+            grouping: Grouping name — one of the keys of
+                      :data:`GROUPING_SECONDS`, or any ``<n>s`` / ``<n>m`` /
+                      ``<n>h`` / ``<n>d`` variant.
+
+        Returns:
+            Callable that extracts the grouping key from an ApiCallEvent.
+        """
+        seconds = resolve_grouping_seconds(grouping)
+        strftime_format = _grouping_format(seconds)
+
+        def key(event: ApiCallEvent) -> str:
+            moment = datetime.fromtimestamp(event.timestamp)
+            return ApiLogs._bucket_start(moment, seconds).strftime(strftime_format)
+
+        return key
 
     def _read(self, filters: Dict[str, Any]) -> List[ApiCallEvent]:
         """Read events forwarding every supported filter to storage."""
@@ -283,16 +436,25 @@ class ApiLogs:
         events = self._read(filters)
         return ApiLogs._summarize(events)
 
-    def get_daily(self, grouping: str = "day", **filters) -> List[Dict[str, Any]]:
+    def get_daily(self, grouping: str = DEFAULT_GROUPING, **filters) -> List[Dict[str, Any]]:
         """
-        Return per-period aggregated metrics with configurable grouping.
+        Return per-period aggregated metrics with configurable bucketing.
+
+        Only buckets that actually contain calls are returned: the dashboard
+        draws the gaps itself, and omitting them keeps a 24 h / 10 s query from
+        shipping thousands of empty rows.
 
         Args:
-            grouping:  Time grouping level: 'minute', 'hour', or 'day'.
+            grouping:  Bucket size — ``'1s'``, ``'5s'``, ``'10s'``, ``'15s'``,
+                       ``'30s'``, ``'minute'``, ``'5m'``, ``'15m'``, ``'hour'``
+                       or ``'day'`` (default). Any ``<n>s`` / ``<n>m`` /
+                       ``<n>h`` / ``<n>d`` variant is accepted as well; unknown
+                       values fall back to ``'day'``.
             **filters: Same filters as ``get_summary``.
 
         Returns:
-            List of dicts [{period, calls, errors, ...}] ordered by period ascending.
+            List of dicts [{period, calls, errors, ...}] ordered by period
+            ascending.
         """
         events = self._read(filters)
         key_fn = self._get_grouping_key_fn(grouping)
@@ -384,5 +546,6 @@ class ApiLogs:
         events = self._read(filters)
         events.sort(key=lambda e: e.timestamp, reverse=True)
         return [e.to_dict() for e in events[:limit]]
+
 
 # Made with ❤️ by codx-junior

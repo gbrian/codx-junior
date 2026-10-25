@@ -12,13 +12,38 @@ import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
 import { infraModule } from './modules/infra'
 import { repoModule } from './modules/repo'
+import { RequestCache, hashBody } from './requestCache'
+import { requestQueues } from './requestQueue'
 
 /**
  * In-flight request deduplication map.
- * Key: "METHOD:url:serialized_body"
+ * Key: "METHOD:url:body_hash"
  * Value: Promise
  */
 const _inflightRequests = new Map()
+
+/**
+ * Short-term request cache shared by every API instance.
+ *
+ * It complements `_inflightRequests`: the dedupe map only lives while a
+ * request is on the wire, while the cache keeps the resolved value for a few
+ * seconds so the same file read / diff is not repeated by the editor, the diff
+ * panel and the chat preview. See `api/requestCache.js`.
+ */
+const _requestCache = new RequestCache()
+
+/**
+ * Per-category request queues, shared by every API instance.
+ *
+ * The cache above removes *identical* calls; the queues remove the *parallelism*
+ * between different ones: a whole diff panel re-rendering schedules dozens of
+ * distinct diffs, and firing them all at once saturates the network and the
+ * backend. A request that names a queue waits for its turn instead
+ * (`files:read` and `files:diff` run one at a time, with `750 ms` of silence
+ * between two consecutive calls so the small requests can go through).
+ * See `api/requestQueue.js`.
+ */
+// `requestQueues` (imported) is the singleton registry: queue name -> queue.
 
 /**
  * Static, singleton socket manager shared across all API instances.
@@ -26,11 +51,57 @@ const _inflightRequests = new Map()
 let _staticSocketManager = null
 
 /**
+ * Counter used to key requests whose body cannot be serialized (uploads).
+ * Two `FormData` uploads are two different requests even when they look alike.
+ */
+let _uniqueRequestId = 0
+
+/**
  * Build a stable cache key for a request.
+ *
+ * The body is **hashed** (never stored): a diff carries the whole file content
+ * and comparing those strings on every call is exactly what this layer avoids.
+ * When the body cannot be serialized a unique key is returned, so the request
+ * is never merged with — or served from — another one.
+ *
+ * @param {string} method - HTTP method.
+ * @param {string} url - Prepared url (includes `codx_path`).
+ * @param {*} data - Request body.
+ * @returns {string} Request key.
  */
 function _requestKey(method, url, data) {
-  const body = data !== undefined ? JSON.stringify(data) : ''
-  return `${method.toUpperCase()}:${url}:${body}`
+  const body = hashBody(data)
+  const suffix = body === null ? `~${++_uniqueRequestId}` : body
+  return `${method.toUpperCase()}:${url}:${suffix}`
+}
+
+/**
+ * Dispatch a request to the connection layer.
+ *
+ * The connection is resolved at call time because it is recreated whenever the
+ * active project or the user changes.
+ *
+ * @param {Object} API - API instance.
+ * @param {string} method - HTTP method.
+ * @param {string} url - Relative url.
+ * @param {*} data - Request body.
+ * @returns {Promise<*>} Request promise.
+ */
+function _send(API, method, url, data) {
+  switch (method.toUpperCase()) {
+    case 'GET':
+      return API.connection.get(url)
+    case 'DEL':
+      return API.connection.del(url)
+    case 'POST':
+      return API.connection.post(url, data)
+    case 'PUT':
+      return API.connection.put(url, data)
+    case 'DELETE':
+      return API.connection.delete(url)
+    default:
+      throw new Error(`Unsupported method ${method}`)
+  }
 }
 
 /**
@@ -89,20 +160,208 @@ const initializeAPI = ({ project, user } = {}) => {
 
     // ─── HTTP helpers ────────────────────────────────────────────────────────
 
-    get(url) {
-      return _dedupedRequest('GET', API.connection.prepareUrl(url), undefined, () => API.connection.get(url))
+    /**
+     * Single entry point of every request.
+     *
+     * Pipeline, in this order:
+     *  1. **cache** — an identical call resolved a moment ago is served locally
+     *     (when `ttl` is given). A hit never reaches the queue.
+     *  2. **dedupe** — a caller of a request that is already queued or running
+     *     receives that same promise instead of enqueuing a second job.
+     *  3. **queue** — when `queue` is given the request waits for its turn; the
+     *     queue's concurrency decides how many of that category may run at once
+     *     (`files:read` and `files:diff` default to **1**, i.e. sequential) and
+     *     its gap leaves `750 ms` of silence between two consecutive calls, so
+     *     the lighter requests of the app are not stuck behind them.
+     *
+     * Applies to **POST as well**: the entry key is the hash of the body, so the
+     * diff endpoint (`POST /api/files/diff`) is cached and queued exactly like a
+     * GET.
+     *
+     * @param {string} method - HTTP method.
+     * @param {string} url - Relative url.
+     * @param {*} [data] - Request body.
+     * @param {Object} [options] - Cache and queue options.
+     * @param {string} [options.key] - Explicit cache key (`API.cacheKey`).
+     * @param {number} [options.ttl] - Cache lifetime; omit to only dedupe.
+     * @param {boolean} [options.force] - Bypass the cache and refresh the entry.
+     * @param {string} [options.queue] - Queue name (`QUEUE_NAMES.fileDiff`, ...):
+     * the request waits for a slot and never exceeds the queue concurrency.
+     * @param {number} [options.concurrency] - Override the queue concurrency.
+     * @param {number} [options.gap] - Override the queue gap (ms between two
+     * consecutive requests of that queue).
+     * @returns {Promise<*>} Resolved body (the connection unwraps `data`).
+     *
+     * @example
+     * // GET, short-term cached
+     * await API.request('GET', url, undefined, { key, ttl: 3000 })
+     *
+     * // POST, cached by body hash, one diff at a time
+     * await API.request('POST', '/api/files/diff', { path, content }, {
+     *   ttl: 4000,
+     *   queue: 'files:diff'
+     * })
+     */
+    request(method, url, data, { key, ttl, force = false, queue, concurrency, gap } = {}) {
+      const preparedUrl = API.connection.prepareUrl(url)
+      const send = () => _send(API, method, url, data)
+      const requestFn = () => _dedupedRequest(
+        method,
+        preparedUrl,
+        data,
+        // The queue sits behind the dedupe map: a duplicate never takes a slot.
+        () => (queue ? requestQueues.run(queue, send, { concurrency, gapMs: gap }) : send())
+      )
+      // No ttl: only concurrent identical calls are merged.
+      if (!ttl) return requestFn()
+      return _requestCache.run(
+        key || _requestKey(method, preparedUrl, data),
+        requestFn,
+        { ttl, force }
+      )
     },
-    del(url) {
-      return _dedupedRequest('DEL', API.connection.prepareUrl(url), undefined, () => API.connection.del(url))
+
+    get(url, options) {
+      return API.request('GET', url, undefined, options)
     },
-    post(url, data) {
-      return _dedupedRequest('POST', API.connection.prepareUrl(url), data, () => API.connection.post(url, data))
+    del(url, options) {
+      return API.request('DEL', url, undefined, options)
     },
-    put(url, data) {
-      return _dedupedRequest('PUT', API.connection.prepareUrl(url), data, () => API.connection.put(url, data))
+    post(url, data, options) {
+      return API.request('POST', url, data, options)
     },
-    delete(url) {
-      return _dedupedRequest('DELETE', API.connection.prepareUrl(url), undefined, () => API.connection.delete(url))
+    put(url, data, options) {
+      return API.request('PUT', url, data, options)
+    },
+    delete(url, options) {
+      return API.request('DELETE', url, undefined, options)
+    },
+
+    // ─── Short-term cache ────────────────────────────────────────────────────
+
+    /** Short-term request cache instance (see `api/requestCache.js`). */
+    get cache() {
+      return _requestCache
+    },
+
+    /**
+     * Build a project-scoped, prefix-friendly cache key.
+     *
+     * Keys look like `kind|scope|part|part|`, so a prefix always ends on a
+     * separator and can be used to invalidate a whole family of entries.
+     *
+     * @param {string} kind - Entry family (`files:read`, `repo:fileDiff`, ...).
+     * @param {...string} parts - Key parts.
+     * @returns {string} Cache key.
+     *
+     * @example
+     * API.cacheKey('files:read', 'src/main.js')
+     * // => 'files:read|/path/to/project|src/main.js|'
+     */
+    cacheKey(kind, ...parts) {
+      const scope = API.activeProject?.codx_path || ''
+      return [kind, scope, ...parts, ''].join('|')
+    },
+
+    /**
+     * Serve a request through the short-term cache with an explicit key.
+     *
+     * Prefer `API.get(url, { key, ttl, queue })` / `API.post(url, data, { key, ttl, queue })`
+     * in new code: they run through the same cache **and** the in-flight dedupe
+     * map **and** the queues. This helper is kept for callers that compose their
+     * own request.
+     *
+     * @param {string} key - Cache key (`cacheKey`).
+     * @param {Function} requestFn - Factory returning the request promise.
+     * @param {Object} [options] - `{ ttl, force }`.
+     * @returns {Promise<*>} Resolved value.
+     */
+    cached(key, requestFn, options) {
+      return _requestCache.run(key, requestFn, options)
+    },
+
+    /**
+     * Invalidate cached entries: an exact key, a key prefix, a RegExp or a
+     * predicate.
+     *
+     * @param {string|RegExp|Function} matcher - What to invalidate.
+     * @returns {string[]} Removed keys.
+     *
+     * @example
+     * API.invalidateCache(API.cacheKey('files:read', path))
+     */
+    invalidateCache(matcher) {
+      return _requestCache.invalidate(matcher)
+    },
+
+    /**
+     * Subscribe to the cache updates of a key (`'*'` receives every key).
+     * Use it to reload a view after a write invalidated the entry.
+     *
+     * @param {string} key - Cache key or `'*'`.
+     * @param {Function} handler - Receives `{ key, value, event }`.
+     * @returns {Function} Unsubscribe function.
+     */
+    onCacheUpdate(key, handler) {
+      return _requestCache.subscribe(key, handler)
+    },
+
+    // ─── Request queues ──────────────────────────────────────────────────────
+
+    /** Per-category request queues (see `api/requestQueue.js`). */
+    get queues() {
+      return requestQueues
+    },
+
+    /**
+     * Change the concurrency of a queue at runtime (`1` = strictly sequential).
+     *
+     * Useful when a view needs more throughput, e.g. two reads at a time while a
+     * large file list loads.
+     *
+     * @param {string} name - Queue name (`QUEUE_NAMES.fileRead`, ...).
+     * @param {number} concurrency - Max requests on the wire.
+     * @returns {Object} The queue.
+     *
+     * @example
+     * API.setQueueConcurrency('files:read', 2)
+     */
+    setQueueConcurrency(name, concurrency) {
+      return requestQueues.setConcurrency(name, concurrency)
+    },
+
+    /**
+     * Change the idle time left between two consecutive heavy requests of a
+     * queue (`0` = back-to-back, no breathing room).
+     *
+     * The gap is what lets the small calls of the app go through while a diff
+     * panel is loading: while the queue cools down nothing of that category is on
+     * the wire.
+     *
+     * @param {string} name - Queue name (`QUEUE_NAMES.fileDiff`, ...).
+     * @param {number} gapMs - Milliseconds to wait after a request finishes.
+     * @returns {Object} The queue.
+     *
+     * @example
+     * API.setQueueGap('files:diff', 0)      // no spacing
+     * API.setQueueGap('files:read', 1500)   // even gentler
+     */
+    setQueueGap(name, gapMs) {
+      return requestQueues.setGap(name, gapMs)
+    },
+
+    /**
+     * Snapshot of every queue:
+     * `{ concurrency, gapMs, cooldownMs, active, pending, queued, peak }`.
+     * Handy from the dev tools console while tuning the limits.
+     *
+     * @returns {Object} Stats per queue name.
+     *
+     * @example
+     * console.table(API.queueStats)
+     */
+    get queueStats() {
+      return requestQueues.stats()
     },
 
     // ─── Socket management (static/singleton) ────────────────────────────────

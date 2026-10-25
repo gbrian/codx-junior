@@ -41,6 +41,7 @@ export const APP_COMPONENTS_MAP = {
   'activity': lazy(() => import('../components/wall/Wall.vue')),
   'chat': lazy(() => import('../views/ChatView.vue')),
   'analytics': lazy(() => import('../components/analytics/MetricsDashboard.vue')),
+  'api-monitoring': lazy(() => import('../views/api-monitoring/ApiMonitoringView.vue')),
   'chat-logs': lazy(() => import('../components/logs/LogsAnalyzerDashboard.vue')),
   'decision-model-logs': lazy(() => import('../components/DecisionModelLogs.vue')),
   'team-channel': lazy(() => import('../components/teams/TeamChannel.vue')),

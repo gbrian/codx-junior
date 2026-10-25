@@ -29,6 +29,29 @@ GET /api/api-logs/admin/by-project      – grouped by project (admin)
 GET /api/api-logs/admin/slowest         – slowest calls (admin)
 GET /api/api-logs/admin/errors          – failed calls (admin)
 
+Time buckets
+------------
+Both ``/daily`` endpoints take a ``grouping`` query parameter describing the
+bucket SIZE (see :data:`codx.junior.api_logs.api_logs.GROUPING_SECONDS`):
+
+============= ========================= ==========================
+grouping      bucket                    period label
+============= ========================= ==========================
+``1s``        1 second                  ``YYYY-MM-DD HH:MM:SS``
+``5s``        5 seconds                 ``YYYY-MM-DD HH:MM:SS``
+``10s``       10 seconds (UI default)   ``YYYY-MM-DD HH:MM:SS``
+``15s``       15 seconds                ``YYYY-MM-DD HH:MM:SS``
+``30s``       30 seconds                ``YYYY-MM-DD HH:MM:SS``
+``minute``    1 minute                  ``YYYY-MM-DD HH:MM``
+``5m``/``15m`` 5 / 15 minutes           ``YYYY-MM-DD HH:MM``
+``hour``      1 hour                    ``YYYY-MM-DD HH:00``
+``day``       1 day (endpoint default)  ``YYYY-MM-DD``
+============= ========================= ==========================
+
+Any ``<n>s`` / ``<n>m`` / ``<n>h`` / ``<n>d`` variant is also accepted, and an
+unknown value falls back to ``day`` — a bad query parameter must never break
+the dashboard.
+
 Diagram
 -------
 ```mermaid
@@ -59,7 +82,7 @@ from codx.junior.api import require_admin
 from codx.junior.model.model import CodxUser
 from codx.junior.security.user_management import get_authenticated_user
 from codx.junior.globals import API_LOGS_DATA_PATH
-from codx.junior.api_logs import ApiLogs
+from codx.junior.api_logs import ApiLogs, DEFAULT_GROUPING
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +90,13 @@ router = APIRouter(prefix="/api-logs", tags=["api-logs"])
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 500
+
+#: Human readable list of the bucket sizes, used in the OpenAPI description.
+GROUPING_DESCRIPTION = (
+    "Bucket size for the time series: 1s | 5s | 10s | 15s | 30s | minute | "
+    "5m | 15m | hour | day. Any <n>s / <n>m / <n>h / <n>d variant works too; "
+    "unknown values fall back to 'day'."
+)
 
 # ── Shared ApiLogs instance ────────────────────────────────────────────────────
 
@@ -116,7 +146,7 @@ def _clamp_limit(limit: int) -> int:
     return max(1, min(limit, MAX_PAGE_SIZE))
 
 
-# ── User-scoped endpoints ───────────────────────────────────────────────────
+# ── User-scoped endpoints ──────────────────────────────────────────────────────
 
 
 @router.get("/dates", response_model=List[str], summary="List dates with recorded calls (own data)")
@@ -170,11 +200,21 @@ def get_daily(
     method: Optional[str] = Query(None, description="Filter by HTTP method"),
     status_code: Optional[int] = Query(None, description="Filter by status code"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
-    grouping: str = Query("day", description="Grouping: minute | hour | day"),
+    grouping: str = Query(DEFAULT_GROUPING, description=GROUPING_DESCRIPTION),
     user: CodxUser = Depends(get_authenticated_user),
 ) -> List[Dict[str, Any]]:
     """
     Return per-period aggregated metrics for the authenticated user.
+
+    Args:
+        grouping: Bucket size — ``5s`` / ``10s`` / ``30s`` (live dashboard),
+                  ``minute`` / ``hour`` / ``day`` (historical). Any
+                  ``<n>s`` / ``<n>m`` / ``<n>h`` / ``<n>d`` variant is accepted.
+
+    Returns:
+        ``[{period, calls, errors, error_rate, avg_duration_seconds,
+        p95_duration_seconds, ...}]`` ordered by period ascending. Only buckets
+        containing calls are included.
     """
     api_logs = _get_api_logs()
     return api_logs.get_daily(grouping=grouping, **_filters(
@@ -261,7 +301,7 @@ def get_errors(
     ))
 
 
-# ── Admin endpoints ─────────────────────────────────────────────────────────
+# ── Admin endpoints ────────────────────────────────────────────────────────────
 
 
 @router.get("/admin/dates", response_model=List[str], summary="[Admin] List dates with recorded calls")
@@ -302,10 +342,14 @@ def admin_get_daily(
     status_code: Optional[int] = Query(None, description="Filter by status code"),
     username: Optional[str] = Query(None, description="Filter by username"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
-    grouping: str = Query("day", description="Grouping: minute | hour | day"),
+    grouping: str = Query(DEFAULT_GROUPING, description=GROUPING_DESCRIPTION),
     _: CodxUser = Depends(require_admin),
 ) -> List[Dict[str, Any]]:
-    """Return per-period aggregated metrics across all users."""
+    """
+    Return per-period aggregated metrics across all users.
+
+    ``grouping`` accepts the same bucket sizes as ``/api/api-logs/daily``.
+    """
     api_logs = _get_api_logs()
     return api_logs.get_daily(grouping=grouping, **_filters(
         start_date=start_date, end_date=end_date, path=path, method=method,

@@ -9,6 +9,18 @@
     @click.stop
     @contextmenu.prevent.stop
   >
+    <!-- Upload files to the folder currently open in the explorer -->
+    <button
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleUpload"
+      title="Upload files to the current folder"
+    >
+      <i class="fa-solid fa-arrow-up-from-bracket w-4"></i>
+      <span>Upload files</span>
+    </button>
+
+    <div class="divider my-1"></div>
+
     <!-- Create new file -->
     <button
       class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
@@ -81,6 +93,9 @@ export default {
     }
   },
   methods: {
+    handleUpload() {
+      this.$emit('upload')
+    },
     handleCreate(isDir) {
       this.$emit('create', { isDir })
     },

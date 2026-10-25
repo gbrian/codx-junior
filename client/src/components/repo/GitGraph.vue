@@ -126,11 +126,12 @@ import {
           <span
             v-for="ref in visibleRefs(row.commit.refs)"
             :key="`${row.commit.hash}-${ref.name}`"
-            class="badge badge-xs shrink-0 font-mono"
+            class="badge badge-xs shrink-0 font-mono max-w-[160px] gap-1"
             :class="refClass(ref)"
             :title="`${ref.type} ref: ${ref.name}`"
           >
-            <i class="fa-solid text-[8px]" :class="refIcon(ref)"></i> {{ ref.name }}
+            <i class="fa-solid text-[8px] shrink-0" :class="refIcon(ref)"></i>
+            <span class="truncate min-w-0">{{ ref.name }}</span>
           </span>
           <span class="text-xs truncate" :title="row.commit.subject">{{ row.commit.subject }}</span>
         </div>

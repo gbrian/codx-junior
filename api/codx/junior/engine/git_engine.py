@@ -26,6 +26,9 @@ DEFAULT_BRANCH_PREFIX = "codx-junior"
 DEFAULT_COMMIT_MESSAGE = "feat: apply AI-generated code changes"
 DEFAULT_REMOTE = "origin"
 
+# Lock file git creates while the index is being written
+INDEX_LOCK_FILE = "index.lock"
+
 # Porcelain status code -> semantic status name
 PORCELAIN_STATUS = {
     "A": "added",
@@ -46,6 +49,10 @@ class GitEngine:
     ```mermaid
     flowchart TD
         GE[GitEngine]
+        GE --> get_git_identity
+        GE --> _configured_identity
+        GE --> _git_config_identity
+        GE --> _identity_args
         GE --> get_repo_branches
         GE --> get_repo_changes
         GE --> get_pr_review_details
@@ -66,6 +73,8 @@ class GitEngine:
         GE --> get_worktrees_path
         GE --> get_repo_info
         GE --> get_repo_status
+        GE --> get_lock_info
+        GE --> release_lock
         GE --> fetch_remote
         GE --> pull_remote
         GE --> push_remote
@@ -80,6 +89,9 @@ class GitEngine:
     def __init__(self, session: "CODXJuniorSession") -> None:
         """Initialize with a reference to the parent session."""
         self.session = session
+        # Resolved git identity ({ name, email, source }), cached because it is
+        # applied to every git command
+        self._git_identity: Optional[Dict[str, str]] = None
 
     @property
     def settings(self):
@@ -118,11 +130,141 @@ class GitEngine:
         """
         return self.find_git_root_path() or self.settings.abs_project_path
 
+    # -------------------------------------------------------------------------
+    # Git identity (project settings -> global settings -> git config)
+    # -------------------------------------------------------------------------
+
+    def _configured_identity(self) -> Dict[str, str]:
+        """
+        Return the git identity stored in the project and global settings.
+
+        The project values (`git_user_name` / `git_user_email`) win over the
+        global ones (`git.username` / `git.email`), so a single project can
+        commit with a different author than the rest of the installation.
+
+        Returns:
+            Dict with 'name', 'email' and 'source' ('project', 'global' or an
+            empty string when nothing is configured).
+
+        Example:
+            >>> engine._configured_identity()
+            {'name': 'Jane Doe', 'email': 'jane@acme.com', 'source': 'project'}
+        """
+        name = str(getattr(self.settings, "git_user_name", "") or "").strip()
+        email = str(getattr(self.settings, "git_user_email", "") or "").strip()
+        source = "project" if (name or email) else ""
+
+        if name and email:
+            return {"name": name, "email": email, "source": source}
+
+        # Fall back to the global settings (installation wide identity)
+        global_git = None
+        try:
+            from codx.junior.global_settings import get_global_settings
+
+            global_git = getattr(get_global_settings(), "git", None)
+        except Exception as ex:
+            logger.warning("Could not read the global git settings: %s", ex)
+
+        global_name = str(getattr(global_git, "username", "") or "").strip()
+        global_email = str(getattr(global_git, "email", "") or "").strip()
+
+        if not name and global_name:
+            name = global_name
+            source = source or "global"
+        if not email and global_email:
+            email = global_email
+            source = source or "global"
+
+        return {"name": name, "email": email, "source": source}
+
+    def _git_config_identity(self) -> Dict[str, str]:
+        """
+        Read `user.name` and `user.email` from the repository git configuration.
+
+        Used as the last fallback, so an identity already configured for the
+        repository is never wiped by empty project settings. The git calls skip
+        the identity override, otherwise resolving the identity would require
+        the identity itself.
+
+        Returns:
+            Dict with 'name' and 'email' (empty strings when not configured).
+        """
+        name = self._run_git(["config", "--get", "user.name"], apply_identity=False)
+        email = self._run_git(["config", "--get", "user.email"], apply_identity=False)
+        return {
+            "name": name["output"] if name["ok"] else "",
+            "email": email["output"] if email["ok"] else "",
+        }
+
+    def get_git_identity(self, refresh: bool = False) -> dict:
+        """
+        Return the identity every repository operation is signed with.
+
+        Resolution order:
+            1. project settings (`git_user_name` / `git_user_email`)
+            2. global settings (`git.username` / `git.email`)
+            3. the git configuration (`user.name` / `user.email`)
+
+        The result is cached: it is applied to every git command.
+
+        Args:
+            refresh: Re-read the settings instead of returning the cache.
+
+        Returns:
+            Dict with 'name', 'email' and 'source' ('project', 'global',
+            'git-config' or '' when the identity is unknown).
+
+        Example:
+            >>> engine.get_git_identity()["email"]
+            'jane@acme.com'
+        """
+        if self._git_identity and not refresh:
+            return dict(self._git_identity)
+
+        identity = self._configured_identity()
+        if not identity["name"] or not identity["email"]:
+            config_identity = self._git_config_identity()
+            if not identity["name"]:
+                identity["name"] = config_identity["name"]
+            if not identity["email"]:
+                identity["email"] = config_identity["email"]
+            if not identity["source"] and (identity["name"] or identity["email"]):
+                identity["source"] = "git-config"
+
+        self._git_identity = identity
+        return dict(identity)
+
+    def _identity_args(self) -> List[str]:
+        """
+        Return the `-c` overrides that sign a git command with the identity.
+
+        ``-c user.name=... -c user.email=...`` must be placed before the
+        subcommand: every git command that records an author or a committer
+        (commit, merge, rebase, cherry-pick, tag) then uses it, without changing
+        the repository or the global git configuration.
+
+        Returns:
+            Git argument list, empty when no identity is configured.
+
+        Example:
+            >>> engine._identity_args()
+            ['-c', 'user.name=Jane Doe', '-c', 'user.email=jane@acme.com']
+        """
+        identity = self.get_git_identity()
+        args: List[str] = []
+        if identity["name"]:
+            args += ["-c", f"user.name={identity['name']}"]
+        if identity["email"]:
+            args += ["-c", f"user.email={identity['email']}"]
+        return args
+
     def _run_git(
         self,
         args: List[str],
         cwd: Optional[str] = None,
         strip_output: bool = True,
+        apply_identity: bool = True,
     ) -> dict:
         """
         Run a git command without a shell and return a structured result.
@@ -131,18 +273,25 @@ class GitEngine:
         paths never need shell quoting, and stdout/stderr stay separated (unlike
         ``exec_command``, which merges stderr into stdout).
 
+        The project git identity (see ``get_git_identity``) is passed as
+        ``-c user.name`` / ``-c user.email``, so every commit, merge or rebase
+        performed by the engine is signed with the project author.
+
         Args:
             args: Git arguments, e.g. ``["checkout", "-b", "feature/x"]``.
             cwd: Working directory. Defaults to the repository root.
             strip_output: Strip leading/trailing whitespace from stdout. Set it
                 to False for commands whose leading spaces carry meaning, such
                 as ``git status --porcelain``.
+            apply_identity: Inject the git identity overrides (disable it while
+                resolving the identity itself).
 
         Returns:
             Dict with 'ok', 'command', 'output', 'error' and 'returncode'.
         """
         cwd = cwd or self._get_repo_root()
-        command = ["git"] + list(args)
+        identity_args = self._identity_args() if apply_identity else []
+        command = ["git"] + identity_args + list(args)
         command_str = " ".join(command)
         logger.info("git command: %s (cwd=%s)", command_str, cwd)
         try:
@@ -296,6 +445,9 @@ class GitEngine:
         """
         Convert a ``_run_git`` result into an operation result dict.
 
+        Failures caused by a stale index lock are flagged with 'locked' and
+        'lock_path' so the caller can offer to release the lock.
+
         Args:
             command_result: Dict returned by ``_run_git``.
             extra: Additional fields merged into the result.
@@ -305,13 +457,16 @@ class GitEngine:
         """
         ok = bool(command_result.get("ok"))
         error = command_result.get("error") or ""
-        return {
+        result = {
             "success": ok,
             "command": command_result.get("command", ""),
             "output": command_result.get("output", ""),
             "errors": [] if ok else [error or "git command failed"],
             **extra,
         }
+        if not ok:
+            result.update(self._lock_error_info(error))
+        return result
 
     def _git_operation_error(self, message: str, **extra) -> dict:
         """
@@ -325,6 +480,31 @@ class GitEngine:
             Dict with 'success' set to False and the message in 'errors'.
         """
         return {"success": False, "errors": [message], **extra}
+
+    def _lock_error_info(self, error_text: str) -> dict:
+        """
+        Detect a stale index lock in a failed git command output.
+
+        Git refuses to write the index while ``.git/index.lock`` exists and
+        reports ``Unable to create '.../index.lock': File exists``. Such a
+        failure is returned with 'locked' and 'lock_path' so the UI can offer to
+        release the lock instead of showing an opaque git error.
+
+        Args:
+            error_text: Stderr of the failed git command.
+
+        Returns:
+            Dict with 'locked' and 'lock_path' when the command failed because
+            of the index lock, an empty dict otherwise.
+        """
+        text = (error_text or "").lower()
+        lock_blocked = "index.lock" in text and (
+            "file exists" in text or "unable to create" in text
+        )
+        if not lock_blocked:
+            return {}
+        info = self.get_lock_info()
+        return {"locked": True, "lock_path": info.get("path", "")}
 
     def _get_file_last_modification(self, file_path: str) -> Optional[str]:
         """
@@ -1170,13 +1350,15 @@ class GitEngine:
 
         Returns:
             Dict with 'ok' (True when no path failed), 'staged' (paths staged
-            successfully), 'errors' (one message per failed path) and 'output'.
+            successfully), 'errors' (one message per failed path), 'output',
+            'locked' and 'lock_path' (set when staging failed because of a stale
+            index lock).
 
         Example:
             >>> engine.stage_changes(["app.py", "gone.json"])
             {'ok': False, 'staged': ['app.py'],
              'errors': ["gone.json: pathspec 'gone.json' did not match..."],
-             'output': ''}
+             'output': '', 'locked': False, 'lock_path': ''}
         """
         cwd = cwd or self._get_repo_root()
         if files is None:
@@ -1185,6 +1367,8 @@ class GitEngine:
         staged: List[str] = []
         errors: List[str] = []
         outputs: List[str] = []
+        locked = False
+        lock_path = ""
 
         for path in files:
             result = self._run_git(["add", "-A", "--", path], cwd=cwd)
@@ -1198,11 +1382,18 @@ class GitEngine:
             logger.warning("Could not stage %s: %s", path, error)
             errors.append(f"{path}: {error}")
 
+            lock = self._lock_error_info(error)
+            if lock.get("locked"):
+                locked = True
+                lock_path = lock.get("lock_path", "")
+
         return {
             "ok": not errors,
             "staged": staged,
             "errors": errors,
             "output": "\n".join(outputs),
+            "locked": locked,
+            "lock_path": lock_path,
         }
 
     def build_branch_name(self, name: Optional[str] = None, prefix: Optional[str] = None) -> str:
@@ -1534,6 +1725,8 @@ class GitEngine:
                 "returncode": -1,
                 "staged": [],
                 "staging_errors": staging["errors"],
+                "locked": staging.get("locked", False),
+                "lock_path": staging.get("lock_path", ""),
             }
 
         args = ["commit", "-m", message]
@@ -2004,6 +2197,113 @@ class GitEngine:
         return result
 
     # -------------------------------------------------------------------------
+    # Repository lock (stale .git/index.lock)
+    # -------------------------------------------------------------------------
+
+    def _git_dir(self) -> str:
+        """
+        Return the absolute path of the repository git directory.
+
+        Returns:
+            Absolute git directory path (``<repo>/.git`` on fallback).
+        """
+        result = self._run_git(["rev-parse", "--git-dir"])
+        git_dir = result["output"] if result["ok"] else ""
+        if not git_dir:
+            return os.path.join(self._get_repo_root(), ".git")
+        if not os.path.isabs(git_dir):
+            git_dir = os.path.join(self._get_repo_root(), git_dir)
+        return os.path.normpath(git_dir)
+
+    def get_lock_info(self) -> dict:
+        """
+        Return whether the repository is locked by a stale index lock.
+
+        Git creates ``.git/index.lock`` while it writes the index and removes it
+        afterwards. When a git process is interrupted the file is left behind
+        and every later write fails with
+        ``Unable to create '.../index.lock': File exists``.
+
+        Returns:
+            Dict with 'locked', 'path' (empty when not locked), 'git_dir',
+            'repository' and 'age_seconds' (0 when not locked).
+
+        Example:
+            >>> engine.get_lock_info()
+            {'locked': True, 'path': '/repo/.git/index.lock',
+             'git_dir': '/repo/.git', 'repository': '/repo', 'age_seconds': 120}
+        """
+        git_dir = self._git_dir()
+        lock_path = os.path.join(git_dir, INDEX_LOCK_FILE)
+        locked = os.path.exists(lock_path)
+        info = {
+            "locked": locked,
+            "path": lock_path if locked else "",
+            "git_dir": git_dir,
+            "repository": self._get_repo_root(),
+            "age_seconds": 0,
+        }
+        if locked:
+            try:
+                info["age_seconds"] = max(
+                    0,
+                    int(datetime.now().timestamp() - os.path.getmtime(lock_path)),
+                )
+            except OSError:
+                pass
+        return info
+
+    def release_lock(self) -> dict:
+        """
+        Remove the stale ``.git/index.lock`` file.
+
+        Only safe when no git process is actually running: removing the lock of
+        a live process can corrupt the index, so the UI asks the user first.
+
+        Returns:
+            Dict with 'success', 'released' (True when a file was removed),
+            'path', 'output', 'errors' and 'lock' (the refreshed lock info).
+
+        Example:
+            >>> engine.release_lock()
+            {'success': True, 'released': True,
+             'path': '/repo/.git/index.lock', ...}
+        """
+        info = self.get_lock_info()
+        lock_path = info.get("path", "")
+        if not info.get("locked"):
+            return {
+                "success": True,
+                "released": False,
+                "path": "",
+                "output": "No lock to release",
+                "errors": [],
+                "lock": info,
+            }
+
+        try:
+            os.remove(lock_path)
+        except OSError as ex:
+            return {
+                "success": False,
+                "released": False,
+                "path": lock_path,
+                "output": "",
+                "errors": [f"Could not remove {lock_path}: {ex}"],
+                "lock": self.get_lock_info(),
+            }
+
+        logger.warning("Released stale git lock: %s", lock_path)
+        return {
+            "success": True,
+            "released": True,
+            "path": lock_path,
+            "output": f"Removed {lock_path}",
+            "errors": [],
+            "lock": self.get_lock_info(),
+        }
+
+    # -------------------------------------------------------------------------
     # Repository management (fetch/pull/push, branches, commit, merge)
     # -------------------------------------------------------------------------
 
@@ -2014,7 +2314,8 @@ class GitEngine:
         Returns:
             Dict with repo path, project path, active/default branch, remote
             url, ahead/behind counters, working tree state (including the
-            staged and unstaged file lists), worktrees and the last commit.
+            staged and unstaged file lists), lock state, worktrees, the git
+            identity commits are signed with and the last commit.
 
         Example:
             >>> engine.get_repo_info()["active_branch"]
@@ -2028,6 +2329,8 @@ class GitEngine:
         remote_url = self._get_remote_url()
         ahead, behind = self._get_ahead_behind(current_branch)
         commits = self.get_commit_list(limit=1)
+        lock = self.get_lock_info()
+        identity = self.get_git_identity()
 
         return {
             "repo_path": self._get_repo_root(),
@@ -2042,7 +2345,10 @@ class GitEngine:
             "changed_files": status["files"],
             "staged": changes["staged"],
             "unstaged": changes["unstaged"],
+            "locked": lock["locked"],
+            "lock_path": lock["path"],
             "worktrees": self.list_worktrees(),
+            "git_identity": identity,
             "last_commit": commits[0] if commits else None,
         }
 

@@ -4,16 +4,18 @@ Git repository API.
 Exposes the repository management endpoints consumed by the git view:
 
 - Read: repository info, branches, commits, the commit graph, remotes,
-  worktrees, working tree status, two-branch comparison (PR review), commit
-  details and single file diff/history/content.
+  worktrees, working tree status, the staged changes summary, two-branch
+  comparison (PR review), commit details and single file diff/history/content.
 - Write: fetch, pull, push, create/checkout/delete branch, stage/unstage/
-  discard files, commit, merge, rebase and the local PR lifecycle (create,
-  close, abandon).
+  discard files, commit, merge, rebase, commit message generation and the local
+  PR lifecycle (create, close, abandon).
 
 All operations are delegated to
-:class:`codx.junior.engine.git_graph.GitGraphEngine` (a
+:class:`codx.junior.engine.git_commit_message.GitCommitMessageEngine` (a
+:class:`codx.junior.engine.git_graph.GitGraphEngine` with the commit message
+generation, itself a
 :class:`codx.junior.engine.git_workspace.GitWorkspaceEngine` with the graph read
-operations, itself a :class:`codx.junior.engine.git_engine.GitEngine` with file
+operations and a :class:`codx.junior.engine.git_engine.GitEngine` with file
 level operations). Routes are mounted under ``/api`` by the dynamic router
 loader (``codx.junior.api.discover_routers``), so the final paths look like
 ``/api/git/repo/branches``.
@@ -22,12 +24,33 @@ Staging is the only write operation that never fails as a whole: each path is
 staged on its own, so a failing path is reported in ``errors`` while the
 remaining ones are already in the index.
 
+A repository locked by a stale ``.git/index.lock`` blocks every write: the lock
+state is exposed by ``/git/repo/lock`` and released with
+``/git/repo/lock/release``.
+
+Generated commit messages follow the **50/72 rule**: the subject line is at
+most 50 characters and every body line at most 72 characters, so the message
+stays readable in ``git log`` and in the forge UI. The message is generated from
+the staged files only, which is why ``/git/repo/staged`` exposes the same
+changes summary the generator uses.
+
 ```mermaid
 sequenceDiagram
     participant UI as GitView
     participant API as git router
-    participant Engine as GitGraphEngine
+    participant Engine as GitCommitMessageEngine
     participant Git as git CLI
+    participant AI as LLM
+
+    UI->>API: GET /api/git/repo/lock
+    API->>Engine: get_lock_info()
+    Engine-->>API: { locked, path, age_seconds }
+    API-->>UI: 200 lock state
+    UI->>API: POST /api/git/repo/lock/release
+    API->>Engine: release_lock()
+    Engine->>Git: rm .git/index.lock
+    Engine-->>API: { success, released, lock }
+    API-->>UI: 200 result
 
     UI->>API: POST /api/git/repo/stage { paths }
     API->>Engine: stage_files(paths)
@@ -35,7 +58,7 @@ sequenceDiagram
         Engine->>Git: git add -A -- <path>
         Git-->>Engine: ok | pathspec error
     end
-    Engine-->>API: { success, staged, errors }
+    Engine-->>API: { success, staged, errors, locked }
     API-->>UI: 200 result (failed paths listed in errors)
 
     UI->>API: GET /api/git/repo/graph?limit=150
@@ -43,6 +66,21 @@ sequenceDiagram
     Engine->>Git: git log --date-order + git for-each-ref
     Engine-->>API: { commits, branches, default_branch }
     API-->>UI: 200 graph payload
+
+    UI->>API: GET /api/git/repo/staged
+    API->>Engine: get_staged_changes()
+    Engine->>Git: git diff --cached --name-status / --shortstat / diff
+    Engine-->>API: { files, stat, diff, diff_truncated }
+    API-->>UI: 200 changes summary
+
+    UI->>API: POST /api/git/repo/commit/message { hint }
+    API->>Engine: generate_commit_message(hint)
+    Engine->>Git: git diff --cached
+    Engine->>AI: prompt (50/72 rule + staged patch)
+    AI-->>Engine: raw message
+    Engine->>Engine: normalize_commit_message()
+    Engine-->>API: { title, body, message }
+    API-->>UI: 200 message | 400 { detail }
 
     UI->>API: POST /api/git/repo/commit { message }
     API->>Engine: commit_changes(message)
@@ -61,7 +99,10 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from codx.junior.engine.git_graph import GitGraphEngine
+from codx.junior.engine.git_commit_message import (
+    COMMIT_MESSAGE_MAX_DIFF_CHARS,
+    GitCommitMessageEngine,
+)
 from codx.junior.model.model import CodxUser
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -95,6 +136,14 @@ class CommitRequest(BaseModel):
     message: str
     stage_all: bool = True
     allow_empty: bool = False
+
+
+class CommitMessageRequest(BaseModel):
+    """Payload to generate a commit message from the staged changes."""
+
+    hint: Optional[str] = None
+    include_body: bool = True
+    max_diff_chars: int = COMMIT_MESSAGE_MAX_DIFF_CHARS
 
 
 class MergeRequest(BaseModel):
@@ -155,9 +204,9 @@ class AbandonPRRequest(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-def _git_engine(request: Request) -> GitGraphEngine:
+def _git_engine(request: Request) -> GitCommitMessageEngine:
     """
-    Build a GitGraphEngine for the active project session.
+    Build the git engine (graph + commit message) for the active session.
 
     Args:
         request: Incoming HTTP request holding the session in its state.
@@ -174,7 +223,7 @@ def _git_engine(request: Request) -> GitGraphEngine:
             status_code=400,
             detail="CODXJuniorSession not found in request state.",
         )
-    return GitGraphEngine(session=session)
+    return GitCommitMessageEngine(session=session)
 
 
 def _ensure_success(result: dict) -> dict:
@@ -210,7 +259,8 @@ def api_git_repo_info(
     Return a summary of the repository state.
 
     Includes the active/default branch, remote URL, ahead/behind counters,
-    working tree state (staged and unstaged file lists) and the last commit.
+    working tree state (staged and unstaged file lists), lock state
+    (``locked`` / ``lock_path``) and the last commit.
     """
     return _git_engine(request).get_repo_info()
 
@@ -495,13 +545,16 @@ def api_git_repo_stage(
     only affects itself and is listed in ``errors``; the request still answers
     **200** so the caller can refresh the status and show the failed paths.
 
+    When the repository is locked (stale ``.git/index.lock``) the result
+    carries ``locked=true`` and ``lock_path`` so the UI can offer to release it.
+
     Args:
         payload: ``paths`` to stage (``include_staged`` is ignored here).
 
     Returns:
         Staging result with 'success' (False when at least one path failed),
-        'paths' (requested), 'staged' (paths staged successfully) and 'errors'
-        (one message per failed path).
+        'paths' (requested), 'staged' (paths staged successfully), 'errors'
+        (one message per failed path), 'locked' and 'lock_path'.
 
     Example:
         POST /api/git/repo/stage {"paths": ["app.py", "gone.json"]}
@@ -511,7 +564,9 @@ def api_git_repo_stage(
           "success": false,
           "paths": ["app.py", "gone.json"],
           "staged": ["app.py"],
-          "errors": ["gone.json: pathspec 'gone.json' did not match any files"]
+          "errors": ["gone.json: pathspec 'gone.json' did not match any files"],
+          "locked": false,
+          "lock_path": ""
         }
     """
     result = _git_engine(request).stage_files(payload.paths)
@@ -519,7 +574,50 @@ def api_git_repo_stage(
         **result,
         "staged": result.get("staged", []),
         "errors": [e for e in (result.get("errors") or []) if e],
+        "locked": result.get("locked", False),
+        "lock_path": result.get("lock_path", ""),
     }
+
+
+@router.get("/git/repo/lock")
+def api_git_repo_lock(
+    request: Request, user: CodxUser = Depends(get_authenticated_user)
+):
+    """
+    Return the repository lock state.
+
+    Git leaves ``.git/index.lock`` behind when a process is interrupted, which
+    blocks every later write (stage, commit...). This endpoint lets the UI tell
+    the user the repository is locked and where the lock file lives.
+
+    Returns:
+        Dict with 'locked', 'path', 'git_dir', 'repository' and 'age_seconds'.
+
+    Example:
+        GET /api/git/repo/lock
+
+        200 OK
+        {"locked": true, "path": "/repo/.git/index.lock",
+         "git_dir": "/repo/.git", "repository": "/repo", "age_seconds": 30}
+    """
+    return _git_engine(request).get_lock_info()
+
+
+@router.post("/git/repo/lock/release")
+def api_git_repo_release_lock(
+    request: Request, user: CodxUser = Depends(get_authenticated_user)
+):
+    """
+    Remove the stale ``.git/index.lock`` file and unlock the repository.
+
+    Destructive when a git process is actually running, so the UI must confirm
+    it with the user first.
+
+    Returns:
+        Dict with 'success', 'released' (True when a file was removed), 'path',
+        'output', 'errors' and the refreshed 'lock' info.
+    """
+    return _ensure_success(_git_engine(request).release_lock())
 
 
 @router.post("/git/repo/unstage")
@@ -647,6 +745,109 @@ def api_git_repo_checkout_branch(
 # -----------------------------------------------------------------------------
 # Commit and merge
 # -----------------------------------------------------------------------------
+
+
+@router.get("/git/repo/staged")
+def api_git_repo_staged(
+    request: Request,
+    include_diff: bool = Query(True, description="Include the staged patch"),
+    max_diff_chars: int = Query(
+        COMMIT_MESSAGE_MAX_DIFF_CHARS,
+        ge=0,
+        le=200000,
+        description="Maximum diff characters (0 = no truncation)",
+    ),
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Return the summary of the staged changes (the commit panel "changes summary").
+
+    Lists what is already in the index with its status plus the diff stat and
+    the staged patch, so the UI can show exactly what the next commit will
+    contain without guessing from the working tree status.
+
+    Args:
+        include_diff: Include the staged patch.
+        max_diff_chars: Maximum characters of the patch (0 disables it).
+
+    Returns:
+        Dict with 'success', 'repo_path', 'files' (path, code, status),
+        'file_count', 'stat', 'diff', 'diff_truncated' and 'errors'.
+
+    Example:
+        GET /api/git/repo/staged
+
+        200 OK
+        {
+          "success": true,
+          "files": [{"path": "app.py", "code": "M", "status": "modified"}],
+          "file_count": 1,
+          "stat": " 1 file changed, 2 insertions(+), 1 deletion(-)",
+          "diff": "diff --git a/app.py b/app.py\\n...",
+          "diff_truncated": false,
+          "errors": []
+        }
+    """
+    return _git_engine(request).get_staged_changes(
+        max_diff_chars=max_diff_chars, include_diff=include_diff
+    )
+
+
+@router.post("/git/repo/commit/message")
+async def api_git_repo_commit_message(
+    request: Request,
+    payload: CommitMessageRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Generate a commit message from the staged files using AI.
+
+    The staged patch is sent to the project LLM and the answer is normalized to
+    the **50/72 rule**: at most 50 characters on the subject line and at most 72
+    characters per body line. Nothing is committed: the UI shows the message in
+    the commit box so the user can edit it first.
+
+    When the AI is unavailable a plain message is returned with
+    ``fallback=true`` (built from the staged file names) and the AI error is
+    listed in ``errors``; the request still answers **200**.
+
+    Args:
+        payload: ``hint`` (optional intent/issue reference), ``include_body``
+            (ask only for the subject when False) and ``max_diff_chars``
+            (prompt budget).
+
+    Returns:
+        Dict with 'success', 'title', 'body', 'message', 'fallback', 'files',
+        'file_count', 'stat', 'diff_truncated' and 'errors'.
+
+    Raises:
+        HTTPException: 400 when there is nothing staged.
+
+    Example:
+        POST /api/git/repo/commit/message {"hint": "fixes login timeout"}
+
+        200 OK
+        {
+          "success": true,
+          "title": "fix: login timeout on slow networks",
+          "body": "Abort the request after the configured timeout\\n"
+                  "instead of retrying forever.",
+          "message": "fix: login timeout on slow networks\\n\\nAbort ...",
+          "fallback": false,
+          "files": [{"path": "app.py", "code": "M", "status": "modified"}],
+          "file_count": 1,
+          "stat": " 1 file changed, 2 insertions(+), 1 deletion(-)",
+          "diff_truncated": false,
+          "errors": []
+        }
+    """
+    return _ensure_success(
+        await _git_engine(request).generate_commit_message(
+            hint=payload.hint,
+            include_body=payload.include_body,
+            max_diff_chars=payload.max_diff_chars,
+        )
+    )
 
 
 @router.post("/git/repo/commit")

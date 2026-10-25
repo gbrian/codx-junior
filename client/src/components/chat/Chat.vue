@@ -440,8 +440,11 @@ export default {
           : this.extractFilesFromCodeBlocks(content)
         if (key) nextParseCache.set(key, { content, files: parsed })
 
-        ;(message.files || []).forEach(file => files.add(file))
-        parsed.forEach(file => files.add(file))
+        // Paths are normalized on insert: chat files are stored project-relative
+        // (see toChatFilePath) while message files can still be absolute, and
+        // both forms must dedupe in <ChatFileList>.
+        ;(message.files || []).forEach(file => files.add(this.toChatFilePath(file)))
+        parsed.forEach(file => files.add(this.toChatFilePath(file)))
       })
 
       this.parsedMessageFiles = nextParseCache
@@ -629,6 +632,32 @@ export default {
         .map(block => block.filePath)
         .filter(Boolean)
     },
+    // Files are added to the chat starting at the project folder name:
+    //   /home/somewhere/project/src/file → project/src/file
+    // Chat records stay portable (no host paths) and the model receives a
+    // shorter, project-scoped path. Paths that are already relative, and files
+    // outside every known project, are returned untouched.
+    toChatFilePath(file) {
+      if (typeof file !== 'string' || !file.startsWith('/')) return file
+      const project = this.findProjectForFile(file)
+      if (!project) return file
+      const root = project.abs_project_path.replace(/\/+$/, '')
+      const folder = root.split('/').pop()
+      if (!folder) return file
+      const relative = file.slice(root.length + 1)
+      return relative ? `${folder}/${relative}` : folder
+    },
+    // Deepest project containing the file: sub projects live inside their
+    // parent's folder, so the longest matching root wins.
+    findProjectForFile(file) {
+      const projects = this.$projects.allProjects || []
+      return projects
+        .filter(project => {
+          const root = (project.abs_project_path || '').replace(/\/+$/, '')
+          return root && (file === root || file.startsWith(`${root}/`))
+        })
+        .sort((a, b) => b.abs_project_path.length - a.abs_project_path.length)[0] || null
+    },
     // Same items, same order. Used to keep collection identities stable so
     // downstream components are not re-rendered with identical data.
     sameList(previous, next) {
@@ -659,8 +688,11 @@ export default {
     hasFile(fileToCheck, fileList) {
       return fileList.some(f => this.normalizeFilePath(f) === this.normalizeFilePath(fileToCheck))
     },
+    // Comparison key for file lists: the absolute and the project-relative form
+    // of the same file must compare equal (files are stored project-relative,
+    // see toChatFilePath, while older records/messages can hold absolute paths).
     normalizeFilePath(path) {
-      return path?.toLowerCase().trim() || ''
+      return this.toChatFilePath(path)?.toLowerCase().trim() || ''
     },
     hasFileInChat(file) {
       return this.hasFile(file, this.chatFiles)
@@ -1042,7 +1074,7 @@ export default {
       await this.flushPendingAttachments()
       const content = this.$refs.inputBox?.getEditorText() ?? ''
       const profiles = [...new Set([...this.selectorProfileNames, ...this.textProfileNames])]
-      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const files = this.messageMentions.filter(m => m.file).map(m => this.toChatFilePath(m.file))
       const update = {
         content,
         profiles,
@@ -1118,7 +1150,9 @@ export default {
       return this.chatSvc.getUserMessage({
         message,
         project_id: this.messageProject?.project_id,
-        files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
+        files: this.chatSvc
+          .getMessageFiles({ messageMentions: this.messageMentions, files: this.files })
+          .map(file => this.toChatFilePath(file)),
         profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
         attachments: this.attachments.map(a => a.toJSON?.() || a),
         metadata: this.metadata,
@@ -1312,8 +1346,10 @@ export default {
       return false
     },
     addFileToMessage(file) {
-      if (!this.hasFileInMessage(file) && !this.files.includes(file)) {
-        this.files = [...this.files, file]
+      // Stored project-relative (see toChatFilePath) so the chat stays portable
+      const messageFile = this.toChatFilePath(file)
+      if (!this.hasFileInMessage(messageFile) && !this.files.includes(messageFile)) {
+        this.files = [...this.files, messageFile]
       }
     },
     removeAttachment(idx) {
@@ -1458,7 +1494,9 @@ export default {
       this.selectFile = false
     },
     async onAddFile(file) {
-      if (!this.hasFileInChat(file) && this.chatSvc.addFileToChat({ chat: this.chat, file })) {}
+      // Stored project-relative (see toChatFilePath) so the chat stays portable
+      const chatFile = this.toChatFilePath(file)
+      if (!this.hasFileInChat(chatFile) && this.chatSvc.addFileToChat({ chat: this.chat, file: chatFile })) {}
     },
     async onAddFileToChat(file) {
       await this.onAddFile(file)

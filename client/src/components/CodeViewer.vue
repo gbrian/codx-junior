@@ -445,6 +445,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 </template>
 
 <script>
+import { v4 as uuidv4 } from 'uuid'
 // Old code blocks are compared against a file that most likely moved on:
 // loading their diff automatically is expensive and usually meaningless, so it
 // is only fetched on demand (refresh icon / save / rollback).
@@ -455,6 +456,7 @@ export default {
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
+      id: uuidv4(),
       // When no explicit `diff-option` prop is given, start on the content view.
       // The default (diff vs. content) is resolved in applyDefaultDiffView()
       // once we know whether the on-disk file actually changed.
@@ -995,6 +997,7 @@ export default {
     },
 
     async loadDiffInfo() {
+      console.log(this.$el)
       const diffRequest = {
         path: this.file,
         content: this.effectiveCode

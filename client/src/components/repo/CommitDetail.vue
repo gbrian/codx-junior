@@ -47,8 +47,13 @@ import DiffViewer from '@/components/DiffViewer.vue'
         :key="`ref-${ref.name}`"
         class="flex items-center gap-1 px-2 py-1 border-t border-base-content/5 flex-wrap"
       >
-        <span class="badge badge-xs gap-1 font-mono shrink-0" :class="refClass(ref)">
-          <i class="fa-solid text-[8px]" :class="refIcon(ref)"></i> {{ ref.name }}
+        <span
+          class="badge badge-xs gap-1 font-mono shrink-0 max-w-[180px]"
+          :class="refClass(ref)"
+          :title="ref.name"
+        >
+          <i class="fa-solid text-[8px] shrink-0" :class="refIcon(ref)"></i>
+          <span class="truncate min-w-0">{{ ref.name }}</span>
         </span>
         <span v-if="isCurrentBranch(ref)" class="badge badge-xs badge-success shrink-0">HEAD</span>
 

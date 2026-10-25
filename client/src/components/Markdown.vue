@@ -26,6 +26,7 @@ import MarkdownIt from 'markdown-it'
       :code="code"
       :files="files"
       :chat="chat"
+      :message="message"
       @generate-code="$emit('generate-code', $event)"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
@@ -61,7 +62,7 @@ md.use(emoji)
 
 export default {
   inheritAttrs: false,
-  props: ['chat', 'text', 'mentionList', 'files'],
+  props: ['chat', 'message', 'text', 'mentionList', 'files'],
   emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'text-changed'],
   data() {
     return {

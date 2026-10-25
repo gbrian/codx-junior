@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { beginNetworkCall } from './telemetry'
 
 
 const interceptors = {
@@ -49,10 +50,39 @@ export class CodxJuniorConnection {
     return url;
   }
 
+  /**
+   * Feeds the client-side "Local network" log of API monitoring and returns the
+   * SAME promise, so the request chain is untouched.
+   *
+   * The entry is opened BEFORE the request settles (`beginNetworkCall`), which
+   * is what makes the in-flight count and the chart's "processing" series real;
+   * `finish()` closes it with the status and the wall-clock latency the browser
+   * measured (DNS + TCP + round trip) — the part the server-side aggregates
+   * cannot see. Bodies and responses never leave the request.
+   *
+   * @param {string} method
+   * @param {string} url
+   * @param {Promise} request
+   * @returns {Promise} the same promise
+   */
+  trackLocalCall(method, url, request) {
+    const call = beginNetworkCall({ method, url })
+    // Not a local/LAN target: nothing to record, keep the chain untouched.
+    if (!call) return request
+
+    request.then(
+      (response) => call.finish({ status: response?.status }),
+      (error) => call.finish({ status: error?.response?.status, error })
+    )
+
+    return request
+  }
+
   get(url) {
     this.createConnection()
     this.liveRequests++;
-    return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
+    const request = this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
+    return this.trackLocalCall('GET', url, request)
       .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
@@ -60,14 +90,16 @@ export class CodxJuniorConnection {
   del(url) {
     this.createConnection()
     this.liveRequests++;
-    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
+    const request = this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
+    return this.trackLocalCall('DELETE', url, request)
       .finally(() => this.liveRequests--);
   }
 
   post(url, data) {
     this.createConnection()
     this.liveRequests++;
-    return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
+    const request = this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
+    return this.trackLocalCall('POST', url, request)
       .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
@@ -75,7 +107,8 @@ export class CodxJuniorConnection {
   put(url, data) {
     this.createConnection()
     this.liveRequests++;
-    return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
+    const request = this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
+    return this.trackLocalCall('PUT', url, request)
           .then(({ data }) => data)
           .finally(() => this.liveRequests--);
   }
@@ -83,8 +116,8 @@ export class CodxJuniorConnection {
   delete(url) {
     this.createConnection()
     this.liveRequests++;
-    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
-          .then(({ data }) => data)
+    const request = this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
+    return this.trackLocalCall('DELETE', url, request)
           .finally(() => this.liveRequests--);
   }
 }

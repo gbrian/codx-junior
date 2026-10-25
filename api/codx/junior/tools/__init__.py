@@ -49,6 +49,14 @@ from .git_tools import (
     close_pr,
     abandon_pr,
 )
+from .repository_tools import (
+    repository_overview,
+    repository_status,
+    repository_branches,
+    repository_log,
+    repository_compare,
+    repository_commit_message,
+)
 from .image_tools import explain_image, generate_image
 from .tutorial_tools import (
     tutorial_definition,
@@ -132,6 +140,12 @@ __all__ = [
     "create_pr_branch",
     "close_pr",
     "abandon_pr",
+    "repository_overview",
+    "repository_status",
+    "repository_branches",
+    "repository_log",
+    "repository_compare",
+    "repository_commit_message",
     "docker_ps",
     "docker_logs",
     "docker_stats",
@@ -760,6 +774,225 @@ TOOLS = [
         "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "branch", "pull-request", "discard"],
         "tool_call": abandon_pr
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_overview",
+                "description": (
+                    "Snapshot of the git repository in plain language: current and default "
+                    "branch, remote and sync state (ahead/behind), how many files are staged "
+                    "or not staged, lock and worktree state and the last commits. "
+                    "Call it first when the user asks where the repository stands."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "status", "overview"],
+        "tool_call": repository_overview
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_status",
+                "description": (
+                    "Show what changed in the working tree: which files are staged (included "
+                    "in the next commit), which are not staged, which are untracked, with "
+                    "per-file line counts. Use it before writing a commit message or when "
+                    "the user asks why a file is missing from a commit."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "include_patch": {
+                            "type": "boolean",
+                            "description": (
+                                "Include the patches (truncated) in the response. "
+                                "Defaults to false: use it only when the diff itself matters."
+                            ),
+                            "default": False
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "changes", "status", "staging"],
+        "tool_call": repository_status
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_branches",
+                "description": (
+                    "List the repository branches (local and remote) with their tip commit, "
+                    "flagging the current and the default branch, and list the worktrees. "
+                    "Use it to answer which branches exist, which one is main, or where a "
+                    "branch is checked out."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "include_remote": {
+                            "type": "boolean",
+                            "description": "Include remote-tracking branches (default: true).",
+                            "default": True
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": (
+                                "Number of commits read to resolve the branch tips "
+                                "(default 200, max 1000). Raise it when a tip shows no subject."
+                            ),
+                            "default": 200
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "branches", "worktree"],
+        "tool_call": repository_branches
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_log",
+                "description": (
+                    "Commit history of a branch, or of a single file when 'path' is given "
+                    "(follow-renames included). Use it for 'what happened lately?' and for "
+                    "'who touched this file and why?'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "branch": {
+                            "type": "string",
+                            "description": "Branch to read. Defaults to the current branch."
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": (
+                                "Optional file path; when given the history of that file is "
+                                "returned instead of the branch history."
+                            )
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of commits (default 15, max 100).",
+                            "default": 15
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "history", "commits"],
+        "tool_call": repository_log
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_compare",
+                "description": (
+                    "Compare two references (branches, tags or commits) and return the files "
+                    "that `from_ref` adds on top of `to_ref`, their line counts and the commits "
+                    "in between. Nothing is fetched and nothing is checked out."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "from_ref": {
+                            "type": "string",
+                            "description": (
+                                "Source reference holding the changes "
+                                "(e.g. 'feature/login' or a commit hash)."
+                            )
+                        },
+                        "to_ref": {
+                            "type": "string",
+                            "description": "Base reference (default: HEAD).",
+                            "default": "HEAD"
+                        },
+                        "include_patch": {
+                            "type": "boolean",
+                            "description": "Include the patch (truncated). Defaults to false.",
+                            "default": False
+                        },
+                        "max_files": {
+                            "type": "integer",
+                            "description": "Maximum number of files listed (default 30, max 200).",
+                            "default": 30
+                        }
+                    },
+                    "required": ["from_ref"]
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "compare", "diff", "review"],
+        "tool_call": repository_compare
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "repository_commit_message",
+                "description": (
+                    "Build a commit message draft from the staged changes (working tree when "
+                    "nothing is staged) following the 50/72 rule: subject of at most 50 "
+                    "characters and body lines of at most 72. "
+                    "Returns the draft, the files it was built from and the facts/rules needed "
+                    "to rewrite the subject with the real intent. It never commits anything."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "source": {
+                            "type": "string",
+                            "enum": ["auto", "staged", "worktree"],
+                            "description": (
+                                "'staged' (what the next commit contains), 'worktree' "
+                                "(everything not committed) or 'auto' (staged when available)."
+                            ),
+                            "default": "auto"
+                        },
+                        "hint": {
+                            "type": "string",
+                            "description": (
+                                "Optional user intent (issue reference, reason for the change) "
+                                "added as the first body line before rewriting."
+                            )
+                        },
+                        "include_diff": {
+                            "type": "boolean",
+                            "description": (
+                                "Include the patch excerpt used to judge the change "
+                                "(default: true)."
+                            ),
+                            "default": True
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "repository", "commit-message", "conventional-commits"],
+        "tool_call": repository_commit_message
     },
     {
         "tool_json": DOCKER_PS_TOOL_JSON,
