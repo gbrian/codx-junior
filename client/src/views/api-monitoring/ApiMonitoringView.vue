@@ -170,15 +170,25 @@
       <button class="btn btn-xs btn-ghost" @click="state.error = null">Dismiss</button>
     </div>
 
-    <div v-if="loading && !state.summary" class="grid gap-3 mb-4"
-         :class="layout.compact ? 'grid-cols-2' : 'grid-cols-6'">
-      <div v-for="i in 6" :key="i" class="skeleton h-24 w-full"></div>
+    <!-- Loading placeholder: SAME geometry as the strip below — one row of six
+         tiles that scrolls sideways on a narrow panel. A column placeholder
+         would make the page jump when the data lands in a row. -->
+    <div v-if="loading && !state.summary" class="flex gap-3 overflow-x-auto pb-1 mb-4">
+      <div v-for="i in 6" :key="i" class="skeleton h-24 min-w-40 flex-1"></div>
     </div>
 
-    <!-- ── KPI strip ────────────────────────────────────────────────────── -->
-    <div v-if="state.summary" class="stats w-full bg-base-200 border border-base-300 shadow-sm mb-4"
-         :class="layout.compact ? 'stats-vertical' : 'stats-horizontal'">
-      <div v-for="kpi in kpis" :key="kpi.id" class="stat">
+    <!-- ── KPI strip ──────────────────────────────────────────────────────
+         ALWAYS one row: `stats-vertical` is never applied. The six values are a
+         comparison strip — stacking them turned it into a long column that
+         pushed the chart below the fold, and the reading order changed with the
+         panel width. daisyUI `.stats` is `grid-flow-col` + `overflow-x-auto`, so
+         a panel narrower than the strip scrolls sideways instead of wrapping;
+         `min-w-40` on each stat is the hard floor that keeps the numbers
+         readable while scrolling (`layout.compact` only tightens the padding). -->
+    <div v-if="state.summary"
+         class="stats stats-horizontal w-full bg-base-200 border border-base-300 shadow-sm mb-4">
+      <div v-for="kpi in kpis" :key="kpi.id" class="stat min-w-40"
+           :class="layout.compact ? 'px-4' : ''">
         <div class="stat-title text-xs">{{ kpi.label }}</div>
         <div class="stat-value text-2xl" :class="toneText(kpi.tone)">
           {{ kpi.value }}<span v-if="kpi.unit" class="text-base opacity-50 ml-0.5">{{ kpi.unit }}</span>

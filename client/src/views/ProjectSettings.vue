@@ -120,7 +120,7 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
                   <div class="text-xs text-base-content/60 mt-1">Author email used for commits created by codx-junior.</div>
                 </div>
                 <div>
-                  <label class="label-text block mb-2">Email</label>
+                  <label class="label-text block mb-2">Access Token</label>
                   <input v-model="globalGit.git_access_token" type="text" class="input input-bordered w-full" />
                   <div class="text-xs text-base-content/60 mt-1">Personal Access Token.</div>
                 </div>

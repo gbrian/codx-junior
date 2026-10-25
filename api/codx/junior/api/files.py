@@ -44,6 +44,11 @@ async def read_file(request: Request):
     Query params:
     - path: File path (relative to the current project or to one of its child
       projects, or absolute)
+
+    Non-blocking alternative:
+    - For large files or slow disks use the ``codx-junior-file-read`` Socket.IO
+      event and listen on the ``codx-junior-file-read-response`` event.
+      See ``codx/junior/sio/README.md``.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -254,6 +259,11 @@ async def diff_file(request: Request):
 
     Returns:
         Dict with 'diff' (unified diff output) and 'stats' (shortstat output)
+
+    Non-blocking alternative:
+    - For large files use the ``codx-junior-file-diff`` Socket.IO event and
+      listen on the ``codx-junior-file-diff-response`` event.
+      See ``codx/junior/sio/README.md``.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()

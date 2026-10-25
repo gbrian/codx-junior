@@ -5,25 +5,31 @@ import { QUEUE_NAMES } from '../requestQueue'
  * Files API module
  * Handles file operations: list, read, search, upload, binary download/preview
  *
- * `read` and `diff` are the expensive calls of the editor / diff views: the
- * same file is usually requested several times in a row (viewer, diff panel,
- * chat preview, file list). Both declare their cache **at the transport call**
- * (`API.get/post(url, data, { key, ttl, queue })`), so they share the short-term
- * cache, the in-flight dedupe map and the request queue with every other caller:
+ * ## `read` and `diff` go over HTTP
  *
- *  - an identical `POST /api/files/diff` is served from the cache for a few
- *    seconds (the transport keys POSTs by a hash of its body),
- *  - a caller arriving while the request is running waits for it instead of
+ * `GET /api/files/read` and `POST /api/files/diff` are the expensive calls of the
+ * editor / diff views. They are plain HTTP requests and stay that way: the
+ * Socket.IO variant (`codx-junior-file-read` / `codx-junior-file-diff`) was
+ * tried and measured slower, because the answer has to be broadcast and matched
+ * by `request_id` instead of being returned to the caller.
+ *
+ * What keeps them cheap is the layer around the request, not the transport:
+ *
+ *  - an identical `read` / `diff` is served from the short-term cache for a few
+ *    seconds (a diff is keyed by a hash of its content),
+ *  - a caller arriving while the same request is running waits for it instead of
  *    starting a second one,
  *  - **different** reads and diffs are queued (`files:read` / `files:diff`, one
- *    at a time) with `750 ms` of silence between two consecutive calls, so a
- *    re-rendered diff panel cannot flood the network and the small requests of
- *    the app still go through while it loads,
+ *    at a time) so a re-rendered diff panel cannot flood the backend,
  *  - `force: true` bypasses the entry for an explicit refresh.
  *
  * Keys are built from the **normalized** path: `./src/a.js`, `src/a.js` and
  * `src//a.js` are one file, so they share an entry — and a write through any of
  * those spellings invalidates all of them.
+ *
+ * @example
+ * const { content } = await api.files.read('./src/main.js', { force: true })
+ * const { diff, stats } = await api.files.diff({ path, content })
  */
 
 /**
@@ -62,15 +68,15 @@ export const filesModule = (API) => ({
   /**
    * Read a text file.
    *
-   * Cached for a few seconds, shared with every concurrent caller and queued
-   * behind the `files:read` queue: only one read is on the wire at a time, with
-   * `750 ms` of silence left before the next one.
+   * `GET /api/files/read`, cached for a few seconds, shared with every
+   * concurrent caller and queued behind the `files:read` queue: only one read is
+   * on the wire at a time.
    *
    * @param {string} path - Project relative path.
-   * @param {Object} [options] - Cache options.
+   * @param {Object} [options] - Options.
    * @param {boolean} [options.force] - Bypass the cache and refresh the entry.
    * @param {number} [options.ttl] - Override the cache TTL (ms).
-   * @returns {Promise<Object>} `{ content, last_modification, size }`.
+   * @returns {Promise<Object>} `{ content, is_binary, last_modification, size }`.
    *
    * @example
    * const { content } = await api.files.read('./src/main.js')
@@ -78,12 +84,14 @@ export const filesModule = (API) => ({
    * await api.files.read('./src/main.js', { force: true })
    */
   read(path, { force = false, ttl = CACHE_TTL.fileRead } = {}) {
-    return API.get(`/api/files/read?path=${encodeURIComponent(path)}`, {
-      key: fileKey(API, 'files:read', path),
-      ttl,
-      force,
-      queue: QUEUE_NAMES.fileRead
-    })
+    return API.cached(
+      fileKey(API, 'files:read', path),
+      () => API.queues.run(
+        QUEUE_NAMES.fileRead,
+        () => API.get(`/api/files/read?path=${encodeURIComponent(path)}`)
+      ),
+      { ttl, force }
+    )
   },
 
   readBinary(path) {
@@ -151,14 +159,11 @@ export const filesModule = (API) => ({
   /**
    * Diff of the given content against the file's current (or branch) version.
    *
-   * This is a **POST**, and it is cached like a GET: the transport keys it by
-   * the hash of its body, so re-rendering the same editor state never asks the
-   * backend again, and a second caller arriving while the request is running
-   * waits for that same request instead of sending another one.
-   *
-   * Different diffs are **queued** (`files:diff`, one at a time) with `750 ms` of
-   * silence after each one: while a diff is on the wire the next one waits, and
-   * during the gap the connection is free for the lighter requests of the app.
+   * `POST /api/files/diff`, cached by a hash of its body: re-rendering the same
+   * editor state never asks the backend again and a second caller arriving while
+   * the request is running waits for that same request. Different diffs are
+   * **queued** (`files:diff`, one at a time) so the expensive calls do not fight
+   * with the lighter requests of the app.
    *
    * @param {Object} params - Diff parameters.
    * @param {string} params.path - Project relative path.
@@ -169,18 +174,20 @@ export const filesModule = (API) => ({
    * @returns {Promise<Object>} `{ diff, stats, last_modification, size }`.
    *
    * @example
-   * const { diff } = await api.files.diff({ path, content })
+   * const { diff, stats } = await api.files.diff({ path, content })
    * // Same content asked twice in a second → one request.
    * await Promise.all([1, 2].map(() => api.files.diff({ path, content })))
    */
   diff({ path, content, from_branch, to_branch, force = false } = {}) {
-    return API.post(`/api/files/diff`, {
+    const body = {
       path,
       content,
       from_branch: from_branch || null,
       to_branch: to_branch || null
-    }, {
-      key: fileKey(
+    }
+
+    return API.cached(
+      fileKey(
         API,
         'files:diff',
         path,
@@ -188,10 +195,12 @@ export const filesModule = (API) => ({
         to_branch || '',
         hashString(content)
       ),
-      ttl: CACHE_TTL.fileDiff,
-      force,
-      queue: QUEUE_NAMES.fileDiff
-    })
+      () => API.queues.run(
+        QUEUE_NAMES.fileDiff,
+        () => API.post(`/api/files/diff`, body)
+      ),
+      { ttl: CACHE_TTL.fileDiff, force }
+    )
   },
 
   write(source, page_content) {

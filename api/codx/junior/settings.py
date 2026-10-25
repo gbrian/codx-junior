@@ -30,6 +30,19 @@ ROOT_PATH = os.path.dirname(__file__)
 HOME=os.environ.get("HOME")
 
 CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
+
+# Mask used when a project secret (git token) is shown in the UI
+GIT_ACCESS_TOKEN_MASK = "••••••••"
+
+# Environment variables checked (in order) when no token is stored in the
+# settings, so a container can authenticate without writing the secret to disk
+GIT_ACCESS_TOKEN_ENV_VARS = [
+    "CODX_JUNIOR_GIT_TOKEN",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITLAB_TOKEN",
+    "BITBUCKET_TOKEN",
+]
         
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
@@ -111,6 +124,18 @@ class CODXJuniorSettings(BaseModel):
     git_user_email: Optional[str] = Field(
         default="",
         description="Git user email used for commits made by codx-junior (falls back to the global git settings)"
+    )
+
+    # Git access token (PAT) used to authenticate fetch/pull/push against the
+    # project remote. It is a secret: the API must mask it before sending the
+    # settings to a client and only admins should be able to change it.
+    git_access_token: Optional[str] = Field(
+        default="",
+        description=(
+            "Personal access token (PAT) used to authenticate fetch, pull and push "
+            "against the project remote. Supports ${ENV_VAR} references so the "
+            "secret can stay out of project.json"
+        )
     )
 
     def __str__(self):
@@ -203,6 +228,89 @@ class CODXJuniorSettings(BaseModel):
             source = source or "global"
 
         return {"name": name, "email": email, "source": source}
+
+    def get_git_access_token(self) -> str:
+        """
+        Return the git access token (PAT) used to authenticate remote operations.
+
+        Resolution order:
+            1. the project setting (`git_access_token`)
+            2. the global git settings (`git.git_access_token`)
+            3. the environment (`CODX_JUNIOR_GIT_TOKEN`, `GITHUB_TOKEN`,
+               `GH_TOKEN`, `GITLAB_TOKEN`, `BITBUCKET_TOKEN`)
+
+        The stored value may reference an environment variable
+        (`${GITHUB_TOKEN}`), so the secret never has to be written into
+        `project.json`. A reference to an unset variable is treated as "no
+        token" instead of being sent to the remote as a literal.
+
+        Returns:
+            Token string, empty when no usable token is configured.
+
+        Example:
+            Store the literal token:
+                >>> settings.git_access_token = "ghp_1234567890abcdef"
+                >>> settings.get_git_access_token()
+                'ghp_1234567890abcdef'
+
+            Or read it from the environment (recommended):
+                >>> settings.git_access_token = "${GITHUB_TOKEN}"
+                >>> settings.get_git_access_token()
+                'ghp_1234567890abcdef'
+        """
+        token = str(self.git_access_token or "").strip()
+
+        if not token:
+            global_git = getattr(get_global_settings(), "git", None)
+            token = str(getattr(global_git, "git_access_token", "") or "").strip()
+
+        if not token:
+            for env_name in GIT_ACCESS_TOKEN_ENV_VARS:
+                token = str(os.environ.get(env_name, "") or "").strip()
+                if token:
+                    break
+
+        if not token:
+            return ""
+
+        expanded = os.path.expandvars(token).strip()
+        if not expanded or (expanded.startswith("${") and expanded.endswith("}")):
+            logger.warning(
+                "Git access token references an unset environment variable, ignoring it"
+            )
+            return ""
+
+        return expanded
+
+    def has_git_access_token(self) -> bool:
+        """
+        Return True when a usable git access token is configured.
+
+        Safe to expose to any client: it tells the UI whether remote operations
+        are authenticated without revealing the secret.
+        """
+        return bool(self.get_git_access_token())
+
+    def masked_git_access_token(self) -> str:
+        """
+        Return a masked hint of the git access token, safe to send to the UI.
+
+        Only the last 4 characters are kept, so an admin can recognize which
+        token is stored while the secret never leaves the server.
+
+        Returns:
+            Hint such as '••••••••a1b2', empty when no token is configured.
+
+        Example:
+            >>> settings.masked_git_access_token()
+            '••••••••a1b2'
+        """
+        token = self.get_git_access_token()
+        if not token:
+            return ""
+        if len(token) <= 8:
+            return GIT_ACCESS_TOKEN_MASK
+        return f"{GIT_ACCESS_TOKEN_MASK}{token[-4:]}"
 
     def get_active_mcp_servers(self) -> List[MCPServer]:
         """Get list of active MCP servers."""

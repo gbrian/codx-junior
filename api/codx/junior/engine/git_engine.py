@@ -5,6 +5,7 @@ Handles all git/branch/PR operations.
 Made with ❤️ by codx-junior
 """
 
+import base64
 import json
 import logging
 import os
@@ -25,6 +26,37 @@ logger = logging.getLogger(__name__)
 DEFAULT_BRANCH_PREFIX = "codx-junior"
 DEFAULT_COMMIT_MESSAGE = "feat: apply AI-generated code changes"
 DEFAULT_REMOTE = "origin"
+
+# Username sent with the project token: GitHub, GitLab, Bitbucket and Azure
+# DevOps accept any non empty username as long as the token is the password
+DEFAULT_TOKEN_USERNAME = "x-access-token"
+
+# Git config key carrying the HTTP Basic credentials of a single command
+TOKEN_ARG_PREFIX = "http.extraheader="
+
+# Replacement used when a command carrying the token is logged or returned
+TOKEN_VALUE_MASK = "********"
+
+# Git errors meaning the remote rejected the (missing) credentials
+AUTH_ERROR_PATTERNS = (
+    "could not read username",
+    "could not read password",
+    "authentication failed",
+    "invalid username or password",
+    "permission denied (publickey)",
+    "terminal prompts disabled",
+    "support for password authentication was removed",
+    "403 forbidden",
+    "401 unauthorized",
+    "repository not found",
+)
+
+# Actionable hint appended to authentication failures
+AUTH_ERROR_HINT = (
+    "The remote rejected the git credentials. Configure a project access token "
+    "(PAT) in Project settings > Git > Access token, or use an SSH remote "
+    "(git@host:owner/repo.git) with a mounted SSH key."
+)
 
 # Lock file git creates while the index is being written
 INDEX_LOCK_FILE = "index.lock"
@@ -53,6 +85,11 @@ class GitEngine:
         GE --> _configured_identity
         GE --> _git_config_identity
         GE --> _identity_args
+        GE --> get_git_access_token
+        GE --> _token_args
+        GE --> _mask_token_args
+        GE --> get_git_token_info
+        GE --> _auth_error_hint
         GE --> get_repo_branches
         GE --> get_repo_changes
         GE --> get_pr_review_details
@@ -190,8 +227,12 @@ class GitEngine:
         Returns:
             Dict with 'name' and 'email' (empty strings when not configured).
         """
-        name = self._run_git(["config", "--get", "user.name"], apply_identity=False)
-        email = self._run_git(["config", "--get", "user.email"], apply_identity=False)
+        name = self._run_git(
+            ["config", "--get", "user.name"], apply_identity=False, apply_token=False
+        )
+        email = self._run_git(
+            ["config", "--get", "user.email"], apply_identity=False, apply_token=False
+        )
         return {
             "name": name["output"] if name["ok"] else "",
             "email": email["output"] if email["ok"] else "",
@@ -259,12 +300,144 @@ class GitEngine:
             args += ["-c", f"user.email={identity['email']}"]
         return args
 
+    # -------------------------------------------------------------------------
+    # Git access token (PAT, managed in the project settings)
+    # -------------------------------------------------------------------------
+
+    def get_git_access_token(self) -> str:
+        """
+        Return the project git access token (PAT) used to authenticate remotes.
+
+        The value comes from the project settings (`git_access_token`), the
+        global git settings or the environment, and may reference an environment
+        variable (`${GITHUB_TOKEN}`), so the secret can live outside the project
+        file. An unresolved reference (unset variable) is ignored instead of
+        being sent to the remote.
+
+        Returns:
+            Token string, empty when no usable token is configured.
+
+        Example:
+            >>> engine.get_git_access_token()
+            'ghp_1234567890abcdef'
+        """
+        getter = getattr(self.settings, "get_git_access_token", None)
+        if callable(getter):
+            return str(getter() or "").strip()
+
+        # Settings object without the helper (older project files)
+        raw = str(getattr(self.settings, "git_access_token", "") or "").strip()
+        if not raw:
+            return ""
+        expanded = os.path.expandvars(raw).strip()
+        if expanded.startswith("${") and expanded.endswith("}"):
+            return ""
+        return expanded
+
+    def _token_args(self) -> List[str]:
+        """
+        Return the `-c` override that authenticates a command with the token.
+
+        The PAT is sent as an HTTP Basic credential
+        (`x-access-token:<token>`) for the current command only: nothing is
+        written to the repository config, to the global git config or to a
+        credential store, so the token never persists on disk. The HTTP header
+        is only used by the HTTP transport, which makes it a no-op for SSH and
+        local remotes.
+
+        Returns:
+            Git argument list, empty when no token is configured.
+
+        Example:
+            >>> engine._token_args()
+            ['-c', 'http.extraheader=Authorization: Basic eC1hY2Nlc3MtdG9rZW46Z2hw']
+        """
+        token = self.get_git_access_token()
+        if not token:
+            return []
+
+        credentials = f"{DEFAULT_TOKEN_USERNAME}:{token}".encode("utf-8")
+        encoded = base64.b64encode(credentials).decode("ascii")
+        return ["-c", f"{TOKEN_ARG_PREFIX}Authorization: Basic {encoded}"]
+
+    def _mask_token_args(self, command_str: str, token_args: List[str]) -> str:
+        """
+        Replace the credentials of a git command string with a mask.
+
+        Commands are logged and returned in the 'command' result field, so the
+        base64 credential must never be shown as is.
+
+        Args:
+            command_str: Full command string.
+            token_args: Arguments returned by ``_token_args``.
+
+        Returns:
+            Command string where `http.extraheader=Authorization: Basic ...`
+            is replaced by `http.extraheader=********`.
+
+        Example:
+            >>> engine._mask_token_args(
+            ...     "git -c http.extraheader=Authorization: Basic abc push",
+            ...     ["-c", "http.extraheader=Authorization: Basic abc"])
+            'git -c http.extraheader=******** push'
+        """
+        masked = command_str
+        for arg in token_args:
+            masked = masked.replace(arg, f"{TOKEN_ARG_PREFIX}{TOKEN_VALUE_MASK}")
+        return masked
+
+    def get_git_token_info(self) -> dict:
+        """
+        Return whether remote operations are authenticated with a token.
+
+        The token itself is never returned (it is a secret): the UI only learns
+        whether one is configured.
+
+        Returns:
+            Dict with 'configured' and 'source' ('project' or '').
+
+        Example:
+            >>> engine.get_git_token_info()
+            {'configured': True, 'source': 'project'}
+        """
+        configured = bool(self.get_git_access_token())
+        return {"configured": configured, "source": "project" if configured else ""}
+
+    def _auth_error_hint(self, error_text: str) -> str:
+        """
+        Return an actionable hint when git failed because of missing credentials.
+
+        A headless API cannot answer the interactive username prompt, so a push
+        to a private HTTPS remote fails with
+        ``fatal: could not read Username for 'https://host': No such device``.
+        Returning the raw message leaves the user without a way forward, so the
+        hint explains how to configure the project access token.
+
+        Args:
+            error_text: Stderr of the failed git command.
+
+        Returns:
+            Hint message, or an empty string when the failure is not about
+            authentication.
+
+        Example:
+            >>> engine._auth_error_hint("fatal: could not read Username for ...")
+            'The remote rejected the git credentials. Configure a project ...'
+        """
+        text = (error_text or "").lower()
+        if not text:
+            return ""
+        if any(pattern in text for pattern in AUTH_ERROR_PATTERNS):
+            return AUTH_ERROR_HINT
+        return ""
+
     def _run_git(
         self,
         args: List[str],
         cwd: Optional[str] = None,
         strip_output: bool = True,
         apply_identity: bool = True,
+        apply_token: bool = True,
     ) -> dict:
         """
         Run a git command without a shell and return a structured result.
@@ -275,7 +448,10 @@ class GitEngine:
 
         The project git identity (see ``get_git_identity``) is passed as
         ``-c user.name`` / ``-c user.email``, so every commit, merge or rebase
-        performed by the engine is signed with the project author.
+        performed by the engine is signed with the project author. The project
+        access token (see ``get_git_access_token``) is passed as an HTTP Basic
+        header, so push/pull/fetch work on private remotes without storing any
+        credential.
 
         Args:
             args: Git arguments, e.g. ``["checkout", "-b", "feature/x"]``.
@@ -285,14 +461,18 @@ class GitEngine:
                 as ``git status --porcelain``.
             apply_identity: Inject the git identity overrides (disable it while
                 resolving the identity itself).
+            apply_token: Authenticate the command with the project token (the
+                credential is masked in the returned 'command' and in the logs).
 
         Returns:
             Dict with 'ok', 'command', 'output', 'error' and 'returncode'.
         """
         cwd = cwd or self._get_repo_root()
         identity_args = self._identity_args() if apply_identity else []
-        command = ["git"] + identity_args + list(args)
-        command_str = " ".join(command)
+        token_args = self._token_args() if apply_token else []
+        command = ["git"] + identity_args + token_args + list(args)
+        # The token is a secret: it must never reach the logs
+        command_str = self._mask_token_args(" ".join(command), token_args)
         logger.info("git command: %s (cwd=%s)", command_str, cwd)
         try:
             completed = subprocess.run(
@@ -446,7 +626,10 @@ class GitEngine:
         Convert a ``_run_git`` result into an operation result dict.
 
         Failures caused by a stale index lock are flagged with 'locked' and
-        'lock_path' so the caller can offer to release the lock.
+        'lock_path' so the caller can offer to release the lock. Failures caused
+        by rejected credentials are flagged with 'auth_error' and get an
+        actionable hint appended, so the UI never shows a bare
+        ``could not read Username``.
 
         Args:
             command_result: Dict returned by ``_run_git``.
@@ -466,6 +649,10 @@ class GitEngine:
         }
         if not ok:
             result.update(self._lock_error_info(error))
+            auth_hint = self._auth_error_hint(error)
+            if auth_hint:
+                result["auth_error"] = True
+                result["errors"].append(auth_hint)
         return result
 
     def _git_operation_error(self, message: str, **extra) -> dict:
@@ -2315,7 +2502,8 @@ class GitEngine:
             Dict with repo path, project path, active/default branch, remote
             url, ahead/behind counters, working tree state (including the
             staged and unstaged file lists), lock state, worktrees, the git
-            identity commits are signed with and the last commit.
+            identity commits are signed with, the token state (never the token
+            itself) and the last commit.
 
         Example:
             >>> engine.get_repo_info()["active_branch"]
@@ -2349,6 +2537,7 @@ class GitEngine:
             "lock_path": lock["path"],
             "worktrees": self.list_worktrees(),
             "git_identity": identity,
+            "git_token": self.get_git_token_info(),
             "last_commit": commits[0] if commits else None,
         }
 
@@ -2381,6 +2570,9 @@ class GitEngine:
         """
         Fetch refs (and prune deleted ones) from a remote.
 
+        The project access token (when configured) authenticates the request, so
+        private HTTPS remotes work without a credential helper.
+
         Args:
             remote: Remote name.
             prune: Remove remote-tracking refs that no longer exist.
@@ -2401,6 +2593,8 @@ class GitEngine:
     ) -> dict:
         """
         Pull the current (or given) branch from a remote.
+
+        The project access token (when configured) authenticates the request.
 
         Args:
             remote: Remote name.
@@ -2436,13 +2630,19 @@ class GitEngine:
         """
         Push the current (or given) branch to a remote.
 
+        The project access token (when configured) authenticates the request.
+        Without it a headless API cannot answer git's interactive username
+        prompt, so the failure is reported with an actionable hint instead of a
+        bare ``could not read Username``.
+
         Args:
             remote: Remote name.
             branch: Branch to push. Defaults to the checked out branch.
             set_upstream: Set the upstream tracking reference (``-u``).
 
         Returns:
-            Operation result dict.
+            Operation result dict ('auth_error' is set when the remote rejected
+            the credentials).
 
         Example:
             >>> engine.push_remote()

@@ -540,6 +540,16 @@
           "path": "/src/components/repo/GitView.vue",
           "slug": "gitview.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/gitview.md"
+        },
+        {
+          "path": "/codx/junior/sio/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/sio/sio.py",
+          "slug": "sio.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/sio.md"
         }
       ],
       "id": "project-overview",

@@ -13,6 +13,10 @@ import {
  * to the client telemetry ring buffer (`./telemetry`) — that is what
  * API monitoring → "Socket events" renders. Only the event name, the payload
  * size and the timings are kept; payloads are never copied.
+ *
+ * Long-running operations (file read / diff) are **not** routed through the
+ * socket: they use their HTTP endpoints, which always answer the caller
+ * directly instead of broadcasting a result to be matched by request id.
  */
 export class SocketManager {
   constructor({ onEvent, onConnect, onDisconnect } = {}) {

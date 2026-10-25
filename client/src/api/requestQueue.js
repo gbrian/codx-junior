@@ -49,7 +49,7 @@ export const DEFAULT_CONCURRENCY = 1
  * the app are not stuck behind them. `750 ms` of silence is enough for a few
  * small requests to complete on a keep-alive connection.
  */
-export const DEFAULT_GAP_MS = 750
+export const DEFAULT_GAP_MS = 50
 
 /**
  * Names of the queues used by the API modules.

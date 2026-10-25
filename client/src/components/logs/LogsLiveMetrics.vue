@@ -2,11 +2,11 @@
 </script>
 
 <template>
-  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+  <div class="flex gap-3 overflow-x-auto pb-1">
     <div
       v-for="kpi in kpis"
       :key="kpi.label"
-      class="card bg-base-100 shadow hover:shadow-md transition-shadow"
+      class="card bg-base-100 shadow hover:shadow-md transition-shadow flex-1 min-w-36"
     >
       <div class="card-body p-3">
         <div class="flex items-start justify-between">
