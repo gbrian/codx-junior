@@ -1,0 +1,245 @@
+{
+  "id": "48c7c343-8bde-4215-b458-7cb20bb2b4b3",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "doing",
+  "status_history": [
+    {
+      "doc_id": "3a2151e8-1888-4e24-bb9e-e04736f7875f",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-10-27T16:46:54.149809",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/__init__.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/db.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/teams/team_manager.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/profiles/profile_manager.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Project manager tools",
+  "pinned": false,
+  "is_template": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "4d37000b-c341-45cb-88d4-41de0ee24d76",
+      "role": "user",
+      "task_item": "",
+      "content": "Create project manager tools.\nThey will allow profiles to:\n - Create new chats (associated to kanban board and sprint)\n - Review task status (read chat) \n - Change chat status (sprint)\n - Request changes in a task: Add a Comment and trigger chat with project (ChatEngine) so chat is processed\n - Request user help (comment without triggering ChatEngine)",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-27 16:46:55.378202",
+      "updated_at": "2026-10-27T16:46:55.378265",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/__init__.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat/chat_engine.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/db.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/teams/team_manager.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/profiles/profile_manager.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "9ccb0f34-f000-4467-893c-0fb030cc193d",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll analyze the task and gather the necessary context before proposing changes.\n\n## 1. Review & Understand the Task\n\nObjective: add a **project manager** toolset (new tool module + registration) that lets profiles:\n\n- Create a **new chat/card** located in a kanban **board + column** and associated to a **sprint**.\n- **Review/read** a task (load chat + status, messages).\n- **Change task status** (including sprint membership).\n- **Request changes on a task**: add a comment message and trigger `ChatEngine.chat_with_project` background processing.\n- **Request user help**: add a comment without triggering the engine.\n\nLet me gather the existing tool conventions and chat/sprint model details.Let me look at the current session/engine wiring and the kanban/sprint model to design the tool correctly.Let me inspect the organizer, kanban/sprint handling, and tool model conventions in the current codebase.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-27 16:46:55.694149",
+      "updated_at": "2026-10-27T16:47:15.282556",
+      "attachments": [],
+      "files": [],
+      "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+      "meta_data": {
+        "start_time": 1793119615.694048,
+        "cancellation_token_id": "cd54cdbc-f1ad-49a8-b07f-bc8ea20d1258",
+        "model": "deepseek-flash"
+      },
+      "tool_events": [
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_er8Lobizwz6t0mcKNfJn6728",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/tools/create_task_tool.py",
+              "codx/junior/tools/process_task_tool.py",
+              "codx/junior/tools/team_tools.py",
+              "codx/junior/tools/profile_tools.py"
+            ]
+          },
+          "response": "```py codx/junior/tools/create_task_tool.py\n\"\"\"\nCreate task tool for creating new task chats.\n\nThis tool allows LLM models or API clients to create new task chats\nwith optional content and metadata.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nimport uuid\nfrom typing import TYPE_CHECKING, Optional, List\n\nfrom .model import ToolResponse\n\nif TYPE_CHECKING:\n    from codx.junior.settings import CODXJuniorSettings\n\nlogger = logging.getLogger(__name__)\n\n\n# Tool JSON definition to be imported in __init__.py\nCREATE_TASK_TOOL_JSON = {\n    \"type\": \"function\",\n    \"function\": {\n        \"name\": \"create_task\",\n        \"description\": \"Create a new task (chat) with optional content and metadata. Returns the task ID.\",\n        \"parameters\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\n                    \"type\": \"string\",\n                    \"description\": \"Task name/title (required)\"\n                },\n                \"content\": {\n                    \"type\": \"string\",\n                    \"description\": \"Task description and instructions\"\n                },\n                \"description\": {\n                    \"type\": \"string\",\n                    \"description\": \"Extended task description\"\n                },\n                \"files\": {\n                    \"type\": \"array\",\n                    \"items\": {\"type\": \"string\"},\n                    \"description\": \"List of file paths related to this task\"\n                },\n                \"profiles\": {\n                    \"type\": \"array\",\n                    \"items\": {\"type\": \"string\"},\n                    \"description\": \"List of profiles/roles associated with this task\"\n                },\n                \"tags\": {\n                    \"type\": \"array\",\n                    \"items\": {\"type\": \"string\"},\n                    \"description\": \"Tags for categorizing the task\"\n                },\n                \"board\": {\n                    \"type\": \"string\",\n                    \"description\": \"Kanban board ID\"\n                },\n                \"column\": {\n                    \"type\": \"string\",\n                    \"description\": \"Kanban column ID\"\n                }\n            },\n            \"required\": [\"name\"]\n        }\n    }\n}\n\n\ndef create_task(\n    name: str,\n    content: str = \"\",\n    description: str = \"\",\n    files: Optional[List[str]] = None,\n    profiles: Optional[List[str]] = None,\n    tags: Optional[List[str]] = None,\n    board: str = \"\",\n    column: str = \"\",\n    settings: Optional[\"CODXJuniorSettings\"] = None,\n) -> ToolResponse:\n    \"\"\"\n    Create a new task (chat) with metadata.\n\n    This tool creates a new task chat without processing it. The task is saved\n    to the database and can be processed later using process_task tool.\n    \n    The parent_id is automatically set by the tools engine based on the current\n    chat context (if exists).\n\n    Args:\n        name: Task name/title (required)\n        content: Task description and instructions\n        description: Extended task description\n        files: List of file paths related to this task\n        profiles: List of profiles/roles for this task\n        tags: Tags for categorizing the task\n        board: Kanban board ID\n        column: Kanban column ID\n        settings: CODXJuniorSettings instance (injected by SmolAgent)\n\n    Returns:\n        ToolResponse with:\n            - user_response: Human-readable task creation confirmation\n            - llm_response: JSON with task_id and metadata\n\n    Raises:\n        ValueError: If required parameters are missing\n        RuntimeError: If task creation fails\n\n    Made with \u2764\ufe0f by codx-junior\n    \"\"\"\n    if not settings:\n        error_msg = \"create_task requires settings parameter\"\n        logger.error(error_msg)\n        raise ValueError(error_msg)\n\n    if not name or not name.strip():\n        error_msg = \"create_task requires 'name' parameter\"\n        logger.error(error_msg)\n        raise ValueError(error_msg)\n\n    try:\n        from codx.junior.db import Chat, Messa",
+          "output": "Read 4 file(s) | Successfully read: codx/junior/tools/create_task_tool.py, codx/junior/tools/process_task_tool.py, codx/junior/tools/team_tools.py, codx/junior/tools/profile_tools.py",
+          "duration_ms": 102.54230070859194,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_vYpZe8ulKXiRpOTSstwd7909",
+          "status": "done",
+          "request": {
+            "search": [
+              "sprints board kanban",
+              "run_chat background chat_with_project",
+              "ChatEngine chat_with_project call from api",
+              "kanban.json boards columns sprint"
+            ]
+          },
+          "response": "> codx-api results for: 'sprints board kanban, run_chat background chat_with_project, ChatEngine chat_with_project call from api, kanban.json boards columns sprint'\n```py codx/junior/chat_manager.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\n\"\"\"\nChat + AI\nThis module is responsible for the AI chat interaction\n\"\"\"\nimport logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport shutil\nimport yaml\n\nfrom slugify import slugify\nfrom collections import deque, defaultdict\n\nfrom typing import Dict, Any, List\n\nfrom datetime import datetime, timezone, timedelta\nfrom codx.junior.settings import CODXJuniorSettings\n\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.utils.utils import write_file\n\nfrom codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.chat.chat_export import ChatExport, ExportedDocument\n\nfrom codx.junior.events.event_manager import EventManager\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\nclass ChatManager:\n    def __init__(self, settings: CODXJuniorSettings, event_manager=None):\n        self.settings = settings\n        self.chat_path = f\"{settings.codx_path}/tasks\"\n        self.event_manager = event_manager if event_manager else EventManager(codx_path=settings.codx_path)\n        os.makedirs(self.chat_path, exist_ok=True)\n        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\n    def get_chat_file(self, chat: Chat):\n        chat_file = f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.json\"\n        return chat_file\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\ndef find_by_id(self, chat_id):\n        if chat_id:\n            file_path = next((path for path in self.chat_paths() if chat_id in path), None)\n            if file_path:\n                return self.load_chat_from_path(chat_file=file_path)\n            else:\n                logger.error(\"[chat_id] not found: %s\\n%s\", chat_id, self.chat_paths())\n        return None\n\n    def load_kanban_from_file(self, kanban_file: str):\n        kanban = {\n          \"version\": 0.1,\n          \"boards\": {},\n          \"tags\": {}\n        }\n        if os.path.isfile(kanban_file):\n            with open(kanban_file, 'r') as f:\n                kanban = json.loads(f.read())\n            version = kanban.get(\"version\", None)\n            if not version:\n                kanban = {\n                    \"version\": 0.1,\n                    \"boards\": kanban,\n                    \"tags\": {}\n                }\n        logger.info(\"Loading %s kanban\", self.settings.project_name)\n        return kanban\n\n    @profile_function\n    def load_kanban(self):\n        kanban_file = f\"{self.chat_path}/kanban.json\"\n        logger.info(f\"load_kanban {kanban_file}\")\n        # all_chats = self.list_chats()\n        return self.load_kanban_from_file(kanban_file=kanban_file)\n\n    def save_kanban(self, kanban):\n        kanban_file = f\"{self.chat_path}/kanban.json\"\n        with open(kanban_file, 'w') as f:\n            f.write(json.dumps(kanban))\n\n\n    def find_chats(self, last_update: datetime = None):\n        \"\"\"\n        Return chats based on filters.\n        \n        :param last_update: Return chats updated since this date.\n        :return: List of Chat objects.\n        \"\"\"\n        filtered_chats = []\n        \n        # Iterate through all chat file paths with optional last_update filter\n        for file_path in self.chat_paths(last_update=last_update):\n            chat = self.load_chat_from_path(chat_file=file_path)\n            if chat:\n                filtered_chats.append(chat)\n        \n        return filtered_chats\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\ndef save_chat(self, chat: Chat, chat_only=False):\n        if not chat.board:\n            chat.board = \"kanban\"\n        if not chat.column:\n            chat.column = \"tasks\"\n        if not chat.id:\n            chat.id = str(uuid.uuid4())\n        if not c",
+          "output": "Search completed: 4 queries executed, 40 documents found, 0 files matched",
+          "duration_ms": 3350.23857280612,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_DO1CAdqaOAnPlQ8DRXs08705",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/engine/session.py",
+              "codx/junior/engine/chat_engine_actions.py"
+            ]
+          },
+          "response": "```py codx/junior/engine/session.py\n\"\"\"\nMain session module for codx-junior engine.\nCODXJuniorSession orchestrates all sub-engine modules.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nimport os\nimport shutil\nfrom contextlib import contextmanager\nfrom datetime import datetime\nfrom typing import Optional, List\n\nimport requests\n\nfrom codx.junior.ai import AI\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.context import (\n    AI_CODE_GENERATOR_PARSER,\n    AICodeGenerator\n)\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords\nfrom codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.model.model import CodxUser, KnowledgeSearch, Profile\nfrom codx.junior.profiles.profile_manager import ProfileManager\nfrom codx.junior.profiling.profiler import profile_function\nfrom codx.junior.project.project_discover import (\n    find_project_by_id,\n    find_project_by_name,\n)\nfrom codx.junior.settings import CODXJuniorSettings\nfrom codx.junior.sio.session_channel import SessionChannel\nfrom codx.junior.utils.chat_utils import ChatUtils\nfrom codx.junior.utils.utils import extract_json_blocks\nfrom codx.junior.whisper.audio_manager import AudioManager\nfrom codx.junior.tutorial_manager import TutorialManager\n# ADDED: project-scoped workspace manager\nfrom codx.junior.workspaces.workspace_manager import WorkspaceManager\nfrom codx.junior.workspaces.model import Workspace\n\nfrom codx.junior.engine.knowledge_engine import KnowledgeEngine\nfrom codx.junior.engine.code_engine import CodeEngine\nfrom codx.junior.engine.git_engine import GitEngine\nfrom codx.junior.engine.file_engine import FileEngine\nfrom codx.junior.engine.chat_engine_actions import ChatEngineActions\nfrom codx.junior.engine.wiki_engine import WikiEngine\n\nlogger = logging.getLogger(__name__)\n\nclass CODXJuniorSession:\n    \"\"\"\n    Main session class that orchestrates all sub-engine modules.\n\n    Diagram:\n    ```mermaid\n    classDiagram\n        CODXJuniorSession --> KnowledgeEngine\n        CODXJuniorSession --> CodeEngine\n        CODXJuniorSession --> GitEngine\n        CODXJuniorSession --> FileEngine\n        CODXJuniorSession --> ChatEngineActions\n        CODXJuniorSession --> WikiEngine\n    ```\n    \"\"\"\n\n    def __init__(\n        self,\n        settings: CODXJuniorSettings = None,\n        codx_path: str = None,\n        channel: SessionChannel = None,\n        user: CodxUser = None,\n    ):\n        self.settings = settings or CODXJuniorSettings.from_project_file(\n            f\"{codx_path}/project.json\"\n        )\n        self.channel = channel\n        self.user = user\n        self.event_manager = EventManager(\n            codx_path=codx_path,\n            channel=channel,\n        )\n        self.audio_manager = AudioManager()\n\n        # Initialize sub-engines\n        self._knowledge_engine = KnowledgeEngine(session=self)\n        self._code_engine = CodeEngine(session=self)\n        self._git_engine = GitEngine(session=self)\n        self._file_engine = FileEngine(session=self)\n        self._chat_engine_actions = ChatEngineActions(session=self)\n        self._wiki_engine = WikiEngine(session=self)\n\n    # -------------------------------------------------------------------------\n    # Core session methods\n    # -------------------------------------------------------------------------\n\n    def update_last_access_time(self) -> None:\n        \"\"\"Update the last access time to now.\"\"\"\n        self.settings.last_access_time = str(datetime.now())\n\n    def switch_project(self, project_id: str) -> \"CODXJuniorSession\":\n        \"\"\"Switch to a different project by ID.\"\"\"\n        if not project_id or project_id == self.settings.project_id:\n            return self\n        settings = find_project_by_id(project_id=project_id)\n        return (\n            CODXJuniorSession(settings=settings, channel=self.channe",
+          "output": "Read 2 file(s) | Successfully read: codx/junior/engine/session.py, codx/junior/engine/chat_engine_actions.py",
+          "duration_ms": 80.73795586824417,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_MQB8CBdjwFKW79eod96e1294",
+          "status": "done",
+          "request": {
+            "search": [
+              "sprint board kanban.json type sprint",
+              "kanban boards columns structure json",
+              "Chat.sprints sprint membership",
+              "chat_with_project session engine"
+            ]
+          },
+          "response": "> codx-api results for: 'sprint board kanban.json type sprint, kanban boards columns structure json, Chat.sprints sprint membership, chat_with_project session engine'\n```py codx/junior/chat_manager.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\ndef save_chat(self, chat: Chat, chat_only=False):\n        if not chat.board:\n            chat.board = \"kanban\"\n        if not chat.column:\n            chat.column = \"tasks\"\n        if not chat.id:\n            chat.id = str(uuid.uuid4())\n        if not chat.created_at:\n            chat.created_at = chat.updated_at\n\n        chat.updated_at = datetime.now().isoformat()\n\n        current_chat = self.find_by_id(chat_id=chat.id)\n        if chat_only and current_chat:\n            chat.messages = current_chat.messages\n        users = []\n        profiles = []\n        for msg in chat.messages:\n            if not msg.doc_id:\n                msg.doc_id = str(uuid.uuid4())\n            if msg.user:\n                users.append(msg.user)\n            profiles = profiles + msg.profiles\n        chat.users = list(set(users))\n        chat.profiles = list(set(profiles))\n        chat.file_path = self.get_chat_file(chat)\n\n        self.store_chat(chat=chat)\n\n        # remove old chat\n        # old yaml\n        if os.path.isfile(chat.file_path.replace(\".json\", \".yaml\")):\n            logger.info(\"Remove old yaml chat: %s\", chat.file_path)\n            os.remove(chat.file_path.replace(\".json\", \".yaml\"))\n        # old path\n        if current_chat:\n            logger.info(f\"Save chat, current_chat {current_chat.id} at {current_chat.file_path}\")\n            if chat.file_path != current_chat.file_path:\n                self.delete_chat(current_chat.file_path)\n        \n        self.event_manager.chat_event(chat=chat, event_type=\"changed\")\n        \n        return chat\n\n    def store_chat(self, chat):\n        logger.info(\"Save chat: %s\", chat.file_path)\n        os.makedirs(os.path.dirname(chat.file_path), exist_ok=True)\n        with open(chat.file_path, 'w') as f:\n            f.write(json.dumps(chat.model_dump(), indent=2))\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\n\"\"\"\nChat + AI\nThis module is responsible for the AI chat interaction\n\"\"\"\nimport logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport shutil\nimport yaml\n\nfrom slugify import slugify\nfrom collections import deque, defaultdict\n\nfrom typing import Dict, Any, List\n\nfrom datetime import datetime, timezone, timedelta\nfrom codx.junior.settings import CODXJuniorSettings\n\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.utils.utils import write_file\n\nfrom codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.chat.chat_export import ChatExport, ExportedDocument\n\nfrom codx.junior.events.event_manager import EventManager\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\nclass ChatManager:\n    def __init__(self, settings: CODXJuniorSettings, event_manager=None):\n        self.settings = settings\n        self.chat_path = f\"{settings.codx_path}/tasks\"\n        self.event_manager = event_manager if event_manager else EventManager(codx_path=settings.codx_path)\n        os.makedirs(self.chat_path, exist_ok=True)\n        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\n    def get_chat_file(self, chat: Chat):\n        chat_file = f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.json\"\n        return chat_file\n/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py\ndef find_by_id(self, chat_id):\n        if chat_id:\n            file_path = next((path for path in self.chat_paths() if chat_id in path), None)\n            if file_path:\n                return self.load_chat_from_path(chat_file=file_path)\n            else:\n                logger.error(\"[chat_id] not found: %s\\n%s\", chat_id, self.chat_paths())\n        return None\n\n    def load_kanban_from_file(self, kanban_file: str):\n   ",
+          "output": "Search completed: 4 queries executed, 40 documents found, 0 files matched",
+          "duration_ms": 3414.6237215027213,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_Q9FEteLGLrLIg6xlfKZj0331",
+          "status": "running",
+          "request": {
+            "search": [
+              "sprints",
+              "sprint board type",
+              "organizer ChatOrganizer organize",
+              "codx/junior/model/team.py Team tool_properties",
+              "codx/junior/tools/model.py ToolResponse ToolSettings"
+            ]
+          },
+          "response": null,
+          "output": null,
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "running",
+          "run_id": "a60d3a97a3cb",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "biblio",
+        "git",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": false,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-27 16:46:54.070897",
+  "updated_at": "2026-10-27T16:47:15.283483",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/To Do/project-manager-tools.48c7c343-8bde-4215-b458-7cb20bb2b4b3.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

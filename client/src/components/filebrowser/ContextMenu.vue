@@ -54,6 +54,39 @@
       <span>Rename</span>
     </button>
 
+    <!-- Move to another folder (single or multiple selection) -->
+    <button
+      v-if="hasSelection"
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleMove"
+      title="Move selected items to another folder"
+    >
+      <i class="fa-solid fa-folder-tree w-4"></i>
+      <span>Move to… {{ isMultiSelect ? `(${selectionCount})` : '' }}</span>
+    </button>
+
+    <div class="divider my-1"></div>
+
+    <!-- Copy the absolute path (selection, or the current folder on blank area) -->
+    <button
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleCopyPath"
+      title="Copy the absolute path to the clipboard"
+    >
+      <i class="fa-regular fa-copy w-4"></i>
+      <span>Copy path{{ isMultiSelect ? ` (${selectionCount})` : '' }}</span>
+    </button>
+
+    <!-- Copy the project relative path, prefixed with the project name -->
+    <button
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleCopyRelativePath"
+      title="Copy the path relative to the project root (prefixed with the project name)"
+    >
+      <i class="fa-solid fa-link w-4"></i>
+      <span>Copy relative path{{ isMultiSelect ? ` (${selectionCount})` : '' }}</span>
+    </button>
+
     <!-- Delete -->
     <button
       v-if="hasSelection"
@@ -101,6 +134,15 @@ export default {
     },
     handleRename() {
       this.$emit('rename')
+    },
+    handleMove() {
+      this.$emit('move')
+    },
+    handleCopyPath() {
+      this.$emit('copy-path')
+    },
+    handleCopyRelativePath() {
+      this.$emit('copy-relative-path')
     },
     handleDelete() {
       this.$emit('delete')

@@ -40,7 +40,9 @@ import { isMultiInstance } from '@/config/apps'
     </div>
 
     <!-- Pinned projects quick switcher (icons only while the rail is collapsed) -->
-    <PinnedProjectsSwitcher :is-collapsed="isCollapsed" />
+    <PinnedProjectsSwitcher 
+      @select="onProjectSelected"
+      :is-collapsed="isCollapsed" />
 
     <button
       v-if="!isCollapsed"
@@ -181,14 +183,7 @@ export default {
         return
       }
 
-      try {
-        await this.$storex.projects.activeProjectChanged(project)
-      } catch (ex) {
-        console.error('Error switching project', ex)
-        this.$ui.addNotification({ text: `Error switching project: ${ex.message}`, type: 'error' })
-      } finally {
-        this.$emit('close')
-      }
+      window.location.href = `${window.location.origin}/${project.project_name}`
     },
     // Single entry point for opening an app from this menu.
     // On desktop a multi-instance app (declared in config/apps.js) opens a NEW

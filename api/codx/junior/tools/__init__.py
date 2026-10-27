@@ -58,6 +58,13 @@ from .repository_tools import (
     repository_commit_message,
 )
 from .image_tools import explain_image, generate_image
+from .profile_tools import profile_management, PROFILE_MANAGEMENT_TOOL_JSON
+from .team_tools import (
+    team_management,
+    team_context,
+    TEAM_MANAGEMENT_TOOL_JSON,
+    TEAM_CONTEXT_TOOL_JSON,
+)
 from .tutorial_tools import (
     tutorial_definition,
     create_chapter,
@@ -130,6 +137,9 @@ __all__ = [
     "create_task",
     "process_task",
     "apply_file_changes",
+    "profile_management",
+    "team_management",
+    "team_context",
     "explain_image",
     "generate_image",
     "tutorial_definition",
@@ -416,7 +426,12 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
+        "settings": {
+            "async": True,
+            "is_async": True,
+            "project_settings": True,
+            "scope": "chat",
+        },
         "tags": ["content", "image", "analysis", "vision"],
         "tool_call": explain_image
     },
@@ -425,7 +440,12 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "generate_image",
-                "description": "Generate an image from a text prompt using DALL-E. Creates and stores the image in the project, returning the relative URL path.",
+                "description": (
+                    "Generate an image from a text prompt using the configured image model. "
+                    "The request is reviewed and adapted into an optimized prompt, then the "
+                    "image is created, downloaded and saved in the project. Returns the stored "
+                    "image URL/path together with the adapted prompt."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -446,7 +466,12 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(project_settings=True, scope="chat").dict(),
+        "settings": {
+            "async": True,
+            "is_async": True,
+            "project_settings": True,
+            "scope": "chat",
+        },
         "tags": ["content", "image", "generation", "creative"],
         "tool_call": generate_image
     },
@@ -464,6 +489,24 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, scope="chat").dict(),
         "tags": ["code", "generation", "writing"],
         "tool_call": code_writer
+    },
+    {
+        "tool_json": PROFILE_MANAGEMENT_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "crud", "administration", "prompt-engineering"],
+        "tool_call": profile_management
+    },
+    {
+        "tool_json": TEAM_MANAGEMENT_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["teams", "team-management", "crud", "administration", "orchestration"],
+        "tool_call": team_management
+    },
+    {
+        "tool_json": TEAM_CONTEXT_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["teams", "team-context", "composition", "orchestration"],
+        "tool_call": team_context
     },
     {
         "tool_json": {

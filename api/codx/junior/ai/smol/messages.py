@@ -3,14 +3,102 @@ Message handling utilities for SmolAgent.
 
 Converts LangChain messages to OpenAI format, manages tool call accumulation,
 and constructs tool/assistant messages for the iterative tool loop.
+
+Thought Signatures
+Providers may attach opaque metadata to a tool call that MUST be echoed back
+verbatim on the following request. Google's Gemini thinking models (e.g.
+``gemini-3-pro``) return an encrypted ``thought_signature`` inside
+``extra_content`` and reject the continuation with
+``400 INVALID_ARGUMENT ... Function call is missing a thought_signature`` when
+it is dropped. This module captures such fields while streaming
+(:meth:`ToolCallAccumulator.add`) and re-attaches them to the assistant
+tool-call message (:func:`make_assistant_tool_calls_message`).
 """
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from langchain.messages import AIMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
+
+# Provider-specific tool-call fields that must be echoed back verbatim on the
+# next request. ``extra_content`` is the OpenAI-compatibility channel used by
+# Google's Gemini API to carry ``{"google": {"thought_signature": "<blob>"}}``.
+TOOL_CALL_EXTRA_CONTENT_KEYS: Tuple[str, ...] = ("extra_content",)
+
+# Sentinel accepted by the Gemini API in place of a real thought signature. It
+# disables signature validation for that function-call part, which is required
+# for parallel tool calls where Gemini sometimes returns the signature for the
+# first part(s) only and then rejects the rest with a 400 error.
+THOUGHT_SIGNATURE_SKIP_SENTINEL: str = "skip_thought_signature_validator"
+
+
+def _extract_extra_content(source: Any) -> Dict[str, Any]:
+    """
+    Return the provider-specific tool-call extras present on a streaming delta.
+
+    Reads the allow-listed keys (:data:`TOOL_CALL_EXTRA_CONTENT_KEYS`) from
+    either a plain dict (the result of ``model_dump()``) or the raw delta
+    object. Both are inspected because not every SDK/gateway version serialises
+    unknown ("extra") fields into ``model_dump()``.
+
+    Args:
+        source: A delta dict or the raw SDK delta object.
+
+    Returns:
+        Dict with the extra keys found (empty when none are present).
+    """
+    extras: Dict[str, Any] = {}
+
+    for key in TOOL_CALL_EXTRA_CONTENT_KEYS:
+        value = None
+        if isinstance(source, dict):
+            value = source.get(key)
+        if value is None:
+            value = getattr(source, key, None)
+        if value:
+            extras[key] = value
+
+    return extras
+
+
+def _merge_extra_content(target: Dict[str, Any], incoming: Dict[str, Any]) -> None:
+    """
+    Deep-merge provider extras into an accumulated tool-call entry.
+
+    ``extra_content`` may arrive complete on the first chunk or split across
+    several chunks, so nested mappings are merged instead of overwritten.
+
+    Args:
+        target:   Accumulated tool-call dict (mutated in place).
+        incoming: Extras collected from the current delta.
+    """
+    for key, value in incoming.items():
+        if isinstance(value, dict):
+            existing = target.get(key)
+            if not isinstance(existing, dict):
+                existing = {}
+                target[key] = existing
+            _merge_extra_content(existing, value)
+        elif value not in (None, ""):
+            target[key] = value
+
+
+def _skip_thought_signature_extra() -> Dict[str, Any]:
+    """
+    Build the placeholder ``extra_content`` used for parts without a signature.
+
+    Returns:
+        ``{"extra_content": {"google": {"thought_signature": "<sentinel>"}}}``.
+    """
+    return {
+        "extra_content": {
+            "google": {
+                "thought_signature": THOUGHT_SIGNATURE_SKIP_SENTINEL,
+            }
+        }
+    }
 
 
 def to_openai_message(message: Union[Dict[str, Any], HumanMessage, AIMessage]) -> Dict[str, Any]:
@@ -126,6 +214,10 @@ class ToolCallAccumulator:
     The accumulator uses ``index`` as the primary correlation key and maps it
     to the ``call_id`` seen on the first chunk, so argument fragments arriving
     on ``id=None`` chunks are correctly appended to the right tool call.
+
+    Provider extras such as Gemini's ``extra_content.google.thought_signature``
+    are captured alongside the call so they can be echoed back on the next
+    request (see :func:`make_assistant_tool_calls_message`).
     """
 
     def __init__(self) -> None:
@@ -145,6 +237,10 @@ class ToolCallAccumulator:
         All subsequent chunks carrying ``function.arguments`` fragments have
         ``id=None``. The ``index`` field is always present and stable, so we
         use it to map back to the original ``call_id``.
+
+        Provider-specific fields (``extra_content``, e.g. Gemini thought
+        signatures) are captured per tool call and preserved so the assistant
+        message can echo them back verbatim.
         """
         if not deltas:
             return
@@ -196,6 +292,22 @@ class ToolCallAccumulator:
                     )
                     continue
 
+            # Capture provider-specific tool-call metadata (e.g. Google's
+            # extra_content.google.thought_signature). Read from both the dumped
+            # dict and the raw delta object: not every SDK/gateway version
+            # serialises unknown fields into model_dump().
+            extra_content = _extract_extra_content(delta_dict)
+            if not extra_content:
+                extra_content = _extract_extra_content(delta)
+            if extra_content:
+                _merge_extra_content(self.tool_calls[call_id], extra_content)
+                logger.debug(
+                    "ToolCallAccumulator: captured extra_content for tool "
+                    "'%s' (keys=%s)",
+                    self.tool_calls[call_id].get("function") or "?",
+                    list(extra_content.keys()),
+                )
+
             if func_info:
                 if isinstance(func_info, dict):
                     if func_info.get("name"):
@@ -218,6 +330,9 @@ class ToolCallAccumulator:
         OpenAI requires the ``arguments`` field to be a valid JSON string.
         Tools called with no arguments stream an empty string, which OpenAI's
         strict parser rejects with ``Failed to parse JSON: ``.
+
+        Provider extras captured while streaming (e.g. ``extra_content``) are
+        preserved on the returned entries.
 
         Returns:
             Dict of tool calls with ``arguments`` guaranteed to be a valid
@@ -251,6 +366,15 @@ def make_assistant_tool_calls_message(
     normalises empty/blank arguments to ``"{}"`` as the last safety net
     before the message is appended to the conversation history.
 
+    Provider extras captured while streaming (``extra_content``) are echoed
+    back verbatim on each tool call. Gemini 3 thinking models REQUIRE the
+    ``thought_signature`` they returned inside ``extra_content`` to be sent
+    back in this message, otherwise the continuation fails with
+    ``400 INVALID_ARGUMENT ... Function call is missing a thought_signature``.
+    When the provider returned a signature for some parts but not for others
+    (observed with parallel calls), the missing parts get the documented
+    ``skip_thought_signature_validator`` sentinel so the turn is not rejected.
+
     Args:
         tool_calls: Dict of tool call info keyed by call_id.
         content:    Optional assistant reasoning/preamble.
@@ -273,20 +397,54 @@ def make_assistant_tool_calls_message(
             raw_args = "{}"
         normalised_calls.append((call_id, info, raw_args))
 
+    # Detect whether the provider used the extra_content channel for this round
+    # (Gemini thought signatures). Only then is it meaningful to fill the gaps
+    # of the parts that arrived without one.
+    provider_extras_seen = any(
+        info.get(key)
+        for _, info, _ in normalised_calls
+        for key in TOOL_CALL_EXTRA_CONTENT_KEYS
+    )
+
+    tool_calls_payload: List[Dict[str, Any]] = []
+    for call_id, info, raw_args in normalised_calls:
+        tool_call_payload: Dict[str, Any] = {
+            "id": call_id,
+            "type": "function",
+            "function": {
+                "name": info["function"],
+                "arguments": raw_args,
+            },
+        }
+
+        # Echo provider-specific fields verbatim (Gemini thought_signature).
+        for key in TOOL_CALL_EXTRA_CONTENT_KEYS:
+            extra_value = info.get(key)
+            if extra_value:
+                tool_call_payload[key] = extra_value
+
+        if provider_extras_seen and not any(
+            key in tool_call_payload for key in TOOL_CALL_EXTRA_CONTENT_KEYS
+        ):
+            # Gemini omits the signature for some parallel tool calls and then
+            # rejects the turn at that position. The documented sentinel keeps
+            # the request valid (validation is skipped for this part only).
+            tool_call_payload.update(_skip_thought_signature_extra())
+            logger.warning(
+                "make_assistant_tool_calls_message: tool '%s' (id=%s) has no "
+                "extra_content while sibling tool calls do — sending the '%s' "
+                "sentinel to avoid a 400 'missing thought_signature' error",
+                info["function"],
+                call_id,
+                THOUGHT_SIGNATURE_SKIP_SENTINEL,
+            )
+
+        tool_calls_payload.append(tool_call_payload)
+
     return {
         "role": "assistant",
         "content": content or None,
-        "tool_calls": [
-            {
-                "id": call_id,
-                "type": "function",
-                "function": {
-                    "name": info["function"],
-                    "arguments": raw_args,
-                },
-            }
-            for call_id, info, raw_args in normalised_calls
-        ],
+        "tool_calls": tool_calls_payload,
     }
 
 

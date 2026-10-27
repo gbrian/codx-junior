@@ -13,15 +13,24 @@ Security Features:
     - Audit logging for all operations
     - Rate limiting considerations
 
+Execution model:
+    - Every command runs with ``cwd`` set to the project directory
+      (``settings.abs_project_path``) so ``docker-compose`` resolves the
+      project's own compose file instead of the process working directory.
+    - The exit code is always inspected: a non-zero exit is reported as a
+      failure with the daemon's own output, never as a success.
+
 Tool Scope: "devops" (available to DevOps/admin roles only)
 
 Made with ❤️ by codx-junior
 """
 
 import logging
+import os
 import re
+import shlex
 import subprocess
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, NamedTuple
 from enum import Enum
 
 from codx.junior.settings import CODXJuniorSettings
@@ -46,6 +55,18 @@ COMMAND_EXECUTION_ALLOWED_CHARS = [
     r'^[a-zA-Z0-9_\-\.\s/=?&:@%#\[\]]+$'  # Allows URLs, query params, anchors
 ]
 
+# Compose file names checked, in order, inside the project directory.
+COMPOSE_FILE_NAMES = [
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "compose.yml",
+    "compose.yaml",
+]
+
+# Optional override so a host with only the compose v2 plugin can run
+# ``docker compose`` instead of the legacy ``docker-compose`` binary.
+COMPOSE_CMD_ENV = "CODX_JUNIOR_COMPOSE_CMD"
+
 ALLOWED_DOCKER_COMMANDS = {
     'ps': 'List running containers',
     'images': 'List available images',
@@ -57,6 +78,19 @@ ALLOWED_DOCKER_COMMANDS = {
 }
 
 
+class DockerCommandResult(NamedTuple):
+    """Outcome of a Docker subprocess execution."""
+
+    stdout: str
+    stderr: str
+    returncode: int
+
+    @property
+    def ok(self) -> bool:
+        """Return True when the command exited with status 0."""
+        return self.returncode == 0
+
+
 class DockerCommandType(str, Enum):
     """Enumeration of allowed Docker command types."""
     PS = "ps"
@@ -65,6 +99,7 @@ class DockerCommandType(str, Enum):
     STATS = "stats"
     INSPECT = "inspect"
     RUN = "run"
+    CREATE = "create"
     START = "start"
     STOP = "stop"
     RESTART = "restart"
@@ -72,6 +107,8 @@ class DockerCommandType(str, Enum):
     COMPOSE_START = "compose_start"
     COMPOSE_STOP = "compose_stop"
     COMPOSE_RESTART = "compose_restart"
+    COMPOSE_BUILD = "compose_build"
+    COMPOSE_UP = "compose_up"
 
 
 def _validate_input(value: str, field_name: str = "input", allow_patterns: Optional[List[str]] = None) -> bool:
@@ -112,25 +149,98 @@ def _validate_input(value: str, field_name: str = "input", allow_patterns: Optio
     return True
 
 
-def _safe_exec_docker(command: List[str], timeout: int = 30) -> Tuple[str, Optional[str]]:
+def _project_cwd(settings: Optional[CODXJuniorSettings]) -> Optional[str]:
+    """
+    Resolve the directory a Docker/Compose command must run from.
+
+    Compose resolves its configuration file from the current working directory,
+    so every command needs the project directory as ``cwd``. ``abs_project_path``
+    is preferred because it is always absolute.
+
+    Args:
+        settings: Project settings (may be ``None``).
+
+    Returns:
+        The project directory, or ``None`` when it cannot be resolved.
+    """
+    if not settings:
+        return None
+    for attr in ("abs_project_path", "project_path"):
+        value = getattr(settings, attr, None)
+        if value:
+            return value
+    return None
+
+
+def _find_compose_file(project_dir: Optional[str]) -> Optional[str]:
+    """Return the compose file path inside ``project_dir`` (or ``None``)."""
+    if not project_dir:
+        return None
+    for name in COMPOSE_FILE_NAMES:
+        candidate = os.path.join(project_dir, name)
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def _compose_context(
+    settings: Optional[CODXJuniorSettings], tool_name: str
+) -> "tuple[Optional[str], Optional[str], Optional[str]]":
+    """
+    Resolve the project directory and compose file for a compose command.
+
+    Args:
+        settings: Project settings.
+        tool_name: Calling tool name (used in error messages).
+
+    Returns:
+        Tuple ``(project_dir, compose_file, error)``. ``error`` is ``None`` on
+        success, otherwise a human-readable message explaining the failure.
+    """
+    project_dir = _project_cwd(settings)
+    if not project_dir or not os.path.isdir(project_dir):
+        return project_dir, None, (
+            f"{tool_name}: no valid project directory (got {project_dir!r}). "
+            "The Docker command must run from the project root."
+        )
+    compose_file = _find_compose_file(project_dir)
+    if not compose_file:
+        return project_dir, None, (
+            f"{tool_name}: no compose file found in {project_dir}. "
+            f"Expected one of: {', '.join(COMPOSE_FILE_NAMES)}."
+        )
+    return project_dir, compose_file, None
+
+
+def _compose_base() -> List[str]:
+    """Return the base command for compose invocations."""
+    override = os.environ.get(COMPOSE_CMD_ENV)
+    if override:
+        return shlex.split(override)
+    return ["docker-compose"]
+
+
+def _safe_exec_docker(command: List[str], timeout: int = 30, cwd: Optional[str] = None) -> DockerCommandResult:
     """
     Safely execute a Docker command using subprocess.
 
     Args:
         command: List of command arguments (no shell interpretation).
         timeout: Command timeout in seconds (default: 30).
+        cwd: Working directory for the command. Compose needs the project root.
 
     Returns:
-        Tuple[str, Optional[str]]: (stdout, stderr_or_none)
+        DockerCommandResult: Captured stdout, stderr and exit code. Inspect
+        ``result.ok`` (returncode == 0) to distinguish success from failure.
 
     Raises:
-        subprocess.TimeoutExpired: If command exceeds timeout.
-        subprocess.CalledProcessError: If command returns non-zero exit code.
+        RuntimeError: If the command times out or cannot be executed.
     """
     try:
-        logger.debug("Executing Docker command: %s", " ".join(command))
+        logger.debug("Executing Docker command: %s (cwd=%s)", " ".join(command), cwd)
         result = subprocess.run(
             command,
+            cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -138,18 +248,24 @@ def _safe_exec_docker(command: List[str], timeout: int = 30) -> Tuple[str, Optio
             check=False  # Don't raise on non-zero exit
         )
 
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
         if result.returncode != 0:
-            logger.warning("Docker command failed with exit code %d: %s\nstderr: %s", 
-                         result.returncode, " ".join(command), result.stderr)
-            return "", result.stderr
-
-        logger.debug("Docker command succeeded: %s", " ".join(command))
-        return result.stdout, None
+            logger.warning(
+                "Docker command failed with exit code %d: %s\nstderr: %s",
+                result.returncode, " ".join(command), stderr
+            )
+        else:
+            logger.debug("Docker command succeeded: %s", " ".join(command))
+        return DockerCommandResult(stdout=stdout, stderr=stderr, returncode=result.returncode)
 
     except subprocess.TimeoutExpired as e:
-        error_msg = f"Command timed out after {timeout}s"
         logger.error("Docker command timeout: %s", " ".join(command))
-        raise RuntimeError(error_msg) from e
+        raise RuntimeError(f"Command timed out after {timeout}s") from e
+    except FileNotFoundError as e:
+        binary = command[0] if command else "docker"
+        logger.error("Docker command not found: %s", binary)
+        raise RuntimeError(f"Docker command not found: {binary}") from e
     except Exception as e:
         error_msg = str(e)
         logger.error("Error executing Docker command: %s", error_msg)
@@ -181,11 +297,119 @@ def _format_command_feedback(operation: str, output: str, empty_text: str = "_(n
     return f"> Running: `{operation}`\nOutput:\n\n{output}"
 
 
+def _command_failure(operation: str, result: DockerCommandResult) -> str:
+    """
+    Build a failure block showing the command, both streams and exit code.
+
+    Args:
+        operation: Human-readable command string that was executed.
+        result: The failed command result.
+
+    Returns:
+        str: Markdown block with the command, exit code and any captured output.
+    """
+    parts = [f"> Running: `{operation}`", f"Exit code: {result.returncode}"]
+    if result.stderr.strip():
+        parts.append(f"stderr:\n{result.stderr.strip()}")
+    if result.stdout.strip():
+        parts.append(f"stdout:\n{result.stdout.strip()}")
+    return "\n\n".join(parts)
+
+
+def _create_or_run_container(
+    mode: str,
+    image: str,
+    container_name: str,
+    detach: bool,
+    port_mapping: Optional[str],
+    env_vars: Optional[Dict[str, str]],
+    settings: CODXJuniorSettings,
+    user: Optional[CodxUser],
+) -> ToolResponse:
+    """
+    Shared implementation for ``docker run`` and ``docker create``.
+
+    Args:
+        mode: Either ``"run"`` or ``"create"``.
+        image: Docker image name/ID.
+        container_name: Name for the container.
+        detach: Run in background (only meaningful for ``run``).
+        port_mapping: Optional ``host:container`` port mapping.
+        env_vars: Optional environment variables.
+        settings: Project settings.
+        user: Current user (audit logging).
+
+    Returns:
+        ToolResponse: Container creation/start result.
+    """
+    _validate_input(container_name, "container_name", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
+    _validate_input(image, "image", allow_patterns=[r"^[a-zA-Z0-9_\-\.:/@]+$"])
+    project_dir = _project_cwd(settings)
+
+    command = ["docker", mode]
+    if mode == "run":
+        command.append("-d" if detach else "-it")
+    command.extend(["--name", container_name])
+
+    if port_mapping:
+        _validate_input(port_mapping, "port_mapping", allow_patterns=[r"^\d+:\d+$"])
+        command.extend(["-p", port_mapping])
+
+    for key, value in (env_vars or {}).items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise ValueError("Environment variables must be strings")
+        _validate_input(key, f"env_var_key_{key}")
+        _validate_input(value, f"env_var_value_{key}")
+        command.extend(["-e", f"{key}={value}"])
+
+    command.append(image)
+    operation = " ".join(command)
+
+    result = _safe_exec_docker(command, timeout=120, cwd=project_dir)
+
+    if not result.ok:
+        logger.error(
+            "Docker %s failed for user %s: %s",
+            mode, user.username if user else "unknown", result.stderr
+        )
+        return ToolResponse(
+            user_response=f"❌ Failed to {mode} container `{container_name}`\n\n"
+                          f"{_command_failure(operation, result)}",
+            llm_response=(
+                f"`{operation}` failed with exit code {result.returncode}.\n"
+                f"stderr: {result.stderr.strip()}\nstdout: {result.stdout.strip()}"
+            )
+        )
+
+    container_id = "unknown"
+    if result.stdout.strip():
+        container_id = result.stdout.strip().splitlines()[0][:12]
+
+    verb = "created" if mode == "create" else "started"
+    logger.info(
+        "Docker %s container %s (image=%s) for user %s",
+        mode, container_name, image, user.username if user else "unknown"
+    )
+
+    return ToolResponse(
+        user_response=_format_command_feedback(
+            operation,
+            f"Container `{container_name}` {verb} successfully (ID: `{container_id}`)"
+        ),
+        llm_response=(
+            f"Successfully {verb} container {container_name} from image {image} "
+            f"(ID: {container_id})."
+        )
+    )
+
+
 def docker_ps(filters: Optional[str] = None, **kwargs) -> ToolResponse:
     """
     List Docker containers.
 
     Lists all running and stopped containers, optionally filtered by status or labels.
+    Includes the image, status/health, ports and the compose project/service labels
+    so a compose stack can be verified without follow-up ``inspect`` calls.
 
     Args:
         filters: Optional Docker filter (e.g., "status=running", "label=project=myapp").
@@ -212,50 +436,69 @@ def docker_ps(filters: Optional[str] = None, **kwargs) -> ToolResponse:
         raise Exception("Invalid project settings")
 
     try:
-        command = ["docker", "ps", "-a", "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"]
+        ps_format = "\t".join([
+            "{{.ID}}",
+            "{{.Names}}",
+            "{{.Image}}",
+            "{{.Status}}",
+            "{{.Ports}}",
+            '{{.Label "com.docker.compose.project"}}',
+            '{{.Label "com.docker.compose.service"}}',
+        ])
+        command = ["docker", "ps", "-a", "--format", ps_format]
 
         if filters:
             _validate_input(filters, "filters", allow_patterns=[r"^[a-zA-Z0-9_\-\.=]+$"])
             command.extend(["--filter", filters])
 
-        stdout, stderr = _safe_exec_docker(command)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, cwd=_project_cwd(settings))
 
-        if stderr:
-            logger.error("Docker ps error for user %s: %s", user.username if user else "unknown", stderr)
+        if not result.ok:
+            logger.error("Docker ps error for user %s: %s", user.username if user else "unknown", result.stderr)
             return ToolResponse(
-                user_response="❌ Failed to list containers",
-                llm_response=f"Error listing containers: {stderr}"
+                user_response=f"❌ Failed to list containers\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error listing containers (exit {result.returncode}): {result.stderr.strip()}"
             )
 
-        if not stdout.strip():
+        if not result.stdout.strip():
             return ToolResponse(
                 user_response="✓ No containers found",
                 llm_response="No containers currently running"
             )
 
         # Parse and format output
-        lines = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
-        formatted_lines = ["**Container ID** | **Name** | **Status** | **Ports**"]
-        formatted_lines.append("---|---|---|---")
-        
+        lines = [line for line in result.stdout.strip().split('\n') if line.strip()]
+        formatted_lines = [
+            "**Container ID** | **Name** | **Image** | **Status** | **Ports** | "
+            "**Compose Project** | **Compose Service**"
+        ]
+        formatted_lines.append("---|---|---|---|---|---|---")
         for line in lines:
             parts = line.split('\t')
-            if len(parts) >= 2:
+            if len(parts) >= 3:
                 container_id = parts[0]
                 container_name = parts[1]
-                status = parts[2] if len(parts) > 2 else "unknown"
-                ports = parts[3] if len(parts) > 3 else "-"
-                formatted_lines.append(f"`{container_id[:12]}` | `{container_name}` | {status} | {ports}")
+                image = parts[2] if len(parts) > 2 else "-"
+                status = parts[3] if len(parts) > 3 else "unknown"
+                ports = parts[4] if len(parts) > 4 and parts[4] else "-"
+                project = parts[5] if len(parts) > 5 and parts[5] else "-"
+                service = parts[6] if len(parts) > 6 and parts[6] else "-"
+                formatted_lines.append(
+                    f"`{container_id[:12]}` | `{container_name}` | `{image}` | {status} | "
+                    f"{ports} | {project} | {service}"
+                )
 
         logger.info("Listed %d containers for user %s", len(lines), user.username if user else "unknown")
 
-        operation = "docker ps -a" + (f" --filter {filters}" if filters else "")
         user_response = _format_command_feedback(operation, "\n".join(formatted_lines))
         # llm_response is the ONLY content the model receives (user_response is
-        # shown in the chat but not sent to the model). Include the real data.
+        # shown in the chat but not sent to the model). Include the real data and
+        # echo the exact command so filtered listings are not mislabeled.
         llm_response = (
-            f"Found {len(lines)} container(s). Raw `docker ps -a` output "
-            f"(ID\tName\tStatus\tPorts):\n{stdout.strip()}"
+            f"Found {len(lines)} container(s). Command: `{operation}`\n"
+            f"Raw output (ID\tName\tImage\tStatus\tPorts\tProject\tService):\n"
+            f"{result.stdout.strip()}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -303,35 +546,40 @@ def docker_logs(container_name: str, tail: int = 100, **kwargs) -> ToolResponse:
     try:
         # Validate inputs
         _validate_input(container_name, "container_name", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
-        
+
         if not isinstance(tail, int) or tail < 1 or tail > 1000:
             raise ValueError("tail must be integer between 1-1000")
 
         command = ["docker", "logs", "--tail", str(tail), container_name]
-        stdout, stderr = _safe_exec_docker(command, timeout=10)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=10, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker logs error for container %s: %s", container_name, stderr)
+        if not result.ok:
+            logger.error("Docker logs error for container %s: %s", container_name, result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to retrieve logs: {stderr}",
-                llm_response=f"Error retrieving logs for {container_name}: {stderr}"
+                user_response=f"❌ Failed to retrieve logs\n\n{_command_failure(operation, result)}",
+                llm_response=(
+                    f"Error retrieving logs for {container_name} "
+                    f"(exit {result.returncode}): {result.stderr.strip()}"
+                )
             )
 
-        if not stdout.strip():
+        # docker logs sends the container's stderr stream to our stderr, so a
+        # successful command may still carry content there. Include both.
+        output = (result.stdout or "") + (result.stderr or "")
+        if not output.strip():
             return ToolResponse(
                 user_response=f"✓ No logs available for `{container_name}`",
                 llm_response="Container has no log entries"
             )
 
-        logger.info("Retrieved logs for container %s (tail=%d) by user %s", 
+        logger.info("Retrieved logs for container %s (tail=%d) by user %s",
                    container_name, tail, user.username if user else "unknown")
 
-        user_response = _format_command_feedback(
-            f"docker logs --tail {tail} {container_name}", stdout
-        )
+        user_response = _format_command_feedback(operation, output)
         # Provide the actual log content to the model (not just a summary).
         llm_response = (
-            f"Logs for container '{container_name}' (last {tail} lines):\n{stdout}"
+            f"Logs for container '{container_name}' (last {tail} lines):\n{output}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -385,15 +633,16 @@ def docker_stats(container_name: Optional[str] = None, **kwargs) -> ToolResponse
         else:
             command = ["docker", "stats", "--no-stream"]
 
-        stdout, stderr = _safe_exec_docker(command, timeout=15)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=15, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
+        if not result.ok:
             return ToolResponse(
-                user_response=f"❌ Failed to retrieve statistics: {stderr}",
-                llm_response=f"Error retrieving container stats: {stderr}"
+                user_response=f"❌ Failed to retrieve statistics\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error retrieving container stats (exit {result.returncode}): {result.stderr.strip()}"
             )
 
-        if not stdout.strip():
+        if not result.stdout.strip():
             return ToolResponse(
                 user_response="✓ No statistics available",
                 llm_response="No running containers to show statistics for"
@@ -402,11 +651,10 @@ def docker_stats(container_name: Optional[str] = None, **kwargs) -> ToolResponse
         logger.info("Retrieved stats for %s by user %s",
                    container_name or "all containers", user.username if user else "unknown")
 
-        operation = "docker stats --no-stream" + (f" {container_name}" if container_name else "")
-        user_response = _format_command_feedback(operation, stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         # Provide the actual statistics to the model (not just a summary).
         llm_response = (
-            f"Container statistics for {container_name or 'all containers'}:\n{stdout}"
+            f"Container statistics for {container_name or 'all containers'}:\n{result.stdout}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -459,21 +707,22 @@ def docker_inspect(container_name: str, inspect_type: str = "container", **kwarg
             raise ValueError("inspect_type must be 'container' or 'image'")
 
         command = ["docker", "inspect", container_name]
-        stdout, stderr = _safe_exec_docker(command, timeout=10)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=10, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
+        if not result.ok:
             return ToolResponse(
-                user_response=f"❌ Failed to inspect {container_name}: {stderr}",
-                llm_response=f"Error inspecting {container_name}: {stderr}"
+                user_response=f"❌ Failed to inspect {container_name}\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error inspecting {container_name}: {result.stderr.strip()}"
             )
 
-        logger.info("Inspected %s %s by user %s", inspect_type, container_name, 
+        logger.info("Inspected %s %s by user %s", inspect_type, container_name,
                    user.username if user else "unknown")
 
-        user_response = _format_command_feedback(f"docker inspect {container_name}", stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         # Provide the actual inspect JSON to the model (not just a summary).
         llm_response = (
-            f"Inspect output for {inspect_type} '{container_name}':\n{stdout}"
+            f"Inspect output for {inspect_type} '{container_name}':\n{result.stdout}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -515,24 +764,25 @@ def docker_images(**kwargs) -> ToolResponse:
 
     try:
         command = ["docker", "images", "--format", "{{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}\t{{.CreatedAt}}"]
-        stdout, stderr = _safe_exec_docker(command)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
+        if not result.ok:
             return ToolResponse(
-                user_response=f"❌ Failed to list images: {stderr}",
-                llm_response=f"Error listing Docker images: {stderr}"
+                user_response=f"❌ Failed to list images\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error listing Docker images (exit {result.returncode}): {result.stderr.strip()}"
             )
 
-        if not stdout.strip():
+        if not result.stdout.strip():
             return ToolResponse(
                 user_response="✓ No Docker images found",
                 llm_response="No Docker images available"
             )
 
-        lines = stdout.strip().split('\n')
+        lines = result.stdout.strip().split('\n')
         formatted_lines = ["**Repository** | **Tag** | **ID** | **Size** | **Created**"]
         formatted_lines.append("---|---|---|---|---")
-        
+
         for line in lines:
             if line.strip():
                 parts = line.split('\t')
@@ -543,11 +793,11 @@ def docker_images(**kwargs) -> ToolResponse:
 
         logger.info("Listed Docker images for user %s: %d images", user.username if user else "unknown", len(lines))
 
-        user_response = _format_command_feedback("docker images", "\n".join(formatted_lines))
+        user_response = _format_command_feedback(operation, "\n".join(formatted_lines))
         # Provide the actual image list to the model (not just a summary).
         llm_response = (
             f"Found {len(lines)} Docker image(s). Raw `docker images` output "
-            f"(Repository\tTag\tID\tSize\tCreatedAt):\n{stdout.strip()}"
+            f"(Repository\tTag\tID\tSize\tCreatedAt):\n{result.stdout.strip()}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -566,7 +816,9 @@ def docker_run(image: str, container_name: str, **kwargs) -> ToolResponse:
     """
     Run a Docker container from an image.
 
-    Creates and starts a new container with specified configuration and security constraints.
+    Creates and starts a new container with specified configuration and security
+    constraints. ``docker run`` pulls the image automatically when it is not cached
+    locally, so it can also be used to obtain an image.
 
     Args:
         image: Docker image name/ID to run.
@@ -599,56 +851,62 @@ def docker_run(image: str, container_name: str, **kwargs) -> ToolResponse:
         raise Exception("Invalid project settings")
 
     try:
-        # Validate inputs
-        _validate_input(container_name, "container_name", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
-        _validate_input(image, "image", allow_patterns=[r"^[a-zA-Z0-9_\-\.:/@]+$"])
-
-        command = ["docker", "run", "-d" if detach else "-it"]
-        command.extend(["--name", container_name])
-
-        # Add port mappings if specified
-        if port_mapping:
-            _validate_input(port_mapping, "port_mapping", allow_patterns=[r"^\d+:\d+$"])
-            command.extend(["-p", port_mapping])
-
-        # Add environment variables
-        for key, value in env_vars.items():
-            if not isinstance(key, str) or not isinstance(value, str):
-                raise ValueError("Environment variables must be strings")
-            _validate_input(key, f"env_var_key_{key}")
-            _validate_input(value, f"env_var_value_{key}")
-            command.extend(["-e", f"{key}={value}"])
-
-        command.append(image)
-
-        stdout, stderr = _safe_exec_docker(command, timeout=30)
-
-        if stderr:
-            logger.error("Docker run error for user %s: %s", user.username if user else "unknown", stderr)
-            return ToolResponse(
-                user_response=f"❌ Failed to run container: {stderr}",
-                llm_response=f"Error running container: {stderr}"
-            )
-
-        container_id = stdout.strip()[:12] if stdout else "unknown"
-        logger.info("Started container %s (image=%s) for user %s", container_name, image, 
-                   user.username if user else "unknown")
-
-        operation = f"docker run {'-d' if detach else '-it'} --name {container_name} {image}"
-        user_response = _format_command_feedback(
-            operation,
-            f"Container `{container_name}` started successfully (ID: `{container_id}`)"
+        return _create_or_run_container(
+            "run", image, container_name, detach, port_mapping, env_vars, settings, user
         )
-        return ToolResponse(
-            user_response=user_response,
-            llm_response=f"Successfully started container {container_name}"
-        )
-
     except Exception as e:
         logger.exception("Error in docker_run: %s", str(e))
         return ToolResponse(
             user_response=f"❌ Error: {str(e)}",
             llm_response=f"Failed to run container: {str(e)}"
+        )
+
+
+def docker_create(image: str, container_name: str, **kwargs) -> ToolResponse:
+    """
+    Create a Docker container from an image without starting it.
+
+    Wraps ``docker create`` with the same validation constraints as
+    :func:`docker_run`. Use it when a container must be created first and
+    started later with :func:`docker_start`.
+
+    Args:
+        image: Docker image name/ID to create the container from.
+        container_name: Name for the new container.
+        **kwargs: Additional arguments including:
+            - settings (CODXJuniorSettings): Project settings (required).
+            - user (CodxUser): Current user (for audit logging).
+            - port_mapping (str): Port mapping (e.g., "8080:80").
+            - env_vars (dict): Environment variables.
+
+    Returns:
+        ToolResponse: Container creation confirmation with container ID.
+
+    Rapresents:
+        ValueError: If inputs contain invalid values or unsafe patterns.
+        RuntimeError: If Docker command fails.
+
+    Example:
+        >>> docker_create("nginx:latest", "myapp_web_1", port_mapping="8080:80")
+        # Creates nginx container (not started)
+    """
+    settings: CODXJuniorSettings = kwargs.get("settings")
+    user: CodxUser = kwargs.get("user")
+    port_mapping = kwargs.get("port_mapping")
+    env_vars = kwargs.get("env_vars", {})
+
+    if not settings:
+        raise Exception("Invalid project settings")
+
+    try:
+        return _create_or_run_container(
+            "create", image, container_name, False, port_mapping, env_vars, settings, user
+        )
+    except Exception as e:
+        logger.exception("Error in docker_create: %s", str(e))
+        return ToolResponse(
+            user_response=f"❌ Error: {str(e)}",
+            llm_response=f"Failed to create container: {str(e)}"
         )
 
 
@@ -685,18 +943,19 @@ def docker_start(container_name: str, **kwargs) -> ToolResponse:
         _validate_input(container_name, "container_name", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
 
         command = ["docker", "start", container_name]
-        stdout, stderr = _safe_exec_docker(command, timeout=15)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=15, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker start error for container %s: %s", container_name, stderr)
+        if not result.ok:
+            logger.error("Docker start error for container %s: %s", container_name, result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to start container: {stderr}",
-                llm_response=f"Error starting container: {stderr}"
+                user_response=f"❌ Failed to start container\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error starting container {container_name}: {result.stderr.strip()}"
             )
 
         logger.info("Started container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = _format_command_feedback(f"docker start {container_name}", stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully started container {container_name}"
@@ -747,20 +1006,19 @@ def docker_stop(container_name: str, timeout: int = 10, **kwargs) -> ToolRespons
             raise ValueError("timeout must be integer between 1-120 seconds")
 
         command = ["docker", "stop", "-t", str(timeout), container_name]
-        stdout, stderr = _safe_exec_docker(command, timeout=timeout + 10)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=timeout + 10, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker stop error for container %s: %s", container_name, stderr)
+        if not result.ok:
+            logger.error("Docker stop error for container %s: %s", container_name, result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to stop container: {stderr}",
-                llm_response=f"Error stopping container: {stderr}"
+                user_response=f"❌ Failed to stop container\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error stopping container {container_name}: {result.stderr.strip()}"
             )
 
         logger.info("Stopped container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = _format_command_feedback(
-            f"docker stop -t {timeout} {container_name}", stdout
-        )
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully stopped container {container_name}"
@@ -811,20 +1069,19 @@ def docker_restart(container_name: str, timeout: int = 10, **kwargs) -> ToolResp
             raise ValueError("timeout must be integer between 1-120 seconds")
 
         command = ["docker", "restart", "-t", str(timeout), container_name]
-        stdout, stderr = _safe_exec_docker(command, timeout=timeout + 15)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=timeout + 15, cwd=_project_cwd(settings))
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker restart error for container %s: %s", container_name, stderr)
+        if not result.ok:
+            logger.error("Docker restart error for container %s: %s", container_name, result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to restart container: {stderr}",
-                llm_response=f"Error restarting container: {stderr}"
+                user_response=f"❌ Failed to restart container\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error restarting container {container_name}: {result.stderr.strip()}"
             )
 
         logger.info("Restarted container %s by user %s", container_name, user.username if user else "unknown")
 
-        user_response = _format_command_feedback(
-            f"docker restart -t {timeout} {container_name}", stdout
-        )
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully restarted container {container_name}"
@@ -842,15 +1099,17 @@ def docker_compose_run(service: str, command: Optional[str] = None, **kwargs) ->
     """
     Run a one-off command in a docker-compose service.
 
-    Executes a command in a service defined in docker-compose configuration.
-    Allows shell commands with URLs, query parameters, and standard command syntax.
+    Executes a command in a service defined in the project's compose file. The
+    command string is split into arguments (no shell interpretation) and the
+    command runs from the project directory, using the project's compose file.
 
     Args:
-        service: Service name in docker-compose.yml.
-        command: Optional command to execute in the service (e.g., "curl http://domain.com/path?param=value").
+        service: Service name in the compose file.
+        command: Optional command to execute in the service (e.g. "curl http://domain.com/path?param=value").
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
             - user (CodxUser): Current user (for audit logging).
+            - no_deps (bool): Do not start linked services (default: False).
 
     Returns:
         ToolResponse: Command execution result.
@@ -867,42 +1126,48 @@ def docker_compose_run(service: str, command: Optional[str] = None, **kwargs) ->
     """
     settings: CODXJuniorSettings = kwargs.get("settings")
     user: CodxUser = kwargs.get("user")
+    no_deps = kwargs.get("no_deps", False)
 
     if not settings:
         raise Exception("Invalid project settings")
 
     try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_run")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
         _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
         if command:
             _validate_input(command, "command", allow_patterns=COMMAND_EXECUTION_ALLOWED_CHARS)
 
-        compose_command = ["docker-compose", "run", "--rm", service]
+        compose_command = _compose_base() + ["-f", compose_file, "run", "--rm"]
+        if no_deps:
+            compose_command.append("--no-deps")
+        compose_command.append(service)
         if command:
-            compose_command.append(command)
+            compose_command.extend(shlex.split(command))
 
-        stdout, stderr = _safe_exec_docker(compose_command, timeout=60)
+        operation = " ".join(compose_command)
+        result = _safe_exec_docker(compose_command, timeout=60, cwd=project_dir)
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker Compose run error for service %s: %s", service, stderr)
+        if not result.ok:
+            logger.error("Docker Compose run error for service %s: %s", service, result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to run service: {stderr}",
-                llm_response=f"Error running compose service: {stderr}"
+                user_response=f"❌ Failed to run service `{service}`\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error running compose service {service}: {result.stderr.strip()}"
             )
 
-        logger.info("Executed compose run on service %s by user %s", service, 
+        logger.info("Executed compose run on service %s by user %s", service,
                    user.username if user else "unknown")
 
-        operation = f"docker-compose run --rm {service}"
-        if command:
-            operation += f" {command}"
         # Always show the executed command and its output (placeholder when empty),
         # so the user never sees an empty result.
-        user_response = _format_command_feedback(operation, stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         # Provide the command output to the model (not just a status summary).
         llm_response = (
             f"Command executed on '{service}' service"
             + (f" (command: {command})" if command else "")
-            + f". Output:\n{stdout}"
+            + f". Output:\n{result.stdout}"
         )
         return ToolResponse(
             user_response=user_response,
@@ -921,7 +1186,9 @@ def docker_compose_start(service: Optional[str] = None, **kwargs) -> ToolRespons
     """
     Start docker-compose services.
 
-    Starts one or all services defined in docker-compose.yml.
+    Starts one or all services defined in the project's compose file. Note that
+    ``docker-compose start`` only starts containers that already exist; use
+    :func:`docker_compose_up` for a first creation/build.
 
     Args:
         service: Optional specific service name. If not provided, starts all services.
@@ -947,28 +1214,32 @@ def docker_compose_start(service: Optional[str] = None, **kwargs) -> ToolRespons
         raise Exception("Invalid project settings")
 
     try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_start")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
         if service:
             _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
 
-        command = ["docker-compose", "start"]
+        command = _compose_base() + ["-f", compose_file, "start"]
         if service:
             command.append(service)
 
-        stdout, stderr = _safe_exec_docker(command, timeout=30)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=30, cwd=project_dir)
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker Compose start error: %s", stderr)
+        if not result.ok:
+            logger.error("Docker Compose start error: %s", result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to start services: {stderr}",
-                llm_response=f"Error starting compose services: {stderr}"
+                user_response=f"❌ Failed to start services\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error starting compose services: {result.stderr.strip()}"
             )
 
-        logger.info("Started compose %s by user %s", service or "all services", 
+        logger.info("Started compose %s by user %s", service or "all services",
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        operation = "docker-compose start" + (f" {service}" if service else "")
-        user_response = _format_command_feedback(operation, stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully started compose {target}"
@@ -986,7 +1257,7 @@ def docker_compose_stop(service: Optional[str] = None, timeout: int = 10, **kwar
     """
     Stop docker-compose services.
 
-    Stops one or all services defined in docker-compose.yml.
+    Stops one or all services defined in the project's compose file.
 
     Args:
         service: Optional specific service name. If not provided, stops all services.
@@ -1013,31 +1284,35 @@ def docker_compose_stop(service: Optional[str] = None, timeout: int = 10, **kwar
         raise Exception("Invalid project settings")
 
     try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_stop")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
         if service:
             _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
 
         if not isinstance(timeout, int) or timeout < 1 or timeout > 120:
             raise ValueError("timeout must be integer between 1-120 seconds")
 
-        command = ["docker-compose", "stop", "-t", str(timeout)]
+        command = _compose_base() + ["-f", compose_file, "stop", "-t", str(timeout)]
         if service:
             command.append(service)
 
-        stdout, stderr = _safe_exec_docker(command, timeout=timeout + 15)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=timeout + 15, cwd=project_dir)
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker Compose stop error: %s", stderr)
+        if not result.ok:
+            logger.error("Docker Compose stop error: %s", result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to stop services: {stderr}",
-                llm_response=f"Error stopping compose services: {stderr}"
+                user_response=f"❌ Failed to stop services\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error stopping compose services: {result.stderr.strip()}"
             )
 
-        logger.info("Stopped compose %s by user %s", service or "all services", 
+        logger.info("Stopped compose %s by user %s", service or "all services",
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        operation = f"docker-compose stop -t {timeout}" + (f" {service}" if service else "")
-        user_response = _format_command_feedback(operation, stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully stopped compose {target}"
@@ -1055,7 +1330,7 @@ def docker_compose_restart(service: Optional[str] = None, timeout: int = 10, **k
     """
     Restart docker-compose services.
 
-    Stops and starts one or all services defined in docker-compose.yml.
+    Stops and starts one or all services defined in the project's compose file.
 
     Args:
         service: Optional specific service name. If not provided, restarts all services.
@@ -1082,31 +1357,35 @@ def docker_compose_restart(service: Optional[str] = None, timeout: int = 10, **k
         raise Exception("Invalid project settings")
 
     try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_restart")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
         if service:
             _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
 
         if not isinstance(timeout, int) or timeout < 1 or timeout > 120:
             raise ValueError("timeout must be integer between 1-120 seconds")
 
-        command = ["docker-compose", "restart", "-t", str(timeout)]
+        command = _compose_base() + ["-f", compose_file, "restart", "-t", str(timeout)]
         if service:
             command.append(service)
 
-        stdout, stderr = _safe_exec_docker(command, timeout=timeout + 20)
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=timeout + 20, cwd=project_dir)
 
-        if stderr and "error" in stderr.lower():
-            logger.error("Docker Compose restart error: %s", stderr)
+        if not result.ok:
+            logger.error("Docker Compose restart error: %s", result.stderr)
             return ToolResponse(
-                user_response=f"❌ Failed to restart services: {stderr}",
-                llm_response=f"Error restarting compose services: {stderr}"
+                user_response=f"❌ Failed to restart services\n\n{_command_failure(operation, result)}",
+                llm_response=f"Error restarting compose services: {result.stderr.strip()}"
             )
 
-        logger.info("Restarted compose %s by user %s", service or "all services", 
+        logger.info("Restarted compose %s by user %s", service or "all services",
                    user.username if user else "unknown")
 
         target = f"`{service}`" if service else "all services"
-        operation = f"docker-compose restart -t {timeout}" + (f" {service}" if service else "")
-        user_response = _format_command_feedback(operation, stdout)
+        user_response = _format_command_feedback(operation, result.stdout)
         return ToolResponse(
             user_response=user_response,
             llm_response=f"Successfully restarted compose {target}"
@@ -1120,15 +1399,185 @@ def docker_compose_restart(service: Optional[str] = None, timeout: int = 10, **k
         )
 
 
+def docker_compose_build(service: Optional[str] = None, **kwargs) -> ToolResponse:
+    """
+    Build docker-compose service images.
+
+    Runs ``docker-compose build`` in the project directory, so a freshly created
+    project gets its images built (something ``docker-compose start`` can never
+    do). Base images are pulled automatically when missing.
+
+    Args:
+        service: Optional specific service name. If not provided, builds all services.
+        **kwargs: Additional arguments including:
+            - settings (CODXJuniorSettings): Project settings (required).
+            - user (CodxUser): Current user (for audit logging).
+
+    Returns:
+        ToolResponse: Build result with command output.
+
+    Raises:
+        ValueError: If service name contains invalid input.
+        RuntimeError: If Docker Compose command fails.
+
+    Example:
+        >>> docker_compose_build()
+        # Builds every service image
+        >>> docker_compose_build("web")
+        # Builds the web service image
+    """
+    settings: CODXJuniorSettings = kwargs.get("settings")
+    user: CodxUser = kwargs.get("user")
+
+    if not settings:
+        raise Exception("Invalid project settings")
+
+    try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_build")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
+        if service:
+            _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
+
+        command = _compose_base() + ["-f", compose_file, "build"]
+        if service:
+            command.append(service)
+
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=900, cwd=project_dir)
+
+        if not result.ok:
+            logger.error("Docker Compose build error: %s", result.stderr)
+            return ToolResponse(
+                user_response=f"❌ Build failed\n\n{_command_failure(operation, result)}",
+                llm_response=(
+                    f"`{operation}` failed with exit code {result.returncode}.\n"
+                    f"stderr:\n{result.stderr.strip()}\nstdout:\n{result.stdout.strip()}"
+                )
+            )
+
+        logger.info("Built compose %s by user %s", service or "all services",
+                   user.username if user else "unknown")
+
+        target = f"`{service}`" if service else "all services"
+        return ToolResponse(
+            user_response=_format_command_feedback(operation, result.stdout),
+            llm_response=f"Successfully built compose {target}.\nOutput:\n{result.stdout}"
+        )
+
+    except Exception as e:
+        logger.exception("Error in docker_compose_build: %s", str(e))
+        return ToolResponse(
+            user_response=f"❌ Error: {str(e)}",
+            llm_response=f"Failed to build compose services: {str(e)}"
+        )
+
+
+def docker_compose_up(
+    service: Optional[str] = None,
+    build: bool = True,
+    detach: bool = True,
+    remove_orphans: bool = True,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Create and start docker-compose services.
+
+    Runs ``docker-compose up`` in the project directory and, by default, rebuilds
+    images first (``--build``) and runs detached (``-d``). This is the intended
+    entry point for launching a freshly created project, since it both builds and
+    creates the containers.
+
+    Args:
+        service: Optional specific service name. If not provided, starts all services.
+        build: Rebuild images before starting (default: True).
+        detach: Run containers in the background (default: True).
+        remove_orphans: Remove containers for services no longer defined
+                        (default: True).
+        **kwargs: Additional arguments including:
+            - settings (CODXJuniorSettings): Project settings (required).
+            - user (CodxUser): Current user (for audit logging).
+
+    Returns:
+        ToolResponse: Up result with command output.
+
+    Raises:
+        ValueError: If service name contains invalid input.
+        RuntimeError: If Docker Compose command fails.
+
+    Example:
+        >>> docker_compose_up()
+        # Builds and starts every service in the background
+        >>> docker_compose_up("web", build=False)
+        # Starts the web service using the existing image
+    """
+    settings: CODXJuniorSettings = kwargs.get("settings")
+    user: CodxUser = kwargs.get("user")
+
+    if not settings:
+        raise Exception("Invalid project settings")
+
+    try:
+        project_dir, compose_file, error = _compose_context(settings, "docker_compose_up")
+        if error:
+            return ToolResponse(user_response=f"❌ {error}", llm_response=error)
+
+        if service:
+            _validate_input(service, "service", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
+
+        command = _compose_base() + ["-f", compose_file, "up"]
+        if detach:
+            command.append("-d")
+        if build:
+            command.append("--build")
+        if remove_orphans:
+            command.append("--remove-orphans")
+        if service:
+            command.append(service)
+
+        operation = " ".join(command)
+        result = _safe_exec_docker(command, timeout=900, cwd=project_dir)
+
+        if not result.ok:
+            logger.error("Docker Compose up error: %s", result.stderr)
+            return ToolResponse(
+                user_response=f"❌ Failed to bring services up\n\n{_command_failure(operation, result)}",
+                llm_response=(
+                    f"`{operation}` failed with exit code {result.returncode}.\n"
+                    f"stderr:\n{result.stderr.strip()}\nstdout:\n{result.stdout.strip()}"
+                )
+            )
+
+        logger.info("Compose up %s by user %s", service or "all services",
+                   user.username if user else "unknown")
+
+        target = f"`{service}`" if service else "all services"
+        return ToolResponse(
+            user_response=_format_command_feedback(operation, result.stdout),
+            llm_response=f"Successfully started compose {target}.\nOutput:\n{result.stdout}"
+        )
+
+    except Exception as e:
+        logger.exception("Error in docker_compose_up: %s", str(e))
+        return ToolResponse(
+            user_response=f"❌ Error: {str(e)}",
+            llm_response=f"Failed to start compose services: {str(e)}"
+        )
+
+
 def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse:
     """
     Unified Docker container management tool.
 
-    Provides a single interface for container operations (start, stop, restart, inspect, logs)
-    to reduce context size for profiles with wide permissions.
+    Provides a single interface for container operations (create, run, start,
+    stop, restart, inspect, logs) to reduce context size for profiles with wide
+    permissions.
 
     Args:
         action: Action to perform. Available actions:
+            - "create": Create a container from an image without starting it
+            - "run": Create and start a container from an image
             - "start": Start a stopped container
             - "stop": Stop a running container (supports timeout param)
             - "restart": Restart a container (supports timeout param)
@@ -1138,8 +1587,12 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
             - user (CodxUser): Current user (for audit logging).
+            - image (str): Required for create/run - image name/ID to use.
             - timeout (int): For stop/restart actions (1-120 seconds, default: 10).
             - tail (int): For logs action (1-1000 lines, default: 100).
+            - port_mapping (str): For create/run - port mapping (e.g. "8080:80").
+            - env_vars (dict): For create/run - environment variables.
+            - detach (bool): For run - run in background (default: True).
 
     Returns:
         ToolResponse: Action result with user and LLM feedback.
@@ -1153,9 +1606,11 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
         # Starts the container
         >>> docker_container("logs", "myapp_container", tail=50)
         # Shows last 50 lines of logs
+        >>> docker_container("run", "mallorca-island", image="myapp:latest", port_mapping="8080:80")
+        # Creates and starts the container from an image
     """
     action = action.lower().strip()
-    valid_actions = ["start", "stop", "restart", "inspect", "logs"]
+    valid_actions = ["create", "run", "start", "stop", "restart", "inspect", "logs"]
 
     if action not in valid_actions:
         return ToolResponse(
@@ -1164,7 +1619,17 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
         )
 
     try:
-        if action == "start":
+        if action in ("create", "run"):
+            image = kwargs.pop("image", None)
+            if not image:
+                return ToolResponse(
+                    user_response=f"❌ Action '{action}' requires an 'image' argument",
+                    llm_response=f"Missing image for container action: {action}"
+                )
+            if action == "create":
+                return docker_create(image, container_name, **kwargs)
+            return docker_run(image, container_name, **kwargs)
+        elif action == "start":
             return docker_start(container_name, **kwargs)
         elif action == "stop":
             timeout = kwargs.pop("timeout", 10)
@@ -1190,21 +1655,30 @@ def docker_compose_service(action: str, service: str, **kwargs) -> ToolResponse:
     """
     Unified Docker Compose service management tool.
 
-    Provides a single interface for service operations (start, stop, restart, run)
-    to reduce context size for profiles with wide permissions.
+    Provides a single interface for service operations (build, up, start, stop,
+    restart, run) to reduce context size for profiles with wide permissions.
+    Every action runs from the project directory against the project's compose
+    file; actions never report success unless the compose command exited with 0.
 
     Args:
         action: Action to perform. Available actions:
+            - "build": Build service images (all services if service is empty)
+            - "up": Build (optional) and start services (all if service is empty)
             - "start": Start a stopped service (or all services if service is empty)
             - "stop": Stop a running service (supports timeout param)
             - "restart": Restart a service (supports timeout param)
             - "run": Execute a one-off command in a service (supports command param)
-        service: Service name from docker-compose.yml (can be empty for start/stop/restart to target all).
+        service: Service name from the compose file (can be empty for
+                 build/up/start/stop/restart to target all).
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
             - user (CodxUser): Current user (for audit logging).
             - timeout (int): For stop/restart actions (1-120 seconds, default: 10).
             - command (str): For run action - command to execute in service.
+            - no_deps (bool): For run action - do not start linked services.
+            - build (bool): For up action - rebuild images (default: True).
+            - detach (bool): For up action - run in background (default: True).
+            - remove_orphans (bool): For up action - remove orphans (default: True).
 
     Returns:
         ToolResponse: Action result with user and LLM feedback.
@@ -1214,13 +1688,15 @@ def docker_compose_service(action: str, service: str, **kwargs) -> ToolResponse:
         RuntimeError: If Docker Compose command fails.
 
     Example:
-        >>> docker_compose_service("start", "web")
-        # Starts web service
+        >>> docker_compose_service("up", "game")
+        # Builds and starts the game service (creating its container)
+        >>> docker_compose_service("build", "")
+        # Builds every service image
         >>> docker_compose_service("run", "web", command="python manage.py migrate")
         # Runs migration command
     """
     action = action.lower().strip()
-    valid_actions = ["start", "stop", "restart", "run"]
+    valid_actions = ["build", "up", "start", "stop", "restart", "run"]
 
     if action not in valid_actions:
         return ToolResponse(
@@ -1229,7 +1705,23 @@ def docker_compose_service(action: str, service: str, **kwargs) -> ToolResponse:
         )
 
     try:
-        if action == "start":
+        service = service or ""
+        if action == "build":
+            service_name = service if service.strip() else None
+            return docker_compose_build(service_name, **kwargs)
+        elif action == "up":
+            service_name = service if service.strip() else None
+            build = kwargs.pop("build", True)
+            detach = kwargs.pop("detach", True)
+            remove_orphans = kwargs.pop("remove_orphans", True)
+            return docker_compose_up(
+                service_name,
+                build=build,
+                detach=detach,
+                remove_orphans=remove_orphans,
+                **kwargs,
+            )
+        elif action == "start":
             service_name = service if service.strip() else None
             return docker_compose_start(service_name, **kwargs)
         elif action == "stop":
@@ -1260,7 +1752,7 @@ DOCKER_PS_TOOL_JSON = {
         "name": "docker_ps",
         "description": (
             "List Docker containers. Shows running and stopped containers "
-            "with status, ports, and basic information."
+            "with image, status/health, ports and compose project/service labels."
         ),
         "parameters": {
             "type": "object",
@@ -1373,6 +1865,7 @@ DOCKER_RUN_TOOL_JSON = {
         "name": "docker_run",
         "description": (
             "Run a new Docker container from an image with security constraints. "
+            "Pulls the image automatically when it is not cached. "
             "Prevents privilege escalation through input validation."
         ),
         "parameters": {
@@ -1479,14 +1972,15 @@ DOCKER_COMPOSE_RUN_TOOL_JSON = {
         "description": (
             "Run a one-off command in a docker-compose service. "
             "Useful for executing tasks like migrations, utilities, or API calls via curl. "
-            "Supports URLs with query parameters and standard command syntax."
+            "Supports URLs with query parameters and standard command syntax. "
+            "Runs from the project directory against the project's compose file."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "service": {
                     "type": "string",
-                    "description": "Service name defined in docker-compose.yml"
+                    "description": "Service name defined in the project's compose file"
                 },
                 "command": {
                     "type": "string",
@@ -1494,6 +1988,10 @@ DOCKER_COMPOSE_RUN_TOOL_JSON = {
                         "Command to execute in the service (optional). "
                         "Examples: 'python manage.py migrate', 'curl http://domain.com/api?key=value'"
                     )
+                },
+                "no_deps": {
+                    "type": "boolean",
+                    "description": "Do not start linked services (default: false)"
                 }
             },
             "required": ["service"]
@@ -1507,7 +2005,8 @@ DOCKER_COMPOSE_START_TOOL_JSON = {
         "name": "docker_compose_start",
         "description": (
             "Start docker-compose services. Starts one specific service or all services "
-            "if service name is not provided."
+            "if service name is not provided. Note: 'start' only starts existing "
+            "containers; use 'up' to create/build them."
         ),
         "parameters": {
             "type": "object",
@@ -1578,17 +2077,19 @@ DOCKER_CONTAINER_TOOL_JSON = {
         "name": "docker_container",
         "description": (
             "Unified Docker container management tool for common operations. "
-            "Consolidates start, stop, restart, inspect, and logs into a single interface "
-            "to reduce context size for profiles with wide permissions."
+            "Consolidates create, run, start, stop, restart, inspect and logs into a single "
+            "interface to reduce context size for profiles with wide permissions."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["start", "stop", "restart", "inspect", "logs"],
+                    "enum": ["create", "run", "start", "stop", "restart", "inspect", "logs"],
                     "description": (
                         "Action to perform:\n"
+                        "  - 'create': Create a container from an image (not started)\n"
+                        "  - 'run': Create and start a container from an image\n"
                         "  - 'start': Start a stopped container\n"
                         "  - 'stop': Stop a running container\n"
                         "  - 'restart': Restart a container\n"
@@ -1600,6 +2101,10 @@ DOCKER_CONTAINER_TOOL_JSON = {
                     "type": "string",
                     "description": "Name or ID of the container to operate on"
                 },
+                "image": {
+                    "type": "string",
+                    "description": "For create/run actions: image name or ID to use (required for create/run)"
+                },
                 "timeout": {
                     "type": "integer",
                     "description": "For stop/restart actions: timeout in seconds before force action (1-120, default: 10)"
@@ -1607,6 +2112,18 @@ DOCKER_CONTAINER_TOOL_JSON = {
                 "tail": {
                     "type": "integer",
                     "description": "For logs action: number of log lines to retrieve (1-1000, default: 100)"
+                },
+                "port_mapping": {
+                    "type": "string",
+                    "description": "For create/run actions: port mapping (e.g., '8080:80')"
+                },
+                "env_vars": {
+                    "type": "object",
+                    "description": "For create/run actions: environment variables as key-value pairs"
+                },
+                "detach": {
+                    "type": "boolean",
+                    "description": "For run action: run in background (default: true)"
                 }
             },
             "required": ["action", "container_name"]
@@ -1620,18 +2137,22 @@ DOCKER_COMPOSE_SERVICE_TOOL_JSON = {
         "name": "docker_compose_service",
         "description": (
             "Unified Docker Compose service management tool for common operations. "
-            "Consolidates start, stop, restart, and run into a single interface "
-            "to reduce context size for profiles with wide permissions."
+            "Consolidates build, up, start, stop, restart and run into a single interface "
+            "to reduce context size for profiles with wide permissions. "
+            "Runs from the project directory against the project's compose file and only "
+            "reports success when the compose command exits with 0."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["start", "stop", "restart", "run"],
+                    "enum": ["build", "up", "start", "stop", "restart", "run"],
                     "description": (
                         "Action to perform:\n"
-                        "  - 'start': Start a service (or all if service is empty)\n"
+                        "  - 'build': Build service images (all if service is empty)\n"
+                        "  - 'up': Build and start services (all if service is empty)\n"
+                        "  - 'start': Start a stopped service (or all if service is empty)\n"
                         "  - 'stop': Stop a service (or all if service is empty)\n"
                         "  - 'restart': Restart a service (or all if service is empty)\n"
                         "  - 'run': Execute a one-off command in a service"
@@ -1640,8 +2161,8 @@ DOCKER_COMPOSE_SERVICE_TOOL_JSON = {
                 "service": {
                     "type": "string",
                     "description": (
-                        "Service name from docker-compose.yml. "
-                        "Can be empty for start/stop/restart to target all services. "
+                        "Service name from the project's compose file. "
+                        "Can be empty for build/up/start/stop/restart to target all services. "
                         "Required for run action."
                     )
                 },
@@ -1652,6 +2173,22 @@ DOCKER_COMPOSE_SERVICE_TOOL_JSON = {
                 "command": {
                     "type": "string",
                     "description": "For run action: command to execute in the service (optional)"
+                },
+                "no_deps": {
+                    "type": "boolean",
+                    "description": "For run action: do not start linked services (default: false)"
+                },
+                "build": {
+                    "type": "boolean",
+                    "description": "For up action: rebuild images before starting (default: true)"
+                },
+                "detach": {
+                    "type": "boolean",
+                    "description": "For up action: run in background (default: true)"
+                },
+                "remove_orphans": {
+                    "type": "boolean",
+                    "description": "For up action: remove orphan containers (default: true)"
                 }
             },
             "required": ["action", "service"]

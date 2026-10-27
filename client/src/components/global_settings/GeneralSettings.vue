@@ -70,20 +70,20 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
               <ModelSelector v-model="settings.wiki_model" />
             </div>
           </div>
-          <div class="font-bold">Vision</div>
-          <div class="text-xs">Creates detailed text descriptions from images</div>
+          <div class="font-bold">Image generation</div>
+          <div class="text-xs">Default model for generating images from text. A project overrides it with its own image generation model.</div>
           <div class="flex flex-col gap-2">
             <div class="flex items-center">
               <span class="p-6 w-1/4">Model:</span>
-              <ModelSelector v-model="settings.vision_model" />
+              <ModelSelector v-model="settings.image_generation_model" />
             </div>
           </div>
-          <div class="font-bold">Image</div>
-          <div class="text-xs">Generates images from text and other images</div>
+          <div class="font-bold">Image vision</div>
+          <div class="text-xs">Default model for creating text descriptions from images. A project overrides it with its own image vision model.</div>
           <div class="flex flex-col gap-2">
             <div class="flex items-center">
               <span class="p-6 w-1/4">Model:</span>
-              <ModelSelector v-model="settings.image_model" />
+              <ModelSelector v-model="settings.image_vision_model" />
             </div>
           </div>
         </div>

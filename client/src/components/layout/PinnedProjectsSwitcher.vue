@@ -80,7 +80,7 @@ export default {
     // route sync) so the switcher behaves exactly like the project selector.
     switchProject(project) {
       if (this.isActive(project)) return
-      this.$storex.projects.activeProjectChanged(project)
+      this.$emit('select', project)
     },
     unpinProject(project) {
       this.$storex.ui.unpinProject(project.project_id)

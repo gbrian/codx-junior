@@ -5,6 +5,8 @@ import pathlib
 import uuid
 import traceback
 
+from urllib.parse import quote
+
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -30,6 +32,13 @@ ROOT_PATH = os.path.dirname(__file__)
 HOME=os.environ.get("HOME")
 
 CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
+
+# Folder (relative to the project root unless it starts with "/") where the
+# project images are stored: generated images, images uploaded to a chat...
+DEFAULT_IMAGES_FOLDER = ".codx/images"
+
+# API prefix that serves the project images folder, see codx/junior/api/images.py
+IMAGES_URL_PREFIX = "/api/images"
 
 # Mask used when a project secret (git token) is shown in the UI
 GIT_ACCESS_TOKEN_MASK = "••••••••"
@@ -90,11 +99,45 @@ class CODXJuniorSettings(BaseModel):
     wiki_model: str = Field(default="")
     guardrail_model: str = Field(default="")
 
-    # Image generation and vision settings
-    image_generation_model: Optional[str] = Field(default="")
-    image_vision_model: Optional[str] = Field(default="")
-    image_storage_folder: Optional[str] = Field(default="images/generated")
-    image_max_file_size_mb: Optional[int] = Field(default=100)
+    # Image models. The names are the SAME in the global and the project
+    # settings: the global ones are the installation default and these override
+    # it per project. Empty means "use the global setting", see
+    # get_image_generation_model() and get_image_vision_model().
+    #
+    # Generating an image (text -> image) and analysing one (image -> text) are
+    # two different capabilities, so neither ever falls back to the other's
+    # model.
+    image_generation_model: Optional[str] = Field(
+        default="",
+        description=(
+            "Project image generation model (text -> image). Empty uses the "
+            "global image_generation_model"
+        )
+    )
+    image_vision_model: Optional[str] = Field(
+        default="",
+        description=(
+            "Project image vision model (image -> text). Empty uses the global "
+            "image_vision_model"
+        )
+    )
+
+    # Folder where the project images are stored: generated images, images
+    # uploaded to a chat, etc. Relative to the project root unless it starts
+    # with "/". Images are project resources, so they live inside the project
+    # instead of a global static mount.
+    images_folder: Optional[str] = Field(
+        default=DEFAULT_IMAGES_FOLDER,
+        description=(
+            "Folder where the project images are stored (generated images, chat "
+            "uploads...). Relative to the project root unless it starts with '/'. "
+            "Defaults to '.codx/images'"
+        )
+    )
+    image_max_file_size_mb: Optional[int] = Field(
+        default=100,
+        description="Maximum size of an image uploaded to the project (MB)"
+    )
 
     last_error: str = Field(default="")
 
@@ -320,25 +363,207 @@ class CODXJuniorSettings(BaseModel):
         """Get MCP server by name."""
         return next((server for server in self.mcp_servers if server.name == name), None)
 
+    def get_images_folder(self) -> str:
+        """
+        Return the configured images folder (relative or absolute).
+
+        Returns:
+            The configured folder, `.codx/images` when nothing is set.
+
+        Example:
+            >>> settings.images_folder = "assets/images"
+            >>> settings.get_images_folder()
+            'assets/images'
+        """
+        return (self.images_folder or "").strip() or DEFAULT_IMAGES_FOLDER
+
+    def get_images_folder_path(self) -> str:
+        """
+        Return the absolute path of the project images folder.
+
+        Created on demand by the callers (`ImageEngine`, images router).
+
+        Returns:
+            Absolute, normalized folder path.
+
+        Example:
+            >>> settings.abs_project_path = "/projects/app"
+            >>> settings.images_folder = ".codx/images"
+            >>> settings.get_images_folder_path()
+            '/projects/app/.codx/images'
+        """
+        folder = self.get_images_folder()
+        if folder.startswith("/"):
+            return os.path.normpath(folder)
+        if folder.startswith("./"):
+            folder = folder[2:]
+        return os.path.normpath(os.path.join(self.abs_project_path or "", folder))
+
+    def get_image_relative_path(self, absolute_path: str) -> str:
+        """
+        Return the path of an image relative to the project root.
+
+        Image metadata stores project-relative paths, so the project can be
+        moved or cloned without breaking the references.
+
+        Args:
+            absolute_path: Absolute path of the image file.
+
+        Returns:
+            Path relative to the project root, the absolute path when it cannot
+            be made relative, or an empty string for an empty input.
+
+        Example:
+            >>> settings.get_image_relative_path("/projects/app/.codx/images/a.png")
+            '.codx/images/a.png'
+        """
+        if not absolute_path:
+            return ""
+        if not absolute_path.startswith("/"):
+            return absolute_path
+        project_path = self.abs_project_path or ""
+        if project_path:
+            try:
+                return os.path.relpath(absolute_path, project_path)
+            except ValueError:
+                logger.debug("Cannot make '%s' relative to '%s'", absolute_path, project_path)
+        return absolute_path
+
+    def get_image_url(self, relative_path: str) -> str:
+        """
+        Build the URL that serves a file stored in the images folder.
+
+        The URL carries the ``codx_path`` query parameter because the API
+        resolves the project from it: a browser request made by an
+        ``<img src="...">`` does not send the ``x-codx-path`` header.
+
+        Args:
+            relative_path: Path relative to the images folder, e.g.
+                ``generated/a1b2c3.png``.
+
+        Returns:
+            URL such as ``/api/images/generated/a1b2c3.png?codx_path=%2Fp%2F.codx``.
+
+        Example:
+            >>> settings.codx_path = "/projects/app/.codx"
+            >>> settings.get_image_url("generated/a1b2c3.png")
+            '/api/images/generated/a1b2c3.png?codx_path=%2Fprojects%2Fapp%2F.codx'
+        """
+        path = (relative_path or "").lstrip("/")
+        url = f"{IMAGES_URL_PREFIX}/{path}"
+        if self.codx_path:
+            url = f"{url}?codx_path={quote(self.codx_path, safe='')}"
+        return url
+
+    def get_image_max_file_size_mb(self) -> int:
+        """Return the maximum size (MB) allowed for an uploaded image."""
+        try:
+            return max(1, int(self.image_max_file_size_mb or 0))
+        except (TypeError, ValueError):
+            return 100
+
+    def _resolve_image_model(self, project_value: str, global_attr: str) -> str:
+        """
+        Resolve an image model: the project value first, then the global one.
+
+        Both scopes use the same field name, so the caller only has to pass its
+        own value plus the name of the field to read from the global settings.
+
+        Args:
+            project_value: Value stored in the project settings.
+            global_attr: Name of the field in ``GlobalSettings``.
+
+        Returns:
+            The resolved model name, empty string when neither scope sets it.
+        """
+        value = (project_value or "").strip()
+        if value:
+            return value
+
+        global_value = getattr(get_global_settings(), global_attr, "") or ""
+        return global_value.strip()
+
+    def get_image_generation_model(self) -> str:
+        """
+        Resolve the image GENERATION model (text -> image).
+
+        Resolution order (first non-empty wins):
+            1. project `image_generation_model` (override)
+            2. global `image_generation_model` (default)
+
+        The vision model is a different capability and is never used as a
+        fallback here.
+
+        Returns:
+            Model name, empty string when no image generation model is configured.
+
+        Example:
+            Only the global default is set:
+                >>> # global_settings.json -> image_generation_model: "gemini-3.1-flash-lite-image"
+                >>> settings.get_image_generation_model()
+                'gemini-3.1-flash-lite-image'
+
+            The project overrides it:
+                >>> settings.image_generation_model = "dall-e-3"
+                >>> settings.get_image_generation_model()
+                'dall-e-3'
+        """
+        return self._resolve_image_model(
+            project_value=self.image_generation_model,
+            global_attr="image_generation_model",
+        )
+
+    def get_image_vision_model(self) -> str:
+        """
+        Resolve the image VISION model (image -> text).
+
+        Resolution order (first non-empty wins):
+            1. project `image_vision_model` (override)
+            2. global `image_vision_model` (default)
+
+        The generation model is a different capability and is never used as a
+        fallback here.
+
+        Returns:
+            Model name, empty string when no image vision model is configured.
+
+        Example:
+            Only the global default is set:
+                >>> # global_settings.json -> image_vision_model: "gpt-4o"
+                >>> settings.get_image_vision_model()
+                'gpt-4o'
+
+            The project overrides it:
+                >>> settings.image_vision_model = "gemini-3.1-flash"
+                >>> settings.get_image_vision_model()
+                'gemini-3.1-flash'
+        """
+        return self._resolve_image_model(
+            project_value=self.image_vision_model,
+            global_attr="image_vision_model",
+        )
+
     def is_image_generation_enabled(self) -> bool:
-        """Check if image generation is enabled (model defined)."""
-        return bool(self.image_generation_model)
+        """Check if image generation is enabled (a generation model resolves)."""
+        return bool(self.get_image_generation_model())
 
     def is_image_vision_enabled(self) -> bool:
-        """Check if image vision is enabled (model defined)."""
-        return bool(self.image_vision_model)
+        """Check if image vision is enabled (a vision model resolves)."""
+        return bool(self.get_image_vision_model())
 
     def get_image_generation_settings(self) -> AISettings:
-        """Get AI settings for image generation model."""
-        if not self.image_generation_model:
+        """Get AI settings for the resolved image generation model."""
+        image_generation_model = self.get_image_generation_model()
+        if not image_generation_model:
             return AISettings()
-        return get_model_settings(self.image_generation_model)
+        return get_model_settings(image_generation_model)
 
     def get_image_vision_settings(self) -> AISettings:
-        """Get AI settings for image vision model."""
-        if not self.image_vision_model:
+        """Get AI settings for the resolved image vision model."""
+        image_vision_model = self.get_image_vision_model()
+        if not image_vision_model:
             return AISettings()
-        return get_model_settings(self.image_vision_model)
+        return get_model_settings(image_vision_model)
 
     @classmethod
     def from_codx_path(cls, codx_path: str):

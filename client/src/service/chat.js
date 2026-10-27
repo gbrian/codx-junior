@@ -104,15 +104,61 @@ export class ChatService extends Service {
     })
   }
 
-  async addFileToChat({ chat, file }) {
-    if (!chat?.id || !file) return false
-    if (chat.file_list?.includes(file)) return false
-    
-    const updatedFileList = [...(chat.file_list || []), file]
+  // Pending `file_list` writes, keyed by chat id (see `addFilesToChat`).
+  fileListWrites() {
+    if (!this._fileListWrites) this._fileListWrites = {}
+    return this._fileListWrites
+  }
+
+  /**
+   * Adds files to the chat's `file_list`.
+   *
+   * Writes are QUEUED per chat and the new list is computed when the write RUNS,
+   * not when it is requested. Dropping several files at once used to fire one
+   * update per file, every one built from the same (still unchanged)
+   * `file_list`: the last response won and the other files were lost. Running
+   * the writes one at a time makes each request start from the list the
+   * previous one stored.
+   *
+   * Resolves to `true` when the list actually changed.
+   */
+  async addFilesToChat({ chat, files }) {
+    if (!chat?.id) return false
+    const chatId = chat.id
+    const queue = this.fileListWrites()
+    const task = (queue[chatId] || Promise.resolve())
+      .catch(() => {})
+      .then(() => this.appendChatFiles({ chat, files }))
+    queue[chatId] = task
+    try {
+      return await task
+    } finally {
+      // A newer write is already queued behind this one: keep its entry.
+      if (queue[chatId] === task) delete queue[chatId]
+    }
+  }
+
+  addFileToChat({ chat, file }) {
+    return this.addFilesToChat({ chat, files: [file] })
+  }
+
+  // Single write of the accumulated list. Runs inside the per-chat queue, so
+  // `chat.file_list` already contains the files stored by the previous write.
+  async appendChatFiles({ chat, files }) {
+    if (!chat?.id) return false
+    const current = chat.file_list || []
+    const pending = [...new Set(files || [])]
+      .filter((file) => file && !current.includes(file))
+    if (!pending.length) return false
+
+    const file_list = [...current, ...pending]
     await this.$storex.chats.updateChatInfo({ 
       chat, 
-      updates: { file_list: updatedFileList }
+      updates: { file_list }
     })
+    // Keep the chat held by the caller in sync too: `updateChatInfo` only
+    // patches the copy registered in the store.
+    if (chat.file_list !== file_list) chat.file_list = file_list
     return true
   }
 

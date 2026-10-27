@@ -8,6 +8,7 @@ const EVENT_EXPIRE_SECONDS = 120
 setInterval(() => $storex.session.tick(), 1000)
 
 import { API } from '../api/api'
+import { publishFileEvent } from '../utils/fileEvents'
 
 // ── HTTP interceptors ────────────────────────────────────────────────────────
 API.interceptors = {
@@ -52,6 +53,7 @@ export const state = () => ({
 export const getters = getterTree(state, {
   lastEvent: state => state.events[state.events.length - 1]?.data,
   wikiEvents: ({ events }) => events.filter(e => e.data?.type === 'wiki'),
+  /** Expose the SocketManager so components can call API.socket directly */
   socket: () => API.socket
 })
 
@@ -129,6 +131,14 @@ export const actions = actionTree(
       if (codx_path) {
         data.project = $storex.projects.allProjects?.find(p => p.codx_path === codx_path)
       }
+
+      // ──── FILE EVENTS ──────────────────────────────────────
+      // File events are identified by their payload (`file_path` + `type`), not
+      // by the socket event name, and are published on the `utils/fileEvents`
+      // bus. The project is already attached above, so subscribers can tell
+      // whether the change belongs to the project they are displaying.
+      publishFileEvent(event, data)
+
       if (chat) {
         $storex.chats.onChatEvent({ event, data })
       }

@@ -66,7 +66,12 @@ async def list_files(request: Request) -> Dict[str, Any]:
     logger.info("Listing files with adapter: %s, path: %s", adapter, path)
 
     try:
-        file_response = file_manager.find_files(adapter=adapter, path=path)
+        # `find_files` walks the filesystem: run it in a worker thread so a big
+        # folder does not block the event loop (and with it every other
+        # request) while the listing is being built.
+        file_response = await asyncio.to_thread(
+            file_manager.find_files, adapter=adapter, path=path
+        )
     except ValueError as e:
         logger.error("Error listing files: %s", e)
         # Return a JSON response for errors instead of raising a generic Exception
@@ -525,7 +530,10 @@ async def search_files(request: Request) -> Dict[str, Any]:
     logger.info("Searching for files with filter: '%s' in path: '%s' using adapter: %s", search_filter, path, adapter)
 
     try:
-        file_response = file_manager.find_files(adapter=adapter, path=path, search=search_filter)
+        # Same as `list_files`: keep the filesystem walk off the event loop.
+        file_response = await asyncio.to_thread(
+            file_manager.find_files, adapter=adapter, path=path, search=search_filter
+        )
     except ValueError as e:
         logger.error("Error during file search: %s", e)
         return JSONResponse(content={"error": str(e)}, status_code=400)

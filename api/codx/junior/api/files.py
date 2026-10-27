@@ -612,8 +612,6 @@ async def upload_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             content="Missing required parameter: path"
         )
-    if path[0] == '/':
-        path = path[1:]
     path = os.path.join(path, file.filename)
     
     codx_junior_session = request.state.codx_junior_session

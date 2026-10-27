@@ -61,6 +61,14 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
         </button>
       </div>
 
+      <button
+        class="btn btn-xs btn-ghost"
+        title="Open in new tab"
+        @click="openInNewTab"
+        v-if="filePath && !loading"
+      >
+        <i class="fa-solid fa-up-right-from-square"></i>
+      </button>
       <button class="btn btn-xs btn-ghost" title="Reload file" @click="reloadFile" v-if="!editMode && !loading">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
@@ -73,7 +81,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       >
         <i class="fa-solid fa-download"></i>
       </a>
-      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo && !isMarkdown">
+      <button class="btn btn-xs btn-ghost" title="Copy content" @click="copyContent" v-if="!editMode && !isPdf && !isImage && !isVideo && !isAudio && !isMarkdown">
         <i class="fa-solid fa-copy"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Delete file" @click="showDeleteConfirm" v-if="!editMode">
@@ -161,7 +169,7 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
       </div>
       <div class="w-full h-full flex items-center justify-center bg-base-300 p-4" v-else-if="isImage">
         <img
-          :src="imageDataUrl"
+          :src="imagePreviewUrl"
           :alt="displayFileName"
           class="max-w-full max-h-full object-contain"
         />
@@ -173,6 +181,16 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           class="max-w-full max-h-full"
           :title="displayFileName"
         ></video>
+      </div>
+      <div class="w-full h-full flex flex-col items-center justify-center gap-4 bg-base-300 p-6" v-else-if="isAudio">
+        <i class="fa-solid fa-music text-4xl opacity-50"></i>
+        <span class="text-sm font-mono truncate max-w-full" :title="displayFileName">{{ displayFileName }}</span>
+        <audio
+          :src="audioPreviewUrl"
+          controls
+          class="w-full max-w-md"
+          :title="displayFileName"
+        ></audio>
       </div>
       <MarkdownViewer
         v-else-if="isMarkdown"
@@ -200,8 +218,20 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           class="h-full"
         />
       </template>
-      <div class="flex items-center justify-center h-32 opacity-50 text-sm" v-else-if="isBinary">
-        <i class="fa-regular fa-image mr-2"></i> Preview not available for this file type
+      <div class="w-full h-full flex flex-col items-center justify-center gap-3 bg-base-300 p-6 text-center" v-else-if="isBinary">
+        <i class="fa-regular fa-file text-4xl opacity-50"></i>
+        <span class="text-sm">Preview not available for this file type</span>
+        <span class="text-xs opacity-60">
+          {{ fileTypeLabel }}<template v-if="fileMeta.size !== null"> • {{ formatSize(fileMeta.size) }}</template>
+        </span>
+        <a
+          class="btn btn-sm btn-outline"
+          :href="downloadUrl"
+          :download="displayFileName"
+          v-if="filePath"
+        >
+          <i class="fa-solid fa-download"></i> Download
+        </a>
       </div>
       <VueCodeHighlighter
         class="h-full"
@@ -253,10 +283,11 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </template>
 
 <script>
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg']
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'ico', 'svg']
 const VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'ogv', 'ts', 'mts', 'vob']
+const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'aac', 'm4a', 'wma', 'opus']
 const MARKDOWN_EXTENSIONS = ['md', 'markdown', 'mermaid']
-const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot']
+const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot', ...AUDIO_EXTENSIONS]
 
 const EXTENSION_ICON_MAP = {
   // Code files
@@ -408,6 +439,10 @@ export default {
     fileExtension() {
       return this.displayFileName.split('.').pop()?.toLowerCase()
     },
+    // Short uppercase label of the format shown on preview fallbacks
+    fileTypeLabel() {
+      return this.fileExtension ? this.fileExtension.toUpperCase() : 'File'
+    },
     isPdf() {
       return this.fileExtension === 'pdf'
     },
@@ -416,6 +451,9 @@ export default {
     },
     isVideo() {
       return VIDEO_EXTENSIONS.includes(this.fileExtension)
+    },
+    isAudio() {
+      return AUDIO_EXTENSIONS.includes(this.fileExtension)
     },
     isMarkdown() {
       return MARKDOWN_EXTENSIONS.includes(this.fileExtension)
@@ -443,13 +481,18 @@ export default {
       if (!this.isPdf) return ''
       return this.$api.files.getFilePreviewUrl(this.filePath)
     },
-    imageDataUrl() {
-      if (!this.fileContent || !this.isImage) return ''
-      const mimeType = this.getMimeType(this.fileExtension)
-      return `data:${mimeType};base64,${this.fileContent}`
+    // Raster/vector images are streamed by the backend instead of being read
+    // through the (text oriented) `read` endpoint.
+    imagePreviewUrl() {
+      if (!this.isImage) return ''
+      return this.$api.files.getFilePreviewUrl(this.filePath)
     },
     videoPreviewUrl() {
       if (!this.isVideo) return ''
+      return this.$api.files.getFilePreviewUrl(this.filePath)
+    },
+    audioPreviewUrl() {
+      if (!this.isAudio) return ''
       return this.$api.files.getFilePreviewUrl(this.filePath)
     },
     downloadUrl() {
@@ -473,29 +516,6 @@ export default {
     this.loadFile()
   },
   methods: {
-    getMimeType(extension) {
-      const mimeTypes = {
-        'png': 'image/png',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'gif': 'image/gif',
-        'webp': 'image/webp',
-        'ico': 'image/x-icon',
-        'svg': 'image/svg+xml',
-        'mp4': 'video/mp4',
-        'avi': 'video/x-msvideo',
-        'mov': 'video/quicktime',
-        'mkv': 'video/x-matroska',
-        'flv': 'video/x-flv',
-        'wmv': 'video/x-ms-wmv',
-        'webm': 'video/webm',
-        'ogv': 'video/ogg',
-        'ts': 'video/mp2t',
-        'mts': 'video/mp2t',
-        'vob': 'video/x-ms-vob'
-      }
-      return mimeTypes[extension] || 'application/octet-stream'
-    },
     getHeaderIcon() {
       const ext = this.fileExtension
       return EXTENSION_ICON_MAP[ext] || 'fa-regular fa-file text-info'
@@ -530,6 +550,7 @@ export default {
         this.fileMeta = { last_modification, size }
       } catch (ex) {
         console.error('Error reading file', ex)
+        // Files with a streaming preview (image, pdf, video, audio) still render
         this.error = `Error reading "${this.displayFilePath}"`
       } finally {
         this.loading = false
@@ -538,6 +559,25 @@ export default {
     async reloadFile() {
       await this.loadFile()
       this.$ui.addNotification({ text: `${this.displayFileName} reloaded` })
+    },
+    // Opens the same file in a BRAND NEW panel/tab so it can be compared side
+    // by side with the current one. `newInstance` makes showApp skip its
+    // "an app with this key is already open" de-duplication (same mechanism
+    // the workspace 'Duplicate' action uses).
+    openInNewTab() {
+      if (!this.filePath) return
+      const projectId = this.$project?.project_id
+      this.$storex.ui.showApp({
+        key: 'file-viewer',
+        name: this.displayFileName,
+        component: 'file-viewer',
+        newInstance: true,
+        params: {
+          filePath: this.filePath,
+          fileName: this.displayFileName,
+          ...(projectId ? { project_id: projectId } : {})
+        }
+      })
     },
     // Toggle between the dedicated editor and its raw content representation
     setViewMode(mode) {

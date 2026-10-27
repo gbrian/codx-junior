@@ -60,6 +60,16 @@ function invalidatePath(API, path) {
   API.invalidateCache((key) => key.includes(segment))
 }
 
+/**
+ * File name (last path segment) of a path.
+ *
+ * @param {string} path - Project relative (or absolute) path.
+ * @returns {string} Base name.
+ */
+function baseName(path) {
+  return normalizePath(path).split('/').filter(Boolean).pop() || ''
+}
+
 export const filesModule = (API) => ({
   list(path) {
     return API.get(`/api/files?path=${encodeURIComponent(path)}`)
@@ -262,5 +272,38 @@ export const filesModule = (API) => ({
         invalidatePath(API, newPath)
         return result
       })
+  },
+
+  /**
+   * Move one or several files/folders into a target directory.
+   *
+   * A move is the same filesystem operation as a rename whose new path lives in
+   * another folder, so it is performed through `POST /api/files/rename` — no
+   * extra endpoint is needed and every moved path inherits that call's cache
+   * invalidation (source **and** destination).
+   *
+   * Callers are expected to filter out no-op moves (already in `targetDir`) and
+   * moves of a folder into itself; `rename` would otherwise fail on the backend.
+   *
+   * @param {string|string[]} paths - Source path(s) (project relative or absolute).
+   * @param {string} targetDir - Destination folder.
+   * @returns {Promise<Array>} Result of each rename.
+   *
+   * @example
+   * await api.files.move(['/src/a.js', '/src/b.js'], '/lib')
+   * await api.files.move('/src/a.js', '/')   // back to the project root
+   */
+  move(paths, targetDir) {
+    const sources = (Array.isArray(paths) ? paths : [paths]).filter(Boolean)
+    const directory = normalizePath(targetDir) || '/'
+    return Promise.all(sources.map((source) => {
+      const destination = normalizePath(`${directory}/${baseName(source)}`)
+      return API.post(`/api/files/rename`, { old_path: source, new_path: destination })
+        .then((result) => {
+          invalidatePath(API, source)
+          invalidatePath(API, destination)
+          return result
+        })
+    }))
   }
 })

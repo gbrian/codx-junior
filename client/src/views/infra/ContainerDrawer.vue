@@ -100,7 +100,10 @@
           <!-- ── logs: owns the whole remaining height ──────────────────── -->
           <template v-else-if="state.detailTab === 'logs'">
             <div class="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2 border-b border-base-300">
-              <span class="text-xs opacity-50">{{ state.logs.length }} lines</span>
+              <span class="text-xs opacity-50 tabular-nums">
+                <template v-if="logQuery.trim()">{{ logMatchCount }} of {{ state.logs.length }} lines</template>
+                <template v-else>{{ state.logs.length }} lines</template>
+              </span>
 
               <label class="sr-only" for="log-tail">Log tail size</label>
               <select id="log-tail" class="select select-bordered select-xs"
@@ -110,6 +113,27 @@
                 <option :value="500">tail 500</option>
                 <option :value="1000">tail 1000</option>
               </select>
+
+              <!-- Search is CLIENT-SIDE: the tail is already in memory, so every
+                   keystroke filters instantly and never re-queries the daemon. -->
+              <label class="input input-bordered input-xs flex items-center gap-1.5 grow min-w-40 max-w-80">
+                <i class="fas fa-magnifying-glass opacity-50 text-[10px]"></i>
+                <input ref="logSearchEl" type="text" class="grow min-w-0 text-xs"
+                       aria-label="Search log lines"
+                       placeholder="Search logs… (Ctrl+F)"
+                       v-model="logQuery" />
+                <button v-if="logQuery" type="button"
+                        class="btn btn-xs btn-ghost btn-square -mr-1"
+                        aria-label="Clear log search" title="Clear search"
+                        @click="clearLogSearch">
+                  <i class="fas fa-xmark text-[10px]"></i>
+                </button>
+              </label>
+
+              <span v-if="logQuery.trim()" role="status" aria-live="polite"
+                    class="badge badge-xs" :class="logMatchCount ? 'badge-primary' : 'badge-ghost'">
+                {{ logMatchCount }} match{{ logMatchCount === 1 ? '' : 'es' }}
+              </span>
 
               <div class="flex-1"></div>
 
@@ -133,14 +157,24 @@
                 No log lines were returned for this container.
               </p>
 
+              <div v-else-if="!visibleLogs.length" class="p-8 text-center text-xs opacity-50 space-y-2">
+                <i class="fas fa-magnifying-glass text-2xl"></i>
+                <p>No lines match <span class="font-mono text-base-content">{{ logQuery.trim() }}</span></p>
+                <button class="btn btn-xs" @click="clearLogSearch">
+                  <i class="fas fa-xmark"></i> Clear search
+                </button>
+              </div>
+
               <table v-else class="table table-xs font-mono text-[11px]">
                 <tbody>
-                  <tr v-for="(line, i) in state.logs" :key="i" class="hover:bg-base-100/60">
-                    <td class="whitespace-nowrap opacity-40 align-top w-20">{{ fmtTime(line.ts) }}</td>
+                  <tr v-for="row in visibleLogs" :key="row.key" class="hover:bg-base-100/60">
+                    <td class="whitespace-nowrap opacity-40 align-top w-20">{{ fmtTime(row.line.ts) }}</td>
                     <td class="whitespace-nowrap align-top w-14">
-                      <span :class="logLevelClass(line.level)">{{ line.level }}</span>
+                      <span :class="logLevelClass(row.line.level)">{{ row.line.level }}</span>
                     </td>
-                    <td class="whitespace-pre-wrap break-all">{{ line.msg }}</td>
+                    <!-- Matches are wrapped in <mark>; `text-inherit` keeps the
+                         level/monospace colour so hits only change background. -->
+                    <td class="whitespace-pre-wrap break-all"><template v-for="(part, pi) in row.parts" :key="pi"><mark v-if="part.hit" class="rounded-sm bg-warning/40 px-0.5 text-inherit">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></td>
                   </tr>
                 </tbody>
               </table>
@@ -403,6 +437,66 @@ const detail = computed(() => state.detail)
 const tailSize = ref(200)
 const follow = ref(true)
 
+/**
+ * Log search (client-side).
+ *
+ * The tail is already in memory (100…1000 lines), so filtering per keystroke is
+ * instant and never re-queries the daemon — the *fetch* stays governed by the
+ * tail selector + Reload.
+ */
+const logQuery = ref('')
+const logSearchEl = ref(null)
+
+/** True when the line contains `term` in its message or its level. */
+function matchesLine(line, term) {
+  return String(line.msg ?? '').toLowerCase().includes(term)
+    || String(line.level ?? '').toLowerCase().includes(term)
+}
+
+/**
+ * Splits `text` on every occurrence of `term`.
+ * @returns {Array<{text: string, hit: boolean}>} always at least one part, so
+ * the template can render a single loop whether or not a search is active.
+ */
+function splitMatches(text, term) {
+  const source = String(text ?? '')
+  if (!term) return [{ text: source, hit: false }]
+  const haystack = source.toLowerCase()
+  const parts = []
+  let cursor = 0
+  let ix = haystack.indexOf(term)
+  while (ix >= 0) {
+    if (ix > cursor) parts.push({ text: source.slice(cursor, ix), hit: false })
+    parts.push({ text: source.slice(ix, ix + term.length), hit: true })
+    cursor = ix + term.length
+    ix = haystack.indexOf(term, cursor)
+  }
+  if (cursor < source.length) parts.push({ text: source.slice(cursor), hit: false })
+  return parts.length ? parts : [{ text: source, hit: false }]
+}
+
+/**
+ * Rows to render: the whole tail, or only the matching lines.
+ * `key` is the ORIGINAL index, so highlight spans are never reused for a
+ * different line when the filter changes.
+ */
+const visibleLogs = computed(() => {
+  const term = logQuery.value.trim().toLowerCase()
+  const rows = []
+  ;(state.logs || []).forEach((line, i) => {
+    if (term && !matchesLine(line, term)) return
+    rows.push({ key: i, line, parts: splitMatches(line.msg, term) })
+  })
+  return rows
+})
+
+const logMatchCount = computed(() => visibleLogs.value.length)
+
+function clearLogSearch() {
+  logQuery.value = ''
+  logSearchEl.value?.focus()
+}
+
 /* ── inspect pane state ───────────────────────────────────────────────────── */
 const copied = ref(false)
 const reloading = ref(false)
@@ -503,9 +597,26 @@ function onTailChange(event) {
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape' && state.drawerOpen) {
+  if (!state.drawerOpen) return
+
+  // Ctrl/Cmd+F focuses the log search instead of the browser's find dialog
+  // (which cannot match anything inside this teleported, virtualized table).
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f'
+      && state.detailTab === 'logs') {
+    event.preventDefault()
+    logSearchEl.value?.focus()
+    logSearchEl.value?.select()
+    return
+  }
+
+  if (event.key === 'Escape') {
     // The detail overlay is the topmost layer: consume the key.
     event.stopPropagation()
+    // Escape clears an active log search first; a second Escape closes.
+    if (state.detailTab === 'logs' && logQuery.value) {
+      clearLogSearch()
+      return
+    }
     closeDrawer()
   }
 }
@@ -515,7 +626,12 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 watch(() => state.drawerOpen, async (open) => {
-  if (!open) return
+  if (!open) {
+    // Never carry a query into the next container: it would silently hide
+    // lines the operator never asked to hide.
+    logQuery.value = ''
+    return
+  }
   await nextTick()
   dialogEl.value?.focus()
   revealActiveTab()

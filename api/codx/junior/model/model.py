@@ -212,9 +212,33 @@ class GlobalSettings(BaseModel):
     llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
-    vision_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
-    image_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
     guardrail_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+
+    # Image models. The names are the SAME in the global and the project
+    # settings: here they are the installation default, in
+    # CODXJuniorSettings they override it per project.
+    #
+    # Generating an image (text -> image) and analysing one (image -> text) are
+    # two different capabilities, so each one has its own setting and neither
+    # ever falls back to the other's model.
+    #
+    # Both default to "" (disabled) unlike the text models above: an image
+    # capability cannot fall back to a text model, and a non-empty default
+    # would make is_image_generation_enabled() always true.
+    image_generation_model: str = Field(
+        default="",
+        description=(
+            "Default image generation model (text -> image). A project overrides "
+            "it with its own image_generation_model"
+        )
+    )
+    image_vision_model: str = Field(
+        default="",
+        description=(
+            "Default image vision model (image -> text). A project overrides it "
+            "with its own image_vision_model"
+        )
+    )
 
     git: GitSettings = Field(default=GitSettings())
 

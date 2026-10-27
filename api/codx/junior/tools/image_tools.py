@@ -3,7 +3,8 @@ Image tools for chat interactions.
 
 This module provides tools for image operations:
 - explain_image: Detailed image analysis using Vision API
-- generate_image: Image generation using DALL-E
+- generate_image: Image generation using the configured image model
+  (DALL-E or Gemini/Nano Banana)
 
 Made with ❤️ by codx-junior
 """
@@ -21,7 +22,7 @@ from codx.junior.model.model import CodxUser
 logger = logging.getLogger(__name__)
 
 
-def explain_image(image_base64: str, **kwargs) -> str:
+async def explain_image(image_base64: str, **kwargs) -> str:
     """
     Provide a detailed analysis of an image using Vision API.
 
@@ -42,7 +43,7 @@ def explain_image(image_base64: str, **kwargs) -> str:
         Exception: If project settings are not provided
 
     Example:
-        >>> explain_image("iVBORw0KGgoAAAANSUhEUgA...", settings=settings)
+        >>> await explain_image("iVBORw0KGgoAAAANSUhEUgA...", settings=settings)
         # Returns: "This image shows a futuristic cityscape at sunset..."
     """
     settings: CODXJuniorSettings = kwargs.get("settings", None)
@@ -73,7 +74,7 @@ def explain_image(image_base64: str, **kwargs) -> str:
         )
 
         image_engine = ImageEngine(settings=settings, user=user)
-        response = image_engine.analyze_image(analysis_request)
+        response = await image_engine.analyze_image(analysis_request)
 
         logger.info("Image explained successfully")
         return response.analysis
@@ -89,12 +90,14 @@ def explain_image(image_base64: str, **kwargs) -> str:
         raise Exception(f"Image analysis failed: {str(e)}")
 
 
-def generate_image(prompt: str, **kwargs) -> str:
+async def generate_image(prompt: str, **kwargs) -> str:
     """
-    Generate an image from a text prompt using DALL-E.
+    Generate an image from a text prompt using the configured image model.
 
-    Creates a new image based on the provided prompt and stores it in the project.
-    Returns the relative URL path to the generated image.
+    The request is first reviewed and adapted into an optimized image prompt
+    (using the settings image model, with the project text model as fallback),
+    then created, downloaded and stored in the project. Returns the stored
+    image URL/path together with the adapted prompt.
 
     Args:
         prompt: Text description of the image to generate
@@ -105,15 +108,15 @@ def generate_image(prompt: str, **kwargs) -> str:
             - quality (str): "standard" or "hd", default "standard"
 
     Returns:
-        str: Relative URL path to the generated image (e.g., "/images/project-123/abc123.png")
+        str: Report with the stored image URL/path and the adapted prompt.
 
     Raises:
         ValueError: If prompt is invalid or generation is disabled
         Exception: If project settings are not provided
 
     Example:
-        >>> generate_image("A futuristic city at sunset", settings=settings)
-        # Returns: "/images/project-123/a1b2c3d4.png"
+        >>> await generate_image("A futuristic city at sunset", settings=settings)
+        # Returns: "Image generated and saved. URL: /api/images/generated/a1b2c3d4.png ..."
     """
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if not settings:
@@ -130,24 +133,31 @@ def generate_image(prompt: str, **kwargs) -> str:
         raise ValueError("prompt cannot be empty or whitespace only")
 
     try:
-        # Create generation request
+        image_engine = ImageEngine(settings=settings, user=user)
+
+        # Review & adapt the request into an optimized image prompt
+        adapted_prompt = await image_engine.adapt_image_prompt(prompt)
+
+        # Create generation request with the adapted prompt
         generation_request = ImageGenerationRequest(
-            prompt=prompt,
+            prompt=adapted_prompt,
             size=size,
             quality=quality,
             n=1,
             style="vivid"
         )
 
-        image_engine = ImageEngine(settings=settings, user=user)
-        response = image_engine.generate_image(generation_request)
+        response = await image_engine.generate_image(generation_request)
 
-        # Build relative URL path
-        project_id = settings.project_id or "default"
-        relative_url = f"/images/{project_id}/{response.image_id}"
-
-        logger.info("Image generated successfully: url=%s", relative_url)
-        return relative_url
+        logger.info("Image generated successfully: url=%s", response.url)
+        return (
+            "Image generated and saved.\n"
+            f"- URL: {response.url}\n"
+            f"- Path: {response.path}\n"
+            f"- Model: {response.model}\n"
+            f"- Adapted prompt: {adapted_prompt}\n\n"
+            f"![generated image]({response.url})"
+        )
 
     except ValueError as e:
         logger.warning("Image generation validation error: %s", e)

@@ -712,25 +712,34 @@ export default {
       }
       return true
     },
+    // Applies a whole drop in ONE `file_list` write (see onAddFiles). Adding the
+    // paths one by one fired one update per file, all built from the same stale
+    // list, so only the last dropped file was stored.
+    async processFilePaths(filePaths, chatDrop) {
+      const validPaths = (filePaths || []).filter(path => path && this.isProjectFile(path))
+      if (validPaths.length === 0) return false
+      if (chatDrop) {
+        await this.onAddFiles(validPaths)
+      } else {
+        validPaths.forEach(filePath => this.addFileToMessage(filePath))
+      }
+      return true
+    },
     async processMultipleFilePaths(textContent, chatDrop) {
       const filePaths = textContent
         .split('\n')
         .map(p => p.trim())
-        .filter(p => p && p.length > 0 && this.isProjectFile(p))
-      if (filePaths.length === 0) return false
-      for (const filePath of filePaths) {
-        await this.processFilePath(filePath, chatDrop)
-      }
-      return true
+        .filter(p => p && p.length > 0)
+      return await this.processFilePaths(filePaths, chatDrop)
     },
     async processJsonFileList(jsonData, chatDrop) {
       try {
         const { files } = JSON.parse(jsonData)
         if (!files || files.length === 0) return false
-        for (const file of files) {
-          if (!file.is_dir) await this.processFilePath(file.path, chatDrop)
-        }
-        return true
+        return await this.processFilePaths(
+          files.filter(file => !file.is_dir).map(file => file.path),
+          chatDrop
+        )
       } catch (ex) {
         console.error('[DROP] Error parsing file list JSON', ex)
         return false
@@ -836,7 +845,9 @@ export default {
       this.showUploadConfirmModal = false
       const uploadedPaths = await this.performUpload(this.pendingUploadFiles, this.uploadPath)
       if (this.uploadContext.chatDrop) {
-        uploadedPaths.forEach(path => this.onAddFile(path))
+        // One write for the whole upload: adding them one by one kept only the
+        // last file (see onAddFiles).
+        await this.onAddFiles(uploadedPaths)
       } else {
         uploadedPaths.forEach(path => this.addFileToMessage(path))
       }
@@ -1259,6 +1270,15 @@ export default {
       clearTimeout(this.dragoverTimeout)
       this.onDrop(e, true)
     },
+    // Drag payloads carry URI-encoded paths, but a literal '%' in a file name
+    // makes `decodeURIComponent` throw — never let that abort a whole drop.
+    decodeDropText(text) {
+      try {
+        return decodeURIComponent(text)
+      } catch {
+        return text
+      }
+    },
     async onDrop(e, chatDrop) {
       let itemsAdded = false
 
@@ -1277,7 +1297,9 @@ export default {
 
       const textContent = e.dataTransfer.getData('text/plain')
       if (textContent) {
-        const decodedContent = decodeURIComponent(textContent)
+        // Several dragged files arrive as a multi-line payload
+        // (see processMultipleFilePaths).
+        const decodedContent = this.decodeDropText(textContent)
         if (await this.processMultipleFilePaths(decodedContent, chatDrop)) {
           itemsAdded = true
         } else if (this.isProjectFile(decodedContent) && !this.pasteWithShift) {
@@ -1323,7 +1345,7 @@ export default {
       if (handled) return stop()
     },
     async processInputTextContent(textContent, chatDrop) {
-      const decodedContent = decodeURIComponent(textContent)
+      const decodedContent = this.decodeDropText(textContent)
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(decodedContent)
       if (imgUrl) {
         const attachment = await this.prepareAttachmentFromUrl(imgUrl)
@@ -1493,10 +1515,22 @@ export default {
       this.uploadProjectFile = null
       this.selectFile = false
     },
+    // Adds a single file to the chat. The write is queued per chat (see
+    // ChatService.addFilesToChat) and awaited, so a burst of calls — dropping
+    // several files — never overwrites the files added before it.
     async onAddFile(file) {
+      return await this.onAddFiles([file])
+    },
+    // Adds a whole drop in ONE `file_list` write: paths are normalized and
+    // deduplicated first (stored project-relative, see toChatFilePath) so the
+    // chat stays portable and repeated drops are no-ops.
+    async onAddFiles(files) {
+      const chatFiles = (files || [])
+        .map(file => this.toChatFilePath(file))
+        .filter(file => file && !this.hasFileInChat(file))
+      if (!chatFiles.length) return false
       // Stored project-relative (see toChatFilePath) so the chat stays portable
-      const chatFile = this.toChatFilePath(file)
-      if (!this.hasFileInChat(chatFile) && this.chatSvc.addFileToChat({ chat: this.chat, file: chatFile })) {}
+      return await this.chatSvc.addFilesToChat({ chat: this.chat, files: chatFiles })
     },
     async onAddFileToChat(file) {
       await this.onAddFile(file)

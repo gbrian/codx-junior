@@ -39,6 +39,9 @@
                 "python.testing.unittestEnabled": false,
                 "python.testing.pytestEnabled": false
             }
+        },
+        {
+            "path": "../codx-junior-projects/codx-services"
         }
     ],
     "settings": {

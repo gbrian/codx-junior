@@ -1,34 +1,57 @@
 """
-Teams API router.
+Teams API router – CRUD endpoints backed by :class:`codx.junior.model.team.Team`.
 
-Provides CRUD endpoints for hybrid teams (AI profiles + human users) scoped to
-the active project. Teams are persisted **per project** (exactly like chats)
-and are managed by :class:`codx.junior.teams.team_manager.TeamManager`.
+The router is discovered automatically by
+:func:`codx.junior.api.discover_routers` (every module of this package exporting
+a ``router`` is registered under ``/api``), so no change is needed in
+``codx.junior.app``.
 
-The active session is read from ``request.state.codx_junior_session`` (the same
-convention used by ``codx/junior/api/chat.py``).
+The payload is the **same model** the ``team_management`` tool uses: a lead
+plus a list of members, each member carrying its profile name, role,
+responsibility and order. The API therefore never reshapes a team, it only
+persists it through :class:`~codx.junior.teams.team_manager.TeamManager`.
 
+Route layout
+------------
+GET    /api/teams               – list the teams of the project (with profile names)
+GET    /api/teams/{team_name}   – definition + charter + resolved composition
+POST   /api/teams               – create a team (409 when it already exists)
+PUT    /api/teams/{team_name}   – replace an existing team, roster included
+DELETE /api/teams/{team_name}   – delete the team folder
+
+A rename is ``POST`` + ``DELETE``: the folder name must always match the team
+name, so it is never patched in place.
+
+Diagram
+-------
 ```mermaid
-flowchart TD
-    LIST[GET /api/teams] --> LM[TeamManager.list_teams]
-    READ[GET /api/teams/{team_id}] --> FM[TeamManager.find_by_id]
-    CREATE[POST /api/teams] --> SV[TeamManager.save_team]
-    UPDATE[PUT /api/teams/{team_id}] --> SV
-    DELETE[DELETE /api/teams/{team_id}] --> DL[TeamManager.delete_team]
-    ADDM[POST /api/teams/{team_id}/members] --> AM[TeamManager.add_members]
-    REMV[DELETE /api/teams/{team_id}/members] --> RM[TeamManager.remove_members]
+flowchart LR
+    Client -->|GET /api/teams| List
+    Client -->|GET /api/teams/:name| Detail
+    Client -->|POST /api/teams| Create
+    Client -->|PUT /api/teams/:name| Update
+    Client -->|DELETE /api/teams/:name| Delete
+
+    List --> TeamManager
+    Detail --> TeamManager
+    Create --> TeamManager
+    Update --> TeamManager
+    Delete --> TeamManager
+    TeamManager --> Model[Team / TeamMember model]
+    TeamManager --> Disk[.codx/teams/NAME/NAME.team + NAME.md]
 ```
+
+Made with ❤️ by codx-junior
 """
 
 import logging
-from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import Any, Dict, List
 
-from codx.junior.engine import CODXJuniorSession
-from codx.junior.model.model import CodxUser
-from codx.junior.security.user_management import get_authenticated_user
-from codx.junior.teams.model import Team, TeamMembers
+from fastapi import APIRouter, HTTPException, Request
+
+from codx.junior.api import get_current_session
+from codx.junior.model.team import Team
 from codx.junior.teams.team_manager import TeamManager
 
 logger = logging.getLogger(__name__)
@@ -36,307 +59,184 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+def get_team_manager(request: Request) -> TeamManager:
+    """
+    Build the TeamManager of the project in context.
 
-def _get_session(request: Request) -> CODXJuniorSession:
-    """Return the session bound to the current request."""
-    session = getattr(request.state, "codx_junior_session", None)
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        A TeamManager rooted at the project's ``.codx/teams`` folder.
+
+    Raises:
+        HTTPException: 400 when the request carries no project session.
+    """
+    session = get_current_session(request)
     if session is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Project session not available for this request.",
+            status_code=400,
+            detail="No project session for this request (codx_path is required)",
         )
-    return session
-
-
-def _get_team_manager(session: CODXJuniorSession) -> TeamManager:
-    """Instantiate a :class:`TeamManager` from the active session's settings."""
     return TeamManager(settings=session.settings)
 
 
-def _actor(user: Optional[CodxUser]) -> Optional[str]:
-    """Return the acting user's username, or ``None``."""
-    return user.username if user and getattr(user, "username", None) else None
-
-
-def _split_csv(value: Optional[str]) -> List[str]:
-    """Split a comma-separated query parameter into a clean list."""
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-async def _read_members(request: Request) -> TeamMembers:
+@router.get("/teams")
+def list_teams(request: Request) -> List[Dict[str, Any]]:
     """
-    Resolve team members from a JSON body and/or query parameters.
+    List the teams of the project.
 
-    A JSON body (``{"profiles": [...], "users": [...]}``) is preferred; any
-    ``profiles``/``users`` query parameters are merged in so clients that
-    cannot send a body on DELETE still work.
+    Returns:
+        One entry per team, with ``members`` and the derived ``profile_names``.
 
-    :param request: The incoming request.
-    :return: A populated :class:`TeamMembers` object.
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as TeamsRouter
+        participant Manager as TeamManager
+        participant Disk as .codx/teams
+        Client->>Router: GET /api/teams
+        Router->>Manager: list_teams()
+        Manager->>Disk: read */**.team
+        Disk-->>Manager: definitions
+        Manager-->>Router: Team objects
+        Router-->>Client: [Team.definition()]
     """
-    profiles: List[str] = []
-    users: List[str] = []
-
-    try:
-        body = await request.json()
-    except ValueError:
-        body = None
-
-    if isinstance(body, dict):
-        profiles.extend(body.get("profiles") or [])
-        users.extend(body.get("users") or [])
-
-    profiles.extend(_split_csv(request.query_params.get("profiles")))
-    users.extend(_split_csv(request.query_params.get("users")))
-
-    return TeamMembers(profiles=profiles, users=users)
+    manager = get_team_manager(request)
+    teams = manager.list_teams()
+    logger.info("list_teams: %d team(s)", len(teams))
+    return [team.definition() for team in teams]
 
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
-@router.get("/teams", response_model=List[Team])
-def list_teams(
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> List[Team]:
-    """Return all teams for the active project."""
-    session = _get_session(request)
-    teams = _get_team_manager(session).list_teams()
-    logger.info(
-        "User '%s' listed %d teams for project '%s'",
-        _actor(user) or "anonymous",
-        len(teams),
-        session.settings.project_id,
-    )
-    return teams
-
-
-@router.post("/teams", response_model=Team)
-async def create_team(
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> Team:
+@router.get("/teams/{team_name}")
+def get_team(team_name: str, request: Request) -> Dict[str, Any]:
     """
-    Create a new team for the active project.
+    Return one team: definition, charter and resolved composition.
 
-    The request body is a JSON object matching the :class:`Team` schema
-    (``name`` is required; ``description``, ``color``, ``icon``, ``profiles``,
-    ``users`` and ``tags`` are optional). A fresh id is always assigned by the
-    server.
+    Args:
+        team_name: Exact team name.
 
-    Example body:
+    Returns:
+        The team definition (charter included) plus the ``resolved`` block with
+        the profiles, tools, model and any missing profile reference.
 
-    ```json
-    {
-      "name": "Engineering",
-      "description": "Builds and reviews the product",
-      "color": "#6366f1",
-      "icon": "fa-solid fa-robot"
-    }
-    ```
+    Raises:
+        HTTPException: 404 when the team does not exist.
     """
-    session = _get_session(request)
-    body = await request.json()
-    try:
-        team = Team(**(body or {}))
-    except (TypeError, ValueError) as exc:
-        logger.warning("Invalid team payload from user '%s': %s", _actor(user), exc)
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    if not team.name or not team.name.strip():
-        raise HTTPException(status_code=422, detail="Field 'name' must not be empty.")
-
-    # Always allocate a fresh id for a new team and stamp ownership.
-    team.id = None
-    team.created_by = _actor(user)
-    team.updated_by = _actor(user)
-
-    saved_team = _get_team_manager(session).save_team(team)
-
-    logger.info(
-        "User '%s' created team '%s' (id=%s) in project '%s'",
-        _actor(user) or "anonymous",
-        saved_team.name,
-        saved_team.id,
-        session.settings.project_id,
-    )
-    return saved_team
-
-
-@router.get("/teams/{team_id}", response_model=Team)
-def get_team(
-    team_id: str,
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> Team:
-    """
-    Return a single team by id.
-
-    :raises HTTPException 404: when no team with the given id exists.
-    """
-    session = _get_session(request)
-    team = _get_team_manager(session).find_by_id(team_id)
+    manager = get_team_manager(request)
+    team = manager.read_team(team_name)
     if not team:
-        raise HTTPException(status_code=404, detail=f"Team '{team_id}' not found.")
-    return team
+        raise HTTPException(status_code=404, detail=f"Team '{team_name}' not found")
+
+    return {
+        **team.definition(include_content=True),
+        "resolved": manager.resolve_team(team, include_content=False),
+    }
 
 
-@router.put("/teams/{team_id}", response_model=Team)
-async def update_team(
-    team_id: str,
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> Team:
+@router.post("/teams", status_code=201)
+def create_team(team: Team, request: Request) -> Dict[str, Any]:
     """
-    Update an existing team (partial update applied over the stored team).
+    Create a team (both files) in the project.
 
-    Fields present in the body are applied on top of the stored team, so
-    omitted fields keep their previous value. ``id``, ``project_id`` and
-    ``created_at`` cannot be changed by the client.
+    Args:
+        team: Team payload; ``members`` also accepts plain profile names.
+        request: The incoming HTTP request.
 
-    :raises HTTPException 404: when no team with the given id exists.
-    :raises HTTPException 422: when the resulting name is empty.
+    Returns:
+        The persisted team definition (charter included).
+
+    Raises:
+        HTTPException: 409 when the team already exists (use ``PUT`` instead).
     """
-    session = _get_session(request)
-    manager = _get_team_manager(session)
-    existing = manager.find_by_id(team_id)
+    manager = get_team_manager(request)
+
+    if manager.read_team(team.name):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Team '{team.name}' already exists. "
+                "Use PUT /api/teams/{team_name} to update it."
+            ),
+        )
+
+    team.project_id = manager.settings.project_id
+    team.ensure_lead_in_roster()
+    saved = manager.save_team(team)
+    logger.info("create_team: '%s'", saved.name)
+    return saved.definition(include_content=True)
+
+
+@router.put("/teams/{team_name}")
+def update_team(team_name: str, team: Team, request: Request) -> Dict[str, Any]:
+    """
+    Replace an existing team, roster included.
+
+    The payload is the full team (the same shape ``GET`` returns), so a client
+    can read, edit and write it back without a partial-update dialect.
+
+    Args:
+        team_name: Exact name of the team to update.
+        team: New team payload.
+        request: The incoming HTTP request.
+
+    Returns:
+        The persisted team definition (charter included).
+
+    Raises:
+        HTTPException: 400 when the body name differs from the path, 404 when
+            the team does not exist.
+    """
+    manager = get_team_manager(request)
+
+    existing = manager.read_team(team_name)
     if not existing:
-        raise HTTPException(status_code=404, detail=f"Team '{team_id}' not found.")
+        raise HTTPException(status_code=404, detail=f"Team '{team_name}' not found")
 
-    body = await request.json()
-    merged = existing.model_dump()
-    merged.update({key: value for key, value in (body or {}).items() if key in Team.model_fields})
-    merged["id"] = team_id
-    merged["project_id"] = session.settings.project_id
-    merged["created_at"] = existing.created_at
-    merged["created_by"] = existing.created_by
-    merged["updated_by"] = _actor(user)
-
-    updated_team = Team(**merged)
-    if not updated_team.name or not updated_team.name.strip():
-        raise HTTPException(status_code=422, detail="Field 'name' must not be empty.")
-
-    saved_team = manager.save_team(updated_team)
-
-    logger.info(
-        "User '%s' updated team '%s' in project '%s'",
-        _actor(user) or "anonymous",
-        team_id,
-        session.settings.project_id,
-    )
-    return saved_team
-
-
-@router.delete("/teams/{team_id}")
-def delete_team(
-    team_id: str,
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> dict:
-    """
-    Delete a team by id.
-
-    :raises HTTPException 404: when no team with the given id exists.
-    """
-    session = _get_session(request)
-    deleted = _get_team_manager(session).delete_team(team_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Team '{team_id}' not found.")
-
-    logger.info(
-        "User '%s' deleted team '%s' from project '%s'",
-        _actor(user) or "anonymous",
-        team_id,
-        session.settings.project_id,
-    )
-    return {"message": f"Team '{team_id}' deleted successfully."}
-
-
-@router.post("/teams/{team_id}/members", response_model=Team)
-async def add_team_members(
-    team_id: str,
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> Team:
-    """
-    Add AI profiles and/or human users to a team.
-
-    Members are resolved from a JSON body (preferred) and/or
-    ``profiles``/``users`` comma-separated query parameters. Duplicates are
-    ignored.
-
-    Example: ``{ "profiles": ["software_developer"], "users": ["alice"] }``.
-
-    :raises HTTPException 404: when no team with the given id exists.
-    """
-    session = _get_session(request)
-    members = await _read_members(request)
-
-    try:
-        team = _get_team_manager(session).add_members(
-            team_id,
-            profiles=members.profiles,
-            users=members.users,
-            actor=_actor(user),
+    if team.name and team.name != team_name:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Body team name '{team.name}' does not match the path "
+                f"'{team_name}'. Renaming is POST + DELETE."
+            ),
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    logger.info(
-        "User '%s' added members to team '%s': profiles=%s users=%s",
-        _actor(user) or "anonymous",
-        team_id,
-        members.profiles,
-        members.users,
-    )
-    return team
+    team.name = team_name
+    team.project_id = existing.project_id or manager.settings.project_id
+    team.created_at = existing.created_at
+    team.ensure_lead_in_roster()
+
+    saved = manager.save_team(team)
+    logger.info("update_team: '%s'", saved.name)
+    return saved.definition(include_content=True)
 
 
-@router.delete("/teams/{team_id}/members", response_model=Team)
-async def remove_team_members(
-    team_id: str,
-    request: Request,
-    user: CodxUser = Depends(get_authenticated_user),
-) -> Team:
+@router.delete("/teams/{team_name}")
+def delete_team(team_name: str, request: Request) -> Dict[str, Any]:
     """
-    Remove AI profiles and/or human users from a team.
+    Delete a team (its folder and both files).
 
-    Members are resolved from a JSON body and/or ``profiles``/``users``
-    comma-separated query parameters, so DELETE callers that cannot send a body
-    still work.
+    The profiles the team referenced are untouched: a team never owned them.
 
-    Example: ``{ "profiles": ["software_developer"], "users": ["alice"] }``.
+    Args:
+        team_name: Exact name of the team to delete.
 
-    :raises HTTPException 404: when no team with the given id exists.
+    Returns:
+        ``{"deleted": name, "members": [...]}``.
+
+    Raises:
+        HTTPException: 404 when the team does not exist.
     """
-    session = _get_session(request)
-    members = await _read_members(request)
+    manager = get_team_manager(request)
 
-    try:
-        team = _get_team_manager(session).remove_members(
-            team_id,
-            profiles=members.profiles,
-            users=members.users,
-            actor=_actor(user),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    existing = manager.read_team(team_name)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Team '{team_name}' not found")
 
-    logger.info(
-        "User '%s' removed members from team '%s': profiles=%s users=%s",
-        _actor(user) or "anonymous",
-        team_id,
-        members.profiles,
-        members.users,
-    )
-    return team
-
+    members = existing.profile_names
+    manager.delete_team(team_name)
+    logger.info("delete_team: '%s'", team_name)
+    return {"deleted": team_name, "members": members}
 
 # Made with ❤️ by codx-junior
