@@ -2,8 +2,8 @@
 Profile management tools (CRUD) for codx-junior.
 
 This module exposes the :class:`~codx.junior.profiles.profile_manager.ProfileManager`
-as a single action-based tool so profiles can be listed, inspected, created,
-updated and deleted from a chat without hand-editing JSON files.
+as tools so profiles can be listed, inspected, created, updated and deleted
+from a chat without hand-editing JSON files.
 
 Storage layout (one folder per profile, handled by ``ProfileManager``)::
 
@@ -11,9 +11,21 @@ Storage layout (one folder per profile, handled by ``ProfileManager``)::
     .codx/profiles/<Name>/<Name>.md        # Markdown content (instructions)
 
 Design notes:
-    - **One tool, five actions.** ``list`` / ``get`` / ``create`` / ``update`` /
-      ``delete``. Keeping the CRUD unified (like ``docker_container``) avoids
-      spending prompt tokens on five separate tool schemas.
+    - **Two levels of granularity.** ``profile_management`` keeps the whole CRUD
+      behind a single action-based tool (one small schema, handy for admin
+      profiles), while ``list_profiles`` / ``get_profile`` / ``create_profile``
+      / ``update_profile`` / ``delete_profile`` expose **one tool per action**.
+      The runtime grants permissions by TOOL NAME (``Profile.tools`` is matched
+      against the ``TOOLS`` registry), so per-action permissions require
+      per-action tools: a profile can be allowed to list the profiles without
+      being allowed to delete them.
+    - **Listing never carries content.** ``list`` / ``list_profiles`` return the
+      profile **JSON definition only**: the Markdown instructions
+      (``content``) are NOT included, because they are injected into the system
+      prompt and can be arbitrarily large. Reading them is an explicit
+      operation: ``get`` / ``get_profile``. Listings expose ``has_content``
+      instead, so a caller knows which profiles have instructions before
+      fetching them.
     - **Writes are validated, never guessed.** Profile name, category,
       ``file_match`` regex, linked profile names and tool names are checked
       before touching the disk, so a typo cannot silently corrupt a profile.
@@ -177,9 +189,15 @@ def _profile_definition(profile: Profile, include_content: bool = False) -> Dict
     Volatile, per-user fields (``user``, ``chat_id``, ``parsed_content``) are
     intentionally left out so the definition can be copied to another project.
 
+    CONTRACT — **the Markdown content is opt-in**: ``content`` is only added
+    when ``include_content=True``. Listings never request it (the instructions
+    are injected into the system prompt and can be arbitrarily large), so
+    ``has_content`` is exposed instead: it tells the caller whether there is
+    something to fetch with ``get`` / ``get_profile``.
+
     Args:
         profile: The profile to describe.
-        include_content: Include the Markdown content in the result.
+        include_content: Include the Markdown content (``.md``) in the result.
 
     Returns:
         Dict ready to be JSON-serialised.
@@ -202,6 +220,7 @@ def _profile_definition(profile: Profile, include_content: bool = False) -> Dict
         ),
         "path": profile.path,
         "project_id": profile.project_id,
+        "has_content": bool(profile.content),
     }
     if include_content:
         definition["content"] = profile.content or ""
@@ -216,22 +235,25 @@ def _format_profiles_table(profiles: List[Profile]) -> str:
         profiles: Profiles to render.
 
     Returns:
-        Markdown table with the fields needed to choose a profile.
+        Markdown table with the fields needed to choose a profile, plus a
+        ``Content`` column flagging which profiles have instructions to fetch
+        (their text is never inlined here).
     """
     lines = [
         f"> {len(profiles)} profile(s)",
         "",
-        "**Name** | **Category** | **file_match** | **Linked** | **Tools** | **Tags**",
-        "---|---|---|---|---|---",
+        "**Name** | **Category** | **file_match** | **Linked** | **Tools** | **Content** | **Tags**",
+        "---|---|---|---|---|---|---",
     ]
     for profile in sorted(profiles, key=lambda p: (p.category or "", p.name)):
         file_match = f"`{profile.file_match}`" if profile.file_match else "-"
         linked = len(profile.profiles or [])
         tools = len(profile.tools or [])
+        has_content = "yes" if profile.content else "-"
         tags = ", ".join(profile.tags or []) or "-"
         lines.append(
             f"`{profile.name}` | {profile.category or '-'} | {file_match} | "
-            f"{linked} | {tools} | {tags}"
+            f"{linked} | {tools} | {has_content} | {tags}"
         )
     return "\n".join(lines)
 
@@ -462,6 +484,12 @@ def _action_list(
     """
     List profiles, optionally filtered.
 
+    The result carries the profile **JSON definition only**: the Markdown
+    instructions (``content``) are NEVER included here. Instructions are
+    injected into the system prompt and can be arbitrarily large, so reading
+    them is an explicit operation (:func:`_action_get` / ``get_profile``).
+    ``has_content`` tells the caller whether there is something to fetch.
+
     Args:
         manager: Project ProfileManager.
         category: Only profiles of this category.
@@ -471,7 +499,8 @@ def _action_list(
             the built-in set (read-only).
 
     Returns:
-        ToolResponse with the table (user) and the data (model).
+        ToolResponse with the table (user) and the content-free definitions
+        (model).
     """
     profiles = (
         [p for p in manager.list_all_profiles() if p and p.name]
@@ -504,23 +533,37 @@ def _action_list(
         "",
         f"Scope: **{scope}**. Editable profiles live in "
         f"`{_relative_to_project(manager.settings, manager.profiles_path)}/`.",
+        "",
+        "Instructions are not shown here: use `get_profile` "
+        "(`action='get'`) with the profile name to read a profile's content.",
     ])
 
     llm_response = json.dumps(
         {
             "scope": scope,
             "count": len(profiles),
+            # Definitions never include ``content`` (see _profile_definition).
             "profiles": [_profile_definition(p) for p in profiles],
+            "next": (
+                "Use get_profile(profile_name=...) (action='get') to read a "
+                "profile's content/instructions."
+            ),
         },
         indent=2,
     )
-    logger.info("profile_management: listed %d profile(s) (%s)", len(profiles), scope)
+    logger.info(
+        "profile_management: listed %d profile(s) (%s) without content",
+        len(profiles), scope,
+    )
     return ToolResponse(user_response=user_response, llm_response=llm_response)
 
 
 def _action_get(manager: ProfileManager, name: str) -> ToolResponse:
     """
     Return the definition and the content of one profile.
+
+    This is the ONLY way to read a profile's Markdown instructions: listings
+    deliberately omit them.
 
     Args:
         manager: Project ProfileManager.
@@ -881,7 +924,8 @@ def _write_response(
         changed_fields: Fields modified by an update (``None`` on create).
 
     Returns:
-        ToolResponse with the saved paths and the resulting definition.
+        ToolResponse with the saved paths and the resulting definition
+        (content-free: read it with ``get`` / ``get_profile``).
     """
     paths = _profile_paths(manager, profile.name)
     definition_path = _relative_to_project(settings, paths["profile"])
@@ -960,9 +1004,11 @@ def profile_management(
     Actions:
         - ``list``: profiles of the project (optional ``category``/``query``
           filters). ``include_inherited=True`` adds the read-only profiles
-          inherited from parent projects and the built-in set.
+          inherited from parent projects and the built-in set. The result is
+          the profile JSON **without** its content (``has_content`` flags which
+          profiles have instructions).
         - ``get``: full definition (JSON) plus content (Markdown) of one
-          profile.
+          profile. This is the only way to read the instructions.
         - ``create``: creates a new profile. Fails if the name already exists.
           ``content`` is required.
         - ``update``: merges the provided fields into an existing project
@@ -971,6 +1017,11 @@ def profile_management(
 
     Writes always target the active project's ``.codx/profiles`` folder:
     inherited and built-in profiles are read-only.
+
+    NOTE: this tool bundles every action, so granting it grants the whole CRUD.
+    To allow some actions and deny others, grant the fine-grained tools instead
+    (``list_profiles``, ``get_profile``, ``create_profile``,
+    ``update_profile``, ``delete_profile``).
 
     Args:
         action: One of :data:`VALID_ACTIONS`.
@@ -983,7 +1034,7 @@ def profile_management(
         category: One of ``assistant``, ``chat``, ``agent``, ``file``,
             ``project``. Defaults to ``assistant`` on create.
         content: Markdown instructions. Required on ``create``; replaces the
-            whole content file on ``update``.
+            whole content file on ``update``. Never returned by ``list``.
         file_match: Regex matched against file paths to auto-attach the
             profile. Empty string disables it.
         profiles: Names of the profiles to link (their content is injected when
@@ -1012,9 +1063,9 @@ def profile_management(
 
     Example:
         >>> profile_management("list", category="assistant")
-        # Lists every assistant profile of the project
+        # Lists every assistant profile (definitions only, no content)
         >>> profile_management("get", profile_name="TeamManager")
-        # Shows the definition and the instructions
+        # Shows the definition AND the instructions
         >>> profile_management(
         ...     "create",
         ...     profile_name="Reviewer",
@@ -1122,6 +1173,248 @@ def profile_management(
         )
 
 
+# ---------------------------------------------------------------------------
+# Fine-grained tools (one tool per CRUD action)
+# ---------------------------------------------------------------------------
+#
+# ``profile_management`` bundles the five CRUD actions in a single tool, so a
+# profile either gets the whole CRUD or none of it: there is no way to allow
+# "list the profiles" while withholding "delete a profile".
+#
+# The runtime grants permissions by TOOL NAME (``Profile.tools`` is matched
+# against the ``TOOLS`` registry), so a per-action permission requires a
+# per-action tool.
+#
+# These wrappers expose one tool per action. They never re-implement anything:
+# each one forwards to :func:`profile_management` with its action fixed, so
+# validation, read-only rules, notifications and response formatting stay in a
+# single place. Grant in ``Profile.tools`` only the actions the profile must be
+# able to run, e.g.::
+#
+#     ["list_profiles", "get_profile"]                     # read-only
+#     ["list_profiles", "get_profile", "update_profile"]   # edits, cannot delete
+#
+# NOTE: ``list_profiles`` returns the profile JSON WITHOUT its content; reading
+# the instructions always goes through ``get_profile``.
+# ---------------------------------------------------------------------------
+
+
+def list_profiles(
+    category: Optional[str] = None,
+    query: Optional[str] = None,
+    include_inherited: bool = False,
+    **kwargs,
+) -> ToolResponse:
+    """
+    List the project's profiles (read-only), WITHOUT their content.
+
+    The result is the profile **JSON definition** (name, description, category,
+    ``file_match``, linked profiles, granted tools, tags, model, flags) plus a
+    ``has_content`` marker. The Markdown instructions are never inlined: use
+    :func:`get_profile` to read them.
+
+    Args:
+        category: Only profiles of this category (``assistant``, ``chat``,
+            ``agent``, ``file``, ``project``).
+        query: Case-insensitive filter on name, description and tags.
+        include_inherited: Also list the read-only profiles inherited from
+            parent projects and the built-in set.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse with the profiles table (user) and the content-free
+        definitions (model).
+    """
+    return profile_management(
+        action="list",
+        category=category,
+        query=query,
+        include_inherited=include_inherited,
+        **kwargs,
+    )
+
+
+def get_profile(
+    profile_name: Optional[str] = None,
+    name: Optional[str] = None,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Return the definition (JSON) AND the content (Markdown) of one profile.
+
+    This is the only way to read a profile's instructions: listings
+    (:func:`list_profiles`) omit the content on purpose.
+
+    Args:
+        profile_name: Exact profile name.
+        name: Alias of ``profile_name``.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse with the definition and the instructions.
+    """
+    return profile_management(
+        action="get",
+        profile_name=profile_name,
+        name=name,
+        **kwargs,
+    )
+
+
+def create_profile(
+    profile_name: Optional[str] = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    content: Optional[str] = None,
+    file_match: Optional[str] = None,
+    profiles: Optional[List[str]] = None,
+    tools: Optional[List[str]] = None,
+    tags: Optional[List[str]] = None,
+    llm_model: Optional[str] = None,
+    use_knowledge: Optional[bool] = None,
+    chat_mode: Optional[str] = None,
+    avatar: Optional[str] = None,
+    url: Optional[str] = None,
+    api_settings: Optional[Dict[str, Any]] = None,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Create a new project profile (definition + content files).
+
+    Args:
+        profile_name: Profile name (mention-safe, also the folder name).
+        name: Alias of ``profile_name``.
+        description: When to use the profile (1-3 sentences).
+        category: One of ``assistant``, ``chat``, ``agent``, ``file``,
+            ``project`` (default ``assistant``).
+        content: Markdown instructions. Required.
+        file_match: Optional regex matched against file paths.
+        profiles: Optional names of linked profiles.
+        tools: Optional tool names granted to the profile.
+        tags: Optional discovery tags.
+        llm_model: Optional model override.
+        use_knowledge: Whether knowledge context is injected.
+        chat_mode: Optional chat mode restriction.
+        avatar: Optional avatar URL.
+        url: Optional documentation URL.
+        api_settings: Optional ``{active, model_name, description}``.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse describing the created profile.
+    """
+    return profile_management(
+        action="create",
+        profile_name=profile_name,
+        name=name,
+        description=description,
+        category=category,
+        content=content,
+        file_match=file_match,
+        profiles=profiles,
+        tools=tools,
+        tags=tags,
+        llm_model=llm_model,
+        use_knowledge=use_knowledge,
+        chat_mode=chat_mode,
+        avatar=avatar,
+        url=url,
+        api_settings=api_settings,
+        **kwargs,
+    )
+
+
+def update_profile(
+    profile_name: Optional[str] = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    content: Optional[str] = None,
+    file_match: Optional[str] = None,
+    profiles: Optional[List[str]] = None,
+    tools: Optional[List[str]] = None,
+    tags: Optional[List[str]] = None,
+    llm_model: Optional[str] = None,
+    use_knowledge: Optional[bool] = None,
+    chat_mode: Optional[str] = None,
+    avatar: Optional[str] = None,
+    url: Optional[str] = None,
+    api_settings: Optional[Dict[str, Any]] = None,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Update an existing project profile, merging only the provided fields.
+
+    Args:
+        profile_name: Exact name of the profile to update.
+        name: Alias of ``profile_name``.
+        description: New description.
+        category: New category.
+        content: New Markdown instructions (replaces the whole content file).
+        file_match: New ``file_match`` regex (``""`` clears it).
+        profiles: New linked profile names (replaces the list).
+        tools: New tool names (replaces the list).
+        tags: New tags (replaces the list).
+        llm_model: New model override (``""`` inherits the project model).
+        use_knowledge: New knowledge flag.
+        chat_mode: New chat mode restriction.
+        avatar: New avatar URL.
+        url: New documentation URL.
+        api_settings: New ``{active, model_name, description}``.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse describing the updated profile.
+    """
+    return profile_management(
+        action="update",
+        profile_name=profile_name,
+        name=name,
+        description=description,
+        category=category,
+        content=content,
+        file_match=file_match,
+        profiles=profiles,
+        tools=tools,
+        tags=tags,
+        llm_model=llm_model,
+        use_knowledge=use_knowledge,
+        chat_mode=chat_mode,
+        avatar=avatar,
+        url=url,
+        api_settings=api_settings,
+        **kwargs,
+    )
+
+
+def delete_profile(
+    profile_name: Optional[str] = None,
+    name: Optional[str] = None,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Delete a project profile (its folder with both files).
+
+    Inherited and built-in profiles cannot be deleted: only profiles owned by
+    the active project can.
+
+    Args:
+        profile_name: Exact name of the profile to delete.
+        name: Alias of ``profile_name``.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse confirming the deletion and the dangling links, if any.
+    """
+    return profile_management(
+        action="delete",
+        profile_name=profile_name,
+        name=name,
+        **kwargs,
+    )
+
+
 # Tool JSON definition
 PROFILE_MANAGEMENT_TOOL_JSON = {
     "type": "function",
@@ -1132,12 +1425,16 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
             "A profile is stored as two files in the project's .codx/profiles/<Name>/ "
             "folder: <Name>.profile (JSON definition) and <Name>.md (Markdown "
             "instructions); both are always written together. "
-            "Actions: 'list' (optionally filtered by category/query), 'get' (definition + "
-            "content), 'create' (fails if the name exists, requires content), 'update' "
-            "(merges only the provided fields) and 'delete'. "
+            "Actions: 'list' (optionally filtered by category/query; returns the profile "
+            "JSON WITHOUT its content), 'get' (definition + content), 'create' (fails if "
+            "the name exists, requires content), 'update' (merges only the provided "
+            "fields) and 'delete'. "
             "Writes always target the current project: profiles inherited from parent "
             "projects or built-in profiles can be read but not modified. "
-            "Use the returned paths to confirm where the profile was saved."
+            "Use the returned paths to confirm where the profile was saved. "
+            "NOTE: this tool bundles every action, so granting it grants the whole CRUD. "
+            "To allow some actions and deny others, grant the fine-grained tools instead "
+            "(list_profiles, get_profile, create_profile, update_profile, delete_profile)."
         ),
         "parameters": {
             "type": "object",
@@ -1147,7 +1444,7 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                     "enum": VALID_ACTIONS,
                     "description": (
                         "CRUD operation:\n"
-                        "  - 'list': list project profiles (read)\n"
+                        "  - 'list': list project profiles, definitions only (read)\n"
                         "  - 'get': read one profile's definition and content (read)\n"
                         "  - 'create': create a new profile (fails if it exists)\n"
                         "  - 'update': merge changes into an existing project profile\n"
@@ -1192,7 +1489,8 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                     "description": (
                         "Markdown instructions of the profile (the .md file): identity, "
                         "method, output format and guardrails. Required on create; on "
-                        "update it replaces the whole content file."
+                        "update it replaces the whole content file. It is never returned "
+                        "by 'list' (use 'get' to read it)."
                     )
                 },
                 "file_match": {
@@ -1291,6 +1589,368 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                 }
             },
             "required": ["action"]
+        }
+    }
+}
+
+# Fine-grained tool definitions (one tool per action, so permissions can be
+# granted per action: the runtime filters tools by NAME).
+PROFILE_LIST_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "list_profiles",
+        "description": (
+            "List the project's profiles (read-only) returning the profile JSON WITHOUT "
+            "its content. Each entry carries name, description, category, file_match, "
+            "linked profiles, granted tools, tags, model, flags and 'has_content' "
+            "(whether the profile has Markdown instructions). The instructions "
+            "themselves are never inlined here: to read them use get_profile. Set "
+            "include_inherited=true to also list the read-only profiles inherited from "
+            "parent projects and the built-in set."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": PROFILE_CATEGORIES,
+                    "description": (
+                        "Only list profiles of this category: 'assistant', 'chat', "
+                        "'agent', 'file' or 'project'."
+                    )
+                },
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "Case-insensitive filter matched against the name, the "
+                        "description and the tags."
+                    )
+                },
+                "include_inherited": {
+                    "type": "boolean",
+                    "description": (
+                        "Include the read-only profiles inherited from parent projects "
+                        "and the built-in set (default: false)."
+                    )
+                }
+            },
+            "required": []
+        }
+    }
+}
+
+PROFILE_GET_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "get_profile",
+        "description": (
+            "Read one profile (read-only): its JSON definition (category, file_match, "
+            "linked profiles, granted tools, tags, model...) AND its Markdown "
+            "instructions (content). This is the only way to read a profile's content, "
+            "because list_profiles omits it. Inherited and built-in profiles can be "
+            "read this way but are read-only for writes."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "profile_name": {
+                    "type": "string",
+                    "description": (
+                        "Exact name of the profile to read (e.g. 'TeamManager')."
+                    )
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Alias of profile_name."
+                }
+            },
+            "required": ["profile_name"]
+        }
+    }
+}
+
+PROFILE_CREATE_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "create_profile",
+        "description": (
+            "Create a new project profile. Two files are written together in "
+            ".codx/profiles/<Name>/: <Name>.profile (JSON definition) and <Name>.md "
+            "(Markdown instructions). Fails if a profile with that name already exists "
+            "in the project, a parent project or the built-in set."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "profile_name": {
+                    "type": "string",
+                    "description": (
+                        "Profile name. Must be mention-safe (letters, digits, '_', '-', "
+                        "'.'), because it is also the folder name and the @mention."
+                    )
+                },
+                "name": {
+                    "type": "string",
+                    "description": (
+                        "Alias of profile_name. Must match profile_name when both are "
+                        "provided."
+                    )
+                },
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Markdown instructions of the profile (the .md file): identity, "
+                        "method, output format and guardrails. Required."
+                    )
+                },
+                "description": {
+                    "type": "string",
+                    "description": (
+                        "When to use the profile, in 1-3 sentences. Shown in the profile "
+                        "card and in the @mention picker."
+                    )
+                },
+                "category": {
+                    "type": "string",
+                    "enum": PROFILE_CATEGORIES,
+                    "description": (
+                        "Profile category: 'assistant' (persona/role), 'chat' "
+                        "(conversational), 'agent' (multi-step executor), 'file' "
+                        "(convention enforcer) or 'project' (project-scoped). "
+                        "Defaults to 'assistant'."
+                    )
+                },
+                "file_match": {
+                    "type": "string",
+                    "description": (
+                        "Optional regex matched against file paths to auto-attach the "
+                        "profile (e.g. '\\\\.vue$'). Empty string disables it. Keep it "
+                        "narrow: a broad pattern applies the profile to every chat."
+                    )
+                },
+                "profiles": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Names of the profiles to link. Their instructions are injected "
+                        "when this profile runs. Every name must already exist."
+                    )
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Names of the tools granted to the profile (e.g. "
+                        "'project_read_file', 'list_profiles'). Every name must exist in "
+                        "the tool registry."
+                    )
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Free-form discovery tags (lowercase, kebab-case)."
+                },
+                "llm_model": {
+                    "type": "string",
+                    "description": (
+                        "Model override for this profile. Empty string inherits the "
+                        "project/default model."
+                    )
+                },
+                "use_knowledge": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether project knowledge (RAG) context is injected. Defaults "
+                        "to true."
+                    )
+                },
+                "chat_mode": {
+                    "type": "string",
+                    "description": (
+                        "Optional chat mode restriction for the profile (e.g. 'task')."
+                    )
+                },
+                "avatar": {
+                    "type": "string",
+                    "description": "Optional avatar URL for the profile card."
+                },
+                "url": {
+                    "type": "string",
+                    "description": "Optional documentation/homepage URL."
+                },
+                "api_settings": {
+                    "type": "object",
+                    "description": (
+                        "Expose the profile through the LLM API: "
+                        "{active: bool, model_name: string|null, description: "
+                        "string|null}."
+                    ),
+                    "properties": {
+                        "active": {
+                            "type": "boolean",
+                            "description": "Profile is visible through the API"
+                        },
+                        "model_name": {
+                            "type": "string",
+                            "description": "Model name exposed by the API"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Description exposed by the API"
+                        }
+                    }
+                }
+            },
+            "required": ["profile_name", "content"]
+        }
+    }
+}
+
+PROFILE_UPDATE_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "update_profile",
+        "description": (
+            "Update an existing project profile. Only the provided fields are "
+            "changed: omitted fields keep their current value, so a partial update "
+            "never wipes the rest of the definition or the Markdown content. "
+            "Inherited and built-in profiles are read-only: create a project profile "
+            "with the same name to override them."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "profile_name": {
+                    "type": "string",
+                    "description": "Exact name of the profile to update."
+                },
+                "name": {
+                    "type": "string",
+                    "description": (
+                        "Alias of profile_name. Must match profile_name when both are "
+                        "provided."
+                    )
+                },
+                "description": {
+                    "type": "string",
+                    "description": (
+                        "New description: when to use the profile, in 1-3 sentences."
+                    )
+                },
+                "category": {
+                    "type": "string",
+                    "enum": PROFILE_CATEGORIES,
+                    "description": (
+                        "New category: 'assistant', 'chat', 'agent', 'file' or 'project'."
+                    )
+                },
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "New Markdown instructions. Replaces the WHOLE content file, so "
+                        "always send the complete text."
+                    )
+                },
+                "file_match": {
+                    "type": "string",
+                    "description": (
+                        "New regex matched against file paths. Empty string clears it."
+                    )
+                },
+                "profiles": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "New linked profile names. REPLACES the current list."
+                    )
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "New tool names granted to the profile. REPLACES the current "
+                        "list. Every name must exist in the tool registry."
+                    )
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "New tags. REPLACES the current list."
+                },
+                "llm_model": {
+                    "type": "string",
+                    "description": (
+                        "New model override. Empty string inherits the project/default "
+                        "model."
+                    )
+                },
+                "use_knowledge": {
+                    "type": "boolean",
+                    "description": "New knowledge (RAG) flag."
+                },
+                "chat_mode": {
+                    "type": "string",
+                    "description": "New chat mode restriction (e.g. 'task')."
+                },
+                "avatar": {
+                    "type": "string",
+                    "description": "New avatar URL."
+                },
+                "url": {
+                    "type": "string",
+                    "description": "New documentation/homepage URL."
+                },
+                "api_settings": {
+                    "type": "object",
+                    "description": (
+                        "New API exposure settings: "
+                        "{active: bool, model_name: string|null, description: "
+                        "string|null}."
+                    ),
+                    "properties": {
+                        "active": {
+                            "type": "boolean",
+                            "description": "Profile is visible through the API"
+                        },
+                        "model_name": {
+                            "type": "string",
+                            "description": "Model name exposed by the API"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Description exposed by the API"
+                        }
+                    }
+                }
+            },
+            "required": ["profile_name"]
+        }
+    }
+}
+
+PROFILE_DELETE_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "delete_profile",
+        "description": (
+            "Delete a project profile: removes its folder with both files "
+            "(.codx/profiles/<Name>/). Inherited and built-in profiles cannot be "
+            "deleted from this project. The response lists the profiles that still "
+            "link to the deleted one, because those links become dangling."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "profile_name": {
+                    "type": "string",
+                    "description": "Exact name of the profile to delete."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Alias of profile_name."
+                }
+            },
+            "required": ["profile_name"]
         }
     }
 }

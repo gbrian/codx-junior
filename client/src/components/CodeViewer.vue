@@ -19,7 +19,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 <template>
   <Collapsible v-model="showCode" class="h-full border border-base-100">
     <template #icon>
-      <div class="" v-if="!finished" >
+      <div v-if="!finished" >
         <span class="loading loading-bars loading-xs shrink-0 text-info"></span>
       </div>
       <div class="hover:text-info" @click.stop="$emit('add-file', file)" v-else>
@@ -291,6 +291,17 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
 
       <div
+        v-if="isMessageStale && !diff"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
+        :title="`Old changes detected`"
+      >
+        <i class="fa-solid fa-triangle-exclamation shrink-0"></i>
+        <span class="truncate">
+          <strong>old changes detected:</strong>
+        </span>
+      </div>
+
+      <div
         v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown"
         class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/10 text-warning text-xs"
         :title="`Heavy modification detected: ${changeRiskMessage}`"
@@ -449,7 +460,7 @@ import { v4 as uuidv4 } from 'uuid'
 // Old code blocks are compared against a file that most likely moved on:
 // loading their diff automatically is expensive and usually meaningless, so it
 // is only fetched on demand (refresh icon / save / rollback).
-const AUTO_DIFF_MAX_AGE_HOURS = 5
+const AUTO_DIFF_MAX_AGE_HOURS = 1
 
 export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
@@ -997,7 +1008,6 @@ export default {
     },
 
     async loadDiffInfo() {
-      console.log(this.$el)
       const diffRequest = {
         path: this.file,
         content: this.effectiveCode

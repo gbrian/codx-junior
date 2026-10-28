@@ -48,6 +48,7 @@ from .git_tools import (
     create_pr_branch,
     close_pr,
     abandon_pr,
+    restore_changes,
 )
 from .repository_tools import (
     repository_overview,
@@ -58,7 +59,20 @@ from .repository_tools import (
     repository_commit_message,
 )
 from .image_tools import explain_image, generate_image
-from .profile_tools import profile_management, PROFILE_MANAGEMENT_TOOL_JSON
+from .profile_tools import (
+    profile_management,
+    list_profiles,
+    get_profile,
+    create_profile,
+    update_profile,
+    delete_profile,
+    PROFILE_MANAGEMENT_TOOL_JSON,
+    PROFILE_LIST_TOOL_JSON,
+    PROFILE_GET_TOOL_JSON,
+    PROFILE_CREATE_TOOL_JSON,
+    PROFILE_UPDATE_TOOL_JSON,
+    PROFILE_DELETE_TOOL_JSON,
+)
 from .team_tools import (
     team_management,
     team_context,
@@ -139,6 +153,11 @@ __all__ = [
     "process_task",
     "apply_file_changes",
     "profile_management",
+    "list_profiles",
+    "get_profile",
+    "create_profile",
+    "update_profile",
+    "delete_profile",
     "team_management",
     "team_context",
     "project_manager",
@@ -152,6 +171,7 @@ __all__ = [
     "create_pr_branch",
     "close_pr",
     "abandon_pr",
+    "restore_changes",
     "repository_overview",
     "repository_status",
     "repository_branches",
@@ -499,6 +519,36 @@ TOOLS = [
         "tool_call": profile_management
     },
     {
+        "tool_json": PROFILE_LIST_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "read", "list", "permissions"],
+        "tool_call": list_profiles
+    },
+    {
+        "tool_json": PROFILE_GET_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "read", "inspect", "permissions"],
+        "tool_call": get_profile
+    },
+    {
+        "tool_json": PROFILE_CREATE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "write", "create", "permissions"],
+        "tool_call": create_profile
+    },
+    {
+        "tool_json": PROFILE_UPDATE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "write", "update", "permissions"],
+        "tool_call": update_profile
+    },
+    {
+        "tool_json": PROFILE_DELETE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "profile-management", "write", "delete", "destructive", "permissions"],
+        "tool_call": delete_profile
+    },
+    {
         "tool_json": TEAM_MANAGEMENT_TOOL_JSON,
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["teams", "team-management", "crud", "administration", "orchestration"],
@@ -832,6 +882,61 @@ TOOLS = [
         "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["git", "version-control", "branch", "pull-request", "discard"],
         "tool_call": abandon_pr
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "restore_changes",
+                "description": (
+                    "Restore changes with `git restore`. Discard working tree changes "
+                    "(worktree) and/or unstage staged changes (staged), optionally restoring "
+                    "the content from a specific commit, branch or tag (source). "
+                    "DESTRUCTIVE: working tree changes are discarded, not stashed. Untracked "
+                    "files cannot be restored by git restore."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "files": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "File paths to restore. Defaults to every file changed in the "
+                                "selected scope(s)."
+                            )
+                        },
+                        "staged": {
+                            "type": "boolean",
+                            "description": (
+                                "Restore staged changes (unstage them). The working tree is left "
+                                "untouched unless worktree is also true. Defaults to false."
+                            ),
+                            "default": False
+                        },
+                        "worktree": {
+                            "type": "boolean",
+                            "description": (
+                                "Discard working tree changes (restore from the index, or from "
+                                "source when given). Defaults to true."
+                            ),
+                            "default": True
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": (
+                                "Optional commit, branch or tag to restore the content from "
+                                "(`git restore --source`)."
+                            )
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(session=True, project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["git", "version-control", "restore", "discard", "unstaged", "working-tree"],
+        "tool_call": restore_changes
     },
     {
         "tool_json": {

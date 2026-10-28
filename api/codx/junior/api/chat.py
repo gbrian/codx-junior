@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 # caller does not provide an explicit ``date_from``/``date_to`` range.
 DEFAULT_CHAT_HISTORY_DAYS = 30
 
+# Message returned by every deprecated task-creation entry point.
+SUBTASKS_DEPRECATED_MESSAGE = (
+    "Sub-task generation is deprecated and has been removed. Tasks are created "
+    "explicitly, with all their information, through the 'create_task' or "
+    "'project_manager' (action='create_task') tools or through "
+    "POST /api/chats/tasks."
+)
+
 router = APIRouter()
 
 
@@ -870,22 +878,111 @@ async def api_chat_from_url(request: Request):
         return {"error": f"Failed to load chat from URL: {str(ex)}"}
 
 
-@router.post("/chats/sub-tasks")
+@router.post("/chats/sub-tasks", deprecated=True)
 async def api_chat_subtasks(request: Request):
     """
-    Generate subtasks from chat. Delegates to session.
+    DEPRECATED — AI sub-task generation (HTTP 410 Gone).
+
+    This endpoint used to split a conversation into sub-tasks with the AI and
+    process each one. Task creation is now explicit: use
+    ``POST /api/chats/tasks`` (or the ``create_task`` / ``project_manager``
+    tools) and provide every field of the task.
+
+    Returns:
+        HTTP 410 with a message pointing to the supported creation endpoint.
     """
-    from codx.junior.db import Chat
-    
+    logger.warning("api_chat_subtasks: deprecated endpoint '/chats/sub-tasks' called")
+    raise HTTPException(status_code=410, detail=SUBTASKS_DEPRECATED_MESSAGE)
+
+
+@router.post("/chats/tasks")
+async def api_create_task(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Create a task (kanban chat) with ALL of its information.
+
+    This is the API counterpart of the ``create_task`` / ``project_manager``
+    tools: both delegate to :class:`codx.junior.task_manager.TaskManager`, so the
+    created task is identical no matter the channel.
+
+    Expected JSON payload::
+
+        {
+            "name":        "Fix login timeout",              # required
+            "description": "## Context\\n...\\n## Done\\n...",  # required
+            "content":     "initial user instruction",       # optional (= description)
+            "board":       "kanban",
+            "column":      "tasks",
+            "sprints":     ["Sprint 12"],
+            "status":      "todo",
+            "priority":    "high",
+            "due_date":    "2024-05-31",
+            "progress":    0,
+            "assignees":   ["user@example.com"],
+            "profiles":    ["backend"],
+            "files":       ["api/auth/login.py"],
+            "tags":        ["auth", "bug"],
+            "parent_id":   "<parent chat id>"
+        }
+
+    Nothing is inherited from another chat: ``profiles``, ``files``, ``tags``
+    and the content come only from the payload.
+
+    Returns:
+        The created Chat, as a dict (HTTP 422 when required data is missing).
+
+    Example:
+        >>> POST /api/chats/tasks?codx_path=/projects/api
+        {"name": "Fix login timeout", "description": "## Context ..."}
+        # -> {"id": "…", "name": "Fix login timeout", "mode": "task", ...}
+    """
     try:
         data = await request.json()
-        chat = Chat(**data)
-        codx_junior_session = request.state.codx_junior_session
-        
-        return await codx_junior_session.generate_tasks(chat=chat)
     except Exception as ex:
-        logger.error("api_chat_subtasks: unexpected error: %s", ex)
-        return {"error": f"Failed to generate tasks: {str(ex)}"}
+        logger.error("api_create_task: invalid payload: %s", ex)
+        raise HTTPException(status_code=400, detail=f"Invalid JSON payload: {ex}")
+
+    name = str(data.get("name") or "").strip()
+    description = str(data.get("description") or "").strip()
+    if not name or not description:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "'name' and 'description' are required: a task is created with "
+                "all its information (there is no AI sub-task generation anymore)."
+            ),
+        )
+
+    try:
+        codx_junior_session = request.state.codx_junior_session
+        task = codx_junior_session.get_task_manager().create_task(
+            name=name,
+            description=description,
+            content=data.get("content"),
+            board=data.get("board"),
+            column=data.get("column"),
+            sprints=data.get("sprints"),
+            status=data.get("status"),
+            priority=data.get("priority"),
+            due_date=data.get("due_date"),
+            progress=data.get("progress"),
+            assignees=data.get("assignees"),
+            profiles=data.get("profiles"),
+            files=data.get("files"),
+            tags=data.get("tags"),
+            parent_id=data.get("parent_id"),
+            user=user.username if user else None,
+        )
+        logger.info(
+            "api_create_task: task '%s' created (board=%s column=%s)",
+            task.id, task.board, task.column,
+        )
+        return task
+    except ValueError as ex:
+        logger.warning("api_create_task: invalid task: %s", ex)
+        raise HTTPException(status_code=422, detail=str(ex))
+    except Exception as ex:
+        logger.error("api_create_task: unexpected error: %s", ex)
+        raise HTTPException(status_code=500, detail=f"Failed to create task: {ex}")
 
 
 @router.put("/chats")

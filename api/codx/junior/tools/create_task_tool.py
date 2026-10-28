@@ -1,16 +1,23 @@
 """
 Create task tool for creating new task chats.
 
-This tool allows LLM models or API clients to create new task chats
-with optional content and metadata.
+This tool allows LLM models to create new task chats with all their
+information. Tasks are only created through the LLM tools
+(``create_task`` / ``project_manager(action="create_task")``) and the API
+(``POST /api/chats/tasks``); all of them use
+:class:`codx.junior.task_manager.TaskManager` as the single creation core.
+
+Every field is taken from the tool arguments: nothing is inherited from the
+chat that triggered the tool (profiles, files, tags or message content).
 
 Made with ❤️ by codx-junior
 """
 
+import json
 import logging
-import uuid
 from typing import TYPE_CHECKING, Optional, List
 
+from codx.junior.task_manager import TaskManager
 from .model import ToolResponse
 
 if TYPE_CHECKING:
@@ -24,7 +31,13 @@ CREATE_TASK_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "create_task",
-        "description": "Create a new task (chat) with optional content and metadata. Returns the task ID.",
+        "description": (
+            "Create a new task (chat) providing ALL of its information. "
+            "'name' and 'description' are mandatory: the task is stored exactly as "
+            "given, there is no AI step that expands or splits it afterwards. "
+            "Nothing is inherited from the current chat (profiles, files, tags), so "
+            "send every value the task needs. Returns the created task."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
@@ -32,13 +45,19 @@ CREATE_TASK_TOOL_JSON = {
                     "type": "string",
                     "description": "Task name/title (required)"
                 },
-                "content": {
-                    "type": "string",
-                    "description": "Task description and instructions"
-                },
                 "description": {
                     "type": "string",
-                    "description": "Extended task description"
+                    "description": (
+                        "Complete task description: context, what to do and any "
+                        "acceptance criteria (required)."
+                    )
+                },
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Initial user instruction for the task. Defaults to the "
+                        "description when omitted."
+                    )
                 },
                 "files": {
                     "type": "array",
@@ -48,7 +67,10 @@ CREATE_TASK_TOOL_JSON = {
                 "profiles": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of profiles/roles associated with this task"
+                    "description": (
+                        "Profiles/roles for this task. Taken ONLY from this argument: "
+                        "profiles are never inherited from the current chat."
+                    )
                 },
                 "tags": {
                     "type": "array",
@@ -57,23 +79,37 @@ CREATE_TASK_TOOL_JSON = {
                 },
                 "board": {
                     "type": "string",
-                    "description": "Kanban board ID"
+                    "description": "Kanban board ID (defaults to 'kanban')"
                 },
                 "column": {
                     "type": "string",
-                    "description": "Kanban column ID"
+                    "description": "Kanban column ID (defaults to 'tasks')"
                 }
             },
-            "required": ["name"]
+            "required": ["name", "description"]
         }
     }
 }
 
 
+def _resolve_username(session) -> Optional[str]:
+    """
+    Return the username of the session running the tool, when available.
+
+    Args:
+        session: The active project session (may be None).
+
+    Returns:
+        The username or None.
+    """
+    user = getattr(session, "user", None) if session is not None else None
+    return getattr(user, "username", None) if user else None
+
+
 def create_task(
     name: str,
+    description: str,
     content: str = "",
-    description: str = "",
     files: Optional[List[str]] = None,
     profiles: Optional[List[str]] = None,
     tags: Optional[List[str]] = None,
@@ -82,23 +118,22 @@ def create_task(
     settings: Optional["CODXJuniorSettings"] = None,
 ) -> ToolResponse:
     """
-    Create a new task (chat) with metadata.
+    Create a new task (chat) with all the information provided.
 
-    This tool creates a new task chat without processing it. The task is saved
-    to the database and can be processed later using process_task tool.
-    
-    The parent_id is automatically set by the tools engine based on the current
-    chat context (if exists).
+    The task is created and saved, but not processed: use ``process_task`` to
+    start working on it. ``parent_id`` is resolved from the chat that triggered
+    the tool (when it exists) so the task stays linked, but no content, profile
+    or file is inherited from it.
 
     Args:
         name: Task name/title (required)
-        content: Task description and instructions
-        description: Extended task description
+        description: Complete task description (required)
+        content: Initial user instruction; defaults to ``description``
         files: List of file paths related to this task
-        profiles: List of profiles/roles for this task
+        profiles: List of profiles/roles for this task (parameter only)
         tags: Tags for categorizing the task
-        board: Kanban board ID
-        column: Kanban column ID
+        board: Kanban board ID (defaults to ``kanban``)
+        column: Kanban column ID (defaults to ``tasks``)
         settings: CODXJuniorSettings instance (injected by SmolAgent)
 
     Returns:
@@ -107,10 +142,16 @@ def create_task(
             - llm_response: JSON with task_id and metadata
 
     Raises:
-        ValueError: If required parameters are missing
-        RuntimeError: If task creation fails
+        ValueError: If ``name`` or ``description`` is missing
+        RuntimeError: If the active session is missing or creation fails
 
-    Made with ❤️ by codx-junior
+    Example:
+        >>> create_task(
+        ...     name="Fix login timeout",
+        ...     description="## Context\nLogin times out after 30s...\n## Done\n- test",
+        ...     profiles=["backend"],
+        ...     files=["api/auth/login.py"],
+        ... )
     """
     if not settings:
         error_msg = "create_task requires settings parameter"
@@ -122,9 +163,15 @@ def create_task(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    if not description or not description.strip():
+        error_msg = (
+            "create_task requires 'description' parameter: tasks are created with "
+            "all their information (there is no AI sub-task generation anymore)"
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
     try:
-        from codx.junior.db import Chat, Message
-        
         # Get the active session
         session = getattr(settings, "_active_session", None)
         if not session:
@@ -133,51 +180,27 @@ def create_task(
                 "The SmolAgent runtime must inject session context."
             )
 
-        # Get current chat for project context (and automatic parent_id)
+        # The current chat only provides the linkage (parent_id) and the
+        # project scope: its profiles/files are NEVER copied to the task.
         current_chat = getattr(session, "_current_chat", None)
-        
-        # Determine the message content (prefer description over content)
-        message_content = "\n".join([description or "", content or ""])
-        
-        # Create new task chat
-        task = Chat(
+
+        task_manager = TaskManager(
+            settings=settings,
+            chat_manager=session.get_chat_manager(),
+            event_manager=getattr(session, "event_manager", None),
+        )
+
+        saved_task = task_manager.create_task(
             name=name,
             description=description,
-            parent_id=current_chat.id if current_chat else None,
-            files=files or [],
-            profiles=profiles or [],
-            tags=tags or [],
-            board=board,
-            column=column,
-            project_id=current_chat.project_id if current_chat else None,
-            owner_project_id=current_chat.owner_project_id if current_chat else None,
-            mode="task",
-        )
-
-        task.messages.append(
-            Message(
-                role="user",
-                content=message_content,
-                profiles=profiles or [],
-                files=files or [],
-            )
-        )
-
-        # Save the task
-        chat_manager = session.get_chat_manager()
-        saved_task = chat_manager.save_chat(task)
-        
-        logger.info(
-            "create_task: task created with ID '%s' (parent_id=%s)",
-            saved_task.id,
-            saved_task.parent_id,
-        )
-
-        # Emit event
-        session.event_manager.chat_event(
-            chat=saved_task,
-            message=f"Task '{saved_task.name}' created",
-            event_type="created",
+            content=content or None,
+            board=board or None,
+            column=column or None,
+            profiles=profiles,
+            files=files,
+            tags=tags,
+            parent_chat=current_chat,
+            user=_resolve_username(session),
         )
 
         # Build response
@@ -189,11 +212,13 @@ def create_task(
             user_message += f"\nLinked to parent: `{saved_task.parent_id}`"
         user_message += "\n\nUse `process_task` to start working on this task."
 
-        import json
         task_response = json.dumps({
             "task_id": saved_task.id,
             "name": saved_task.name,
             "parent_id": saved_task.parent_id,
+            "board": saved_task.board,
+            "column": saved_task.column,
+            "profiles": saved_task.profiles,
             "status": "created"
         })
 
@@ -205,3 +230,5 @@ def create_task(
     except Exception as ex:
         logger.exception("create_task: error creating task: %s", ex)
         raise RuntimeError(f"Failed to create task: {ex}") from ex
+
+# Made with ❤️ by codx-junior

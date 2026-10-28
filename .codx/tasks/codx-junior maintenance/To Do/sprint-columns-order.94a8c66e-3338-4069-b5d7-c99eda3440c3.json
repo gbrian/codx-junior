@@ -81,7 +81,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-27 19:15:25.093791",
-      "updated_at": "2026-10-27T19:18:14.548048",
+      "updated_at": "2026-10-28T16:53:50.930774",
       "attachments": [],
       "files": [],
       "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
@@ -286,13 +286,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-27 19:15:23.708913",
-  "updated_at": "2026-10-27T19:18:17.653538",
+  "updated_at": "2026-10-28T16:53:50.931543",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

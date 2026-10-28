@@ -40,6 +40,14 @@ SIO_POOL = ThreadPoolExecutor(max_workers=10)
 SIO_FILE_READ_RESPONSE_EVENT = "codx-junior-file-read-response"
 SIO_FILE_DIFF_RESPONSE_EVENT = "codx-junior-file-diff-response"
 
+# Message returned by the deprecated task-creation SIO events.
+SUBTASKS_DEPRECATED_MESSAGE = (
+    "Sub-task generation is deprecated and has been removed. Tasks are created "
+    "explicitly, with all their information, through the 'create_task' or "
+    "'project_manager' (action='create_task') tools or through "
+    "POST /api/chats/tasks."
+)
+
 def sio_api_endpoint(func):
     """Decorator to process sio API requests."""
     @functools.wraps(func)
@@ -165,10 +173,16 @@ async def io_chat_search(sid, msg_data: dict, codxjunior_session: CODXJuniorSess
 @sio.on("codx-junior-subtasks")
 @sio_api_endpoint
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
-    sio_chat = SioChatMessage(**data)
-    instructions = data.get("instructions")
-    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, 
-                                                    instructions=instructions)
+    """
+    DEPRECATED event — used to split a chat into sub-tasks with the AI.
+
+    It no longer creates anything: it answers with a deprecation payload so
+    older clients surface a clear message instead of failing silently.
+    """
+    logger.warning(
+        "SIO 'codx-junior-subtasks' is deprecated: %s", SUBTASKS_DEPRECATED_MESSAGE
+    )
+    return {"error": SUBTASKS_DEPRECATED_MESSAGE, "deprecated": True}
 
 @sio.on("codx-junior-improve")
 @sio_api_endpoint
@@ -179,8 +193,16 @@ async def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession)
 @sio.on("codx-junior-generate-tasks")
 @sio_api_endpoint
 async def io_create_chat_tasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
-    data = SioChatMessage(**data)
-    await codxjunior_session.generate_tasks(chat=data.chat)
+    """
+    DEPRECATED event — used to generate tasks from a chat with the AI.
+
+    It no longer creates anything: it answers with a deprecation payload so
+    older clients surface a clear message instead of failing silently.
+    """
+    logger.warning(
+        "SIO 'codx-junior-generate-tasks' is deprecated: %s", SUBTASKS_DEPRECATED_MESSAGE
+    )
+    return {"error": SUBTASKS_DEPRECATED_MESSAGE, "deprecated": True}
 
 @sio.on("codx-junior-improve-patch")
 @sio_api_endpoint

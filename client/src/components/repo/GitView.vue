@@ -4,11 +4,14 @@ import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { onFileEvent } from '@/utils/fileEvents'
 import moment from 'moment'
 
 // 50/72 rule: maximum subject length and maximum body line width
 const COMMIT_SUBJECT_LIMIT = 50
 const COMMIT_BODY_LIMIT = 72
+// File events are coalesced: a burst of writes reloads the view only once
+const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
@@ -36,6 +39,10 @@ export default {
       selectedCommit: null,
       // Bumped after every git operation so the graph reloads its commits
       graphRefreshToken: 0,
+      // Unsubscribe function of the file event bus (refreshes on disk activity)
+      fileEventsOff: null,
+      // Pending debounced refresh triggered by a file event
+      fileEventRefreshTimer: null,
       // working tree
       selection: {},
       // Anchor for shift+click range selection: { group, path }
@@ -73,6 +80,10 @@ export default {
     },
     projectPath() {
       return this.project?.abs_project_path || this.project?.codx_path || ''
+    },
+    /** Absolute on-disk path of the project, used to match file events */
+    projectRoot() {
+      return this.project?.abs_project_path || ''
     },
     api() {
       return this.project?.$api || null
@@ -229,7 +240,16 @@ export default {
   created() {
     this.loadRepo()
   },
+  mounted() {
+    // Backend file activity (a chat, the terminal or an editor touching a file)
+    // changes the working tree behind our back: keep the view in sync.
+    this.fileEventsOff = onFileEvent(this.onProjectFileEvent)
+  },
   beforeUnmount() {
+    if (this.fileEventsOff) this.fileEventsOff()
+    this.fileEventsOff = null
+    clearTimeout(this.fileEventRefreshTimer)
+    this.fileEventRefreshTimer = null
     // Never leave a pending confirmation promise unresolved
     this.resolveConfirmation(false)
   },
@@ -296,6 +316,54 @@ export default {
       const request = this.confirmRequest
       this.confirmRequest = null
       if (request?.resolve) request.resolve(accepted)
+    },
+
+    // ── File events ─────────────────────────────────────────────────────
+    /**
+     * True when a published file event belongs to the project on screen.
+     *
+     * The payload carries the project (`project_id`) and/or its `codx_path`;
+     * when neither is available the absolute project path is used, so file
+     * activity from other projects never reloads this view.
+     *
+     * @param {Object} fileEvent - Normalized event from `@/utils/fileEvents`.
+     * @returns {boolean}
+     */
+    isOwnProjectFileEvent(fileEvent) {
+      if (!fileEvent) return false
+
+      const projectId = this.project?.project_id
+      if (projectId && fileEvent.projectId) return fileEvent.projectId === projectId
+
+      const codxPath = this.project?.codx_path
+      if (codxPath && fileEvent.codxPath) return fileEvent.codxPath === codxPath
+
+      const root = this.projectRoot
+      const path = fileEvent.filePath || fileEvent.newPath || fileEvent.previousPath
+      return !!root && !!path && path.startsWith(root)
+    },
+
+    /**
+     * A file was read / written / created / deleted on disk: the working tree,
+     * the branches and the graph may be stale. Bursts of events (a chat writing
+     * several files) are coalesced into a single reload.
+     *
+     * @param {Object} fileEvent - Normalized event from `@/utils/fileEvents`.
+     */
+    onProjectFileEvent(fileEvent) {
+      if (!this.api || !this.isOwnProjectFileEvent(fileEvent)) return
+      clearTimeout(this.fileEventRefreshTimer)
+      this.fileEventRefreshTimer = setTimeout(this.refreshFromFileEvent, FILE_EVENT_REFRESH_DELAY)
+    },
+
+    /** Debounced reload triggered by the last file event */
+    refreshFromFileEvent() {
+      this.fileEventRefreshTimer = null
+      // An in-flight git operation reloads the view when it finishes
+      if (!this.api || this.busy || this.committing || this.merging) return
+      this.loadRepo()
+      // Branches, hashes and lanes changed: reload the graph too
+      this.graphRefreshToken += 1
     },
 
     // ── Working tree ────────────────────────────────────────────────────

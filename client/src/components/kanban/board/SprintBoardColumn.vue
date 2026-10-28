@@ -227,6 +227,20 @@ import SprintTaskCard from './SprintTaskCard.vue'
           class="h-0.5 bg-primary/60 rounded-full mb-1 mx-1"
         ></div>
 
+        <!--
+          Triage column: the task holds a status this board does not render (no
+          column groups it). The raw value is surfaced so the card is not just
+          "mysteriously" here — the reason is visible without relying on colour.
+        -->
+        <div
+          v-if="column.virtual && task.status"
+          class="flex items-center gap-1 mb-1 px-1 text-[10px] leading-none text-warning/80"
+          :title="`This task's status ('${task.status}') does not match any column of this board`"
+        >
+          <i class="fa-solid fa-triangle-exclamation text-[9px] shrink-0" aria-hidden="true"></i>
+          <span class="truncate">{{ task.status }}</span>
+        </div>
+
         <SprintTaskCard
           :task="task"
           :selected="selectedTaskId === task.id"

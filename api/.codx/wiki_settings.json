@@ -600,6 +600,11 @@
           "path": "/codx/junior/tools/project_manager_tools.py",
           "slug": "project-manager-tools.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/project-manager-tools.md"
+        },
+        {
+          "path": "/codx/junior/task_manager.py",
+          "slug": "task-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/task-manager.md"
         }
       ],
       "id": "project-overview",

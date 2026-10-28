@@ -73,6 +73,17 @@ PORCELAIN_STATUS = {
     "?": "untracked",
 }
 
+# Arguments used everywhere the working tree status is read.
+# ``--porcelain`` keeps the output stable across git versions (and locale
+# independent) and ``--untracked-files=all`` expands untracked *directories*
+# into the files they contain: without it git collapses them into a single
+# ``?? folder/`` entry, which made the change lists (``changed_files``,
+# ``staged``, ``unstaged``) return folder paths instead of files.
+# A *nested* repository (submodule / embedded repository) is never expanded by
+# git, it is reported as a single ``?? folder/`` entry and dropped by
+# ``_filter_nested_repos``: those files belong to the nested repository.
+STATUS_ARGS = ("status", "--porcelain", "--untracked-files=all")
+
 
 class GitEngine:
     """
@@ -1423,23 +1434,119 @@ class GitEngine:
             "status": PORCELAIN_STATUS.get(code, "modified"),
         }
 
+    def _is_nested_repo(self, path: str, cwd: Optional[str] = None) -> bool:
+        """
+        Return whether *path* is a folder holding its own git repository.
+
+        A nested repository (an embedded repository, or a submodule that is not
+        registered yet) carries its own ``.git``: a folder for a regular
+        checkout, a file for a submodule or a worktree.
+
+        Args:
+            path: Repo-relative folder path.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            True when the folder contains a ``.git`` entry.
+
+        Example:
+            >>> engine._is_nested_repo("plugins/simpleopd.ai/")
+            True
+        """
+        cwd = cwd or self._get_repo_root()
+        return os.path.exists(os.path.join(cwd, (path or "").strip(), ".git"))
+
+    def _is_untracked_nested_repo(
+        self, line: str, cwd: Optional[str] = None
+    ) -> bool:
+        """
+        Return whether a porcelain status line is an untracked nested repository.
+
+        ``--untracked-files=all`` expands every regular untracked folder into
+        its files: only a *nested repository* is still reported as a single
+        directory entry (``?? folder/``), because git never descends into it.
+
+        Args:
+            line: One line of ``git status --porcelain`` output.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            True when the line is an untracked directory holding its own ``.git``.
+
+        Example:
+            >>> engine._is_untracked_nested_repo("?? plugins/simpleopd.ai/")
+            True
+        """
+        parsed = self._parse_status_line(line)
+        if not parsed:
+            return False
+
+        index_code, worktree_code, path = parsed
+        if index_code != "?" or worktree_code != "?" or not path.endswith("/"):
+            return False
+        return self._is_nested_repo(path, cwd=cwd)
+
+    def _filter_nested_repos(
+        self, lines: List[str], cwd: Optional[str] = None
+    ) -> List[str]:
+        """
+        Drop the status entries of the nested repositories (submodules).
+
+        The files of a nested repository belong to that repository, not to this
+        one: neither the folder nor the files it contains are reported as
+        changes, so they are never listed in the UI nor staged by the engine
+        (staging the folder would add it as an opaque gitlink).
+
+        Changes to an already tracked submodule (its `` M submodule`` gitlink
+        entry) are real changes of this repository and are kept.
+
+        Args:
+            lines: Porcelain status lines.
+            cwd: Working directory. Defaults to the repository root.
+
+        Returns:
+            Porcelain status lines without the untracked nested repositories.
+
+        Example:
+            >>> engine._filter_nested_repos(["?? plugins/simpleopd.ai/", " M app.py"])
+            [' M app.py']
+        """
+        filtered: List[str] = []
+        for line in lines:
+            if self._is_untracked_nested_repo(line, cwd=cwd):
+                parsed = self._parse_status_line(line)
+                logger.info(
+                    "Ignoring nested repository '%s': its files belong to a "
+                    "submodule",
+                    parsed[2] if parsed else line,
+                )
+                continue
+            filtered.append(line)
+        return filtered
+
     def _status_paths(self, cwd: Optional[str] = None) -> List[str]:
         """
-        Return the paths currently reported by ``git status --porcelain``.
+        Return the file paths currently reported by ``git status --porcelain``.
 
-        Ignored files (``!`` entries) are skipped: they cannot be staged.
+        Untracked directories are expanded into the files they contain (see
+        ``STATUS_ARGS``), so a change list never contains folder paths.
+
+        Untracked nested repositories (submodules / embedded repositories) are
+        skipped: their files belong to the nested repository and must never be
+        staged by this one. Ignored files (``!`` entries) are skipped too: they
+        cannot be staged.
 
         Args:
             cwd: Working directory. Defaults to the repository root.
 
         Returns:
-            De-duplicated, repo-relative paths.
+            De-duplicated, repo-relative file paths.
 
         Example:
             >>> engine._status_paths()
             ['app.py', 'new.json']
         """
-        result = self._run_git(["status", "--porcelain"], cwd=cwd, strip_output=False)
+        result = self._run_git(STATUS_ARGS, cwd=cwd, strip_output=False)
         paths: List[str] = []
 
         for line in result["output"].split("\n"):
@@ -1448,6 +1555,9 @@ class GitEngine:
                 continue
             index_code, worktree_code, path = parsed
             if index_code == "!" or worktree_code == "!":
+                continue
+            # Nested repositories are never staged: their files are not ours
+            if self._is_untracked_nested_repo(line, cwd=cwd):
                 continue
             if path not in paths:
                 paths.append(path)
@@ -1502,16 +1612,25 @@ class GitEngine:
         """
         Return the working tree status of the repository.
 
+        Untracked directories are expanded into the files they contain
+        (``--untracked-files=all``), so ``files`` lists individual files and
+        never folder paths. Untracked nested repositories (submodules and
+        embedded repositories) are dropped by ``_filter_nested_repos``: git
+        never descends into them and their files belong to the nested
+        repository, so neither the folder nor its files are reported.
+
         Returns:
-            Dict with 'ok', 'dirty', 'files' (porcelain lines) and 'error'.
+            Dict with 'ok', 'dirty', 'files' (porcelain lines, one per file)
+            and 'error'.
 
         Example:
             >>> engine.get_working_tree_status()
             {'ok': True, 'dirty': True, 'files': [' M codx/junior/app.py'], 'error': ''}
         """
         # Leading spaces are part of the porcelain format (index vs worktree)
-        result = self._run_git(["status", "--porcelain"], strip_output=False)
-        files = [line for line in result["output"].split("\n") if line.strip()]
+        result = self._run_git(STATUS_ARGS, strip_output=False)
+        raw_files = [line for line in result["output"].split("\n") if line.strip()]
+        files = self._filter_nested_repos(raw_files)
         return {
             "ok": result["ok"],
             "dirty": bool(files),
@@ -2503,7 +2622,10 @@ class GitEngine:
             url, ahead/behind counters, working tree state (including the
             staged and unstaged file lists), lock state, worktrees, the git
             identity commits are signed with, the token state (never the token
-            itself) and the last commit.
+            itself) and the last commit. 'changed_files' lists one entry per
+            changed file: untracked directories are expanded and untracked
+            nested repositories (submodules) are ignored, so it never contains
+            folder paths nor files belonging to a submodule.
 
         Example:
             >>> engine.get_repo_info()["active_branch"]
@@ -2809,7 +2931,7 @@ class GitEngine:
 
         Staging is done path by path: a path that cannot be staged is reported
         in 'staging_errors' and never blocks the commit of the remaining
-        changes.
+        changes. Untracked nested repositories (submodules) are not staged.
 
         Args:
             message: Commit message.

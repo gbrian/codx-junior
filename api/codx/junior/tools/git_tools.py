@@ -396,6 +396,215 @@ def get_file_last_version(
         )
 
 
+def restore_changes(
+    files: Optional[List[str]] = None,
+    staged: bool = False,
+    worktree: bool = True,
+    source: Optional[str] = None,
+    **kwargs
+) -> ToolResponse:
+    """
+    Restore changes with `git restore` (discard working tree and/or unstage).
+
+    Two independent scopes can be restored:
+
+    - **worktree** (default): discard the working tree changes. Content is
+      restored from the index, or from `source` when given. Untracked files
+      cannot be restored by `git restore` and are reported as failures.
+    - **staged**: restore the index from HEAD (or from `source`), i.e.
+      unstage the changes. The working tree is left untouched unless
+      `worktree` is also True.
+    - Both together reset the tracked files to HEAD
+      (`git restore --staged --worktree`).
+
+    **Destructive**: working tree changes are DISCARDED, not stashed. When no
+    `files` are given, every changed file of the selected scope(s) is restored.
+
+    Args:
+        files: File paths to restore. Defaults to every file changed in the
+            selected scope(s). A single path may be passed as a string.
+        staged: Restore staged changes (unstage). Default: False.
+        worktree: Restore (discard) working tree changes. Default: True.
+        source: Optional commit, branch or tag used as the restore source
+            (`git restore --source`). Defaults to HEAD for the index and to the
+            index for the working tree (git defaults).
+        **kwargs: Additional arguments including:
+            - settings (CODXJuniorSettings): Project settings, injected by the runtime.
+            - session: Project session, injected by the runtime when available.
+
+    Returns:
+        ToolResponse: Contains:
+            - user_response: Summary of the restored files and scope.
+            - llm_response: Machine friendly summary of the operation.
+            - logs: One entry per restored path.
+
+    Raises:
+        ValueError: If `files` is not a string or a list of file paths.
+
+    Example:
+        Discard the working tree changes of the edited files:
+        >>> restore_changes(files=["codx/junior/app.py"])
+
+        Unstage everything without touching the working tree:
+        >>> restore_changes(staged=True, worktree=False)
+
+        Reset tracked files to HEAD (unstage + discard):
+        >>> restore_changes(staged=True, worktree=True)
+
+        Restore a file from the previous commit:
+        >>> restore_changes(files=["README.md"], source="HEAD~1")
+    """
+    if isinstance(files, str):
+        files = [files]
+    if files is not None and not isinstance(files, list):
+        raise ValueError("files must be a string or a list of file paths")
+
+    # `git restore` defaults to the working tree when no scope is selected
+    if not staged and not worktree:
+        worktree = True
+
+    scope_bits = []
+    if worktree:
+        scope_bits.append("working tree")
+    if staged:
+        scope_bits.append("staged")
+    scope = " + ".join(scope_bits)
+    source_label = source or "(git default: HEAD/index)"
+
+    try:
+        git_engine = _resolve_git_engine(**kwargs)
+
+        if files is not None:
+            targets = [str(path) for path in files if str(path).strip()]
+        else:
+            # Derive the targets from the status, skipping untracked files for
+            # a working tree restore: `git restore` cannot restore them.
+            changes = git_engine.get_status_changes()
+            selected = []
+            if staged:
+                selected += changes.get("staged", [])
+            if worktree:
+                selected += [
+                    entry for entry in changes.get("unstaged", [])
+                    if entry.get("code") != "?"
+                ]
+            targets = []
+            for entry in selected:
+                path = entry.get("path")
+                if path and path not in targets:
+                    targets.append(path)
+    except Exception as ex:
+        error_msg = f"Unexpected error: {str(ex)}"
+        logger.error("restore_changes failed: %s", ex)
+        return ToolResponse(
+            user_response=f"error [restore_changes]\nERROR: {error_msg}",
+            llm_response=f"Failed to restore changes: {error_msg}",
+        )
+
+    if not targets:
+        logger.info("restore_changes: nothing to restore (%s)", scope)
+        return ToolResponse(
+            user_response=(
+                "ℹ️ Nothing to restore\n"
+                f"- Scope: {scope}\n"
+                "- No changed files matched the selected scope."
+            ),
+            llm_response=(
+                f"# restore_changes: nothing to restore\n- Scope: {scope}"
+            ),
+        )
+
+    steps: List[dict] = []
+    restored: List[str] = []
+    errors: List[str] = []
+    locked = False
+    lock_path = ""
+
+    # Restore each path on its own: a failing path (untracked, unknown
+    # pathspec...) never blocks the restore of the remaining files.
+    for path in targets:
+        args = ["restore"]
+        if source:
+            args.append(f"--source={source}")
+        if staged:
+            args.append("--staged")
+        if worktree:
+            args.append("--worktree")
+        args += ["--", path]
+
+        result = git_engine._run_git(args)
+        if result["ok"]:
+            restored.append(path)
+            steps.append({
+                "name": f"restore {path}",
+                "ok": True,
+                "output": result.get("output", ""),
+            })
+            continue
+
+        error = result.get("error") or result.get("output") or "could not be restored"
+        logger.warning("Could not restore %s: %s", path, error)
+        errors.append(f"{path}: {error}")
+        steps.append({"name": f"restore {path}", "ok": False, "error": error})
+
+        lock = git_engine._lock_error_info(error)
+        if lock.get("locked"):
+            locked = True
+            lock_path = lock.get("lock_path", "")
+
+    logs = _collect_step_logs(steps)
+    files_label = ", ".join(f"`{path}`" for path in restored) if restored else "none"
+
+    if errors:
+        error_msg = "; ".join(errors)
+        llm_lines = [
+            f"# restore_changes: {len(errors)} failure(s) ({scope})",
+            f"- Source: {source_label}",
+            f"- Restored: {files_label}",
+            f"- Errors: {error_msg}",
+        ]
+        if locked:
+            llm_lines.append(
+                f"- The repository is locked (`{lock_path}`): release the lock "
+                "and retry."
+            )
+        return ToolResponse(
+            user_response=f"error [restore_changes]\nERROR: {error_msg}",
+            llm_response="\n".join(llm_lines),
+            logs=logs,
+        )
+
+    user_lines = [
+        f"✅ Restored {len(restored)} path(s)",
+        f"- Scope: {scope}",
+        f"- Source: {source_label}",
+        f"- Files: {files_label}",
+        "- Working tree changes were discarded (not stashed)"
+        if worktree else "- Working tree left untouched",
+    ]
+
+    llm_lines = [
+        f"# Restored {len(restored)} path(s)",
+        f"- Scope: {scope}",
+        f"- Source: {source_label}",
+        f"- Files: {files_label}",
+        "- `git restore` completed with no errors",
+    ]
+
+    logger.info(
+        "Restored %d path(s) (%s, source=%s)",
+        len(restored),
+        scope,
+        source or "default",
+    )
+
+    return ToolResponse(
+        user_response="\n".join(user_lines),
+        llm_response="\n".join(llm_lines),
+        logs=logs,
+    )
+
+
 def create_pr_branch(
     branch_name: Optional[str] = None,
     base_branch: Optional[str] = None,

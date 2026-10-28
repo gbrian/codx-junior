@@ -48,6 +48,7 @@ from codx.junior.engine.git_engine import GitEngine
 from codx.junior.engine.file_engine import FileEngine
 from codx.junior.engine.chat_engine_actions import ChatEngineActions
 from codx.junior.engine.wiki_engine import WikiEngine
+from codx.junior.task_manager import TaskManager
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class CODXJuniorSession:
         CODXJuniorSession --> FileEngine
         CODXJuniorSession --> ChatEngineActions
         CODXJuniorSession --> WikiEngine
+        CODXJuniorSession --> TaskManager
     ```
     """
 
@@ -567,11 +569,25 @@ class CODXJuniorSession:
             chat=chat, instructions=instructions
         )
 
-    @profile_function
-    async def generate_tasks(self, chat: Chat, instructions: str = "") -> None:
-        """Generate sub-tasks from a chat."""
-        return await self._chat_engine_actions.generate_tasks(
-            chat=chat, instructions=instructions
+    def get_task_manager(self) -> TaskManager:
+        """
+        Return the canonical task-creation manager for this project.
+
+        Tasks are only created through the LLM tools (``create_task``,
+        ``project_manager``) or the API endpoints, and all of them use this
+        manager, so the creation rules (mandatory information, no inheritance
+        from the parent chat) live in a single place.
+
+        The former ``generate_tasks`` (AI sub-task generation) has been removed:
+        a task is an explicit decision with all its information, never an
+        inference over a conversation.
+
+        :return: A :class:`~codx.junior.task_manager.TaskManager` bound to this session.
+        """
+        return TaskManager(
+            settings=self.settings,
+            chat_manager=self.get_chat_manager(),
+            event_manager=self.event_manager,
         )
 
     def get_chat_analysis_parents(self, chat: Chat) -> str:

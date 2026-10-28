@@ -41,7 +41,10 @@
   },
   "tools": [
     "get_file_last_version",
-    "create_pr_branch"
+    "create_pr_branch",
+    "abandon_pr",
+    "repository_overview",
+    "restore_changes"
   ],
   "tags": [],
   "api_settings": {

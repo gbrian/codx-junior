@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "doing",
+  "status": "done",
   "status_history": [
     {
       "doc_id": "edaf49d5-5884-4646-b609-f3f5eabac1fe",
@@ -17,6 +17,14 @@
       "to_status": "doing",
       "user": null,
       "at": "2026-10-25T15:09:54.394606",
+      "meta_data": null
+    },
+    {
+      "doc_id": "6d8f50cb-6a50-43d0-8103-bc68c0904547",
+      "from_status": "doing",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-28T17:13:49.745607",
       "meta_data": null
     }
   ],
@@ -79,7 +87,7 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-25 15:09:56.311568",
-      "updated_at": "2026-10-25T15:12:39.309245",
+      "updated_at": "2026-10-28T17:10:34.405412",
       "attachments": [],
       "files": [],
       "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
@@ -238,13 +246,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-25 15:09:54.330523",
-  "updated_at": "2026-10-25T15:12:43.899538",
+  "updated_at": "2026-10-28T17:13:49.692270",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

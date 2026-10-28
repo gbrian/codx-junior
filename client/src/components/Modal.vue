@@ -5,9 +5,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center" :class="fullscreen ? 'p-0' : 'p-4'">
     <!-- Backdrop -->
     <div
-      class="absolute inset-0 bg-base-100/60 backdrop-blur-sm transition-opacity duration-300"
-      @click="close && $emit('close')"
-    ></div>
+      class="absolute inset-0 bg-base-100/60 backdrop-blur-sm transition-opacity duration-300"></div>
 
     <!-- Modal Box -->
     <div

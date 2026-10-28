@@ -34,6 +34,11 @@ Design notes:
       ``update_chat_metadata`` keeps messages intact and records a
       ``ChatStatusEvent`` on every real status transition, so task-performance
       metrics keep working.
+    - **Creation is explicit.** ``create_task`` requires the full task
+      information (``name`` + ``description``) and delegates to
+      :class:`~codx.junior.task_manager.TaskManager`, the single creation core
+      shared with the ``create_task`` tool and the ``POST /api/chats/tasks``
+      endpoint. There is no AI sub-task generation anymore.
     - **Processing is explicit.** Only ``request_changes`` runs the engine;
       ``request_help`` only writes a comment. A background run preserves the
       coroutine reference so it is not garbage-collected.
@@ -55,6 +60,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from codx.junior.db import Chat, Message
+from codx.junior.task_manager import TaskManager
 from .model import ToolResponse
 
 logger = logging.getLogger(__name__)
@@ -316,6 +322,29 @@ def _to_list(value: Any) -> List[str]:
         return [str(item).strip() for item in value if item and str(item).strip()]
     except TypeError:
         return []
+
+
+def _to_profiles(value: Any) -> List[str]:
+    """
+    Normalize a profile list received as a tool parameter.
+
+    Profiles are taken ONLY from the parameters: nothing is inherited from the
+    parent/current chat. Names are stripped, de-duplicated and their leading
+    ``@`` removed, because the chat engine re-emits them as ``@name`` mentions
+    (an ``@@name`` mention would never resolve to a profile).
+
+    Args:
+        value: A string, a list/tuple/set or None.
+
+    Returns:
+        List of profile names without duplicates.
+    """
+    names: List[str] = []
+    for name in _to_list(value):
+        clean = name.lstrip("@").strip()
+        if clean and clean not in names:
+            names.append(clean)
+    return names
 
 
 def _normalize_sprints(current: Optional[List[str]], replace: Any, add: Any) -> List[str]:
@@ -989,6 +1018,11 @@ def _action_create_task(
     existing sprints and a valid state. Names are canonicalised to the
     catalogue spelling so the task is stored in the right folder.
 
+    Persistence is delegated to :class:`~codx.junior.task_manager.TaskManager`,
+    the single creation core shared with the ``create_task`` tool and
+    ``POST /api/chats/tasks``. Every field comes from the arguments: nothing is
+    inherited from ``current_chat`` but the parent link and the project scope.
+
     Args:
         chat_manager: The project ChatManager.
         event_manager: Event manager used to notify the UI (may be None).
@@ -996,7 +1030,7 @@ def _action_create_task(
         settings: Project settings (for project scope).
         name: Task name (required).
         content: Initial user instruction (defaults to description/name).
-        description: Task description.
+        description: Task description (required).
         board: Kanban board (defaults to ``kanban``; must exist).
         column: Kanban column (defaults to ``tasks``; must exist on the board).
         sprints: Sprint list to associate (each must be a known board).
@@ -1006,7 +1040,7 @@ def _action_create_task(
         due_date: Due date (ISO ``YYYY-MM-DD``).
         progress: Completion percentage (0-100).
         assignees: Usernames assigned.
-        profiles: Profiles/roles for the task.
+        profiles: Profiles/roles for the task (parameter only, never inherited).
         files: Files related to the task.
         tags: Tags for categorizing the task.
         parent_id: Parent chat id (defaults to the current chat).
@@ -1016,12 +1050,21 @@ def _action_create_task(
         ToolResponse describing the created task.
 
     Raises:
-        ValueError: When ``name`` is empty or the destination (board, column,
-            sprint or state) does not exist.
+        ValueError: When ``name`` or ``description`` is empty, or the
+            destination (board, column, sprint or state) does not exist.
     """
     name = (name or "").strip()
     if not name:
         raise ValueError("name is required to create a task")
+
+    description = (description or "").strip()
+    if not description:
+        # Tasks are created with all their information: there is no AI step that
+        # expands a short title into a task description anymore.
+        raise ValueError(
+            "description is required to create a task: provide the complete "
+            "instructions (there is no AI sub-task generation anymore)"
+        )
 
     # Validate (and canonicalise) the destination BEFORE creating the chat: a
     # task must never land on a board/column/sprint/state that does not exist.
@@ -1037,50 +1080,32 @@ def _action_create_task(
     task_sprints = location["sprints"] or []
     status = location["status"]
 
-    project_id = (
-        getattr(current_chat, "project_id", None) if current_chat else None
-    ) or getattr(settings, "project_id", None)
-    owner_project_id = (
-        getattr(current_chat, "owner_project_id", None) if current_chat else None
-    ) or getattr(settings, "project_id", None)
-
-    task = Chat(
+    # Single creation core shared with the `create_task` tool and the API:
+    # everything comes from the arguments, nothing is inherited from
+    # `current_chat` but the parent link and the project scope.
+    task_manager = TaskManager(
+        settings=settings,
+        chat_manager=chat_manager,
+        event_manager=event_manager,
+    )
+    saved_task = task_manager.create_task(
         name=name,
-        description=description or "",
-        parent_id=parent_id or (current_chat.id if current_chat else None),
+        description=description,
+        content=content,
         board=board,
         column=column,
         sprints=task_sprints,
-        status=status or "",
+        status=status,
         priority=priority,
         due_date=due_date,
-        progress=int(progress or 0),
-        assignees=_to_list(assignees),
-        profiles=_to_list(profiles),
-        tags=_to_list(tags),
-        file_list=_to_list(files),
-        project_id=project_id,
-        owner_project_id=owner_project_id,
-        mode=DEFAULT_MODE,
-    )
-
-    message_content = content or description or name
-    task.messages.append(
-        Message(
-            role="user",
-            content=message_content,
-            profiles=_to_list(profiles),
-            files=_to_list(files),
-            user=username,
-        )
-    )
-
-    saved_task = chat_manager.save_chat(chat=task)
-    _emit(
-        event_manager=event_manager,
-        chat=saved_task,
-        message=f"Task '{saved_task.name}' created",
-        event_type="created",
+        progress=progress,
+        assignees=assignees,
+        profiles=profiles,
+        files=files,
+        tags=tags,
+        parent_id=parent_id,
+        parent_chat=current_chat,
+        user=username,
     )
 
     user_lines = [
@@ -1265,7 +1290,7 @@ def _append_comment(
     message = Message(
         role=role,
         content=content,
-        profiles=_to_list(profiles),
+        profiles=_to_profiles(profiles),
         files=_to_list(files),
         user=username,
     )
@@ -1545,7 +1570,7 @@ async def project_manager(
         action: One of :data:`VALID_ACTIONS` (common aliases accepted).
         chat_id: Target task id (get/update/request actions).
         name: Task name (required on ``create_task``).
-        description: Task description.
+        description: Task description (required on ``create_task``).
         content: Initial user instruction (defaults to description/name).
         board: Kanban board (defaults to ``kanban``; must exist).
         column: Kanban column (defaults to ``tasks``; must exist on the board).
@@ -1556,7 +1581,7 @@ async def project_manager(
         due_date: Due date (ISO ``YYYY-MM-DD``).
         progress: Completion percentage (0-100).
         assignees: Assigned usernames (replaces on update).
-        profiles: Profiles/roles for the task/comment.
+        profiles: Profiles/roles for the task/comment (parameter only).
         files: Files related to the task/comment.
         tags: Tags (replaces on update).
         parent_id: Parent chat id when creating (defaults to current chat).
@@ -1581,9 +1606,11 @@ async def project_manager(
         >>> await project_manager("list_boards")
         # Shows boards, columns, sprint boards and valid states
         >>> await project_manager("create_task", name="Fix login timeout",
+        ...                       description="## Context\\nLogin times out...",
         ...                       board="kanban", column="tasks")
         # Creates the task and returns its id
         >>> await project_manager("create_task", name="Fix login timeout",
+        ...                       description="## Context\\n...",
         ...                       board="kanban", column="tasks",
         ...                       sprint="Sprint 12")
         # ❌ Invalid board 'kanban': available boards: Bugs, Engine...
@@ -1740,7 +1767,9 @@ PROJECT_MANAGER_TOOL_JSON = {
             "'list_boards' (boards, columns, sprint boards and valid states), "
             "'list_tasks' (list/filter tasks), "
             "'get_task' (read a task: status, board/column, sprints and messages), "
-            "'create_task' (create a task chat associated to board + column + sprint), "
+            "'create_task' (create a task chat associated to board + column + sprint; "
+            "'name' and 'description' are REQUIRED because tasks are created with all "
+            "their information and there is no AI sub-task generation anymore), "
             "'update_task' (change status and/or move between boards, columns and "
             "sprints; also priority, due date, progress, assignees, tags), "
             "'request_changes' (add a comment AND process the task through the AI "
@@ -1762,7 +1791,7 @@ PROJECT_MANAGER_TOOL_JSON = {
                         "  - 'list_boards': list kanban boards, columns, sprint boards and states\n"
                         "  - 'list_tasks': list/filter tasks (read)\n"
                         "  - 'get_task': read one task with its conversation (read)\n"
-                        "  - 'create_task': create a new task chat\n"
+                        "  - 'create_task': create a new task chat (requires name + description)\n"
                         "  - 'update_task': change status / move between boards, columns, sprints\n"
                         "  - 'request_changes': add a comment and process the task (runs the engine)\n"
                         "  - 'request_help': add a comment without processing (ask the user)"
@@ -1781,7 +1810,11 @@ PROJECT_MANAGER_TOOL_JSON = {
                 },
                 "description": {
                     "type": "string",
-                    "description": "Task description (what needs to be done)."
+                    "description": (
+                        "Task description (what needs to be done). REQUIRED for "
+                        "action='create_task': tasks are created with all their "
+                        "information, there is no AI sub-task generation."
+                    )
                 },
                 "content": {
                     "type": "string",
@@ -1856,7 +1889,11 @@ PROJECT_MANAGER_TOOL_JSON = {
                 "profiles": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Profiles/roles for the task or the comment."
+                    "description": (
+                        "Profiles/roles for the task or the comment. Taken ONLY from "
+                        "this argument: profiles are never inherited from the "
+                        "parent/current chat."
+                    )
                 },
                 "files": {
                     "type": "array",

@@ -22,9 +22,14 @@ export const UNASSIGNED_TITLE = NO_BOARD_ID
 // board (columns → tasks → cards) on any single chat write.
 export const NO_COLUMN_ID = '--none--'
 
-// Placeholder status of the sprint column that groups the tasks which define no
-// `status`. Same rule as NO_COLUMN_ID: applied when grouping, never written on
-// the chat. Writing it back CLEARS `chat.status` (see `moveSprintStatus`).
+// Placeholder status of the sprint column that groups the tasks the board
+// cannot place:
+//   • a task that defines no `status` at all, or
+//   • a task whose `status` matches NONE of the board's columns (a status whose
+//     column was removed, a value written by another client, a typo…).
+//
+// Same rule as NO_COLUMN_ID: applied when grouping, never written on the chat.
+// Writing it back CLEARS `chat.status` (see `moveSprintStatus`).
 export const NO_STATUS_ID = '--no-status--'
 
 // Status a NEW sprint task is created with when the target column defines none.
@@ -444,14 +449,25 @@ export const getters = getterTree(state, {
   //
   // Sprint boards work by changing a task's `status` field, so each column
   // groups every task whose `status` matches the column `status` (or its
-  // `title` when no status was defined). A task that defines NO status belongs
-  // to the virtual "Unassigned" column appended at the end (see NO_STATUS_ID).
+  // `title` when no status was defined). A task the board cannot place — it
+  // defines NO status, or a status that matches none of the board's columns —
+  // belongs to the virtual "Unassigned" column appended at the end (see
+  // NO_STATUS_ID).
   sprintColumns: (state, getters) => (boardId) => {
     const board = getters.boardById(boardId)
     const tasks = getters.sprintBoardChats(boardId)
 
     const custom = board?.columns?.length ? board.columns : null
     const columns = custom || defaultSprintColumns()
+
+    // The chat statuses this board actually renders. A task whose `status` is
+    // not among them would be rendered by NO column and would silently vanish
+    // from the board (a status whose column was removed, a status added by
+    // another client, a typo…), so those tasks fall back to the virtual
+    // "Unassigned" column below.
+    const boardStatuses = new Set(
+      columns.map(col => sprintColumnStatus(col)).filter(Boolean)
+    )
 
     const builtColumns = columns.map((col, ix) => {
       // The chat status this column groups (falls back to the UI title)
@@ -483,7 +499,7 @@ export const getters = getterTree(state, {
       }
     })
 
-    // Virtual column: the tasks that define no status at all.
+    // Virtual column: the tasks the board cannot place.
     //
     // It is ALWAYS rendered (last), even while it holds no task: a drop target
     // that only appears once it already has content could never be used, and the
@@ -512,7 +528,13 @@ export const getters = getterTree(state, {
       project_id: null,
       project: null,
       position: builtColumns.length,
-      tasks: tasks.filter(t => !t.status).sort(sortColumnTasks)
+      // No status at all, or a status that matches no column of this board
+      // (`boardStatuses`). Both cases have no column of their own, so they are
+      // listed here instead of disappearing from the board. A task can never be
+      // listed twice: a status in `boardStatuses` is grouped by its own column.
+      tasks: tasks
+        .filter(t => !t.status || !boardStatuses.has(t.status))
+        .sort(sortColumnTasks)
     })
 
     return builtColumns
@@ -866,7 +888,8 @@ export const actions = actionTree(
       if ((chat.status || NO_STATUS_ID) === status) return
       // Dropping a card into the virtual "Unassigned" column clears the status,
       // so the task goes back to the unclassified bucket instead of being
-      // stored with a placeholder value.
+      // stored with a placeholder value. This is also how a task carrying an
+      // unknown status ("blocked"…) is normalized: it simply loses it.
       const nextStatus = status === NO_STATUS_ID ? '' : status
       await $storex.chats.updateChatInfo({ chat, updates: { status: nextStatus } })
     },
