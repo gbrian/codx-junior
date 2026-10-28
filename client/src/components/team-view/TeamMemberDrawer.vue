@@ -2,6 +2,7 @@
 import ChatLLMModelSelector from '@/components/chat/ChatLLMModelSelector.vue'
 import Document from '@/components/document/Document.vue'
 import ContentEditorModal from './ContentEditorModal.vue'
+import ToolDetailsModal from './ToolDetailsModal.vue'
 import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
 </script>
 
@@ -132,7 +133,9 @@ import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
               <span class="label-text text-xs font-semibold">Skills</span>
               <span class="badge badge-sm">{{ usedTools.length }} selected</span>
             </div>
-            <p class="text-[11px] text-base-content/50 -mt-1">Choose the abilities this teammate can use to get work done.</p>
+            <p class="text-[11px] text-base-content/50 -mt-1">
+              Choose the abilities this teammate can use to get work done. Click a skill to see its details.
+            </p>
 
             <!-- Text filter -->
             <div class="relative">
@@ -177,20 +180,36 @@ import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
               <div
                 v-for="tool in filteredToolsList"
                 :key="tool.tool_json.function.name"
-                class="h-40 card bg-base-100 border border-base-content/10 hover:border-base-content/20 transition-colors"
+                class="h-40 card bg-base-100 border border-base-content/10 hover:border-base-content/20 transition-colors cursor-pointer"
+                role="button"
+                tabindex="0"
+                :aria-label="`See ${tool.tool_json.function.name} details`"
+                @click="openToolDetails(tool)"
+                @keydown.enter.prevent="openToolDetails(tool)"
+                @keydown.space.prevent="openToolDetails(tool)"
               >
                 <div class="card-body p-3">
                   <div class="flex items-start gap-2">
                     <input
                       type="checkbox"
                       :checked="isToolSelected(tool.tool_json.function.name)"
-                      @click="toggleTool(tool)"
+                      @click.stop="toggleTool(tool)"
                       class="toggle toggle-xs checked:border-info checked:bg-info mt-0.5"
+                      :aria-label="`Enable ${tool.tool_json.function.name}`"
                     />
                     <div class="flex flex-col flex-1 min-w-0">
                       <h3 class="font-semibold text-sm truncate">{{ tool.tool_json.function.name }}</h3>
                       <p class="text-xs text-base-content/60 line-clamp-2">{{ tool.tool_json.function.description }}</p>
                     </div>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs btn-square shrink-0"
+                      :title="`See ${tool.tool_json.function.name} details`"
+                      :aria-label="`See ${tool.tool_json.function.name} details`"
+                      @click.stop="openToolDetails(tool)"
+                    >
+                      <i class="fa-solid fa-circle-info text-xs"></i>
+                    </button>
                   </div>
 
                   <div v-if="tool.tags?.length" class="flex gap-1 flex-wrap mt-2">
@@ -418,6 +437,16 @@ import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
       @update="onContentUpdated"
       @close="showContentEditor = false"
     />
+
+    <!-- Skill (tool) details modal -->
+    <ToolDetailsModal
+      v-if="detailsTool"
+      :tool="detailsTool"
+      :selected="isToolSelected(detailsTool.tool_json.function.name)"
+      toggleable
+      @toggle="toggleDetailsTool"
+      @close="closeToolDetails"
+    />
   </div>
 </template>
 
@@ -442,6 +471,8 @@ export default {
       showContentEditor: false,
       skillSearch: '',
       skillTag: '',
+      // Skill (tool) whose details are open in the details modal.
+      detailsTool: null,
       roleMetaMap: ROLE_META,
       tabs: [
         { id: 'about', label: 'About', icon: 'fa-solid fa-user' },
@@ -547,7 +578,13 @@ export default {
   },
   methods: {
     onKeydown(event) {
-      if (event.key === 'Escape' && !this.showContentEditor) this.$emit('close')
+      if (event.key !== 'Escape') return
+      // The skill details modal sits on top — close it first.
+      if (this.detailsTool) {
+        this.closeToolDetails()
+        return
+      }
+      if (!this.showContentEditor) this.$emit('close')
     },
     resetDraft(member) {
       const source = member || {}
@@ -573,6 +610,7 @@ export default {
       this.contentMode = 'view'
       this.skillSearch = ''
       this.skillTag = ''
+      this.detailsTool = null
     },
     // ── Persona ────────────────────────────────────────────────────────────
     toggleContentMode() {
@@ -594,6 +632,18 @@ export default {
       this.draft.tools = has
         ? this.usedTools.filter(t => t !== tool.tool_json.function.name)
         : [...this.usedTools, tool.tool_json.function.name]
+    },
+    // Open the details modal for a skill (full description, arguments, raw spec).
+    openToolDetails(tool) {
+      if (!tool?.tool_json?.function?.name) return
+      this.detailsTool = tool
+    },
+    closeToolDetails() {
+      this.detailsTool = null
+    },
+    // Enable/disable the skill from within the details modal (keeps it open).
+    toggleDetailsTool(tool) {
+      if (tool) this.toggleTool(tool)
     },
     // ── Advanced ───────────────────────────────────────────────────────────
     toggleProfile(name) {

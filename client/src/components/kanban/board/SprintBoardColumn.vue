@@ -264,7 +264,7 @@ import SprintTaskCard from './SprintTaskCard.vue'
           ? 'border-primary/50 text-primary/60 bg-primary/5'
           : 'border-base-100 text-base-content/20'"
       >
-        {{ isDragOver ? 'Drop here' : 'No tasks' }}
+        {{ isDragOver ? 'Drop here' : emptyHint }}
       </div>
     </div>
 
@@ -357,6 +357,13 @@ export default {
     tasks() {
       return this.column.tasks || []
     },
+    // The chat field value this column groups: the column title for a stored
+    // column, the placeholder value for a virtual column (see the kanban store).
+    // Every drag & drop comparison uses it — the `title` is only the label, and
+    // writing it back onto a chat would turn "Unassigned" into a real value.
+    columnKey() {
+      return this.column.value || this.column.title
+    },
     // The mounted slice of the column. Keeping it a prefix means the rendered
     // tasks keep their real index, so drag & drop / reordering are unaffected.
     visibleTasks() {
@@ -369,7 +376,15 @@ export default {
       const surface = this.hasBackground
         ? 'border-base-100 bg-base-200/80 backdrop-blur-md shadow-xl'
         : 'border-base-100 bg-base-100'
-      return this.isDragOver ? 'border-primary/50 bg-primary/5' : surface
+      // Virtual columns (chats without a column/status) are a triage bucket, not
+      // a real column of the document: they read as a drop zone.
+      const base = this.column.virtual
+        ? `${surface} border border-dashed border-base-content/30 bg-base-100/40`
+        : surface
+      return this.isDragOver ? 'border-primary/50 bg-primary/5' : base
+    },
+    emptyHint() {
+      return this.column.virtual ? 'Nothing to classify' : 'No tasks'
     },
     // Background of the column icon badge. A colour picked for the column is
     // applied inline (tint layer + icon colour, see the template); canonical
@@ -572,12 +587,14 @@ export default {
 
     // ── Cross-column move (both boards) ─────────────────────────────────────
     // Emits `{ taskId, toColumn, status }` so the sprint view (status) and the
-    // kanban view (toColumn) each pick what they need.
+    // kanban view (toColumn) each pick what they need. Both values are the ones
+    // the column GROUPS (`columnKey` / `status`), never the display label:
+    // dropping into a virtual column therefore clears the chat field.
     emitMove(taskId) {
       if (!taskId) return
       this.$emit('move-task', {
         taskId,
-        toColumn: this.column.title,
+        toColumn: this.columnKey,
         status: this.column.status || null
       })
     },
@@ -601,14 +618,14 @@ export default {
       this.draggingTaskIndex = null
       this.taskDropIndex = null
       // Same-column drop is a no-op here (handled by the task list reorder)
-      if (!taskId || fromColumn === this.column.title) return
+      if (!taskId || fromColumn === this.columnKey) return
       this.emitMove(taskId)
     },
 
     // ── Column drag (canvas reordering) ─────────────────────────────────────
     onColumnDragStart(event) {
       event.dataTransfer.effectAllowed = 'move'
-      event.dataTransfer.setData('columnDrag', this.column.title)
+      event.dataTransfer.setData('columnDrag', this.columnKey)
       this.$emit('column-drag-start')
     },
 
@@ -620,7 +637,7 @@ export default {
       // Keys understood by both boards (kanban `taskId`, sprint `sprintTaskId`)
       event.dataTransfer.setData('taskId', task.id)
       event.dataTransfer.setData('sprintTaskId', task.id)
-      event.dataTransfer.setData('fromColumn', this.column.title)
+      event.dataTransfer.setData('fromColumn', this.columnKey)
       event.dataTransfer.setData('text/plain', task.id)
     },
     onTaskDragEnd() {
@@ -643,7 +660,7 @@ export default {
 
       // Cross-column drop — let the store move it
       const fromColumn = event.dataTransfer.getData('fromColumn')
-      if (fromColumn && fromColumn !== this.column.title) {
+      if (fromColumn && fromColumn !== this.columnKey) {
         const taskId = this.readTaskId(event)
         this.isDragOver = false
         this.draggingTaskId = null
@@ -681,7 +698,7 @@ export default {
     },
     onTaskListDrop(event) {
       const fromColumn = event.dataTransfer.getData('fromColumn')
-      if (fromColumn && fromColumn !== this.column.title) {
+      if (fromColumn && fromColumn !== this.columnKey) {
         // Cross-column drop into empty space
         const taskId = this.readTaskId(event)
         this.isDragOver = false

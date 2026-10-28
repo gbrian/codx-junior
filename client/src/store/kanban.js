@@ -6,7 +6,12 @@ export const namespaced = true
 
 // Reserved id/title of the virtual board that groups every board-less chat.
 // Boards are keyed by title, so the virtual board reuses its title as id.
-export const NO_BOARD_ID = 'No board'
+// It is never persisted: `boardById` synthesizes it from the chats.
+export const NO_BOARD_ID = 'Unassigned'
+
+// Label shared by the virtual board AND by the virtual columns that group the
+// chats defining no board / no column / no status.
+export const UNASSIGNED_TITLE = NO_BOARD_ID
 
 // Placeholder column that groups the chats which define no `column`.
 //
@@ -17,8 +22,13 @@ export const NO_BOARD_ID = 'No board'
 // board (columns → tasks → cards) on any single chat write.
 export const NO_COLUMN_ID = '--none--'
 
-// Status a sprint task belongs to when it defines none (see `sprintColumns`).
-// Same rule as NO_COLUMN_ID: applied when grouping, never written on the chat.
+// Placeholder status of the sprint column that groups the tasks which define no
+// `status`. Same rule as NO_COLUMN_ID: applied when grouping, never written on
+// the chat. Writing it back CLEARS `chat.status` (see `moveSprintStatus`).
+export const NO_STATUS_ID = '--no-status--'
+
+// Status a NEW sprint task is created with when the target column defines none.
+// Grouping uses NO_STATUS_ID instead: a task without a status is NOT a todo.
 const FALLBACK_STATUS = 'todo'
 
 // Portable board document contract used by export/import.
@@ -206,6 +216,15 @@ function sprintColumnStatus(column) {
   return column?.status || column?.title
 }
 
+// Ordering of the tasks inside a board column: explicit sort_index first, then
+// the most recently updated task.
+function sortColumnTasks(a, b) {
+  const ao = a.sort_index ?? Number.MAX_SAFE_INTEGER
+  const bo = b.sort_index ?? Number.MAX_SAFE_INTEGER
+  if (ao !== bo) return ao - bo
+  return (a.updated_at || '') < (b.updated_at || '') ? 1 : -1
+}
+
 // ─── Getters ─────────────────────────────────────────────────────────────────
 
 export const getters = getterTree(state, {
@@ -219,13 +238,13 @@ export const getters = getterTree(state, {
     }, {})
   },
 
-  // ── Virtual "No board" board ────────────────────────────────────────────────
+  // ── Virtual "Unassigned" board ──────────────────────────────────────────────
   // Chats that are not associated with any board. Templates and channel-mode
   // chats are excluded because they are not real work items.
   //
   // The chats are returned AS STORED — no wrapper objects, no defaulted
-  // fields. See NO_COLUMN_ID / FALLBACK_STATUS: the grouping defaults are
-  // applied where the grouping happens.
+  // fields. See NO_COLUMN_ID / NO_STATUS_ID: the grouping defaults are applied
+  // where the grouping happens.
   noBoardChats: () => {
     const allChats = Object.values($storex.chats.chats || {})
     return allChats
@@ -257,12 +276,16 @@ export const getters = getterTree(state, {
     }
   },
 
-  // Only expose the virtual board while it holds content. The active board now
-  // lives in the components, so the store no longer needs to keep it listed
-  // just because it is selected (boardById resolves it either way).
-  virtualBoards: (state, getters) => {
-    return getters.noBoardChats.length ? [getters.virtualBoard] : []
-  },
+  // The virtual board is ALWAYS listed, even while it holds no chats.
+  //
+  // It used to be exposed only when `noBoardChats` was not empty, which made it
+  // invisible in the board list of a project whose chats all belong to a board —
+  // and therefore unreachable: it is the drop target that regroups the chats
+  // detached from every board, so it must exist before it has content (the same
+  // reason the "Unassigned" columns are always rendered, see `sprintColumns`).
+  // It still resolves through `boardById` (which never depended on the chats),
+  // and it stays read-only: it is not part of the kanban document.
+  virtualBoards: (state, getters) => [getters.virtualBoard],
 
   // Persisted boards, built from the kanban document ONLY.
   //
@@ -289,11 +312,11 @@ export const getters = getterTree(state, {
 
   allBoards: (_, getters) => [
     ...getters.storedBoards,
-    // The virtual "No board" board is always appended last
+    // The virtual "Unassigned" board is always appended last
     ...getters.virtualBoards
   ],
 
-  // Resolve a board by its id/title. The virtual "No board" board always
+  // Resolve a board by its id/title. The virtual "Unassigned" board always
   // resolves (even with no chats) so a component can keep it selected.
   boardById: (state, getters) => (boardId) => {
     if (!boardId) return null
@@ -323,6 +346,10 @@ export const getters = getterTree(state, {
     return allChats.filter(c => c.board === boardId)
   },
 
+  // The chat field VALUES the board columns group. Stored columns contribute
+  // their title; chats that sit outside every stored column contribute the
+  // NO_COLUMN_ID placeholder, which `buildViewColumns` renders as the virtual
+  // "Unassigned" column.
   columnList: (state, getters) => (boardId) => {
     const kanbanColumns = getters.boardById(boardId)?.columns?.map(c => c.title) || []
     // Chats without a column are grouped under a placeholder column
@@ -343,6 +370,12 @@ export const getters = getterTree(state, {
 
     const builtColumns = getters.columnList(boardId).map((col, ix) => {
       const storeColumn = board?.columns?.find(bc => bc.title === col) || {}
+      // A column that is not stored on the board and matches the placeholder is
+      // the VIRTUAL column grouping the chats that define no `column`. It is not
+      // part of the kanban document — it cannot be renamed, reordered, removed
+      // or written back to the tasks — and it disappears as soon as every chat
+      // of the board sits in a real column.
+      const virtual = !storeColumn.id && col === NO_COLUMN_ID
       const tasks = boardTasks
         .filter(t => (t.column || NO_COLUMN_ID) === col)
         .sort((a, b) => {
@@ -364,7 +397,13 @@ export const getters = getterTree(state, {
 
       return {
         id: storeColumn.id || col,
-        title: col,
+        // `value` is the chat field value the column groups: the title for a
+        // stored column, NO_COLUMN_ID for the virtual one. Drag & drop, sidebar
+        // filtering and the column sync all compare against it (the `title` is
+        // only the label rendered in the header).
+        value: col,
+        virtual,
+        title: virtual ? UNASSIGNED_TITLE : col,
         color: storeColumn.color || null,
         // Profiles tasks created in this column inherit by default
         profiles: storeColumn.profiles || [],
@@ -405,8 +444,8 @@ export const getters = getterTree(state, {
   //
   // Sprint boards work by changing a task's `status` field, so each column
   // groups every task whose `status` matches the column `status` (or its
-  // `title` when no status was defined). Tasks without a status belong to the
-  // fallback column (FALLBACK_STATUS).
+  // `title` when no status was defined). A task that defines NO status belongs
+  // to the virtual "Unassigned" column appended at the end (see NO_STATUS_ID).
   sprintColumns: (state, getters) => (boardId) => {
     const board = getters.boardById(boardId)
     const tasks = getters.sprintBoardChats(boardId)
@@ -414,20 +453,15 @@ export const getters = getterTree(state, {
     const custom = board?.columns?.length ? board.columns : null
     const columns = custom || defaultSprintColumns()
 
-    return columns.map((col, ix) => {
+    const builtColumns = columns.map((col, ix) => {
       // The chat status this column groups (falls back to the UI title)
       const status = sprintColumnStatus(col)
       const isStatus = $storex.chats.statusList.some(s => s.value === status)
       const config = $storex.chats.statusConfig(status)
 
       const columnTasks = tasks
-        .filter(t => (t.status || FALLBACK_STATUS) === status)
-        .sort((a, b) => {
-          const ao = a.sort_index ?? Number.MAX_SAFE_INTEGER
-          const bo = b.sort_index ?? Number.MAX_SAFE_INTEGER
-          if (ao !== bo) return ao - bo
-          return (a.updated_at || '') < (b.updated_at || '') ? 1 : -1
-        })
+        .filter(t => (t.status || NO_STATUS_ID) === status)
+        .sort(sortColumnTasks)
 
       return {
         id: col.id || status,
@@ -448,6 +482,40 @@ export const getters = getterTree(state, {
         tasks: columnTasks
       }
     })
+
+    // Virtual column: the tasks that define no status at all.
+    //
+    // It is ALWAYS rendered (last), even while it holds no task: a drop target
+    // that only appears once it already has content could never be used, and the
+    // tasks that reach a sprint without a status — added through "Add existing",
+    // imported, or written by an older client — would be silently invisible.
+    //
+    // It is not part of the board document — it cannot be renamed, reordered,
+    // removed or written back to the tasks (`syncSprintColumnOrder`,
+    // `newSprintTask` and the board canvas all skip `virtual` columns). Dragging
+    // a card out of it writes the destination status; dropping one back in
+    // clears `chat.status` (see `moveSprintStatus`).
+    builtColumns.push({
+      id: NO_STATUS_ID,
+      // The chat field value this column groups (see `buildViewColumns`)
+      value: NO_STATUS_ID,
+      // Writing this value back clears `chat.status`
+      status: NO_STATUS_ID,
+      title: UNASSIGNED_TITLE,
+      virtual: true,
+      // Neutral rendering: the status tokens do not describe this column
+      icon: 'fa-solid fa-circle-question',
+      textColor: null,
+      borderColor: null,
+      color: null,
+      profiles: [],
+      project_id: null,
+      project: null,
+      position: builtColumns.length,
+      tasks: tasks.filter(t => !t.status).sort(sortColumnTasks)
+    })
+
+    return builtColumns
   },
 
   childBoards: (state, getters) => (boardId) =>
@@ -648,28 +716,38 @@ export const actions = actionTree(
       if (!board) return
 
       const newColumns = await Promise.all(
-        viewColumns.map(async (viewCol) => {
-          const storeCol = getters.boardById(boardId)?.columns?.find(
-            c => c.id === viewCol.id || c.title === viewCol.title
-          ) || {}
+        viewColumns
+          // The virtual "Unassigned" column is NOT part of the board document:
+          // it only groups the chats that define no column, so it is never
+          // persisted and never written back onto the tasks. Persisting it would
+          // turn the placeholder into a real column ("Unassigned") that every
+          // chat would then be forced into.
+          .filter(viewCol => !viewCol.virtual)
+          .map(async (viewCol) => {
+            const storeCol = getters.boardById(boardId)?.columns?.find(
+              c => c.id === viewCol.id || c.title === viewCol.title
+            ) || {}
+            // The chat.column value the column groups (its title for every
+            // stored column — see `buildViewColumns`)
+            const value = viewCol.value || viewCol.title
 
-          await Promise.all(
-            (viewCol.tasks || [])
-              .filter(t => t.column !== viewCol.title)
-              .map(task => $storex.chats.saveChatInfo({ ...task, column: viewCol.title }))
-          )
+            await Promise.all(
+              (viewCol.tasks || [])
+                .filter(t => t.column !== value)
+                .map(task => $storex.chats.saveChatInfo({ ...task, column: value }))
+            )
 
-          return {
-            id: storeCol.id || viewCol.id,
-            title: viewCol.title,
-            color: storeCol.color || viewCol.color || null,
-            // Keep the profiles tasks created in this column inherit
-            profiles: storeCol.profiles || viewCol.profiles || [],
-            project_id: storeCol.project_id || viewCol.project_id || null,
-            showSubTasks: storeCol.showSubTasks,
-            chats: (viewCol.tasks || []).map(t => t.id)
-          }
-        })
+            return {
+              id: storeCol.id || viewCol.id,
+              title: storeCol.title || value,
+              color: storeCol.color || viewCol.color || null,
+              // Keep the profiles tasks created in this column inherit
+              profiles: storeCol.profiles || viewCol.profiles || [],
+              project_id: storeCol.project_id || viewCol.project_id || null,
+              showSubTasks: storeCol.showSubTasks,
+              chats: (viewCol.tasks || []).map(t => t.id)
+            }
+          })
       )
 
       mutations.reorderColumns(state, {
@@ -699,8 +777,9 @@ export const actions = actionTree(
       const stored = board.columns || []
       const reordered = []
       // Map the reordered view columns (id / status / title) back to their
-      // persisted configuration, keeping every extra stored field.
-      columns.forEach(col => {
+      // persisted configuration, keeping every extra stored field. The virtual
+      // "Unassigned" column is not part of the document and is skipped.
+      columns.filter(col => !col.virtual).forEach(col => {
         const storedCol = stored.find(c =>
           (col.id && c.id === col.id) ||
           (col.status && sprintColumnStatus(c) === col.status) ||
@@ -725,7 +804,14 @@ export const actions = actionTree(
     async moveTask({ state }, { taskId, toColumn }) {
       const task = $storex.chats.chats?.[taskId]
       if (!task) return
-      await $storex.chats.saveChatInfo({ ...task, column: toColumn })
+
+      // Dropping a card into the virtual "Unassigned" column detaches it from
+      // its column (it falls back to the virtual column, which is where it was
+      // dropped) instead of writing the placeholder label onto the chat.
+      const column = toColumn === NO_COLUMN_ID ? '' : toColumn
+      if ((task.column || '') === (column || '')) return
+
+      await $storex.chats.saveChatInfo({ ...task, column })
     },
 
     // Persist a new task order within a column using sort_index on each chat
@@ -777,8 +863,12 @@ export const actions = actionTree(
       if (!taskId || !status) return
       const chat = $storex.chats.chats?.[taskId]
       if (!chat) return
-      if ((chat.status || FALLBACK_STATUS) === status) return
-      await $storex.chats.updateChatInfo({ chat, updates: { status } })
+      if ((chat.status || NO_STATUS_ID) === status) return
+      // Dropping a card into the virtual "Unassigned" column clears the status,
+      // so the task goes back to the unclassified bucket instead of being
+      // stored with a placeholder value.
+      const nextStatus = status === NO_STATUS_ID ? '' : status
+      await $storex.chats.updateChatInfo({ chat, updates: { status: nextStatus } })
     },
 
     // Add existing tasks to a sprint (adds the board id to chat.sprints)
@@ -806,7 +896,7 @@ export const actions = actionTree(
 
     // Create a task (or subtask) directly on a sprint, in its first column
     async newSprintTask({ state, getters }, { name, status, mode, profiles, project_id, llm_model, parentId, sprintId } = {}) {
-      // The virtual "No board" board is read-only: it surfaces existing orphan
+      // The virtual "Unassigned" board is read-only: it surfaces existing orphan
       // chats, it must not create sprint tasks. Board/column are required by the
       // backend, so creation is disabled for it at the UI level too.
       if (!sprintId || sprintId === NO_BOARD_ID) return null
@@ -814,10 +904,10 @@ export const actions = actionTree(
       const activeProject = $storex.projects.activeProject
       const parentChat = parentId ? $storex.chats.chats?.[parentId] : null
 
-      // The sprint board's columns are its task statuses; the first column is
-      // the default landing column. Subtasks inherit board/column from the
-      // parent, root tasks fall back to the first column's status.
-      const columns = getters.sprintColumns(sprintId) || []
+      // The sprint board's columns are its task statuses; the first REAL column
+      // is the default landing column (the virtual "Unassigned" one is last, but
+      // it is skipped explicitly so it can never become a creation target).
+      const columns = (getters.sprintColumns(sprintId) || []).filter(c => !c.virtual)
       const firstColumn = columns[0]
       const taskStatus = status || firstColumn?.status || FALLBACK_STATUS
       // The destination column may define the project its tasks belong to
@@ -947,7 +1037,7 @@ export const actions = actionTree(
       // Changing the status re-groups the column, so move its tasks along
       if (nextStatus !== previousStatus) {
         const tasks = getters.sprintBoardChats(boardId)
-          .filter(t => (t.status || FALLBACK_STATUS) === previousStatus)
+          .filter(t => (t.status || NO_STATUS_ID) === previousStatus)
         await Promise.all(tasks.map(t =>
           $storex.chats.updateChatInfo({ chat: t, updates: { status: nextStatus } })
         ))
@@ -986,7 +1076,7 @@ export const actions = actionTree(
 
       // Move the tasks so the removed column never loses them
       const tasks = getters.sprintBoardChats(boardId)
-        .filter(t => (t.status || FALLBACK_STATUS) === status)
+        .filter(t => (t.status || NO_STATUS_ID) === status)
       await Promise.all(tasks.map(t =>
         $storex.chats.updateChatInfo({ chat: t, updates: { status: targetStatus } })
       ))
@@ -1103,7 +1193,7 @@ export const actions = actionTree(
      *   are deleted from the project. When false they are kept and DETACHED
      *   from the board:
      *     - kanban: `board` and `column` are cleared (they fall back to the
-     *       virtual "No board" board);
+     *       virtual "Unassigned" board);
      *     - sprint: the board id is removed from each task's `sprints`.
      *   The UI only offers this choice for kanban boards; moving a board always
      *   deletes the source tasks (they were copied to the target project).
@@ -1131,7 +1221,7 @@ export const actions = actionTree(
         })))
       } else {
         // Keep the tasks but detach them from the board (board + column cleared)
-        // so they fall back to the virtual "No board" board.
+        // so they fall back to the virtual "Unassigned" board.
         await Promise.all(boardChats.map(c => $storex.chats.updateChatInfo({
           chat: c,
           updates: { board: '', column: '' }
@@ -1379,7 +1469,7 @@ export const actions = actionTree(
     /**
      * Move a board to another project: copy it (adapting every project-bound
      * setting) and only THEN remove it from the source project, so a failed
-     * transfer never loses data. The virtual "No board" board cannot be moved.
+     * transfer never loses data. The virtual "Unassigned" board cannot be moved.
      *
      * @returns {Promise<{ boardId: string, board: object, importedCount: number }>}
      */

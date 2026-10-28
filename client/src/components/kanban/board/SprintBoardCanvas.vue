@@ -36,16 +36,16 @@ import SprintBoardColumn from './SprintBoardColumn.vue'
         <SprintBoardColumn
           :column="col"
           :selectedTaskId="selectedTaskId"
-          :allowCreate="allowCreate"
-          :allowEdit="allowEditColumn"
+          :allowCreate="allowCreate && !col.virtual"
+          :allowEdit="allowEditColumn && !col.virtual"
           :allowActions="allowActions"
-          :reorderable="reorderable"
-          :draggable="allowReorderColumns"
+          :reorderable="reorderable && !col.virtual"
+          :draggable="allowReorderColumns && !col.virtual"
           :hasBackground="!!background"
           @open-task="$emit('open-task', $event)"
           @open-task-window="$emit('open-task-window', $event)"
           @move-task="$emit('move-task', $event)"
-          @new-task="$emit('new-task', { column: col.title, status: col.status || null })"
+          @new-task="$emit('new-task', { column: col.value || col.title, status: col.status || null })"
           @edit-column="$emit('edit-column', col.title)"
           @reorder-tasks="onReorderTasks(col, $event)"
           @add-subtask="$emit('add-subtask', $event)"
@@ -160,6 +160,7 @@ export default {
         if (column === current) return true
         if (!current) return false
         if (column.id !== current.id || column.title !== current.title) return false
+        if (!!column.virtual !== !!current.virtual) return false
         if ((column.status || null) !== (current.status || null)) return false
         if ((column.icon || null) !== (current.icon || null)) return false
         if ((column.color || null) !== (current.color || null)) return false
@@ -210,7 +211,9 @@ export default {
       this.onColumnDragEnd()
     },
     onReorderTasks(col, { taskIds }) {
-      this.$emit('reorder-tasks', { columnTitle: col.title, taskIds })
+      // `value` is the chat field value the column groups (kanban); the deep
+      // signal falls back to the title for columns that do not define one.
+      this.$emit('reorder-tasks', { columnTitle: col.value || col.title, taskIds })
     }
   }
 }

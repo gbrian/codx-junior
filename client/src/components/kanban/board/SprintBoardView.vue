@@ -1,5 +1,6 @@
 <script setup>
 import SprintBoardCanvas from './SprintBoardCanvas.vue'
+import SprintBoardGantt from './SprintBoardGantt.vue'
 import SprintBoardModals from './SprintBoardModals.vue'
 </script>
 
@@ -119,6 +120,30 @@ import SprintBoardModals from './SprintBoardModals.vue'
         <i class="fa-solid fa-inbox text-xs"></i>
         chats without a board
       </span>
+
+      <!-- View switch: Kanban board ↔ Gantt timeline -->
+      <div class="join">
+        <button
+          class="btn btn-xs join-item gap-1.5"
+          :class="activeView === 'board' ? 'btn-primary' : 'btn-ghost text-base-content/40'"
+          :aria-pressed="activeView === 'board'"
+          title="Board view"
+          @click="activeView = 'board'"
+        >
+          <i class="fa-solid fa-table-columns text-xs"></i>
+          <span class="hidden sm:inline text-xs">Board</span>
+        </button>
+        <button
+          class="btn btn-xs join-item gap-1.5"
+          :class="activeView === 'gantt' ? 'btn-primary' : 'btn-ghost text-base-content/40'"
+          :aria-pressed="activeView === 'gantt'"
+          title="Gantt timeline"
+          @click="activeView = 'gantt'"
+        >
+          <i class="fa-solid fa-chart-gantt text-xs"></i>
+          <span class="hidden sm:inline text-xs">Gantt</span>
+        </button>
+      </div>
 
       <!-- Stats toggle (stats panel is hidden by default) -->
       <button
@@ -263,8 +288,19 @@ import SprintBoardModals from './SprintBoardModals.vue'
       </div>
     </div>
 
+    <!-- ── Gantt timeline ── -->
+    <SprintBoardGantt
+      v-if="activeView === 'gantt'"
+      class="flex-1 min-h-0"
+      :columns="filteredColumns"
+      :selectedTaskId="activeSelectionId"
+      @open-task="$emit('open-task', $event)"
+      @open-task-window="$emit('open-task-window', $event)"
+    />
+
     <!-- ── Canvas ── -->
     <SprintBoardCanvas
+      v-else
       class="flex-1 min-h-0"
       :columns="filteredColumns"
       :allowCreate="!isVirtualBoard"
@@ -318,7 +354,9 @@ export default {
       searchQuery: '',
       // Sprint stats panel (duration · avg cost · tasks per user/profile).
       // Hidden by default — the toolbar "Stats" button reveals/hides it.
-      showStats: false
+      showStats: false,
+      // Active rendering of the sprint: 'board' (columns) or 'gantt' (timeline)
+      activeView: 'board'
     }
   },
   computed: {

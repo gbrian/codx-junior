@@ -4,6 +4,7 @@ import TeamMemberDrawer from '@/components/team-view/TeamMemberDrawer.vue'
 import AddTeamMemberDialog from '@/components/team-view/AddTeamMemberDialog.vue'
 import AddMembersToTeamDialog from '@/components/team-view/AddMembersToTeamDialog.vue'
 import CreateTeamDialog from '@/components/team-view/CreateTeamDialog.vue'
+import ToolDetailsModal from '@/components/team-view/ToolDetailsModal.vue'
 import {
   ROLE_META,
   roleMeta,
@@ -105,11 +106,18 @@ import {
           <span class="text-sm font-bold leading-none">{{ stats.teams }}</span>
           <span class="hidden md:inline text-[11px] text-base-content/50">Teams</span>
         </div>
-        <div class="flex items-center gap-1.5 rounded-lg bg-base-200 border border-base-content/10 px-2 py-1 shrink-0" title="Skills in use">
+        <!-- Skills: click to inspect every skill (tool) available to the team -->
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-lg bg-base-200 border border-base-content/10 px-2 py-1 shrink-0 hover:bg-base-300 hover:border-base-content/20 transition-colors cursor-pointer"
+          title="View skills details"
+          aria-haspopup="dialog"
+          @click="skillsOpen = true"
+        >
           <i class="fa-solid fa-wrench text-success text-[11px]"></i>
           <span class="text-sm font-bold leading-none">{{ stats.skills }}</span>
           <span class="hidden md:inline text-[11px] text-base-content/50">Skills</span>
-        </div>
+        </button>
         <div class="flex items-center gap-1.5 rounded-lg bg-base-200 border border-base-content/10 px-2 py-1 shrink-0" title="Guardrailed members">
           <i class="fa-solid fa-shield-halved text-warning text-[11px]"></i>
           <span class="text-sm font-bold leading-none">{{ stats.guardrails }}</span>
@@ -477,6 +485,68 @@ import {
       </div>
     </div>
 
+    <!-- Skills modal: every skill (tool) available to the team. Clicking a row
+         opens its details. -->
+    <div v-if="skillsOpen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="skillsOpen = false"></div>
+
+      <div
+        class="relative w-full sm:max-w-lg max-h-[85vh] bg-base-100 border border-base-content/10 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Skills"
+      >
+        <div class="flex items-center gap-2 px-4 py-3 border-b border-base-content/10 shrink-0">
+          <i class="fa-solid fa-wrench text-success"></i>
+          <h2 class="font-semibold">Skills</h2>
+          <span class="badge badge-sm">{{ sortedTools.length }}</span>
+          <button type="button" class="btn btn-ghost btn-sm btn-square ml-auto" aria-label="Close skills" @click="skillsOpen = false">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
+          <button
+            v-for="tool in sortedTools"
+            :key="toolName(tool)"
+            type="button"
+            class="w-full text-left rounded-lg px-3 py-2 border border-transparent hover:border-base-content/10 hover:bg-base-200 transition-colors cursor-pointer"
+            :title="`See ${toolName(tool)} details`"
+            @click="openSkillDetails(tool)"
+          >
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-wrench text-success text-xs shrink-0"></i>
+              <span class="font-mono text-sm truncate">{{ toolName(tool) }}</span>
+              <span
+                class="badge badge-xs badge-ghost ml-auto shrink-0 gap-1"
+                :title="`${toolUsage(toolName(tool))} member(s) use it`"
+              >
+                <i class="fa-solid fa-user text-[9px]"></i>{{ toolUsage(toolName(tool)) }}
+              </span>
+              <i class="fa-solid fa-chevron-right text-[10px] text-base-content/30 shrink-0"></i>
+            </div>
+            <p class="text-xs text-base-content/50 line-clamp-2 mt-0.5">{{ toolDescription(tool) }}</p>
+          </button>
+
+          <div v-if="!sortedTools.length" class="text-center text-sm text-base-content/40 py-10">
+            <i class="fa-solid fa-inbox text-2xl block mb-2"></i>
+            No skills available
+          </div>
+        </div>
+
+        <div class="px-4 py-3 border-t border-base-content/10 text-[11px] text-base-content/40 shrink-0">
+          Click a skill to see its full details.
+        </div>
+      </div>
+    </div>
+
+    <!-- Skill (tool) details modal -->
+    <ToolDetailsModal
+      v-if="skillDetails"
+      :tool="skillDetails"
+      @close="skillDetails = null"
+    />
+
     <!-- Editor drawer (member settings) -->
     <TeamMemberDrawer
       v-if="selectedMember"
@@ -601,6 +671,9 @@ export default {
       selectedTeamIds: [],
       sort: 'name',
       filtersOpen: false,
+      // Skills (tools) overview modal + the skill whose details are open.
+      skillsOpen: false,
+      skillDetails: null,
       // Virtual "All" column: when true, show only members without any team.
       allUnassignedOnly: false,
       selectedMember: null,
@@ -704,6 +777,10 @@ export default {
         guardrails: this.members.filter(m => m.guardrails?.enabled).length
       }
     },
+    // Skills (tools) alphabetically — backs the Skills modal in the header.
+    sortedTools() {
+      return [...(this.tools || [])].sort((a, b) => this.toolName(a).localeCompare(this.toolName(b)))
+    },
     hasResults() {
       return this.filteredMembers.length > 0
     },
@@ -761,6 +838,22 @@ export default {
       return (a.name || '').localeCompare(b.name || '')
     },
 
+    // ── Skills (tools) ────────────────────────────────────────────────────
+    toolName(tool) {
+      return tool?.tool_json?.function?.name || 'skill'
+    },
+    toolDescription(tool) {
+      return tool?.tool_json?.function?.description || 'No description provided'
+    },
+    // How many members currently use this skill.
+    toolUsage(name) {
+      return this.members.filter(member => (member.tools || []).includes(name)).length
+    },
+    openSkillDetails(tool) {
+      if (!tool) return
+      this.skillDetails = tool
+    },
+
     // ── Team visibility chips ─────────────────────────────────────────────
     // A team is active when nothing is selected (all) or it is in the set.
     isTeamActive(teamId) {
@@ -805,6 +898,10 @@ export default {
         ])
         this.members = members || []
         this.tools = tools || []
+        // Drop a stale skill reference (tools list may have changed).
+        if (this.skillDetails && !this.tools.includes(this.skillDetails)) {
+          this.skillDetails = null
+        }
         await this.loadTeams()
       } catch (e) {
         console.error('[TeamView] Failed to load team', e)

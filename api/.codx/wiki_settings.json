@@ -595,6 +595,11 @@
           "path": "/codx/junior/model/team.py",
           "slug": "team.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/team.md"
+        },
+        {
+          "path": "/codx/junior/tools/project_manager_tools.py",
+          "slug": "project-manager-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/project-manager-tools.md"
         }
       ],
       "id": "project-overview",

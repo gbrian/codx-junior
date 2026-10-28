@@ -65,6 +65,7 @@ from .team_tools import (
     TEAM_MANAGEMENT_TOOL_JSON,
     TEAM_CONTEXT_TOOL_JSON,
 )
+from .project_manager_tools import project_manager, PROJECT_MANAGER_TOOL_JSON
 from .tutorial_tools import (
     tutorial_definition,
     create_chapter,
@@ -140,6 +141,7 @@ __all__ = [
     "profile_management",
     "team_management",
     "team_context",
+    "project_manager",
     "explain_image",
     "generate_image",
     "tutorial_definition",
@@ -507,6 +509,19 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["teams", "team-context", "composition", "orchestration"],
         "tool_call": team_context
+    },
+    {
+        "tool_json": PROJECT_MANAGER_TOOL_JSON,
+        "settings": {
+            "async": True,
+            "is_async": True,
+            "session": True,
+            "project_settings": True,
+            "dual_response": True,
+            "scope": "chat",
+        },
+        "tags": ["project-management", "tasks", "kanban", "sprint", "workflow", "chat"],
+        "tool_call": project_manager
     },
     {
         "tool_json": {
