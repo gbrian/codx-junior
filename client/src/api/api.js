@@ -12,6 +12,7 @@ import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
 import { infraModule } from './modules/infra'
 import { repoModule } from './modules/repo'
+import { consoleModule } from './modules/console'
 import { RequestCache, hashBody } from './requestCache'
 import { requestQueues } from './requestQueue'
 
@@ -38,7 +39,7 @@ const _requestCache = new RequestCache()
  * The cache above removes *identical* calls; the queues remove the *parallelism*
  * between different ones: a whole diff panel re-rendering schedules dozens of
  * distinct diffs, and firing them all at once saturates the network and the
- * backend. A request that names a queue waits for its turn instead
+ * backend. A request that names a queue waits for its turn
  * (`files:read` and `files:diff` run one at a time, with `750 ms` of silence
  * between two consecutive calls so the small requests can go through).
  * See `api/requestQueue.js`.
@@ -576,6 +577,18 @@ const initializeAPI = ({ project, user } = {}) => {
       return API._repoModule
     },
 
+    /**
+     * Console API: run shell commands and project console scripts on the host
+     * (`GET /api/console/info`, `POST /api/console/execute`).
+     * See `api/modules/console.js`.
+     */
+    get console() {
+      if (!API._consoleModule) {
+        API._consoleModule = consoleModule(API)
+      }
+      return API._consoleModule
+    },
+
     settings: {
       async read() {
         const data = await API.get('/api/settings')
@@ -768,7 +781,7 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.get(`/api/profiles/${name}`)
       },
       save(profile) {
-        return API.post(`/api/profiles`, profile)
+        return API.post('/api/profiles', profile)
       },
       async delete(name) {
         await API.del(`/api/profiles/${name}`)

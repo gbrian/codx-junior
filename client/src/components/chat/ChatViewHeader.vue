@@ -194,6 +194,9 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       <div class="flex items-center gap-3 text-xs min-w-0">
         <!-- Breadcrumb Navigation (Left, Truncated) -->
         <div class="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+          <div class="text-info tooltip trunacte" :data-tip="chat.board" :title="chat.board" >
+            <i class="fa-brands fa-trello"></i>
+          </div>
           <button
             @click="$emit('select-breadcrumb', rootChat)"
             :title="rootChat.name"

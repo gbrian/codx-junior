@@ -12,6 +12,9 @@ from codx.junior.model.model import CodxUser
 from codx.junior.global_settings import read_global_settings
 from codx.junior.globals import CODX_JUNIOR_HIDDEN
 
+from codx.junior.globals import CODX_JUNIOR_PROJECTS_PATH
+
+
 logger = logging.getLogger(__name__)
 
 _ALL_PROJECTS: Optional[Dict[str, CODXJuniorSettings]] = None
@@ -36,7 +39,7 @@ def get_projects_root_path() -> str:
     global_settings = read_global_settings()
     return (
         global_settings.projects_root_path
-        or os.environ.get("CODX_JUNIOR_PROJECTS_PATH")
+        or CODX_JUNIOR_PROJECTS_PATH
         or f"{os.environ['HOME']}/projects"
     )
 

@@ -38,7 +38,10 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
               @click.stop="handleFileNameClick($event)"
               :title="file"
             >
-              {{ fileName }}
+              {{ fileName }} 
+              <span class="text-xs text-info tooltip" title="new" data-tip="New file" v-if="isNewFile">
+                <i class="fa-solid fa-circle-info"></i>
+              </span>
             </div>
           </div>
           <span class="text-sm font-medium opacity-60 shrink-0" v-else>Code</span>
@@ -460,7 +463,7 @@ import { v4 as uuidv4 } from 'uuid'
 // Old code blocks are compared against a file that most likely moved on:
 // loading their diff automatically is expensive and usually meaningless, so it
 // is only fetched on demand (refresh icon / save / rollback).
-const AUTO_DIFF_MAX_AGE_HOURS = 1
+const AUTO_DIFF_MAX_AGE_HOURS = 2
 
 export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
@@ -723,6 +726,16 @@ export default {
       const age = Date.now() - new Date(createdAt).getTime()
       return age > AUTO_DIFF_MAX_AGE_HOURS * 60 * 60 * 1000
     },
+    /**
+     * Whether the diff/read requests may be triggered automatically.
+     * Only when the block has full context — a chat, a message already marked
+     * as done (`message.done`) and a non-stale message. Otherwise the block
+     * renders the plain code and the user opens the diff explicitly through
+     * the refresh action (`showDiffInfo`).
+     */
+    canAutoLoadDiff() {
+      return !!this.chat && !!this.message && this.message.done === true && !this.isMessageStale
+    },
     isContentOutdated() {
       if (this.isNoChange || !this.contentCreatedAt || !this.last_modification) {
         return false
@@ -738,7 +751,7 @@ export default {
         this.isUserScrolledUp = false
         this.shouldForceScrollToBottom = false
 
-        if (!this.isMessageStale) {
+        if (this.canAutoLoadDiff) {
           await this.loadDiffInfo()
         }
       }
@@ -782,7 +795,7 @@ export default {
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
-    if (this.finished && this.showCode && !this.isMessageStale) {
+    if (this.finished && this.showCode && this.canAutoLoadDiff) {
       this.loadDiffInfo()
     }
     this.detectPatchPattern()
@@ -825,12 +838,8 @@ export default {
       }
     },
 
-    handleFileNameClick(event) {
-      if (event.ctrlKey || event.metaKey) {
-        this.$storex.ui.openFileInViewer(this.file)
-      } else {
-        this.$emit('open-file', this.file)
-      }
+    handleFileNameClick() {
+      this.$storex.ui.openFileInViewer(this.file)
     },
 
     applyChangeset() {
@@ -1020,22 +1029,29 @@ export default {
       this.stats = stats
       this.last_modification = last_modification
       this.size = size
+      this.isNewFile = !!last_modification
       if (!stats && diff) this.stats = 'File changes'
 
       let content = ""
-      try {
-        if (this.fromBranch) {
-          const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
-          content = fileContent
-          this.isNewFile = !fileContent
-        } else {
-          const { content: fileContent } = await this.$api.files.read(this.file)
-          content = fileContent
-          this.isNewFile = !fileContent
+      if (!this.isNewFile) {
+        try {
+          if (this.fromBranch) {
+            const { content: fileContent } = await this.$api.repo.readFromBranch(this.file, this.fromBranch)
+            content = fileContent
+            this.isNewFile = !fileContent
+          } else {
+            const { content: fileContent } = await this.$api.files.read(this.file)
+            content = fileContent
+            this.isNewFile = !fileContent
+          }
+        } catch (ex) {
+          console.error(ex)
+          this.isNewFile = true
         }
-      } catch (ex) {
-        console.error(ex)
-        this.isNewFile = true
+      }
+
+      if (this.isNewFile) {
+        this.stats = "New file"
       }
 
       this.orgContent = content

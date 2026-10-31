@@ -63,6 +63,14 @@ class Profile(BaseModel):
     parsed_content: Optional[str] = Field(default=None)
     path: str = Field(default="")
     profiles: Optional[List[str]] = Field(default=[], description="Linked profiles to include with this profile")
+    team: Optional[List[str]] = Field(
+        default=[],
+        description=(
+            "Profile names the LLM can use in new tasks. They are NOT active in "
+            "the chat: they are listed as a name/description table in the system "
+            "prompt, after the profile composition."
+        )
+    )
     llm_model: Optional[str] = Field(default='')
     use_knowledge: Optional[bool] = Field(default=True)
     user: Optional[CodxUser] = Field(default=CodxUser())

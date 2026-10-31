@@ -7,6 +7,7 @@ import KanbanList from '../KanbanList.vue'
 import PlanningView from './PlanningView.vue'
 import FollowupView from './FollowupView.vue'
 import BoardTransferModal from './BoardTransferModal.vue'
+import BoardQuickChat from './BoardQuickChat.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ChatView from '@/views/ChatView.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
@@ -344,6 +345,31 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
     <!-- ── Follow-up view ── -->
     <FollowupView v-if="activeView === 'followup'" class="flex-1 min-h-0" />
 
+    <!-- ── Quick chat ──
+         A chat always belongs to a project. The composer resolves it from the
+         board (single project → used silently, several → the user must choose)
+         and adds the conversation as a card of this board. -->
+    <button
+      v-if="canQuickChat"
+      class="absolute bottom-4 right-4 z-30 btn btn-primary btn-sm gap-2 shadow-lg"
+      title="Start a conversation on this board"
+      aria-label="Quick chat on this board"
+      @click="openQuickChat"
+    >
+      <i class="fa-solid fa-comment-dots text-xs"></i>
+      <span class="text-xs font-medium">Quick chat</span>
+    </button>
+
+    <BoardQuickChat
+      v-if="showQuickChat"
+      :boardId="activeBoardId"
+      :boardType="boardModalsType"
+      :boardName="activeBoard?.title"
+      :columns="viewColumns"
+      @created="onQuickChatCreated"
+      @close="closeQuickChat"
+    />
+
     <!-- Modals (shared with the sprint board — SprintBoardModals) -->
     <SprintBoardModals
       ref="modals"
@@ -404,7 +430,9 @@ export default {
       editingColumn: null,
       showBoardList: false,
       // Export / import board modal (kanban & sprint share it)
-      showTransfer: false
+      showTransfer: false,
+      // Quick chat composer (project-aware conversation on this board)
+      showQuickChat: false
     }
   },
   created() {
@@ -529,6 +557,16 @@ export default {
         { id: 'planning', label: 'Planning', icon: 'fa-solid fa-list-check', count: planning?.allTasks?.length || 0 },
         { id: 'followup', label: 'Follow-up', icon: 'fa-solid fa-chart-line', count: planning?.metrics?.overdue || 0 }
       ]
+    },
+    // Quick chat needs a real board (the virtual "Unassigned" one is read-only),
+    // belongs to the board view only and must not float over the inline task
+    // pane (its own composer lives there).
+    canQuickChat() {
+      return this.activeView === 'board' &&
+        !this.showBoardList &&
+        !this.sideTask &&
+        !!this.activeBoard &&
+        !this.activeBoard.virtual
     }
   },
   watch: {
@@ -666,6 +704,24 @@ export default {
       this.$router
         .replace({ name: 'kanban', params: nextParams, query: this.$route.query })
         .catch(() => {})
+    },
+    // ── Quick chat ────────────────────────────────────────────────────────────
+    // One composer for both board flavours. The project the conversation is
+    // registered in is resolved inside `BoardQuickChat` (a single project on the
+    // board → used silently, several → the user must choose one).
+    openQuickChat() {
+      if (!this.canQuickChat) return
+      this.showQuickChat = true
+    },
+    closeQuickChat() {
+      this.showQuickChat = false
+    },
+    // The conversation was created as a card of this board: show it right away
+    // in the inline detail pane (desktop) / as the active chat (mobile).
+    onQuickChatCreated(chat) {
+      this.showQuickChat = false
+      if (!chat?.id) return
+      this.onSelectTask(chat)
     },
     onSelectBoard(boardId) {
       // A manual selection wins over the board requested through params
@@ -827,7 +883,7 @@ export default {
       if (!chat) return
 
       // Preferences the create payload does not persist are written through the
-      // shared metadata endpoint so none of them are silently dropped.
+      // shared metadata endpoint so none of them is silently dropped.
       const updates = {}
       if (users?.length) updates.users = users
       if (deadline) updates.deadline = deadline

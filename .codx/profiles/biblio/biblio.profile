@@ -7,8 +7,10 @@
   "file_match": "",
   "content": null,
   "parsed_content": null,
-  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/biblio.profile",
-  "profiles": [],
+  "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/biblio/biblio.profile",
+  "profiles": [
+    "file_editor"
+  ],
   "llm_model": "",
   "use_knowledge": true,
   "user": {
@@ -42,15 +44,26 @@
   "tools": [
     "project_search",
     "fetch_webpage",
-    "project_read_file",
     "project_structure",
-    "web_search"
+    "web_search",
+    "doc_converter",
+    "read_folder"
   ],
   "tags": [],
   "api_settings": {
     "active": false,
     "model_name": null,
     "description": null
+  },
+  "guardrails": {
+    "enabled": false,
+    "scope": null,
+    "scope_keywords": [],
+    "scope_similarity_threshold": 0.35,
+    "allowed_tools": [],
+    "refusal_message": "I can only answer questions within my configured scope.",
+    "risk_threshold": 10.0,
+    "use_llm_classifier": false
   },
   "chat_mode": null,
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",

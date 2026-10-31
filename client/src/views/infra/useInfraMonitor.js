@@ -20,6 +20,16 @@
  * surface, so polling is the expected behaviour as soon as it mounts. Polling is
  * still stopped on unmount (`stopMonitoring`) and resumed on the next mount, so
  * the preference survives navigation while no timer burns in the background.
+ *
+ * PAUSED WHEN NOT VISIBLE
+ * -----------------------
+ * A dockview panel added with `renderer: 'always'` stays MOUNTED while its tab
+ * is inactive, so "the operator cannot see this view" is not the same thing as
+ * "the component unmounted". InfraView reports visibility through
+ * `setMonitoringVisible()` (see useInfraLayout.js) and the loop is STOPPED — not
+ * merely skipped — while the view is off screen or the browser tab is in the
+ * background. `live` is never touched: coming back resumes the operator's
+ * preference and takes a fresh sample immediately.
  * ============================================================================
  */
 import { computed, reactive, watch } from 'vue'
@@ -52,10 +62,16 @@ export const MONITORING_TAB = { id: 'monitoring', label: 'Monitoring', icon: 'fa
 export const monitoring = reactive({
   live: true,
   interval: DEFAULT_REFRESH_SECONDS,
-  samples: []
+  samples: [],
+  /**
+   * Is the Infrastructure view on screen? Set by `setMonitoringVisible()`:
+   * false while its dockview tab is inactive or the browser tab is hidden.
+   */
+  visible: true
 })
 
 let timer = null
+let polling = false
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function round1(value) {
@@ -124,26 +140,64 @@ export const lastSample = computed(
 
 /* ── Polling ──────────────────────────────────────────────────────────────── */
 async function poll() {
-  await loadAll({ silent: true })
+  // Single flight: a resumed loop racing a still-running request (or a manual
+  // Refresh) used to fire the same snapshot twice — one wasted request and a
+  // duplicated chart point.
+  if (polling) return
+  polling = true
+  try {
+    await loadAll({ silent: true })
+  } finally {
+    polling = false
+  }
+}
+
+/** Polling needs the operator's consent (`live`) AND a view on screen. */
+function canPoll() {
+  return monitoring.live && monitoring.visible
 }
 
 /**
- * (Re)starts the poll loop. Honours `monitoring.live` and `monitoring.interval`,
- * so it is safe to call after changing either one.
+ * (Re)starts the poll loop. Honours `monitoring.live`, `monitoring.visible` and
+ * `monitoring.interval`, so it is safe to call after changing any of them.
  */
 export function startMonitoring() {
   stopMonitoring()
   state.autoRefresh = monitoring.live
-  if (!monitoring.live) return
+  if (!canPoll()) return
   timer = setInterval(poll, intervalMs())
 }
 
-/** Stops the loop without touching the `live` preference (used on unmount). */
+/** Stops the loop without touching the `live` preference (unmount / hidden view). */
 export function stopMonitoring() {
   if (timer) {
     clearInterval(timer)
     timer = null
   }
+}
+
+/**
+ * Tells the monitor whether the view is on screen.
+ *
+ * Called by InfraView's visibility observer (useInfraLayout.js). While the view
+ * is hidden the loop is STOPPED: a dashboard nobody is looking at must not talk
+ * to the Docker host every 5 seconds. `live` is left untouched, so coming back
+ * resumes the operator's preference — and refreshes immediately, because the
+ * snapshot is stale by definition after a pause.
+ */
+export function setMonitoringVisible(on) {
+  const visible = !!on
+  if (visible === monitoring.visible) return
+  monitoring.visible = visible
+
+  if (!visible) {
+    stopMonitoring()
+    return
+  }
+
+  if (!monitoring.live) return
+  startMonitoring()
+  poll()
 }
 
 /** Header "Live" switch: flips the preference and starts/stops the loop. */

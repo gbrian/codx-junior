@@ -41,23 +41,23 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 
       <div class="grow"></div>
 
-      <!-- Editor / content switcher (files with a dedicated editor, e.g. canva) -->
-      <div class="join" v-if="hasAssociatedEditor && !editMode && !loading">
+      <!-- View switcher: rendered view (canva editor / html preview) vs. raw source -->
+      <div class="join" v-if="hasViewSwitcher && !editMode && !loading">
         <button
           class="btn btn-xs join-item"
-          :class="viewMode === 'editor' ? 'btn-primary' : 'btn-ghost'"
-          title="Show editor"
-          @click="setViewMode('editor')"
+          :class="isPrimaryViewMode ? 'btn-primary' : 'btn-ghost'"
+          :title="primaryViewTitle"
+          @click="setViewMode(isHtml ? 'preview' : 'editor')"
         >
-          <i class="fa-solid fa-palette mr-1"></i> Editor
+          <i class="mr-1" :class="primaryViewIcon"></i> {{ primaryViewLabel }}
         </button>
         <button
           class="btn btn-xs join-item"
           :class="viewMode === 'content' ? 'btn-primary' : 'btn-ghost'"
-          title="Show raw content"
+          :title="secondaryViewTitle"
           @click="setViewMode('content')"
         >
-          <i class="fa-solid fa-code mr-1"></i> Content
+          <i class="fa-solid fa-code mr-1"></i> {{ secondaryViewLabel }}
         </button>
       </div>
 
@@ -218,6 +218,23 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           class="h-full"
         />
       </template>
+      <!-- HTML: rendered preview (default) or source -->
+      <template v-else-if="isHtml">
+        <iframe
+          v-if="isHtmlPreviewMode"
+          :srcdoc="fileContent"
+          class="w-full h-full border-0 bg-white"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          title="HTML preview"
+        ></iframe>
+        <VueCodeHighlighter
+          v-else
+          class="h-full"
+          :code="fileContent"
+          :lang="validatedLanguage"
+          :title="displayFileName"
+        />
+      </template>
       <div class="w-full h-full flex flex-col items-center justify-center gap-3 bg-base-300 p-6 text-center" v-else-if="isBinary">
         <i class="fa-regular fa-file text-4xl opacity-50"></i>
         <span class="text-sm">Preview not available for this file type</span>
@@ -288,6 +305,7 @@ const VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'ogv
 const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'aac', 'm4a', 'wma', 'opus']
 const MARKDOWN_EXTENSIONS = ['md', 'markdown', 'mermaid']
 const BINARY_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', 'tar', 'gz', 'woff', 'woff2', 'ttf', 'eot', ...AUDIO_EXTENSIONS]
+const HTML_EXTENSIONS = ['html', 'htm']
 
 const EXTENSION_ICON_MAP = {
   // Code files
@@ -415,6 +433,8 @@ export default {
       // re-triggers the editor's modelValue watcher and wipes the canvas.
       canvaDefinition: [],
       // Active view for files with a dedicated editor: 'editor' | 'content'
+      // (canva) or 'editor' | 'preview' | 'content' (html, where the default
+      // 'editor' value renders the preview).
       viewMode: 'editor'
     }
   },
@@ -461,10 +481,41 @@ export default {
     isCanva() {
       return this.fileExtension === 'canva'
     },
+    // HTML documents can be rendered as a live preview or shown as source
+    isHtml() {
+      return HTML_EXTENSIONS.includes(this.fileExtension)
+    },
     // Files that expose a dedicated visual editor + a raw content editor.
     // Extend this list when new editor types are added.
     hasAssociatedEditor() {
       return this.isCanva
+    },
+    // Files that offer a "rendered view / source" switcher in the header
+    hasViewSwitcher() {
+      return this.isCanva || this.isHtml
+    },
+    // True when the rendered (non-source) view is active: canva editor or html preview
+    isPrimaryViewMode() {
+      return this.isHtml ? this.viewMode !== 'content' : this.viewMode === 'editor'
+    },
+    // True when an html file is displayed as a rendered document
+    isHtmlPreviewMode() {
+      return this.isHtml && this.viewMode !== 'content'
+    },
+    primaryViewLabel() {
+      return this.isHtml ? 'Preview' : 'Editor'
+    },
+    primaryViewIcon() {
+      return this.isHtml ? 'fa-solid fa-eye' : 'fa-solid fa-palette'
+    },
+    primaryViewTitle() {
+      return this.isHtml ? 'Show rendered preview' : 'Show editor'
+    },
+    secondaryViewLabel() {
+      return this.isHtml ? 'Code' : 'Content'
+    },
+    secondaryViewTitle() {
+      return this.isHtml ? 'Show HTML source' : 'Show raw content'
     },
     // True when the raw editor content is currently displayed
     isContentMode() {
@@ -579,11 +630,12 @@ export default {
         }
       })
     },
-    // Toggle between the dedicated editor and its raw content representation
+    // Toggle between the rendered view (canva editor / html preview) and the
+    // raw source representation.
     setViewMode(mode) {
       if (mode === this.viewMode) return
       // Seed the raw editor with the current content the first time we show it
-      if (mode === 'content' && !this.editContent) {
+      if (mode === 'content' && this.isCanva && !this.editContent) {
         this.editContent = this.fileContent
       }
       // Going back to the canvas replays the staged definition, so edits made

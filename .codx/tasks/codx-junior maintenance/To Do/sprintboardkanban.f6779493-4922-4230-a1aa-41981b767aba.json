@@ -9,7 +9,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "ui",
+  "status": "done",
   "status_history": [
     {
       "doc_id": "ab5719da-0fde-46b9-835e-69ff6a4fd232",
@@ -17,6 +17,14 @@
       "to_status": "ui",
       "user": null,
       "at": "2026-10-22T13:25:39.087519",
+      "meta_data": null
+    },
+    {
+      "doc_id": "dce2a5ba-37db-4ab7-839d-ce8a1c3ad0c7",
+      "from_status": "ui",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-30T10:42:53.170031",
       "meta_data": null
     }
   ],
@@ -60,6 +68,7 @@
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/board/KanbanBoardView.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/kanban/board/KanbanBoardColumn.vue"
       ],
+      "project_id": null,
       "meta_data": null,
       "tool_events": [],
       "lifecycle_events": [],
@@ -88,9 +97,10 @@
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-10-22 13:25:47.946682",
-      "updated_at": "2026-10-22T13:31:21.875757",
+      "updated_at": "2026-10-30T10:42:39.751632",
       "attachments": [],
       "files": [],
+      "project_id": null,
       "meta_data": {
         "start_time": 1792675547.9466074,
         "cancellation_token_id": "a81c0a3e-9594-4b17-81bd-a758bd5cbf93",
@@ -427,13 +437,15 @@
       "done": true,
       "is_thinking": false,
       "disable_knowledge": false,
-      "read_by": [],
+      "read_by": [
+        "admin"
+      ],
       "error": null,
       "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-22 13:25:39.008058",
-  "updated_at": "2026-10-22T13:31:24.985028",
+  "updated_at": "2026-10-30T10:42:53.064780",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

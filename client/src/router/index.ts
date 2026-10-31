@@ -20,6 +20,19 @@ const BrowsersSessionManager = () => import('@/components/browsers/BrowsersSessi
 const SolopreneurView = () => import('@/views/SolopreneurView.vue')
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WELCOME SCREEN
+// "/" and "/<project_name>" are the landing routes, and both render the
+// management dashboard (Pulse / Work / Blockers / Delivery / Team / Cost & AI).
+// It is resolved through <AppRouteView> exactly like any other app screen, so
+// the same key ('management-dashboard') opens a dockview panel on desktop and
+// the routed screen in single/mobile mode (see config/apps.js).
+// Its project filter is initialised from the route: opening "/<project_name>"
+// starts with that project selected (see views/management/
+// useManagementDashboard.js → initProjectFilter / syncProjectFilterWithRoute).
+// ─────────────────────────────────────────────────────────────────────────────
+const WELCOME_APP = 'management-dashboard'
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PROJECT-SCOPED ROUTES
 // Every route is mounted under the active project's *escaped* name so the URL
 // always reflects which project you are working in, e.g.
@@ -44,10 +57,11 @@ const router = createRouter({
     {
       // Unscoped bootstrap home. The navigation guard replaces it with the
       // project-scoped home ("/:projectName") as soon as a project is active.
+      // Both render the welcome screen (management dashboard).
       path: '/',
       name: 'root',
       component: AppRouteView,
-      meta: { app: 'activity' }
+      meta: { app: WELCOME_APP }
     },
     {
       // Solopreneur mode — a top-level, project-INDEPENDENT screen that re-frames
@@ -63,11 +77,13 @@ const router = createRouter({
       component: SolopreneurView
     },
     {
-      // Home (project launcher)
+      // Home — the welcome screen for "/<project_name>".
+      // The dashboard initialises its project filter to THIS project (the URL
+      // segment is the single source of truth for "where am I working").
       path: '/:projectName',
       name: 'home',
       component: AppRouteView,
-      meta: { app: 'activity' }
+      meta: { app: WELCOME_APP }
     },
     {
       // Chat routes: router mode
@@ -159,19 +175,23 @@ const router = createRouter({
     { path: '/:projectName/chat-logs', name: 'chat-logs', component: AppRouteView, meta: { app: 'chat-logs' } },
     { path: '/:projectName/decision-model-logs', name: 'decision-model-logs', component: AppRouteView, meta: { app: 'decision-model-logs' } },
     { path: '/:projectName/metrics', name: 'metrics', component: AppRouteView, meta: { app: 'metrics' } },
+    // Management dashboard — the cross-project "command center" for management:
+    // work status, blockers, delivery forecast, team load and AI cost across
+    // EVERY project, for a selectable time window (last 7 days by default) and
+    // a selectable SET of projects (header filter, initialised from the route).
+    // Same pattern as the other screens: <AppRouteView> resolves meta.app from
+    // config/appComponentsMap.js and, on desktop, the very same key opens a
+    // dockview panel (config/apps.js → management-dashboard).
+    { path: '/:projectName/management-dashboard', name: 'management-dashboard', component: AppRouteView, meta: { app: 'management-dashboard' } },
     // Per-request API performance (latency / throughput / errors) recorded by the
     // backend and served from /api/api-logs/*. Same pattern as every other app:
     // <AppRouteView> resolves meta.app, and on desktop the very same key opens a
     // dockview panel (see config/apps.js + views/api-monitoring/).
     { path: '/:projectName/api-monitoring', name: 'api-monitoring', component: AppRouteView, meta: { app: 'api-monitoring' } },
     { path: '/:projectName/infra', name: 'infra', component: AppRouteView, meta: { app: 'infra' } },
-    // Activity wall. It is the default screen of the mobile home AND the target
-    // of the sidebar "Activity" item (config/apps.js → activity), so it needs a
-    // named route of its own: both the mobile home redirect (router/navigate.js
-    // → { name: 'activity' }) and openApp('activity') push that name. Without
-    // this route those pushes matched nothing and the item looked dead on
-    // mobile. The wall itself lives in components/wall/Wall.vue and is resolved
-    // by <AppRouteView> through APP_COMPONENTS_MAP['activity'].
+    // Activity wall (components/wall/Wall.vue). It used to be the mobile home;
+    // it now has a route of its own so the sidebar "Activity" item
+    // (config/apps.js → activity) still opens it.
     { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity' } },
     // Git repository view (branches, commits, merges and working-tree diffs).
     // The screen already exists (components/repo/GitView.vue) and is registered

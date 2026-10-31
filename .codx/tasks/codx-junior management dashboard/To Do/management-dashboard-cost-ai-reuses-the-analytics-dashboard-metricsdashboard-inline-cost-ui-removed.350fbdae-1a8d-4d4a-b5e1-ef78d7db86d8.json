@@ -1,0 +1,112 @@
+{
+  "id": "350fbdae-1a8d-4d4a-b5e1-ef78d7db86d8",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "e2a9350b-baf8-4790-8c5f-148bc1e1333c",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "done",
+  "status_history": [
+    {
+      "doc_id": "4868a530-0587-494b-ad0b-f768a3741c4c",
+      "from_status": null,
+      "to_status": "done",
+      "user": null,
+      "at": "2026-10-31T12:01:14.589747",
+      "meta_data": null
+    }
+  ],
+  "tags": [
+    "management-dashboard",
+    "analytics",
+    "refactor",
+    "vue"
+  ],
+  "file_list": [
+    "src/views/ManagementDashboardView.vue",
+    "src/views/management/useManagementDashboard.js",
+    "src/components/analytics/MetricsDashboard.vue"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "Management dashboard \u00b7 \"Cost & AI\" reuses the Analytics dashboard (MetricsDashboard), inline cost UI removed",
+  "pinned": false,
+  "is_template": false,
+  "description": "OBJECTIVE\nThe management dashboard's \"Cost & AI\" section renders a hand-rolled summary (KPI strip, inline SVG consumption chart, spend by project/person, by-model table, budget bars). A complete, detailed analytics dashboard already exists in the app: `src/components/analytics/MetricsDashboard.vue` (the \"Analytics\" tab). Render that existing dashboard inside the \"Cost & AI\" section and delete the inline implementation.\n\nFILES\n- Change: `src/views/ManagementDashboardView.vue`; dead-code cleanup in `src/views/management/useManagementDashboard.js`.\n- Reuse AS-IS, do not edit: `src/components/analytics/MetricsDashboard.vue`, `DailyChart.vue`, `PriceEditor.vue`.\n- Section id is `cost` in `SECTIONS` (\"Cost & AI\"), defined in `useManagementDashboard.js`.\n\nACCEPTANCE\n- \"Cost & AI\" shows the full Analytics dashboard (7 KPI cards, token-usage chart, usage by model, period breakdown table, admin-view toggle, price management for admins) with ONE scrollbar and no leftover inline cost widgets.\n- Pulse section keeps its \"AI spend\" KPI and \"AI spend trend\" bars working.\n- `npm run build` clean; no references left to the removed computeds; no console errors when switching sections.",
+  "messages": [
+    {
+      "doc_id": null,
+      "role": "user",
+      "task_item": "",
+      "content": "OBJECTIVE\nThe management dashboard's \"Cost & AI\" section renders a hand-rolled summary (KPI strip, inline SVG consumption chart, spend by project/person, by-model table, budget bars). A complete, detailed analytics dashboard already exists in the app: `src/components/analytics/MetricsDashboard.vue` (the \"Analytics\" tab). Render that existing dashboard inside the \"Cost & AI\" section and delete the inline implementation.\n\nFILES\n- Change: `src/views/ManagementDashboardView.vue`; dead-code cleanup in `src/views/management/useManagementDashboard.js`.\n- Reuse AS-IS, do not edit: `src/components/analytics/MetricsDashboard.vue`, `DailyChart.vue`, `PriceEditor.vue`.\n- Section id is `cost` in `SECTIONS` (\"Cost & AI\"), defined in `useManagementDashboard.js`.\n\nACCEPTANCE\n- \"Cost & AI\" shows the full Analytics dashboard (7 KPI cards, token-usage chart, usage by model, period breakdown table, admin-view toggle, price management for admins) with ONE scrollbar and no leftover inline cost widgets.\n- Pulse section keeps its \"AI spend\" KPI and \"AI spend trend\" bars working.\n- `npm run build` clean; no references left to the removed computeds; no console errors when switching sections.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-10-31 11:06:10.377161",
+      "updated_at": "2026-10-31 11:06:10.377164",
+      "attachments": [],
+      "files": [
+        "src/views/ManagementDashboardView.vue",
+        "src/views/management/useManagementDashboard.js",
+        "src/components/analytics/MetricsDashboard.vue"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "VueDeveloper"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-10-31 11:06:10.377133",
+  "updated_at": "2026-10-31T12:01:14.520849",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior management dashboard",
+  "column": "To Do",
+  "sprints": [],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior management dashboard/To Do/management-dashboard-cost-ai-reuses-the-analytics-dashboard-metricsdashboard-inline-cost-ui-removed.350fbdae-1a8d-4d4a-b5e1-ef78d7db86d8.json",
+  "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

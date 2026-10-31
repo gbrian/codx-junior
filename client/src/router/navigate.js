@@ -311,30 +311,18 @@ export default function Navigate({ $router, $storex }) {
         }
       }
 
-      // ── Mobile home → Activity Wall ───────────────────────────────
-      // On mobile the Activity Wall (the "activity" app, see config/apps.js)
-      // is the DEFAULT landing screen: both the unscoped root ("/") and the
-      // project-scoped home ("/:projectName") resolve to it.
-      //
-      // This lives here — in the route guard — rather than swapping
-      // <RouterView> for the wall inside App.vue, so the router stays the
-      // single source of truth for what gets rendered (App.vue just keeps
-      // rendering <RouterView> for every screen).
-      if ($storex.ui.isMobile && (to.name === 'root' || to.name === 'home')) {
-        const projectName = activeProjectSegment()
-        if (projectName) {
-          return { name: 'activity', params: { projectName }, replace: true }
-        }
-        // No active project yet: let the root/home bootstrap load one. Once a
-        // project becomes active the next guard pass will redirect to the wall.
-      }
-
       // ── Unscoped root → project-scoped home ───────────────────────
+      // Both "/" and "/<project_name>" are the WELCOME screen, which is the
+      // management dashboard (see router/index.ts → WELCOME_APP). It renders
+      // the same on every device, so the guard only has to scope the URL:
+      // there is no per-device landing redirect to apply.
       if (to.name === 'root') {
         const projectName = activeProjectSegment()
         if (projectName) {
           return { name: 'home', params: { projectName }, replace: true }
         }
+        // No active project yet: the root bootstrap loads one and the next
+        // guard pass scopes the URL to it.
         return true
       }
 

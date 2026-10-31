@@ -185,6 +185,20 @@ class CODXJuniorSession:
         """Return a WorkspaceManager for this session."""
         return WorkspaceManager(settings=self.settings)
 
+    def get_console_manager(self, user: CodxUser = None) -> "ConsoleManager":
+        """
+        Return the canonical console manager for this project.
+
+        All shell command execution is centralized in
+        :class:`~codx.junior.console_manager.ConsoleManager`, so every caller
+        (API routers, engines, tools) shares the same scoping and result shape.
+
+        :param user: Optional caller; defaults to the session user.
+        :return: A :class:`~codx.junior.console_manager.ConsoleManager`.
+        """
+        from codx.junior.console_manager import ConsoleManager
+        return ConsoleManager(settings=self.settings, user=user or self.user)
+
     def get_ai(self, llm_model: str = None) -> AI:
         """Return an AI instance for this session."""
         return AI(settings=self.settings, llm_model=llm_model, user=self.user)

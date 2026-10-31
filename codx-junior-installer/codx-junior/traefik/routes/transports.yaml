@@ -5,3 +5,21 @@ http:
     # traefik.http.services.<name>.loadbalancer.serverstransport=insecure-skip-verify@file
     insecure-skip-verify:
       insecureSkipVerify: true
+
+  routers:
+    gbrian-junior-demo-ai:
+      rule: "Host(`ai-first-it.codx-junior.ai`)"
+      service: "gbrian-junior-demo-ai"
+      priority: 150
+      # TLS is terminated by the proxy in front of Traefik, which forwards to
+      # port 80. Bind the router to the "web" entrypoint and do not redirect
+      # to https here (that would loop back through the previous proxy).
+      entryPoints:
+        - "web"
+
+  services:
+    gbrian-junior-demo-ai:
+      loadbalancer:
+        servers:
+          # Replace with the actual IP address or container hostname accessible by Traefik
+          - url: "http://codx-junior-it-web-release"

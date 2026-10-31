@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>codx-junior · Slides → PDF Render Test</title>
+<style>
+  @page { size: 1920px 1080px; margin: 0; }
+
+  :root{
+    --bg:        #0b0b0d;
+    --surface:   #16161a;
+    --surface2:  #1f1f24;
+    --text:      #f4f4f5;
+    --dim:       #a1a1aa;
+    --muted:     #71717a;
+    --border:    rgba(255,255,255,0.08);
+    --primary:   #6366f1;
+    --primary-lt:#818cf8;
+    --success:   #10b981;
+    --warning:   #f59e0b;
+    --error:     #ef4444;
+    --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    font-family: var(--ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .deck{ display: block; }
+
+  /* ---------- SLIDE CANVAS ---------- */
+  .slide{
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 64px 96px 56px;
+    color: var(--text);
+    background:
+      radial-gradient(980px 640px at 84% 4%, rgba(99,102,241,0.22), transparent 72%),
+      radial-gradient(760px 560px at 4% 98%, rgba(129,140,248,0.12), transparent 70%),
+      var(--bg);
+  }
+
+  /* faint engineering grid */
+  .slide::before{
+    content:"";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 96px 96px;
+    mask-image: radial-gradient(1200px 800px at 50% 40%, #000 25%, transparent 78%);
+    -webkit-mask-image: radial-gradient(1200px 800px at 50% 40%, #000 25%, transparent 78%);
+    pointer-events: none;
+  }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .logo{
+    display: grid;
+    place-items: center;
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    font-size: 19px;
+    color: #fff;
+    background: linear-gradient(145deg, var(--primary-lt), var(--primary));
+    box-shadow: 0 10px 26px -8px rgba(99,102,241,.85);
+  }
+
+  .brand-sub{
+    margin-left: 4px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+    font-weight: 450;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 18px;
+    border: 1px solid rgba(99,102,241,0.42);
+    border-radius: 999px;
+    background: rgba(99,102,241,0.13);
+    color: var(--primary-lt);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .badge .dot{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 4px rgba(16,185,129,0.18);
+  }
+
+  /* ---------- BODY ---------- */
+  .body{
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1.02fr 0.98fr;
+    gap: 84px;
+    align-items: center;
+    padding: 56px 0 40px;
+  }
+
+  .left{ display: flex; flex-direction: column; gap: 26px; }
+
+  .eyebrow{
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--primary-lt);
+  }
+
+  h1{
+    margin: 0;
+    font-size: 74px;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+  }
+
+  h1 em{
+    font-style: normal;
+    background: linear-gradient(100deg, var(--primary-lt), #c4b5fd 70%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .lead{
+    margin: 0;
+    max-width: 660px;
+    font-size: 22px;
+    line-height: 1.55;
+    color: var(--dim);
+  }
+
+  .code-chip{
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 16px 22px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 17px;
+    color: var(--dim);
+  }
+
+  .code-chip .prompt{ color: var(--primary-lt); }
+  .code-chip .key{ color: var(--text); }
+  .code-chip .str{ color: var(--success); }
+  .code-chip .num{ color: var(--warning); }
+
+  .meta-row{
+    display: flex;
+    gap: 40px;
+    padding-top: 26px;
+    border-top: 1px solid var(--border);
+  }
+
+  .meta-row div{ display: flex; flex-direction: column; gap: 5px; }
+  .meta-row span:first-child{
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .meta-row span:last-child{ font-size: 17px; color: var(--text); }
+
+  /* ---------- RIGHT COLUMN ---------- */
+  .right{ display: flex; flex-direction: column; gap: 24px; }
+
+  .card{
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(31,31,36,0.92), rgba(22,22,26,0.92));
+    box-shadow: 0 30px 70px -40px rgba(0,0,0,0.9);
+  }
+
+  .chart-card{ padding: 30px 34px 26px; }
+
+  .card-head{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .card-title{ font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .card-sub{ margin-top: 6px; font-size: 14px; color: var(--muted); }
+
+  .legend{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .legend i{
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    background: var(--primary);
+    display: inline-block;
+  }
+
+  svg{ display: block; width: 100%; height: auto; }
+
+  .axis-label{
+    font-family: var(--ui);
+    font-size: 13px;
+    fill: #71717a;
+  }
+
+  .kpis{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .kpi{ padding: 24px 26px; }
+
+  .kpi .value{
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .kpi .value small{ font-size: 20px; font-weight: 600; margin-left: 2px; color: var(--dim); }
+  .kpi .value.ok{ color: var(--success); }
+  .kpi .label{
+    margin-top: 12px;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ---------- FOOTER ---------- */
+  .foot{
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .foot .hint code{
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--dim);
+  }
+
+  .foot .page-no{
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+  }
+  .foot .page-no b{ color: var(--text); }
+</style>
+</head>
+<body>
+<main class="deck">
+
+  <section class="slide">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" role="presentation">◈</span>
+        codx-junior
+        <span class="brand-sub">slides → pdf pipeline</span>
+      </div>
+      <span class="badge"><span class="dot" role="presentation"></span>render test</span>
+    </header>
+
+    <div class="body">
+
+      <div class="left">
+        <div class="eyebrow">Conversion test · slide 01</div>
+
+        <h1>One file.<br />Zero deps.<br /><em>Pixel-exact PDF.</em></h1>
+
+        <p class="lead">
+          Rich CSS, inline SVG charts and custom fonts are printed by a headless
+          Chromium — vectors stay vectors, gradients stay gradients.
+        </p>
+
+        <div class="code-chip">
+          <span class="prompt">›</span>
+          <span><span class="key">doc_converter</span>(<span class="key">target_format</span>=<span class="str">"pdf"</span>, <span class="key">slides</span>=<span class="num">True</span>)</span>
+        </div>
+
+        <div class="meta-row">
+          <div><span>Canvas</span><span>1920 × 1080</span></div>
+          <div><span>Engine</span><span>Headless Chromium</span></div>
+          <div><span>Assets</span><span>0 external</span></div>
+        </div>
+      </div>
+
+      <div class="right">
+
+        <div class="card chart-card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Deck render time</div>
+              <div class="card-sub">Milliseconds per slide, by build size</div>
+            </div>
+            <div class="legend"><i role="presentation"></i> render_ms</div>
+          </div>
+
+          <svg viewBox="0 0 660 280" role="img" aria-label="Area chart showing render time decreasing from 196 ms to 58 ms across eight deck sizes">
+            <defs>
+              <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.55" />
+                <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+
+            <!-- grid -->
+            <g stroke="rgba(255,255,255,0.07)" stroke-width="1">
+              <line x1="40" y1="40"  x2="640" y2="40" />
+              <line x1="40" y1="90"  x2="640" y2="90" />
+              <line x1="40" y1="140" x2="640" y2="140" />
+              <line x1="40" y1="190" x2="640" y2="190" />
+              <line x1="40" y1="240" x2="640" y2="240" />
+            </g>
+
+            <!-- y labels -->
+            <g class="axis-label" text-anchor="end">
+              <text x="30" y="44">200</text>
+              <text x="30" y="144">120</text>
+              <text x="30" y="244">40</text>
+            </g>
+
+            <!-- area -->
+            <path d="M60,56 L142,88 L224,80 L306,128 L388,116 L470,164 L552,152 L634,196 L634,240 L60,240 Z"
+                  fill="url(#area)" />
+
+            <!-- line -->
+            <path d="M60,56 L142,88 L224,80 L306,128 L388,116 L470,164 L552,152 L634,196"
+                  fill="none" stroke="#818cf8" stroke-width="3.5"
+                  stroke-linecap="round" stroke-linejoin="round" />
+
+            <!-- dots -->
+            <g fill="#0b0b0d" stroke="#818cf8" stroke-width="3">
+              <circle cx="60"  cy="56"  r="5" />
+              <circle cx="142" cy="88"  r="5" />
+              <circle cx="224" cy="80"  r="5" />
+              <circle cx="306" cy="128" r="5" />
+              <circle cx="388" cy="116" r="5" />
+              <circle cx="470" cy="164" r="5" />
+              <circle cx="552" cy="152" r="5" />
+            </g>
+            <circle cx="634" cy="196" r="6.5" fill="#10b981" stroke="#0b0b0d" stroke-width="3" />
+
+            <!-- annotation -->
+            <g>
+              <rect x="520" y="20" width="112" height="40" rx="10"
+                    fill="rgba(16,185,129,0.14)" stroke="rgba(16,185,129,0.5)" />
+              <text x="576" y="46" text-anchor="middle"
+                    font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#10b981">58 ms</text>
+            </g>
+
+            <!-- x labels -->
+            <g class="axis-label" text-anchor="middle">
+              <text x="60"  y="266">2</text>
+              <text x="142" y="266">4</text>
+              <text x="224" y="266">6</text>
+              <text x="306" y="266">8</text>
+              <text x="388" y="266">10</text>
+              <text x="470" y="266">12</text>
+              <text x="552" y="266">14</text>
+              <text x="634" y="266">16</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="kpis">
+          <div class="card kpi">
+            <div class="value ok">3.4<small>×</small></div>
+            <div class="label">Faster than pandoc</div>
+          </div>
+          <div class="card kpi">
+            <div class="value">0</div>
+            <div class="label">CDN requests</div>
+          </div>
+          <div class="card kpi">
+            <div class="value">1</div>
+            <div class="label">HTML file</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="foot">
+      <div class="hint">
+        Export: <code>Cmd/Ctrl + P</code> → Landscape → Background graphics ON
+      </div>
+      <div class="page-no"><b>01</b> / 01</div>
+    </footer>
+
+  </section>
+
+</main>
+</body>
+</html>

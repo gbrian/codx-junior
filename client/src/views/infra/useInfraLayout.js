@@ -15,6 +15,14 @@
  *   • deterministic — no dependency on container-query support;
  *   • no `display` conflict with daisyUI's `.card` (which sets its own
  *     `display`, the reason `class="hidden md:block card"` never worked).
+ *
+ * VISIBILITY
+ * ----------
+ * The same root element is also observed for VISIBILITY (`observePanelVisibility`)
+ * because a dockview panel added with `renderer: 'always'` stays MOUNTED while
+ * its tab is inactive. `onBeforeUnmount` therefore cannot be used to decide when
+ * the view stopped being on screen — which is exactly what the Infrastructure
+ * polling loop needs to know.
  * ============================================================================
  */
 import { reactive } from 'vue'
@@ -86,4 +94,75 @@ export function observePanelWidth(el) {
   observer = new ResizeObserver(() => apply(el.clientWidth))
   observer.observe(el)
   return disposePanelWidth
+}
+
+/* ── Visibility ───────────────────────────────────────────────────────────── */
+let visibilityObserver = null
+
+/** Stops tracking visibility (safe to call repeatedly). */
+export function disposePanelVisibility() {
+  if (visibilityObserver) {
+    visibilityObserver.disconnect()
+    visibilityObserver = null
+  }
+}
+
+/**
+ * Tracks whether `el` is actually on screen.
+ *
+ * Two things hide this view WITHOUT unmounting it, so `onBeforeUnmount` alone
+ * is not enough to know when to stop polling:
+ *   • its dockview tab is not the active one — panels are added with
+ *     `renderer: 'always'`, so the component stays mounted out of sight;
+ *   • the browser tab/window is in the background.
+ *
+ * `IntersectionObserver` covers the first case (a hidden panel has no
+ * intersection rect) and `visibilitychange` the second one. `onChange` fires
+ * only when the COMBINED result flips, so the caller can pause/resume a timer
+ * without reacting to every observer callback.
+ *
+ * Returns a disposer — call it from `onBeforeUnmount`.
+ */
+export function observePanelVisibility(el, onChange) {
+  disposePanelVisibility()
+  if (!el) return disposePanelVisibility
+
+  let onScreen = true
+  let pageVisible = document.visibilityState !== 'hidden'
+  let last = null
+
+  const notify = () => {
+    const visible = onScreen && pageVisible
+    if (visible === last) return
+    last = visible
+    if (typeof onChange === 'function') onChange(visible)
+  }
+
+  const onPageVisibility = () => {
+    pageVisible = document.visibilityState !== 'hidden'
+    notify()
+  }
+  document.addEventListener('visibilitychange', onPageVisibility)
+
+  let intersection = null
+  if (typeof IntersectionObserver !== 'undefined') {
+    intersection = new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1]
+      onScreen = !!entry?.isIntersecting
+      notify()
+    }, { threshold: 0 })
+    intersection.observe(el)
+  }
+
+  visibilityObserver = {
+    disconnect() {
+      if (intersection) intersection.disconnect()
+      document.removeEventListener('visibilitychange', onPageVisibility)
+    }
+  }
+
+  // Report the CURRENT state once: a panel restored inside a background tab
+  // must not start polling until it is really shown.
+  notify()
+  return disposePanelVisibility
 }

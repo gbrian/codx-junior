@@ -126,6 +126,12 @@ class ChatEngine:
     engine switched its context to the turn project), so every response states
     the project it was produced in.
 
+    ADDED — team profiles: active profiles may declare a ``team`` (a list of
+    profile names) with the profiles the model can USE IN NEW TASKS. Team
+    members are NOT composed into the system prompt and are NOT activated; they
+    are appended as a ``### TEAM`` table (name + short description) right after
+    the profile composition (see :meth:`_build_team_system_section`).
+
     COST TRACKING: the AI call returns a typed :class:`AgentRunResult`. Its
     ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
     registered on the response message (``Message.cost``) so ``ChatManager``
@@ -387,6 +393,52 @@ class ChatEngine:
             return profiles
 
     # -------------------------------------------------------------------------
+    # Helper: build the TEAM section of the system prompt (ADDED)
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _build_team_system_section(team_profiles: List[Profile]) -> str:
+        """
+        Render the TEAM section appended AFTER the profile composition.
+
+        ``team`` is a profile property listing profile NAMES the model can use
+        in NEW tasks (like ``profiles`` lists linked profiles). Team members are
+        NOT active in this turn: their content, tools and model are not applied,
+        they are only offered as a table (name + short description) so the model
+        knows who can take what kind of work and can hand it off instead of
+        impersonating them.
+
+        flowchart TD
+            A[Active profiles .team] --> B[ProfileManager.get_team_profiles]
+            B --> C{Any member?}
+            C -->|No| D[No section]
+            C -->|Yes| E[Markdown table: profile | description]
+            E --> F[Appended after the profile composition]
+
+        :param team_profiles: Resolved team profiles (see
+                              :meth:`ProfileManager.get_team_profiles`).
+        :return: Markdown section, or an empty string when there is no team.
+        """
+        if not team_profiles:
+            return ""
+
+        lines = [
+            "### TEAM",
+            "Profiles you can use in NEW tasks. They are NOT active in this turn: "
+            "never answer on their behalf. When a request belongs to one of them, "
+            "say so and ask the user to run that task with the profile "
+            "(@profile_name).",
+            "",
+            "| Profile | Description |",
+            "| --- | --- |",
+        ]
+        for profile in team_profiles:
+            description = ProfileManager.profile_short_description(profile=profile)
+            # Keep the table well formed.
+            description = description.replace("|", "\\|")
+            lines.append(f"| `{profile.name}` | {description} |")
+        return "\n".join(lines)
+
+    # -------------------------------------------------------------------------
     # Helper: resolve profiles, model and tools
     # -------------------------------------------------------------------------
     def _resolve_profiles_and_model(
@@ -404,15 +456,24 @@ class ChatEngine:
         profiles** (the ``profiles`` property, recursively) so that the content,
         tools and agents of every linked profile are applied to the process.
 
+        ADDED — team: after the profile composition a ``### TEAM`` section is
+        appended with the profiles the model can use in NEW tasks (the ``team``
+        property of the active profiles). Team members are neither composed into
+        the prompt nor activated: they only appear as a name/description table,
+        resolved by :meth:`ProfileManager.get_team_profiles`. Profiles already
+        active in the turn are not offered again.
+
         Profiles are sorted by name and their content is formatted to be passed
         as part of the AI system prompt, including the current date/time.
 
         flowchart TD
             A[Query mentions profiles] --> A1[Expand linked profiles - recursive]
-            A1 --> B{Any profiles?}
+            A1 --> A2[Resolve team profiles - not composed]
+            A2 --> B{Any profiles?}
             B -->|Yes| C[Sort profiles by name]
             C --> D[Build system prompt content]
-            D --> E[Collect tools from all profiles]
+            D --> D1[Append TEAM table after the composition]
+            D1 --> E[Collect tools from all profiles]
             E --> F{Profile has model?}
             F -->|Yes| G[Set chat_model from profile]
             F -->|No| H[Keep existing model]
@@ -425,7 +486,7 @@ class ChatEngine:
         :param chat_files: List of files attached to the chat.
         :param is_refine: Whether we are in task/refine mode.
         :return: Dict with keys: chat_profiles_system_content, chat_profile_names,
-                 chat_model, chat_tools, is_refine.
+                 chat_team_names, chat_model, chat_tools, is_refine.
         """
         # Resolve nested/linked profiles: each profile may reference other
         # profiles by name through its ``profiles`` property. Expand recursively
@@ -434,6 +495,7 @@ class ChatEngine:
         all_profiles = self._resolve_linked_profiles(query_mentions.profiles)
         chat_profiles_system_content = ""
         chat_profile_names: List[str] = []
+        chat_team_names: List[str] = []
         chat_model: Optional[str] = chat.llm_model
         chat_tools: List[str] = []
 
@@ -449,6 +511,29 @@ class ChatEngine:
             
             chat_profiles_system_content = "\n\n".join(profile_blocks)
             chat_profile_names = [profile.name for profile in sorted_profiles]
+
+            # ADDED: TEAM section — the profiles the model can use in NEW tasks.
+            # Appended AFTER the profile composition and built only from the
+            # ``team`` property of the active profiles. Team members are NOT
+            # composed into the prompt and are NOT activated (their content,
+            # tools and model do not apply to this turn), and the profiles
+            # already active are excluded (they are being used right now).
+            chat_team_profiles = self.get_profile_manager().get_team_profiles(
+                profiles=sorted_profiles,
+                exclude=sorted_profiles,
+            )
+            team_system_section = self._build_team_system_section(
+                team_profiles=chat_team_profiles
+            )
+            if team_system_section:
+                chat_profiles_system_content = concat_content([
+                    chat_profiles_system_content,
+                    team_system_section,
+                ])
+                chat_team_names = [p.name for p in chat_team_profiles]
+                logger.info(
+                    "Team profiles offered for new tasks: %s", chat_team_names
+                )
 
             for profile in sorted_profiles:
                 chat_tools = chat_tools + profile.tools
@@ -479,6 +564,7 @@ class ChatEngine:
         return {
             "chat_profiles_system_content": chat_profiles_system_content,
             "chat_profile_names": chat_profile_names,
+            "chat_team_names": chat_team_names,
             "chat_model": chat_model,
             "chat_tools": chat_tools,
             "is_refine": is_refine,
@@ -1860,6 +1946,12 @@ class ChatEngine:
         engine switched its context), falling back to the project declared by
         the user message only when the engine has none.
 
+        ADDED — team profiles: the active profiles may declare a ``team`` (list
+        of profile names) with the profiles the model can use in NEW tasks.
+        They are appended to the system prompt as a ``### TEAM`` table after the
+        profile composition (see :meth:`_build_team_system_section`) and are
+        reported as a chat event.
+
         COST: the AI call returns a typed :class:`AgentRunResult`. Its cost is
         registered on the response message so ``ChatManager`` accumulates it
         into ``Chat.cost`` (compared against ``Chat.estimation_cost`` to stop
@@ -2256,7 +2348,8 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 9. Resolve profiles, model, and tools
-            #    (linked/nested profiles are expanded inside the helper)
+            #    (linked/nested profiles are expanded inside the helper, and the
+            #    TEAM section is appended after the profile composition)
             # ------------------------------------------------------------------
             profile_result = self._resolve_profiles_and_model(
                 chat=chat,
@@ -2266,6 +2359,7 @@ class ChatEngine:
             )
             chat_profiles_system_content: str = profile_result["chat_profiles_system_content"]
             chat_profile_names: List[str] = profile_result["chat_profile_names"]
+            chat_team_names: List[str] = profile_result["chat_team_names"]
             chat_model: Optional[str] = profile_result["chat_model"]
             chat_tools: List[str] = profile_result["chat_tools"]
             is_refine = profile_result["is_refine"]
@@ -2274,6 +2368,11 @@ class ChatEngine:
                 self.event_manager.chat_event(
                     chat=chat,
                     message=f"Chat profiles: {chat_profile_names}"
+                )
+            if chat_team_names:
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message=f"Team profiles: {chat_team_names}"
                 )
 
             response_message.profiles = chat_profile_names

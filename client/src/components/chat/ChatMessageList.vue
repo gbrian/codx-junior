@@ -564,7 +564,8 @@ export default {
       return false
     },
     shouldRenderMessage(message) {
-      if (this.renderedKeys[this.messageKey(message)]) return true
+      const key = this.messageKey(message)
+      if (!key |this.renderedKeys[key]) return true
       return this.isPinnedMessage(message)
     },
     // Reserved space for an unmounted message: its last real height, or the

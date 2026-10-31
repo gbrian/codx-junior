@@ -605,6 +605,71 @@
           "path": "/codx/junior/task_manager.py",
           "slug": "task-manager.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/task-manager.md"
+        },
+        {
+          "path": "/codx/junior/tools/doc_converter_tools.py",
+          "slug": "doc-converter-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/doc-converter-tools.md"
+        },
+        {
+          "path": "/slides/test-slide.html",
+          "slug": "test-slide.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-slide.md"
+        },
+        {
+          "path": "/slides/CONVERSION-TEST.md",
+          "slug": "conversion-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/conversion-test.md"
+        },
+        {
+          "path": "/slides/test-slide.md",
+          "slug": "test-slide.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-slide.md"
+        },
+        {
+          "path": "/codx/junior/api/console.py",
+          "slug": "console.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/console.md"
+        },
+        {
+          "path": "/codx/junior/console_manager.py",
+          "slug": "console-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/console-manager.md"
+        },
+        {
+          "path": "/src/components/project/ProjectScripts.vue",
+          "slug": "projectscripts.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/projectscripts.md"
+        },
+        {
+          "path": "/src/composables/useConsole.js",
+          "slug": "useconsole.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/useconsole.md"
+        },
+        {
+          "path": "/src/components/profiles/ProfileMultiSelect.vue",
+          "slug": "profilemultiselect.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profilemultiselect.md"
+        },
+        {
+          "path": "/src/components/team-view/TeamMemberDrawer.vue",
+          "slug": "teammemberdrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/teammemberdrawer.md"
+        },
+        {
+          "path": "/codx/junior/management_manager.py",
+          "slug": "management-manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/management-manager.md"
+        },
+        {
+          "path": "/codx/junior/api/management.py",
+          "slug": "management.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/management.md"
+        },
+        {
+          "path": "/codx/junior/model/management.py",
+          "slug": "management.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/management.md"
         }
       ],
       "id": "project-overview",

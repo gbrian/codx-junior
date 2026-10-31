@@ -19,13 +19,17 @@ Design notes:
       against the ``TOOLS`` registry), so per-action permissions require
       per-action tools: a profile can be allowed to list the profiles without
       being allowed to delete them.
-    - **Listing never carries content.** ``list`` / ``list_profiles`` return the
-      profile **JSON definition only**: the Markdown instructions
-      (``content``) are NOT included, because they are injected into the system
-      prompt and can be arbitrarily large. Reading them is an explicit
-      operation: ``get`` / ``get_profile``. Listings expose ``has_content``
-      instead, so a caller knows which profiles have instructions before
-      fetching them.
+    - **Three readings, three intents.** ``list`` returns the profile **JSON
+      definition**, ``list_summary`` returns a **compact summary** (name,
+      category, ``chat_mode``, tags, truncated description and flags) made to
+      *choose* which profiles to use — typically to assign them to a task — and
+      ``get`` returns one profile **with** its instructions.
+    - **Listing never carries content.** ``list`` / ``list_summary`` /
+      ``list_profiles`` / ``list_profiles_summary`` never include the Markdown
+      instructions (``content``): they are injected into the system prompt and
+      can be arbitrarily large. Reading them is an explicit operation: ``get`` /
+      ``get_profile``. Listings expose ``has_content`` instead, so a caller knows
+      which profiles have instructions before fetching them.
     - **Writes are validated, never guessed.** Profile name, category,
       ``file_match`` regex, linked profile names and tool names are checked
       before touching the disk, so a typo cannot silently corrupt a profile.
@@ -44,7 +48,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from codx.junior.model.profile import (
     Profile,
@@ -58,7 +62,7 @@ from .model import ToolResponse
 logger = logging.getLogger(__name__)
 
 # Actions exposed by the tool
-VALID_ACTIONS = ["list", "get", "create", "update", "delete"]
+VALID_ACTIONS = ["list", "list_summary", "get", "create", "update", "delete"]
 
 # Categories understood by the client (ProfileCard.vue paints one colour each).
 # Kept explicit so a typo fails here instead of rendering an unstyled card.
@@ -78,6 +82,10 @@ BROAD_FILE_MATCH_PATTERNS = (".*", "^.*$", ".+", "^.+$")
 # Warn (do not fail) above this size: profile content is injected into the
 # system prompt on every conversation where the profile is active.
 MAX_CONTENT_WARNING_CHARS = 20000
+
+# A summary listing is read to CHOOSE a profile: the description is truncated
+# so a long one cannot turn the selection step into a full definition dump.
+MAX_SUMMARY_DESCRIPTION_CHARS = 280
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +262,131 @@ def _format_profiles_table(profiles: List[Profile]) -> str:
         lines.append(
             f"`{profile.name}` | {profile.category or '-'} | {file_match} | "
             f"{linked} | {tools} | {has_content} | {tags}"
+        )
+    return "\n".join(lines)
+
+
+def _cell(value: Any) -> str:
+    """
+    Sanitize a value for a Markdown table cell.
+
+    Args:
+        value: Any value.
+
+    Returns:
+        Single-line text without pipe characters.
+    """
+    text = str(value if value is not None else "").replace("\n", " ").strip()
+    return text.replace("|", "/") or "-"
+
+
+def _filter_profiles(
+    manager: ProfileManager,
+    category: Optional[str] = None,
+    query: Optional[str] = None,
+    include_inherited: bool = False,
+) -> Tuple[List[Profile], str]:
+    """
+    Select the profiles a listing must return.
+
+    Shared by ``list`` and ``list_summary`` so both listings always agree on
+    what "the profiles of the project" means.
+
+    Args:
+        manager: Project ProfileManager.
+        category: Only profiles of this category.
+        query: Case-insensitive substring matched against the name, the
+            description and the tags.
+        include_inherited: Include profiles inherited from parent projects and
+            the built-in set (read-only).
+
+    Returns:
+        A ``(profiles, scope)`` tuple, ``scope`` being the label to report.
+    """
+    profiles = (
+        [p for p in manager.list_all_profiles() if p and p.name]
+        if include_inherited
+        else _project_profiles(manager)
+    )
+
+    if category:
+        wanted = category.strip().lower()
+        profiles = [p for p in profiles if (p.category or "").lower() == wanted]
+
+    if query:
+        needle = query.strip().lower()
+        profiles = [
+            p for p in profiles
+            if needle in (p.name or "").lower()
+            or needle in (p.description or "").lower()
+            or any(needle in tag.lower() for tag in (p.tags or []))
+        ]
+
+    return profiles, ("project + inherited" if include_inherited else "project")
+
+
+def _profile_summary(profile: Profile, editable: bool = True) -> Dict[str, Any]:
+    """
+    Build the compact view of a profile used to CHOOSE it.
+
+    Only the fields needed to answer "is this profile the right one for this
+    task?" are kept, and the description is truncated: a summary listing must
+    stay cheap. Full definitions come from ``list``; instructions from ``get``.
+
+    Args:
+        profile: The profile to summarise.
+        editable: Whether the profile belongs to this project (writes allowed).
+
+    Returns:
+        Dict with the selection fields (empty optional fields are omitted).
+    """
+    description = (profile.description or "").strip()
+    if len(description) > MAX_SUMMARY_DESCRIPTION_CHARS:
+        description = description[:MAX_SUMMARY_DESCRIPTION_CHARS].rstrip() + "…"
+
+    summary: Dict[str, Any] = {
+        "name": profile.name,
+        "category": profile.category or "",
+        "description": description,
+        "has_content": bool(profile.content),
+        "editable": editable,
+    }
+    if profile.tags:
+        summary["tags"] = list(profile.tags)
+    if profile.chat_mode:
+        summary["chat_mode"] = profile.chat_mode
+    return summary
+
+
+def _format_profiles_summary(
+    profiles: List[Profile],
+    editable_names: Optional[set] = None,
+) -> str:
+    """
+    Render the compact summary table used to choose profiles.
+
+    Args:
+        profiles: Profiles to render.
+        editable_names: Names of the profiles owned by this project.
+
+    Returns:
+        Markdown table with the selection fields only (no instructions).
+    """
+    editable_names = editable_names or set()
+    lines = [
+        f"> {len(profiles)} profile(s) — summary (no instructions)",
+        "",
+        "**Name** | **Category** | **Mode** | **Instructions** | **Editable** | **Tags** | **When to use**",
+        "---|---|---|---|---|---|---",
+    ]
+    for profile in sorted(profiles, key=lambda p: (p.category or "", p.name)):
+        lines.append(
+            f"`{profile.name}` | {profile.category or '-'} | "
+            f"{profile.chat_mode or '-'} | "
+            f"{'yes' if profile.content else '-'} | "
+            f"{'yes' if profile.name in editable_names else 'no'} | "
+            f"{_cell(', '.join(profile.tags or []))} | "
+            f"{_cell((profile.description or '').strip() or '-')}"
         )
     return "\n".join(lines)
 
@@ -502,26 +635,13 @@ def _action_list(
         ToolResponse with the table (user) and the content-free definitions
         (model).
     """
-    profiles = (
-        [p for p in manager.list_all_profiles() if p and p.name]
-        if include_inherited
-        else _project_profiles(manager)
+    profiles, scope = _filter_profiles(
+        manager=manager,
+        category=category,
+        query=query,
+        include_inherited=include_inherited,
     )
 
-    if category:
-        wanted = category.strip().lower()
-        profiles = [p for p in profiles if (p.category or "").lower() == wanted]
-
-    if query:
-        needle = query.strip().lower()
-        profiles = [
-            p for p in profiles
-            if needle in (p.name or "").lower()
-            or needle in (p.description or "").lower()
-            or any(needle in tag.lower() for tag in (p.tags or []))
-        ]
-
-    scope = "project + inherited" if include_inherited else "project"
     if not profiles:
         return ToolResponse(
             user_response=f"✓ No profiles found ({scope} scope)",
@@ -554,6 +674,95 @@ def _action_list(
     logger.info(
         "profile_management: listed %d profile(s) (%s) without content",
         len(profiles), scope,
+    )
+    return ToolResponse(user_response=user_response, llm_response=llm_response)
+
+
+def _action_list_summary(
+    manager: ProfileManager,
+    category: Optional[str] = None,
+    query: Optional[str] = None,
+    include_inherited: bool = False,
+) -> ToolResponse:
+    """
+    List the profiles as a compact summary, made to CHOOSE which ones to use.
+
+    Same selection rules as ``list`` but a much lighter payload: name, category,
+    ``chat_mode``, tags, a truncated description and two flags
+    (``has_content``: the profile has instructions, so it can drive a task;
+    ``editable``: it belongs to the current project). Instructions are never
+    included: this listing exists to pick the profiles for a task, then ``get``
+    reads the chosen ones.
+
+    The response closes with the step that follows the choice, so the model
+    knows where the selected names must be passed (``create_task`` /
+    ``project_manager``, ``profiles`` argument).
+
+    Args:
+        manager: Project ProfileManager.
+        category: Only profiles of this category.
+        query: Case-insensitive substring matched against the name, the
+            description and the tags.
+        include_inherited: Include profiles inherited from parent projects and
+            the built-in set (read-only).
+
+    Returns:
+        ToolResponse with the summary table (user) and the compact profiles
+        (model).
+    """
+    profiles, scope = _filter_profiles(
+        manager=manager,
+        category=category,
+        query=query,
+        include_inherited=include_inherited,
+    )
+
+    if not profiles:
+        return ToolResponse(
+            user_response=f"✓ No profiles found ({scope} scope)",
+            llm_response=(
+                f"No profiles found (scope={scope}). Do not invent a profile "
+                "name: list again without filters (include_inherited=true) to "
+                "see every available profile."
+            ),
+        )
+
+    editable_names = {p.name for p in _project_profiles(manager)}
+    summaries = [
+        _profile_summary(profile, editable=profile.name in editable_names)
+        for profile in sorted(profiles, key=lambda p: (p.category or "", p.name))
+    ]
+
+    user_response = "\n".join([
+        _format_profiles_summary(profiles, editable_names),
+        "",
+        f"Scope: **{scope}**. `Instructions: -` means the profile has no content, "
+        "so it cannot drive a task.",
+        "",
+        "Read the profiles you keep with `get_profile` before relying on them, "
+        "and assign them through the `profiles` argument of `create_task` / "
+        "`project_manager`.",
+    ])
+
+    llm_response = json.dumps(
+        {
+            "scope": scope,
+            "count": len(summaries),
+            # Compact by design: no content, no paths, no api settings.
+            "profiles": summaries,
+            "next": (
+                "Keep the profiles whose category/description/tags fit the task "
+                "(prefer has_content=true) and pass their names in the "
+                "'profiles' argument of create_task or project_manager "
+                "(action='create_task' or action='request_changes'). Use "
+                "get_profile(profile_name=...) to read the instructions of the "
+                "ones you keep."
+            ),
+        },
+        indent=2,
+    )
+    logger.info(
+        "profile_management: summarised %d profile(s) (%s)", len(summaries), scope
     )
     return ToolResponse(user_response=user_response, llm_response=llm_response)
 
@@ -1007,6 +1216,11 @@ def profile_management(
           inherited from parent projects and the built-in set. The result is
           the profile JSON **without** its content (``has_content`` flags which
           profiles have instructions).
+        - ``list_summary``: compact summary of the profiles (name, category,
+          ``chat_mode``, tags, truncated description plus ``has_content`` and
+          ``editable`` flags), made to **choose** which profiles to use — e.g.
+          to assign them to a task. Accepts the same ``category`` / ``query`` /
+          ``include_inherited`` filters and never includes content either.
         - ``get``: full definition (JSON) plus content (Markdown) of one
           profile. This is the only way to read the instructions.
         - ``create``: creates a new profile. Fails if the name already exists.
@@ -1020,8 +1234,8 @@ def profile_management(
 
     NOTE: this tool bundles every action, so granting it grants the whole CRUD.
     To allow some actions and deny others, grant the fine-grained tools instead
-    (``list_profiles``, ``get_profile``, ``create_profile``,
-    ``update_profile``, ``delete_profile``).
+    (``list_profiles``, ``list_profiles_summary``, ``get_profile``,
+    ``create_profile``, ``update_profile``, ``delete_profile``).
 
     Args:
         action: One of :data:`VALID_ACTIONS`.
@@ -1049,9 +1263,10 @@ def profile_management(
         url: Documentation URL.
         api_settings: ``{active, model_name, description}`` to expose the
             profile through the LLM API.
-        query: ``list`` only. Case-insensitive filter on name, description and
-            tags.
-        include_inherited: ``list`` only. Include read-only inherited profiles.
+        query: ``list`` / ``list_summary`` only. Case-insensitive filter on
+            name, description and tags.
+        include_inherited: ``list`` / ``list_summary`` only. Include read-only
+            inherited profiles.
         **kwargs: Internal. Injected by the agent runtime: ``settings``.
 
     Returns:
@@ -1064,6 +1279,8 @@ def profile_management(
     Example:
         >>> profile_management("list", category="assistant")
         # Lists every assistant profile (definitions only, no content)
+        >>> profile_management("list_summary", query="code review")
+        # Compact summary of the profiles matching "code review"
         >>> profile_management("get", profile_name="TeamManager")
         # Shows the definition AND the instructions
         >>> profile_management(
@@ -1102,6 +1319,14 @@ def profile_management(
     try:
         if action == "list":
             return _action_list(
+                manager=manager,
+                category=category,
+                query=query,
+                include_inherited=include_inherited,
+            )
+
+        if action == "list_summary":
+            return _action_list_summary(
                 manager=manager,
                 category=category,
                 query=query,
@@ -1191,11 +1416,12 @@ def profile_management(
 # single place. Grant in ``Profile.tools`` only the actions the profile must be
 # able to run, e.g.::
 #
-#     ["list_profiles", "get_profile"]                     # read-only
-#     ["list_profiles", "get_profile", "update_profile"]   # edits, cannot delete
+#     ["list_profiles_summary", "get_profile"]                # choose + read
+#     ["list_profiles", "get_profile"]                        # read-only (full)
+#     ["list_profiles", "get_profile", "update_profile"]      # edits, no delete
 #
-# NOTE: ``list_profiles`` returns the profile JSON WITHOUT its content; reading
-# the instructions always goes through ``get_profile``.
+# NOTE: neither ``list_profiles`` nor ``list_profiles_summary`` returns the
+# profile content; reading the instructions always goes through ``get_profile``.
 # ---------------------------------------------------------------------------
 
 
@@ -1234,6 +1460,46 @@ def list_profiles(
     )
 
 
+def list_profiles_summary(
+    category: Optional[str] = None,
+    query: Optional[str] = None,
+    include_inherited: bool = False,
+    **kwargs,
+) -> ToolResponse:
+    """
+    List the profiles as a compact summary, made to CHOOSE which ones to use.
+
+    Each entry carries only the selection fields: ``name``, ``category``,
+    ``chat_mode``, ``tags``, a truncated ``description``, ``has_content`` (the
+    profile has instructions, so it can drive a task) and ``editable`` (it
+    belongs to the current project). Instructions are never inlined here.
+
+    Typical flow: call it with the task keywords as ``query``, keep the profiles
+    that fit and pass their names in the ``profiles`` argument of
+    ``create_task`` / ``project_manager``; read the chosen ones with
+    :func:`get_profile`.
+
+    Args:
+        category: Only profiles of this category (``assistant``, ``chat``,
+            ``agent``, ``file``, ``project``).
+        query: Case-insensitive filter on name, description and tags.
+        include_inherited: Also list the read-only profiles inherited from
+            parent projects and the built-in set.
+        **kwargs: Internal. Injected by the agent runtime: ``settings``.
+
+    Returns:
+        ToolResponse with the summary table (user) and the compact profiles
+        (model).
+    """
+    return profile_management(
+        action="list_summary",
+        category=category,
+        query=query,
+        include_inherited=include_inherited,
+        **kwargs,
+    )
+
+
 def get_profile(
     profile_name: Optional[str] = None,
     name: Optional[str] = None,
@@ -1243,7 +1509,8 @@ def get_profile(
     Return the definition (JSON) AND the content (Markdown) of one profile.
 
     This is the only way to read a profile's instructions: listings
-    (:func:`list_profiles`) omit the content on purpose.
+    (:func:`list_profiles`, :func:`list_profiles_summary`) omit the content on
+    purpose.
 
     Args:
         profile_name: Exact profile name.
@@ -1426,7 +1693,9 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
             "folder: <Name>.profile (JSON definition) and <Name>.md (Markdown "
             "instructions); both are always written together. "
             "Actions: 'list' (optionally filtered by category/query; returns the profile "
-            "JSON WITHOUT its content), 'get' (definition + content), 'create' (fails if "
+            "JSON WITHOUT its content), 'list_summary' (compact summary to choose which "
+            "profiles to use, e.g. to assign them to a task), 'get' (definition + "
+            "content), 'create' (fails if "
             "the name exists, requires content), 'update' (merges only the provided "
             "fields) and 'delete'. "
             "Writes always target the current project: profiles inherited from parent "
@@ -1434,7 +1703,8 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
             "Use the returned paths to confirm where the profile was saved. "
             "NOTE: this tool bundles every action, so granting it grants the whole CRUD. "
             "To allow some actions and deny others, grant the fine-grained tools instead "
-            "(list_profiles, get_profile, create_profile, update_profile, delete_profile)."
+            "(list_profiles, list_profiles_summary, get_profile, create_profile, "
+            "update_profile, delete_profile)."
         ),
         "parameters": {
             "type": "object",
@@ -1445,6 +1715,8 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                     "description": (
                         "CRUD operation:\n"
                         "  - 'list': list project profiles, definitions only (read)\n"
+                        "  - 'list_summary': compact summary to pick profiles, e.g. for a "
+                        "task (read)\n"
                         "  - 'get': read one profile's definition and content (read)\n"
                         "  - 'create': create a new profile (fails if it exists)\n"
                         "  - 'update': merge changes into an existing project profile\n"
@@ -1490,7 +1762,7 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                         "Markdown instructions of the profile (the .md file): identity, "
                         "method, output format and guardrails. Required on create; on "
                         "update it replaces the whole content file. It is never returned "
-                        "by 'list' (use 'get' to read it)."
+                        "by 'list' / 'list_summary' (use 'get' to read it)."
                     )
                 },
                 "file_match": {
@@ -1576,15 +1848,16 @@ PROFILE_MANAGEMENT_TOOL_JSON = {
                 "query": {
                     "type": "string",
                     "description": (
-                        "For 'list': case-insensitive filter matched against the name, "
-                        "the description and the tags."
+                        "For 'list' / 'list_summary': case-insensitive filter matched "
+                        "against the name, the description and the tags."
                     )
                 },
                 "include_inherited": {
                     "type": "boolean",
                     "description": (
-                        "For 'list': include the read-only profiles inherited from "
-                        "parent projects and the built-in set (default: false)."
+                        "For 'list' / 'list_summary': include the read-only profiles "
+                        "inherited from parent projects and the built-in set "
+                        "(default: false)."
                     )
                 }
             },
@@ -1606,7 +1879,9 @@ PROFILE_LIST_TOOL_JSON = {
             "(whether the profile has Markdown instructions). The instructions "
             "themselves are never inlined here: to read them use get_profile. Set "
             "include_inherited=true to also list the read-only profiles inherited from "
-            "parent projects and the built-in set."
+            "parent projects and the built-in set. "
+            "When the goal is only to CHOOSE profiles (e.g. to assign them to a task), "
+            "prefer list_profiles_summary: same filters, far less output."
         ),
         "parameters": {
             "type": "object",
@@ -1639,6 +1914,58 @@ PROFILE_LIST_TOOL_JSON = {
     }
 }
 
+PROFILE_LIST_SUMMARY_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "list_profiles_summary",
+        "description": (
+            "List the project's profiles as a COMPACT summary, made to CHOOSE which "
+            "profiles to use (read-only): typically to pick the profiles to assign to a "
+            "task. Each entry carries only the selection fields: name, category, "
+            "chat_mode, tags, a truncated description and two flags — 'has_content' "
+            "(the profile has Markdown instructions, so it can drive a task) and "
+            "'editable' (it belongs to the current project). "
+            "Instructions and full definitions are NOT included: use list_profiles for "
+            "the definitions and get_profile to read the instructions of the profiles "
+            "you keep. "
+            "Typical flow: call this with the task keywords as 'query', keep the "
+            "profiles that fit, then pass their names in the 'profiles' argument of "
+            "create_task or project_manager (action='create_task' / "
+            "action='request_changes')."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": PROFILE_CATEGORIES,
+                    "description": (
+                        "Only list profiles of this category: 'assistant', 'chat', "
+                        "'agent', 'file' or 'project'."
+                    )
+                },
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "Case-insensitive filter matched against the name, the "
+                        "description and the tags. Pass the task keywords to narrow the "
+                        "candidates (e.g. 'test', 'backend', 'documentation')."
+                    )
+                },
+                "include_inherited": {
+                    "type": "boolean",
+                    "description": (
+                        "Include the read-only profiles inherited from parent projects "
+                        "and the built-in set (default: false). They can be assigned to "
+                        "a task but not modified."
+                    )
+                }
+            },
+            "required": []
+        }
+    }
+}
+
 PROFILE_GET_TOOL_JSON = {
     "type": "function",
     "function": {
@@ -1647,7 +1974,8 @@ PROFILE_GET_TOOL_JSON = {
             "Read one profile (read-only): its JSON definition (category, file_match, "
             "linked profiles, granted tools, tags, model...) AND its Markdown "
             "instructions (content). This is the only way to read a profile's content, "
-            "because list_profiles omits it. Inherited and built-in profiles can be "
+            "because list_profiles and list_profiles_summary omit it. Inherited and "
+            "built-in profiles can be "
             "read this way but are read-only for writes."
         ),
         "parameters": {

@@ -370,9 +370,9 @@ import {
 } from './useInfra'
 import {
   monitoring, MONITORING_TAB, REFRESH_INTERVALS,
-  startMonitoring, stopMonitoring, setLive, setRefreshInterval
+  startMonitoring, stopMonitoring, setLive, setRefreshInterval, setMonitoringVisible
 } from './useInfraMonitor'
-import { layout, observePanelWidth } from './useInfraLayout'
+import { layout, observePanelWidth, observePanelVisibility } from './useInfraLayout'
 import MonitoringPanel from './MonitoringPanel.vue'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
@@ -404,6 +404,9 @@ const tabs = [MONITORING_TAB, ...TABS]
 /* ── panel width tracking (this view lives in a resizable dockview panel) ─── */
 const rootEl = ref(null)
 let disposeLayout = null
+
+/* ── visibility tracking (polling must stop while the panel is out of sight) ─ */
+let disposeVisibility = null
 
 /* ── derived ──────────────────────────────────────────────────────────────── */
 const counts = computed(() => state.summary?.counts || {
@@ -461,6 +464,11 @@ function toastIcon (kind) {
 /* ── lifecycle ────────────────────────────────────────────────────────────── */
 onMounted(async () => {
   disposeLayout = observePanelWidth(rootEl.value)
+  // The panel stays MOUNTED when its dockview tab is inactive (`renderer:
+  // 'always'`), so unmounting is not a reliable "hidden" signal. This observer
+  // reports when the view is really on screen and the monitor pauses / resumes
+  // its refresh loop with it (see useInfraMonitor.setMonitoringVisible).
+  disposeVisibility = observePanelVisibility(rootEl.value, setMonitoringVisible)
   // 1. Hosts first — every other endpoint is scoped by the selected host id.
   await loadHosts()
   // 2. Then the host snapshot (loadAll re-uses the cached host list).
@@ -470,6 +478,10 @@ onMounted(async () => {
   startMonitoring()
 })
 onBeforeUnmount(() => {
+  if (disposeVisibility) {
+    disposeVisibility()
+    disposeVisibility = null
+  }
   if (disposeLayout) {
     disposeLayout()
     disposeLayout = null

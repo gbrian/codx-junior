@@ -32,6 +32,7 @@ dependencies = [
   'html2text',
   'watchdog',
   'pypandoc>=1.16',
+  'playwright',
   'jinja2>=3.0.3',
   'vllm>=0.5.0',
   'sentence-transformers>=5.6.0',

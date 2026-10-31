@@ -34,7 +34,7 @@ fi
 
 if [ "$DEBUG" == "" ]; then
   echo "Running PROD api"
-  uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-4} --host 0.0.0.0 --port $API_PORT
+  uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-8} --host 0.0.0.0 --port $API_PORT
 else
   echo "Running DEBUG api"
   uvicorn codx.junior.main:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port $API_PORT

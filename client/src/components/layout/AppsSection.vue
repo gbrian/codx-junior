@@ -91,6 +91,18 @@ import { isMultiInstance } from '@/config/apps'
         @click="handleNavigateToPlanning"
       />
 
+      <!-- Cross-project management dashboard: what is happening, what is
+           stuck and when it ships — across EVERY project, with a time filter
+           (last 7 days by default), blockers, delivery forecast, team load and
+           AI cost. Opens a panel on desktop, the
+           "/:projectName/management-dashboard" route otherwise (config/apps.js). -->
+      <NavItem
+        icon="fas fa-table-columns"
+        label="Management"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToManagementDashboard"
+      />
+
       <NavItem
         icon="fa-regular fa-comments"
         label="Messenger"
@@ -240,6 +252,13 @@ export default {
     },
     handleNavigateToPlanning() {
       this.openApp('planning')
+    },
+    // Opens the cross-project management dashboard. It is registered as
+    // 'management-dashboard' in config/apps.js, so this single call opens a
+    // dockview panel on desktop and navigates to
+    // "/:projectName/management-dashboard" in single / mobile mode.
+    handleNavigateToManagementDashboard() {
+      this.openApp('management-dashboard')
     },
     handleNavigateToMessenger() {
       this.openApp('messenger')

@@ -50,6 +50,11 @@ export const APP_COMPONENTS_MAP = {
   'vibe-coding': lazy(() => import('../views/VibeCodingView.vue')),
   'workspaces': lazy(() => import('../components/workspaces/WorkspacesManager.vue')),
   'infra': lazy(() => import('../views/infra/InfraView.vue')),
+  // Cross-project management dashboard (Pulse / Work / Blockers / Delivery /
+  // Team / Cost & AI). Same component in both modes: a dockview panel on
+  // desktop and the "/:projectName/management-dashboard" route in single/mobile
+  // mode (see router/index.ts + config/apps.js).
+  'management-dashboard': lazy(() => import('../views/ManagementDashboardView.vue')),
   // Solopreneur mode as a desktop panel (single/mobile mode uses the
   // "/solopreneur" route — see router/index.ts).
   'solopreneur': lazy(() => import('../views/SolopreneurView.vue'))

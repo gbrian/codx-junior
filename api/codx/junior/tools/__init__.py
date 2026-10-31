@@ -32,6 +32,15 @@ from typing import Optional, Dict, Union
 
 # Import tools
 from .fetch_webpage import fetch_webpage
+from .doc_converter_tools import (
+    doc_converter,
+    markdown_to_pdf,
+    markdown_to_docx,
+    html_to_markdown,
+    html_to_pdf,
+    html_slides_to_pdf,
+    DOC_CONVERTER_TOOL_JSON,
+)
 from .project_tools import project_search, project_read_file, project_write_file
 from .project_structure import (
     project_structure,
@@ -62,12 +71,14 @@ from .image_tools import explain_image, generate_image
 from .profile_tools import (
     profile_management,
     list_profiles,
+    list_profiles_summary,
     get_profile,
     create_profile,
     update_profile,
     delete_profile,
     PROFILE_MANAGEMENT_TOOL_JSON,
     PROFILE_LIST_TOOL_JSON,
+    PROFILE_LIST_SUMMARY_TOOL_JSON,
     PROFILE_GET_TOOL_JSON,
     PROFILE_CREATE_TOOL_JSON,
     PROFILE_UPDATE_TOOL_JSON,
@@ -143,6 +154,12 @@ __all__ = [
     "ToolResponse",
     "ToolSettings",
     "fetch_webpage",
+    "doc_converter",
+    "markdown_to_pdf",
+    "markdown_to_docx",
+    "html_to_markdown",
+    "html_to_pdf",
+    "html_slides_to_pdf",
     "project_search",
     "project_read_file",
     "project_write_file",
@@ -154,6 +171,7 @@ __all__ = [
     "apply_file_changes",
     "profile_management",
     "list_profiles",
+    "list_profiles_summary",
     "get_profile",
     "create_profile",
     "update_profile",
@@ -249,6 +267,12 @@ TOOLS = [
         "settings": ToolSettings(scope="chat").dict(),
         "tags": ["content", "web", "research", "external-data"],
         "tool_call": fetch_webpage
+    },
+    {
+        "tool_json": DOC_CONVERTER_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["content", "documents", "conversion", "pdf", "docx", "markdown", "export"],
+        "tool_call": doc_converter
     },
     {
         "tool_json": {
@@ -523,6 +547,15 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["profiles", "profile-management", "read", "list", "permissions"],
         "tool_call": list_profiles
+    },
+    {
+        "tool_json": PROFILE_LIST_SUMMARY_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": [
+            "profiles", "profile-management", "read", "list", "summary",
+            "selection", "task-management", "permissions"
+        ],
+        "tool_call": list_profiles_summary
     },
     {
         "tool_json": PROFILE_GET_TOOL_JSON,

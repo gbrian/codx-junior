@@ -87,6 +87,22 @@ export const APPS = {
     route: () => ({ name: 'kanban', query: { view: 'planning' } })
   },
 
+  // Management dashboard — the cross-project "command center" for management.
+  // One screen that answers "what is happening, what is stuck and when will it
+  // be delivered" across EVERY project, with a time window (last 7 days by
+  // default), a left rail of sections (Pulse / Work / Blockers / Delivery /
+  // Team / Cost & AI) and an AI assistant.
+  //
+  // Desktop mode → dockview panel; single/mobile mode →
+  // "/:projectName/management-dashboard" (see router/index.ts). Data comes from
+  // src/api/modules/management.js, which is mock-backed until the backend
+  // endpoints land (only the project list is real today).
+  'management-dashboard': {
+    id: 'management-dashboard', title: 'Management', component: 'management-dashboard',
+    icon: 'fa-solid fa-table-columns',
+    route: () => ({ name: 'management-dashboard' })
+  },
+
   chat: {
     id: 'chat', title: 'Chat', component: 'chat', icon: 'fa-regular fa-comments',
     desktopKey: p => (p.chat?.id ? `chat-${p.chat.id}` : undefined),

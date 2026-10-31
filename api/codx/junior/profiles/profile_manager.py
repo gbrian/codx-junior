@@ -392,3 +392,111 @@ class ProfileManager:
         :return: The input profiles plus all their (recursively) linked profiles.
         """
         return self._expand_linked_profiles(profiles=profiles, seen_names=set())
+
+    # -------------------------------------------------------------------------
+    # Team (ADDED): profiles the LLM can use in NEW tasks
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def profile_short_description(profile: Profile, max_length: int = 160) -> str:
+        """
+        Return a short one-line description of *profile* for the team table.
+
+        Resolution order: ``Profile.description`` → first meaningful line of the
+        profile content (markdown heading markers removed) → ``Profile.category``.
+        Whitespace is collapsed (the description must stay inside a table cell)
+        and the result is truncated to *max_length* characters.
+
+        :param profile: The profile to describe.
+        :param max_length: Maximum length of the returned description.
+        :return: Single-line description (may be an empty string).
+        """
+        description = (profile.description or "").strip()
+
+        if not description and profile.content:
+            for line in profile.content.splitlines():
+                candidate = line.strip().lstrip("#").strip()
+                if candidate:
+                    description = candidate
+                    break
+
+        if not description:
+            description = profile.category or ""
+
+        # Collapse newlines and repeated spaces so the table stays a table.
+        description = " ".join(description.split())
+
+        if len(description) > max_length:
+            description = description[:max_length - 3].rstrip() + "..."
+
+        return description
+
+    def get_team_profiles(
+        self,
+        profiles: List[Profile],
+        exclude: Optional[List[Profile]] = None
+    ) -> List[Profile]:
+        """
+        Resolve the TEAM of the given profiles: the profiles the LLM can use in
+        NEW tasks.
+
+        A profile declares its team through the ``team`` property — a list of
+        profile **names**, like ``profiles`` lists linked profiles. Unlike
+        linked profiles:
+
+        * team members are NOT composed into the system prompt; they are only
+          offered as a table (name + short description),
+        * their links are NOT expanded: a team member's own team is offered only
+          once that profile becomes active in a chat.
+
+        Profiles already active in the turn (*exclude*, i.e. the profiles being
+        composed) are not offered again, and unknown names are logged and
+        skipped. Resolution is best effort: a broken team reference never
+        blocks the chat.
+
+        :param profiles: Profiles active in the current turn.
+        :param exclude: Profiles (or profile names) that must not be offered.
+        :return: Resolved team profiles, deduplicated by name, order preserved.
+        """
+        if not profiles:
+            return []
+
+        registry = self._profiles_by_name_registry()
+
+        excluded_names: Set[str] = set()
+        for excluded in (exclude or []):
+            if isinstance(excluded, Profile):
+                excluded_names.add(excluded.name)
+            elif isinstance(excluded, dict):
+                excluded_names.add(str(excluded.get("name") or ""))
+            else:
+                excluded_names.add(str(excluded).lstrip("@"))
+
+        team_profiles: List[Profile] = []
+        seen_names: Set[str] = set()
+
+        for profile in profiles:
+            for team_name in (profile.team or []):
+                # Mentions may declare the member as "@name".
+                team_name = (team_name or "").strip().lstrip("@")
+                if not team_name or team_name in seen_names \
+                        or team_name in excluded_names:
+                    continue
+
+                team_profile = registry.get(team_name)
+                if not team_profile:
+                    logger.warning(
+                        "Profile '%s' lists unknown team profile '%s'",
+                        profile.name,
+                        team_name
+                    )
+                    continue
+
+                seen_names.add(team_name)
+                team_profiles.append(team_profile)
+
+        logger.info(
+            "Resolved team of %s: %s",
+            [p.name for p in profiles],
+            [p.name for p in team_profiles]
+        )
+        return team_profiles

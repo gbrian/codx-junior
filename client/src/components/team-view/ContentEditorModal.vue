@@ -22,7 +22,7 @@ import { avatarUrl } from './config'
         </div>
         <div class="min-w-0">
           <div class="font-semibold text-sm truncate">Edit “{{ profile.name }}” with chat</div>
-          <div class="text-[11px] text-base-content/50">Ask the assistant to rewrite this persona, then close this dialog.</div>
+          <div class="text-[11px] text-base-content/50">Ask the assistant to rewrite this persona. Nothing is applied until you press Done.</div>
         </div>
         <button
           type="button"
@@ -50,8 +50,8 @@ import { avatarUrl } from './config'
 
       <!-- Footer -->
       <footer class="flex items-center gap-2 px-4 py-3 border-t border-base-content/10 shrink-0">
-        <span class="text-xs text-base-content/40 mr-auto">The last assistant message becomes the persona content.</span>
-        <button type="button" class="btn btn-sm btn-primary" @click="$emit('close')">
+        <span class="text-xs text-base-content/40 mr-auto">Pressing Done applies the last assistant message to the persona; closing without Done discards the chat changes.</span>
+        <button type="button" class="btn btn-sm btn-primary" @click="applyAndClose">
           <i class="fa-solid fa-check"></i>
           Done
         </button>
@@ -70,7 +70,10 @@ export default {
   emits: ['update', 'close'],
   data() {
     return {
-      editorChat: null
+      editorChat: null,
+      // Latest chat text kept locally. It is only pushed to the draft when the
+      // user explicitly presses "Done" — never while chatting or on close.
+      pendingContent: null
     }
   },
   computed: {
@@ -87,6 +90,7 @@ export default {
   },
   methods: {
     onKeydown(event) {
+      // Escape discards — only closes the dialog, no content changes.
       if (event.key === 'Escape') this.$emit('close')
     },
 
@@ -104,7 +108,10 @@ export default {
           id: chatId,
           owner_project_id: this.$project.project_id
         })
-        if (chat) this.editorChat = chat
+        if (chat) {
+          this.editorChat = chat
+          this.capturePendingContent(chat)
+        }
       } catch (error) {
         console.error('[ContentEditorModal] Failed to load profile chat:', error)
         await this.createEditorChat()
@@ -128,8 +135,8 @@ export default {
         if (newChat) {
           this.editorChat = newChat
           await this.$chats.saveChat(newChat)
-          // Keep the draft in sync with the freshly created editor chat.
-          this.$emit('update', { content: this.profile.content || '', chatId: newChat.id })
+          // Link the freshly created chat id to the draft — never touch content.
+          this.$emit('update', { chatId: newChat.id })
         }
       } catch (error) {
         console.error('[ContentEditorModal] Failed to create profile chat:', error)
@@ -137,15 +144,25 @@ export default {
       }
     },
 
-    async onChatUpdated(chat) {
+    // Keeps the newest chat text locally only — this must NOT emit `update`.
+    onChatUpdated(chat) {
       if (!chat) return
       this.editorChat = chat
-      let content = this.profile.content || ''
-      if (chat.messages?.length) {
-        const last = chat.messages[chat.messages.length - 1]
-        if (last?.content) content = last.content
-      }
-      this.$emit('update', { content, chatId: chat.id })
+      this.capturePendingContent(chat)
+    },
+
+    capturePendingContent(chat) {
+      const messages = chat?.messages || []
+      if (!messages.length) return
+      const last = messages[messages.length - 1]
+      if (last?.content) this.pendingContent = last.content
+    },
+
+    // Explicit confirmation: apply the latest persona content and close.
+    applyAndClose() {
+      const content = this.pendingContent ?? this.profile.content ?? ''
+      this.$emit('update', { content, chatId: this.editorChat?.id || this.profile.chat_id })
+      this.$emit('close')
     }
   }
 }
