@@ -1,4 +1,5 @@
 <script setup>
+import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
 </script>
 
 <template>
@@ -26,7 +27,8 @@
             : 'text-base-content/70 hover:bg-white/5 hover:text-base-content'
         ]"
         :title="project.project_name"
-        @click="switchProject(project)"
+        @click="switchProject(project, $event)"
+        @auxclick="switchProject(project, $event)"
       >
         <img
           v-if="project.project_icon"
@@ -44,6 +46,7 @@
             class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-base-content/40 hover:text-error transition-all cursor-pointer"
             title="Unpin project"
             @click.stop="unpinProject(project)"
+            @auxclick.stop
           >
             <i class="fa-solid fa-xmark text-xs"></i>
           </span>
@@ -78,9 +81,17 @@ export default {
     },
     // Reuse the canonical project-switch flow (loading overlay, chats reload,
     // route sync) so the switcher behaves exactly like the project selector.
-    switchProject(project) {
+    //
+    // Ctrl/Cmd+click (or middle click) is the "open in a new tab" gesture: the
+    // project opens in a brand new browser tab and the current one is left as
+    // is (see utils/projectLinks.js).
+    switchProject(project, event) {
+      if (isOpenInNewTabEvent(event)) {
+        openProjectInNewTab(project)
+        return
+      }
       if (this.isActive(project)) return
-      this.$emit('select', project)
+      this.$emit('select', project, event)
     },
     unpinProject(project) {
       this.$storex.ui.unpinProject(project.project_id)

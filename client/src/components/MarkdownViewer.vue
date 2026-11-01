@@ -5,10 +5,10 @@ import Modal from './Modal.vue'
 </script>
 
 <template>
-  <div class="text-wrap overflow-y-auto prose-sm xl:prose max-w-full">
+  <div class="text-wrap overflow-y-auto prose max-w-full">
     <!-- Render markdown content with mixed elements -->
     <div class="space-y-4">
-      <div 
+      <div class="w-full"
         v-for="(element, idx) in renderedElements" 
         :key="`element-${idx}`"
         @click="handleClick"

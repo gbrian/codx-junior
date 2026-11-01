@@ -157,6 +157,63 @@ function isNestedAnonymousFence(lines, index, currentType, currentFence) {
 }
 
 /**
+ * Fenced block tracker
+ * -------------------------------------------------------------------------
+ * A fenced block is tracked with a COUNTER, never with a flag: `lengths`
+ * holds one entry per open fence of the block's own delimiter, so nesting is
+ * additive and the block only ends when the counter returns to zero.
+ *
+ * - Opening fences of the same delimiter are counted (their closing fence must
+ *   NOT end the outer block).
+ * - Closing fences are bare runs: they must use the same delimiter and be at
+ *   least as long as the innermost open fence.
+ * - Everything else (the other delimiter, `<file_change>` tags, plain text) is
+ *   body content and never touches the counter.
+ */
+
+/**
+ * Language/type of a fence: first word of its info string, lowercased.
+ */
+function getFenceType(fence) {
+  if (!fence || !fence.info) return ''
+  return fence.info.split(/\s+/)[0].toLowerCase()
+}
+
+/**
+ * Create the counter of a block opened by `openFence`.
+ */
+function createFenceTracker(openFence) {
+  return {
+    char: openFence.char,
+    type: getFenceType(openFence),
+    lengths: [openFence.length]
+  }
+}
+
+/**
+ * Feed the fence found on a line into the tracker of the open block.
+ *
+ * Returns 'close' when the outermost fence closes (the block ends) and
+ * 'content' when the line belongs to the body (nested fences included).
+ */
+function trackFence(tracker, lineFence) {
+  if (!tracker || !lineFence || lineFence.char !== tracker.char) return 'content'
+
+  if (!lineFence.info) {
+    // Closing fence: must reach the innermost open fence length
+    const innermost = tracker.lengths[tracker.lengths.length - 1]
+    if (lineFence.length < innermost) return 'content'
+    tracker.lengths.pop()
+    return tracker.lengths.length ? 'content' : 'close'
+  }
+
+  // Opening fence of the same delimiter: count it, so its own closing fence
+  // does not end the outer block
+  tracker.lengths.push(lineFence.length)
+  return 'content'
+}
+
+/**
  * File change XML syntax
  * -------------------------------------------------------------------------
  * In addition to legacy ```lang path fences, markdown may carry file blocks
@@ -170,12 +227,21 @@ function isNestedAnonymousFence(lines, index, currentType, currentFence) {
  * lines) never leak out of the block. Both the self-closing `<file_change/>`
  * and the regular `</file_change>` closing tags are accepted, and attributes
  * may omit the `=` (`change_type"update"`) since models frequently drop it.
+ *
+ * A <file_change> block IGNORES EVERY OTHER FENCE KIND: while it is open, ```
+ * and ~~~ lines are plain content and can neither open nor close nor mask
+ * anything. Only the tags move the DEPTH COUNTER: the envelope being parsed is
+ * depth 1, a nested `<file_change ...>` adds one and every closing marker
+ * removes one; the block ends when the count returns to zero. Nested envelopes
+ * are therefore verbatim content of the outer block, never separate blocks.
  */
 
-// Opening tag: <file_change + at least one attribute on the same line
-const FILE_CHANGE_OPEN_REGEX = /^<file_change\s/i
+// Opening tag: <file_change + at least one attribute on the same line.
+// Indented up to 3 spaces like a markdown fence, never deeper (an example
+// indented by 4+ spaces is an indented code block, not an envelope).
+const FILE_CHANGE_OPEN_REGEX = /^ {0,3}<file_change\s/i
 // Closing tag: <file_change/>, <file_change /> or </file_change>
-const FILE_CHANGE_CLOSE_REGEX = /^<\/?file_change\s*\/?>\s*$/i
+const FILE_CHANGE_CLOSE_REGEX = /^ {0,3}<\/?file_change\s*\/?>\s*$/i
 // Attributes: key="value" or key"value" (missing '=')
 const FILE_CHANGE_ATTR_REGEX = /([A-Za-z_][\w-]*)\s*(?:=\s*)?"([^"]*)"/g
 
@@ -202,7 +268,7 @@ function parseFileChangeAttributes(line) {
  */
 function getFileChangeOpenTag(line) {
   if (!line) return null
-  if (!FILE_CHANGE_OPEN_REGEX.test(line.trim())) return null
+  if (!FILE_CHANGE_OPEN_REGEX.test(line)) return null
   return parseFileChangeAttributes(line)
 }
 
@@ -212,7 +278,7 @@ function getFileChangeOpenTag(line) {
  */
 function isFileChangeCloseTag(line) {
   if (!line) return false
-  return FILE_CHANGE_CLOSE_REGEX.test(line.trim())
+  return FILE_CHANGE_CLOSE_REGEX.test(line)
 }
 
 /**
@@ -222,16 +288,47 @@ function isFileChangeCloseTag(line) {
  * marker line (or the last available line while the block is still streaming).
  * Streaming friendly: a block whose closing marker has not arrived yet yields
  * whatever content is available so far with finished=false.
+ *
+ * Only `<file_change>` tags are counted: every fence (``` / ~~~, any language)
+ * inside the body is content and can never end the block, which is what makes
+ * the boundary deterministic even for a document that shows markdown examples.
  */
 function parseFileChangeBlock(lines, startIndex, getRendererFn = getRenderer) {
   const attrs = parseFileChangeAttributes(lines[startIndex])
 
   let endIndex = lines.length
+  // Depth counter instead of a flag: the envelope being parsed is depth 1, a
+  // nested `<file_change ...>` adds one and every closing marker removes one.
+  // The block only ends when the count reaches zero.
+  let depth = 1
+  // Last closing marker seen, used as a safety valve for a body that never
+  // balances (an opening-tag example with no closing marker).
+  let lastCloseIndex = null
+
   for (let i = startIndex + 1; i < lines.length; i++) {
-    if (isFileChangeCloseTag(lines[i])) {
+    const line = lines[i]
+
+    // While a <file_change> block is open, other fences are content only: no
+    // getFence() call happens here on purpose.
+    if (getFileChangeOpenTag(line)) {
+      depth++
+      continue
+    }
+
+    if (!isFileChangeCloseTag(line)) continue
+
+    depth--
+    lastCloseIndex = i
+    if (depth === 0) {
       endIndex = i
       break
     }
+  }
+
+  // Unbalanced body: end at the last closing marker seen so a stray example of
+  // the opening tag can never swallow the rest of the message.
+  if (depth > 0 && lastCloseIndex !== null) {
+    endIndex = lastCloseIndex
   }
 
   const finished = endIndex < lines.length
@@ -300,76 +397,57 @@ function fileChangeBlocksToFences(content) {
 /**
  * Check if position is inside a code fence (any nesting level) OR inside a
  * `<file_change>` envelope (whose body is verbatim and must not be re-parsed).
+ *
+ * Uses the same counter rules as parseBlocks, so both agree on block bounds.
  */
 function isInsideCodeFence(lines, lineIndex) {
-  let currentFence = null
-  let nestStack = []
-  let inFileChange = false
+  let fenceTracker = null
 
   for (let i = 0; i < lineIndex; i++) {
     const line = lines[i]
 
-    if (inFileChange) {
-      // Inside an envelope everything is verbatim until the closing marker,
-      // including nested fences and heading-looking lines.
-      if (isFileChangeCloseTag(line)) inFileChange = false
-      continue
-    }
-
-    // An opening tag only starts a block when we are not already inside a
-    // legacy fence (mirrors parseBlocks, where fences win inside code blocks).
-    if (!currentFence && getFileChangeOpenTag(line)) {
-      inFileChange = true
+    // A <file_change> block hides its whole body (headings included) and
+    // ignores fences, so it is resolved in a single step by the shared parser.
+    if (!fenceTracker && getFileChangeOpenTag(line)) {
+      const { endIndex } = parseFileChangeBlock(lines, i)
+      if (endIndex >= lineIndex) return true
+      i = endIndex
       continue
     }
 
     const fence = getFence(line)
     if (!fence) continue
 
-    if (!currentFence) {
-      currentFence = fence
-      nestStack = [fence]
+    if (!fenceTracker) {
+      // Only a fence with an info string opens a block (parseBlocks rule)
+      if (fence.info) fenceTracker = createFenceTracker(fence)
       continue
     }
 
-    const lastNested = nestStack[nestStack.length - 1]
-    if (lastNested && isClosingFence(lines[i], lastNested)) {
-      nestStack.pop()
-      continue
-    }
-
-    if (!nestStack.length && isClosingFence(lines[i], currentFence)) {
-      if (isNestedAnonymousFence(lines, i, 'unknown', currentFence)) {
-        nestStack.push(fence)
-        continue
-      }
-      currentFence = null
-      nestStack = []
-    }
+    if (trackFence(fenceTracker, fence) === 'close') fenceTracker = null
   }
 
-  return !!currentFence || inFileChange
+  return !!fenceTracker
 }
 
 /**
  * Parse content string into typed blocks with fence handling.
  *
  * CORE BEHAVIOR:
- * - When inside any named code block (type='py', 'js', 'vue', etc.) ALL inner
- *   fences (including mermaid, other language fences, etc.) are treated as
- *   plain content. Only the matching closing fence ends the block.
- * - Markdown blocks (type='markdown') also treat inner fences as content.
- * - A closing fence must match the OUTER opening fence character and length.
- * - `<file_change ...> ... <file_change/>` envelopes are parsed as verbatim
- *   file blocks: their body may contain fences and headings without affecting
- *   the surrounding markdown. Legacy ```lang path fences keep working as
- *   fallback.
- *
- * NESTED BLOCK DEPTH TRACKING:
- * - When a named inner fence opens inside a code block, nestDepth increases.
- * - A closing fence only ends the outer block when nestDepth === 0.
+ * - A block opened by a fence keeps that fence's delimiter: only closing
+ *   fences of the same delimiter can end it, nested fences of the same
+ *   delimiter are counted, and any other kind of fence is content.
  * - This handles cases like a py file containing a mermaid diagram in its
  *   docstring: the inner ```mermaid...``` does not close the outer ```py block.
+ * - `<file_change ...> ... <file_change/>` envelopes are parsed as verbatim
+ *   file blocks: inside them EVERY fence is content, so neither a ``` line nor
+ *   a nested envelope can end the block early. Legacy ```lang path fences keep
+ *   working as fallback.
+ *
+ * COUNTERS, NOT FLAGS:
+ * - Fenced blocks use a tracker whose `lengths` counter grows with nested
+ *   opening fences and shrinks with matching closing fences.
+ * - Envelopes use a tag depth counter (see parseFileChangeBlock).
  *
  * KEY STABILITY DURING STREAMING:
  * - Finished blocks use content-based hash (stable once closed)
@@ -391,13 +469,10 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   let currentType = 'markdown'
   let currentContent = []
   let currentFileName = ''
-  let inCodeBlock = false
-  let currentFence = null
   let isAnonymousFence = false
   let blockIndex = 0
-  // Tracks how many named inner fences are open inside the current outer block.
-  // A closing fence only closes the outer block when nestDepth === 0.
-  let nestDepth = 0
+  // Counter of the fenced block currently open (null when not inside a fence).
+  let fenceTracker = null
   // Tracks whether the block being built originates from a fence (```...```).
   // Used so fenced markdown/md/text blocks also become code blocks.
   let currentIsFence = false
@@ -442,9 +517,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     currentType = 'markdown'
     currentContent = []
     currentFileName = ''
-    currentFence = null
     isAnonymousFence = false
-    nestDepth = 0
     currentIsFence = false
   }
 
@@ -452,7 +525,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     const line = lines[i]
 
     // <file_change> envelope takes priority when not already inside a fence
-    if (!inCodeBlock && getFileChangeOpenTag(line)) {
+    if (!fenceTracker && getFileChangeOpenTag(line)) {
       if (blocks.length > 0) {
         blocks[blocks.length - 1].finished = true
       }
@@ -466,53 +539,35 @@ function parseBlocks(content, getRendererFn = getRenderer) {
 
     const fence = getFence(line)
 
-    if (inCodeBlock && fence) {
-      if (isClosingFence(line, currentFence)) {
-        if (nestDepth > 0) {
-          // This closes an inner named fence, not the outer block
-          nestDepth--
-          currentContent.push(line)
-        } else {
-          // nestDepth === 0: this closes the outer block
-          addBlock(true)
-          inCodeBlock = false
-        }
+    // Inside a fenced block: the tracker counts only fences of the block's own
+    // delimiter. Everything else (other delimiter, tags, text) is content.
+    if (fenceTracker) {
+      if (fence && trackFence(fenceTracker, fence) === 'close') {
+        addBlock(true)
+        fenceTracker = null
       } else {
-        // Any opening fence inside a code block (named or not) increases depth
-        // so the corresponding closing fence is correctly consumed as content.
-        if (fence.info && fence.info.trim()) {
-          nestDepth++
-        }
         currentContent.push(line)
       }
       continue
     }
 
-    if (!inCodeBlock && fence) {
-      const hasLanguageInfo = fence.info && fence.info.trim()
-
-      if (hasLanguageInfo) {
-        // Mark previous block finished when a new fence opens
-        if (blocks.length > 0) {
-          blocks[blocks.length - 1].finished = true
-        }
-
-        if (currentContent.length) addBlock(true)
-
-        const parts = fence.info.split(/\s+/).filter(Boolean)
-        inCodeBlock = true
-        currentFence = fence
-        currentType = parts[0] || 'text'
-        currentFileName = parts[1] || ''
-        isAnonymousFence = false
-        nestDepth = 0
-        currentIsFence = true
-        continue
-      } else {
-        // Anonymous fence (no language) - treat as markdown content
-        currentContent.push(line)
-        continue
+    // Outside any block only a fence with an info string opens a block; a bare
+    // fence is markdown content (same rule in DocumentSummary/isInsideCodeFence)
+    if (fence && fence.info) {
+      // Mark previous block finished when a new fence opens
+      if (blocks.length > 0) {
+        blocks[blocks.length - 1].finished = true
       }
+
+      if (currentContent.length) addBlock(true)
+
+      fenceTracker = createFenceTracker(fence)
+      const parts = fence.info.split(/\s+/).filter(Boolean)
+      currentType = fenceTracker.type || parts[0] || 'text'
+      currentFileName = parts[1] || ''
+      isAnonymousFence = false
+      currentIsFence = true
+      continue
     }
 
     currentContent.push(line)
@@ -687,9 +742,12 @@ export default {
   stripHeaderFromContent,
   getRenderer,
   getFence,
+  getFenceType,
   isClosingFence,
   countClosingFencesAhead,
   isNestedAnonymousFence,
+  createFenceTracker,
+  trackFence,
   getFileChangeOpenTag,
   isFileChangeCloseTag,
   parseFileChangeAttributes,

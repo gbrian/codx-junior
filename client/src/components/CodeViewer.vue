@@ -1029,7 +1029,7 @@ export default {
       this.stats = stats
       this.last_modification = last_modification
       this.size = size
-      this.isNewFile = !!last_modification
+      this.isNewFile = !last_modification
       if (!stats && diff) this.stats = 'File changes'
 
       let content = ""

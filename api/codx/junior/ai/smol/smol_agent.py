@@ -11,6 +11,9 @@ implementation:
     * keeps streaming, callbacks, cancellation and analytics.
     * caches tool results per conversation to avoid re-execution.
     * returns a typed :class:`AgentRunResult` (no untyped ``additional_kwargs``).
+    * decides which profile tools to inject into the request (see
+      :meth:`SmolAgent._profile_tools_for_run`): the profile definition itself
+      never carries them.
 
 Tool events (``TOOL_START`` / ``TOOL_END`` / ``TOOL_ERROR`` / ``TOOL_LOGS``) carry the
 ``tool_call_id``, the parsed JSON request args and a truncated result preview
@@ -47,6 +50,20 @@ dual-response tools, ``ToolResponse.user_response`` is emitted on the ``TOOL_END
 event and attached to the response message as a collapsible property
 (``ToolEvent.output``), so the client decides how to render it (collapsed or
 hidden) and the chat stays clean.
+
+Profile tools
+Profiles learn per project, so the tools that read/write what a profile has
+learned are decided **per run** by this agent:
+
+    * ``profile_knowledge_search`` — read-only, injected whenever profiles take
+      part in the turn.
+    * ``profile_learning`` — writes rules/knowledge files, injected only when
+      the user is a project admin, a project knowledge admin
+      (``knowledge_admin``) or a codx-junior admin.
+
+The profiles participating in the turn are declared by the chat engine in an
+internal ``profiles`` request header, which is consumed here and never
+forwarded to the provider.
 
 Vision API Support
 Binary files (PDFs, images) are passed as vision content when models support it.
@@ -134,6 +151,18 @@ CANCELLED_MESSAGE: str = "Chat was cancelled by the caller."
 # Tool scope constants
 TOOL_SCOPE_GLOBAL: str = "global"
 TOOL_SCOPE_CHAT: str = "chat"
+
+# Profile tools: read what a profile has learned for this project, and let it
+# learn new rules/knowledge files. They are NOT part of the profile definition:
+# the agent decides per run whether to inject them (see
+# :meth:`SmolAgent._profile_tools_for_run`).
+PROFILE_KNOWLEDGE_TOOL: str = "profile_knowledge_search"
+PROFILE_LEARNING_TOOL: str = "profile_learning"
+
+# Internal request header used by the chat engine to declare the profiles that
+# take part in the turn. It is consumed by the agent (never forwarded to the
+# provider) and drives the profile tool injection.
+PROFILES_HEADER: str = "profiles"
 
 # Sentinel returned to the model when a tool produces no output.
 # An empty or None tool message causes the model to re-issue the same call.
@@ -465,6 +494,117 @@ class SmolAgent:
 
         return "\n".join(parts).strip()
 
+    # ── Profile tools (decided by the agent, per run) ───────────────────────────
+
+    @staticmethod
+    def _resolve_profile_names(
+        config: Dict[str, Any],
+        headers: Dict[str, str],
+    ) -> List[str]:
+        """
+        Return the profiles taking part in this turn.
+
+        The chat engine declares them in ``config["profiles"]`` or, more
+        usually, in the internal ``profiles`` request header (comma separated).
+
+        Args:
+            config:  Chat configuration dict.
+            headers: Request headers.
+
+        Returns:
+            Deduplicated profile names, order preserved (empty list when none).
+        """
+        raw = config.get("profiles")
+        if raw is None:
+            raw = headers.get(PROFILES_HEADER, "")
+
+        if isinstance(raw, (list, tuple, set)):
+            names = [str(name).strip() for name in raw]
+        else:
+            names = [name.strip() for name in str(raw or "").split(",")]
+
+        seen: Set[str] = set()
+        profile_names: List[str] = []
+        for name in names:
+            if name and name not in seen:
+                seen.add(name)
+                profile_names.append(name)
+        return profile_names
+
+    @staticmethod
+    def _strip_profiles_header(headers: Dict[str, str]) -> Dict[str, str]:
+        """
+        Return a copy of *headers* without the internal ``profiles`` header.
+
+        The header is consumed by the agent and must never reach the provider.
+        The original dict is NOT mutated: the chat engine reuses it for the
+        auxiliary requests of the same turn (summary, chat init).
+
+        Args:
+            headers: Request headers.
+
+        Returns:
+            Headers safe to forward to the provider.
+        """
+        return {
+            key: value
+            for key, value in (headers or {}).items()
+            if key.lower() != PROFILES_HEADER
+        }
+
+    def _can_manage_profile_knowledge(self) -> bool:
+        """
+        Return True when the current user may change what profiles learn.
+
+        The rule lives in
+        :meth:`~codx.junior.security.user_management.UserSecurityManager.can_manage_profile_knowledge`
+        (codx-junior admin, project admin or project knowledge admin), so the
+        agent and the tool always agree.
+
+        Returns:
+            True when ``profile_learning`` may be offered to the model.
+        """
+        if not self.user:
+            return False
+        try:
+            from codx.junior.security.user_management import UserSecurityManager
+            return UserSecurityManager().can_manage_profile_knowledge(
+                user=self.user, settings=self.settings
+            )
+        except Exception as ex:
+            logger.warning(
+                "SmolAgent: could not resolve profile knowledge permission for "
+                "'%s': %s",
+                self.user.username,
+                ex,
+            )
+            return False
+
+    def _profile_tools_for_run(self, profile_names: List[str]) -> List[str]:
+        """
+        Decide which profile tools are injected into this request.
+
+        Profiles learn per project, but only some users may teach them:
+
+        * ``profile_knowledge_search`` (read-only) whenever profiles take part
+          in the turn,
+        * ``profile_learning`` (writes rules and knowledge files) only for
+          users with profile knowledge administration rights.
+
+        Args:
+            profile_names: Profiles taking part in the turn.
+
+        Returns:
+            Tool names to add to the request, empty when no profile is active.
+        """
+        if not profile_names:
+            return []
+
+        tools: List[str] = [PROFILE_KNOWLEDGE_TOOL]
+        if self._can_manage_profile_knowledge():
+            tools.append(PROFILE_LEARNING_TOOL)
+        return tools
+
     # ── Public API ─────────────────────────────────────────────────────────────
 
     async def chat(
@@ -506,12 +646,13 @@ class SmolAgent:
 
         Args:
             messages: Conversation history as LangChain message objects.
-            config:   Optional dict with keys: ``tools``, ``chat_id``,
-                      ``cancellation_token``, ``headers``, ``callbacks``,
-                      ``run_context`` (an :class:`AgentRunContext`),
-                      ``event_listeners`` (list of event callables),
-                      ``current_chat`` (the Chat object for context), and
-                      ``vision_content`` (optional vision API content blocks).
+            config:   Optional dict with keys: ``tools``, ``profiles``,
+                      ``chat_id``, ``cancellation_token``, ``headers``,
+                      ``callbacks``, ``run_context`` (an
+                      :class:`AgentRunContext`), ``event_listeners`` (list of
+                      event callables), ``current_chat`` (the Chat object for
+                      context), and ``vision_content`` (optional vision API
+                      content blocks).
 
         Returns:
             The typed :class:`AgentRunResult` for this run. Its ``messages``
@@ -600,9 +741,15 @@ class SmolAgent:
             "cancellation_token"
         )
         headers: Dict[str, str] = config.get("headers", {})
+        # Profiles taking part in this turn, declared by the chat engine in an
+        # internal header (never forwarded to the provider). The AGENT — not the
+        # profile definition — decides which profile tools are injected.
+        profile_names: List[str] = self._resolve_profile_names(config, headers)
+        provider_headers: Dict[str, str] = self._strip_profiles_header(headers)
         session_id: Optional[str] = headers.get("session_id")
         tags: str = self._build_tags(headers)
         headers["x-litellm-tags"] = tags
+        provider_headers["x-litellm-tags"] = tags
 
         # Inject session context into settings for tools that need it
         current_chat = config.get("current_chat")
@@ -611,7 +758,9 @@ class SmolAgent:
             self.session._current_chat = current_chat
 
         send_callback = self._make_callback_sender(config.get("callbacks"))
-        kwargs = self._build_request_kwargs(config.get("tools", []))
+        kwargs = self._build_request_kwargs(
+            config.get("tools", []), profile_names=profile_names
+        )
         # Build system message dynamically on each chat (fresh global instructions)
         system_message = self._build_system_message()
         openai_messages = to_openai_messages(messages, system=system_message)
@@ -700,7 +849,7 @@ class SmolAgent:
             content, tool_calls, usage_info = await self._stream_completion(
                 kwargs=kwargs,
                 openai_messages=openai_messages,
-                headers=headers,
+                headers=provider_headers,
                 cancellation_token=cancellation_token,
                 send_callback=send_callback,
                 run_context=run_context,
@@ -1328,7 +1477,8 @@ class SmolAgent:
         Args:
             kwargs:             Base OpenAI request kwargs.
             openai_messages:    Current OpenAI-format conversation history.
-            headers:            Extra request headers.
+            headers:            Extra request headers (already stripped of the
+                                internal ``profiles`` header).
             cancellation_token: Optional legacy cancellation token (bridged
                                 onto the run context token).
             send_callback:      Chunk callback sender (accumulating: flushes
@@ -1600,6 +1750,10 @@ class SmolAgent:
               model only. ToolResponse can include logs for forensic audit trail
               and a cost (cxjcoins) which is summed into the response/chat cost.
 
+        Tools declaring ``session: True`` in their settings receive the session
+        as ``session`` argument when their signature accepts it (e.g.
+        ``profile_learning`` needs it to resolve the user).
+
         Args:
             tool_call:   Dict with keys ``id``, ``function``, ``arguments``.
             run_context: Unified runtime context for this run.
@@ -1661,6 +1815,16 @@ class SmolAgent:
                     sig = inspect.signature(tool["tool_call"])
                     if "tool_cache" in sig.parameters:
                         params["tool_cache"] = tool_cache
+                except (ValueError, TypeError):
+                    pass
+            # Tools that need the session (e.g. profile_learning resolves the
+            # user to enforce the knowledge-admin permission) receive it only
+            # when their signature declares it.
+            if tool_settings.get("session") and self.session is not None:
+                try:
+                    sig = inspect.signature(tool["tool_call"])
+                    if "session" in sig.parameters:
+                        params["session"] = self.session
                 except (ValueError, TypeError):
                     pass
 
@@ -2293,7 +2457,11 @@ class SmolAgent:
 
     # ── Request building helpers ───────────────────────────────────────────────
 
-    def _build_request_kwargs(self, selected_tools: List[str]) -> Dict[str, Any]:
+    def _build_request_kwargs(
+        self,
+        selected_tools: List[str],
+        profile_names: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Build the base kwargs for the OpenAI completion request.
 
@@ -2301,10 +2469,16 @@ class SmolAgent:
         regardless of selected_tools, while chat scope tools are selectively
         included based on the request configuration.
 
+        CHANGED: the profile tools are added by the AGENT, not by the profile
+        definition. ``profile_knowledge_search`` is enabled whenever profiles
+        take part in the turn and ``profile_learning`` only for users allowed to
+        change what profiles learn (see :meth:`_profile_tools_for_run`).
+
         Args:
             selected_tools: Names of chat-scoped tools enabled for this
                            conversation. Global scope tools are added
                            automatically.
+            profile_names:  Profiles taking part in the turn.
 
         Returns:
             Dict of request kwargs (model, stream, tools, temperature).
@@ -2316,8 +2490,18 @@ class SmolAgent:
         }
 
         # Collect all enabled tools: global scope tools (always) + selected
-        # chat scope tools.
+        # chat scope tools + the profile tools decided for this run.
         selected_tool_set: Set[str] = set(selected_tools) if selected_tools else set()
+
+        profile_tools = self._profile_tools_for_run(profile_names or [])
+        if profile_tools:
+            selected_tool_set.update(profile_tools)
+            logger.info(
+                "SmolAgent: injecting profile tools %s for profiles %s",
+                profile_tools,
+                profile_names,
+            )
+
         enabled_tools: List[Dict[str, Any]] = []
 
         for tool in self.tools:

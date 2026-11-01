@@ -4,6 +4,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 import ViewModeToggle from './ViewModeToggle.vue'
 import PinnedProjectsSwitcher from './PinnedProjectsSwitcher.vue';
 import { isMultiInstance } from '@/config/apps'
+import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
 </script>
 
 <template>
@@ -183,9 +184,21 @@ export default {
     // navigating to "/<project_name>" leaves the desktop shell and reloads the
     // document, which is exactly what we don't want when just picking another
     // project.
-    async onProjectSelected(project) {
+    //
+    // Ctrl/Cmd+click (or middle click) is the browser's "open in a new tab"
+    // gesture: the project then opens in ANOTHER tab and the current one keeps
+    // running untouched (see utils/projectLinks.js).
+    async onProjectSelected(project, event) {
       if (!project?.project_id) {
         this.$ui.addNotification({ text: 'Invalid project', type: 'error' })
+        return
+      }
+
+      // New tab gesture → never touch the current tab, not even when the
+      // project is already the active one.
+      if (isOpenInNewTabEvent(event)) {
+        openProjectInNewTab(project)
+        this.$emit('close')
         return
       }
 

@@ -164,9 +164,32 @@ class CodxUserProjectProfile(BaseModel):
     )
 
 
+# ---------------------------------------------------------------------------
+# Project permission roles
+# ---------------------------------------------------------------------------
+# Values accepted by ``ProjectPermission.permissions``. They are plain strings
+# (not an Enum) so every stored setting keeps working untouched.
+
+# Full project administration.
+PROJECT_PERMISSION_ADMIN = "admin"
+
+# Custody of what the profiles learn in the project (rules written to the
+# project's profile enrichment and knowledge files), without any other
+# administrative capability: a knowledge admin cannot administrate the project.
+PROJECT_PERMISSION_KNOWLEDGE_ADMIN = "knowledge_admin"
+
+
 class ProjectPermission(BaseModel):
     project_id: str
-    permissions: str = Field(description="User permissions for the project", default=[])
+    permissions: str = Field(
+        description=(
+            "User permission for the project: "
+            f"'{PROJECT_PERMISSION_ADMIN}' (full project administration) or "
+            f"'{PROJECT_PERMISSION_KNOWLEDGE_ADMIN}' (can change what the "
+            "profiles learn: rules and knowledge files)."
+        ),
+        default=[],
+    )
     children: Optional[bool] = Field(
         description="Same access to children projects", default=True
     )

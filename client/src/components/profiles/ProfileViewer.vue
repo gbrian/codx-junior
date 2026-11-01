@@ -1,4 +1,5 @@
 <script setup>
+import ProfileKnowledgeEditor from './ProfileKnowledgeEditor.vue'
 </script>
 
 <template>
@@ -56,11 +57,23 @@
       <div class="font-semibold">Content</div>
       <Markdown class="mt-2 p-2 rounded-md bg-base-100 border border-base-100" :text="profile.content" />
     </div>
+
+    <!-- What the profile has learned for THIS project: rules (composed into the
+         content above) and indexed knowledge files. Read-only unless the user
+         has knowledge administration rights — the server reports `can_write`. -->
+    <ProfileKnowledgeEditor
+      v-if="profile.name"
+      :profile="profile"
+      @changed="$emit('refresh')"
+    />
   </div>
 </template>
 
 <script>
 export default {
-  props: ['profile']
+  props: ['profile'],
+  // Rules are composed into `profile.content`, so the owner should reload the
+  // profile after a change to refresh the content preview above.
+  emits: ['refresh']
 }
 </script>

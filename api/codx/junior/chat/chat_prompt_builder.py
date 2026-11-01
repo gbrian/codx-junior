@@ -652,9 +652,10 @@ class ChatPromptBuilder:
         Visibility rules:
 
         * current chat: ``hide`` / ``improvement`` messages are skipped,
-        * parent chats: only the messages rendered in the history
-          (:meth:`is_answer_parent_message`) contribute, and the traversal stops
-          on ``ignore_parent_knowledge``,
+        * parent chats: every VISIBLE message contributes (the ``is_answer``
+          flag is not required — see
+          :meth:`is_visible_parent_message`), and the traversal stops on
+          ``ignore_parent_knowledge``,
         * duplicated payloads (same base64 data) are collapsed to one item.
 
         :param chat: The chat whose messages are inspected.
@@ -689,7 +690,8 @@ class ChatPromptBuilder:
         Append the attachments of a chat's ancestor chain (grandparents first).
 
         Mirrors :meth:`build_parent_message_history`: stops on
-        ``ignore_parent_knowledge`` and only includes answer messages, so
+        ``ignore_parent_knowledge`` and includes only VISIBLE messages (via
+        :meth:`is_visible_parent_message`, i.e. no ``is_answer`` filtering), so
         attachments keep the same context as the rendered parent history.
 
         :param chat: The child chat whose ancestors are visited.
@@ -711,7 +713,7 @@ class ChatPromptBuilder:
         )
 
         for index, message in enumerate(parent_chat.messages):
-            if not self.is_answer_parent_message(message):
+            if not self.is_visible_parent_message(message):
                 continue
             self._add_message_attachments(
                 message=message,
@@ -804,9 +806,18 @@ class ChatPromptBuilder:
         return f"<{tag}>\n{content}\n</{tag}>"
 
     @staticmethod
-    def is_answer_parent_message(message):
-        """Decide whether a parent chat message should be loaded as content."""
-        return not message.hide and message.is_answer
+    def is_visible_parent_message(message):
+        """
+        Decide whether a parent chat message should be loaded as content.
+
+        CHANGED: parent content is no longer restricted to messages flagged as
+        ``is_answer``. Every VISIBLE message (``hide == False``) of the ancestor
+        chats is included, matching what the user sees in the parent chat.
+
+        :param message: The parent chat message to evaluate.
+        :return: True when the message must be part of the parent context.
+        """
+        return not message.hide
 
     @staticmethod
     def format_parent_message(message):
@@ -833,8 +844,9 @@ class ChatPromptBuilder:
         """
         Build rendered strings from a chat's ancestor chain.
 
-        Only visible, ``is_answer`` messages are included. Respects
-        ``ignore_parent_knowledge`` during traversal.
+        Only VISIBLE (not hidden) messages are included — the ``is_answer``
+        flag is no longer required (see :meth:`is_visible_parent_message`).
+        Respects ``ignore_parent_knowledge`` during traversal.
 
         :return: List of rendered turn strings (grandparents first).
         """
@@ -867,7 +879,7 @@ class ChatPromptBuilder:
         parts.extend(self.build_parent_message_history(chat=parent_chat))
 
         for message in parent_chat.messages:
-            if not self.is_answer_parent_message(message):
+            if not self.is_visible_parent_message(message):
                 continue
 
             formatted_content = self.format_parent_message(message)
@@ -901,8 +913,10 @@ class ChatPromptBuilder:
 
         :param chat: The chat whose history to convert.
         :param include_parent_messages: Whether to include parent chat history.
-        :param only_answers: When True, restrict current-chat history to
+        :param only_answers: When True, restrict CURRENT-chat history to
                              ``is_answer`` messages (used in refine/vibe mode).
+                             Parent chat history is never filtered by
+                             ``is_answer``.
         :return: List containing one HumanMessage, or [] when empty.
         """
         parts = []

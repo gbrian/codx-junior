@@ -3,6 +3,7 @@ import ChatLLMModelSelector from '@/components/chat/ChatLLMModelSelector.vue'
 import Document from '@/components/document/Document.vue'
 import ContentEditorModal from './ContentEditorModal.vue'
 import ToolDetailsModal from './ToolDetailsModal.vue'
+import ProfileKnowledgeEditor from '@/components/profiles/ProfileKnowledgeEditor.vue'
 import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
 </script>
 
@@ -118,6 +119,29 @@ import { ROLE_META, roleMeta, avatarUrl, EMPTY_GUARDRAILS } from './config'
             <textarea v-model="draft.content" rows="12" class="textarea textarea-bordered w-full text-sm" placeholder="You are a helpful teammate who…"></textarea>
             <div class="text-[11px] text-base-content/40 mt-1">{{ (draft.content || '').length }} characters</div>
           </div>
+        </div>
+
+        <!-- Knowledge (learned rules + knowledge files of THIS project) -->
+        <div v-else-if="tab === 'knowledge'" class="flex flex-col gap-3">
+          <div class="alert bg-primary/10 border-primary/20 py-2 text-xs gap-2">
+            <i class="fa-solid fa-brain text-primary"></i>
+            <span>
+              What this teammate has learned in this project. Rules are injected in every chat;
+              knowledge files are indexed and retrieved on demand. Inherited rules and files
+              (base profile and parent projects) are read-only.
+            </span>
+          </div>
+
+          <ProfileKnowledgeEditor
+            v-if="member && member.name"
+            :profile="member"
+            :api="$project?.$api"
+            @changed="$emit('knowledge-changed', member)"
+          />
+
+          <p v-else class="text-xs text-base-content/50">
+            Save the member first to start recording what it learns.
+          </p>
         </div>
 
         <!-- Capabilities -->
@@ -462,7 +486,7 @@ export default {
     tools: { type: Array, default: () => [] },
     saving: { type: Boolean, default: false }
   },
-  emits: ['save', 'delete', 'close'],
+  emits: ['save', 'delete', 'close', 'knowledge-changed'],
   data() {
     return {
       tab: 'about',
@@ -477,6 +501,7 @@ export default {
       tabs: [
         { id: 'about', label: 'About', icon: 'fa-solid fa-user' },
         { id: 'persona', label: 'Persona', icon: 'fa-solid fa-wand-magic-sparkles' },
+        { id: 'knowledge', label: 'Knowledge', icon: 'fa-solid fa-brain' },
         { id: 'capabilities', label: 'Capabilities', icon: 'fa-solid fa-wrench' },
         { id: 'guardrails', label: 'Guardrails', icon: 'fa-solid fa-shield-halved' },
         { id: 'advanced', label: 'Advanced', icon: 'fa-solid fa-key' }

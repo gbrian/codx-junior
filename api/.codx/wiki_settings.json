@@ -670,6 +670,26 @@
           "path": "/codx/junior/model/management.py",
           "slug": "management.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/management.md"
+        },
+        {
+          "path": "/codx/junior/tools/profile_learning_tools.py",
+          "slug": "profile-learning-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profile-learning-tools.md"
+        },
+        {
+          "path": "/codx/junior/profiles/profile_knowledge.py",
+          "slug": "profile-knowledge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profile-knowledge.md"
+        },
+        {
+          "path": "/codx/junior/tools/profile_knowledge_tools.py",
+          "slug": "profile-knowledge-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profile-knowledge-tools.md"
+        },
+        {
+          "path": "/codx/junior/api/profiles.py",
+          "slug": "profiles.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profiles.md"
         }
       ],
       "id": "project-overview",

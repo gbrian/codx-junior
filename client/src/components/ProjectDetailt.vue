@@ -7,16 +7,20 @@ import Modal from './Modal.vue'
     <!-- Trigger Button showing selected project -->
     <button
       @click="openModal"
-      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-base-content/10 hover:border-base-content/15 rounded-lg text-base-content/70 hover: text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full tooltip tooltip-right"
-      :data-tip="project?.project_name"
+      class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 w-full tooltip tooltip-right"
+      :class="displayProject
+        ? 'border-base-content/10 hover:border-base-content/15 text-base-content/70'
+        : 'border-warning/40 text-warning'"
+      :data-tip="displayProject?.project_name || placeholder || null"
     >
       <img 
-        v-if="project?.project_icon" 
-        :src="project.project_icon" 
-        :alt="project.project_name" 
+        v-if="displayProject?.project_icon" 
+        :src="displayProject.project_icon" 
+        :alt="displayProject.project_name" 
         class="w-5 h-5 rounded-md" 
       />
-      <span v-if="!iconify" class="truncate">{{ project?.project_name }}</span>
+      <i v-else-if="!displayProject" class="fa-solid fa-folder-plus text-xs"></i>
+      <span v-if="!iconify" class="truncate">{{ displayProject?.project_name || placeholder }}</span>
       <i v-if="!iconify" class="fa-solid fa-right-left text-xs ml-auto"></i>
     </button>
 
@@ -64,7 +68,8 @@ import Modal from './Modal.vue'
             <button
               v-for="project in section.projects"
               :key="project.project_id"
-              @click="onProjectSelected(project)"
+              @click="onProjectSelected(project, $event)"
+              @auxclick="onProjectSelected(project, $event)"
               class="group flex items-start gap-3 p-3 bg-base-300 border rounded-lg hover:border-primary/30 hover:bg-[#1f1f1f] transition-all duration-200 text-left"
               :class="section.key === 'parent'
                 ? 'border-primary/30 ring-1 ring-primary/20'
@@ -145,6 +150,13 @@ export default {
     iconify: {
       type: Boolean,
       default: false
+    },
+    // Text shown when nothing is bound. With a placeholder an empty model no
+    // longer falls back to the active project, so "nothing chosen yet" (a still
+    // required choice) stays visible instead of looking already answered.
+    placeholder: {
+      type: String,
+      default: null
     }
   },
   emits: ['update:modelValue', 'select', 'open', 'close'],
@@ -158,6 +170,12 @@ export default {
   computed: {
     project() {
       return this.modelValue || this.$project
+    },
+
+    // What the trigger renders (see `placeholder`)
+    displayProject() {
+      if (this.placeholder && !this.modelValue) return null
+      return this.project
     },
 
     // Get all projects directly from store (already sorted by last update)
@@ -305,9 +323,12 @@ export default {
       this.$emit('close')
     },
 
-    onProjectSelected(project) {
+    // `event` is forwarded with the selection so the parent decides what a
+    // ctrl/cmd+click (new tab) means in its own context — the plain click keeps
+    // behaving exactly as before.
+    onProjectSelected(project, event) {
       this.$emit('update:modelValue', project)
-      this.$emit('select', project)
+      this.$emit('select', project, event)
       this.closeModal()
     },
 

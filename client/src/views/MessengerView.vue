@@ -2,13 +2,13 @@
 import MessengerChannelList from '@/components/messenger/MessengerChannelList.vue'
 import MessengerGroupInfo from '@/components/messenger/MessengerGroupInfo.vue'
 import ChatView from '@/views/ChatView.vue'
+import { countChannelUnread } from '@/utils/chatUnread'
 </script>
 
 <template>
   <div
-    class="flex h-full w-full overflow-hidden"
+    class="flex h-full w-full overflow-hidden bg-base-100"
     :class="isMobile ? 'flex-col' : 'flex-row'"
-    style="background: #111111;"
   >
 
     <!-- ══ CHANNEL SIDEBAR ══ -->
@@ -25,6 +25,7 @@ import ChatView from '@/views/ChatView.vue'
         :user-name="$user?.username || 'User'"
         :is-collapsed="sidebarCollapsed"
         :loading="loadingChannels"
+        :unread-counts="unreadCounts"
         @select="openChat"
         @new-group="showNewGroupModal = true"
         @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
@@ -40,7 +41,7 @@ import ChatView from '@/views/ChatView.vue'
       >
         <div class="flex items-center justify-between px-4 py-4 border-b border-base-content/5 shrink-0">
           <span class="text-sm font-semibold text-base-content/80">Channels</span>
-          <button class="p-2 text-base-content/40 hover:" @click="showMobileChannels = false">
+          <button class="p-2 text-base-content/40 hover:text-base-content/70" @click="showMobileChannels = false">
             <i class="fas fa-xmark"></i>
           </button>
         </div>
@@ -51,6 +52,7 @@ import ChatView from '@/views/ChatView.vue'
             :user-name="$user?.username || 'User'"
             :is-collapsed="false"
             :loading="loadingChannels"
+            :unread-counts="unreadCounts"
             @select="chat => { openChat(chat); showMobileChannels = false }"
             @new-group="showNewGroupModal = true; showMobileChannels = false"
             @toggle-collapse="showMobileChannels = false"
@@ -61,7 +63,18 @@ import ChatView from '@/views/ChatView.vue'
     </transition>
 
     <!-- ══ MAIN AREA ══ -->
-    <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden" :class="isMobile ? 'pb-16' : ''">
+    <div class="relative flex-1 min-w-0 flex flex-col h-full overflow-hidden" :class="isMobile ? 'pb-16' : ''">
+
+      <!-- Desktop: members toggle -->
+      <button
+        v-if="!isMobile && activeChat"
+        class="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-lg bg-base-300/80 border border-base-content/10 text-base-content/50 hover:text-base-content/80 transition-colors"
+        :class="showGroupInfo ? 'text-primary border-primary/40' : ''"
+        title="Channel members"
+        @click="showGroupInfo = !showGroupInfo"
+      >
+        <i class="fas fa-users text-xs"></i>
+      </button>
 
       <!-- ── Empty / home state ── -->
       <transition name="fade">
@@ -97,6 +110,35 @@ import ChatView from '@/views/ChatView.vue'
       </transition>
     </div>
 
+    <!-- ══ DESKTOP MEMBERS PANEL ══ -->
+    <aside v-if="!isMobile && activeChat && showGroupInfo" class="shrink-0 h-full">
+      <MessengerGroupInfo
+        :chat="activeChat"
+        :profiles="profiles"
+        @close="showGroupInfo = false"
+        @update-members="updateGroupMembers"
+        @update-name="updateGroupName"
+        @leave-group="leaveGroup"
+      />
+    </aside>
+
+    <!-- ══ MOBILE MEMBERS PANEL ══ -->
+    <transition name="slide-right">
+      <div
+        v-if="isMobile && activeChat && showGroupInfo"
+        class="fixed inset-0 z-50 bg-base-300"
+      >
+        <MessengerGroupInfo
+          :chat="activeChat"
+          :profiles="profiles"
+          @close="showGroupInfo = false"
+          @update-members="updateGroupMembers"
+          @update-name="updateGroupName"
+          @leave-group="leaveGroup"
+        />
+      </div>
+    </transition>
+
     <!-- ══ MOBILE BOTTOM NAV ══ -->
     <nav
       v-if="isMobile"
@@ -104,7 +146,7 @@ import ChatView from '@/views/ChatView.vue'
     >
       <button
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showMobileChannels ? 'text-primary' : 'text-base-content/50 hover:'"
+        :class="showMobileChannels ? 'text-primary' : 'text-base-content/50 hover:text-base-content/80'"
         @click="showMobileChannels = !showMobileChannels"
       >
         <i class="fas fa-hashtag text-lg"></i>
@@ -112,7 +154,7 @@ import ChatView from '@/views/ChatView.vue'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover: transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover:text-base-content/80 transition-colors"
         @click="showNewGroupModal = true"
       >
         <i class="fas fa-plus text-lg"></i>
@@ -122,7 +164,7 @@ import ChatView from '@/views/ChatView.vue'
       <button
         v-if="activeChat"
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showGroupInfo ? 'text-primary' : 'text-base-content/50 hover:'"
+        :class="showGroupInfo ? 'text-primary' : 'text-base-content/50 hover:text-base-content/80'"
         @click="showGroupInfo = !showGroupInfo"
       >
         <i class="fas fa-users text-lg"></i>
@@ -130,7 +172,7 @@ import ChatView from '@/views/ChatView.vue'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover: transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover:text-base-content/80 transition-colors"
         @click="$emit('account-settings')"
       >
         <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
@@ -147,7 +189,7 @@ import ChatView from '@/views/ChatView.vue'
         class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/60 backdrop-blur-sm px-4"
         @click.self="showNewGroupModal = false"
       >
-        <div class="bg-[#1e1e1e] border border-base-content/10 rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl">
+        <div class="bg-base-200 border border-base-content/10 rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl">
 
           <!-- Title -->
           <div class="flex items-center gap-3">
@@ -236,7 +278,7 @@ import ChatView from '@/views/ChatView.vue'
               Cancel
             </button>
             <button
-              class="flex-1 btn btn-sm bg-primary hover:bg-primary/80  border-none"
+              class="flex-1 btn btn-sm bg-primary hover:bg-primary/80 text-primary-content border-none"
               :disabled="!newGroupName.trim() || creatingGroup"
               @click="createGroup"
             >
@@ -289,6 +331,19 @@ export default {
     activeChat() {
       if (!this.activeChatId) return null
       return this.$storex.chats.chats[this.activeChatId] || null
+    },
+    currentUsername() {
+      return this.$user?.username || this.$storex?.users?.user?.username || null
+    },
+    // Derived unread per channel — nothing is persisted on the chat
+    unreadCounts() {
+      const counts = {}
+      const username = this.currentUsername
+      if (!username) return counts
+      this.channels.forEach(chat => {
+        counts[chat.id] = countChannelUnread(chat.messages, username)
+      })
+      return counts
     },
     hiddenCount() {
       return this.activeChat?.messages?.filter(m => m.hide)?.length || 0
@@ -365,10 +420,31 @@ export default {
         this.showGroupInfo = false
         const loaded = await this.$chats.loadChat(chat)
         this.activeChatId = loaded?.id || chat.id
+        await this.markChannelAsSeen(this.activeChat)
       } catch (err) {
         console.error('[Messenger] openChat error', err)
       } finally {
         this.isChatLoading = false
+      }
+    },
+
+    // Mark every unseen message of the channel as read for the current user,
+    // so the unread badge clears without a reload
+    async markChannelAsSeen(chat) {
+      const username = this.currentUsername
+      const messages = chat?.messages || []
+      if (!username || !chat?.id || !messages.length) return
+      const markSeen = this.$storex.chats.markMessageAsSeen
+      if (typeof markSeen !== 'function') return
+      const pending = messages.filter(m => m?.doc_id && m.user !== username &&
+        (!m.read_by || !m.read_by.includes(username)))
+      for (const message of pending) {
+        try {
+          await markSeen({ chat_id: chat.id, message_id: message.doc_id, username })
+        } catch (err) {
+          console.error('[Messenger] markChannelAsSeen error', err)
+          break
+        }
       }
     },
 

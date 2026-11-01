@@ -8,7 +8,7 @@ import moment from 'moment'
     <!-- ── Header ── -->
     <div class="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-base-content/5">
       <button
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors shrink-0"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors shrink-0"
         :title="isCollapsed ? 'Expand' : 'Collapse'"
         @click="$emit('toggle-collapse')"
       >
@@ -17,7 +17,7 @@ import moment from 'moment'
       <template v-if="!isCollapsed">
         <span class="text-sm font-semibold text-base-content/80 flex-1">Channels</span>
         <button
-          class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
+          class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors"
           title="New channel"
           @click="$emit('new-group')"
         >
@@ -26,7 +26,7 @@ import moment from 'moment'
       </template>
       <button
         v-else
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover: hover:bg-white/8 transition-colors"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors"
         title="New channel"
         @click="$emit('new-group')"
       >
@@ -76,15 +76,15 @@ import moment from 'moment'
             class="relative flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all duration-200"
             :class="activeChat?.id === chat.id
               ? 'bg-primary text-primary-content shadow-md ring-2 ring-primary/30'
-              : 'bg-white/8 text-base-content/60 hover:bg-white/15 hover:'"
+              : 'bg-white/8 text-base-content/60 hover:bg-white/15'"
             :title="chat.name"
             @click="$emit('select', chat)"
           >
             <span>{{ getInitials(chat.name) }}</span>
             <span
-              v-if="chat.unread_count > 0"
-              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold  flex items-center justify-center px-1"
-            >{{ chat.unread_count > 9 ? '9+' : chat.unread_count }}</span>
+              v-if="unreadCount(chat) > 0"
+              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-content text-[9px] font-bold flex items-center justify-center px-1"
+            >{{ unreadLabel(chat) }}</span>
           </button>
         </div>
 
@@ -95,7 +95,7 @@ import moment from 'moment'
             :key="chat.id"
             class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full transition-all duration-200 group"
             :class="activeChat?.id === chat.id
-              ? 'bg-primary/20 '
+              ? 'bg-primary/20 text-primary-content'
               : 'text-base-content/50 hover:bg-white/6 hover:text-base-content/80'"
             @click="$emit('select', chat)"
           >
@@ -119,9 +119,9 @@ import moment from 'moment'
 
             <!-- Unread badge -->
             <span
-              v-if="chat.unread_count > 0"
-              class="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold  flex items-center justify-center px-1"
-            >{{ chat.unread_count > 9 ? '9+' : chat.unread_count }}</span>
+              v-if="unreadCount(chat) > 0"
+              class="shrink-0 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-content text-[9px] font-bold flex items-center justify-center px-1"
+            >{{ unreadLabel(chat) }}</span>
           </button>
         </div>
       </template>
@@ -136,7 +136,9 @@ export default {
     activeChat: { type: Object, default: null },
     userName: { type: String, default: 'User' },
     isCollapsed: { type: Boolean, default: false },
-    loading: { type: Boolean, default: false }
+    loading: { type: Boolean, default: false },
+    // Map of chat id → unread count, computed by the parent (MessengerView)
+    unreadCounts: { type: Object, default: () => ({}) }
   },
   emits: ['select', 'new-group', 'toggle-collapse', 'settings'],
   data() {
@@ -152,6 +154,13 @@ export default {
     }
   },
   methods: {
+    unreadCount(chat) {
+      return (this.unreadCounts || {})[chat.id] || 0
+    },
+    unreadLabel(chat) {
+      const count = this.unreadCount(chat)
+      return count > 9 ? '9+' : count
+    },
     getInitials(name) {
       if (!name) return '#'
       const words = name.trim().split(/\s+/)

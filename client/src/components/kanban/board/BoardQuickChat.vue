@@ -8,72 +8,78 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
   <modal close :fullscreen="isMobile" @close="$emit('close')">
     <template #header>
       <h2 class="min-w-0 flex items-center gap-2 font-semibold text-sm md:text-base">
-        <i class="fa-solid fa-comment-dots text-primary text-xs"></i>
+        <!-- The avatar identifies who answers the chat: the profile that
+             assists managers (ProjectManager), same icon as the entry button -->
+        <div class="avatar shrink-0" v-if="assistantAvatar">
+          <div class="w-6 rounded-full bg-base-300">
+            <img :src="assistantAvatar" :alt="assistantName" />
+          </div>
+        </div>
+        <i v-else class="fa-solid fa-comment-dots text-primary text-xs"></i>
+
         <span class="shrink-0">Quick chat</span>
-        <span v-if="boardName" class="badge badge-xs badge-ghost gap-1 min-w-0">
+
+        <span
+          v-if="assistantName"
+          class="badge badge-xs badge-primary gap-1 min-w-0"
+          :title="`Assistant: ${assistantName}`"
+        >
+          <span class="truncate max-w-[9rem]">{{ assistantName }}</span>
+        </span>
+
+        <span
+          v-if="boardName"
+          class="badge badge-xs badge-ghost gap-1 min-w-0 hidden sm:inline-flex"
+        >
           <i class="fa-solid fa-table-columns text-[8px]"></i>
-          <span class="truncate max-w-[12rem]">{{ boardName }}</span>
+          <span class="truncate max-w-[10rem]">{{ boardName }}</span>
         </span>
       </h2>
     </template>
 
     <div class="p-1 flex flex-col gap-3">
       <!-- ── Project the chat is registered in ─────────────────────────────────
-           A chat always belongs to ONE project. When the board is scoped to a
-           single project it is used silently; when it spans several, the user
-           must choose one before the chat can be created. -->
-      <div v-if="needsProjectChoice" class="flex flex-col gap-1.5">
+           A chat always belongs to ONE project. The project is ALWAYS visible
+           and ALWAYS changeable: it is preselected when the board is scoped to
+           a single project, and it must be chosen when the board spans several
+           (there is no safe default between them). -->
+      <div class="flex flex-col gap-1.5">
         <div class="flex items-center justify-between gap-2">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/50">
             Project
           </span>
-          <span class="badge badge-xs badge-warning gap-1">
+
+          <span v-if="needsProjectChoice" class="badge badge-xs badge-warning gap-1">
             <i class="fa-solid fa-triangle-exclamation text-[8px]"></i> required
           </span>
+          <span v-else-if="scope.length > 1" class="badge badge-xs badge-ghost gap-1">
+            <i class="fa-solid fa-table-columns text-[8px]"></i>
+            {{ scope.length }} on this board
+          </span>
+          <span v-else class="badge badge-xs badge-ghost gap-1">
+            <i class="fa-solid fa-lock text-[8px]"></i> board project
+          </span>
         </div>
 
+        <!-- Same project tree selector used by the top bar: shows the project
+             in use and opens the hierarchy (parent / children / others) to
+             change it. -->
         <ProjectDetailt
-          :model-value="selectedProject"
+          :model-value="targetProject"
+          placeholder="Choose a project"
           @update:model-value="onProjectSelected"
-          @select="onProjectSelected"
         />
 
-        <p class="text-[11px] text-base-content/40 flex items-start gap-1">
-          <i class="fa-solid fa-circle-info text-[10px] mt-0.5 shrink-0"></i>
-          <span>
-            This board spans {{ scope.length }} projects. Choose where this chat is registered —
-            that project provides its profiles, files and AI model.
-          </span>
+        <p
+          class="text-[11px] flex items-start gap-1"
+          :class="needsProjectChoice ? 'text-warning' : 'text-base-content/40'"
+        >
+          <i
+            class="text-[10px] mt-0.5 shrink-0"
+            :class="needsProjectChoice ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-info'"
+          ></i>
+          <span>{{ projectHint }}</span>
         </p>
-      </div>
-
-      <div
-        v-else
-        class="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-base-200 border border-base-100"
-      >
-        <img
-          v-if="targetProject?.project_icon"
-          :src="targetProject.project_icon"
-          :alt="targetProject.project_name"
-          class="w-5 h-5 rounded-md shrink-0"
-        />
-        <i v-else class="fa-solid fa-folder text-primary text-xs shrink-0"></i>
-
-        <div class="min-w-0 flex-1 flex flex-col">
-          <span class="text-xs font-semibold truncate">
-            {{ targetProject?.project_name || 'No project' }}
-          </span>
-          <span class="text-[10px] text-base-content/40 truncate">
-            <template v-if="scope.length">
-              The board is scoped to this project — the chat is registered here
-            </template>
-            <template v-else>
-              No project on this board — using the active project
-            </template>
-          </span>
-        </div>
-
-        <i class="fa-solid fa-lock text-[10px] text-base-content/30 shrink-0" aria-hidden="true"></i>
       </div>
 
       <!-- ── Message ─────────────────────────────────────────────────────────── -->
@@ -104,7 +110,6 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
       <!-- ── Actions ─────────────────────────────────────────────────────────── -->
       <div class="flex items-center gap-2">
         <span
-          v-if="hint"
           class="mr-auto min-w-0 text-[11px] flex items-center gap-1"
           :class="needsProjectChoice ? 'text-warning' : 'text-base-content/40'"
         >
@@ -172,11 +177,12 @@ export default {
   emits: ['close', 'created'],
   data() {
     return {
+      // Project the user chose (null = no choice made yet)
       selectedProject: null,
+      // Profile that answers the chat (avatar in the header, preselected)
+      assistantProfile: null,
       profiles: [],
       selectedProfiles: [],
-      // Project whose profiles are loaded (avoids loading them twice)
-      profilesProjectId: null,
       model: null,
       attachments: [],
       cursorWord: {},
@@ -185,10 +191,14 @@ export default {
     }
   },
   created() {
+    // Profiles already fetched per project id (the assistant and the composer
+    // share them, so a project is never listed twice)
+    this.profilesCache = {}
     // A board scoped to a single project needs no decision: preselect it so the
     // chat can be created in one keystroke.
     this.selectedProject = this.scope.length === 1 ? this.scope[0] : null
     this.loadProfiles()
+    this.loadAssistantProfile()
   },
   computed: {
     isMobile() {
@@ -222,13 +232,31 @@ export default {
         .map(id => this.$storex.projects.allProjectsById[id])
         .filter(Boolean)
     },
-    // Several projects in the board: the user has to pick one before chatting
+    // Several projects in the board and none chosen yet: a decision is required
     needsProjectChoice() {
       return this.scope.length > 1 && !this.selectedProject
     },
     // Project the chat is finally registered in
     targetProject() {
-      return this.selectedProject || this.scope[0] || this.$project
+      if (this.selectedProject) return this.selectedProject
+      if (this.scope.length === 1) return this.scope[0]
+      // No project on the board: fall back to the active one (stated in the UI)
+      if (!this.scope.length) return this.$project || null
+      // Several projects, none chosen → nothing to register the chat in
+      return null
+    },
+    // Profile the chat talks to (its avatar is the assistant icon)
+    wantedAssistant() {
+      return (this.defaultProfiles || [])[0] || 'ProjectManager'
+    },
+    assistant() {
+      return this.assistantProfile || this.selectedProfiles[0] || null
+    },
+    assistantAvatar() {
+      return this.assistant?.avatar_url || this.assistant?.avatar || null
+    },
+    assistantName() {
+      return this.assistant?.name || this.wantedAssistant
     },
     aiModels() {
       return this.$storex.projects.ai?.models || []
@@ -238,11 +266,27 @@ export default {
       const column = (this.columns || []).find(col => !col.virtual)
       return column?.value || column?.title || null
     },
+    // Explains which project the chat goes to and how to change it
+    projectHint() {
+      if (this.needsProjectChoice) {
+        return `This board spans ${this.scope.length} projects — choose where this chat is registered. `
+          + 'That project provides its profiles, files and AI model.'
+      }
+      if (!this.targetProject?.project_id) {
+        return 'No project available — open a project first.'
+      }
+      if (!this.scope.length) {
+        return `No project on this board — using the active project (${this.targetProject.project_name}). `
+          + 'Change it above.'
+      }
+      return `Registered in ${this.targetProject.project_name} — its profiles, files and AI model. `
+        + 'Change it above.'
+    },
     hint() {
-      if (this.needsProjectChoice) return 'Choose the project this chat belongs to'
-      if (!this.targetProject?.project_id) return 'No project available — open a project first'
+      if (this.needsProjectChoice) return 'Choose the project to continue'
+      if (!this.targetProject?.project_id) return 'No project available'
       if (this.creating) return 'Creating the chat…'
-      return 'The chat is added to this board'
+      return 'Added to this board'
     },
     canSubmit() {
       return !this.creating && !this.needsProjectChoice && !!this.targetProject?.project_id
@@ -252,6 +296,7 @@ export default {
     // A different project brings different profiles (and its ProjectManager)
     targetProject() {
       this.loadProfiles()
+      this.loadAssistantProfile()
     }
   },
   methods: {
@@ -263,23 +308,40 @@ export default {
       if (!selected?.project_id) return
       this.selectedProject = selected
     },
-    async loadProfiles() {
-      const project = this.targetProject
-      if (!project?.$api) return
-      if (this.profilesProjectId === project.project_id) return
-      this.profilesProjectId = project.project_id
+    // Profiles of a project, fetched once and shared by the composer and the
+    // assistant avatar.
+    async profilesFor(project) {
+      const id = project?.project_id
+      if (!id) return []
+      if (this.profilesCache[id]) return this.profilesCache[id]
+      const api = project.$api || project.api
+      let list = []
       try {
-        const list = await project.$api.profiles.list()
-        this.profiles = (list || []).sort((a, b) => (a.name > b.name ? 1 : -1))
-        // Preselect the profiles that assist this kind of user
-        this.selectedProfiles = (this.defaultProfiles || [])
-          .map(name => this.profiles.find(profile => profile.name === name))
-          .filter(Boolean)
+        list = await api?.profiles?.list?.() || []
       } catch (error) {
         console.error('[BoardQuickChat] Could not load profiles:', error)
-        this.profiles = []
-        this.selectedProfiles = []
       }
+      this.profilesCache[id] = [...list].sort((a, b) => (a.name > b.name ? 1 : -1))
+      return this.profilesCache[id]
+    },
+    async loadProfiles() {
+      const project = this.targetProject
+      if (!project?.project_id) return
+      const list = await this.profilesFor(project)
+      // A slower response for a previous project must not overwrite the current
+      if (project.project_id !== this.targetProject?.project_id) return
+      this.profiles = list
+      // Preselect the profiles that assist this kind of user
+      this.selectedProfiles = (this.defaultProfiles || [])
+        .map(name => list.find(profile => profile.name === name))
+        .filter(Boolean)
+    },
+    // Avatar of the profile that answers: taken from the project the chat is
+    // registered in, or from the active project while no project is chosen.
+    async loadAssistantProfile() {
+      const project = this.targetProject || this.$project
+      const list = await this.profilesFor(project)
+      this.assistantProfile = list.find(profile => profile.name === this.wantedAssistant) || null
     },
     onProfilesSelected(profiles) {
       this.selectedProfiles = profiles || []
@@ -340,15 +402,15 @@ export default {
         this.$ui?.addNotification?.({ text: 'Write a message to start the chat', type: 'warning' })
         return
       }
-      if (!this.targetProject?.project_id) {
-        this.$ui?.addNotification?.({ text: 'No project selected for this chat', type: 'warning' })
-        return
-      }
       if (this.needsProjectChoice) {
         this.$ui?.addNotification?.({
           text: 'This board spans several projects — choose one for the chat',
           type: 'warning'
         })
+        return
+      }
+      if (!this.targetProject?.project_id) {
+        this.$ui?.addNotification?.({ text: 'No project selected for this chat', type: 'warning' })
         return
       }
       this.createChat({ message, run })

@@ -84,6 +84,14 @@ from .profile_tools import (
     PROFILE_UPDATE_TOOL_JSON,
     PROFILE_DELETE_TOOL_JSON,
 )
+from .profile_learning_tools import (
+    profile_learning,
+    PROFILE_LEARNING_TOOL_JSON,
+)
+from .profile_knowledge_tools import (
+    profile_knowledge_search,
+    PROFILE_KNOWLEDGE_SEARCH_TOOL_JSON,
+)
 from .team_tools import (
     team_management,
     team_context,
@@ -176,6 +184,8 @@ __all__ = [
     "create_profile",
     "update_profile",
     "delete_profile",
+    "profile_learning",
+    "profile_knowledge_search",
     "team_management",
     "team_context",
     "project_manager",
@@ -582,6 +592,18 @@ TOOLS = [
         "tool_call": delete_profile
     },
     {
+        "tool_json": PROFILE_LEARNING_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, session=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "learning", "knowledge", "memory", "administration"],
+        "tool_call": profile_learning
+    },
+    {
+        "tool_json": PROFILE_KNOWLEDGE_SEARCH_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["profiles", "knowledge", "search", "memory", "references"],
+        "tool_call": profile_knowledge_search
+    },
+    {
         "tool_json": TEAM_MANAGEMENT_TOOL_JSON,
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["teams", "team-management", "crud", "administration", "orchestration"],
@@ -959,7 +981,7 @@ TOOLS = [
                             "type": "string",
                             "description": (
                                 "Optional commit, branch or tag to restore the content from "
-                                "(`git restore --source`)."
+                                "(`git restore --source`)"
                             )
                         }
                     },

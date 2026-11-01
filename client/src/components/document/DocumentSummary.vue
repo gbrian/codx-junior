@@ -67,62 +67,61 @@ export default {
     headings() {
       const lines = (this.content || '').split('\n')
       const result = []
-      let insideCodeBlock = false
-      let codeBlockDepth = 0
-      let insideFileChange = false
+      // Counter of the block currently being skipped, shared with parseBlocks:
+      // only a closing fence of the block's own delimiter ends it, so a plain
+      // compare against '```' (which broke on trailing spaces, CRLF '\r',
+      // longer fences and ~~~ closers) is no longer needed.
+      let fenceTracker = null
 
-      for (const line of lines) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+
         // <file_change> envelope: the opening tag carries the file path, the
-        // body is verbatim and never contributes TOC entries
-        if (insideFileChange) {
-          if (parser.isFileChangeCloseTag(line)) insideFileChange = false
+        // body is verbatim (fences inside it are content) and never
+        // contributes TOC entries
+        if (!fenceTracker && parser.getFileChangeOpenTag(line)) {
+          const { block, endIndex } = parser.parseFileChangeBlock(lines, i)
+          if (block.filePath) {
+            result.push({
+              level: 2,
+              text: block.filePath,
+              anchor: this.codeAnchor(block.filePath),
+              type: 'code',
+              lang: block.type,
+              fileName: block.filePath.split('/').pop()
+            })
+          }
+          i = endIndex
           continue
         }
 
-        const fileChange = parser.getFileChangeOpenTag(line)
-        if (fileChange) {
-          const filePath = fileChange.path || fileChange.file || ''
-          if (filePath) {
+        const fence = parser.getFence(line)
+
+        // Inside a code block: skip content, only the matching closing fence
+        // ends it (nested fences are counted by the tracker)
+        if (fenceTracker) {
+          if (fence && parser.trackFence(fenceTracker, fence) === 'close') {
+            fenceTracker = null
+          }
+          continue
+        }
+
+        if (fence) {
+          // Code block with a file path — this is a TOC entry
+          const openMatch = line.match(/^ {0,3}```(\w+)\s+(.+)$/)
+          if (openMatch) {
+            const [, lang, filePath] = openMatch
             result.push({
               level: 2,
               text: filePath,
               anchor: this.codeAnchor(filePath),
               type: 'code',
-              lang: fileChange.language || 'text',
+              lang,
               fileName: filePath.split('/').pop()
             })
           }
-          insideFileChange = true
-          continue
-        }
-
-        const openMatch = line.match(/^```(\w+)\s+(.+)$/)
-        const closeMatch = line === '```'
-        const bareOpenMatch = line.match(/^```(\w+)?\s*$/)
-
-        // Track code fence nesting to know when we're inside a plain code block
-        if (!insideCodeBlock && openMatch) {
-          // Code block with a file path — this is a TOC entry
-          const [, lang, filePath] = openMatch
-          const fileName = filePath.split('/').pop()
-          const anchor = this.codeAnchor(filePath)
-          result.push({ level: 2, text: filePath, anchor, type: 'code', lang, fileName })
-          insideCodeBlock = true
-          codeBlockDepth = 1
-          continue
-        }
-
-        if (!insideCodeBlock && bareOpenMatch) {
-          // Code block without file path, skip content but track depth
-          insideCodeBlock = true
-          codeBlockDepth = 1
-          continue
-        }
-
-        if (insideCodeBlock) {
-          if (openMatch || bareOpenMatch) codeBlockDepth++
-          if (closeMatch) codeBlockDepth--
-          if (codeBlockDepth <= 0) insideCodeBlock = false
+          // Only a fence with an info string opens a block (parseBlocks rule)
+          if (fence.info) fenceTracker = parser.createFenceTracker(fence)
           continue
         }
 

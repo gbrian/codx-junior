@@ -66,6 +66,21 @@ CHAT_MODE_VIBE = "vibe"
 TASK_ITEM_SEARCH = "search"
 TASK_ITEM_ANALYSIS = "analysis"
 
+# Profile knowledge tools are granted PER RUN by the agent (it is the only
+# component that knows the user's permissions), so they are NEVER inherited
+# from the profile definition: a profile saved with them must not hand
+# `profile_learning` to every user of the project.
+PROFILE_MANAGED_TOOLS = {
+    "profile_learning",
+    "profile_knowledge",
+    "profile_knowledge_search",
+}
+
+# Internal AI request header used to declare the profiles taking part in the
+# turn. It is consumed by SmolAgent (which strips it before reaching the
+# provider) and is what makes the agent inject the profile knowledge tools.
+PROFILES_HEADER = "profiles"
+
 def _is_refine(mode) -> bool:
     return mode in [CHAT_MODE_TASK, CHAT_MODE_TUTORIAL] 
 
@@ -131,6 +146,14 @@ class ChatEngine:
     members are NOT composed into the system prompt and are NOT activated; they
     are appended as a ``### TEAM`` table (name + short description) right after
     the profile composition (see :meth:`_build_team_system_section`).
+
+    ADDED — profile knowledge tools: the profiles taking part in the turn are
+    declared in the internal ``profiles`` AI request header (see
+    :meth:`_build_ai_headers`). :class:`SmolAgent` consumes it (stripping it
+    before reaching the provider) and injects ``profile_knowledge_search`` for
+    every user plus ``profile_learning`` only for users allowed to teach the
+    profiles. Those tools are therefore NEVER inherited from the profile
+    definition (see :data:`PROFILE_MANAGED_TOOLS`).
 
     COST TRACKING: the AI call returns a typed :class:`AgentRunResult`. Its
     ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
@@ -439,6 +462,96 @@ class ChatEngine:
         return "\n".join(lines)
 
     # -------------------------------------------------------------------------
+    # Helper: strip profile-managed tools inherited from the definition (ADDED)
+    # -------------------------------------------------------------------------
+    def _strip_inherited_profile_tools(self, chat_tools: List[str]) -> List[str]:
+        """
+        Drop the profile knowledge tools inherited from the profile definitions.
+
+        ``profile_knowledge_search`` and ``profile_learning`` are granted PER RUN
+        by the agent (:class:`SmolAgent`), which is the only component that knows
+        whether the current user may teach the profiles. When they are unioned
+        here from ``Profile.tools``:
+
+        * a profile saved earlier with ``profile_learning`` would expose a
+          write-capable tool to users WITHOUT knowledge administration rights,
+        * the agent's permission gate would be bypassed.
+
+        Both tools keep working: the agent re-adds them per run from the
+        ``profiles`` request header.
+
+        :param chat_tools: Tool names collected from the active profiles.
+        :return: The tool names without the profile-managed ones.
+        """
+        inherited_profile_tools = [
+            tool_name for tool_name in chat_tools
+            if tool_name in PROFILE_MANAGED_TOOLS
+        ]
+        if not inherited_profile_tools:
+            return chat_tools
+
+        logger.info(
+            "Ignoring profile knowledge tools inherited from the profile "
+            "definition (granted per run by the agent): %s",
+            inherited_profile_tools,
+        )
+        return [
+            tool_name for tool_name in chat_tools
+            if tool_name not in PROFILE_MANAGED_TOOLS
+        ]
+
+    # -------------------------------------------------------------------------
+    # Helper: build the AI request headers (ADDED profiles header)
+    # -------------------------------------------------------------------------
+    def _build_ai_headers(
+        self,
+        chat: Chat,
+        chat_mode: str,
+        is_agent: bool,
+        is_vibe: bool,
+        query_mentions: QueryMentions,
+        chat_tools: List[str],
+        chat_profile_names: List[str]
+    ) -> Dict[str, str]:
+        """
+        Build the HTTP-style headers forwarded to the AI provider.
+
+        Besides the analytics ``tags``, the headers declare the profiles taking
+        part in the turn through the internal ``profiles`` entry:
+
+        * it is CONSUMED by :class:`SmolAgent`, which strips it before reaching
+          the provider (it never leaks into the request),
+        * it is what makes the agent inject the profile knowledge tools:
+          ``profile_knowledge_search`` for every user and ``profile_learning``
+          only for users allowed to teach the profiles (project admin, project
+          knowledge admin or codx-junior admin).
+
+        Without it the agent receives no profile list and injects no profile
+        tool at all, so profiles can neither recall nor store what they learn.
+
+        :param chat: The chat being processed (for tag context).
+        :param chat_mode: Resolved chat mode.
+        :param is_agent: Whether the turn runs in agent mode.
+        :param is_vibe: Whether the turn runs in vibe mode.
+        :param query_mentions: Resolved mentions (profile names go into the tags).
+        :param chat_tools: Tool names available to the model.
+        :param chat_profile_names: Profiles taking part in the turn.
+        :return: Header dict for the AI request.
+        """
+        tags = [f"{chat.mode}"] + [p.name for p in query_mentions.profiles]
+        if is_agent:
+            tags.append("agent")
+        if is_vibe:
+            tags.append(CHAT_MODE_VIBE)
+
+        headers: Dict[str, str] = {
+            "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
+        }
+        if chat_profile_names:
+            headers[PROFILES_HEADER] = ",".join(chat_profile_names)
+        return headers
+
+    # -------------------------------------------------------------------------
     # Helper: resolve profiles, model and tools
     # -------------------------------------------------------------------------
     def _resolve_profiles_and_model(
@@ -463,6 +576,11 @@ class ChatEngine:
         resolved by :meth:`ProfileManager.get_team_profiles`. Profiles already
         active in the turn are not offered again.
 
+        CHANGED — profile tools: the profile knowledge tools are stripped from
+        the collected tools (see :meth:`_strip_inherited_profile_tools`) because
+        they are granted PER RUN by the agent, which is the only component that
+        knows whether the user may teach the profiles.
+
         Profiles are sorted by name and their content is formatted to be passed
         as part of the AI system prompt, including the current date/time.
 
@@ -474,7 +592,8 @@ class ChatEngine:
             C --> D[Build system prompt content]
             D --> D1[Append TEAM table after the composition]
             D1 --> E[Collect tools from all profiles]
-            E --> F{Profile has model?}
+            E --> E1[Strip agent-managed profile tools]
+            E1 --> F{Profile has model?}
             F -->|Yes| G[Set chat_model from profile]
             F -->|No| H[Keep existing model]
             B -->|No| I{Any chat_files?}
@@ -539,7 +658,13 @@ class ChatEngine:
                 chat_tools = chat_tools + profile.tools
                 logger.info("Profile '%s (%s)' tools: '%s'", profile.name, profile.project_id, profile.tools)
             chat_tools = list(set(chat_tools))
-            
+
+            # Profile knowledge tools are granted PER RUN by the agent, which is
+            # the only component that knows whether the user may teach the
+            # profile. Anything inherited from the profile definition is dropped,
+            # so a profile saved with `profile_learning` cannot offer the write
+            # tool to users without knowledge administration rights.
+            chat_tools = self._strip_inherited_profile_tools(chat_tools)
 
             if not chat_model:
                 profile_models = [p for p in sorted_profiles if p.llm_model]
@@ -1259,6 +1384,12 @@ class ChatEngine:
         ADDED: vision_content (images, PDFs) can now be passed and will be
         merged into the final user message for models that support vision APIs.
 
+        ADDED — profile tools scope: the internal ``profiles`` header (which
+        makes the agent inject the profile knowledge tools) is forwarded ONLY
+        for the main chat request. Auxiliary requests of the same turn (chat
+        summary, description, auto-init) call ``ai_chat`` with ``tags`` and get
+        the header removed, so they never receive those tools.
+
         FIX Issue 3: The ``is_thinking`` / ``think_content`` detection block
         has been removed. ``message_parts`` is always a single-element list so
         ``is_thinking`` was always ``False`` and ``think_content`` always
@@ -1321,7 +1452,16 @@ class ChatEngine:
                 messages = []
             headers = ai_headers
             if tags:
-                headers = {**ai_headers, "tags": ai_headers["tags"] + "," + tags}
+                # Auxiliary request (summary, description, auto-init): it does
+                # NOT belong to the profile knowledge flow, so the internal
+                # `profiles` header is dropped and the agent injects no profile
+                # tool. The header stays untouched in `ai_headers`, so the main
+                # request of the turn keeps it.
+                headers = {
+                    key: value for key, value in ai_headers.items()
+                    if key.lower() != PROFILES_HEADER
+                }
+                headers["tags"] = ai_headers["tags"] + "," + tags
             return await ai.a_chat_run(
                 messages=messages,
                 prompt=prompt,
@@ -1952,6 +2092,14 @@ class ChatEngine:
         profile composition (see :meth:`_build_team_system_section`) and are
         reported as a chat event.
 
+        ADDED — profile knowledge tools: the profiles of the turn are declared
+        in the internal ``profiles`` AI request header (see
+        :meth:`_build_ai_headers`). :class:`SmolAgent` consumes it and injects
+        ``profile_knowledge_search`` for every user plus ``profile_learning``
+        only for users with knowledge administration rights (codx-junior admin,
+        project admin or project knowledge admin), which is what allows a
+        profile to learn from authorized conversations.
+
         COST: the AI call returns a typed :class:`AgentRunResult`. Its cost is
         registered on the response message so ``ChatManager`` accumulates it
         into ``Chat.cost`` (compared against ``Chat.estimation_cost`` to stop
@@ -1990,7 +2138,8 @@ class ChatEngine:
             N --> O
             O --> P[Load chat files - per message project_id]
             P --> Q[Prepare vision content]
-            Q --> R[AI Chat - AgentRunResult]
+            Q --> Q1[Headers: tags + profiles]
+            Q1 --> R[AI Chat - AgentRunResult]
             R -->|cost| R1[Register cost + cost_info on response_message]
             R -->|stream flush| R4[Throttled persist of partial content]
             R -->|hidden reasoning| R5[persist_message - immediate]
@@ -2463,9 +2612,9 @@ class ChatEngine:
             # 12. Build message history from prior turns (FIXED)
             #
             #     Now includes parent chat messages if ignore_parent_knowledge
-            #     is False. Parent content is restricted to visible (not hidden)
-            #     messages flagged as ``is_answer`` and is built from each
-            #     message's content, files and attachments.
+            #     is False. Parent content is built from EVERY visible (not
+            #     hidden) message — the ``is_answer`` flag is no longer required
+            #     — using each message's content, files and attachments.
             # ------------------------------------------------------------------
             messages = self.prompt_builder.build_message_history(
                 chat=chat,
@@ -2527,15 +2676,31 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 15. Build AI request headers and tags
+            #
+            #     CHANGED: the profiles taking part in the turn are declared in
+            #     the internal `profiles` header. It is consumed by SmolAgent
+            #     (never forwarded to the provider) and is what makes the agent
+            #     inject the profile knowledge tools: `profile_knowledge_search`
+            #     for every user and `profile_learning` only for users allowed to
+            #     teach the profiles.
             # ------------------------------------------------------------------
-            tags = [f"{chat.mode}"] + [p.name for p in query_mentions.profiles]
-            if is_agent:
-                tags.append("agent")
-            if is_vibe:
-                tags.append(CHAT_MODE_VIBE)
-            ai_headers = {
-                "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
-            }
+            ai_headers = self._build_ai_headers(
+                chat=chat,
+                chat_mode=chat_mode,
+                is_agent=is_agent,
+                is_vibe=is_vibe,
+                query_mentions=query_mentions,
+                chat_tools=chat_tools,
+                chat_profile_names=chat_profile_names,
+            )
+            if chat_profile_names:
+                logger.info(
+                    "Declaring %d profile(s) in the AI request header '%s': %s "
+                    "(the agent injects the profile knowledge tools per run)",
+                    len(chat_profile_names),
+                    PROFILES_HEADER,
+                    chat_profile_names,
+                )
 
             # ------------------------------------------------------------------
             # 16. Define streaming event emitter
@@ -2995,10 +3160,11 @@ class ChatEngine:
         """
         Traverse all parent chats and return concatenated parent content.
 
-        Only messages that are VISIBLE (``hide == False``) AND flagged as
-        ``is_answer`` are collected; every other message is ignored. Each
-        collected message is rendered from its ``content``, ``files`` and
-        ``attachments`` via :meth:`ChatPromptBuilder.format_parent_message`.
+        Every VISIBLE message (``hide == False``) of the ancestor chats is
+        collected — the ``is_answer`` flag is no longer required (see
+        :meth:`ChatPromptBuilder.is_visible_parent_message`). Each collected
+        message is rendered from its ``content``, ``files`` and ``attachments``
+        via :meth:`ChatPromptBuilder.format_parent_message`.
 
         Respects the ignore_parent_knowledge flag at each level during traversal.
 
@@ -3031,12 +3197,12 @@ class ChatEngine:
             messages = [
                 self.prompt_builder.format_parent_message(message)
                 for message in parent_chat.messages
-                if self.prompt_builder.is_answer_parent_message(message)
+                if self.prompt_builder.is_visible_parent_message(message)
             ]
             if messages:
                 parent_content.append(concat_content(messages))
                 logger.info(
-                    "Collected %d answer messages from parent chat '%s'",
+                    "Collected %d visible messages from parent chat '%s'",
                     len(messages),
                     parent_chat.doc_id,
                 )

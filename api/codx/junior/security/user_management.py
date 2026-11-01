@@ -11,11 +11,20 @@ from codx.junior.global_settings import read_global_settings, write_global_setti
 from codx.junior.model.user import (
   CodxUser,
   CodxUserLogin,
-  ProjectPermission
+  ProjectPermission,
+  PROJECT_PERMISSION_ADMIN,
+  PROJECT_PERMISSION_KNOWLEDGE_ADMIN
 )
 from codx.junior.settings import CODXJuniorSettings
 
 logger = logging.getLogger(__name__)
+
+# Project permissions that allow changing what the profiles learn in the
+# project (rules written to the profile enrichment and knowledge files).
+PROFILE_KNOWLEDGE_PERMISSIONS = {
+    PROJECT_PERMISSION_ADMIN,
+    PROJECT_PERMISSION_KNOWLEDGE_ADMIN,
+}
 
 # ---------------------------------------------------------------------------
 # GitHub Admin Helper
@@ -202,6 +211,38 @@ class UserSecurityManager():
                     return p.permissions
         return ''
 
+    def can_manage_profile_knowledge(self, user: CodxUser, settings: CODXJuniorSettings) -> bool:
+        """
+        Return True when *user* may change what the profiles learn in *settings*'
+        project.
+
+        Allowed, in order:
+          1. codx-junior admins (``user.role == "admin"``),
+          2. project admins (``permissions == "admin"``),
+          3. project knowledge admins (``permissions == "knowledge_admin"``).
+
+        The knowledge admin role exists so a project can delegate the custody of
+        what the profiles learn (rules and knowledge files) without handing over
+        full project administration.
+
+        Args:
+            user: User performing the operation (may be None).
+            settings: Project the operation applies to.
+
+        Returns:
+            True when the user may write profile learning resources.
+
+        Example:
+            >>> UserSecurityManager().can_manage_profile_knowledge(user, settings)
+            True
+        """
+        if not user or not getattr(user, "username", ""):
+            return False
+        if getattr(user, "role", "") == 'admin':
+            return True
+        return self.get_user_project_access(user=user, settings=settings) \
+            in PROFILE_KNOWLEDGE_PERMISSIONS
+
     def add_user_to_project(self, user: CodxUser, project_id: str, permissions: str):
         global_user = next((u for u in self.global_settings.users if u.username == user.username))
         project = next((p for p in global_user.projects if p.project_id == project_id), None)
@@ -257,5 +298,5 @@ def get_authenticated_user_from_token(token: str) -> CodxUser:
     if token:
         user = user_security_manager.login_user(token=token)
     user_name = user.username if user else ""
-    logger.info(f"Authenticating request: WS token {token}: {user_name}")
+    logger.info(f"WebSocket token {token}: {user_name}")
     return user
