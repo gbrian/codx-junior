@@ -7,7 +7,7 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
 
 <template>
   <!-- Mobile Overlay & Sidebar Container -->
-  <div v-if="isMobile" class="pointer-events-none">
+  <div v-if="isMobile" class="group pointer-events-none">
     <!-- Mobile Overlay -->
     <div
       v-if="!isCollapsed"
@@ -121,13 +121,12 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
           <!-- Collapsed: logo + chevron indicator inviting the user to expand -->
           <div v-else class="flex justify-center w-full">
             <button
-              class="click group w-10 flex flex-col items-center gap-1 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+              class="click w-10 flex flex-col items-center gap-1 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               title="Expand sidebar"
               aria-label="Expand sidebar"
               @click="toggleCollapse"
             >
               <img class="w-6 h-6" src="/only_icon.png" alt="codx-junior" />
-              <i class="fa-solid fa-chevron-right text-[10px] text-base-content/40 group-hover:text-primary transition-colors"></i>
             </button>
           </div>
 

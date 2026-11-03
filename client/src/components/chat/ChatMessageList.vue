@@ -113,7 +113,14 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
       <div class="flex-1 flex overflow-hidden min-h-0">
 
         <!-- Scrollable Messages Container -->
-        <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref="scrollContainer" @scroll="onScroll">
+        <!-- Activating this area is a "reading" intent: the parent collapses the
+             composer to a single pill so the messages get the whole panel height. -->
+        <div
+          class="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
+          ref="scrollContainer"
+          @scroll="onScroll"
+          @click="onMessagesClick"
+        >
           <div class="max-w-[860px] mx-auto flex flex-col px-3 py-3 @lg/panel:px-4 @lg/panel:py-6">
 
             <!-- ── Message Blocks ── -->
@@ -296,6 +303,7 @@ export default {
     'search-files',
     'preview-file',
     'update-attachment',
+    'messages-activated',
   ],
   data() {
     return {
@@ -463,6 +471,12 @@ export default {
     // (so new data keeps coming into view); scrolling up un-pins.
     onScroll() {
       this.autoScroll = this.isAtBottom()
+    },
+    // Clicking/activating the conversation means the user is reading: let the
+    // parent shrink the composer to its pill. Clicks inside the composer are not
+    // part of this container (see the footer below), so they never get here.
+    onMessagesClick() {
+      this.$emit('messages-activated')
     },
     // Scroll to the bottom of the conversation. Automatic follow uses instant
     // scrolling so intermediate scroll events can't accidentally un-pin the view.

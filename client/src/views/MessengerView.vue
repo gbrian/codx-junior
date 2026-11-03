@@ -11,12 +11,12 @@ import { countChannelUnread } from '@/utils/chatUnread'
     :class="isMobile ? 'flex-col' : 'flex-row'"
   >
 
-    <!-- ══ CHANNEL SIDEBAR ══ -->
+    <!-- ══ CHANNEL SIDEBAR (left) ══ -->
 
     <!-- Desktop sidebar -->
     <aside
       v-if="!isMobile"
-      class="shrink-0 flex flex-col h-full bg-base-300 border-r border-base-content/5 transition-all duration-200 overflow-hidden"
+      class="shrink-0 flex flex-col h-full bg-base-200 border-r border-base-content/10 transition-all duration-200 overflow-hidden"
       :style="sidebarCollapsed ? 'width:64px' : 'width:288px'"
     >
       <MessengerChannelList
@@ -37,11 +37,14 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <transition name="slide-left">
       <div
         v-if="isMobile && showMobileChannels"
-        class="fixed inset-0 z-40 flex flex-col bg-base-300"
+        class="fixed inset-0 z-40 flex flex-col bg-base-200"
       >
-        <div class="flex items-center justify-between px-4 py-4 border-b border-base-content/5 shrink-0">
-          <span class="text-sm font-semibold text-base-content/80">Channels</span>
-          <button class="p-2 text-base-content/40 hover:text-base-content/70" @click="showMobileChannels = false">
+        <div class="flex items-center justify-between px-4 py-4 border-b border-base-content/10 shrink-0">
+          <span class="text-sm font-semibold text-base-content">Channels</span>
+          <button
+            class="w-9 h-9 flex items-center justify-center rounded-lg text-base-content/50 hover:text-base-content hover:bg-base-content/5 transition-colors"
+            @click="showMobileChannels = false"
+          >
             <i class="fas fa-xmark"></i>
           </button>
         </div>
@@ -63,24 +66,13 @@ import { countChannelUnread } from '@/utils/chatUnread'
     </transition>
 
     <!-- ══ MAIN AREA ══ -->
-    <div class="relative flex-1 min-w-0 flex flex-col h-full overflow-hidden" :class="isMobile ? 'pb-16' : ''">
-
-      <!-- Desktop: members toggle -->
-      <button
-        v-if="!isMobile && activeChat"
-        class="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-lg bg-base-300/80 border border-base-content/10 text-base-content/50 hover:text-base-content/80 transition-colors"
-        :class="showGroupInfo ? 'text-primary border-primary/40' : ''"
-        title="Channel members"
-        @click="showGroupInfo = !showGroupInfo"
-      >
-        <i class="fas fa-users text-xs"></i>
-      </button>
+    <div class="relative flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-base-100" :class="isMobile ? 'pb-16' : ''">
 
       <!-- ── Empty / home state ── -->
       <transition name="fade">
         <div
           v-if="!activeChat"
-          class="flex-1 flex flex-col items-center justify-center gap-6 text-base-content/20"
+          class="flex-1 flex flex-col items-center justify-center gap-6 text-base-content/50"
         >
           <div
             class="absolute inset-0 pointer-events-none"
@@ -88,8 +80,8 @@ import { countChannelUnread } from '@/utils/chatUnread'
           ></div>
           <i class="fas fa-hashtag text-5xl relative z-10"></i>
           <div class="text-center relative z-10">
-            <p class="text-base text-base-content/30 font-medium">Select a channel to start chatting</p>
-            <p class="text-sm text-base-content/15 mt-1">or create a new group channel</p>
+            <p class="text-base text-base-content/70 font-medium">Select a channel to start chatting</p>
+            <p class="text-sm text-base-content/50 mt-1">or create a new group channel</p>
           </div>
           <button
             class="btn btn-sm bg-primary/20 hover:bg-primary/30 text-primary border-primary/30 border relative z-10"
@@ -100,13 +92,31 @@ import { countChannelUnread } from '@/utils/chatUnread'
         </div>
       </transition>
 
-      <!-- ── Active chat with ChatView ── -->
+      <!-- ── Active chat with ChatView ──
+           The channel list is on the left (above), the chat sidebar — now on the
+           RIGHT via ChatView's `flex-row-reverse` — acts as the channel action
+           rail. Its `sidebar-actions` slot hosts the members (group info)
+           toggle, which used to float over the chat header. -->
       <transition name="fade">
         <ChatView
           v-if="activeChat"
           :chat="activeChat"
           class="flex-1 w-full h-full"
-        />
+        >
+          <template #sidebar-actions>
+            <button
+              class="flex-1 flex items-center justify-center h-9 rounded-lg transition-colors duration-150 focus:ring-2 focus:ring-primary/50 focus:outline-none"
+              :class="showGroupInfo
+                ? 'text-primary bg-primary/15'
+                : 'text-base-content/60 hover:text-base-content/90 hover:bg-base-200'"
+              :title="showGroupInfo ? 'Hide channel members' : 'Channel members'"
+              :aria-pressed="showGroupInfo ? 'true' : 'false'"
+              @click="showGroupInfo = !showGroupInfo"
+            >
+              <i class="fas fa-users text-sm"></i>
+            </button>
+          </template>
+        </ChatView>
       </transition>
     </div>
 
@@ -126,7 +136,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <transition name="slide-right">
       <div
         v-if="isMobile && activeChat && showGroupInfo"
-        class="fixed inset-0 z-50 bg-base-300"
+        class="fixed inset-0 z-50 bg-base-200"
       >
         <MessengerGroupInfo
           :chat="activeChat"
@@ -142,11 +152,11 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <!-- ══ MOBILE BOTTOM NAV ══ -->
     <nav
       v-if="isMobile"
-      class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-base-300 border-t border-base-content/10 px-2 py-2"
+      class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-base-200 border-t border-base-content/10 px-2 py-2"
     >
       <button
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showMobileChannels ? 'text-primary' : 'text-base-content/50 hover:text-base-content/80'"
+        :class="showMobileChannels ? 'text-primary' : 'text-base-content/60 hover:text-base-content'"
         @click="showMobileChannels = !showMobileChannels"
       >
         <i class="fas fa-hashtag text-lg"></i>
@@ -154,7 +164,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover:text-base-content/80 transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/60 hover:text-base-content transition-colors"
         @click="showNewGroupModal = true"
       >
         <i class="fas fa-plus text-lg"></i>
@@ -164,7 +174,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
       <button
         v-if="activeChat"
         class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
-        :class="showGroupInfo ? 'text-primary' : 'text-base-content/50 hover:text-base-content/80'"
+        :class="showGroupInfo ? 'text-primary' : 'text-base-content/60 hover:text-base-content'"
         @click="showGroupInfo = !showGroupInfo"
       >
         <i class="fas fa-users text-lg"></i>
@@ -172,7 +182,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/50 hover:text-base-content/80 transition-colors"
+        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/60 hover:text-base-content transition-colors"
         @click="$emit('account-settings')"
       >
         <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
@@ -186,7 +196,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <transition name="fade">
       <div
         v-if="showNewGroupModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-base-100/60 backdrop-blur-sm px-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
         @click.self="showNewGroupModal = false"
       >
         <div class="bg-base-200 border border-base-content/10 rounded-2xl w-full max-w-md p-6 flex flex-col gap-5 shadow-2xl">
@@ -197,36 +207,44 @@ import { countChannelUnread } from '@/utils/chatUnread'
               <i class="fas fa-hashtag text-primary"></i>
             </div>
             <div>
-              <h3 class="text-base font-semibold text-base-content/90">Create Channel</h3>
-              <p class="text-xs text-base-content/30">Group chat for your team</p>
+              <h3 class="text-base font-semibold text-base-content">Create Channel</h3>
+              <p class="text-xs text-base-content/60">Group chat for your team</p>
             </div>
           </div>
 
           <!-- Channel name -->
           <div class="flex flex-col gap-2">
-            <label class="text-xs text-base-content/40 uppercase tracking-wider font-semibold">Channel Name</label>
+            <label
+              class="text-xs text-base-content/60 uppercase tracking-wider font-semibold"
+              for="new-channel-name"
+            >Channel Name</label>
             <input
+              id="new-channel-name"
               v-model="newGroupName"
               ref="newGroupNameInput"
               type="text"
               placeholder="e.g. design, backend, general"
-              class="bg-white/5 border border-base-content/10 rounded-xl px-4 py-3 text-sm text-base-content/80 placeholder:text-base-content/20 outline-none focus:border-primary/50 transition-colors"
+              class="bg-base-content/5 border border-base-content/15 rounded-xl px-4 py-3 text-sm text-base-content placeholder:text-base-content/40 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/30 transition-colors"
               @keydown.enter="createGroup"
             />
           </div>
 
           <!-- Add members (profiles) -->
           <div class="flex flex-col gap-2">
-            <label class="text-xs text-base-content/40 uppercase tracking-wider font-semibold">
+            <label
+              class="text-xs text-base-content/60 uppercase tracking-wider font-semibold"
+              for="new-channel-member-search"
+            >
               Add Members (optional)
             </label>
-            <div class="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-base-content/10">
-              <i class="fas fa-magnifying-glass text-base-content/25 text-xs shrink-0"></i>
+            <div class="flex items-center gap-2 bg-base-content/5 rounded-xl px-3 py-2 border border-base-content/15">
+              <i class="fas fa-magnifying-glass text-base-content/50 text-xs shrink-0"></i>
               <input
+                id="new-channel-member-search"
                 v-model="newGroupMemberSearch"
                 type="text"
                 placeholder="Search profiles..."
-                class="bg-transparent text-xs text-base-content/70 placeholder:text-base-content/25 outline-none flex-1"
+                class="bg-transparent text-xs text-base-content placeholder:text-base-content/40 outline-none flex-1"
               />
             </div>
 
@@ -238,7 +256,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
                 class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium"
               >
                 <span>{{ name }}</span>
-                <button class="hover:text-base-content/80 transition-colors" @click="newGroupMembers = newGroupMembers.filter(n => n !== name)">
+                <button class="hover:text-base-content transition-colors" @click="newGroupMembers = newGroupMembers.filter(n => n !== name)">
                   <i class="fas fa-xmark text-[10px]"></i>
                 </button>
               </div>
@@ -249,21 +267,21 @@ import { countChannelUnread } from '@/utils/chatUnread'
               <button
                 v-for="profile in filteredNewGroupProfiles"
                 :key="profile.name"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl text-left w-full hover:bg-white/6 transition-colors"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-left w-full hover:bg-base-content/5 transition-colors"
                 @click="toggleNewGroupMember(profile.name)"
               >
                 <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                  :class="newGroupMembers.includes(profile.name) ? 'bg-primary/30' : 'bg-white/8'">
-                  <i v-if="profile.icon" :class="[profile.icon, newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/40']"
+                  :class="newGroupMembers.includes(profile.name) ? 'bg-primary/30' : 'bg-base-content/10'">
+                  <i v-if="profile.icon" :class="[profile.icon, newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/60']"
                     class="text-xs"></i>
                   <span v-else
-                    :class="newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/40'"
+                    :class="newGroupMembers.includes(profile.name) ? 'text-primary' : 'text-base-content/60'"
                     class="text-xs font-bold">{{ profile.name?.charAt(0)?.toUpperCase() }}</span>
                 </div>
-                <span class="text-xs text-base-content/60 flex-1 truncate">{{ profile.name }}</span>
+                <span class="text-xs text-base-content/80 flex-1 truncate">{{ profile.name }}</span>
                 <i v-if="newGroupMembers.includes(profile.name)" class="fas fa-check text-primary text-xs"></i>
               </button>
-              <div v-if="filteredNewGroupProfiles.length === 0" class="text-center py-3 text-base-content/20 text-xs">
+              <div v-if="filteredNewGroupProfiles.length === 0" class="text-center py-3 text-base-content/50 text-xs">
                 {{ newGroupMemberSearch ? 'No matches' : 'No profiles available' }}
               </div>
             </div>
@@ -272,7 +290,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
           <!-- Actions -->
           <div class="flex gap-3">
             <button
-              class="flex-1 btn btn-sm bg-white/5 hover:bg-white/10 text-base-content/50 border-base-content/10 border"
+              class="flex-1 btn btn-sm bg-base-content/5 hover:bg-base-content/10 text-base-content/80 border-base-content/15 border"
               @click="showNewGroupModal = false"
             >
               Cancel

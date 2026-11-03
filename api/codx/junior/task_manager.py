@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # Default destination, matching ChatManager defaults.
 DEFAULT_BOARD = "kanban"
 DEFAULT_COLUMN = "tasks"
-DEFAULT_MODE = "task"
+DEFAULT_MODE = "chat"
 
 
 def to_list(value: Any) -> List[str]:

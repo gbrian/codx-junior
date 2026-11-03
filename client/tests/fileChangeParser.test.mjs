@@ -318,6 +318,146 @@ test('consecutive envelopes stay separate blocks', () => {
   assert.equal(extracted[1].content, 'b body')
 })
 
+// 15. Prose glued before the opening tag used to hide the envelope from the
+//     anchored regex: the tag leaked into the markdown output.
+test('prose glued before the opening tag is moved out of the block', () => {
+  const content = [
+    'Here is the file: <file_change path="a.md" language="js" change_type="update" encoding="text">',
+    'const a = 1',
+    '<file_change/>'
+  ].join('\n')
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[0].isFileBlock, undefined, 'the prose is plain markdown')
+  assert.match(blocks[0].content, /Here is the file:/)
+  assert.equal(blocks[1].isFileBlock, true)
+  assert.equal(blocks[1].filePath, 'a.md')
+  assert.equal(blocks[1].content, 'const a = 1')
+
+  const extracted = extractCodeBlocks(content)
+  assert.equal(extracted.length, 1)
+  assert.equal(extracted[0].content, 'const a = 1')
+})
+
+// 16. Text glued after the closing marker used to keep the block open and
+//     swallow the rest of the message.
+test('text glued after the closing marker becomes its own block', () => {
+  const content = [
+    '<file_change path="a.md" language="js" change_type="update" encoding="text">',
+    'body',
+    '<file_change/> Done with this file.'
+  ].join('\n')
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[0].isFileBlock, true)
+  assert.equal(blocks[0].content, 'body')
+  assert.equal(blocks[0].finished, true)
+  assert.match(blocks[1].content, /Done with this file\./)
+})
+
+// 17. An inline-code mention documents the syntax: it is never promoted.
+test('inline code mentions of the tag are not promoted', () => {
+  const content = 'Use `<file_change path="a.md" language="js" change_type="update" encoding="text">` to open a file block.'
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].isFileBlock, undefined)
+  assert.equal(extractCodeBlocks(content).length, 0)
+})
+
+// 18. A tag indented by 4+ spaces is an indented code block example.
+test('deeply indented glued tags are not promoted', () => {
+  const content = [
+    '    <file_change path="a.md" language="js" change_type="update" encoding="text">',
+    '    body',
+    '    <file_change/>'
+  ].join('\n')
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].isFileBlock, undefined)
+  assert.equal(extractCodeBlocks(content).length, 0)
+})
+
+// 19. Two full envelopes on a single line stay two separate blocks.
+test('two envelopes on a single line stay separate blocks', () => {
+  const content = '<file_change path="a.md" language="markdown" change_type="update" encoding="text">a body<file_change/><file_change path="b.md" language="markdown" change_type="new" encoding="text">b body<file_change/>'
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[0].filePath, 'a.md')
+  assert.equal(blocks[0].content, 'a body')
+  assert.equal(blocks[1].filePath, 'b.md')
+  assert.equal(blocks[1].content, 'b body')
+
+  const extracted = extractCodeBlocks(content)
+  assert.equal(extracted.length, 2)
+  assert.equal(extracted[0].content, 'a body')
+  assert.equal(extracted[1].content, 'b body')
+})
+
+// 20. Normalization runs again on already normalized content (parseBlocks can
+//     receive a chapter that was normalized by parseChapters).
+test('normalization is idempotent', () => {
+  const raw = 'text <file_change path="a.md" language="markdown" change_type="new" encoding="text">body<file_change/> tail'
+  const once = parser.normalizeFileChangeTags(raw)
+  const twice = parser.normalizeFileChangeTags(once)
+  assert.equal(twice, once)
+  assert.equal(parser.normalizeFileChangeTags(twice), twice)
+})
+
+// 21. The body may start on the same line as the opening tag: the content is
+//     exactly what sits between the markers, without stray newlines.
+test('body may start on the opening tag line', () => {
+  const content = '<file_change path="a.md" language="js" change_type="update" encoding="text">const a = 1<file_change/>'
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].filePath, 'a.md')
+  assert.equal(blocks[0].content, 'const a = 1')
+
+  const { block } = parser.parseFileChangeBlock(parser.normalizeFileChangeTags(content).split('\n'), 0)
+  assert.equal(block.content, 'const a = 1')
+})
+
+// 22. Content without tags (or with well placed tags) is returned untouched,
+//     CRLF included: file line endings are never rewritten.
+test('normalization leaves tag-free and CRLF content untouched', () => {
+  const plain = 'para one\r\n\r\npara two\r\n'
+  assert.equal(parser.normalizeFileChangeTags(plain), plain)
+
+  const fenced = ['```js src/a.js', 'const a = 1', '```'].join('\r\n') + '\r\n'
+  assert.equal(parser.normalizeFileChangeTags(fenced), fenced)
+
+  const envelope = [
+    '<file_change path="a.md" language="js" change_type="update" encoding="text">',
+    'const a = 1',
+    '<file_change/>',
+    ''
+  ].join('\r\n')
+  assert.equal(parser.normalizeFileChangeTags(envelope), envelope)
+})
+
+// 23. A fenced example in prose documents the syntax: its tags stay verbatim.
+test('tags inside a fenced example in prose are not promoted', () => {
+  const content = [
+    'Example:',
+    '```xml',
+    '<file_change path="a.md" language="markdown" change_type="new" encoding="text">',
+    'body',
+    '<file_change/>',
+    '```'
+  ].join('\n')
+
+  assert.equal(parser.normalizeFileChangeTags(content), content)
+
+  const blocks = parser.parseBlocks(content)
+  assert.equal(blocks.filter((block) => block.isFileBlock).length, 0)
+  assert.equal(extractCodeBlocks(content).length, 0)
+})
+
 if (failed) {
   console.error(`\n${failed} test(s) failed`)
   process.exit(1)

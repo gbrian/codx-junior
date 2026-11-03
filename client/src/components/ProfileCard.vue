@@ -1,5 +1,6 @@
 <script setup>
 import ChatIcon from './chat/ChatIcon.vue'
+import { profileKnowledgeInfo } from '@/utils/profileKnowledge'
 </script>
 
 <template>
@@ -23,6 +24,16 @@ import ChatIcon from './chat/ChatIcon.vue'
       data-tip="Guardrails enabled"
     >
       <i class="fa-solid fa-shield-halved text-info text-sm"></i>
+    </div>
+
+    <!-- Extra knowledge indicator: this profile learned something for THIS
+         project (rules and/or knowledge files). -->
+    <div
+      v-if="knowledge.hasExtraKnowledge"
+      class="absolute top-4 left-3 z-20 tooltip tooltip-right"
+      :data-tip="knowledge.tooltip"
+    >
+      <i class="fa-solid fa-book-bookmark text-warning text-sm"></i>
     </div>
 
     <!-- Background avatar blur -->
@@ -60,6 +71,14 @@ import ChatIcon from './chat/ChatIcon.vue'
       <!-- LLM model pill -->
       <span v-if="profile.llm_model" class="badge badge-xs badge-outline badge-warning font-mono flex-shrink-0">
         <i class="fa-solid fa-brain mr-1"></i>{{ profile.llm_model }}
+      </span>
+
+      <!-- Extra knowledge pill (rules learned in this project / parents) -->
+      <span v-if="knowledge.hasExtraKnowledge"
+        class="badge badge-xs badge-outline badge-warning gap-1 max-w-full flex-shrink-0"
+        :title="knowledge.tooltip">
+        <i class="fa-solid fa-book-bookmark"></i>
+        <span class="truncate">{{ knowledge.label }}</span>
       </span>
 
       <!-- Linked profiles -->
@@ -139,6 +158,9 @@ import ChatIcon from './chat/ChatIcon.vue'
 
     <!-- Quick indicators -->
     <div class="flex items-center gap-2 flex-shrink-0">
+      <div v-if="knowledge.hasExtraKnowledge" class="tooltip" :data-tip="knowledge.tooltip">
+        <i class="fa-solid fa-book-bookmark text-warning text-xs"></i>
+      </div>
       <div v-if="profile.guardrails?.enabled" class="tooltip" data-tip="Guardrails enabled">
         <i class="fa-solid fa-shield-halved text-info text-xs"></i>
       </div>
@@ -180,6 +202,11 @@ export default {
       return this.profile.avatar ||
         `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`
     },
+    // What this profile has learned for the current project (learned rules and,
+    // when the API exposes them, knowledge files).
+    knowledge() {
+      return profileKnowledgeInfo(this.profile)
+    },
     toolsTooltip() {
       return this.profile.tools?.join(', ') || 'No tools'
     }
@@ -188,3 +215,5 @@ export default {
   methods: {}
 }
 </script>
+
+<!-- Made with ❤️ by codx-junior -->

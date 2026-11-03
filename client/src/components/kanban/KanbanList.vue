@@ -26,6 +26,24 @@ import moment from 'moment'
           </button>
         </div>
 
+        <!-- Task filters: keep only the boards holding matching tasks -->
+        <button
+          class="btn btn-sm shrink-0 gap-1.5"
+          :class="showTaskFilters ? 'btn-primary' : 'btn-ghost'"
+          :aria-expanded="showTaskFilters"
+          aria-controls="kanban-task-filters"
+          title="Filter boards by their tasks"
+          @click="showTaskFilters = !showTaskFilters"
+        >
+          <i class="fa-solid fa-filter text-xs"></i>
+          <span class="hidden sm:inline">Filters</span>
+          <span
+            v-if="activeTaskFilterCount"
+            class="badge badge-xs"
+            :class="showTaskFilters ? 'badge-neutral' : 'badge-primary'"
+          >{{ activeTaskFilterCount }}</span>
+        </button>
+
         <!-- New board button -->
         <button class="btn btn-sm btn-warning btn-outline shrink-0" @click="$emit('new-board')">
           <i class="fa-solid fa-plus"></i>
@@ -39,9 +57,97 @@ import moment from 'moment'
         </button>
       </div>
 
+      <!-- Task filters panel -->
+      <div
+        v-if="showTaskFilters"
+        id="kanban-task-filters"
+        class="flex flex-col gap-2 p-2 rounded-lg bg-base-200 border border-base-100"
+      >
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <!-- Board filter: makes sense here, the list spans every board -->
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Board</span>
+            <select v-model="taskFilters.board" class="select select-xs select-bordered text-xs">
+              <option value="all">All boards</option>
+              <option v-for="title in boardTitles" :key="title" :value="title">{{ title }}</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Status</span>
+            <select v-model="taskFilters.status" class="select select-xs select-bordered text-xs">
+              <option value="all">All statuses</option>
+              <option v-for="status in statusOptions" :key="status.value" :value="status.value">{{ status.label }}</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Priority</span>
+            <select v-model="taskFilters.priority" class="select select-xs select-bordered text-xs">
+              <option value="all">All priorities</option>
+              <option v-for="priority in priorityOptions" :key="priority.value" :value="priority.value">{{ priority.label }}</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Profile</span>
+            <select v-model="taskFilters.profile" class="select select-xs select-bordered text-xs">
+              <option value="all">All profiles</option>
+              <option v-for="profile in profileOptions" :key="profile" :value="profile">{{ profile }}</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Assignee</span>
+            <select v-model="taskFilters.assignee" class="select select-xs select-bordered text-xs">
+              <option value="all">All assignees</option>
+              <option v-for="user in assigneeOptions" :key="user" :value="user">{{ user }}</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-base-content/40">Time</span>
+            <select v-model="taskFilters.time" class="select select-xs select-bordered text-xs">
+              <option v-for="option in timeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <template v-if="taskFilters.time === 'custom'">
+            <input
+              v-model="taskFilters.from"
+              type="date"
+              class="input input-xs input-bordered text-xs"
+              aria-label="From date"
+            />
+            <input
+              v-model="taskFilters.to"
+              type="date"
+              class="input input-xs input-bordered text-xs"
+              aria-label="To date"
+            />
+          </template>
+          <span class="text-[11px] text-base-content/30">a board is listed while it holds matching tasks</span>
+          <button
+            v-if="hasTaskFilters"
+            class="btn btn-ghost btn-xs gap-1.5 text-base-content/50 hover:text-error ml-auto"
+            title="Clear the task filters"
+            @click="resetTaskFilters"
+          >
+            <i class="fa-solid fa-rotate-left text-xs"></i>
+            <span class="text-xs">Reset</span>
+          </button>
+        </div>
+      </div>
+
       <!-- No results hint -->
       <div v-if="boardFilter && filteredBoards.length === 0" class="text-sm text-base-content/40 px-1">
         No boards found for "<span class="font-medium">{{ boardFilter }}</span>"
+      </div>
+      <div v-if="hasTaskFilters && !bookmarks.length && !sortedBoards.length" class="text-sm text-base-content/40 px-1">
+        <i class="fa-solid fa-filter text-xs mr-1"></i>
+        No boards hold tasks matching the filters
       </div>
     </div>
 
@@ -160,6 +266,15 @@ import moment from 'moment'
               </div>
             </div>
 
+            <!-- Task filter match info -->
+            <div
+              v-if="hasTaskFilters"
+              class="text-xs p-1.5 bg-base-200 rounded-lg mt-1 text-base-content/50"
+            >
+              <i class="fa-solid fa-list-check text-xs mr-1"></i>
+              {{ matchingTaskCount(board) }} / {{ boardTaskCount(board) }} tasks match
+            </div>
+
             <div class="grow"></div>
 
             <!-- Footer stats -->
@@ -189,7 +304,7 @@ import moment from 'moment'
     </div>
 
     <!-- Empty state -->
-    <div v-if="!bookmarks.length && !sortedBoards.length" class="flex flex-col items-center justify-center py-16 text-base-content/30 gap-3">
+    <div v-if="!bookmarks.length && !sortedBoards.length && !hasAnyFilter" class="flex flex-col items-center justify-center py-16 text-base-content/30 gap-3">
       <i class="fa-brands fa-trello text-5xl"></i>
       <span class="text-sm">No boards yet</span>
       <button class="btn btn-sm btn-warning btn-outline" @click="$emit('new-board')">
@@ -200,6 +315,45 @@ import moment from 'moment'
 </template>
 
 <script>
+// Task priorities, same vocabulary the task table (TaskTableView) uses
+const PRIORITIES = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' }
+]
+const DEFAULT_PRIORITY = 'low'
+
+// Quick time ranges over the task timestamp (last update)
+const TIME_FILTERS = [
+  { value: 'all', label: 'Any time' },
+  { value: '1h', label: 'Last hour' },
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This week' },
+  { value: 'custom', label: 'Custom range' }
+]
+
+// Board titles and statuses are free text, compared ignoring case everywhere
+// else in the kanban store — the list must do the same.
+function sameKey(a, b) {
+  return `${a ?? ''}`.trim().toLowerCase() === `${b ?? ''}`.trim().toLowerCase()
+}
+
+// `chat.status` defaults to the first canonical status when it is not set
+function taskStatusValue(chat) {
+  return chat?.status || 'todo'
+}
+
+// Same normalization the task table applies: an undefined priority counts as low
+function taskPriorityValue(chat) {
+  const value = `${chat?.priority || ''}`.trim().toLowerCase()
+  return PRIORITIES.some(p => p.value === value) ? value : DEFAULT_PRIORITY
+}
+
+// Assignees may live on `users` (board stats) and/or `assignees` (planning)
+function taskUsersValue(chat) {
+  return [...new Set([...(chat?.users || []), ...(chat?.assignees || [])].filter(Boolean))]
+}
+
 export default {
   props: {
     boards: {
@@ -217,7 +371,23 @@ export default {
   },
   data() {
     return {
-      boardFilter: ''
+      boardFilter: '',
+      // Whether the extended task filters panel is open
+      showTaskFilters: false,
+      // Task filters: a board is listed while it holds tasks matching them.
+      // The board filter makes sense here because the list spans every board.
+      taskFilters: {
+        board: 'all',
+        status: 'all',
+        priority: 'all',
+        profile: 'all',
+        assignee: 'all',
+        time: 'all',
+        from: '',
+        to: ''
+      },
+      priorityOptions: PRIORITIES,
+      timeOptions: TIME_FILTERS
     }
   },
   computed: {
@@ -230,6 +400,19 @@ export default {
         return this.boards
       }
       return this.allStoredBoards
+    },
+    // Boards offered by the board filter
+    boardTitles() {
+      return this.displayBoards.map(board => board.title)
+    },
+    statusOptions() {
+      return this.$storex.chats.statusList || []
+    },
+    profileOptions() {
+      return this.uniqueTaskValues(this.allChats.flatMap(chat => chat.profiles || []))
+    },
+    assigneeOptions() {
+      return this.uniqueTaskValues(this.allChats.flatMap(chat => taskUsersValue(chat)))
     },
     allChats() {
       return Object.values(this.$storex.chats.chats || {})
@@ -265,6 +448,32 @@ export default {
       })
       return map
     },
+    // ── Task filters state ──
+    hasTaskFilters() {
+      const filters = this.taskFilters
+      return filters.board !== 'all' ||
+        filters.status !== 'all' ||
+        filters.priority !== 'all' ||
+        filters.profile !== 'all' ||
+        filters.assignee !== 'all' ||
+        filters.time !== 'all'
+    },
+    // Number of active task filters (badge on the "Filters" button)
+    activeTaskFilterCount() {
+      const filters = this.taskFilters
+      return [
+        filters.board !== 'all',
+        filters.status !== 'all',
+        filters.priority !== 'all',
+        filters.profile !== 'all',
+        filters.assignee !== 'all',
+        filters.time !== 'all'
+      ].filter(Boolean).length
+    },
+    // Whether anything (text search or task filters) narrows the list
+    hasAnyFilter() {
+      return !!this.boardFilter?.trim() || this.hasTaskFilters
+    },
     bookmarks() {
       // The virtual board is never bookmarked
       return this.displayBoards.filter(b => b.bookmark && !b.virtual && this.matchesFilter(b))
@@ -277,7 +486,7 @@ export default {
       return this.allStoredBoards.filter(b => !allBoardIds.includes(b.parent_id))
     },
     filteredBoards() {
-      if (!this.boardFilter) return this.rootBoards
+      if (!this.hasAnyFilter) return this.rootBoards
       return this.rootBoards.filter(board => this.matchesFilter(board))
     },
     sortedBoards() {
@@ -296,16 +505,83 @@ export default {
       if (board.virtual) return this.virtualLastActivity || board.last_update || null
       return this.boardActivityMap[board.title] || board.last_update || null
     },
-    boardTaskCount(board) {
-      if (board.virtual) return this.noBoardChats.length
+    // Tasks of a board: kanban tasks carry `chat.board`, sprint tasks carry the
+    // board id in `sprints` and the virtual board groups every board-less chat.
+    boardTasks(board) {
+      if (board.virtual) return this.noBoardChats
       const isSprint = board?.type === 'sprint'
-      return this.allChats.filter(c => isSprint
-        ? (c.sprints || []).includes(board.title)
-        : c.board === board.title
-      ).length
+      return this.allChats.filter(chat => isSprint
+        ? (chat.sprints || []).some(id => sameKey(id, board.title))
+        : sameKey(chat.board, board.title))
+    },
+    boardTaskCount(board) {
+      return this.boardTasks(board).length
+    },
+    uniqueTaskValues(values) {
+      return [...new Set((values || []).filter(Boolean))].sort((a, b) => `${a}`.localeCompare(`${b}`))
+    },
+    // How many of the board's tasks match the extended task filters
+    matchingTaskCount(board) {
+      return this.boardTasks(board).filter(task => this.taskMatchesFilters(task)).length
+    },
+    // A single task against the extended task filters
+    taskMatchesFilters(task) {
+      const filters = this.taskFilters
+      if (filters.status !== 'all' && taskStatusValue(task) !== filters.status) return false
+      if (filters.priority !== 'all' && taskPriorityValue(task) !== filters.priority) return false
+      if (filters.profile !== 'all' && !(task.profiles || []).includes(filters.profile)) return false
+      if (filters.assignee !== 'all' && !taskUsersValue(task).includes(filters.assignee)) return false
+      if (!this.matchesTimeRange(task)) return false
+      return true
+    },
+    // Task timestamp: last message activity, then the document timestamps
+    taskTimestamp(task) {
+      return task?.lastMessageAt || task?.updated_at || task?.created_at || null
+    },
+    matchesTimeRange(task) {
+      const range = this.taskFilters.time
+      if (range === 'all') return true
+
+      const value = this.taskTimestamp(task)
+      if (!value) return false
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return false
+
+      const now = new Date()
+      if (range === '1h') {
+        // Rolling window, not a calendar boundary
+        return date.getTime() >= now.getTime() - 60 * 60 * 1000
+      }
+      if (range === 'today') {
+        return date >= new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      }
+      if (range === 'week') {
+        // Current week, starting on Monday (local time)
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+        return date >= start
+      }
+      // Custom range: both bounds inclusive, "to" covers the whole day
+      const from = this.taskFilters.from ? new Date(`${this.taskFilters.from}T00:00:00`) : null
+      const to = this.taskFilters.to ? new Date(`${this.taskFilters.to}T23:59:59.999`) : null
+      if (from && date < from) return false
+      if (to && date > to) return false
+      return true
+    },
+    // A board is listed when it belongs to the selected board AND holds at least
+    // one task matching the extended filters
+    matchesTaskFilters(board) {
+      if (this.taskFilters.board !== 'all' && !sameKey(this.taskFilters.board, board.title)) {
+        return false
+      }
+      if (!this.hasTaskFilters) return true
+      return this.boardTasks(board).some(task => this.taskMatchesFilters(task))
     },
     matchesFilter(board) {
-      const filterLower = this.boardFilter.toLowerCase()
+      // Extended task filters first: they decide which boards are relevant
+      if (!this.matchesTaskFilters(board)) return false
+
+      const filterLower = (this.boardFilter || '').toLowerCase()
       if (!filterLower) return true
 
       // The virtual board matches on its own title or any of its chats
@@ -408,6 +684,19 @@ export default {
       return {
         columns: [...new Set(matchingColumns)],
         chatCount
+      }
+    },
+    // Clear every extended task filter (the text search is cleared separately)
+    resetTaskFilters() {
+      this.taskFilters = {
+        board: 'all',
+        status: 'all',
+        priority: 'all',
+        profile: 'all',
+        assignee: 'all',
+        time: 'all',
+        from: '',
+        to: ''
       }
     },
     selectBoard(board) {

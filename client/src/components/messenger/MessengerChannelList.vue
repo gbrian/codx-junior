@@ -6,18 +6,18 @@ import moment from 'moment'
   <div class="flex flex-col h-full" :class="isCollapsed ? 'w-16' : 'w-72'" style="transition: width 0.2s">
 
     <!-- ── Header ── -->
-    <div class="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-base-content/5">
+    <div class="shrink-0 flex items-center gap-2 px-3 py-3 border-b border-base-content/10">
       <button
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors shrink-0"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/60 hover:text-base-content hover:bg-base-content/5 transition-colors shrink-0"
         :title="isCollapsed ? 'Expand' : 'Collapse'"
         @click="$emit('toggle-collapse')"
       >
         <i :class="isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="text-xs"></i>
       </button>
       <template v-if="!isCollapsed">
-        <span class="text-sm font-semibold text-base-content/80 flex-1">Channels</span>
+        <span class="text-sm font-semibold text-base-content flex-1">Channels</span>
         <button
-          class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors"
+          class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/60 hover:text-base-content hover:bg-base-content/5 transition-colors"
           title="New channel"
           @click="$emit('new-group')"
         >
@@ -26,7 +26,7 @@ import moment from 'moment'
       </template>
       <button
         v-else
-        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-white/8 transition-colors"
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-base-content/60 hover:text-base-content hover:bg-base-content/5 transition-colors"
         title="New channel"
         @click="$emit('new-group')"
       >
@@ -35,16 +35,22 @@ import moment from 'moment'
     </div>
 
     <!-- ── Search (expanded only) ── -->
-    <div v-if="!isCollapsed" class="shrink-0 px-3 py-2 border-b border-base-content/5">
-      <div class="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-        <i class="fas fa-magnifying-glass text-base-content/30 text-xs shrink-0"></i>
+    <div v-if="!isCollapsed" class="shrink-0 px-3 py-2 border-b border-base-content/10">
+      <div class="flex items-center gap-2 bg-base-content/5 border border-base-content/10 rounded-lg px-3 py-2 focus-within:border-primary/50 transition-colors">
+        <i class="fas fa-magnifying-glass text-base-content/50 text-xs shrink-0"></i>
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search channels..."
-          class="bg-transparent text-xs text-base-content/70 placeholder:text-base-content/25 outline-none flex-1 min-w-0"
+          aria-label="Search channels"
+          class="bg-transparent text-xs text-base-content placeholder:text-base-content/40 outline-none flex-1 min-w-0"
         />
-        <button v-if="searchQuery" class="text-base-content/30 hover:text-base-content/70 transition-colors" @click="searchQuery = ''">
+        <button
+          v-if="searchQuery"
+          class="text-base-content/50 hover:text-base-content transition-colors"
+          title="Clear search"
+          @click="searchQuery = ''"
+        >
           <i class="fas fa-xmark text-xs"></i>
         </button>
       </div>
@@ -55,11 +61,11 @@ import moment from 'moment'
 
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-6">
-        <span class="loading loading-spinner loading-sm text-base-content/30"></span>
+        <span class="loading loading-spinner loading-sm text-base-content/40"></span>
       </div>
 
       <!-- Empty state -->
-      <div v-else-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 px-4 gap-3 text-base-content/20">
+      <div v-else-if="filteredGroups.length === 0" class="flex flex-col items-center justify-center py-10 px-4 gap-3 text-base-content/50">
         <i class="fas fa-hashtag text-3xl"></i>
         <span v-if="!isCollapsed" class="text-xs text-center">
           {{ searchQuery ? 'No channels match your search' : 'No channels yet.\nClick + to create one.' }}
@@ -76,7 +82,7 @@ import moment from 'moment'
             class="relative flex items-center justify-center w-10 h-10 rounded-xl text-xs font-bold transition-all duration-200"
             :class="activeChat?.id === chat.id
               ? 'bg-primary text-primary-content shadow-md ring-2 ring-primary/30'
-              : 'bg-white/8 text-base-content/60 hover:bg-white/15'"
+              : 'bg-base-content/10 text-base-content/70 hover:bg-base-content/20 hover:text-base-content'"
             :title="chat.name"
             @click="$emit('select', chat)"
           >
@@ -93,16 +99,17 @@ import moment from 'moment'
           <button
             v-for="chat in filteredGroups"
             :key="chat.id"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full transition-all duration-200 group"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full transition-colors duration-150 group"
             :class="activeChat?.id === chat.id
-              ? 'bg-primary/20 text-primary-content'
-              : 'text-base-content/50 hover:bg-white/6 hover:text-base-content/80'"
+              ? 'bg-primary/15 text-base-content ring-1 ring-primary/30'
+              : 'text-base-content/70 hover:bg-base-content/5 hover:text-base-content'"
+            :aria-current="activeChat?.id === chat.id ? 'true' : 'false'"
             @click="$emit('select', chat)"
           >
             <!-- Hash icon or avatar -->
             <div
               class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-              :class="activeChat?.id === chat.id ? 'bg-primary/40 text-primary-content' : 'bg-white/8 text-base-content/50'"
+              :class="activeChat?.id === chat.id ? 'bg-primary/30 text-primary' : 'bg-base-content/10 text-base-content/70'"
             >
               {{ getInitials(chat.name) }}
             </div>
@@ -110,9 +117,9 @@ import moment from 'moment'
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-sm font-medium truncate">{{ chat.name }}</span>
-                <span class="text-[10px] text-base-content/25 shrink-0">{{ formatTime(chat.updated_at) }}</span>
+                <span class="text-[10px] text-base-content/50 shrink-0 tabular-nums">{{ formatTime(chat.updated_at) }}</span>
               </div>
-              <div class="text-[11px] text-base-content/30 truncate mt-0.5">
+              <div class="text-[11px] text-base-content/50 truncate mt-0.5">
                 {{ getSnippet(chat) }}
               </div>
             </div>

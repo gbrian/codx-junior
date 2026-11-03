@@ -14,6 +14,14 @@ project's kanban tasks (each task is a :class:`~codx.junior.db.Chat` stored in
     - ``list_boards``     : discover the kanban boards, their columns, the
                             sprint boards and the valid task states (so names
                             are known before creating or moving a task).
+    - ``create_board``    : create a kanban board (with its columns).
+    - ``create_sprint``   : create a sprint (a board whose ``type`` is
+                            ``sprint``; tasks belong to it via ``Chat.sprints``).
+    - ``update_board``    : rename a board/sprint, change its type, description
+                            or parent board.
+    - ``create_column``   : add a column to a board (or sprint).
+    - ``delete_column``   : remove a column from a board.
+    - ``delete_board``    : delete a board/sprint (optionally with its tasks).
     - ``update_task``     : change the task status and/or move it between
                             boards, columns and sprints (and edit priority,
                             due date, progress, assignees and tags).
@@ -27,10 +35,19 @@ Design notes:
     - **One tool, several actions.** Keeping the workflow unified (like
       ``team_management``/``profile_management``) avoids spending prompt tokens
       on a schema per action and keeps the mental model small.
+    - **The catalogue is writable.** Boards, sprints and columns live in
+      ``tasks/kanban.json`` (the same file the UI writes). The tool creates,
+      renames and deletes them instead of only validating against them, so a
+      profile can set up a board or a sprint before using it.
+    - **A sprint is a board.** ``Chat.sprints`` stores the NAMES of boards
+      whose ``type`` is ``sprint``; membership is what filters the cards of a
+      sprint board. Creating/renaming/deleting a sprint therefore goes through
+      the same catalogue code as a board.
     - **Nothing duplicated.** Tasks are plain chats: this module never
       re-implements persistence, it delegates to
       :class:`~codx.junior.chat_manager.ChatManager`
-      (``save_chat`` / ``update_chat_metadata`` / ``find_by_id`` / ``list_chats``).
+      (``save_chat`` / ``update_chat_metadata`` / ``store_chat`` /
+      ``find_by_id`` / ``list_chats`` / ``load_kanban`` / ``save_kanban``).
       ``update_chat_metadata`` keeps messages intact and records a
       ``ChatStatusEvent`` on every real status transition, so task-performance
       metrics keep working.
@@ -57,6 +74,11 @@ Made with ❤️ by codx-junior
 import asyncio
 import json
 import logging
+import os
+import pathlib
+import shutil
+import uuid
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from codx.junior.db import Chat, Message
@@ -68,6 +90,12 @@ logger = logging.getLogger(__name__)
 # Actions exposed by the tool (canonical names).
 VALID_ACTIONS = [
     "list_boards",
+    "create_board",
+    "create_sprint",
+    "update_board",
+    "delete_board",
+    "create_column",
+    "delete_column",
     "list_tasks",
     "get_task",
     "create_task",
@@ -93,11 +121,43 @@ ACTION_ALIASES = {
     "comment": "request_help",
     "help": "request_help",
     "ask": "request_help",
+    # Board / sprint / column management
+    "new_board": "create_board",
+    "add_board": "create_board",
+    "create_kanban": "create_board",
+    "sprint": "create_sprint",
+    "new_sprint": "create_sprint",
+    "add_sprint": "create_sprint",
+    "edit_board": "update_board",
+    "rename_board": "update_board",
+    "rename_sprint": "update_board",
+    "remove_board": "delete_board",
+    "delete_sprint": "delete_board",
+    "remove_sprint": "delete_board",
+    "add_column": "create_column",
+    "new_column": "create_column",
+    "remove_column": "delete_column",
 }
 
 DEFAULT_BOARD = "kanban"
 DEFAULT_COLUMN = "tasks"
 DEFAULT_MODE = "task"
+
+# Board kinds supported by the catalogue. A "sprint" is not a different entity:
+# it is a board whose ``type`` is ``sprint`` and whose name is what
+# ``Chat.sprints`` stores.
+BOARD_TYPE_KANBAN = "kanban"
+BOARD_TYPE_SPRINT = "sprint"
+VALID_BOARD_TYPES = [BOARD_TYPE_KANBAN, BOARD_TYPE_SPRINT]
+
+# Columns created with a new board. A regular board stores tasks in a single
+# workflow column, while a sprint board is meant to show the sprint cards
+# grouped by their state.
+DEFAULT_KANBAN_COLUMNS = [DEFAULT_COLUMN]
+DEFAULT_SPRINT_COLUMNS = ["To do", "Doing", "Done"]
+
+# The board name is also the storage folder name under ``.codx/tasks``.
+MAX_BOARD_NAME_CHARS = 120
 
 # Comment defaults per action: a change request is a user prompt (the engine
 # processes the last visible user message), while a help request is a note from
@@ -496,6 +556,96 @@ def _load_kanban(chat_manager) -> Dict[str, Any]:
         return {}
 
 
+def _save_kanban(chat_manager, kanban: Dict[str, Any]) -> None:
+    """
+    Persist the project's kanban definition (catalogue of boards and sperms).
+
+    The ``version``/``tags`` envelope written by the project UI is preserved so
+    the file keeps loading after an edit made by this tool.
+
+    Args:
+        chat_manager: The project ChatManager.
+        kanban: The kanban dict to persist (mutated to add the envelope keys).
+    """
+    kanban["version"] = kanban.get("version") or 0.1
+    kanban.setdefault("tags", {})
+    chat_manager.save_kanban(kanban=kanban)
+    logger.info(
+        "project_manager: kanban saved (boards=%d)",
+        len(_boards_info(kanban)),
+    )
+
+
+def _kanban_boards(kanban: Dict[str, Any]) -> Any:
+    """
+    Return the MUTABLE ``boards`` collection of a kanban definition.
+
+    Args:
+        kanban: The kanban dict (mutated in place when ``boards`` is missing).
+
+    Returns:
+        ``kanban['boards']`` as a dict or a list (created when missing).
+    """
+    if not isinstance(kanban, dict):
+        return {}
+    boards = kanban.get("boards")
+    if not isinstance(boards, (dict, list)):
+        boards = {}
+        kanban["boards"] = boards
+    return boards
+
+
+def _board_key(kanban: Dict[str, Any], name: Optional[str]):
+    """
+    Return the exact key of *name* inside ``kanban['boards']``.
+
+    Args:
+        kanban: The kanban dict.
+        name: Board name to resolve (case-insensitive).
+
+    Returns:
+        The stored key, or None when the board is not stored as a dict entry.
+    """
+    boards = _kanban_boards(kanban)
+    wanted = (name or "").strip().lower()
+    if not wanted or not isinstance(boards, dict):
+        return None
+    return next((key for key in boards if str(key).strip().lower() == wanted), None)
+
+
+def _board_entry(kanban: Dict[str, Any], name: Optional[str]) -> Optional[Dict[str, Any]]:
+    """
+    Return the MUTABLE board dict stored for *name*.
+
+    Handles both supported shapes of the ``boards`` collection (``name ->
+    board`` dict, or a list of board objects), so the column helpers work on
+    whatever the project file contains.
+
+    Args:
+        kanban: The kanban dict.
+        name: Board name to resolve (case-insensitive).
+
+    Returns:
+        The board dict, or None when the board does not exist.
+    """
+    boards = _kanban_boards(kanban)
+    wanted = (name or "").strip().lower()
+    if not wanted:
+        return None
+    key = _board_key(kanban, name)
+    if key is not None:
+        entry = boards[key]
+        return entry if isinstance(entry, dict) else None
+    if isinstance(boards, list):
+        for board in boards:
+            if not isinstance(board, dict):
+                continue
+            title = board.get("title") or board.get("name") or board.get("id") or ""
+            if str(title).strip().lower() == wanted:
+                return board
+    return None
+
+
 def _boards_info(kanban: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Extract a normalized list of boards from a kanban definition.
@@ -543,16 +693,68 @@ def _boards_info(kanban: Dict[str, Any]) -> List[Dict[str, Any]]:
             column_names = []
 
         board_type = str(board.get("type") or "").lower()
-        is_sprint = board_type == "sprint" or bool(board.get("sprint"))
+        is_sprint = board_type == BOARD_TYPE_SPRINT or bool(board.get("sprint"))
         info.append(
             {
                 "name": str(name),
-                "type": board_type or ("sprint" if is_sprint else "kanban"),
+                "type": board_type or (BOARD_TYPE_SPRINT if is_sprint else BOARD_TYPE_KANBAN),
                 "is_sprint": is_sprint,
+                "parent_id": board.get("parent_id"),
                 "columns": [c for c in column_names if c],
             }
         )
     return info
+
+
+def _board_dict(name: str, entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Build a JSON-ready view of a board catalogue entry.
+
+    Args:
+        name: Board name (the catalogue key).
+        entry: The raw board entry (may be None).
+
+    Returns:
+        Dict describing the board or sprint.
+    """
+    entry = entry if isinstance(entry, dict) else {}
+    board_type = str(entry.get("type") or "").lower()
+    is_sprint = board_type == BOARD_TYPE_SPRINT or bool(entry.get("sprint"))
+    return {
+        "name": name,
+        "type": board_type or (BOARD_TYPE_SPRINT if is_sprint else BOARD_TYPE_KANBAN),
+        "is_sprint": is_sprint,
+        "description": entry.get("description") or "",
+        "parent_id": entry.get("parent_id") or None,
+        "columns": _column_titles(entry),
+        "active": bool(entry.get("active")),
+    }
+
+
+def _column_titles(entry: Optional[Dict[str, Any]]) -> List[str]:
+    """
+    Return the column titles of a raw board entry.
+
+    Args:
+        entry: The raw board entry (may be None).
+
+    Returns:
+        List of column titles.
+    """
+    columns = entry.get("columns") if isinstance(entry, dict) else None
+    if isinstance(columns, dict):
+        return [str(title) for title in columns.keys()]
+    if isinstance(columns, list):
+        titles: List[str] = []
+        for column in columns:
+            title = column if isinstance(column, str) else (
+                column.get("title") or column.get("name") or column.get("id")
+                if isinstance(column, dict) else None
+            )
+            if title:
+                titles.append(str(title))
+        return titles
+    return []
 
 
 def _task_states() -> List[str]:
@@ -587,9 +789,13 @@ def _board_catalogue(kanban: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return {board["name"].strip().lower(): board for board in _boards_info(kanban)}
 
 
-def _board_names(boards: List[Dict[str, Any]]) -> str:
-    """Render the known board names for error messages."""
-    return ", ".join(board["name"] for board in boards) or "none"
+def _board_names(boards: List[Dict[str, Any]], only_sprints: bool = False) -> str:
+    """Render the known board names (optionally only the sprint ones) for errors."""
+    names = [
+        board["name"] for board in boards
+        if not only_sprints or board["is_sprint"]
+    ]
+    return ", ".join(names) or "none"
 
 
 def _match_board(
@@ -652,6 +858,378 @@ def _match_state(status: Optional[str]) -> Optional[str]:
         (state for state in _task_states() if state.lower() == wanted),
         None,
     )
+
+
+def _validate_board_name(name: Optional[str]) -> str:
+    """
+    Validate a board/sprint name.
+
+    The name is also the storage folder under ``.codx/tasks``, so path
+    separators, control characters and relative-path names are rejected: a task
+    saved on such a board would land outside its own folder tree.
+
+    Args:
+        name: Board/sprint name.
+
+    Returns:
+        The stripped name.
+
+    Raises:
+        ValueError: When the name is empty, too long or not a safe folder name.
+    """
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("name is required (board/sprint name)")
+    if len(name) > MAX_BOARD_NAME_CHARS:
+        raise ValueError(
+            f"name must be at most {MAX_BOARD_NAME_CHARS} characters "
+            f"(received {len(name)})"
+        )
+    if any(ch in name for ch in ("/", "\\", "\n", "\r", "\t")):
+        raise ValueError(
+            "name cannot contain path separators ('/', '\\') or line breaks: "
+            "it is used as the storage folder under .codx/tasks"
+        )
+    if name.startswith("."):
+        raise ValueError("name cannot start with '.'")
+    return name
+
+
+def _normalize_board_type(board_type: Optional[str]) -> str:
+    """
+    Normalize and validate a board kind.
+
+    Args:
+        board_type: ``kanban``, ``sprint`` (case-insensitive) or None.
+
+    Returns:
+        The canonical board type (``kanban`` when omitted).
+
+    Raises:
+        ValueError: When the value is not a supported board kind.
+    """
+    resolved = (board_type or BOARD_TYPE_KANBAN).strip().lower()
+    if resolved not in VALID_BOARD_TYPES:
+        raise ValueError(
+            f"board_type must be one of {', '.join(VALID_BOARD_TYPES)} "
+            f"(received '{board_type}')"
+        )
+    return resolved
+
+
+def _new_board_entry(
+    name: str,
+    description: Optional[str],
+    columns: List[str],
+    board_type: str,
+    parent_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Build a kanban catalogue entry for a new board or sprint.
+
+    The shape matches what the project UI writes in ``tasks/kanban.json``
+    (``id``/``title``/``description``/``columns``/``active``/``last_update``) so
+    the board is rendered without any migration. ``type`` states whether it is
+    a regular board or a sprint.
+
+    Args:
+        name: Board/sprint name (also the storage folder name).
+        description: Optional description.
+        columns: Column titles to create.
+        board_type: ``kanban`` or ``sprint``.
+        parent_id: Optional parent board name.
+
+    Returns:
+        The board entry dict.
+    """
+    return {
+        "id": str(uuid.uuid4()),
+        "title": name,
+        "description": description or "",
+        "branch": "",
+        "type": board_type,
+        "parent_id": parent_id,
+        "columns": [
+            {"id": str(uuid.uuid4()), "title": title, "color": ""}
+            for title in columns
+        ],
+        "active": False,
+        "last_update": datetime.now().isoformat(),
+    }
+
+
+def _ensure_board_folders(chat_manager, board_name: str, columns: List[str]) -> None:
+    """
+    Create the storage folders of a board (best effort).
+
+    Args:
+        chat_manager: The project ChatManager (resolves ``chat_path``).
+        board_name: Board folder name.
+        columns: Column folder names to create.
+    """
+    for column in columns or [DEFAULT_COLUMN]:
+        try:
+            os.makedirs(
+                f"{chat_manager.chat_path}/{board_name}/{column}", exist_ok=True
+            )
+        except OSError as ex:
+            logger.warning(
+                "project_manager: could not create folder '%s/%s': %s",
+                board_name, column, ex,
+            )
+
+
+def _move_board_folder(chat_manager, old_name: str, new_name: str) -> None:
+    """
+    Move the storage folder of a renamed board.
+
+    Args:
+        chat_manager: The project ChatManager.
+        old_name: Current board folder name.
+        new_name: New board folder name.
+    """
+    old_folder = f"{chat_manager.chat_path}/{old_name}"
+    new_folder = f"{chat_manager.chat_path}/{new_name}"
+    if not os.path.isdir(old_folder) or os.path.exists(new_folder):
+        return
+    try:
+        shutil.move(old_folder, new_folder)
+        logger.info(
+            "project_manager: moved board folder '%s' -> '%s'", old_folder, new_folder
+        )
+    except OSError as ex:
+        logger.error(
+            "project_manager: could not move board folder '%s' -> '%s': %s",
+            old_folder, new_folder, ex,
+        )
+
+
+def _retarget_board_tasks(chat_manager, old_name: str, new_name: str) -> int:
+    """
+    Rewrite ``Chat.board`` (and the stored file path) after a board rename.
+
+    Tasks are stored in a folder named after the board and each chat carries
+    the board in ``Chat.board``; a rename must update both, otherwise the tasks
+    become invisible on the renamed board.
+
+    Args:
+        chat_manager: The project ChatManager.
+        old_name: Previous board name.
+        new_name: New board name.
+
+    Returns:
+        Number of updated tasks.
+    """
+    folder = f"{chat_manager.chat_path}/{new_name}"
+    if not os.path.isdir(folder):
+        return 0
+
+    updated = 0
+    for file_path in pathlib.Path(folder).rglob("*.json"):
+        try:
+            chat = chat_manager.load_chat_from_path(chat_file=str(file_path))
+        except (OSError, ValueError) as ex:
+            logger.warning(
+                "project_manager: could not read task '%s': %s", file_path, ex
+            )
+            continue
+        if (chat.board or "").strip().lower() != old_name.strip().lower():
+            continue
+        chat.board = new_name
+        chat.file_path = chat_manager.get_chat_file(chat)
+        chat_manager.store_chat(chat=chat)
+        updated += 1
+
+    if updated:
+        logger.info(
+            "project_manager: retargeted %d task(s) from board '%s' to '%s'",
+            updated, old_name, new_name,
+        )
+    return updated
+
+
+def _rename_board_entry(
+    kanban: Dict[str, Any], old_name: str, new_name: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Rename a board catalogue entry, preserving its fields.
+
+    Args:
+        kanban: The kanban dict (mutated in place).
+        old_name: Current board name.
+        new_name: New board name.
+
+    Returns:
+        The renamed entry, or None when the board does not exist.
+    """
+    boards = _kanban_boards(kanban)
+    key = _board_key(kanban, old_name)
+    if isinstance(boards, dict) and key is not None:
+        entry = boards.pop(key)
+        if isinstance(entry, dict):
+            entry["title"] = new_name
+        boards[new_name] = entry
+        return entry
+    if isinstance(boards, list):
+        entry = _board_entry(kanban, old_name)
+        if isinstance(entry, dict):
+            entry["title"] = new_name
+            entry["name"] = new_name
+        return entry
+    return None
+
+
+def _remove_board_entry(kanban: Dict[str, Any], name: str) -> Optional[Dict[str, Any]]:
+    """
+    Remove a board catalogue entry.
+
+    Args:
+        kanban: The kanban dict (mutated in place).
+        name: Board name to remove.
+
+    Returns:
+        The removed entry, or None when the board does not exist.
+    """
+    boards = _kanban_boards(kanban)
+    key = _board_key(kanban, name)
+    if isinstance(boards, dict) and key is not None:
+        return boards.pop(key)
+    if isinstance(boards, list):
+        wanted = (name or "").strip().lower()
+        for index, board in enumerate(list(boards)):
+            if not isinstance(board, dict):
+                continue
+            title = board.get("title") or board.get("name") or board.get("id") or ""
+            if str(title).strip().lower() == wanted:
+                return boards.pop(index)
+    return None
+
+
+def _clear_child_parents(kanban: Dict[str, Any], name: str) -> int:
+    """
+    Detach the boards whose parent is *name*.
+
+    Deleting a board must not leave dangling ``parent_id`` references behind.
+
+    Args:
+        kanban: The kanban dict (mutated in place).
+        name: Name of the removed board.
+
+    Returns:
+        Number of boards detached.
+    """
+    boards = _kanban_boards(kanban)
+    entries = boards.values() if isinstance(boards, dict) else boards or []
+    cleared = 0
+    wanted = (name or "").strip().lower()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("parent_id") or "").strip().lower() == wanted:
+            entry["parent_id"] = None
+            cleared += 1
+    return cleared
+
+
+def _board_task_count(
+    chat_manager, board_name: str, column: Optional[str] = None
+) -> int:
+    """
+    Count the tasks stored on a board (optionally only in one column).
+
+    Args:
+        chat_manager: The project ChatManager.
+        board_name: Board name to count.
+        column: Optional column name to narrow the count.
+
+    Returns:
+        Number of matching tasks.
+    """
+    total = 0
+    for chat in chat_manager.list_chats():
+        if (chat.board or "").strip().lower() != board_name.strip().lower():
+            continue
+        if column is not None and (
+            (chat.column or "").strip().lower() != column.strip().lower()
+        ):
+            continue
+        total += 1
+    return total
+
+
+def _delete_board_tasks(
+    chat_manager, board_name: str, column: Optional[str] = None
+) -> int:
+    """
+    Delete the tasks stored on a board (optionally only in one column).
+
+    Args:
+        chat_manager: The project ChatManager.
+        board_name: Board name.
+        column: Optional column name to narrow the deletion.
+
+    Returns:
+        Number of deleted tasks.
+    """
+    deleted = 0
+    for chat in chat_manager.list_chats():
+        if (chat.board or "").strip().lower() != board_name.strip().lower():
+            continue
+        if column is not None and (
+            (chat.column or "").strip().lower() != column.strip().lower()
+        ):
+            continue
+        try:
+            chat_manager.delete_chat(chat_id=chat.id)
+            deleted += 1
+        except OSError as ex:
+            logger.warning(
+                "project_manager: could not delete task '%s': %s", chat.id, ex
+            )
+    return deleted
+
+
+def _drop_sprint_from_tasks(
+    chat_manager, sprint: str, board_name: Optional[str] = None
+) -> int:
+    """
+    Remove *sprint* from every task sprint list.
+
+    Sprint membership is stored on the TASK (``Chat.sprints``) and a task lives
+    on its own board, so deleting a sprint board must clean the identifiers
+    stored on tasks of other boards, otherwise cards keep pointing to a sprint
+    that no longer exists.
+
+    Args:
+        chat_manager: The project ChatManager.
+        sprint: Sprint name to remove.
+        board_name: Board whose tasks are being deleted (skipped, they go away).
+
+    Returns:
+        Number of updated tasks.
+    """
+    updated = 0
+    for chat in chat_manager.list_chats():
+        if board_name and (
+            (chat.board or "").strip().lower() == board_name.strip().lower()
+        ):
+            continue
+        if sprint not in (chat.sprints or []):
+            continue
+        task = chat_manager.find_by_id(chat_id=chat.id)
+        if task is None:
+            continue
+        chat_manager.update_chat_metadata(
+            chat=task,
+            metadata={"sprints": [s for s in (task.sprints or []) if s != sprint]},
+        )
+        updated += 1
+
+    if updated:
+        logger.info(
+            "project_manager: removed sprint '%s' from %d task(s)", sprint, updated
+        )
+    return updated
 
 
 def _validate_task_location(
@@ -759,7 +1337,7 @@ def _validate_task_location(
             elif not (board_info.get("columns") or []):
                 problems.append(
                     f"board '{board_info['name']}' has no columns defined; "
-                    "create the column first"
+                    "create the column first (action='create_column')"
                 )
             else:
                 problems.append(
@@ -777,7 +1355,7 @@ def _validate_task_location(
                 else:
                     problems.append(
                         f"sprint '{sprint}' does not exist "
-                        f"(available boards: {_board_names(boards)})"
+                        f"(sprint boards: {_board_names(boards, only_sprints=True)})"
                     )
             canonical["sprints"] = resolved_sprints
 
@@ -785,11 +1363,51 @@ def _validate_task_location(
         raise ValueError(
             "Invalid task destination:\n"
             + "\n".join(f"  - {problem}" for problem in problems)
-            + "\nCreate the missing board, column, sprint or state first, then "
-            "try again (action='list_boards' shows the current catalogue)."
+            + "\nCreate the missing board, column, sprint or state first "
+            "(action='create_board', action='create_sprint' or "
+            "action='create_column'), then try again "
+            "(action='list_boards' shows the current catalogue)."
         )
 
     return canonical
+
+
+def validate_task_destination(
+    chat_manager,
+    board: Optional[str] = None,
+    column: Optional[str] = None,
+    sprints: Optional[List[str]] = None,
+    status: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Validate a task destination against the project catalogue.
+
+    Public entry point shared with the ``create_task`` tool: it loads the
+    project kanban and delegates to :func:`_validate_task_location`, so both
+    creation paths enforce exactly the same rules and neither can create a task
+    in a phantom board/column/sprint.
+
+    Args:
+        chat_manager: Project ChatManager (reads ``tasks/kanban.json``).
+        board: Target board name (``None`` = not provided).
+        column: Target column name (``None`` = not provided).
+        sprints: Sprint names to associate (``None`` = not provided).
+        status: Target state (``None`` = not provided).
+
+    Returns:
+        Dict with the canonical ``board``, ``column``, ``sprints`` and
+        ``status``.
+
+    Raises:
+        ValueError: When any provided value does not exist.
+    """
+    return _validate_task_location(
+        kanban=_load_kanban(chat_manager),
+        board=board,
+        column=column,
+        sprints=sprints,
+        status=status,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -843,7 +1461,8 @@ def _action_list_boards(chat_manager) -> ToolResponse:
                 "✓ No kanban boards defined yet. "
                 f"Tasks will default to board '{DEFAULT_BOARD}' / "
                 f"column '{DEFAULT_COLUMN}'.\n"
-                f"- Valid states: {', '.join(states)}"
+                f"- Valid states: {', '.join(states)}\n"
+                "- Use action='create_board' (or 'create_sprint') to create one."
             ),
             llm_response=_json(
                 {
@@ -867,11 +1486,610 @@ def _action_list_boards(chat_manager) -> ToolResponse:
             f"{'yes' if board['is_sprint'] else 'no'} | "
             f"{', '.join(board['columns']) or '-'}"
         )
-    lines.extend(["", f"**Valid task states:** {', '.join(states)}"])
+    lines.extend([
+        "",
+        f"**Valid task states:** {', '.join(states)}",
+        "",
+        "> Use action='create_board' / 'create_sprint' / 'create_column' to add "
+        "a destination, and action='update_board' / 'delete_board' to manage "
+        "an existing one.",
+    ])
 
     return ToolResponse(
         user_response="\n".join(lines),
         llm_response=_json({"boards": boards, "states": states}),
+    )
+
+
+def _action_create_board(
+    chat_manager,
+    name: Optional[str],
+    description: Optional[str] = None,
+    columns: Any = None,
+    board_type: Optional[str] = None,
+    parent_id: Optional[str] = None,
+) -> ToolResponse:
+    """
+    Create a kanban board or a sprint in the project catalogue.
+
+    A sprint is a board whose ``type`` is ``sprint``; tasks belong to it through
+    ``Chat.sprints``. The entry is written to ``tasks/kanban.json`` (the same
+    file the UI writes) and the storage folders are created, so the new
+    destination can be used immediately by ``create_task`` / ``update_task``.
+
+    Args:
+        chat_manager: The project ChatManager.
+        name: Board/sprint name (required).
+        description: Optional description.
+        columns: Column titles to create (defaults: ``tasks`` for a board,
+            ``To do``/``Doing``/``Done`` for a sprint).
+        board_type: ``kanban`` (default) or ``sprint``.
+        parent_id: Optional parent board name.
+
+    Returns:
+        ToolResponse describing the created board.
+
+    Raises:
+        ValueError: When the name is invalid/already used, the type is not
+            supported or the parent board does not exist.
+    """
+    board_name = _validate_board_name(name)
+    resolved_type = _normalize_board_type(board_type)
+
+    kanban = _load_kanban(chat_manager)
+    boards = _boards_info(kanban)
+    by_name = _board_catalogue(kanban=kanban)
+
+    if _match_board(by_name=by_name, board=board_name):
+        raise ValueError(
+            f"board '{board_name}' already exists "
+            f"(available boards: {_board_names(boards)})"
+        )
+
+    parent = None
+    if parent_id:
+        parent_info = _match_board(by_name=by_name, board=parent_id)
+        if parent_info is None:
+            raise ValueError(
+                f"parent board '{parent_id}' does not exist "
+                f"(available boards: {_board_names(boards)})"
+            )
+        parent = parent_info["name"]
+
+    defaults = (
+        DEFAULT_SPRINT_COLUMNS if resolved_type == BOARD_TYPE_SPRINT
+        else DEFAULT_KANBAN_COLUMNS
+    )
+    titles: List[str] = []
+    for title in (_to_list(columns) or defaults):
+        if title not in titles:
+            titles.append(title)
+
+    entry = _new_board_entry(
+        name=board_name,
+        description=description,
+        columns=titles,
+        board_type=resolved_type,
+        parent_id=parent,
+    )
+
+    raw_boards = _kanban_boards(kanban)
+    if isinstance(raw_boards, list):
+        entry["name"] = board_name
+        raw_boards.append(entry)
+    else:
+        raw_boards[board_name] = entry
+
+    _save_kanban(chat_manager=chat_manager, kanban=kanban)
+    _ensure_board_folders(
+        chat_manager=chat_manager, board_name=board_name, columns=titles
+    )
+
+    is_sprint = resolved_type == BOARD_TYPE_SPRINT
+    logger.info(
+        "project_manager: created %s '%s' (columns=%s parent=%s)",
+        resolved_type, board_name, titles, parent,
+    )
+
+    user_lines = [
+        f"✅ {'Sprint' if is_sprint else 'Board'} created: **{board_name}**",
+        f"- Type: `{resolved_type}`",
+        f"- Columns: {', '.join(f'`{title}`' for title in titles)}",
+    ]
+    if parent:
+        user_lines.append(f"- Parent board: `{parent}`")
+    if is_sprint:
+        user_lines.append(
+            f"- Associate tasks with `sprint='{board_name}'` "
+            "(action='create_task' / action='update_task')."
+        )
+    else:
+        user_lines.append(
+            f"- Create tasks on it with `board='{board_name}'` "
+            "(action='create_task')."
+        )
+
+    return ToolResponse(
+        user_response="\n".join(user_lines),
+        llm_response=_json(
+            {"status": "created", "board": _board_dict(board_name, entry)}
+        ),
+    )
+
+
+def _action_update_board(
+    chat_manager,
+    board: Optional[str],
+    new_name: Optional[str] = None,
+    description: Optional[str] = None,
+    board_type: Optional[str] = None,
+    parent_id: Optional[str] = None,
+) -> ToolResponse:
+    """
+    Update a board or sprint: rename it, change its type, description or parent.
+
+    Renaming is the delicate case: the board name is both the catalogue key and
+    the storage folder under ``.codx/tasks``, and every task stores it in
+    ``Chat.board``. The rename therefore moves the folder and rewrites the
+    tasks, keeping ``Chat.sprints`` membership (which references the name)
+    consistent.
+
+    Args:
+        chat_manager: The project ChatManager.
+        board: Current board/sprint name (required).
+        new_name: New name (optional).
+        description: New description (optional).
+        board_type: New kind (``kanban``/``sprint``, optional).
+        parent_id: New parent board name (optional, empty string detaches).
+
+    Returns:
+        ToolResponse describing the updated board.
+
+    Raises:
+        ValueError: When the board does not exist, nothing is provided, the new
+            name is invalid/taken or the parent does not exist.
+    """
+    board_name = (board or "").strip()
+    if not board_name:
+        raise ValueError("board is required for action='update_board'")
+    if all(value is None for value in (new_name, description, board_type, parent_id)):
+        raise ValueError(
+            "Nothing to update: provide at least one of new_name, description, "
+            "board_type or parent_id (use action='create_column' to add columns)"
+        )
+
+    kanban = _load_kanban(chat_manager)
+    info = _match_board(by_name=_board_catalogue(kanban=kanban), board=board_name)
+    if info is None:
+        raise ValueError(
+            f"board '{board_name}' does not exist "
+            f"(available boards: {_board_names(_boards_info(kanban))})"
+        )
+
+    current_name = info["name"]
+    entry = _board_entry(kanban=kanban, name=current_name)
+    changed: List[str] = []
+    renamed_tasks = 0
+    resolved_name = current_name
+
+    if new_name is not None:
+        resolved_name = _validate_board_name(new_name)
+        if resolved_name.strip().lower() != current_name.strip().lower():
+            if _match_board(
+                by_name=_board_catalogue(kanban=kanban), board=resolved_name
+            ):
+                raise ValueError(
+                    f"board '{resolved_name}' already exists "
+                    f"(available boards: {_board_names(_boards_info(kanban))})"
+                )
+            _move_board_folder(
+                chat_manager=chat_manager, old_name=current_name, new_name=resolved_name
+            )
+            _rename_board_entry(
+                kanban=kanban, old_name=current_name, new_name=resolved_name
+            )
+            renamed_tasks = _retarget_board_tasks(
+                chat_manager=chat_manager, old_name=current_name, new_name=resolved_name
+            )
+            # Child boards pointing to the renamed board must follow it.
+            _rename_children_parent(
+                kanban=kanban, old_name=current_name, new_name=resolved_name
+            )
+            entry = _board_entry(kanban=kanban, name=resolved_name)
+            changed.append("name")
+
+    if description is not None and isinstance(entry, dict):
+        entry["description"] = description
+        changed.append("description")
+
+    if board_type is not None and isinstance(entry, dict):
+        entry["type"] = _normalize_board_type(board_type)
+        changed.append("type")
+
+    if parent_id is not None and isinstance(entry, dict):
+        parent = (parent_id or "").strip()
+        if parent:
+            parent_info = _match_board(
+                by_name=_board_catalogue(kanban=kanban), board=parent
+            )
+            if parent_info is None:
+                raise ValueError(
+                    f"parent board '{parent}' does not exist "
+                    f"(available boards: {_board_names(_boards_info(kanban))})"
+                )
+            if parent_info["name"].strip().lower() == resolved_name.strip().lower():
+                raise ValueError("a board cannot be its own parent")
+            parent = parent_info["name"]
+        entry["parent_id"] = parent or None
+        changed.append("parent_id")
+
+    if isinstance(entry, dict):
+        entry["last_update"] = datetime.now().isoformat()
+
+    _save_kanban(chat_manager=chat_manager, kanban=kanban)
+
+    logger.info(
+        "project_manager: updated board '%s' (fields=%s renamed_tasks=%d)",
+        resolved_name, ", ".join(changed), renamed_tasks,
+    )
+
+    user_lines = [
+        f"✅ Board updated: **{resolved_name}**",
+        f"- Changed fields: {', '.join(changed)}",
+    ]
+    if "name" in changed:
+        user_lines.append(f"- Renamed from `{current_name}` (folder and tasks moved)")
+        user_lines.append(f"- Tasks retargeted: {renamed_tasks}")
+
+    return ToolResponse(
+        user_response="\n".join(user_lines),
+        llm_response=_json(
+            {
+                "status": "updated",
+                "changed_fields": changed,
+                "renamed_tasks": renamed_tasks,
+                "board": _board_dict(resolved_name, entry),
+            }
+        ),
+    )
+
+
+def _rename_children_parent(kanban: Dict[str, Any], old_name: str, new_name: str) -> int:
+    """
+    Point the child boards of a renamed board to its new name.
+
+    Args:
+        kanban: The kanban dict (mutated in place).
+        old_name: Previous board name.
+        new_name: New board name.
+
+    Returns:
+        Number of boards updated.
+    """
+    boards = _kanban_boards(kanban)
+    entries = boards.values() if isinstance(boards, dict) else boards or []
+    wanted = (old_name or "").strip().lower()
+    updated = 0
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("parent_id") or "").strip().lower() == wanted:
+            entry["parent_id"] = new_name
+            updated += 1
+    return updated
+
+
+def _action_delete_board(
+    chat_manager,
+    board: Optional[str],
+    force: bool = False,
+) -> ToolResponse:
+    """
+    Delete a board or sprint from the project catalogue.
+
+    A board that still holds tasks is never deleted silently: ``force`` is
+    required, and it then removes those tasks too (their files live in the
+    board folder). Deleting a sprint also removes its name from the
+    ``Chat.sprints`` list of every task stored on other boards, so no card keeps
+    pointing to a sprint that no longer exists.
+
+    Args:
+        chat_manager: The project ChatManager.
+        board: Board/sprint name to delete (required).
+        force: Delete the board even when it still holds tasks (default False).
+
+    Returns:
+        ToolResponse describing what was removed.
+
+    Raises:
+        ValueError: When the board does not exist or still has tasks and
+            ``force`` is False.
+    """
+    board_name = (board or "").strip()
+    if not board_name:
+        raise ValueError("board is required for action='delete_board'")
+
+    kanban = _load_kanban(chat_manager)
+    info = _match_board(by_name=_board_catalogue(kanban=kanban), board=board_name)
+    if info is None:
+        raise ValueError(
+            f"board '{board_name}' does not exist "
+            f"(available boards: {_board_names(_boards_info(kanban))})"
+        )
+
+    resolved = info["name"]
+    task_count = _board_task_count(chat_manager=chat_manager, board_name=resolved)
+    if task_count and not force:
+        raise ValueError(
+            f"board '{resolved}' still has {task_count} task(s); move or delete "
+            "them first, or call again with force=true to delete them with the board"
+        )
+
+    deleted_tasks = 0
+    if force and task_count:
+        deleted_tasks = _delete_board_tasks(
+            chat_manager=chat_manager, board_name=resolved
+        )
+
+    removed = _remove_board_entry(kanban=kanban, name=resolved)
+    detached = _clear_child_parents(kanban=kanban, name=resolved)
+    # Sprint membership lives on the tasks of OTHER boards: clean it up.
+    dropped_from = _drop_sprint_from_tasks(
+        chat_manager=chat_manager, sprint=resolved, board_name=resolved
+    )
+    _save_kanban(chat_manager=chat_manager, kanban=kanban)
+
+    if force:
+        try:
+            chat_manager.delete_kanban(kanban_title=resolved)
+        except FileNotFoundError:
+            # A board without tasks has no folder: nothing to remove.
+            pass
+
+    logger.info(
+        "project_manager: deleted board '%s' (tasks=%d detach_children=%d "
+        "sprint_memberships=%d force=%s)",
+        resolved, deleted_tasks, detached, dropped_from, force,
+    )
+
+    user_lines = [
+        f"🗑️ {'Sprint' if info['is_sprint'] else 'Board'} deleted: **{resolved}**",
+        f"- Tasks deleted: {deleted_tasks}" if force else "- Tasks: none (empty board)",
+        f"- Child boards detached: {detached}" if detached else None,
+        f"- Sprint membership removed from {dropped_from} task(s)"
+        if dropped_from else None,
+    ]
+    return ToolResponse(
+        user_response="\n".join(line for line in user_lines if line),
+        llm_response=_json(
+            {
+                "status": "deleted",
+                "board": resolved,
+                "deleted_tasks": deleted_tasks,
+                "detached_children": detached,
+                "sprint_memberships_removed": dropped_from,
+                "was_sprint": info["is_sprint"],
+                "removed_entry": _board_dict(resolved, removed),
+            }
+        ),
+    )
+
+
+def _action_create_column(
+    chat_manager,
+    board: Optional[str],
+    name: Optional[str],
+    color: Optional[str] = None,
+) -> ToolResponse:
+    """
+    Add a column to an existing board or sprint.
+
+    Tasks are stored in ``.codx/tasks/<board>/<column>``, so a column must exist
+    on the board before a task can be created or moved into it.
+
+    Args:
+        chat_manager: The project ChatManager.
+        board: Board/sprint name (required).
+        name: Column title (required).
+        color: Optional column color (as used by the UI).
+
+    Returns:
+        ToolResponse describing the created column.
+
+    Raises:
+        ValueError: When the board does not exist, the column title is empty or
+            the column already exists.
+    """
+    board_name = (board or "").strip()
+    column = (name or "").strip()
+    if not board_name:
+        raise ValueError("board is required for action='create_column'")
+    if not column:
+        raise ValueError("name (column title) is required for action='create_column'")
+
+    kanban = _load_kanban(chat_manager)
+    info = _match_board(by_name=_board_catalogue(kanban=kanban), board=board_name)
+    if info is None:
+        raise ValueError(
+            f"board '{board_name}' does not exist "
+            f"(available boards: {_board_names(_boards_info(kanban))})"
+        )
+    if any(ch in column for ch in ("/", "\\", "\n", "\r", "\t")):
+        raise ValueError(
+            "name cannot contain path separators ('/', '\\') or line breaks: it "
+            "is used as the storage folder under .codx/tasks"
+        )
+    if _match_column(board_info=info, column=column):
+        raise ValueError(
+            f"column '{column}' already exists on board '{info['name']}' "
+            f"(columns: {', '.join(info.get('columns') or []) or 'none'})"
+        )
+
+    entry = _board_entry(kanban=kanban, name=info["name"])
+    _append_column(entry=entry, title=column, color=color)
+    _save_kanban(chat_manager=chat_manager, kanban=kanban)
+    _ensure_board_folders(
+        chat_manager=chat_manager, board_name=info["name"], columns=[column]
+    )
+
+    logger.info(
+        "project_manager: created column '%s' on board '%s'", column, info["name"]
+    )
+    return ToolResponse(
+        user_response=(
+            f"✅ Column created: **{column}** on board **{info['name']}**\n"
+            f"- Columns: {', '.join(_column_titles(entry)) or 'none'}"
+        ),
+        llm_response=_json(
+            {"status": "created", "column": column,
+             "board": _board_dict(info["name"], entry)}
+        ),
+    )
+
+
+def _append_column(
+    entry: Optional[Dict[str, Any]], title: str, color: Optional[str] = None
+) -> None:
+    """
+    Append a column to a raw board entry (both supported shapes).
+
+    Args:
+        entry: The board entry (mutated in place).
+        title: Column title.
+        color: Optional column color.
+    """
+    if not isinstance(entry, dict):
+        return
+    columns = entry.get("columns")
+    if isinstance(columns, dict):
+        columns[title] = {"title": title, "color": color or ""}
+        return
+    if not isinstance(columns, list):
+        columns = []
+        entry["columns"] = columns
+    columns.append({"id": str(uuid.uuid4()), "title": title, "color": color or ""})
+
+
+def _remove_column(entry: Optional[Dict[str, Any]], title: str) -> bool:
+    """
+    Remove a column from a raw board entry (both supported shapes).
+
+    Args:
+        entry: The board entry (mutated in place).
+        title: Column title to remove.
+
+    Returns:
+        True when the column was removed.
+    """
+    if not isinstance(entry, dict):
+        return False
+    columns = entry.get("columns")
+    wanted = (title or "").strip().lower()
+
+    if isinstance(columns, dict):
+        key = next(
+            (name for name in columns if str(name).strip().lower() == wanted), None
+        )
+        if key is None:
+            return False
+        columns.pop(key)
+        return True
+
+    if isinstance(columns, list):
+        for index, column in enumerate(list(columns)):
+            column_title = column if isinstance(column, str) else (
+                column.get("title") or column.get("name")
+                if isinstance(column, dict) else None
+            )
+            if str(column_title or "").strip().lower() == wanted:
+                columns.pop(index)
+                return True
+    return False
+
+
+def _action_delete_column(
+    chat_manager,
+    board: Optional[str],
+    name: Optional[str],
+    force: bool = False,
+) -> ToolResponse:
+    """
+    Remove a column from a board or sprint.
+
+    A column that still holds tasks is never removed silently: ``force`` is
+    required, and it then deletes those tasks too (their files live in the
+    column folder).
+
+    Args:
+        chat_manager: The project ChatManager.
+        board: Board/sprint name (required).
+        name: Column title to remove (required).
+        force: Delete the column even when it still holds tasks.
+
+    Returns:
+        ToolResponse describing the removal.
+
+    Raises:
+        ValueError: When the board or the column does not exist, or the column
+            still has tasks and ``force`` is False.
+    """
+    board_name = (board or "").strip()
+    column = (name or "").strip()
+    if not board_name:
+        raise ValueError("board is required for action='delete_column'")
+    if not column:
+        raise ValueError("name (column title) is required for action='delete_column'")
+
+    kanban = _load_kanban(chat_manager)
+    info = _match_board(by_name=_board_catalogue(kanban=kanban), board=board_name)
+    if info is None:
+        raise ValueError(
+            f"board '{board_name}' does not exist "
+            f"(available boards: {_board_names(_boards_info(kanban))})"
+        )
+    resolved_column = _match_column(board_info=info, column=column)
+    if resolved_column is None:
+        raise ValueError(
+            f"column '{column}' does not exist on board '{info['name']}' "
+            f"(columns: {', '.join(info.get('columns') or []) or 'none'})"
+        )
+
+    task_count = _board_task_count(
+        chat_manager=chat_manager, board_name=info["name"], column=resolved_column
+    )
+    if task_count and not force:
+        raise ValueError(
+            f"column '{resolved_column}' still has {task_count} task(s); move or "
+            "delete them first, or call again with force=true"
+        )
+
+    deleted_tasks = 0
+    if force and task_count:
+        deleted_tasks = _delete_board_tasks(
+            chat_manager=chat_manager,
+            board_name=info["name"],
+            column=resolved_column,
+        )
+
+    entry = _board_entry(kanban=kanban, name=info["name"])
+    _remove_column(entry=entry, title=resolved_column)
+    _save_kanban(chat_manager=chat_manager, kanban=kanban)
+
+    logger.info(
+        "project_manager: deleted column '%s' from board '%s' (tasks=%d)",
+        resolved_column, info["name"], deleted_tasks,
+    )
+    return ToolResponse(
+        user_response=(
+            f"🗑️ Column deleted: **{resolved_column}** from board **{info['name']}**\n"
+            f"- Tasks deleted: {deleted_tasks}\n"
+            f"- Columns: {', '.join(_column_titles(entry)) or 'none'}"
+        ),
+        llm_response=_json(
+            {"status": "deleted", "column": resolved_column,
+             "deleted_tasks": deleted_tasks,
+             "board": _board_dict(info["name"], entry)}
+        ),
     )
 
 
@@ -1016,7 +2234,9 @@ def _action_create_task(
     The destination is validated BEFORE the chat is created: a task can only be
     created on an existing board, in an existing column of that board, with
     existing sprints and a valid state. Names are canonicalised to the
-    catalogue spelling so the task is stored in the right folder.
+    catalogue spelling so the task is stored in the right folder. Missing
+    destinations are created first with ``create_board`` / ``create_sprint`` /
+    ``create_column``.
 
     Persistence is delegated to :class:`~codx.junior.task_manager.TaskManager`,
     the single creation core shared with the ``create_task`` tool and
@@ -1542,20 +2762,34 @@ async def project_manager(
     disable_knowledge: bool = False,
     query: Optional[str] = None,
     limit: Optional[int] = None,
+    board_type: Optional[str] = None,
+    new_name: Optional[str] = None,
+    columns: Optional[List[str]] = None,
+    color: Optional[str] = None,
+    force: bool = False,
     **kwargs,
 ) -> ToolResponse:
     """
-    Unified project-manager tool over the project's kanban tasks (chats).
+    Unified project-manager tool over the project's kanban boards, sprints and
+    tasks (chats).
 
     A *task* is a :class:`~codx.junior.db.Chat` stored in
     ``.codx/tasks/<board>/<column>/`` and associated to one or more sprints
-    (``Chat.sprints``). This tool lets a profile create tasks, review them,
-    move them between statuses/boards/columns/sprints, and drive their
-    processing.
+    (``Chat.sprints``). A *sprint* is a board whose ``type`` is ``sprint``;
+    both boards and sprints live in ``tasks/kanban.json``. This tool lets a
+    profile set the catalogue up (boards, sprints, columns), create tasks,
+    review them, move them between statuses/boards/columns/sprints, and drive
+    their processing.
 
     Actions:
         - ``list_boards``: boards, their columns, the sprint boards and the
           valid task states.
+        - ``create_board``: create a board (with its columns).
+        - ``create_sprint``: create a sprint (a board of type ``sprint``).
+        - ``update_board``: rename a board/sprint, change type/description/parent.
+        - ``create_column``: add a column to a board or sprint.
+        - ``delete_column``: remove a column from a board.
+        - ``delete_board``: delete a board/sprint (``force`` deletes its tasks).
         - ``list_tasks``: list/filter tasks (board, column, sprint, status,
           ``query``).
         - ``get_task``: read one task (status, location, sprints, messages).
@@ -1569,10 +2803,14 @@ async def project_manager(
     Args:
         action: One of :data:`VALID_ACTIONS` (common aliases accepted).
         chat_id: Target task id (get/update/request actions).
-        name: Task name (required on ``create_task``).
-        description: Task description (required on ``create_task``).
+        name: Task name (required on ``create_task``); board/sprint name on
+            ``create_board``; column title on ``create_column``.
+        description: Task description (required on ``create_task``); board
+            description on ``create_board``/``update_board``.
         content: Initial user instruction (defaults to description/name).
-        board: Kanban board (defaults to ``kanban``; must exist).
+        board: Kanban board (defaults to ``kanban``; must exist). On
+            ``update_board``/``delete_board``/``create_column``/
+            ``delete_column`` it is the board being managed.
         column: Kanban column (defaults to ``tasks``; must exist on the board).
         sprints: Full sprint list (create: associates; update: replaces).
         sprint: Single sprint (create/update: appended to the sprint list).
@@ -1584,13 +2822,19 @@ async def project_manager(
         profiles: Profiles/roles for the task/comment (parameter only).
         files: Files related to the task/comment.
         tags: Tags (replaces on update).
-        parent_id: Parent chat id when creating (defaults to current chat).
+        parent_id: Parent chat id when creating a task (defaults to current
+            chat); parent board name on ``create_board``/``update_board``.
         comment: Comment text for request_changes / request_help (required).
         role: Comment role override (``user``/``assistant``).
         wait: For request_changes, wait for processing (default True).
         disable_knowledge: For request_changes, skip knowledge retrieval.
         query: For list_tasks, case-insensitive filter on name/description.
         limit: For list_tasks, maximum number of tasks returned.
+        board_type: ``kanban`` (default) or ``sprint`` on ``create_board``.
+        new_name: New board/sprint name on ``update_board``.
+        columns: Column titles to create on ``create_board``/``create_sprint``.
+        color: Column color on ``create_column``.
+        force: On ``delete_board``/``delete_column``, delete its tasks too.
         **kwargs: Internal. Injected by the agent runtime:
             ``settings`` and/or ``session``.
 
@@ -1605,18 +2849,28 @@ async def project_manager(
     Example:
         >>> await project_manager("list_boards")
         # Shows boards, columns, sprint boards and valid states
+        >>> await project_manager("create_board", name="Bugs",
+        ...                       description="Backlog board",
+        ...                       columns=["Backlog", "In progress", "Done"])
+        # Creates the board (and its storage folders)
+        >>> await project_manager("create_sprint", name="Sprint 12",
+        ...                       columns=["To do", "Doing", "Done"])
+        # Creates a sprint board; tasks join it with sprint="Sprint 12"
+        >>> await project_manager("create_column", board="Sprint 12",
+        ...                       name="Blocked")
+        # Adds a column to the sprint
+        >>> await project_manager("update_board", board="Sprint 12",
+        ...                       new_name="Sprint 13")
+        # Renames the sprint (folder and task board fields follow)
+        >>> await project_manager("delete_board", board="Sprint 13")
+        # Deletes an empty sprint (force=true also deletes its tasks)
         >>> await project_manager("create_task", name="Fix login timeout",
         ...                       description="## Context\\nLogin times out...",
-        ...                       board="kanban", column="tasks")
+        ...                       board="Bugs", column="Backlog",
+        ...                       sprint="Sprint 13", priority="high")
         # Creates the task and returns its id
-        >>> await project_manager("create_task", name="Fix login timeout",
-        ...                       description="## Context\\n...",
-        ...                       board="kanban", column="tasks",
-        ...                       sprint="Sprint 12")
-        # ❌ Invalid board 'kanban': available boards: Bugs, Engine...
-        #    Create the missing board, column, sprint or state first
         >>> await project_manager("update_task", chat_id="<id>",
-        ...                       status="doing", sprint="Sprint 13")
+        ...                       status="doing", sprint="Sprint 14")
         # Moves the task and updates its state
         >>> await project_manager("request_changes", chat_id="<id>",
         ...                       comment="Please add the failing test.")
@@ -1646,6 +2900,52 @@ async def project_manager(
 
         if resolved_action == "list_boards":
             return _action_list_boards(chat_manager=chat_manager)
+
+        if resolved_action in ("create_board", "create_sprint"):
+            return _action_create_board(
+                chat_manager=chat_manager,
+                name=name or board,
+                description=description,
+                columns=columns,
+                board_type=(
+                    BOARD_TYPE_SPRINT if resolved_action == "create_sprint"
+                    else board_type
+                ),
+                parent_id=parent_id,
+            )
+
+        if resolved_action == "update_board":
+            return _action_update_board(
+                chat_manager=chat_manager,
+                board=board or name,
+                new_name=new_name,
+                description=description,
+                board_type=board_type,
+                parent_id=parent_id,
+            )
+
+        if resolved_action == "delete_board":
+            return _action_delete_board(
+                chat_manager=chat_manager,
+                board=board or name,
+                force=force,
+            )
+
+        if resolved_action == "create_column":
+            return _action_create_column(
+                chat_manager=chat_manager,
+                board=board,
+                name=name or column,
+                color=color,
+            )
+
+        if resolved_action == "delete_column":
+            return _action_delete_column(
+                chat_manager=chat_manager,
+                board=board,
+                name=name or column,
+                force=force,
+            )
 
         if resolved_action == "list_tasks":
             return _action_list_tasks(
@@ -1761,10 +3061,20 @@ PROJECT_MANAGER_TOOL_JSON = {
     "function": {
         "name": "project_manager",
         "description": (
-            "Manage the project's kanban tasks (each task is a chat stored in "
-            ".codx/tasks/<board>/<column>/ and associated to one or more sprints). "
+            "Manage the project's kanban boards, sprints and tasks (each task is a "
+            "chat stored in .codx/tasks/<board>/<column>/ and associated to one or "
+            "more sprints). A sprint is a board whose type is 'sprint' and its name "
+            "is what task membership stores. "
             "Actions: "
             "'list_boards' (boards, columns, sprint boards and valid states), "
+            "'create_board' (create a kanban board with its columns), "
+            "'create_sprint' (create a sprint board), "
+            "'update_board' (rename a board/sprint, change its type, description or "
+            "parent; a rename moves the folder and its tasks), "
+            "'create_column' (add a column to a board or sprint), "
+            "'delete_column' (remove a column), "
+            "'delete_board' (delete a board/sprint; force=true also deletes its "
+            "tasks and cleans sprint membership from the remaining tasks), "
             "'list_tasks' (list/filter tasks), "
             "'get_task' (read a task: status, board/column, sprints and messages), "
             "'create_task' (create a task chat associated to board + column + sprint; "
@@ -1789,6 +3099,12 @@ PROJECT_MANAGER_TOOL_JSON = {
                     "description": (
                         "Operation:\n"
                         "  - 'list_boards': list kanban boards, columns, sprint boards and states\n"
+                        "  - 'create_board': create a kanban board (name required)\n"
+                        "  - 'create_sprint': create a sprint board (name required)\n"
+                        "  - 'update_board': rename a board/sprint or change type/description/parent\n"
+                        "  - 'create_column': add a column to a board or sprint\n"
+                        "  - 'delete_column': remove a column from a board\n"
+                        "  - 'delete_board': delete a board/sprint (force deletes its tasks)\n"
                         "  - 'list_tasks': list/filter tasks (read)\n"
                         "  - 'get_task': read one task with its conversation (read)\n"
                         "  - 'create_task': create a new task chat (requires name + description)\n"
@@ -1806,14 +3122,19 @@ PROJECT_MANAGER_TOOL_JSON = {
                 },
                 "name": {
                     "type": "string",
-                    "description": "Task name/title. Required for action='create_task'."
+                    "description": (
+                        "Task name/title. Required for action='create_task'. "
+                        "On create_board/create_sprint it is the board/sprint name; "
+                        "on create_column/delete_column it is the column title."
+                    )
                 },
                 "description": {
                     "type": "string",
                     "description": (
                         "Task description (what needs to be done). REQUIRED for "
                         "action='create_task': tasks are created with all their "
-                        "information, there is no AI sub-task generation."
+                        "information, there is no AI sub-task generation. On "
+                        "create_board/update_board it is the board description."
                     )
                 },
                 "content": {
@@ -1828,8 +3149,10 @@ PROJECT_MANAGER_TOOL_JSON = {
                     "description": (
                         f"Kanban board name. Defaults to '{DEFAULT_BOARD}'. Must be an "
                         "existing board of the project (see action='list_boards'): an "
-                        "unknown board is rejected and must be created first. On update, "
-                        "moves the task to another board."
+                        "unknown board is rejected and must be created first with "
+                        "action='create_board'. On update, moves the task to another "
+                        "board; on update_board/delete_board/create_column/"
+                        "delete_column it is the board being managed."
                     )
                 },
                 "column": {
@@ -1837,7 +3160,8 @@ PROJECT_MANAGER_TOOL_JSON = {
                     "description": (
                         f"Kanban column name. Defaults to '{DEFAULT_COLUMN}'. Must be a "
                         "column of the target board: an unknown column is rejected and "
-                        "must be created first. On update, moves the task to another column."
+                        "must be created first with action='create_column'. On update, "
+                        "moves the task to another column."
                     )
                 },
                 "sprints": {
@@ -1845,9 +3169,10 @@ PROJECT_MANAGER_TOOL_JSON = {
                     "items": {"type": "string"},
                     "description": (
                         "Sprint identifiers to associate (a sprint is a board of the "
-                        "project). Each one must exist: unknown sprints are rejected and "
-                        "must be created first. On create it sets the list; on update it "
-                        "REPLACES the list."
+                        "project whose type is 'sprint'). Each one must exist: unknown "
+                        "sprints are rejected and must be created first with "
+                        "action='create_sprint'. On create it sets the list; on update "
+                        "it REPLACES the list."
                     )
                 },
                 "sprint": {
@@ -1909,8 +3234,47 @@ PROJECT_MANAGER_TOOL_JSON = {
                     "type": "string",
                     "description": (
                         "Parent chat id when creating a task. Defaults to the chat "
-                        "that triggered this tool, when present."
+                        "that triggered this tool, when present. On "
+                        "create_board/update_board it is the parent BOARD name."
                     )
+                },
+                "board_type": {
+                    "type": "string",
+                    "enum": VALID_BOARD_TYPES,
+                    "description": (
+                        "Board kind on create_board ('kanban' by default) and the new "
+                        "kind on update_board. Use 'sprint' (or action='create_sprint') "
+                        "for a sprint board."
+                    )
+                },
+                "new_name": {
+                    "type": "string",
+                    "description": (
+                        "New board/sprint name for action='update_board'. The storage "
+                        "folder and the tasks of the board are moved with it."
+                    )
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Column titles to create with a new board or sprint "
+                        f"(defaults: '{DEFAULT_COLUMN}' for a board, "
+                        f"{'/'.join(DEFAULT_SPRINT_COLUMNS)} for a sprint)."
+                    )
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Optional column color (hex) for action='create_column'."
+                },
+                "force": {
+                    "type": "boolean",
+                    "description": (
+                        "For delete_board / delete_column: delete the tasks stored "
+                        "there too. Without it, a non-empty board or column is never "
+                        "deleted (default false)."
+                    ),
+                    "default": False
                 },
                 "comment": {
                     "type": "string",

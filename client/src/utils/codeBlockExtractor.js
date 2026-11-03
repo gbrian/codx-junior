@@ -5,6 +5,7 @@ const {
   createFenceTracker,
   trackFence,
   getFileChangeOpenTag,
+  normalizeFileChangeTags,
   parseFileChangeBlock
 } = parser
 
@@ -48,6 +49,9 @@ const LEGACY_FENCE_REGEX = /^ {0,3}```(\w+)\s+(.+)$/
  */
 export function extractCodeBlocks(content) {
   if (!content || typeof content !== 'string') return []
+
+  // Markers glued to prose are moved onto their own lines first (no-op otherwise)
+  content = normalizeFileChangeTags(content)
 
   const codeBlocks = []
   const lines = content.split('\n')

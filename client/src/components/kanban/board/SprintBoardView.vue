@@ -2,6 +2,7 @@
 import SprintBoardCanvas from './SprintBoardCanvas.vue'
 import SprintBoardGantt from './SprintBoardGantt.vue'
 import SprintBoardModals from './SprintBoardModals.vue'
+import TaskTableView from './TaskTableView.vue'
 </script>
 
 <template>
@@ -121,7 +122,7 @@ import SprintBoardModals from './SprintBoardModals.vue'
         chats without a board
       </span>
 
-      <!-- View switch: Kanban board ↔ Gantt timeline -->
+      <!-- View switch: board columns ↔ table ↔ gantt timeline -->
       <div class="join">
         <button
           class="btn btn-xs join-item gap-1.5"
@@ -132,6 +133,16 @@ import SprintBoardModals from './SprintBoardModals.vue'
         >
           <i class="fa-solid fa-table-columns text-xs"></i>
           <span class="hidden sm:inline text-xs">Board</span>
+        </button>
+        <button
+          class="btn btn-xs join-item gap-1.5"
+          :class="activeView === 'table' ? 'btn-primary' : 'btn-ghost text-base-content/40'"
+          :aria-pressed="activeView === 'table'"
+          title="Table view — find tasks with advanced filtering"
+          @click="activeView = 'table'"
+        >
+          <i class="fa-solid fa-table-list text-xs"></i>
+          <span class="hidden sm:inline text-xs">Table</span>
         </button>
         <button
           class="btn btn-xs join-item gap-1.5"
@@ -157,8 +168,8 @@ import SprintBoardModals from './SprintBoardModals.vue'
         <span class="hidden sm:inline text-xs">Stats</span>
       </button>
 
-      <!-- Search -->
-      <label class="input input-sm input-bordered flex items-center gap-2 w-52">
+      <!-- Search (the table view brings its own, richer search) -->
+      <label v-if="activeView !== 'table'" class="input input-sm input-bordered flex items-center gap-2 w-52">
         <i class="fa-solid fa-magnifying-glass text-xs text-base-content/40"></i>
         <input
           v-model="searchQuery"
@@ -288,9 +299,21 @@ import SprintBoardModals from './SprintBoardModals.vue'
       </div>
     </div>
 
+    <!-- ── Table: find sprint tasks with advanced filtering ── -->
+    <!-- Rendered inside this sprint view, so it is scoped to the sprint and does
+         not offer the board filter (see `inBoardView`). -->
+    <TaskTableView
+      v-if="activeView === 'table'"
+      class="flex-1 min-h-0"
+      :boardId="boardId"
+      :selectedTaskId="activeSelectionId"
+      :inBoardView="true"
+      @open-task="$emit('open-task', $event)"
+    />
+
     <!-- ── Gantt timeline ── -->
     <SprintBoardGantt
-      v-if="activeView === 'gantt'"
+      v-else-if="activeView === 'gantt'"
       class="flex-1 min-h-0"
       :columns="filteredColumns"
       :selectedTaskId="activeSelectionId"
@@ -355,7 +378,8 @@ export default {
       // Sprint stats panel (duration · avg cost · tasks per user/profile).
       // Hidden by default — the toolbar "Stats" button reveals/hides it.
       showStats: false,
-      // Active rendering of the sprint: 'board' (columns) or 'gantt' (timeline)
+      // Active rendering of the sprint:
+      //   'board' (columns) · 'table' (filterable task list) · 'gantt' (timeline)
       activeView: 'board'
     }
   },
@@ -369,6 +393,11 @@ export default {
     },
     activeBoardTitle() {
       return this.activeBoard?.title || 'Sprint'
+    },
+    // Profile this sprint is assigned to (board settings → assignee). The kanban
+    // store resolves the stored profile name against the board's own project.
+    assigneeProfile() {
+      return this.$storex.kanban.boardAssignee(this.boardId)
     },
     // Sprints listed in the selector.
     //
@@ -404,8 +433,10 @@ export default {
     totalTasks() {
       return this.columns.reduce((n, col) => n + col.tasks.length, 0)
     },
+    // The "done" column is the one whose STATUS is done, ignoring case
+    // ("Done" and "done" are the same status).
     doneCount() {
-      const done = this.columns.find(c => c.status === 'done')
+      const done = this.columns.find(c => this.sameStatus(c.status, 'done'))
       return done ? done.tasks.length : 0
     },
     progress() {
@@ -490,6 +521,14 @@ export default {
     initial(name) {
       return (name || '?').trim().charAt(0).toUpperCase() || '?'
     },
+    // Statuses are free text typed by the user, so they are compared ignoring
+    // case: the "Done" column with status "Done" is the same as one using "done".
+    normalizeStatus(value) {
+      return (value == null ? '' : String(value)).trim().toLowerCase()
+    },
+    sameStatus(a, b) {
+      return this.normalizeStatus(a) === this.normalizeStatus(b)
+    },
     // Group tasks by the values of an array field (`users` / `profiles`), keeping
     // a done and total count per value. Sorted by "done" so whoever closes more
     // tickets comes first. A task with no value is counted under `fallback`.
@@ -500,7 +539,8 @@ export default {
         names.forEach(name => {
           if (!map[name]) map[name] = { name, total: 0, done: 0 }
           map[name].total += 1
-          if (task.status === 'done') map[name].done += 1
+          // The task status compares ignoring case ("Done" === "done")
+          if (this.sameStatus(task.status, 'done')) map[name].done += 1
         })
       })
       return Object.values(map)
@@ -532,8 +572,11 @@ export default {
     },
     onEditColumn(columnTitle) {
       if (this.isVirtualBoard) return
+      // Title, id and status all address the column, compared ignoring case
       const column = this.columns.find(c =>
-        c.title === columnTitle || c.id === columnTitle || c.status === columnTitle)
+        c.title === columnTitle
+        || c.id === columnTitle
+        || this.sameStatus(c.status, columnTitle))
       this.$refs.modals?.openNewColumn(column || null)
     },
     // Persist a new column order. Sprint columns group tasks by `status`, so

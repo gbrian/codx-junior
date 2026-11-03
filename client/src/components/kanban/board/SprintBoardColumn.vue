@@ -403,9 +403,12 @@ export default {
     // Background of the column icon badge. A colour picked for the column is
     // applied inline (tint layer + icon colour, see the template); canonical
     // statuses use the shared status tokens; anything else stays neutral.
+    // The status is resolved ignoring case: "Doing" and "doing" are the same
+    // status and must render the same badge.
     columnBadgeClass() {
       if (this.column.color) return ''
-      return STATUS_BADGE_CLASSES[this.column.status] || 'bg-base-content/10 text-base-content/60'
+      const status = (this.column.status || '').trim().toLowerCase()
+      return STATUS_BADGE_CLASSES[status] || 'bg-base-content/10 text-base-content/60'
     },
     // Project assigned to the tasks of this column. Surfaced in the header only
     // when it differs from the active project, so a column that works inside the
@@ -632,8 +635,15 @@ export default {
       this.draggingTaskIndex = null
       this.taskDropIndex = null
       // Same-column drop is a no-op here (handled by the task list reorder)
-      if (!taskId || fromColumn === this.columnKey) return
+      // Column names compare ignoring case ("Doing" === "doing")
+      if (!taskId || this.sameColumn(fromColumn)) return
       this.emitMove(taskId)
+    },
+
+    // True when the given column value addresses THIS column (ignoring case)
+    sameColumn(value) {
+      const normalize = val => (val == null ? '' : String(val).trim().toLowerCase())
+      return normalize(value) === normalize(this.columnKey)
     },
 
     // ── Column drag (canvas reordering) ─────────────────────────────────────
@@ -672,9 +682,9 @@ export default {
         return
       }
 
-      // Cross-column drop — let the store move it
+      // Cross-column drop — let the store move it (column names ignore case)
       const fromColumn = event.dataTransfer.getData('fromColumn')
-      if (fromColumn && fromColumn !== this.columnKey) {
+      if (fromColumn && !this.sameColumn(fromColumn)) {
         const taskId = this.readTaskId(event)
         this.isDragOver = false
         this.draggingTaskId = null
@@ -712,7 +722,7 @@ export default {
     },
     onTaskListDrop(event) {
       const fromColumn = event.dataTransfer.getData('fromColumn')
-      if (fromColumn && fromColumn !== this.columnKey) {
+      if (fromColumn && !this.sameColumn(fromColumn)) {
         // Cross-column drop into empty space
         const taskId = this.readTaskId(event)
         this.isDragOver = false

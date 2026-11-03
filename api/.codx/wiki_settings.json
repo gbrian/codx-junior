@@ -690,6 +690,31 @@
           "path": "/codx/junior/api/profiles.py",
           "slug": "profiles.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/profiles.md"
+        },
+        {
+          "path": "/codx/junior/kanban/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/refs.py",
+          "slug": "refs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/refs.md"
+        },
+        {
+          "path": "/codx/junior/tools/item_ref_tools.py",
+          "slug": "item-ref-tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/item-ref-tools.md"
+        },
+        {
+          "path": "/codx/junior/model/persona.py",
+          "slug": "persona.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/persona.md"
+        },
+        {
+          "path": "/codx/junior/reviews/models.py",
+          "slug": "models.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/models.md"
         }
       ],
       "id": "project-overview",

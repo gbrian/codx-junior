@@ -19,11 +19,17 @@ import FindReplaceBox from './FindReplaceBox.vue'
     @dragleave.prevent="isDraggingOver = false"
     @drop.prevent="onDrop"        
   >
-    <!-- ── Mobile collapsed pill ── -->
-    <!-- .stop: the pill owns its own toggle, the document listener must not duplicate it -->
-    <div
-      v-if="isMobile && collapsed"
-      class="flex items-center gap-3 px-4 py-3 cursor-pointer"
+    <!-- ── Collapsed pill ── -->
+    <!-- Shown on every viewport: the composer collapses when the user activates
+         the message section (reading intent), not only on mobile.
+         `.stop`: the pill owns its own toggle, the click-outside listener must
+         not duplicate it. -->
+    <button
+      v-if="collapsed"
+      type="button"
+      class="w-full flex items-center gap-3 px-4 py-3 rounded-lg md:rounded-xl text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      aria-label="Expand the message composer"
+      title="Expand the message composer"
       @click.stop="$emit('toggle-collapsed')"
     >
       <i class="fa-solid fa-pen text-base-content/40 text-sm shrink-0"></i>
@@ -37,10 +43,10 @@ import FindReplaceBox from './FindReplaceBox.vue'
         {{ (attachmentCount || 0) + (fileCount || 0) }}
       </span>
       <i class="fa-solid fa-chevron-up text-base-content/30 text-xs"></i>
-    </div>
+    </button>
 
-    <!-- ── Full input (desktop always visible; mobile only when not collapsed) ── -->
-    <template v-if="!isMobile || !collapsed">
+    <!-- ── Full input (hidden while collapsed) ── -->
+    <template v-if="!collapsed">
       <!-- Slot: extra content above the textarea (e.g. project selector) -->
       <div v-if="$slots['before-textarea']" class="px-2 md:px-3 pt-2 md:pt-3 pb-1">
         <slot name="before-textarea" />
@@ -136,6 +142,8 @@ export default {
     project: { type: Object, default: null },
     chatProject: { type: Object, default: null },
     cursorWord: { type: Object, default: () => ({}) },
+    // Collapsed composer: only the pill is rendered (mobile reading mode, or any
+    // viewport after the user activates the message section).
     collapsed: { type: Boolean, default: false },
     // Counters shown on the collapsed pill (previews are hidden while collapsed)
     attachmentCount: { type: Number, default: 0 },
@@ -152,7 +160,7 @@ export default {
       isFocused: false,
       isDraggingOver: false,
       showFindReplace: false,
-      // Draft kept in memory while the composer is collapsed on mobile
+      // Draft kept in memory while the composer is collapsed
       collapsedDraft: '',
       // ── Voice note recorder ──
       isRecording: false,
@@ -180,6 +188,9 @@ export default {
       if (collapsed) {
         // The editor is unmounted while collapsed, keep the draft in memory
         this.collapsedDraft = this.$refs.editor?.value || ''
+        // The textarea disappears without firing blur: drop the focus styling
+        // so the pill never renders with the editor's focus ring
+        this.isFocused = false
         // The recorder controls disappear with the toolbar, never keep the microphone open
         if (this.isRecording) this.stopVoiceNoteRecording(true)
       } else {
@@ -189,7 +200,8 @@ export default {
     }
   },
   mounted() {
-    // Mobile: toggle the composer when the user taps inside (expand) or outside (collapse)
+    // Mobile: toggle the composer when the user taps inside (expand) or outside (collapse).
+    // Desktop collapses on demand (see the `collapsed` prop), so no global listener there.
     document.addEventListener('click', this.onDocumentClick)
   },
   unmounted() {
@@ -277,7 +289,7 @@ export default {
       this.updateCursorWord()
     },
     getEditorText() {
-      // While collapsed on mobile the editor is unmounted, return the kept draft
+      // While collapsed the editor is unmounted, return the kept draft
       if (!this.$refs.editor) return this.collapsedDraft
       return this.$refs.editor.value || ''
     },

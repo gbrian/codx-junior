@@ -20,9 +20,8 @@ export interface Message {
   disable_knowledge?: boolean
   read_by: string[]
   error?: string
-  cost?: number
-  cost_info?: Record<string, any>
-  // Project this message is addressed to. Overrides the chat's project when set.
+  // Project the message is addressed to. When present and different from the
+  // chat's working project, the message is rendered with that project's icon.
   project_id?: string
 }
 
@@ -62,22 +61,12 @@ export interface Chat {
   column_id: string
   board: string
   column: string
-  priority?: string
-  due_date?: string
-  progress?: number
-  assignees?: string[]
-  sort_index?: number
   columns: KanbanColumn[]
   chat_index?: number
   url: string
   branch: string
   file_path: string
   llm_model?: string
-  // ── Cost budget ──
-  // cost: accumulated cxjcoins spent on this chat (monotonic)
-  // estimation_cost: max cxjcoins allowed; the agent stops when cost reaches it (null = no limit)
-  cost?: number
-  estimation_cost?: number
   visibility?: string
   remote_url?: string
   knowledge_topics: string[]

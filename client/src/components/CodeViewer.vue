@@ -294,7 +294,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
 
       <div
-        v-if="isMessageStale && !diff"
+        v-if="!isNewFile && !diff"
         class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
         :title="`Old changes detected`"
       >
@@ -460,10 +460,6 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 
 <script>
 import { v4 as uuidv4 } from 'uuid'
-// Old code blocks are compared against a file that most likely moved on:
-// loading their diff automatically is expensive and usually meaningless, so it
-// is only fetched on demand (refresh icon / save / rollback).
-const AUTO_DIFF_MAX_AGE_HOURS = 2
 
 export default {
   props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
@@ -716,17 +712,6 @@ export default {
       return this.message?.updated_at
     },
     /**
-     * True when the code block belongs to an old message (> AUTO_DIFF_MAX_AGE_HOURS).
-     * Those blocks skip the automatic diff/read requests and rely on the manual
-     * refresh action instead. Missing timestamps are considered fresh.
-     */
-    isMessageStale() {
-      const createdAt = this.message?.updated_at || this.message?.created_at
-      if (!createdAt) return false
-      const age = Date.now() - new Date(createdAt).getTime()
-      return age > AUTO_DIFF_MAX_AGE_HOURS * 60 * 60 * 1000
-    },
-    /**
      * Whether the diff/read requests may be triggered automatically.
      * Only when the block has full context — a chat, a message already marked
      * as done (`message.done`) and a non-stale message. Otherwise the block
@@ -734,7 +719,7 @@ export default {
      * the refresh action (`showDiffInfo`).
      */
     canAutoLoadDiff() {
-      return !!this.chat && !!this.message && this.message.done === true && !this.isMessageStale
+      return !!this.chat && !!this.message && this.message.done === true
     },
     isContentOutdated() {
       if (this.isNoChange || !this.contentCreatedAt || !this.last_modification) {

@@ -12,10 +12,16 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 </script>
 
 <template>
-  <div class="flex h-full overflow-hidden" v-if="theChat">
+  <!-- `flex-row-reverse`: the chat hierarchy sidebar sits on the RIGHT, so the
+       conversation keeps a single continuous reading line and a host-supplied
+       channel list (MessengerView) can live on the left. The mobile drawer is
+       positioned with `fixed`, so the reversed flow does not affect it. -->
+  <div class="flex flex-row-reverse h-full overflow-hidden" v-if="theChat">
     <!-- ─────────────────────────────────────────────────────────────
          SIDEBAR: Persistent on desktop, overlay drawer on mobile
          ───────────────────────────────────────────────────────────── -->
+    <!-- Hidden when the host view already provides the conversation list
+         (`hideChatSidebar`). -->
     <ChatSidebar
       v-if="!isMobile"
       :workingChat="theChat"
@@ -32,7 +38,13 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       @toggle-compact="compactSidebar = !compactSidebar"
       @delete-chat="onSidebarDeleteChat"
       @remove-attachment="onSidebarRemoveAttachment"
-    />
+    >
+      <!-- Host-provided sidebar actions (e.g. MessengerView's channel members
+           toggle) forwarded into ChatSidebar's `actions` footer slot. -->
+      <template #actions>
+        <slot name="sidebar-actions" />
+      </template>
+    </ChatSidebar>
 
     <!-- Mobile sidebar drawer -->
     <template v-if="isMobile">
@@ -228,7 +240,9 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 
 <script>
 export default {
-  props: ['chatMode', 'chat', 'kanban', 'params'],
+  // `hideChatSidebar` lets a host view own the conversation list (messenger
+  // channels) instead of stacking ChatSidebar next to its own sidebar.
+  props: ['chatMode', 'chat', 'kanban', 'params', 'hideChatSidebar'],
   data() {
     return {
       showFile: null,

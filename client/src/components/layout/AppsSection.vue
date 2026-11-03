@@ -42,8 +42,9 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
 
     <!-- Pinned projects quick switcher (icons only while the rail is collapsed) -->
     <PinnedProjectsSwitcher 
+      v-if="!isCollapsed"
       @select="onProjectSelected"
-      :is-collapsed="isCollapsed" />
+    />
 
     <button
       v-if="!isCollapsed"

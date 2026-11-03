@@ -1,5 +1,6 @@
 <script setup>
 import { roleMeta, avatarUrl } from './config'
+import { profileKnowledgeInfo } from '@/utils/profileKnowledge'
 </script>
 
 <template>
@@ -24,6 +25,15 @@ import { roleMeta, avatarUrl } from './config'
       <div class="min-w-0 flex-1">
         <div class="text-sm font-semibold truncate">{{ member.name }}</div>
       </div>
+      <!-- Extra knowledge (rules / knowledge files learned for this project) -->
+      <span
+        v-if="knowledge.hasExtraKnowledge"
+        class="shrink-0 text-warning"
+        :title="knowledge.tooltip"
+        :aria-label="knowledge.tooltip"
+      >
+        <i class="fa-solid fa-book-bookmark text-xs"></i>
+      </span>
       <!-- Role: icon only, coloured (replaces the "Assistant"/"Chat" badge) -->
       <span class="shrink-0" :class="roleTextColor" :title="role.label" :aria-label="role.label">
         <i :class="role.icon" class="text-xs"></i>
@@ -67,6 +77,18 @@ import { roleMeta, avatarUrl } from './config'
 
         <div class="min-w-0 flex-1">
           <h3 class="font-semibold text-sm truncate">{{ member.name }}</h3>
+          <!-- Extra knowledge: what this profile has learned for THIS project.
+               Rules are learned in the project or inherited from a parent level;
+               knowledge files are indexed and retrieved on demand. -->
+          <span
+            v-if="knowledge.hasExtraKnowledge"
+            class="mt-1 inline-flex items-center gap-1 badge badge-xs badge-outline badge-warning max-w-full"
+            :title="knowledge.tooltip"
+            :aria-label="knowledge.tooltip"
+          >
+            <i class="fa-solid fa-book-bookmark" aria-hidden="true"></i>
+            <span class="truncate">{{ knowledge.label }}</span>
+          </span>
         </div>
 
         <div class="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
@@ -103,6 +125,14 @@ import { roleMeta, avatarUrl } from './config'
         </span>
         <span class="inline-flex items-center gap-1" :class="member.tools?.length ? 'text-success' : ''" title="Skills">
           <i class="fa-solid fa-wrench"></i>{{ member.tools?.length || 0 }}
+        </span>
+        <span
+          v-if="knowledge.hasExtraKnowledge"
+          class="inline-flex items-center gap-1 text-warning"
+          :title="knowledge.tooltip"
+          :aria-label="knowledge.tooltip"
+        >
+          <i class="fa-solid fa-book-bookmark"></i>{{ knowledge.label }}
         </span>
         <span v-if="member.llm_model" class="inline-flex items-center gap-1 truncate" :title="member.llm_model">
           <i class="fa-solid fa-brain"></i>{{ member.llm_model }}
@@ -142,6 +172,11 @@ export default {
     },
     avatar() {
       return avatarUrl(this.member)
+    },
+    // What this profile has learned for the current project (rules + knowledge
+    // files). Empty summary when it has learned nothing: no indicator shown.
+    knowledge() {
+      return profileKnowledgeInfo(this.member)
     },
     // Membership can only be removed from a real API team — never from the
     // derived "Unassigned" virtual group (id starting with "__").

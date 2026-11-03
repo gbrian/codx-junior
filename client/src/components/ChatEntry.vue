@@ -25,6 +25,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
     class="notion-entry group/entry relative w-full has-[.dropdown:focus-within]:z-30"
     :class="[
       displayMessage.hide && 'opacity-40 hover:opacity-100 transition-opacity',
+      // Channels are a flat, continuous feed: a full-row hover surface gives the
+      // message a boundary without drawing a border or a bubble.
+      isChannel && 'rounded-lg transition-colors duration-150 hover:bg-base-content/[0.04]',
     ]"
     tabindex="0"
   >
@@ -50,7 +53,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
         <div
           class="flex items-center gap-2 leading-none flex-wrap px-1"
           :class="isChannel
-            ? 'pb-1'
+            ? 'pb-1.5 gap-x-2'
             : 'sticky top-0 z-20 focus-within:z-30 -mt-1 pb-1.5 @lg/panel:pb-3 bg-base-100 border-b border-base-content/10 @lg/panel:border-base-content/30'"
         >
 
@@ -67,9 +70,13 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             <i class="fa-solid fa-box-archive"></i>
           </button>
 
-          <!-- Timestamp -->
-          <span class="text-[11px] text-base-content/40 tabular-nums">{{ formatDate(displayMessage.updated_at) }}</span>
-          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/30 tabular-nums">{{ timeTaken }}</span>
+          <!-- Timestamp — one step brighter in channels: on the bare conversation
+               canvas there is no header surface behind it to lean on. -->
+          <span
+            class="text-[11px] tabular-nums"
+            :class="isChannel ? 'text-base-content/60' : 'text-base-content/40'"
+          >{{ formatDate(displayMessage.updated_at) }}</span>
+          <span v-if="timeTaken" class="hidden @lg/panel:inline text-[11px] text-base-content/40 tabular-nums">{{ timeTaken }}</span>
 
           <!-- Seen double-check (other users' messages only) -->
           <button
@@ -82,64 +89,59 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             <i class="fa-solid fa-check-double text-sm"></i>
           </button>
 
-          <!-- Inline events trigger (assistant only).
-               - Hidden on mobile (*) — reachable from the ⋯ menu.
-               - Hidden when there are tools, since the tools button toggles the same inline list.
-               - Hidden in channels: tool/run events are developer detail. -->
+          <!-- Events & tools trigger (assistant only).
+               ONE trigger for every panel width and every state:
+               - visible while the message is still streaming (spinner instead of
+                 the wrench) so the run can be followed from the first event —
+                 `isDone` never gates it;
+               - visible when no tool ran yet (run/lifecycle events only);
+               - visible in channels too: the inline panel below is the only place
+                 that shows what the assistant actually did there.
+               The count only appears once tools were recorded. -->
           <button
-            v-if="isAssistant && !isChannel && !toolEventCount"
-            class="hidden @lg/panel:flex btn btn-xs btn-ghost tooltip tooltip-bottom"
-            :class="eventsOpen && 'btn-active text-warning'"
-            data-tip="Events & Tools"
-            @click.stop="toggleEventsPanel"
-          >
-            <i class="fa-solid fa-stream text-info"></i>
-          </button>
-
-          <!-- Tools counter — shows the icon + count and toggles the inline tools list
-               rendered inside this message (see <ChatMessageEvents> below). -->
-          <button
-            v-if="isAssistant && !isChannel && toolEventCount"
+            v-if="isAssistant"
             class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
             :class="eventsOpen && 'btn-active text-warning'"
-            data-tip="Tools"
+            :data-tip="eventsTip"
+            :aria-expanded="eventsOpen ? 'true' : 'false'"
             @click.stop="toggleEventsPanel"
           >
-            <i class="fa-solid fa-wrench text-info"></i>
-            <span class="text-[11px] tabular-nums">x{{ toolEventCount }}</span>
+            <span v-if="!isDone" class="loading loading-spinner loading-xs text-info"></span>
+            <i v-else class="fa-solid fa-wrench" :class="toolEventCount ? 'text-info' : 'text-base-content/40'"></i>
+            <span v-if="toolEventCount" class="text-[11px] tabular-nums">x{{ toolEventCount }}</span>
           </button>
 
           <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">
             {{ displayMessage.user }}
           </span>
 
+          <!-- ── Message project override ──
+               A message can target a project different from the chat's working
+               project (Message.project_id). Showing WHICH project — with its icon
+               — keeps the files/code it mentions from being read in the wrong
+               context. Rendered right next to the author so it reads as part of
+               the message identity, never as decoration. -->
+          <span
+            v-if="isProjectOverridden"
+            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-primary/40 bg-primary/10 text-primary text-[11px] font-medium max-w-[14rem] shrink-0"
+            :title="projectLabel"
+            :aria-label="`Project: ${projectLabel}`"
+          >
+            <img
+              v-if="messageProject?.project_icon"
+              :src="messageProject.project_icon"
+              alt=""
+              class="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+              aria-hidden="true"
+            />
+            <i v-else class="fa-solid fa-folder text-[10px] shrink-0" aria-hidden="true"></i>
+            <span class="truncate">{{ messageProject?.project_name || 'Other project' }}</span>
+          </span>
 
           <!-- Avatars — DaisyUI overlapping avatar group to save space -->
           <div
             class="avatar-group -space-x-1 rtl:space-x-reverse shrink-0"
           >
-            <!-- Project override — a message can target a project different from
-                the chat's working project (message.project_id): show which one so
-                the files/code it mentions are not read in the wrong context.
-                Narrow panels keep only the icon; the name appears at @lg/panel. -->
-            <span
-              v-if="isProjectOverridden"
-              class="avatar tooltip tooltip-bottom"
-              :data-tip="projectLabel"
-              :title="projectLabel"
-              :aria-label="projectLabel"
-            >
-              <img
-                v-if="messageProject?.project_icon"
-                :src="messageProject.project_icon"
-                alt=""
-                class="w-4 h-4 rounded-full object-cover shrink-0"
-              />
-              <i v-else class="fa-solid fa-folder shrink-0"></i>
-              <span class="hidden @lg/panel:inline truncate">{{ messageProject?.project_name || 'Project' }}</span>
-            </span>
-
-
             <div v-if="isAssistant" class=" bg-base-100">
               <div class="w-5">
                 <img src="/only_icon.png" alt="Assistant" />
@@ -258,7 +260,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
               >
                 <!-- ── Compact (mobile) message actions ──
                      Mirrors the inline icon row that is hidden below @lg/panel,
-                     so every action stays reachable without widening the header. -->
+                     so every action stays reachable without widening the header.
+                     Events & tools is NOT repeated here: its trigger is inline at
+                     every width (see the header). -->
                 <li class=""><a @click.stop="$emit('thread', message)"><i class="fa-solid fa-comment-dots w-4"></i> Thread</a></li>
                 <li v-if="!isChannel" class=""><a @click.stop="$emit('answer', message)"><i class="fa-solid fa-circle-info w-4 text-info/70"></i> {{ displayMessage.is_answer ? 'Unmark answer' : 'Mark as answer' }}</a></li>
                 <li class=""><a @click.stop="copyMessageToClipboard"><i class="fa-solid fa-copy w-4"></i> Copy</a></li>
@@ -266,9 +270,6 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
                 <li v-if="hasCodeBlocksOrFiles && !isChannel" class=""><a @click.stop="toggleFileView" :class="showFileView && 'text-primary'"><i class="fa-solid fa-file-code w-4"></i> Files</a></li>
                 <li v-if="hasPRViewBlocks && !isChannel" class=""><a @click.stop="togglePRView" :class="showPRView && 'text-primary'"><i class="fa-solid fa-code-branch w-4"></i> Review</a></li>
 
-                <!-- Inline Events & Tools — the desktop trigger is hidden on
-                     mobile (*), so it lives here for narrow panels. -->
-                <li v-if="isAssistant && !isChannel" class=""><a @click.stop="toggleEventsPanel"><i class="fa-solid fa-stream w-4 text-info"></i> Events & Tools</a></li>
                 <li v-if="!isChannel"><a @click.stop="runAgents" class="text-info"><i class="fa-solid fa-people-group w-4"></i> Run agents</a></li>
                 <li v-if="isDone && !isChannel"><a @click.stop="toggleSrcView()"><i class="fa-solid fa-code w-4"></i> View source</a></li>
                 <li v-if="isDone"><a @click.stop="$emit('edit-message', message)"><i class="fa-solid fa-pen w-4"></i> Edit</a></li>
@@ -285,9 +286,10 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
              contextual. Driven by the existing `eventsOpen` prop (parent owns the
              open state). The "more details" drawer trigger lives INSIDE this panel
              (see <ChatMessageEvents>), which re-emits `show-events-drawer`.
-             Hidden in channels: processing details are developer output. -->
+             Channels render it too: the header trigger is the only way to see what
+             the assistant ran inside a channel, hiding it made the button a no-op. -->
         <ChatMessageEvents
-          v-if="eventsOpen && !isChannel"
+          v-if="eventsOpen"
           :message="displayMessage"
           :drawerOpen="eventsDrawerOpen"
           class="mt-2"
@@ -351,6 +353,9 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           :class="[
             displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-4 border-info/30',
             isTopic && !isChannel && !displayMessage.is_answer && 'pl-2 @lg/panel:pl-3 border-l-2 border-info/30',
+            // Channels: body text one step brighter than the design-token default
+            // (base-content/80) — long channel threads are read for minutes.
+            isChannel && 'text-base-content/90',
           ]"
         >
 
@@ -596,11 +601,15 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
           />
         </div>
 
-        <!-- ── Seen timeout progress bar ── -->
+        <!-- ── Seen timeout progress bar ──
+             Channels skip it entirely: an 8px band under EVERY message reads as a
+             separator stripe and makes the channel timeline harder to scan. The
+             surface is only painted while the bar is actually tracking. -->
         <div
+          v-if="!isChannel"
           ref="seenProgressBar"
-          class="mt-2 transition-opacity duration-200 min-h-2 bg-base-200"
-          :class="isFocused && !isMessageSeen ? 'opacity-100' : 'opacity-0'"
+          class="mt-2 transition-opacity duration-200 min-h-2 rounded-full"
+          :class="isFocused && !isMessageSeen ? 'opacity-100 bg-base-200' : 'opacity-0'"
           tabindex="0"
           @focus="onMessageFocus"
           @blur="onMessageBlur"
@@ -824,11 +833,16 @@ export default {
     chatProjectId() {
       return this.chat?.project_id || this.chat?.owner_project_id || null
     },
-    // Project the rendered message is addressed to (Message.project_id).
-    // `displayMessage` is used so a topic reply shows the project of the content
-    // actually on screen.
+    // Project the rendered message is addressed to.
+    //
+    // A message may carry its own `project_id` (a sub-agent running against
+    // another project). Some writers put it in `meta_data.project_id`, so both
+    // locations are accepted; `displayMessage` is used so a topic reply reports
+    // the project of the content actually on screen.
     messageProjectId() {
-      return this.displayMessage?.project_id || null
+      return this.displayMessage?.project_id
+        || this.displayMessage?.meta_data?.project_id
+        || null
     },
     // Resolved project of the rendered message.
     messageProject() {
@@ -934,6 +948,13 @@ export default {
         return toolEvents.length
       }
       return this.message?.tool_event ? 1 : 0
+    },
+    // Tooltip of the events trigger. Tool count is 0 until the first tool runs,
+    // so the label adapts instead of the button disappearing.
+    eventsTip() {
+      return this.toolEventCount
+        ? `Tools & events (${this.toolEventCount})`
+        : 'Events & tools'
     },
     lifecycleEventCount() {
       const lifecycleEvents = this.message?.lifecycle_events

@@ -236,6 +236,20 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           </ul>
         </div>
 
+        <!-- ── Host-provided actions ──
+             Views embedding the sidebar inject their own toolbar buttons here
+             (e.g. MessengerView's channel members toggle), so host features sit
+             next to the built-in chat actions instead of floating over the chat
+             header. Render ONE button per action and reuse the toolbar classes
+             of the buttons above so it matches at every sidebar width:
+               class="flex-1 flex items-center justify-center h-9 rounded-lg
+                      text-base-content/60 hover:text-base-content/90
+                      hover:bg-base-200 focus:ring-2 focus:ring-primary/50
+                      transition-colors duration-150"
+             The container is a row when expanded and a column when compact, so
+             `flex-1` is all a button needs to align. -->
+        <slot name="actions" />
+
         <!-- Compact Toggle Button -->
         <button 
           @click.stop="$emit('toggle-compact')"

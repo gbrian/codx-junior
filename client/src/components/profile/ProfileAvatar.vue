@@ -7,7 +7,7 @@ import Document from '../document/Document.vue';
   >
     <div tabindex="0" class="avatar" v-if="profile">
       <div class="rounded-full bg-base-300" :class="avatarWidth">
-        <img :src="avatarUrl" />
+        <img :src="avatarUrl" :alt="profile.name" />
       </div>
     </div>
     <div
@@ -35,7 +35,11 @@ export default {
       return `w-${width}`
     },
     avatarUrl() {
-      return this.profile.avatar_url || this.profile.avatar
+      // A generated avatar keeps the profile recognisable when it carries no
+      // picture (same default the profile cards use), so an assignee whose
+      // profile is still loading is never rendered as a broken image.
+      return this.profile.avatar_url || this.profile.avatar ||
+        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`
     }
   }
 }

@@ -6,6 +6,8 @@ import SprintBoardView from './SprintBoardView.vue'
 import KanbanList from '../KanbanList.vue'
 import PlanningView from './PlanningView.vue'
 import FollowupView from './FollowupView.vue'
+import TaskTableView from './TaskTableView.vue'
+import AssistantQuickChatButton from './AssistantQuickChatButton.vue'
 import BoardTransferModal from './BoardTransferModal.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ChatView from '@/views/ChatView.vue'
@@ -49,7 +51,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
     <!-- View switcher (kanban boards only — sprint boards render their own toolbar) -->
     <div
       v-if="!isSprintBoard"
-      class="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-base-100 bg-base-200 z-20"
+      class="shrink-0 flex flex-wrap items-center gap-1 px-3 py-2 border-b border-base-100 bg-base-200 z-20"
     >
       <button
         v-for="tab in viewTabs"
@@ -57,6 +59,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
         @click="activeView = tab.id"
         class="btn btn-ghost btn-sm gap-2 rounded-lg transition-all duration-150"
         :class="activeView === tab.id ? 'bg-primary/15 text-primary' : 'text-base-content/60 hover:bg-base-content/5'"
+        :aria-pressed="activeView === tab.id"
       >
         <i :class="tab.icon" class="text-xs"></i>
         <span class="text-xs font-medium">{{ tab.label }}</span>
@@ -66,6 +69,20 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
           :class="activeView === tab.id ? 'badge-primary' : 'badge-ghost text-base-content/40'"
         >{{ tab.count }}</span>
       </button>
+
+      <div class="grow"></div>
+
+      <!-- Chat with the profile that assists managers (ProjectManager): a NEW
+           chat is created already carrying the profile and opened, so the user
+           lands on its composer ready to be written. -->
+      <AssistantQuickChatButton
+        class="shrink-0"
+        :class="creatingManagerChat ? 'btn-disabled opacity-60 pointer-events-none' : ''"
+        :project="project || $projects.activeProject"
+        profileName="ProjectManager"
+        label="ProjectManager"
+        @click="onChatWithProjectManager"
+      />
     </div>
 
     <!-- ── Kanban board view ── -->
@@ -262,6 +279,18 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
       </VerticalSplitter>
     </div>
 
+    <!-- ── Table view: find tasks with advanced filtering ── -->
+    <!-- The table is rendered INSIDE this board view, so it is scoped to the open
+         board and does not offer the board filter (see `inBoardView`). -->
+    <TaskTableView
+      v-if="!isSprintBoard && activeView === 'table'"
+      class="flex-1 min-h-0"
+      :boardId="activeBoardId"
+      :selectedTaskId="selectedTaskId"
+      :inBoardView="true"
+      @open-task="onSelectTask"
+    />
+
     <!-- ── Sprint board view ── -->
     <div
       v-if="isSprintBoard && activeView === 'board'"
@@ -374,7 +403,12 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 
 <script>
 // Views exposed by this component
-const VALID_VIEWS = ['board', 'planning', 'followup']
+const VALID_VIEWS = ['board', 'table', 'planning', 'followup']
+
+// Profile that assists managers. The quick-chat button is answered by it and the
+// chats it opens already carry it, so the conversation starts with the right
+// context instead of an empty generic chat.
+const ASSISTANT_PROFILE = 'ProjectManager'
 
 export default {
   props: {
@@ -404,7 +438,9 @@ export default {
       editingColumn: null,
       showBoardList: false,
       // Export / import board modal (kanban & sprint share it)
-      showTransfer: false
+      showTransfer: false,
+      // Guards the ProjectManager chat against a double click
+      creatingManagerChat: false
     }
   },
   created() {
@@ -526,6 +562,7 @@ export default {
       const planning = this.$storex.planning
       return [
         { id: 'board', label: 'Board', icon: 'fa-solid fa-columns', count: this.sidebarTasks.length },
+        { id: 'table', label: 'Table', icon: 'fa-solid fa-table-list', count: this.boardChats.length },
         { id: 'planning', label: 'Planning', icon: 'fa-solid fa-list-check', count: planning?.allTasks?.length || 0 },
         { id: 'followup', label: 'Follow-up', icon: 'fa-solid fa-chart-line', count: planning?.metrics?.overdue || 0 }
       ]
@@ -614,6 +651,49 @@ export default {
           project: this.project || this.$projects.activeProject
         }
       })
+    },
+    // Chat with the profile that assists managers (ProjectManager).
+    //
+    // A NEW chat is created already carrying the profile and immediately opened
+    // (`setActiveChat` → docked chat panel on desktop, its own route on mobile),
+    // so the user lands on the composer ready to write. The profile is what
+    // makes the assistant answer with its own instructions instead of acting as
+    // a generic chat.
+    async onChatWithProjectManager() {
+      if (this.creatingManagerChat) return
+
+      const project = this.project || this.$projects.activeProject
+      if (!project?.project_id) {
+        this.$ui?.addNotification?.({
+          text: 'Open a project to chat with the Project Manager',
+          type: 'warning'
+        })
+        return
+      }
+
+      this.creatingManagerChat = true
+      try {
+        const chat = await this.$storex.chats.createNewChat({
+          name: `Chat with ${ASSISTANT_PROFILE}`,
+          mode: 'chat',
+          // The ProjectManager profile answers this chat
+          profiles: [ASSISTANT_PROFILE],
+          owner_project_id: project.project_id
+        })
+
+        if (!chat?.id) {
+          this.$ui?.addNotification?.({ text: 'Could not create the chat', type: 'error' })
+          return
+        }
+
+        // Open it: the chat panel docks next to the board, ready to be written
+        await this.$storex.chats.setActiveChat(chat)
+      } catch (error) {
+        console.error('[KanbanBoardView] Could not start the ProjectManager chat:', error)
+        this.$ui?.addNotification?.({ text: 'Could not create the chat', type: 'error' })
+      } finally {
+        this.creatingManagerChat = false
+      }
     },
     // Board requested through the app params (persisted per panel) or the route
     resolveRequestedBoardId() {

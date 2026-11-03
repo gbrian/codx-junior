@@ -282,6 +282,159 @@ function isFileChangeCloseTag(line) {
 }
 
 /**
+ * Normalization of <file_change> tags
+ * -------------------------------------------------------------------------
+ * Model output frequently glues prose and markers on a single line:
+ *
+ *   Here it is: <file_change path="a.md" ...>const a = 1<file_change/> Done.
+ *
+ * Both tag regexes used by the parser are ANCHORED (`^ ... $`), so a glued
+ * marker is invisible to them: the envelope is not detected at all (the raw
+ * tag is rendered in the chat) or the block never closes and swallows the rest
+ * of the message. This pre-pass moves every marker onto its own line while
+ * leaving verbatim regions untouched:
+ *
+ *  - fenced blocks:   a fenced example documents the syntax, never a real file
+ *  - envelope bodies: the body is the file content
+ *
+ * Boundaries are located with getFileChangeOpenTag / isFileChangeCloseTag, the
+ * very helpers used by parseFileChangeBlock, so normalizer and parser can never
+ * disagree about where a block starts or ends. The pass is idempotent, so it is
+ * safe to run on content that has already been normalized.
+ */
+
+// Any complete tag anywhere in a line (used only to locate markers in prose)
+const FILE_CHANGE_ANY_TAG_REGEX = /<\/?file_change\b[^>]*>/gi
+
+// One-entry memo: chat content is re-parsed on every streaming chunk
+let normalizeCache = { input: null, output: null }
+
+/** True when `index` sits inside an inline code span (`...`). */
+function isInsideInlineCode(line, index) {
+  let ticks = 0
+  for (let i = 0; i < index; i++) if (line[i] === '`') ticks++
+  return ticks % 2 === 1
+}
+
+/**
+ * Split a line into text/tag pieces.
+ * Returns null when the line carries no promotable marker, so the caller can
+ * push it through byte-identically.
+ */
+function splitFileChangePieces(line) {
+  FILE_CHANGE_ANY_TAG_REGEX.lastIndex = 0
+  const pieces = []
+  let cursor = 0
+  let found = false
+  let match
+
+  while ((match = FILE_CHANGE_ANY_TAG_REGEX.exec(line))) {
+    const start = match.index
+    const tag = match[0].trim()
+    const prefix = line.slice(cursor, start)
+
+    // Only real markers are promoted: a `<file_change>` without attributes or
+    // a lookalike is prose the parser ignores as well.
+    if (!isFileChangeCloseTag(tag) && !getFileChangeOpenTag(tag)) continue
+
+    // Guards: escaped marker, inline-code mention, indented code block example
+    if (prefix.endsWith('\\')) continue
+    if (isInsideInlineCode(line, start)) continue
+    if (!prefix.trim() && prefix.length >= 4) continue
+
+    found = true
+    if (prefix.trim()) pieces.push({ type: 'text', text: prefix })
+    pieces.push({ type: 'tag', text: tag })
+    cursor = start + match[0].length
+  }
+
+  if (!found) return null
+  const rest = line.slice(cursor)
+  if (rest.trim()) pieces.push({ type: 'text', text: rest })
+  return pieces
+}
+
+/**
+ * Make every <file_change> open/close marker the only content of its line.
+ *
+ * States:
+ *  - prose:    markers are located and split onto their own lines
+ *  - fence:    lines are verbatim (a fenced example documents the syntax)
+ *  - envelope: lines are verbatim; only a marker glued to text is split, so
+ *              the depth counter of parseFileChangeBlock keeps balancing
+ *
+ * Detection ignores the trailing '\r' of CRLF lines while the output keeps it,
+ * so file line endings are never rewritten.
+ */
+function normalizeFileChangeTags(content) {
+  if (!content || typeof content !== 'string') return content || ''
+  if (!/<\/?file_change/i.test(content)) return content
+  if (normalizeCache.input === content) return normalizeCache.output
+
+  const lines = content.split('\n')
+  const output = []
+  let mode = 'prose'
+  let fenceTracker = null
+  let envelopeDepth = 0
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const scan = line.endsWith('\r') ? line.slice(0, -1) : line
+
+    if (mode === 'fence') {
+      output.push(line)
+      const fence = getFence(scan)
+      if (fence && trackFence(fenceTracker, fence) === 'close') {
+        mode = 'prose'
+        fenceTracker = null
+      }
+      continue
+    }
+
+    // Outside an envelope a fence opens a verbatim region. Bare fences are
+    // included on purpose: protecting an example is always safer than
+    // promoting a marker that lives inside it.
+    if (mode === 'prose') {
+      const fence = getFence(scan)
+      if (fence) {
+        output.push(line)
+        fenceTracker = createFenceTracker(fence)
+        mode = 'fence'
+        continue
+      }
+    }
+
+    const pieces = splitFileChangePieces(scan)
+    if (!pieces) {
+      output.push(line)
+      continue
+    }
+
+    for (const piece of pieces) {
+      // Keep the '\r' that was stripped from the scanned line
+      output.push(scan === line ? piece.text : `${piece.text}\r`)
+      if (piece.type !== 'tag') continue
+
+      if (isFileChangeCloseTag(piece.text)) {
+        if (mode === 'envelope') {
+          envelopeDepth--
+          if (envelopeDepth <= 0) mode = 'prose'
+        }
+      } else if (mode === 'envelope') {
+        envelopeDepth++
+      } else {
+        mode = 'envelope'
+        envelopeDepth = 1
+      }
+    }
+  }
+
+  const normalized = output.join('\n')
+  normalizeCache = { input: content, output: normalized }
+  return normalized
+}
+
+/**
  * Parse a full `<file_change>` envelope starting at `startIndex` (the open tag).
  *
  * Returns { block, endIndex } where `endIndex` is the index of the closing
@@ -366,6 +519,9 @@ function parseFileChangeBlock(lines, startIndex, getRendererFn = getRenderer) {
  */
 function fileChangeBlocksToFences(content) {
   if (!content || typeof content !== 'string') return content
+
+  // Markers glued to prose are moved onto their own lines first (no-op otherwise)
+  content = normalizeFileChangeTags(content)
 
   const lines = content.split('\n')
   const output = []
@@ -464,6 +620,9 @@ function isInsideCodeFence(lines, lineIndex) {
  *   left as markdown so it keeps normal document formatting.
  */
 function parseBlocks(content, getRendererFn = getRenderer) {
+  // Markers glued to prose are moved onto their own lines first (no-op otherwise)
+  content = normalizeFileChangeTags(content)
+
   const blocks = []
   const lines = content.split('\n')
   let currentType = 'markdown'
@@ -611,6 +770,9 @@ function collectAllChildContent(chapter) {
  * Parse content into chapter objects with nested children
  */
 function parseChapters(content, loading) {
+  // Markers glued to prose are moved onto their own lines first (no-op otherwise)
+  content = normalizeFileChangeTags(content)
+
   const lines = content.split('\n')
   const chapters = []
   let i = 0
@@ -751,6 +913,9 @@ export default {
   getFileChangeOpenTag,
   isFileChangeCloseTag,
   parseFileChangeAttributes,
+  isInsideInlineCode,
+  splitFileChangePieces,
+  normalizeFileChangeTags,
   parseFileChangeBlock,
   fileChangeBlocksToFences,
   isInsideCodeFence,

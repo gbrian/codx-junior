@@ -136,6 +136,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
             :users-list="usersList"
             :children-chats="childrenChats"
             :processing="isProcessing"
+            @messages-activated="collapseComposer"
             @edited="onMessageEdited"
             @remove="removeMessage"
             @remove-file="removeFileFromMessage($event.message, $event.file)"
@@ -219,7 +220,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
                 @toggle-voice="toggleVoiceSession"
                 @toggle-collapsed="toggleInputCollapsed"
               />
-              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
+              <!-- Hidden while the composer is collapsed (reading mode) -->
               <ChatAttachmentPreview
                 :attachments="attachments"
                 @remove-attachment="removeAttachment"
@@ -230,7 +231,7 @@ import { extractCodeBlocks } from '@/utils/codeBlockExtractor'
 
             <!-- Per-message files slot (files attached to the current message being composed) -->
             <template #files>
-              <!-- Hidden while the composer is collapsed on mobile (reading mode) -->
+              <!-- Hidden while the composer is collapsed (reading mode) -->
               <ChatFileList
                 :files="files"
                 :message-files="noMessageFiles"
@@ -540,10 +541,12 @@ export default {
         || this.chatProject?.$state?.mentionList
         || this.$projects.mentionList
     },
-    // On mobile the composer collapses while reading the messages; the image/files
-    // previews are hidden too so the reading area stays clean.
+    // While the composer is collapsed only its pill is rendered: the attachments
+    // and files previews are hidden too, so the reading area stays clean.
+    // Mobile starts collapsed; any viewport collapses when the user activates
+    // the message section (see collapseComposer).
     composerCollapsed() {
-      return this.$ui.isMobile && this.inputCollapsed
+      return this.inputCollapsed
     },
     // Stable empty list handed to the composer's file list: an inline `[]` in the
     // template would be a brand new array on every render of this component.
@@ -620,6 +623,14 @@ export default {
       if (!this.inputCollapsed) {
         this.$nextTick(() => this.$refs.inputBox?.focusEditor())
       }
+    },
+    // Reading intent: the user clicked/activated the message section, so the
+    // composer shrinks to its pill and the conversation gets the whole panel
+    // height. Never while editing (the editor must stay mounted) and never on
+    // read-only chats (there is no composer to collapse).
+    collapseComposer() {
+      if (this.readOnly || this.editMessage) return
+      this.inputCollapsed = true
     },
     initProject() {
       // Remember what was initialised so the `chat` watcher can tell a store
