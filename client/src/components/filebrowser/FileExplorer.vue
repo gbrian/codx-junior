@@ -3,6 +3,7 @@ import moment from 'moment'
 import ContextMenu from './ContextMenu.vue'
 import CreateFileDialog from './CreateFileDialog.vue'
 import MoveDialog from './MoveDialog.vue'
+import FileSlideShow from './FileSlideShow.vue'
 </script>
 
 <template>
@@ -65,6 +66,16 @@ import MoveDialog from './MoveDialog.vue'
         @click="toggleViewMode"
       >
         <i :class="viewToggleIcon"></i>
+      </button>
+
+      <!-- Slide show -->
+      <button
+        class="btn btn-sm btn-ghost"
+        title="Slide show"
+        aria-label="Slide show"
+        @click="openSlideShow"
+      >
+        <i class="fa-solid fa-photo-film"></i>
       </button>
 
       <button class="btn btn-sm btn-ghost" title="Refresh" @click="refresh">
@@ -410,6 +421,14 @@ import MoveDialog from './MoveDialog.vue'
       @move="onMoveConfirm"
       @cancel="showMoveDialog = false"
     />
+
+    <!-- Slide show overlay -->
+    <FileSlideShow
+      v-if="showSlideShow"
+      :files="slideShowFiles"
+      :start-index="slideShowIndex"
+      @close="showSlideShow = false"
+    />
   </div>
 </template>
 
@@ -417,6 +436,7 @@ import MoveDialog from './MoveDialog.vue'
 import ContextMenu from './ContextMenu.vue'
 import CreateFileDialog from './CreateFileDialog.vue'
 import MoveDialog from './MoveDialog.vue'
+import FileSlideShow from './FileSlideShow.vue'
 import { onFileEvent, isDirectoryAffected } from '@/utils/fileEvents'
 
 // Formats the browser can render a thumbnail / preview for.
@@ -435,7 +455,7 @@ const FILE_EVENT_REFRESH_DELAY = 400
 
 export default {
   name: 'FileExplorer',
-  components: { ContextMenu, CreateFileDialog, MoveDialog },
+  components: { ContextMenu, CreateFileDialog, MoveDialog, FileSlideShow },
   props: ['root-path'],
   data() {
     return {
@@ -477,6 +497,10 @@ export default {
       createDialogIsDir: false,
       showMoveDialog: false,
       moveSources: [],
+      // Slide show overlay state (see openSlideShow)
+      showSlideShow: false,
+      slideShowFiles: [],
+      slideShowIndex: 0,
       // Backend file events (see `utils/fileEvents`): unsubscribe function and
       // the debounce timer of the automatic refreshes.
       unsubscribeFileEvents: null,
@@ -692,6 +716,33 @@ export default {
       const name = entry.name || ''
       if (!name.includes('.')) return 'file'
       return this.getFileExtension(name)
+    },
+    // Open the slide show with the files of the current listing, starting on the
+    // selected file when there is one. Size and icon travel with each file so the
+    // slide show thumbnails render exactly like the explorer's preview mode.
+    openSlideShow() {
+      const files = this.visibleEntries
+        .filter(entry => !entry.is_dir)
+        .map(entry => ({
+          path: this.entryPath(entry),
+          name: entry.name,
+          size: entry.size ?? null,
+          icon: this.getFileIcon(entry)
+        }))
+
+      if (!files.length) {
+        this.$ui.addNotification({ text: 'No files to show in a slide show' })
+        return
+      }
+
+      const selected = this.selectedEntries.find(entry => !entry.is_dir)
+      const selectedIndex = selected
+        ? files.findIndex(file => file.path === this.entryPath(selected))
+        : -1
+
+      this.slideShowFiles = files
+      this.slideShowIndex = selectedIndex > 0 ? selectedIndex : 0
+      this.showSlideShow = true
     },
     async loadDir(path) {
       const normalizedPath = this.normalizePath(path)
@@ -1391,7 +1442,7 @@ export default {
         await this.refresh()
       } catch (error) {
         console.error('Upload error:', error)
-        this.error = `Upload failed: ${error.message}`
+        this.error = `Failed to upload: ${error.message}`
       } finally {
         this.isUploading = false
         this.uploadProgress = 0

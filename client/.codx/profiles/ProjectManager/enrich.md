@@ -1,0 +1,3 @@
+## Task delegation engine: verify visibility before delegating
+
+Delegation via kanban task chats is unreliable in this environment: `create_task` / `project_manager create_task` return an id, but `get_task`, `process_task` and `request_changes` immediately answer "task not found" (the chat is written with the parent `owner_project_id`, the reader resolves the current project). Always: (1) create the task, (2) read it back with `get_task` before announcing it, (3) if it is not readable, stop retrying, tell the user the exact error and deliver the change directly (or ask for confirmation to apply it) instead of losing the request.

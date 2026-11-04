@@ -730,7 +730,7 @@ defineExpose({
       </div>
     </modal>
 
-    <!-- ── Board settings Modal (name · description · background · participants) ── -->
+    <!-- ── Board settings Modal (name · description · background · assistant · participants) ── -->
     <modal close @close="closeEditBoard" v-if="showEditBoard">
       <div class="p-1">
         <h2 class="font-bold text-base mb-4 flex items-center gap-2">
@@ -786,6 +786,33 @@ defineExpose({
             class="mt-3 h-24 rounded bg-cover bg-center opacity-60"
             :style="{ backgroundImage: `url(${editBoardForm.background})` }"
           ></div>
+        </div>
+
+        <!-- Board assistant: the profile that answers the board chat -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board assistant</span>
+            <span class="label-text-alt text-[10px] text-base-content/40">
+              {{ editBoardForm.assignee ? editBoardForm.assignee : 'ProjectManager (default)' }}
+            </span>
+          </label>
+          <ChatProfileSelector
+            :project="boardProject || $project"
+            single
+            allow-deselect
+            label="Assistant"
+            icon="fa-solid fa-user-tie"
+            empty-label="ProjectManager (default)"
+            :selected-profiles="editBoardAssigneeProfiles"
+            @update:selected-profiles="onAssigneeSelected"
+          />
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-start gap-1">
+            <i class="fa-solid fa-circle-info text-[10px] mt-0.5 shrink-0"></i>
+            <span>
+              The profile that answers this board's chat (status, orders, follow-up). Leave it empty to use
+              <b>ProjectManager</b>.
+            </span>
+          </p>
         </div>
 
         <!-- Participants (user list) -->
@@ -1007,6 +1034,8 @@ const DEFAULT_EDIT_BOARD = () => ({
   title: '',
   description: '',
   background: '',
+  // Profile name the board is assigned to (its chat assistant) — optional
+  assignee: null,
   users: []
 })
 
@@ -1097,6 +1126,18 @@ export default {
     // title, so the sprint id and the board title are the same value.
     boardId() {
       return this.sprintId || this.boardTitle || this.editBoardForm.originalTitle || null
+    },
+    // Project the board belongs to: its profiles are the ones the board
+    // assistant can be picked from (may differ from the active project).
+    boardProject() {
+      if (!this.boardId) return null
+      const board = this.$storex.kanban.boardById(this.boardId)
+      return this.$storex.projects.allProjectsById?.[board?.project_id] || null
+    },
+    // Selected assistant, as the profile selector expects (list of profiles)
+    editBoardAssigneeProfiles() {
+      const name = this.editBoardForm.assignee
+      return name ? [{ name }] : []
     },
     // Number of tasks affected by deleting this board (kanban vs sprint)
     deleteTaskCount() {
@@ -1771,7 +1812,7 @@ export default {
       this.closeNewBoard()
     },
 
-    // ── Board settings (name · description · background · participants) ───────
+    // ── Board settings (name · description · background · assistant · participants) ──
     // Works for both sprint and kanban boards.
     openEditBoard(board) {
       if (!board) return
@@ -1781,6 +1822,8 @@ export default {
         title: board.title || '',
         description: board.description || '',
         background: board.background || '',
+        // Profile the board is assigned to (its chat assistant) — single name
+        assignee: board.assignee || null,
         users: [...(board.users || [])]
       }
       this.showEditBoard = true
@@ -1788,6 +1831,11 @@ export default {
     },
     closeEditBoard() {
       this.showEditBoard = false
+    },
+    // Single-selection profile picker: the board assistant is ONE profile.
+    // Clearing the selection falls back to ProjectManager (see the board view).
+    onAssigneeSelected(profiles) {
+      this.editBoardForm.assignee = profiles?.[0]?.name || null
     },
     toggleBoardUser(username) {
       const users = this.editBoardForm.users
@@ -1804,6 +1852,8 @@ export default {
           title,
           description: this.editBoardForm.description?.trim() || '',
           background: this.editBoardForm.background?.trim() || '',
+          // Profile that answers the board chat (null ⇒ ProjectManager)
+          assignee: this.editBoardForm.assignee || null,
           users: [...this.editBoardForm.users]
         }
       })

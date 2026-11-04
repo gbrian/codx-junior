@@ -11,8 +11,27 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
 
 <template>
   <div class="w-full h-full flex flex-col overflow-hidden">
-    <!-- File header -->
-    <div class="flex items-center gap-3 px-3 py-2 bg-base-200 border-b border-base-100 flex-shrink-0">
+    <!-- Slide mode: clickable top bar that reveals the file header on demand -->
+    <div
+      class="flex items-center gap-2 px-3 py-1.5 bg-base-200/90 border-b border-base-100 text-xs shrink-0 cursor-pointer hover:bg-base-300 transition-colors"
+      :title="slideHeaderOpen ? 'Hide file header' : 'Show file header'"
+      :aria-expanded="slideHeaderOpen ? 'true' : 'false'"
+      role="button"
+      tabindex="0"
+      v-if="slideMode"
+      @click.stop="toggleSlideHeader"
+      @keydown.enter.prevent.stop="toggleSlideHeader"
+      @keydown.space.prevent.stop="toggleSlideHeader"
+    >
+      <i :class="getHeaderIcon()"></i>
+      <span class="font-mono truncate">{{ displayFileName }}</span>
+      <span class="opacity-50">{{ fileTypeLabel }}</span>
+      <div class="grow"></div>
+      <i class="opacity-60" :class="slideHeaderOpen ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+    </div>
+
+    <!-- File header (collapsed in slide mode until the top bar is clicked) -->
+    <div class="flex items-center gap-3 px-3 py-2 bg-base-200 border-b border-base-100 flex-shrink-0" v-if="!slideMode || slideHeaderOpen">
       <i :class="getHeaderIcon()"></i>
       <span
         class="text-sm font-mono font-semibold truncate cursor-move hover:opacity-75 transition-opacity"
@@ -410,7 +429,18 @@ const EXTENSION_ICON_MAP = {
 
 export default {
   name: 'FileViewer',
-  props: ['params'],
+  props: {
+    params: {
+      type: Object,
+      default: () => ({})
+    },
+    // Slide mode: the header starts collapsed and is revealed by the clickable
+    // top bar (used by <FileSlideShow> to display the file as a bare slide).
+    slideMode: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       fileContent: '',
@@ -428,6 +458,8 @@ export default {
       showDeleteModal: false,
       deleting: false,
       showDiscardModal: false,
+      // Slide mode only: whether the full file header is expanded
+      slideHeaderOpen: false,
       // Local snapshot of the canvas definition consumed by <CanvaEditor>.
       // Kept as data (not derived from fileContent) so persisting edits never
       // re-triggers the editor's modelValue watcher and wipes the canvas.
@@ -570,6 +602,10 @@ export default {
     getHeaderIcon() {
       const ext = this.fileExtension
       return EXTENSION_ICON_MAP[ext] || 'fa-regular fa-file text-info'
+    },
+    // Expand / collapse the file header while displayed as a slide
+    toggleSlideHeader() {
+      this.slideHeaderOpen = !this.slideHeaderOpen
     },
     // Parse raw editor content into a node array. Supports both a root array
     // and a { nodes: [...] } envelope. Returns null when the JSON is invalid.

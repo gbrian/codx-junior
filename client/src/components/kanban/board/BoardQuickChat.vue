@@ -172,7 +172,10 @@ export default {
     projects: { type: Array, default: null },
     // Profiles pre-selected on the new chat. Managers are assisted by the
     // ProjectManager profile, so that is the default.
-    defaultProfiles: { type: Array, default: () => ['ProjectManager'] }
+    defaultProfiles: { type: Array, default: () => ['ProjectManager'] },
+    // Prompt the composer starts with (e.g. the board assistant's
+    // "Summarize the status of this board…"). Editable before sending.
+    initialMessage: { type: String, default: null }
   },
   emits: ['close', 'created'],
   data() {
@@ -199,6 +202,13 @@ export default {
     this.selectedProject = this.scope.length === 1 ? this.scope[0] : null
     this.loadProfiles()
     this.loadAssistantProfile()
+  },
+  mounted() {
+    // Seed the composer with the prompt the caller asked for (board assistant
+    // quick asks). The text stays editable and nothing is sent automatically.
+    if (this.initialMessage) {
+      this.$refs.composer?.setEditorText(this.initialMessage)
+    }
   },
   computed: {
     isMobile() {

@@ -1,0 +1,103 @@
+{
+  "id": "c36aead8-e050-4e72-b3fb-c6df010f3f3d",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "183031f3-9b6a-4e5f-9fca-e48b64525e18",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "todo",
+  "status_history": [
+    {
+      "doc_id": "12c9d2d6-e953-4ff6-9f48-2573fac928a5",
+      "from_status": null,
+      "to_status": "todo",
+      "user": null,
+      "at": "2026-11-03T18:55:54.673639",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "src/components/kanban/board/KanbanBoardView.vue"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "Remove count badge from Board / Table view selector (KanbanBoardView.vue)",
+  "pinned": false,
+  "is_template": false,
+  "description": "Objective: in src/components/kanban/board/KanbanBoardView.vue remove the numeric count badge from the \"Board\" and \"Table\" tabs of the toolbar view switcher.\n\nSteps:\n1. In the `viewTabs` computed, delete the `count` property from the `board` and `table` entries in BOTH branches (sprint branch: `count: this.totalTasks` twice; kanban branch: `count: this.sidebarTasks.length` and `count: this.boardChats.length`).\n2. Leave the `planning` / `followup` entries and `gantt` (`count: null`) untouched, and leave the template badge block `<span v-if=\"tab.count != null\" class=\"badge badge-xs\">\u2026</span>` as it is.\n3. Do not remove the `sidebarTasks` / `boardChats` / `totalTasks` computeds (used by the subtitle, sidebar and sprint stats).\n\nAcceptance: Board and Table buttons show only icon + label for kanban and sprint boards; Planning/Follow-up keep their badges; view switching still works; no ESLint errors; diff limited to that single file.",
+  "messages": [
+    {
+      "doc_id": null,
+      "role": "user",
+      "task_item": "",
+      "content": "Remove the count badge from the Board and Table tabs of the view switcher in src/components/kanban/board/KanbanBoardView.vue (viewTabs computed, both kanban and sprint branches). Keep everything else unchanged.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-03 18:55:54.618827",
+      "updated_at": "2026-11-03 18:55:54.618831",
+      "attachments": [],
+      "files": [
+        "src/components/kanban/board/KanbanBoardView.vue"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "VueDeveloper"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-03 18:55:54.618793",
+  "updated_at": "2026-11-03T18:55:54.618952",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "kanban",
+  "column": "tasks",
+  "sprints": [],
+  "priority": "medium",
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/kanban/tasks/remove-count-badge-from-board-table-view-selector-kanbanboardview-vue.c36aead8-e050-4e72-b3fb-c6df010f3f3d.json",
+  "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}
