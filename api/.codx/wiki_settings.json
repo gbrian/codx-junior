@@ -715,6 +715,41 @@
           "path": "/codx/junior/reviews/models.py",
           "slug": "models.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/models.md"
+        },
+        {
+          "path": "/docs/long-running-tasks.md",
+          "slug": "long-running-tasks.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/long-running-tasks.md"
+        },
+        {
+          "path": "/codx/junior/identity.py",
+          "slug": "identity.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/identity.md"
+        },
+        {
+          "path": "/tests/test_lrt0_smoke.py",
+          "slug": "test-lrt0-smoke.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-lrt0-smoke.md"
+        },
+        {
+          "path": "/codx/junior/migrations/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/kanban/store.py",
+          "slug": "store.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/store.md"
+        },
+        {
+          "path": "/codx/junior/migrations/kanban_v1_to_v2.py",
+          "slug": "kanban-v1-to-v2.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/kanban-v1-to-v2.md"
+        },
+        {
+          "path": "/codx/junior/kanban/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
         }
       ],
       "id": "project-overview",

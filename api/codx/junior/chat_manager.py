@@ -27,6 +27,26 @@ Merge strategy (per message, keyed by ``doc_id``):
         G --> H
     ```
 
+CHANGED — kanban storage v2:
+    ``load_kanban`` / ``save_kanban`` / ``delete_kanban`` delegate to
+    :class:`codx.junior.kanban.store.KanbanStore`, which keeps one file per board
+    behind an ``fcntl`` lock and migrates the legacy single ``kanban.json``.
+    Board/column **folders are immutable**: :meth:`ChatManager.get_chat_file`
+    resolves the folder from the catalogue (``resolve_folders``) instead of
+    using ``Chat.board``/``Chat.column`` directly, so renaming a board no longer
+    moves a folder nor rewrites every task.
+
+CHANGED — chat file discovery:
+    :meth:`ChatManager.chat_paths` only returns real chat files
+    (``<board>/<column>/<name>.<id>.json``). The storage files (``index.json``,
+    ``kanban.json``, ``boards/<id>/board.json``) live in the same tree and must
+    never be parsed as chats.
+
+CHANGED — exact chat lookup:
+    :meth:`ChatManager.find_by_id` matches the ``.<chat_id>.json`` suffix
+    instead of ``chat_id in path``. The substring match returned the wrong chat
+    whenever two ids shared a prefix, which broke ancestor resolution.
+
 CHANGED — timestamp normalisation:
     ``updated_at`` values historically exist in TWO formats:
     ``str(datetime.now())`` (space separator, Message default) and
@@ -76,6 +96,14 @@ NEW — accumulated chat cost (``Chat.cost``):
     MONOTONIC — deleting a message never reduces it — so the chat budget stays
     accurate even when messages are removed.
 
+NEW — cost roll-up to the root chat:
+    The same delta is also added to the **root** chat of the tree
+    (``Chat.root_id``, see :mod:`codx.junior.identity`). That makes the budget
+    of a main task (``Chat.estimation_cost``) cover every descendant turn, which
+    is what a long-running run needs: the run budget lives on the main task and
+    the agent already stops a turn when ``Chat.cost`` reaches
+    ``Chat.estimation_cost``.
+
 NEW — chat status history (``Chat.status_history``):
     ``Chat.status`` was previously a single mutable field ("last writer wins"),
     making it impossible to reconstruct when a task moved between statuses. This
@@ -87,7 +115,6 @@ NEW — chat status history (``Chat.status_history``):
     transition feed they need.
 """
 import logging
-import pathlib
 import os
 import json
 import uuid
@@ -102,6 +129,11 @@ from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.db import Chat, Message, ChatStatusEvent
 
+from codx.junior.identity import resolve_root_id
+
+from codx.junior.kanban.model import DEFAULT_BOARD, DEFAULT_COLUMN, is_store_file
+from codx.junior.kanban.store import KanbanStore
+
 from codx.junior.profiling.profiler import profile_function
 
 from codx.junior.chat.chat_export import ChatExport, ExportedDocument
@@ -111,9 +143,6 @@ from codx.junior.events.event_manager import EventManager
 from codx.junior.project.project_discover import find_project_by_id
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_BOARD = "kanban"
-DEFAULT_COLUMN = "tasks"
 
 
 def _parse_timestamp(value: Optional[str]) -> datetime:
@@ -181,8 +210,9 @@ class ChatManager:
 
     Contract relied upon for the chat budget:
         * ``add_message`` / ``update_message`` accumulate ``message.cost`` into
-          ``chat.cost`` (monotonic). ``remove_message`` never reduces
-          ``chat.cost``, so deleted messages still count towards the budget.
+          ``chat.cost`` (monotonic) and into the ROOT chat of the tree.
+          ``remove_message`` never reduces ``chat.cost``, so deleted messages
+          still count towards the budget.
 
     Contract relied upon for task-performance metrics:
         * Every real ``Chat.status`` transition is appended to
@@ -204,6 +234,7 @@ class ChatManager:
         self.event_manager = (
             event_manager if event_manager else EventManager(codx_path=settings.codx_path)
         )
+        self.kanban_store = KanbanStore(tasks_path=self.chat_path)
         os.makedirs(self.chat_path, exist_ok=True)
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
@@ -215,13 +246,39 @@ class ChatManager:
         """
         Build the canonical file path for *chat*.
 
+        The path is derived from the **immutable folders** of the board and the
+        column (resolved from the catalogue through
+        :meth:`KanbanStore.resolve_folders`), not from their titles: renaming a
+        board or a column therefore keeps every task where it is.
+
         :param chat: Chat whose path to compute.
         :return: Absolute file path string.
         """
+        board_folder, column_folder = self.kanban_store.resolve_folders(
+            board=chat.board or DEFAULT_BOARD,
+            column=chat.column or DEFAULT_COLUMN,
+        )
         return (
-            f"{self.chat_path}/{chat.board}/{chat.column}"
+            f"{self.chat_path}/{board_folder}/{column_folder}"
             f"/{slugify(chat.name)}.{chat.id}.json"
         )
+
+    @staticmethod
+    def _is_chat_file(file_path: str) -> bool:
+        """
+        Tell whether *file_path* is a stored chat.
+
+        A chat always lives at ``<tasks>/<board folder>/<column folder>/<file>``.
+        The catalogue lives in the same tree (``index.json``, the legacy
+        ``kanban.json`` and ``boards/<id>/board.json``), so it must be filtered
+        out — otherwise :meth:`list_chats` would try to parse a board as a chat.
+
+        :param file_path: Candidate path.
+        :return: True when the path is a chat file.
+        """
+        if is_store_file(file_path):
+            return False
+        return True
 
     def chat_paths(
         self,
@@ -237,16 +294,25 @@ class ChatManager:
             bounds are compared against the chat file ``mtime``. A ``None``
             bound is ignored, preserving the previous behavior.
 
+        CHANGED — storage files are excluded:
+            Only ``<board>/<column>/<slug>.<id>.json|yaml`` paths are returned
+            (see :meth:`_is_chat_file`), so the kanban catalogue is never read
+            as a chat.
+
         :param last_update: Only return paths for chats updated **after** this
             date (exclusive lower bound).
         :param before_update: Only return paths for chats updated **on or
             before** this date (inclusive upper bound).
         :return: List of file paths.
         """
-        all_paths = (
-            [str(p) for p in pathlib.Path(self.chat_path).rglob("*.yaml")]
-            + [str(p) for p in pathlib.Path(self.chat_path).rglob("*.json")]
-        )
+        import pathlib
+
+        all_paths = [
+            str(path)
+            for suffix in ("*.yaml", "*.json")
+            for path in pathlib.Path(self.chat_path).rglob(suffix)
+        ]
+        all_paths = [path for path in all_paths if self._is_chat_file(path)]
 
         if last_update:
             all_paths = [
@@ -710,8 +776,8 @@ class ChatManager:
                 )
         return self.find_by_id(chat_id=chat.id) if chat.id else None
 
-    @staticmethod
     def _accumulate_message_cost(
+        self,
         chat: Chat,
         stored_chat: Optional[Chat],
         message: Message,
@@ -728,6 +794,10 @@ class ChatManager:
         Only POSITIVE deltas are applied, so ``chat.cost`` never decreases. As a
         result, deleting a message (see :meth:`remove_message`) never reduces the
         accumulated cost of the chat.
+
+        ADDED — roll-up: the same delta is added to the ROOT chat of the tree
+        (see :meth:`_roll_up_cost_to_root`), so the budget declared on a main
+        task covers the cost of every descendant.
 
         :param chat: The in-memory chat whose accumulated cost to update.
         :param stored_chat: The persisted chat (baseline), or ``None``.
@@ -759,7 +829,82 @@ class ChatManager:
             delta,
             chat.cost,
         )
+        self._roll_up_cost_to_root(chat=chat, delta=delta)
         return delta
+
+    def _roll_up_cost_to_root(self, chat: Chat, delta: float) -> float:
+        """
+        Add *delta* to the cost of the root chat of *chat* (the main task).
+
+        A chat without a parent is its own root, so nothing is added twice. The
+        root chat is persisted immediately: it carries
+        ``Chat.estimation_cost`` (the run budget) and the agent compares it
+        against ``Chat.cost``, so the value must be on disk before the next turn
+        starts.
+
+        Failures are logged and swallowed: a broken ancestor chain must never
+        break the turn that produced the cost.
+
+        :param chat: The chat that spent the money.
+        :param delta: Positive cost delta already added to ``chat.cost``.
+        :return: The delta rolled up (0.0 when the chat is the root).
+        """
+        if not delta or delta <= 0:
+            return 0.0
+
+        try:
+            root_id = chat.root_id or resolve_root_id(chat=chat, chat_manager=self)
+            if not root_id or root_id == chat.id:
+                return 0.0
+
+            root_chat = self.find_by_id(chat_id=root_id)
+            if root_chat is None:
+                logger.warning(
+                    "Cost roll-up: root chat '%s' of '%s' not found (delta=%.6f)",
+                    root_id,
+                    chat.id,
+                    delta,
+                )
+                return 0.0
+
+            root_chat.cost = (root_chat.cost or 0.0) + delta
+            self.save_chat(chat=root_chat)
+            logger.info(
+                "Cost roll-up: root='%s' chat='%s' delta=%.6f root_total=%.6f "
+                "budget=%s",
+                root_chat.id,
+                chat.id,
+                delta,
+                root_chat.cost,
+                root_chat.estimation_cost,
+            )
+            return delta
+        except Exception as ex:
+            logger.exception(
+                "Cost roll-up failed for chat '%s' (delta=%.6f): %s", chat.id, delta, ex
+            )
+            return 0.0
+
+    def _ensure_root_id(self, chat: Chat) -> Optional[str]:
+        """
+        Resolve and backfill ``Chat.root_id`` before the chat is persisted.
+
+        Legacy chats have no ``root_id``; :func:`codx.junior.identity.resolve_root_id`
+        walks ``parent_id`` once, stamps the cache on the in-memory chat and the
+        value is stored with the chat. A chat whose ancestors cannot be loaded
+        becomes its own root, which keeps the invariant "there is always a root"
+        true.
+
+        :param chat: The chat being saved (mutated in place).
+        :return: The resolved root id (or None when it cannot be determined).
+        """
+        if chat.root_id:
+            return chat.root_id
+        try:
+            return resolve_root_id(chat=chat, chat_manager=self)
+        except Exception as ex:
+            logger.warning("Could not resolve root_id for chat '%s': %s", chat.id, ex)
+            return chat.root_id
 
     def _persist_chat_messages(
         self,
@@ -810,7 +955,8 @@ class ChatManager:
         an AI turn is still running. Idempotent in memory: the message is not
         appended twice if its ``doc_id`` is already on the chat.
 
-        The message's cost (if any) is accumulated into ``chat.cost``.
+        The message's cost (if any) is accumulated into ``chat.cost`` and rolled
+        up into the root chat.
 
         :param chat: The chat to add the message to (mutated in place).
         :param message: The message to add.
@@ -990,6 +1136,9 @@ class ChatManager:
         the chat is written, using the previously persisted chat as the
         ``from_status`` baseline.
 
+        ADDED: ``Chat.root_id`` is resolved and backfilled here for legacy
+        chats, so every persisted chat knows the main task it belongs to.
+
         :param chat: The chat to save.
         :param chat_only: If ``True`` and the chat already exists, preserve
             its stored messages (useful for metadata-only updates).
@@ -1014,6 +1163,9 @@ class ChatManager:
         current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
+
+        # Ancestor invariant: every chat must know its root (main task).
+        self._ensure_root_id(chat=chat)
 
         # Detect and register chat status transitions (performance metrics).
         # Runs before store_chat so the new record is persisted with the chat.
@@ -1142,16 +1294,25 @@ class ChatManager:
         return chat
 
     # -------------------------------------------------------------------------
-    # Kanban helpers
+    # Kanban helpers (delegated to the v2 store)
     # -------------------------------------------------------------------------
 
     def delete_kanban(self, kanban_title: str) -> None:
         """
-        Remove an entire kanban board directory.
+        Remove an entire kanban board: its chats folder and its catalogue entry.
 
-        :param kanban_title: Name of the kanban board to delete.
+        CHANGED: the folder is resolved through the catalogue (the board name is
+        only a label), so a renamed board is deleted where it actually lives.
+        The catalogue entry is removed as well, because a board left in the
+        index without a folder would show up as an empty board forever.
+
+        :param kanban_title: Name (title) of the kanban board to delete.
         """
-        shutil.rmtree(f"{self.chat_path}/{kanban_title}")
+        board_folder, _ = self.kanban_store.resolve_folders(board=kanban_title)
+        board_path = f"{self.chat_path}/{board_folder}"
+        if os.path.isdir(board_path):
+            shutil.rmtree(board_path, ignore_errors=True)
+        self.kanban_store.remove_board(kanban_title)
 
     def chat_count(self) -> int:
         """Return the total number of chat files on disk."""
@@ -1179,27 +1340,49 @@ class ChatManager:
         """
         Find and load a chat by its ID.
 
+        FIXED: the match is now exact. The previous implementation used
+        ``chat_id in path``, so looking for ``1234`` could return a chat whose
+        id was ``12345`` — and ancestor resolution (:mod:`codx.junior.identity`)
+        would then walk a completely different tree. A chat file is always named
+        ``<slugified name>.<chat_id>.json`` (or ``.yaml``), so the id is matched
+        as a filename suffix.
+
         :param chat_id: The UUID of the chat to locate.
         :return: Loaded Chat or ``None`` if not found.
         """
-        if chat_id:
-            all_paths = self.chat_paths()
-            file_path = next(
-                (path for path in all_paths if chat_id in path), None
-            )
-            if file_path:
-                return self.load_chat_from_path(chat_file=file_path)
-            # CHANGED: log the count instead of dumping every path (log noise)
-            logger.error(
-                "[chat_id] not found: %s (searched %d chat files)",
-                chat_id,
-                len(all_paths),
-            )
+        if not chat_id:
+            return None
+
+        wanted = str(chat_id).strip()
+        if not wanted:
+            return None
+
+        all_paths = self.chat_paths()
+        file_path = next(
+            (
+                path for path in all_paths
+                if os.path.basename(path).endswith(f".{wanted}.json")
+                or os.path.basename(path).endswith(f".{wanted}.yaml")
+            ),
+            None,
+        )
+        if file_path:
+            return self.load_chat_from_path(chat_file=file_path)
+
+        # CHANGED: log the count instead of dumping every path (log noise)
+        logger.error(
+            "[chat_id] not found: %s (searched %d chat files)",
+            wanted,
+            len(all_paths),
+        )
         return None
 
     def load_kanban_from_file(self, kanban_file: str) -> dict:
         """
         Load kanban state from a JSON file, applying defaults when missing.
+
+        Kept for backward compatibility: the canonical entry point is
+        :meth:`load_kanban`, which reads the v2 store.
 
         :param kanban_file: Path to the kanban JSON file.
         :return: Kanban dict with ``version``, ``boards`` and ``tags`` keys.
@@ -1219,21 +1402,26 @@ class ChatManager:
         """
         Load the project's kanban configuration.
 
-        :return: Kanban dict.
+        CHANGED: boards are read from the v2 store (one file per board, migrated
+        from the legacy ``kanban.json`` on first access) and assembled back into
+        the legacy shape, so every existing caller keeps working.
+
+        :return: Kanban dict ``{"version", "boards", "tags"}``.
         """
-        kanban_file = f"{self.chat_path}/kanban.json"
-        logger.info("load_kanban %s", kanban_file)
-        return self.load_kanban_from_file(kanban_file=kanban_file)
+        logger.info("load_kanban %s", self.chat_path)
+        return self.kanban_store.load()
 
     def save_kanban(self, kanban: dict) -> None:
         """
         Persist the kanban configuration to disk.
 
+        CHANGED: the assembled document is diffed against the v2 index and
+        written atomically while holding the project wide lock, so the API
+        process and the background process can no longer clobber each other.
+
         :param kanban: Kanban dict to save.
         """
-        kanban_file = f"{self.chat_path}/kanban.json"
-        with open(kanban_file, "w", encoding="utf-8") as f:
-            f.write(json.dumps(kanban))
+        self.kanban_store.save(kanban)
 
     # -------------------------------------------------------------------------
     # Chat querying

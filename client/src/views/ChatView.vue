@@ -21,7 +21,8 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
          SIDEBAR: Persistent on desktop, overlay drawer on mobile
          ───────────────────────────────────────────────────────────── -->
     <!-- Hidden when the host view already provides the conversation list
-         (`hideChatSidebar`). -->
+         (`hideChatSidebar`). In channel mode it stays as a slim action rail:
+         task features are hidden inside (see ChatSidebar's `channelMode`). -->
     <ChatSidebar
       v-if="!isMobile"
       :workingChat="theChat"
@@ -32,6 +33,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       :chatSearch="chatSearch"
       :isCompact="compactSidebar"
       :chatProfiles="chatProfiles"
+      :channelMode="isChannelChat"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
@@ -66,6 +68,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
           :chatSearch="chatSearch"
           :isCompact="false"
           :chatProfiles="chatProfiles"
+          :channelMode="isChannelChat"
           @select="onSelectSidebarChat"
           @add-subtask="onSidebarAddSubtask"
           @action="handleSidebarAction"
@@ -96,6 +99,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         :isSelectedChatChild="isSelectedChatChild"
         :targetProject="targetProject"
         :mobile-expanded="showMobileDetails"
+        :channelMode="isChannelChat"
         @toggle-mobile-details="showMobileDetails = $event"
         @update-name="saveChatInfo"
         @toggle-hidden="showHidden = !showHidden"
@@ -135,14 +139,16 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 
         <!-- Normal Chat View -->
         <!-- On mobile the chat files strip is only rendered while the header
-             details panel is expanded, so the reading area keeps the space. -->
+             details panel is expanded, so the reading area keeps the space.
+             Channels have no project context files: the strip is always hidden
+             through the existing `hide-files-header` prop. -->
         <Chat 
           v-else
           :chat="theChat" 
           :showHidden="showHidden" 
           :childrenChats="childrenChats"
           :filter="chatSearch" 
-          :hide-files-header="isMobile && !showMobileDetails"
+          :hide-files-header="isChannelChat || (isMobile && !showMobileDetails)"
           @refresh-chat="reloadChat" 
           @remove-file="onRemoveFile"
           @delete="confirmDelete = true" 
@@ -242,7 +248,11 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 export default {
   // `hideChatSidebar` lets a host view own the conversation list (messenger
   // channels) instead of stacking ChatSidebar next to its own sidebar.
-  props: ['chatMode', 'chat', 'kanban', 'params', 'hideChatSidebar'],
+  // `channelMode` turns the view into a group conversation: task features
+  // (subtasks, project context, status, cost, tags, template, chat mode) are
+  // hidden inside the child components (see ChatViewHeader, ChatSidebar, Chat).
+  // Both default to false so every other usage of ChatView stays identical.
+  props: ['chatMode', 'chat', 'kanban', 'params', 'hideChatSidebar', 'channelMode'],
   data() {
     return {
       showFile: null,
@@ -279,6 +289,11 @@ export default {
     isMobile() {
       return this.$ui?.isMobile
     },
+    // Messenger / channel view: a hosted group conversation. Hosts either pass
+    // `channel-mode` (MessengerView) or simply use the `channel` chat mode.
+    isChannelChat() {
+      return !!this.channelMode || this.theChat?.mode === 'channel'
+    },
     theChat() {
       const chatId = this.activeChatId || this.chat?.id || this.params?.params?.chat?.id
       return this.$chats.chats[chatId] || null
@@ -294,6 +309,8 @@ export default {
       return current
     },
     hierarchyChats() {
+      // Channels have no subtask hierarchy: nothing to list in the sidebar
+      if (this.isChannelChat) return []
       return this.collectHierarchy(this.rootChat)
     },
     breadcrumbChats() {
@@ -328,6 +345,7 @@ export default {
         : moment(updatedAt).format('YYYY-MM-DD')
     },
     childrenChats() {
+      if (this.isChannelChat) return []
       return this.getDirectChildren(this.theChat?.id)
     },
     parentChat() {
@@ -404,7 +422,7 @@ export default {
       await this.loadChatProfiles()
     },
     async loadHierarchy() {
-      if (!this.theChat) return
+      if (!this.theChat || this.isChannelChat) return
       try {
         await this.$chats.ensureChatRoot(this.theChat)
       } catch (error) {
@@ -562,11 +580,11 @@ export default {
       this.$storex.$navigation?.chats?.list?.()
     },
     onSidebarAddSubtask(parentChat) {
-      if (!parentChat) return
+      if (!parentChat || this.isChannelChat) return
       this.createDirectSubtask(parentChat)
     },
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId } }) {
-      if (!chat) return
+      if (!chat || this.isChannelChat) return
       const findChild = () => this.$chats.allChats.find(c => c.message_id === subtaskMessageId)
 
       if (!findChild()) {
@@ -595,6 +613,7 @@ export default {
       }
     },
     async createDirectSubtask(parentChat) {
+      if (this.isChannelChat) return
       parentChat = parentChat || this.theChat
       if (!parentChat) return
 

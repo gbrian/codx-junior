@@ -23,6 +23,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           :allChats="[]"
           :selectedChatId="selectedChatId"
           :isCompact="false"
+          :channelMode="channelMode"
           @select="selectChat"
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
@@ -65,8 +66,13 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
         />
       </div>
 
-      <!-- Profiles Section -->
-      <div v-if="chatProfiles.length" class="border-b border-base-100 shrink-0">
+      <!-- Profiles Section (channel members live in the host's members panel, so
+           the block is hidden — not removed — in channel mode) -->
+      <div
+        v-if="chatProfiles.length"
+        class="border-b border-base-100 shrink-0"
+        :class="{ hidden: channelMode }"
+      >
         <div v-if="!isCompact" class="px-3 py-3">
           <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3 px-1">
             <i class="fa-solid fa-circle-user text-xs mr-2 opacity-60"></i>Profiles
@@ -94,7 +100,13 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
       </div>
 
       <!-- Chat Children (Subtasks) Section - Now shows ALL nested chats -->
-      <div v-if="allNestedChats.length > 0" class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0">
+      <!-- Groups / channels have no task hierarchy: the section is hidden, the
+           markup stays for task chats. -->
+      <div
+        v-if="allNestedChats.length > 0"
+        class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0"
+        :class="{ hidden: channelMode }"
+      >
         <!-- Header with status filter -->
         <div v-if="!isCompact" class="flex items-center justify-between gap-2 mb-2 px-1 shrink-0">
           <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
@@ -164,7 +176,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           @delete-chat="$emit('delete-chat', $event)"
         />
       </div>
-      <div v-else class="px-3 py-8 text-center">
+      <div v-else class="px-3 py-8 text-center" :class="{ hidden: channelMode }">
         <p class="text-xs text-base-content/40">No subtasks yet</p>
       </div>
     </div>
@@ -174,11 +186,13 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
       <div class="flex items-center gap-1"
         :class="isCompact && 'flex-col gap-3'" 
       >
-        <!-- Browser Session Button -->
+        <!-- Browser Session Button (channels have no codebase to browse; the
+             button is hidden, still available for task chats) -->
         <button 
           @click.stop="openBrowserSessionDialog"
           :title="'Create browser session'"
           class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+          :class="{ hidden: channelMode }"
         >
           <i class="fa-solid fa-globe text-sm"></i>
         </button>
@@ -198,19 +212,21 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
             tabindex="0"
             class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300 mb-1"
           >
-            <li>
+            <!-- Timeline / AI logs / task settings belong to task chats: they are
+                 hidden in channel mode instead of removed. -->
+            <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'timeline' })">
                 <i class="fa-solid fa-timeline text-sm opacity-70"></i>
                 View timeline
               </a>
             </li>
-            <li>
+            <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'logs' })">
                 <i class="fa-solid fa-file-lines text-sm opacity-70"></i>
                 View AI logs
               </a>
             </li>
-            <li></li>
+            <li :class="{ hidden: channelMode }"></li>
             <li>
               <a
                 @click.stop="handleReload"
@@ -226,8 +242,8 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
                 Export chat
               </a>
             </li>
-            <li></li>
-            <li>
+            <li :class="{ hidden: channelMode }"></li>
+            <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'settings' })">
                 <i class="fa-solid fa-gear text-sm opacity-70"></i>
                 Settings
@@ -348,7 +364,12 @@ export default {
     workingChatMode: { type: String, default: 'chat' },
     chatSearch: { type: String, default: null },
     isCompact: { type: Boolean, default: false },
-    chatProfiles: { type: Array, default: () => [] }
+    chatProfiles: { type: Array, default: () => [] },
+    // Messenger / channel view: the sidebar stops listing task data (subtasks
+    // tree, members, browser sessions, task actions). Everything is hidden with
+    // CSS instead of removed so the sidebar keeps working for task chats.
+    // Defaults to false: existing usages are untouched.
+    channelMode: { type: Boolean, default: false }
   },
   emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment'],
   data() {
@@ -365,6 +386,8 @@ export default {
   },
   computed: {
     allNestedChats() {
+      // Groups / channels have no task hierarchy: nothing to list
+      if (this.channelMode) return []
       return this.$storex.chats.chatDescendants(this.rootChat.id).filter(chat => chat.id !== this.rootChat.id)
     },
     sortedAllNestedChats() {

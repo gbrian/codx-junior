@@ -126,6 +126,26 @@ class CODXJuniorSession:
         """Log an exception message prefixed with the project name."""
         logger.exception("[%s] " + msg, self.settings.project_name, *args)
 
+    def chat_event(self, chat: Chat, message: str = None, event_type: str = None) -> None:
+        """
+        Emit a chat event through the session's event manager.
+
+        ADDED: ``ChatEngine`` is not the only producer of chat events — the API
+        routers (``POST /api/chats``, ``POST /api/chats/from-url``) and the
+        Socket.IO handlers announce progress *before* starting a turn. They call
+        ``session.chat_event(...)``, a method that did not exist: the resulting
+        ``AttributeError`` was swallowed by the endpoint and the response was an
+        error object instead of the processed chat.
+
+        Args:
+            chat: The chat the event refers to.
+            message: Human readable progress message.
+            event_type: Optional event type (``changed``, ``created``, ``error``...).
+        """
+        self.event_manager.chat_event(
+            chat=chat, message=message, event_type=event_type
+        )
+
     def coder_open_file(self, file_name: str) -> dict:
         """Open a file in the code server editor."""
         if not os.path.isfile(file_name) and not file_name.startswith(
@@ -590,7 +610,7 @@ class CODXJuniorSession:
         Tasks are only created through the LLM tools (``create_task``,
         ``project_manager``) or the API endpoints, and all of them use this
         manager, so the creation rules (mandatory information, no inheritance
-        from the parent chat) live in a single place.
+        from the parent chat, root_id stamping) live in a single place.
 
         The former ``generate_tasks`` (AI sub-task generation) has been removed:
         a task is an explicit decision with all its information, never an

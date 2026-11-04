@@ -331,6 +331,16 @@ class Chat(BaseModel):
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat works, see owner_project_id for the project where the chat was created")
     owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
+    root_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Id of the topmost ancestor of this chat (the 'main task' of a task "
+            "tree). It is a CACHE of the parent_id walk, resolved and backfilled "
+            "by codx.junior.identity.resolve_root_id: a chat without parent_id is "
+            "its own root. Every task of a long-running run shares the same "
+            "root_id, no matter how deep it is in the hierarchy."
+        )
+    )
     linked_chat_ids: Optional[List[str]] = Field(default=[], description="Linked chat ids")
     parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
     parent_project_id: Optional[str] = Field(default=None, description="Parent chat project id")
@@ -410,7 +420,9 @@ class Chat(BaseModel):
             "Estimated maximum cost (in cxjcoins) allowed for this chat. "
             "When the accumulated cost reaches this value, SmolAgent stops "
             "executing to keep the chat within budget. None (or <= 0) means "
-            "no cost limit."
+            "no cost limit. On the main task of a long-running run this field "
+            "holds the run budget, because the cost of every descendant rolls "
+            "up into it."
         )
     )
     cost: float = Field(
@@ -419,7 +431,9 @@ class Chat(BaseModel):
             "Accumulated cost (in cxjcoins) spent on this chat. Updated by "
             "ChatManager whenever a message with a cost is added or updated. "
             "This value is MONOTONIC: deleting a message never reduces it, so "
-            "the budget reflects everything the chat has actually spent."
+            "the budget reflects everything the chat has actually spent. The "
+            "cost of every descendant chat also rolls up into the root chat "
+            "(Chat.root_id), which makes the root budget cover the whole tree."
         )
     )
 

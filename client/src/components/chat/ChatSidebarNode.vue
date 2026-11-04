@@ -48,7 +48,12 @@ import ChatIcon from './ChatIcon.vue'
         </div>
 
         <!-- Action Buttons (visible on hover) -->
-        <div class="opacity-0 group-hover/node:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
+        <!-- Channels have no task hierarchy: the buttons stay in the DOM (this
+             node is shared with task chats) and are only hidden. -->
+        <div
+          class="opacity-0 group-hover/node:opacity-100 transition-opacity flex items-center gap-1 shrink-0"
+          :class="{ hidden: channelMode }"
+        >
           <!-- Plus: Create subtask -->
           <button
             class="btn btn-xs btn-ghost p-0 w-5 h-5"
@@ -77,6 +82,7 @@ import ChatIcon from './ChatIcon.vue'
         :chat="child"
         :allChats="allChats"
         :selectedChatId="selectedChatId"
+        :channelMode="channelMode"
         @select="$emit('select', $event)"
         @add-subtask="$emit('add-subtask', $event)"
         @delete-chat="$emit('delete-chat', $event)"
@@ -90,7 +96,10 @@ export default {
   props: {
     chat: { type: Object, required: true },
     allChats: { type: Array, default: () => [] },
-    selectedChatId: { type: String, default: null }
+    selectedChatId: { type: String, default: null },
+    // Messenger / channel view: subtask creation and deletion are not rendered
+    // (hidden, not removed) because a group conversation has no task hierarchy.
+    channelMode: { type: Boolean, default: false }
   },
   emits: ['select', 'add-subtask', 'delete-chat'],
   data() {

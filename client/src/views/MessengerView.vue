@@ -96,11 +96,15 @@ import { countChannelUnread } from '@/utils/chatUnread'
            The channel list is on the left (above), the chat sidebar — now on the
            RIGHT via ChatView's `flex-row-reverse` — acts as the channel action
            rail. Its `sidebar-actions` slot hosts the members (group info)
-           toggle, which used to float over the chat header. -->
+           toggle, which used to float over the chat header.
+           `channel-mode` tells ChatView and its children to hide (not remove)
+           every task-only control: subtasks, project context, status, cost,
+           tags, template flags, chat mode selector, browser session. -->
       <transition name="fade">
         <ChatView
           v-if="activeChat"
           :chat="activeChat"
+          channel-mode
           class="flex-1 w-full h-full"
         >
           <template #sidebar-actions>

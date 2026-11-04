@@ -18,6 +18,11 @@ Creation rules
    ``board``, ``column``, ``sprints``, ``tags`` and the first message come
    exclusively from the arguments. Only the *linkage* (``parent_id``) and the
    project scope are resolved from the parent chat, when one is given.
+4. **Every task knows its root.** :func:`codx.junior.identity.link_parent`
+   stamps ``root_id`` from the parent (``parent.root_id or parent.id``), so all
+   the tasks of a tree — no matter how deep — resolve to the same main task.
+   That invariant is what the long-running runner relies on to decide whether a
+   task belongs to a run.
 
 Deprecated entry points (removed by this module)
 ------------------------------------------------
@@ -35,9 +40,10 @@ flowchart TD
     M --> V{name and description?}
     V -->|no| E[ValueError: information is mandatory]
     V -->|yes| N[Normalize profiles / files / tags]
-    N --> K[Build Chat mode=task + first user message]
+    N --> R[link_parent: parent_id + root_id]
+    R --> K[Build Chat mode=task + first user message]
     K --> S[ChatManager.save_chat]
-    S --> R[Return the saved task]
+    S --> T[Return the saved task]
 ```
 
 Made with ❤️ by codx-junior
@@ -48,6 +54,7 @@ from typing import Any, List, Optional
 
 from codx.junior.chat_manager import ChatManager
 from codx.junior.db import Chat, Message
+from codx.junior.identity import link_parent
 from codx.junior.settings import CODXJuniorSettings
 
 logger = logging.getLogger(__name__)
@@ -209,6 +216,10 @@ class TaskManager:
         knows the project catalogue (``project_manager``); this method only
         applies the defaults.
 
+        The ancestor chain is kept consistent: ``root_id`` is stamped from the
+        parent through :func:`codx.junior.identity.link_parent`, so a task
+        created from any depth of a tree still resolves to the same main task.
+
         Args:
             name: Task name/title (required).
             description: Complete task description (required).
@@ -290,6 +301,11 @@ class TaskManager:
             mode=mode,
         )
 
+        # Ancestor invariant: parent_id (when missing) + root_id from the parent.
+        # When the parent chat is not loaded, save_chat resolves and backfills
+        # root_id walking parent_id.
+        link_parent(chat=task, parent_chat=parent_chat)
+
         task.messages.append(
             Message(
                 role="user",
@@ -304,7 +320,7 @@ class TaskManager:
 
         logger.info(
             "TaskManager: task created id='%s' name='%s' board='%s' column='%s' "
-            "sprints=%s profiles=%s parent_id=%s",
+            "sprints=%s profiles=%s parent_id=%s root_id=%s",
             saved_task.id,
             saved_task.name,
             saved_task.board,
@@ -312,6 +328,7 @@ class TaskManager:
             saved_task.sprints,
             task_profiles,
             saved_task.parent_id,
+            saved_task.root_id,
         )
 
         if self.event_manager is not None:

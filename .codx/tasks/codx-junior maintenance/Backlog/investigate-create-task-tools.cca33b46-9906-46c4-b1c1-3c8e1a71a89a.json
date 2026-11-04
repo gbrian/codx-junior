@@ -1,0 +1,107 @@
+{
+  "id": "cca33b46-9906-46c4-b1c1-3c8e1a71a89a",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "doing",
+  "status_history": [
+    {
+      "doc_id": "31c08bb5-395f-45ef-bf53-3118067b2802",
+      "from_status": null,
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-11-04T08:31:24.048062",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/create_task_tool.py",
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Investigate: Create task tools",
+  "pinned": false,
+  "is_template": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "da04fdfd-39d3-4fd9-b4b8-dd40d1ba83e2",
+      "role": "user",
+      "task_item": "",
+      "content": "We have a problem with tasks created by a profile using the tools. None end up right board. Investigate",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 08:31:25.230238",
+      "updated_at": "2026-11-04T08:31:25.230292",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/tools/create_task_tool.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-04 08:31:23.960679",
+  "updated_at": "2026-11-04T08:31:25.230645",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "Backlog",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/Backlog/investigate-create-task-tools.cca33b46-9906-46c4-b1c1-3c8e1a71a89a.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

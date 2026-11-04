@@ -17,8 +17,12 @@ import ProjectDetailt from '../ProjectDetailt.vue'
          opens with the toggle. -->
     <template v-if="isMobile">
       <div class="flex items-center gap-1 min-w-0">
+        <!-- Channels are entered from the channel list, so there is nothing to
+             go back to. The control stays in the DOM (shared component) and is
+             just hidden. -->
         <button
           class="btn btn-ghost btn-sm btn-circle shrink-0"
+          :class="{ hidden: isChannel }"
           @click="$emit('back')"
           title="Back"
           aria-label="Go back"
@@ -27,7 +31,8 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </button>
 
         <!-- Title (editable) -->
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+          <i v-if="isChannel" class="fa-solid fa-hashtag text-xs text-base-content/40 shrink-0"></i>
           <input
             v-if="editingTitle"
             v-model="workingChatName"
@@ -69,6 +74,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <div
           v-if="breadcrumb.length"
           class="flex items-center gap-1 text-xs text-base-content/50 min-w-0 overflow-hidden"
+          :class="{ hidden: isChannel }"
         >
           <button
             @click="$emit('select-breadcrumb', rootChat)"
@@ -89,8 +95,8 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           </template>
         </div>
 
-        <!-- Project -->
-        <div class="flex flex-wrap items-center gap-2">
+        <!-- Project (a channel is not a task of a codebase) -->
+        <div class="flex flex-wrap items-center gap-2" :class="{ hidden: isChannel }">
           <ProjectDetailt
             @click.stop=""
             :iconify="true"
@@ -102,11 +108,13 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <!-- Status + Cost + Messages -->
         <div class="flex flex-wrap items-center gap-2">
           <ChatStatusSelector
+            :class="{ hidden: isChannel }"
             :status="chat.status"
             @status-changed="onStatusChanged"
           />
           <ChatCostSelector
             class="shrink-0"
+            :class="{ hidden: isChannel }"
             variant="chip"
             :cost="chat.cost || 0"
             :estimation-cost="chat.estimation_cost"
@@ -126,7 +134,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
 
         <!-- Tags -->
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap" :class="{ hidden: isChannel }">
           <span
             v-for="tag in chat.tags"
             :key="tag"
@@ -143,8 +151,8 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           </button>
         </div>
 
-        <!-- Flags -->
-        <div class="flex items-center gap-1.5 flex-wrap">
+        <!-- Flags (template + parent inheritance are task concepts) -->
+        <div class="flex items-center gap-1.5 flex-wrap" :class="{ hidden: isChannel }">
           <button
             class="btn btn-sm btn-ghost gap-1.5 focus:ring-2 focus:ring-primary/50"
             :class="chat.is_template ? 'text-warning' : 'text-base-content/50'"
@@ -172,10 +180,18 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
         <!-- Actions -->
         <div class="flex items-center gap-1.5 flex-wrap">
-          <button class="btn btn-sm btn-ghost gap-1.5" @click.stop="$emit('show-sidebar')">
+          <button
+            class="btn btn-sm btn-ghost gap-1.5"
+            :class="{ hidden: isChannel }"
+            @click.stop="$emit('show-sidebar')"
+          >
             <i class="fa-solid fa-sitemap text-xs"></i> Tasks
           </button>
-          <button class="btn btn-sm btn-ghost gap-1.5" @click.stop="$emit('show-settings')">
+          <button
+            class="btn btn-sm btn-ghost gap-1.5"
+            :class="{ hidden: isChannel }"
+            @click.stop="$emit('show-settings')"
+          >
             <i class="fa-solid fa-gear text-xs"></i> Settings
           </button>
           <button class="btn btn-sm btn-ghost gap-1.5" @click.stop="$emit('show-export')">
@@ -193,7 +209,12 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       <!-- ROW 1: Breadcrumb + Stats (Left + Right) -->
       <div class="flex items-center gap-3 text-xs min-w-0">
         <!-- Breadcrumb Navigation (Left, Truncated) -->
-        <div class="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+        <!-- Channels have no board nor ancestors: the title below is enough. The
+             block is only hidden, so task chats keep the exact same markup. -->
+        <div
+          class="flex items-center gap-2 min-w-0 overflow-hidden flex-1"
+          :class="{ hidden: isChannel }"
+        >
           <div class="text-info tooltip trunacte" :data-tip="chat.board" :title="chat.board" >
             <i class="fa-brands fa-trello"></i>
           </div>
@@ -220,7 +241,12 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <!-- Right Stats (Compact) -->
         <div class="flex items-center gap-2 ml-auto shrink-0">
           <!-- Template Badge -->
-          <div v-if="chat.is_template" class="badge badge-warning badge-sm text-xs" title="This is a template">
+          <div
+            v-if="chat.is_template"
+            class="badge badge-warning badge-sm text-xs"
+            :class="{ hidden: isChannel }"
+            title="This is a template"
+          >
             <i class="fa-solid fa-star text-xs mr-1"></i>
             Template
           </div>
@@ -228,6 +254,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           <!-- Cost / Budget Control (reusable component) -->
           <ChatCostSelector
             variant="chip"
+            :class="{ hidden: isChannel }"
             :cost="chat.cost || 0"
             :estimation-cost="chat.estimation_cost"
             @cost-changed="$emit('cost-changed', $event)"
@@ -252,7 +279,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       <!-- ROW 2: Project Selector + Title + Tags + Status + Toggles + Mode Selector -->
       <div class="flex items-center gap-3 min-w-0 flex-wrap">
         <!-- Project Detail Selector (Fixed Width) -->
-        <div class="shrink-0">
+        <div class="shrink-0" :class="{ hidden: isChannel }">
           <ProjectDetailt
             @click.stop=""
             :iconify="true"
@@ -263,10 +290,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
 
         <!-- Divider -->
-        <div class="w-px h-5 bg-base-300 shrink-0 hidden sm:block"></div>
+        <div
+          class="w-px h-5 bg-base-300 shrink-0 hidden sm:block"
+          :class="{ 'sm:hidden': isChannel }"
+        ></div>
 
         <!-- Title (Editable) -->
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+          <i v-if="isChannel" class="fa-solid fa-hashtag text-xs text-base-content/40 shrink-0"></i>
           <input
             v-if="editingTitle"
             v-model="workingChatName"
@@ -288,7 +319,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
         
         <!-- Tags Section -->
-        <div class="flex items-center gap-2 shrink-0 overflow-x-auto">
+        <div class="flex items-center gap-2 shrink-0 overflow-x-auto" :class="{ hidden: isChannel }">
           <div class="flex items-center gap-1">
             <div 
               v-for="tag in chat.tags" 
@@ -310,7 +341,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
 
         <!-- Status Selector -->
-        <div class="shrink-0 relative">
+        <div class="shrink-0 relative" :class="{ hidden: isChannel }">
           <ChatStatusSelector
             :status="chat.status"
             @status-changed="onStatusChanged"
@@ -318,7 +349,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         </div>
 
         <!-- Settings Toggles + Mode Selector (Right) -->
-        <div class="flex items-center gap-1.5 ml-auto shrink-0">
+        <div class="flex items-center gap-1.5 ml-auto shrink-0" :class="{ hidden: isChannel }">
           
           <!-- Template Toggle (Icon Button) -->
           <button
@@ -378,7 +409,12 @@ export default {
     targetProject: { type: Object, default: null },
     // Mobile only: the details panel is controlled by the parent so it can hide
     // other mobile chrome (e.g. the chat files strip) while collapsed.
-    mobileExpanded: { type: Boolean, default: false }
+    mobileExpanded: { type: Boolean, default: false },
+    // Messenger / channel view: a group conversation has no task hierarchy,
+    // board, project context, status, cost, tags or chat mode. Those controls
+    // are kept in the DOM and only hidden, so the same component keeps working
+    // for task chats everywhere else. Defaults to false: no host changes needed.
+    channelMode: { type: Boolean, default: false }
   },
   emits: [
     'update-name',
@@ -410,6 +446,10 @@ export default {
   computed: {
     isMobile() {
       return this.$ui?.isMobile
+    },
+    // Channel chrome switch (see `channelMode` prop)
+    isChannel() {
+      return this.channelMode
     },
     // Project this chat works against. The chat's OWN working project
     // (`project_id`) always wins over the parent-provided `targetProject` so a
