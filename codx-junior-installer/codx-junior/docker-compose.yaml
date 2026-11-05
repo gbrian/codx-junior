@@ -80,12 +80,34 @@ services:
       - traefik.http.routers.codx-junior-localai-secure.middlewares=localai-headers,codx-junior-auth
 
   ###################################################################
+  ## Analytics storage permissions
+  ###################################################################
+
+  # Docker creates named volumes owned by root. The API containers run as
+  # 1001:1001, so prepare the analytics volume before they start (otherwise
+  # AnalyticsStorage cannot create its JSONL files).
+  codx-junior-analytics-init:
+    image: codxjunior/codx-junior:debian # reuse existing image
+    container_name: codx-junior-analytics-init
+    user: "0:0"
+    volumes:
+      - codx-junior-analytics:/home/codx-junior/analytics
+    command: >
+      sh -c "mkdir -p /home/codx-junior/analytics &&
+      chown 1001:1001 /home/codx-junior/analytics"
+    labels:
+      - traefik.enable=false
+
+  ###################################################################
   ## API
   ###################################################################
 
   codx-junior-api:
     depends_on:
-      - milvus
+      milvus:
+        condition: service_started
+      codx-junior-analytics-init:
+        condition: service_completed_successfully
     # Build image first (see build.sh)
     container_name: codx-junior-api
     image: codxjunior/codx-junior:api
@@ -102,6 +124,8 @@ services:
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
       - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      # Analytics storage (token usage, decisions and raw AI logs)
+      - CODX_JUNIOR_API_ANALYTICS_DATA_PATH=/home/codx-junior/analytics
       # vLLM
       - VLLM_TARGET_DEVICE=CPU
     volumes:
@@ -109,6 +133,8 @@ services:
       - /home/codx-junior-projects:/home/codx-junior-projects
       # Global settings folder  ##########################################################
       - codx-junior:/home/codx-junior/.codx-junior/settings
+      # Analytics storage (token usage, decisions and raw AI logs)  ######################
+      - codx-junior-analytics:/home/codx-junior/analytics
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
       # Docker
@@ -135,7 +161,10 @@ services:
 
   codx-junior-api-background:
     depends_on:
-      - codx-junior-api
+      codx-junior-api:
+        condition: service_started
+      codx-junior-analytics-init:
+        condition: service_completed_successfully
     container_name: codx-junior-api-background
     image: codxjunior/codx-junior:api
     shm_size: 4gb
@@ -152,6 +181,8 @@ services:
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
       - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
       - CODX_JUNIOR_API_URL=http://codx-junior-api:19980
+      # Analytics storage (token usage, decisions and raw AI logs)
+      - CODX_JUNIOR_API_ANALYTICS_DATA_PATH=/home/codx-junior/analytics
       ## API BACKGROUND
       - CODX_JUNIOR_API_BACKGROUND=1
     volumes:
@@ -159,6 +190,8 @@ services:
       - /home/codx-junior-projects:/home/codx-junior-projects
       # Global settings folder  ##########################################################
       - codx-junior:/home/codx-junior/.codx-junior/settings  
+      # Analytics storage (token usage, decisions and raw AI logs)  ######################
+      - codx-junior-analytics:/home/codx-junior/analytics
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
       # Docker
@@ -252,17 +285,13 @@ services:
       - traefik.enable=false
 
 volumes:
-  prometheus_demo_data:
-    name: codx-junior-litellm_prometheus_data
-  postgres_demo_data:
-    name: codx-junior-litellm_postgres_data
   milvus_data:
     name: codx-junior-milvus_data
   localai_models:
     name: codx-junior-localai_models
-  localai_data:
-    name: codx-junior-localai_data
   codx-junior:
     name: codx-junior
+  codx-junior-analytics:
+    name: codx-junior-analytics
   codx-junior-projects:
     name: codx-junior-projects

@@ -39,3 +39,4 @@ ciso/scripts/security-scripts/scanwatch_*
 localai-models
 # Local DSH bridge secret
 .dsh-codx-junior/
+kasm-user

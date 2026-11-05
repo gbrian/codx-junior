@@ -66,16 +66,13 @@ class GlobalSettingsManager:
     ```
     """
 
-    def __init__(self, config_folder: Optional[str] = None) -> None:
+    def __init__(self) -> None:
         """
         Initialize the manager with the given config folder.
 
-        Args:
-            config_folder: Root folder for settings storage.
-                           Defaults to CODX_JUNIOR_CONFIG_FOLDER env var or HOME.
         """
         home = os.environ.get("HOME", "/root")
-        self.config_folder = config_folder or os.environ.get(
+        self.config_folder = os.environ.get(
             "CODX_JUNIOR_CONFIG_FOLDER", home
         )
         self.settings_dir = pathlib.Path(self.config_folder) / SETTINGS_DIR_NAME

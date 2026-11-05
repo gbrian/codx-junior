@@ -80,45 +80,6 @@ services:
     networks:
       - codx-junior
 
-  codx-junior-coder:
-    #####################################################################################
-    ## LinuxServer VSCodium Web → /workspace-default/coder/
-    #####################################################################################
-    image: lscr.io/linuxserver/vscodium-web:latest
-    container_name: codx-junior-default-workspace-coder
-    restart: unless-stopped
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      # LinuxServer image passes direct binary flags via the CODE_ARGS env array
-      - CODE_ARGS=--without-connection-token --server-base-path=/workspace-default/coder
-    volumes:
-      # LinuxServer relies on /config for internal app data, settings, and extensions
-      - ./kasm-user/.vscode-server:/config
-      - /home/codx-junior-projects:/home/codx-junior-projects
-    labels:
-      - "traefik.enable=true"
-
-      #####################################################################################
-      ## HTTPS router (Isolates TLS Termination from structural middleware conflicts)
-      #####################################################################################
-      # FIX: Enclose the entire value in double quotes, keeping backticks around the variable interpolation
-      - "traefik.http.routers.codx-junior-default-workspace-coder-secure-router.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && (Path(`/workspace-default/coder`) || PathPrefix(`/workspace-default/coder/`))"
-      - "traefik.http.routers.codx-junior-default-workspace-coder-secure-router.entrypoints=websecure"
-      - "traefik.http.routers.codx-junior-default-workspace-coder-secure-router.tls=true"
-      - "traefik.http.routers.codx-junior-default-workspace-coder-secure-router.service=codx-junior-default-workspace-coder-service"
-      - "traefik.http.routers.codx-junior-default-workspace-coder-secure-router.priority=300"
-
-      #####################################################################################
-      ## Shared load balancer service (LinuxServer internal port is 8000)
-      #####################################################################################
-      - "traefik.http.services.codx-junior-default-workspace-coder-service.loadbalancer.server.port=8000"
-
-    networks:
-      - codx-junior
-
-
   codx-junior-docs:
     image: node:22-alpine
     container_name: codx-junior-docs

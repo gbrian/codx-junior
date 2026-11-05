@@ -1,19 +1,30 @@
 services:
+  # New initialization service to fix permissions before core services start
+  fix-permissions:
+    image: alpine:latest
+    container_name: codx-junior-fix-permissions
+    user: "0:0" # Force root execution to ensure chown capabilities
+    volumes:
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      - codx-junior-config:/config
+    environment:
+      - PUID=${USER_ID:-1001}
+      - PGID=${GROUP_ID:-1001}
+    command: >
+      sh -c "
+      echo 'Fixing volume permissions for PUID:PGID => $PUID:$PGID...';
+      chown -R $PUID:$PGID /home/codx-junior-projects /config;
+      chmod -R 775 /home/codx-junior-projects /config;
+      echo 'Permissions updated successfully.';
+      "
+
   codx-junior-default:
-    #####################################################################################
-    ## 
-    ## NOTE: codx-junior-auth@file
-    ## 
-    ## Use codx-junior-auth middleware to secure the workspace endpoints
-    #####################################################################################
     image: ghcr.io/linuxserver/webtop:debian-kde
-    #build:
-    #  context: .
-    #  args:
-    #    - PUID=${USER_ID:-1001}
-    #    - PGID=${GROUP_ID:-1001}
     container_name: codx-junior-default-workspace
     restart: unless-stopped
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully # Ensures this service waits for the script to finish
     shm_size: '512m'
     cap_add:
       - NET_ADMIN
@@ -23,7 +34,6 @@ services:
       - SETGID
       - SYS_ADMIN
       
-    # SYNTAX FIX: Changed from "seccomp:unconfined" to "seccomp=unconfined"
     security_opt:
       - seccomp=unconfined
       
@@ -31,12 +41,9 @@ services:
       - /dev/ppp:/dev/ppp
     volumes:
       - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior # TODO: remove
-      # Projects volume mapping
       - /home/codx-junior-projects:/home/codx-junior-projects
-      # config
       - codx-junior-config:/config
       - ./custom-services.d:/custom-services.d
-      # Access docker
       - /var/run/docker.sock:/var/run/docker.sock
     tmpfs:
       - /tmp/.X11-unix:mode=1777,size=10m
@@ -50,7 +57,6 @@ services:
       - CODX_JUNIOR_DOMAIN=${CODX_JUNIOR_DOMAIN}
     labels:
       - traefik.enable=true
-      # Kasmweb HTTPS standard port is 6901
       - traefik.http.routers.codx-junior-default-workspace-webtop-router.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/workspace-default/preview`)
       - traefik.http.routers.codx-junior-default-workspace-webtop-router.service=codx-junior-default-workspace-webtop-service
       - traefik.http.services.codx-junior-default-workspace-webtop-service.loadbalancer.server.port=3000
@@ -59,7 +65,6 @@ services:
       - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.replacement=/$$1
       - traefik.http.routers.codx-junior-default-workspace-webtop-router.middlewares=codx-junior-default-workspace-webtop-path,codx-junior-auth
       
-      # coder port ${CODE_SERVER_PORT}
       - traefik.http.routers.codx-junior-default-workspace-coder-router.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/workspace-default/coder`)
       - traefik.http.routers.codx-junior-default-workspace-coder-router.service=codx-junior-default-workspace-coder-service
       - traefik.http.services.codx-junior-default-workspace-coder-service.loadbalancer.server.port=${CODE_SERVER_PORT:-9080}
@@ -73,6 +78,9 @@ services:
     image: node:22-alpine
     container_name: codx-junior-docs
     restart: unless-stopped
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully # Blocks execution until script completes
     volumes:
       - /home/codx-junior/codx-junior/docs:/app
     working_dir: /app
@@ -89,8 +97,7 @@ services:
 
 volumes:
   codx-junior-config:
-  codx-junior-projects:
-    external: true
+    name: codx-junior-config
 
 networks:
   codx-junior:

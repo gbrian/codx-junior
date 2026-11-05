@@ -16,12 +16,27 @@ export CODER_HTTP_ADDRESS=0.0.0.0:${CODE_PORT}
 CODE_SERVER_DIR=/config/.local/share/code-server
 mkdir -p "${CODE_SERVER_DIR}"
 
-echo "
+{
+  cat <<EOF
 bind-addr: 0.0.0.0:${CODE_PORT}
 auth: none
 password: 8e240165f98d107aade5dbdc
 cert: false
-" > "${CODE_SERVER_DIR}/config.yaml"
+EOF
+
+  # Traefik forwards X-Forwarded-Port=80 for requests that reach it over the
+  # `web` entrypoint (TLS is terminated upstream), while the browser's Origin
+  # is https://<domain> (port 443). code-server's WebSocket origin check
+  # compares that port and rejects the upgrade with 403, which the workbench
+  # reports as "WebSocket close with status code 1006". Trusting the public
+  # domain keeps the check meaningful without depending on proxy headers.
+  if [ -n "${CODX_JUNIOR_DOMAIN:-}" ]; then
+    cat <<EOF
+trusted-origins:
+  - "${CODX_JUNIOR_DOMAIN}"
+EOF
+  fi
+} > "${CODE_SERVER_DIR}/config.yaml"
 
 # 3. Ensure your user (1001) owns the config directory
 chown -R $PUID:$PGID "${CODE_SERVER_DIR}"

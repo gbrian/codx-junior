@@ -5,6 +5,7 @@ echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 echo "Starting api USER: ${USER} ($(id -u):$(id -g)) HOME: ${HOME}"
 echo "Fix permissions"
 sudo chown -R ${USER} ${HOME}
+sudo chown ${USER} /var/run/docker.sock
 
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
