@@ -1,0 +1,21 @@
+{
+  "id": "44637d21-dea4-58ea-bdb5-01405fd2bd6b",
+  "title": "File Explorer",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "File Explorer",
+  "order": 99,
+  "description": "",
+  "background": "",
+  "active": false,
+  "last_update": "2026-08-09T07:28:57.420Z",
+  "columns": [
+    {
+      "id": "99ea957f-a15f-40dd-89c0-4a071daf7aec",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

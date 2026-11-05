@@ -1,0 +1,14 @@
+{
+  "id": "07d13d57-9a88-555f-b1be-d86a923d40f0",
+  "title": "Planing and Sprint features",
+  "type": "sprint",
+  "parent_id": null,
+  "folder": "Planing and Sprint features",
+  "order": 110,
+  "description": "In this sprint we'll focus on finishing the kanban, planning and sprint views.",
+  "background": "",
+  "project_id": null,
+  "columns": [],
+  "last_update": "2026-10-05T08:43:54.540Z",
+  "active": false
+}

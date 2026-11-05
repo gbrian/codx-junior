@@ -1,0 +1,49 @@
+{
+  "id": "5d8dff40-d161-5866-bcc9-cc756bfee237",
+  "title": "Investigation",
+  "type": "kanban",
+  "parent_id": "codx-agents",
+  "folder": "Investigation",
+  "order": 40,
+  "columns": [
+    {
+      "id": "2840c73f-7921-4ef5-a3f3-3e306ee4e8a2",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "1b8b8ed4-9a8c-48b4-be02-6cef2c3eb8b2",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 1
+    },
+    {
+      "id": "81a6b873-a985-41cf-8a15-07a05a1a38dc",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 2
+    },
+    {
+      "id": "3bb99e17-3242-47b1-9db6-517c87fdd57c",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 3
+    },
+    {
+      "id": "4f109e59-c51e-4e0d-8afe-59e26bb6b094",
+      "title": "Codebase inspection",
+      "color": "#000000",
+      "folder": "Codebase inspection",
+      "order": 4
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-21T05:33:21.901Z",
+  "background": "",
+  "description": ""
+}

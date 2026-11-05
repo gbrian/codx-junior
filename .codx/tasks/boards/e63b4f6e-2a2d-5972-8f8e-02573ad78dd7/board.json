@@ -1,0 +1,21 @@
+{
+  "id": "e63b4f6e-2a2d-5972-8f8e-02573ad78dd7",
+  "title": "Git WorkTrees",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Git WorkTrees",
+  "order": 50,
+  "columns": [
+    {
+      "id": "18950972-92e6-4a89-a462-de887ba44432",
+      "title": "Docs",
+      "color": "#A463BF",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "background": "https://miro.medium.com/v2/resize:fit:1200/1*ZZWD6HrEyQJwLSdGRgt6Bw.png",
+  "active": false,
+  "last_update": "2026-05-26T06:19:40.434Z",
+  "description": ""
+}

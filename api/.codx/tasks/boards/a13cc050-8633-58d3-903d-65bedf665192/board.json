@@ -1,0 +1,20 @@
+{
+  "id": "a13cc050-8633-58d3-903d-65bedf665192",
+  "title": "File splitter",
+  "type": "kanban",
+  "parent_id": "Wiki manager",
+  "folder": "File splitter",
+  "order": 26,
+  "description": "",
+  "columns": [
+    {
+      "id": "6b6c5ad1-3f6e-4c0b-968e-a3797c2713b5",
+      "title": "To do",
+      "color": "#000000",
+      "folder": "To do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-12T04:56:46.500Z",
+  "active": false
+}

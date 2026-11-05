@@ -1,0 +1,20 @@
+{
+  "id": "dfc5ad86-0bbb-5105-b873-48d0db31da0e",
+  "title": "User chat",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "User chat",
+  "order": 25,
+  "description": "Global chats for users and groups",
+  "columns": [
+    {
+      "id": "309d6831-9bd0-4a5f-bb94-b62ba9b9f5dd",
+      "title": "To Do",
+      "color": "#F39C19",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-10T09:16:47.949Z",
+  "active": false
+}

@@ -1,0 +1,42 @@
+{
+  "id": "cfdffd09-6067-5328-a25c-0195e3abc420",
+  "title": "User management",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "User management",
+  "order": 6,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "f94762bf-ca11-48fd-935c-2d7fce3d050c",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "5d6664da-4dd4-4bbf-a50f-4977e5a73bb0",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 1
+    },
+    {
+      "id": "7b2edc11-987b-4de4-935f-46d6d652d453",
+      "title": "In Development",
+      "color": "",
+      "folder": "In Development",
+      "order": 2
+    },
+    {
+      "id": "95f3e564-5814-445e-8da4-6269c084bdf1",
+      "title": "Completed",
+      "color": "",
+      "folder": "Completed",
+      "order": 3
+    }
+  ],
+  "last_update": "2025-04-09T05:39:10.263Z",
+  "active": false
+}

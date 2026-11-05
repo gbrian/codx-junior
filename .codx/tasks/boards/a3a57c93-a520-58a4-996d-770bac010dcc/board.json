@@ -1,0 +1,20 @@
+{
+  "id": "a3a57c93-a520-58a4-996d-770bac010dcc",
+  "title": "Mention detection",
+  "type": "kanban",
+  "parent_id": "mentions",
+  "folder": "Mention detection",
+  "order": 85,
+  "columns": [
+    {
+      "id": "833fa559-7814-4951-9183-2946b62623e2",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-18T05:24:49.579Z",
+  "description": ""
+}

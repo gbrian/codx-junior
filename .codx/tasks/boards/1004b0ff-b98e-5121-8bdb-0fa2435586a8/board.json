@@ -1,0 +1,21 @@
+{
+  "id": "1004b0ff-b98e-5121-8bdb-0fa2435586a8",
+  "title": "MoE",
+  "type": "kanban",
+  "parent_id": "Chat Modes",
+  "folder": "MoE",
+  "order": 91,
+  "columns": [
+    {
+      "id": "8655c995-da6d-469e-b031-80cbf2da5319",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "background": "https://developer-blogs.nvidia.com/wp-content/uploads/2024/03/llm-graphic-representation.jpg",
+  "active": false,
+  "last_update": "2026-06-26T18:24:24.205Z",
+  "description": ""
+}

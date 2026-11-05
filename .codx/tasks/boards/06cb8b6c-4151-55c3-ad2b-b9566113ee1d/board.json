@@ -1,0 +1,27 @@
+{
+  "id": "06cb8b6c-4151-55c3-ad2b-b9566113ee1d",
+  "title": "codx-junior docker installer",
+  "type": "kanban",
+  "parent_id": "Installer",
+  "folder": "codx-junior docker installer",
+  "order": 67,
+  "columns": [
+    {
+      "id": "ec863802-bd68-4319-ade9-074af28d1902",
+      "title": "Setup",
+      "color": "#000000",
+      "folder": "Setup",
+      "order": 0
+    },
+    {
+      "id": "af4bc55a-6ca2-4d86-bdf7-81cca02e6de8",
+      "title": "Traefik",
+      "color": "#000000",
+      "folder": "Traefik",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-08-15T16:23:29.831Z",
+  "description": ""
+}

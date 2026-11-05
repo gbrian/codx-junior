@@ -1,0 +1,22 @@
+{
+  "id": "1cb475ca-8f11-5e15-a518-41ab87122911",
+  "title": "smol - agents",
+  "type": "kanban",
+  "parent_id": "codx-agents",
+  "folder": "smol - agents",
+  "order": 100,
+  "description": "smol agent integration",
+  "background": "https://miro.medium.com/1*LLDcTJvPLJpOeM0tKy5zpw.jpeg",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-01T13:44:49.680Z",
+  "columns": [
+    {
+      "id": "68242b7c-b7b9-499b-a678-e21ffce49a2e",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

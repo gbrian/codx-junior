@@ -1,0 +1,28 @@
+{
+  "id": "4d7a08d7-ad96-57c8-82a9-f2e6ee9b1257",
+  "title": "codx-junior",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-junior",
+  "order": 20,
+  "columns": [
+    {
+      "id": "04d2abcf-6693-43bf-93e8-7275003e3b48",
+      "title": "2025-05-11",
+      "color": "",
+      "folder": "2025-05-11",
+      "order": 0
+    },
+    {
+      "id": "fb6f9bb5-493c-4b07-9d4f-bd34a6a8f511",
+      "title": "2025-05-16",
+      "color": "",
+      "folder": "2025-05-16",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-15T03:29:13.424Z",
+  "description": "",
+  "background": "https://gbrian.codxjunior.com/only_icon.png"
+}

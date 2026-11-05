@@ -1,0 +1,35 @@
+{
+  "id": "c89e7883-2a82-51a1-b6d6-f36214b821fe",
+  "title": "docs",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "docs",
+  "order": 21,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "16aaf507-d471-4cd2-84a8-7dc27bbdfbbc",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "4969aa40-7289-4f4e-849e-9ccfb2d2f52d",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "2f095f9d-6273-48b5-a986-5731e924f825",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-05-12T18:01:23.666Z",
+  "active": false
+}

@@ -1,0 +1,28 @@
+{
+  "id": "d420a46f-d8b9-56c0-aed5-f9d965d9d71a",
+  "title": "Tools",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Tools",
+  "order": 40,
+  "columns": [
+    {
+      "id": "d423c199-0cb5-4183-b1c9-45551ca7bff6",
+      "title": "Tools",
+      "color": "#3D556E",
+      "folder": "Tools",
+      "order": 0
+    },
+    {
+      "id": "194e9b96-633b-42fc-a85a-e94f5a1a24e0",
+      "title": "Testing",
+      "color": "#F2C511",
+      "folder": "Testing",
+      "order": 1
+    }
+  ],
+  "description": "codx-api ai tools",
+  "background": "https://storage.googleapis.com/gweb-cloudblog-publish/images/hero_tools_make_an_agent.max-2500x2500.png",
+  "active": false,
+  "last_update": "2025-11-24T17:51:51.599Z"
+}

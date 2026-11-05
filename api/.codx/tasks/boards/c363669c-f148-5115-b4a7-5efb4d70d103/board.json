@@ -1,0 +1,27 @@
+{
+  "id": "c363669c-f148-5115-b4a7-5efb4d70d103",
+  "title": "OAuth",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "OAuth",
+  "order": 36,
+  "columns": [
+    {
+      "id": "467e034d-1551-47c1-a463-ee7a9fdc7588",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    },
+    {
+      "id": "4953a95e-e7b0-47fb-95c1-c18efc206eec",
+      "title": "Done",
+      "color": "#000000",
+      "folder": "Done",
+      "order": 1
+    }
+  ],
+  "last_update": "2025-08-30T16:59:38.030Z",
+  "active": false,
+  "description": ""
+}

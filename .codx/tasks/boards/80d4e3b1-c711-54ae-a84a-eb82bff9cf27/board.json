@@ -1,0 +1,22 @@
+{
+  "id": "80d4e3b1-c711-54ae-a84a-eb82bff9cf27",
+  "title": "Traefik",
+  "type": "kanban",
+  "parent_id": "codx-junior docker installer",
+  "folder": "Traefik",
+  "order": 107,
+  "description": "",
+  "background": "https://linuxiac.com/wp-content/uploads/2026/05/traefik37.jpg",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-15T16:24:24.366Z",
+  "columns": [
+    {
+      "id": "324a78be-f990-4fff-8297-7b283c2865e6",
+      "title": "API Provider",
+      "color": "#000000",
+      "folder": "API Provider",
+      "order": 0
+    }
+  ]
+}

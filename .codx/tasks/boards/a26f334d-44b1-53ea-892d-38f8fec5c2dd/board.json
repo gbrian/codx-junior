@@ -1,0 +1,21 @@
+{
+  "id": "a26f334d-44b1-53ea-892d-38f8fec5c2dd",
+  "title": "MilvusDB",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "MilvusDB",
+  "order": 61,
+  "columns": [
+    {
+      "id": "bb11f030-21ad-4dd1-9e45-195f1694f5a9",
+      "title": "api",
+      "color": "#000000",
+      "folder": "api",
+      "order": 0
+    }
+  ],
+  "background": "https://miro.medium.com/v2/resize:fit:1400/1*7bry9DVM9TAW-yfp0xyBMg.png",
+  "active": false,
+  "last_update": "2026-06-27T18:29:33.473Z",
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "4ed4776c-831c-5a8a-8a19-559faa7a5366",
+  "title": "Installer",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Installer",
+  "order": 44,
+  "columns": [
+    {
+      "id": "1154ce98-c3f6-4215-b2d4-da074b03ff3c",
+      "title": "Installer",
+      "color": "#000000",
+      "folder": "Installer",
+      "order": 0
+    }
+  ],
+  "background": "https://static-blog.onlyoffice.com/wp-content/uploads/2025/01/27135827/desktop-installer-1024x517.jpg",
+  "active": false,
+  "last_update": "2026-06-30T09:01:58.305Z",
+  "description": ""
+}

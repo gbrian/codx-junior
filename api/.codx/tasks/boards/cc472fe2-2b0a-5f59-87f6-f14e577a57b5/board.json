@@ -1,0 +1,27 @@
+{
+  "id": "cc472fe2-2b0a-5f59-87f6-f14e577a57b5",
+  "title": "Quick chats",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Quick chats",
+  "order": 50,
+  "columns": [
+    {
+      "id": "752b38cc-3c87-4b8d-ba95-3e7cf4a986d8",
+      "title": "20260305",
+      "color": "",
+      "folder": "20260305",
+      "order": 0
+    },
+    {
+      "id": "28fa7f34-6f8e-473f-964d-1901318f1973",
+      "title": "20260331",
+      "color": "",
+      "folder": "20260331",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-03-05T08:46:26.475Z",
+  "description": ""
+}

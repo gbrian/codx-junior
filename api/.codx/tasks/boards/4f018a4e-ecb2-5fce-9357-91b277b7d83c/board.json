@@ -1,0 +1,28 @@
+{
+  "id": "4f018a4e-ecb2-5fce-9357-91b277b7d83c",
+  "title": "Bugs",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Bugs",
+  "order": 15,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "c60c90d8-0e69-40e1-9a81-e700f9bdb073",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 0
+    },
+    {
+      "id": "670ca3a1-0912-495b-a7f1-8db5c9ae2cae",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 1
+    }
+  ],
+  "last_update": "2026-04-06T09:30:49.011Z",
+  "active": true
+}

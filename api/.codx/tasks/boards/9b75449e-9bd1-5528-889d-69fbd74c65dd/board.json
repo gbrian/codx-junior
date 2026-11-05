@@ -1,0 +1,21 @@
+{
+  "id": "9b75449e-9bd1-5528-889d-69fbd74c65dd",
+  "title": "Models",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Models",
+  "order": 53,
+  "columns": [
+    {
+      "id": "6eabc809-ae81-4193-b0bf-71bc9d107b00",
+      "title": "vllm",
+      "color": "#000000",
+      "folder": "vllm",
+      "order": 0
+    }
+  ],
+  "background": "https://www.labellerr.com/blog/content/images/2022/10/AImodel-1.webp",
+  "active": false,
+  "last_update": "2026-03-31T17:26:21.203Z",
+  "description": ""
+}

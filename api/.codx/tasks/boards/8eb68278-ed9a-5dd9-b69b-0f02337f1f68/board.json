@@ -1,0 +1,55 @@
+{
+  "id": "8eb68278-ed9a-5dd9-b69b-0f02337f1f68",
+  "title": "kanban",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "kanban",
+  "order": 2,
+  "columns": [
+    {
+      "id": "b56928c7-10bd-4c38-88fc-e9c34887283d",
+      "title": "done",
+      "color": "",
+      "folder": "done",
+      "order": 0
+    },
+    {
+      "id": "ab3e76ec-bf48-422f-aba3-156c27b74ff6",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 1
+    },
+    {
+      "id": "8cb820f7-7560-4749-9fd4-22236c7b57c3",
+      "title": "new column",
+      "color": "",
+      "folder": "new column",
+      "order": 2
+    },
+    {
+      "id": "766517cb-c295-448c-b67d-522fa8f9da40",
+      "title": "on going",
+      "color": "",
+      "folder": "on going",
+      "order": 3
+    },
+    {
+      "id": "c32416a2-2395-4d97-b6e7-bc475380278e",
+      "title": "to do",
+      "color": "",
+      "folder": "to do",
+      "order": 4
+    },
+    {
+      "id": "5fc5b79d-9729-47d7-aff6-78d61584e2b9",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 5
+    }
+  ],
+  "active": false,
+  "last_update": "2026-03-07T07:36:53.159Z",
+  "description": ""
+}

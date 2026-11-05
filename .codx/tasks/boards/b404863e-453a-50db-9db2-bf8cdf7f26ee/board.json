@@ -1,0 +1,22 @@
+{
+  "id": "b404863e-453a-50db-9db2-bf8cdf7f26ee",
+  "title": "Kernels",
+  "type": "kanban",
+  "parent_id": "Workspaces",
+  "folder": "Kernels",
+  "order": 96,
+  "description": "A notebook like kernel but with docker and a chat",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-07-11T14:45:56.035Z",
+  "columns": [
+    {
+      "id": "9f6948c2-9981-47a8-a437-e262adbf45fd",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ]
+}

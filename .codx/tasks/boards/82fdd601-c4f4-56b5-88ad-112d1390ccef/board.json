@@ -1,0 +1,20 @@
+{
+  "id": "82fdd601-c4f4-56b5-88ad-112d1390ccef",
+  "title": "Workspace Docker",
+  "type": "kanban",
+  "parent_id": "Workspaces",
+  "folder": "Workspace Docker",
+  "order": 66,
+  "columns": [
+    {
+      "id": "8f58ef1d-8678-45e7-9655-90ca0d042c50",
+      "title": "Docker",
+      "color": "#000000",
+      "folder": "Docker",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-07-01T04:17:47.480Z",
+  "description": ""
+}

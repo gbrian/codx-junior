@@ -1,0 +1,21 @@
+{
+  "id": "54811ed1-f2dd-504b-8e4e-6efeda51f10f",
+  "title": "Guide Models",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "Guide Models",
+  "order": 81,
+  "columns": [
+    {
+      "id": "f21f0a72-7875-47f3-aa29-975c1d2d0fa6",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "background": "https://img.freepik.com/free-vector/woman-man-taking-photos-posting-them-internet_52683-23435.jpg?semt=ais_rp_50_assets&w=740&q=80",
+  "active": false,
+  "last_update": "2026-08-14T05:54:57.583Z",
+  "description": ""
+}

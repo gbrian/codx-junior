@@ -1,0 +1,21 @@
+{
+  "id": "c0cabd0e-5351-566b-90c5-3a870b0e7102",
+  "title": "llm-factory",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "llm-factory",
+  "order": 28,
+  "columns": [
+    {
+      "id": "9fbbc8c4-bc01-4227-b4e1-1f76bcd2974c",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://ai-sandbox.list.lu/static/93179ec9161885e2190ab23c86b94f8d/83638/factory_0f35bf24e1.jpg",
+  "active": false,
+  "last_update": "2026-01-20T12:11:19.399Z",
+  "description": ""
+}

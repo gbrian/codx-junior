@@ -1,0 +1,29 @@
+{
+  "id": "46b699b5-efc5-5682-b7bf-d67b89f672a5",
+  "title": "External connectors",
+  "type": "kanban",
+  "parent_id": "codx-junior management dashboard",
+  "folder": "External connectors",
+  "order": 122,
+  "description": "Connect codx-junior with external apps",
+  "background": "https://framerusercontent.com/images/d2iYgZ1ko0sqxKu0T9Lx1g9SfI.png?width=1920&height=1050",
+  "project_id": null,
+  "users": [],
+  "columns": [
+    {
+      "id": "efee24a1-5737-4518-bb02-160094e906ec",
+      "title": "WhatsApp",
+      "color": "#10b981",
+      "folder": "WhatsApp",
+      "order": 0
+    },
+    {
+      "id": "e16c2ef2-641b-4c3c-87c8-7182a4cac97e",
+      "title": "GMAIL",
+      "color": "#ef4444",
+      "folder": "GMAIL",
+      "order": 1
+    }
+  ],
+  "last_update": "2026-11-02T07:27:27.201Z"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "abb4295b-2faf-5657-9b02-f43ab68b4910",
+  "title": "Favorittes",
+  "type": "kanban",
+  "parent_id": "dock-view",
+  "folder": "Favorittes",
+  "order": 76,
+  "columns": [
+    {
+      "id": "a80e0bfd-4b81-46ef-9794-0b6c0e87233e",
+      "title": "Favourites",
+      "color": "#000000",
+      "folder": "Favourites",
+      "order": 0
+    }
+  ],
+  "background": "https://chromeunboxed.com/wp-content/uploads/2026/01/ChromeAndroidDesktopBookmarksBar-750x420.webp",
+  "active": false,
+  "last_update": "2026-06-07T19:19:21.363Z",
+  "description": ""
+}

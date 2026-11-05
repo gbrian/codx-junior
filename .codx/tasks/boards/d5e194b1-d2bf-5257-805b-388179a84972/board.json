@@ -1,0 +1,20 @@
+{
+  "id": "d5e194b1-d2bf-5257-805b-388179a84972",
+  "title": "Test file maintenance flow",
+  "type": "kanban",
+  "parent_id": "codx-agents",
+  "folder": "Test file maintenance flow",
+  "order": 59,
+  "columns": [
+    {
+      "id": "74587b7d-998d-4794-9739-caa9aa92ec04",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-04-26T05:34:08.315Z",
+  "description": ""
+}

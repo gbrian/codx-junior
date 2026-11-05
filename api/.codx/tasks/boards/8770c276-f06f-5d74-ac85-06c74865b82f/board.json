@@ -1,0 +1,21 @@
+{
+  "id": "8770c276-f06f-5d74-ac85-06c74865b82f",
+  "title": "Proxy",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Proxy",
+  "order": 48,
+  "columns": [
+    {
+      "id": "064487e3-2bff-40d7-8cfb-976bbe701426",
+      "title": "Documentation",
+      "color": "#000000",
+      "folder": "Documentation",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqq6QOlRckTK_6AACnUdkFe8eQg_KlbGr9Cw&s",
+  "active": false,
+  "last_update": "2025-12-28T07:30:12.905Z",
+  "description": ""
+}

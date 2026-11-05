@@ -1,0 +1,22 @@
+{
+  "id": "011ea3b2-97f5-5797-a990-f13f80cac48b",
+  "title": "Uer's workspaces generator",
+  "type": "kanban",
+  "parent_id": "Workspaces",
+  "folder": "Uer's workspaces generator",
+  "order": 93,
+  "description": "Assists users to create a workspace",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-07-01T04:29:48.126Z",
+  "columns": [
+    {
+      "id": "06c43f3b-27e4-47d3-9399-bcbee40d4ff3",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

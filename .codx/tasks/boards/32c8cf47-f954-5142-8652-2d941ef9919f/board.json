@@ -1,0 +1,21 @@
+{
+  "id": "32c8cf47-f954-5142-8652-2d941ef9919f",
+  "title": "Thesaurus",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "Thesaurus",
+  "order": 80,
+  "columns": [
+    {
+      "id": "0b988ffb-e757-4dda-a660-1feff56be088",
+      "title": "Project Map",
+      "color": "#000000",
+      "folder": "Project Map",
+      "order": 0
+    }
+  ],
+  "background": "https://i0.wp.com/klwightman.com/wp-content/uploads/2015/10/kfe6d.jpg?ssl=1",
+  "active": false,
+  "last_update": "2026-08-14T05:57:55.452Z",
+  "description": ""
+}

@@ -1,0 +1,22 @@
+{
+  "id": "98f88615-57aa-5014-8adc-e463627061f6",
+  "title": "SimpleAI",
+  "type": "kanban",
+  "parent_id": "Plugins",
+  "folder": "SimpleAI",
+  "order": 105,
+  "description": "SimplePod.ai manager",
+  "background": "https://simplepod.ai/blog/wp-content/uploads/Best-Use-Cases-for-the-RTX-3060-on-SimplePod-%E2%80%94-From-Students-to-Devs-Starting-Out-1024x683.png",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-11T06:58:16.989Z",
+  "columns": [
+    {
+      "id": "7d2f17e8-9bbf-4dcf-b038-0fac78c448aa",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

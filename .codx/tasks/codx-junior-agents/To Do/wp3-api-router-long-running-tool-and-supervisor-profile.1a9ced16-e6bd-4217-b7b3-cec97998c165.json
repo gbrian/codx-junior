@@ -1,0 +1,491 @@
+{
+  "id": "1a9ced16-e6bd-4217-b7b3-cec97998c165",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "2c347b3d-f71e-4e3a-a8b4-c733dce624c4",
+  "root_id": "2c347b3d-f71e-4e3a-a8b4-c733dce624c4",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "todo",
+  "status_history": [
+    {
+      "doc_id": "f061c062-f386-48be-b5c6-02875f808abf",
+      "from_status": null,
+      "to_status": "todo",
+      "user": null,
+      "at": "2026-11-04T09:28:09.703506",
+      "meta_data": null
+    }
+  ],
+  "tags": [
+    "lrt",
+    "wp3",
+    "api"
+  ],
+  "file_list": [
+    "docs/long-running-tasks.md",
+    "docs/long-running-tasks-plan.md",
+    "codx/junior/api/long_running.py",
+    "codx/junior/tools/long_running_tools.py",
+    "codx/junior/tools/__init__.py",
+    "codx/junior/profiles/long_running.profile",
+    "codx/junior/api/__init__.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "WP3 \u2014 API router, long_running tool and supervisor profile",
+  "pinned": false,
+  "is_template": false,
+  "description": "Fourth work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP3. Depends on WP1 and WP2.\n\nOBJECTIVE\nMake a run usable from outside: REST router, the long_running tool the managing profile calls, and the supervisor prompt content.\n\nSCOPE\n1. codx/junior/api/long_running.py (auto-discovered by codx/junior/api/__init__.py discover_routers, mounted at /api):\n   - GET  /long-running                      list runs (config + state + progress/budget, worker_present flag)\n   - POST /long-running                      create/attach a run: {objective, budget, profile, board?, column?, task_mode?, max_tasks?, max_iterations?, per_task_budget?, supervisor_reserve?, auto_start?}\n   - GET  /long-running/{main_task_id}        detail: spent/remaining, task counts, current task, last tick\n   - POST /long-running/{main_task_id}/pause | /resume | /stop\n   - POST /long-running/{main_task_id}/tick   one manual tick (debug)\n   Conventions: project_id as QUERY param, bodies describe the resource only, nothing long inside the 30s request timeout, ValueError -> HTTP 400 verbatim.\n2. codx/junior/tools/long_running_tools.py \u2014 the long_running tool (actions: start, status, finish, add_task) + LONG_RUNNING_TOOL_JSON, same pattern as project_manager_tools. finish must be validated server-side: only the run profile on the run's own MAIN TASK may finish a run. add_task delegates to TaskManager.create_task with the run board/column.\n3. Register the tool in codx/junior/tools/__init__.py TOOLS (async: True, project_settings: True, session: True).\n4. codx/junior/profiles/long_running.profile \u2014 supervisor instructions: restate the objective, split only what is needed now, always leave a verifiable next step, always end with a task that says how to test the delivery, call finish only when the objective is demonstrably achieved, and report budget spent vs remaining.\n\nACCEPTANCE (evidence required in the task report)\n- list/detail answer with the worker off and report worker_present: false.\n- pause/resume/stop return the persisted run_status and survive a reload.\n- finish from a foreign chat is rejected (400/403) and finish from the run's own main task is accepted.\n- The tool appears once in TOOLS with the expected flags; the profile content is loaded by the profile manager.\n- No endpoint blocks longer than the 30s middleware timeout.\n\nRULES\n- Do not duplicate the service logic in the router: call LongRunningService / LongRunningRunner.\n- Keep GET /api/kanban and the planning endpoints untouched.",
+  "messages": [
+    {
+      "doc_id": "37d36476-56a6-4ad1-8444-5670c35bc68f",
+      "role": "user",
+      "task_item": "",
+      "content": "Fourth work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP3. Depends on WP1 and WP2.\n\nOBJECTIVE\nMake a run usable from outside: REST router, the long_running tool the managing profile calls, and the supervisor prompt content.\n\nSCOPE\n1. codx/junior/api/long_running.py (auto-discovered by codx/junior/api/__init__.py discover_routers, mounted at /api):\n   - GET  /long-running                      list runs (config + state + progress/budget, worker_present flag)\n   - POST /long-running                      create/attach a run: {objective, budget, profile, board?, column?, task_mode?, max_tasks?, max_iterations?, per_task_budget?, supervisor_reserve?, auto_start?}\n   - GET  /long-running/{main_task_id}        detail: spent/remaining, task counts, current task, last tick\n   - POST /long-running/{main_task_id}/pause | /resume | /stop\n   - POST /long-running/{main_task_id}/tick   one manual tick (debug)\n   Conventions: project_id as QUERY param, bodies describe the resource only, nothing long inside the 30s request timeout, ValueError -> HTTP 400 verbatim.\n2. codx/junior/tools/long_running_tools.py \u2014 the long_running tool (actions: start, status, finish, add_task) + LONG_RUNNING_TOOL_JSON, same pattern as project_manager_tools. finish must be validated server-side: only the run profile on the run's own MAIN TASK may finish a run. add_task delegates to TaskManager.create_task with the run board/column.\n3. Register the tool in codx/junior/tools/__init__.py TOOLS (async: True, project_settings: True, session: True).\n4. codx/junior/profiles/long_running.profile \u2014 supervisor instructions: restate the objective, split only what is needed now, always leave a verifiable next step, always end with a task that says how to test the delivery, call finish only when the objective is demonstrably achieved, and report budget spent vs remaining.\n\nACCEPTANCE (evidence required in the task report)\n- list/detail answer with the worker off and report worker_present: false.\n- pause/resume/stop return the persisted run_status and survive a reload.\n- finish from a foreign chat is rejected (400/403) and finish from the run's own main task is accepted.\n- The tool appears once in TOOLS with the expected flags; the profile content is loaded by the profile manager.\n- No endpoint blocks longer than the 30s middleware timeout.\n\nRULES\n- Do not duplicate the service logic in the router: call LongRunningService / LongRunningRunner.\n- Keep GET /api/kanban and the planning endpoints untouched.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:28:09.651888",
+      "updated_at": "2026-11-04 09:28:09.651891",
+      "attachments": [],
+      "files": [
+        "docs/long-running-tasks.md",
+        "docs/long-running-tasks-plan.md",
+        "codx/junior/api/long_running.py",
+        "codx/junior/tools/long_running_tools.py",
+        "codx/junior/tools/__init__.py",
+        "codx/junior/profiles/long_running.profile",
+        "codx/junior/api/__init__.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "7e35bbed-3f63-4e8d-808a-38e3c252c583",
+      "role": "user",
+      "task_item": "",
+      "content": "Fourth work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP3. Depends on WP1 and WP2.\n\nOBJECTIVE\nMake a run usable from outside: REST router, the long_running tool the managing profile calls, and the supervisor prompt content.\n\nSCOPE\n1. codx/junior/api/long_running.py (auto-discovered by codx/junior/api/__init__.py discover_routers, mounted at /api):\n   - GET  /long-running                      list runs (config + state + progress/budget, worker_present flag)\n   - POST /long-running                      create/attach a run: {objective, budget, profile, board?, column?, task_mode?, max_tasks?, max_iterations?, per_task_budget?, supervisor_reserve?, auto_start?}\n   - GET  /long-running/{main_task_id}        detail: spent/remaining, task counts, current task, last tick\n   - POST /long-running/{main_task_id}/pause | /resume | /stop\n   - POST /long-running/{main_task_id}/tick   one manual tick (debug)\n   Conventions: project_id as QUERY param, bodies describe the resource only, nothing long inside the 30s request timeout, ValueError -> HTTP 400 verbatim.\n2. codx/junior/tools/long_running_tools.py \u2014 the long_running tool (actions: start, status, finish, add_task) + LONG_RUNNING_TOOL_JSON, same pattern as project_manager_tools. finish must be validated server-side: only the run profile on the run's own MAIN TASK may finish a run. add_task delegates to TaskManager.create_task with the run board/column.\n3. Register the tool in codx/junior/tools/__init__.py TOOLS (async: True, project_settings: True, session: True).\n4. codx/junior/profiles/long_running.profile \u2014 supervisor instructions: restate the objective, split only what is needed now, always leave a verifiable next step, always end with a task that says how to test the delivery, call finish only when the objective is demonstrably achieved, and report budget spent vs remaining.\n\nACCEPTANCE (evidence required in the task report)\n- list/detail answer with the worker off and report worker_present: false.\n- pause/resume/stop return the persisted run_status and survive a reload.\n- finish from a foreign chat is rejected (400/403) and finish from the run's own main task is accepted.\n- The tool appears once in TOOLS with the expected flags; the profile content is loaded by the profile manager.\n- No endpoint blocks longer than the 30s middleware timeout.\n\nRULES\n- Do not duplicate the service logic in the router: call LongRunningService / LongRunningRunner.\n- Keep GET /api/kanban and the planning endpoints untouched.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:28:09.651888",
+      "updated_at": "2026-11-04 09:28:09.651891",
+      "attachments": [],
+      "files": [
+        "docs/long-running-tasks.md",
+        "docs/long-running-tasks-plan.md",
+        "codx/junior/api/long_running.py",
+        "codx/junior/tools/long_running_tools.py",
+        "codx/junior/tools/__init__.py",
+        "codx/junior/profiles/long_running.profile",
+        "codx/junior/api/__init__.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "7abebd5f-6b40-4a78-b6e9-b3a8d08ab445",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll start by verifying what WP1/WP2 actually landed on disk, so the router and tool bind to real symbols.The search was noisy. Let me check directly whether WP1/WP2 landed and read the conventions I must follow.Search is returning the parent project. Let me read the actual folder structure of `codx-api`.WP1/WP2 are **not** on disk (`codx/junior/long_running/` does not exist). Let me confirm against the model/manager layer before deciding how to proceed.WP1/WP2 are confirmed absent. Let me read the tool/profile conventions I must match.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:33:24.216309",
+      "updated_at": "2026-11-04T09:36:34.904260",
+      "attachments": [],
+      "files": [],
+      "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+      "meta_data": {
+        "start_time": 1793784803.8650973,
+        "cancellation_token_id": "f2337d9d-7ddf-4d71-84a2-fa9cea854482",
+        "model": "deepseek-flash"
+      },
+      "tool_events": [
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_t6IZTMAZjRLkZaADZXsc6434",
+          "status": "done",
+          "request": {
+            "search": [
+              "long_running",
+              "**/long_running/*.py",
+              "**/profiles/*.profile",
+              "run_status",
+              "root_id"
+            ]
+          },
+          "response": "> codx-api results for: 'long_running, **/long_running/*.py, **/profiles/*.profile, run_status, root_id'\n```md /home/codx-junior-projects/codx-junior/LICENSE.md\n/home/codx-junior-projects/codx-junior/LICENSE.md\nAll rights granted under this License are granted for the term of\ncopyright on the Program, and are irrevocable provided the stated\nconditions are met.  This License explicitly affirms your unlimited\npermission to run the unmodified Program.  The output from running a\ncovered work is covered by this License only if the output, given its\ncontent, constitutes a covered work.  This License acknowledges your\nrights of fair use or other equivalent, as provided by copyright law.\n\n  You may make, run and propagate covered works that you do not\nconvey, without conditions so long as your license otherwise remains\nin force.  You may convey covered works to others for the sole purpose\nof having them make modifications exclusively for you, or provide you\nwith facilities for running those works, provided that you comply with\nthe terms of this License in conveying all material for which you do\nnot control copyright.  Those thus making or running the covered works\nfor you must do so exclusively on your behalf, under your direction\nand control, on terms that prohibit them from making any copies of\nyour copyrighted material outside their relationship with you.\n\n  Conveying under any other circumstances is permitted solely under\nthe conditions stated below.  Sublicensing is not allowed; section 10\nmakes it unnecessary.\n\n  3. Protecting Users' Legal Rights From Anti-Circumvention Law.\n\n  No covered work shall be deemed part of an effective technological\nmeasure under any applicable law fulfilling obligations under article\n11 of the WIPO copyright treaty adopted on 20 December 1996, or\nsimilar laws prohibiting or restricting circumvention of such\nmeasures.\nThis document excerpt functions as a comprehensive legal license agreement covering software use and distribution.\nIt outlines broad permissions for covered works, including unlimited rights to run unmodified programs and rights acknowledging fair use.\nThe License permits propagation by means other than conveyance, ensuring freedom of operation for derived works.\nKey provisions detail rules for controlled transfer, allowing conveying only for modifications exclusively on the licensee's behalf, under strict control.\nIt explicitly prohibits sublicense agreements. Furthermore, Section 3 addresses legal protection against anti-circumvention laws (WIPO copyright treaty), assuring that the covered work does not qualify as an effective technological measure under relevant law. This structure aims to maximize developer freedom and interoperability while defining controlled limits on transfers.\n/home/codx-junior-projects/codx-junior/LICENSE.md\nb) Convey the object code in, or embodied in, a physical product\n    (including a physical distribution medium), accompanied by a\n    written offer, valid for at least three years and valid for as\n    long as you offer spare parts or customer support for that product\n    model, to give anyone who possesses the object code either (1) a\n    copy of the Corresponding Source for all the software in the\n    product that is covered by this License, on a durable physical\n    medium customarily used for software interchange, for a price no\n    more than your reasonable cost of physically performing this\n    conveying of source, or (2) access to copy the\n    Corresponding Source from a network server at no charge.\n\n    c) Convey individual copies of the object code with a copy of the\n    written offer to provide the Corresponding Source.  This\n    alternative is allowed only occasionally and noncommercially, and\n    only if you received the object code with such an offer, in accord\n    with subsection 6b.\n\n    d) Convey the object code by offering access from a designated\n    place (gratis or for a charge), and offer equivalent access to the\n    Corresponding Source",
+          "output": "Search completed: 5 queries executed, 50 documents found, 0 files matched",
+          "duration_ms": 24542.204136028886,
+          "error": null
+        },
+        {
+          "tool": "project_structure",
+          "tool_call_id": "call_01_LmI83eUIzQzX4pFQRCMN6504",
+          "status": "done",
+          "request": {
+            "path": "codx/junior",
+            "max_depth": 2
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **codx**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **junior**/ (262 files, 46 folders)",
+          "output": null,
+          "duration_ms": 9379.372247494757,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_A7hrJz8gX2RrZo5Kv3eL4805",
+          "status": "done",
+          "request": {
+            "search": [
+              "**/long_running/**",
+              "**/api/*.py",
+              "**/profiles/*.profile"
+            ]
+          },
+          "response": "> codx-api results for: '**/long_running/**, **/api/*.py, **/profiles/*.profile'\n```md /home/codx-junior-projects/codx-junior/LICENSE.md\n/home/codx-junior-projects/codx-junior/LICENSE.md\nAll rights granted under this License are granted for the term of\ncopyright on the Program, and are irrevocable provided the stated\nconditions are met.  This License explicitly affirms your unlimited\npermission to run the unmodified Program.  The output from running a\ncovered work is covered by this License only if the output, given its\ncontent, constitutes a covered work.  This License acknowledges your\nrights of fair use or other equivalent, as provided by copyright law.\n\n  You may make, run and propagate covered works that you do not\nconvey, without conditions so long as your license otherwise remains\nin force.  You may convey covered works to others for the sole purpose\nof having them make modifications exclusively for you, or provide you\nwith facilities for running those works, provided that you comply with\nthe terms of this License in conveying all material for which you do\nnot control copyright.  Those thus making or running the covered works\nfor you must do so exclusively on your behalf, under your direction\nand control, on terms that prohibit them from making any copies of\nyour copyrighted material outside their relationship with you.\n\n  Conveying under any other circumstances is permitted solely under\nthe conditions stated below.  Sublicensing is not allowed; section 10\nmakes it unnecessary.\n\n  3. Protecting Users' Legal Rights From Anti-Circumvention Law.\n\n  No covered work shall be deemed part of an effective technological\nmeasure under any applicable law fulfilling obligations under article\n11 of the WIPO copyright treaty adopted on 20 December 1996, or\nsimilar laws prohibiting or restricting circumvention of such\nmeasures.\nThis document excerpt functions as a comprehensive legal license agreement covering software use and distribution.\nIt outlines broad permissions for covered works, including unlimited rights to run unmodified programs and rights acknowledging fair use.\nThe License permits propagation by means other than conveyance, ensuring freedom of operation for derived works.\nKey provisions detail rules for controlled transfer, allowing conveying only for modifications exclusively on the licensee's behalf, under strict control.\nIt explicitly prohibits sublicense agreements. Furthermore, Section 3 addresses legal protection against anti-circumvention laws (WIPO copyright treaty), assuring that the covered work does not qualify as an effective technological measure under relevant law. This structure aims to maximize developer freedom and interoperability while defining controlled limits on transfers.\n/home/codx-junior-projects/codx-junior/LICENSE.md\nb) Convey the object code in, or embodied in, a physical product\n    (including a physical distribution medium), accompanied by a\n    written offer, valid for at least three years and valid for as\n    long as you offer spare parts or customer support for that product\n    model, to give anyone who possesses the object code either (1) a\n    copy of the Corresponding Source for all the software in the\n    product that is covered by this License, on a durable physical\n    medium customarily used for software interchange, for a price no\n    more than your reasonable cost of physically performing this\n    conveying of source, or (2) access to copy the\n    Corresponding Source from a network server at no charge.\n\n    c) Convey individual copies of the object code with a copy of the\n    written offer to provide the Corresponding Source.  This\n    alternative is allowed only occasionally and noncommercially, and\n    only if you received the object code with such an offer, in accord\n    with subsection 6b.\n\n    d) Convey the object code by offering access from a designated\n    place (gratis or for a charge), and offer equivalent access to the\n    Corresponding Source in the same way through",
+          "output": "Search completed: 3 queries executed, 30 documents found, 0 files matched",
+          "duration_ms": 13309.887420386076,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_zj5I1miFhIfxJKhq5HVz8583",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/api/profiles_knowledge.py",
+              "codx/junior/identity.py"
+            ]
+          },
+          "response": "error [codx/junior/api/profiles_knowledge.py]\nERROR: codx/junior/api/profiles_knowledge.py File not found\n```py codx/junior/identity.py\n\"\"\"\nIdentity primitives shared by the task / kanban / long-running machinery.\n\nThe project rule is: **ids are canonical, names and titles are only labels**.\n\n* every persisted element has an immutable ``id`` (uuid),\n* references between elements use ids (``Chat.parent_id``, ``Chat.root_id``,\n  ``Chat.kanban_id``, ``Chat.column_id``),\n* ``Chat.board`` / ``Chat.column`` / ``Chat.name`` are display labels.\n\nThis module owns the primitives the rest of the code must use to reason about\nthe ancestor chain of a task, so the invariant *\"every task of a run shares the\nsame ancestor (the main task)\"* is enforced in one place instead of being\nre-implemented (and diverging) by every caller:\n\n* :func:`resolve_root_id` - canonical root (main task) of a chat.\n* :func:`is_descendant_of` - guard used by the long-running runner.\n* :func:`link_parent` - creation helper used by ``TaskManager``.\n* :func:`attach_root_id` - backfill helper.\n\n``Chat.root_id`` is a CACHE of the walk: legacy chats have no value, so the walk\nhappens once and the result is backfilled on the in-memory chat; the caller\npersists it the next time the chat is saved. A cache that is not the chat's own\nid is returned without walking (cheap path for every tick of a run).\n\n```mermaid\nflowchart TD\n    A[chat] --> B{parent_id?}\n    B -->|no| C[root_id = chat.id]\n    B -->|yes| D{root_id cached?}\n    D -->|yes| E[return cache]\n    D -->|no| F[walk parent_id up]\n    F --> G{cycle or depth limit?}\n    G -->|yes| H[stop: log warning, use last chat]\n    G -->|no| I[topmost chat reached]\n    I --> J[root_id = topmost.id, backfill chat.root_id]\n    H --> J\n```\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nfrom typing import TYPE_CHECKING, Optional\n\nif TYPE_CHECKING:  # pragma: no cover - typing only\n    from codx.junior.chat_manager import ChatManager\n    from codx.junior.db import Chat\n\nlogger = logging.getLogger(__name__)\n\n# A corrupted parent chain must never make the process hang: the walk gives up\n# after this many levels (deeper hierarchies are not a realistic task tree).\nMAX_PARENT_DEPTH = 64\n\n\ndef attach_root_id(chat: Optional[\"Chat\"], parent_chat: Optional[\"Chat\"] = None) -> Optional[str]:\n    \"\"\"\n    Compute (and stamp) the ``root_id`` of *chat* from its parent.\n\n    Creation rules:\n\n    * a chat without a parent is its own root (``root_id = chat.id``),\n    * a child inherits ``parent.root_id`` when the parent already knows its\n      root, and falls back to the parent id otherwise,\n    * nothing is inherited from a parent that is not there.\n\n    The value is stamped on the chat itself, so a caller that persists the chat\n    right after creation stores the cache.\n\n    Args:\n        chat: The chat being created/updated (may be None).\n        parent_chat: The parent chat, when it is already loaded.\n\n    Returns:\n        The resolved root id, or None when it cannot be determined.\n\n    Example:\n        >>> attach_root_id(child, parent)          # parent is the main task\n        '<parent-id>'\n        >>> attach_root_id(main_task, None)        # no parent: it is the root\n        '<main-task-id>'\n    \"\"\"\n    if chat is None:\n        return None\n\n    if parent_chat is None:\n        root_id = chat.id or None\n    else:\n        root_id = getattr(parent_chat, \"root_id\", None) or parent_chat.id or None\n\n    if root_id and chat.root_id != root_id:\n        chat.root_id = root_id\n    return root_id\n\n\ndef resolve_root_id(\n    chat: Optional[\"Chat\"],\n    chat_manager: Optional[\"ChatManager\"] = None,\n) -> Optional[str]:\n    \"\"\"\n    Return the canonical root (main task) id of *chat*.\n\n    Resolution order:\n\n    1. ``chat.root_id`` when it is already cached and differs from the chat's\n       own id (a chat that is not a root has a foreign root id),\n    2. the chat id itself when the chat has no ``parent_id``,\n    3. a walk up ``parent_id`` (bounded by :data:`MAX_P",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/identity.py | Failed to read 1 file(s): codx/junior/api/profiles_knowledge.py",
+          "duration_ms": 149.5249578729272,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_00_wKo6h9RymJc6lfaezukC4008",
+          "status": "done",
+          "request": {
+            "path": "codx/junior/long_running"
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n",
+          "output": null,
+          "duration_ms": 5083.894492127001,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_01_xbxWCNIrOCLOk1ok4lqs5589",
+          "status": "done",
+          "request": {
+            "path": "codx/junior/api"
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **codx**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **junior**/\n        \u2514\u2500\u2500 \ud83d\udcc1 **api**/\n            \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n            \u251c\u2500\u2500 \ud83d\udc0d analytics.py\n            \u251c\u2500\u2500 \ud83d\udc0d analytics_model.py\n            \u251c\u2500\u2500 \ud83d\udc0d api_logs.py\n            \u251c\u2500\u2500 \ud83d\udc0d browser.py\n            \u251c\u2500\u2500 \ud83d\udc0d browser_models.py\n            \u251c\u2500\u2500 \ud83d\udc0d chat.py\n            \u251c\u2500\u2500 \ud83d\udc0d chatGPTLikeApi.py\n            \u251c\u2500\u2500 \ud83d\udc0d console.py\n            \u251c\u2500\u2500 \ud83d\udc0d db_router.py\n            \u251c\u2500\u2500 \ud83d\udc0d file_finder.py\n            \u251c\u2500\u2500 \ud83d\udc0d files.py\n            \u251c\u2500\u2500 \ud83d\udc0d git.py\n            \u251c\u2500\u2500 \ud83d\udc0d global_settings.py\n            \u251c\u2500\u2500 \ud83d\udc0d image.py\n            \u251c\u2500\u2500 \ud83d\udc0d images.py\n            \u251c\u2500\u2500 \ud83d\udc0d infra.py\n            \u251c\u2500\u2500 \ud83d\udc0d knowledge.py\n            \u251c\u2500\u2500 \ud83d\udc0d logs.py\n            \u251c\u2500\u2500 \ud83d\udc0d management.py\n            \u251c\u2500\u2500 \ud83d\udc0d meets.py\n            \u251c\u2500\u2500 \ud83d\udc0d profiles.py\n            \u251c\u2500\u2500 \ud83d\udc0d project_search.py\n            \u251c\u2500\u2500 \ud83d\udc0d projects.py\n            \u251c\u2500\u2500 \ud83d\udc0d teams.py\n            \u251c\u2500\u2500 \ud83d\udc0d traefik.py\n            \u251c\u2500\u2500 \ud83d\udc0d users.py\n            \u251c\u2500\u2500 \ud83d\udc0d views.py\n            \u251c\u2500\u2500 \ud83d\udc0d wiki.py\n            \u251c\u2500\u2500 \ud83d\udc0d workspace_models.py\n            \u2514\u2500\u2500 \ud83d\udc0d workspaces.py",
+          "output": null,
+          "duration_ms": 5629.120729863644,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_N74uEymyvg6XIPfSTjMs6269",
+          "status": "done",
+          "request": {
+            "search": "[\"LongRunningService\", \"LongRunningRunner\", \"run_status\", \"**/*.profile\"]",
+            "validation": "long running service, runner, run_status fields, profile files"
+          },
+          "response": "> codx-api results for: '[\"LongRunningService\", \"LongRunningRunner\", \"run_status\", \"**/*.profile\"]'\n``` /home/codx-junior-projects/codx-junior/codx-junior\n/home/codx-junior-projects/codx-junior/codx-junior\n#!/bin/bash\necho \"codx-junior scripts ENV:\"\nenv\n\n# Dynamically set CODX_JUNIOR_PATH to the parent directory of the script\nif [ -z \"${CODX_JUNIOR_PATH}\" ]; then\n    export CODX_JUNIOR_PATH=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nfi\n\n# Load .env variables\nsource ${CODX_JUNIOR_PATH}/set_env.sh\nbash \"${CODX_JUNIOR_PATH}/scripts/logo.sh\"\n\nfunction kill_pid() {\n  if [ \"$1\" != \"\" ]; then\n    echo \"Stopping pid: $1\"\n    kill $1\n    ps --pid \"$1\" > /dev/null\n    if [ \"$?\" -eq 0 ]; then\n        echo \"Forcing kill $1.\"\n        kill -9 $1\n    fi\n  fi\n}\n\nfunction kill_apps() {\n  echo \"stop supervisor\"\n  SUPERVISOR_PID=$(pgrep -f \"codx-junior/supervisor.conf\")\n  if [ \"$SUPERVISOR_PID\" != \"\" ]; then\n    kill_pid $(pgrep -f \"codx-junior supervisor\") \n    kill_pid $SUPERVISOR_PID\n  fi\n\n  echo \"Stop api\"\n  kill_pid $(pgrep -f \"run_api\")\n  kill_pid $(pgrep -f \"codx.junior.main:app\")\n  kill_pid $(pgrep -f \".venv_codx_junior_api\")\n    \n  echo \"Stop client\"\n  kill_pid $(pgrep -f \"run_client\")\n  kill_pid $(pgrep -f \"codx-junior/client\")\n}\n\n# Function to display help information\nfunction show_help() {\n    cat << EOF\nUsage: app.cli [command]\n\nCommands:\n  help      Display this help message\n  install   Install the application\n  run       Run the application\n  stop      Stop the application\n  status    Display the status of the application\n  logs      Show the tail of the logs file\n            Valida logs: api client supervisor\nEOF\n}\n\n# Function to simulate installation process\nfunction install_app() {\n    echo \"Starting the installation process...\"\n    bash \"${CODX_JUNIOR_PATH}/scripts/install.sh\"\n    echo \"Application installed successfully.\"\n}\n\nfunction stop_codx() {\n  echo \"Stopping codx-junior\"\n  kill_apps\n}\n\nfunction status() {\n  echo \"codx-junior status\"\nThis script serves as a comprehensive Command Line Interface (CLI) wrapper (`app.cli`) designed for managing the full lifecycle of the 'codx-junior' application suite. It is crucial for establishing and controlling deployment within a structured development environment.\n\nThe primary functions include initializing the working directory by sourcing environment variables (`set_env.sh`) and handling foundational setup through dependency loading (`logo.sh`). The most critical feature is robust process management, implemented via `kill_apps()`, which reliably identifies and terminates core services (API, Client, Supervisor) using PID tracking (`pgrep`).\n\nThe exposed commands allow users to perform standard operational tasks: 'install' executes setup scripts, 'run' starts the application stack, 'stop' cleanly shuts down all running services, and 'status' provides operational visibility. By centralizing these functions, the script ensures consistent, controlled execution necessary for professional development deployments.\n/home/codx-junior-projects/codx-junior/codx-junior\nCOMMAND=$1\nshift\n# Check the command line argument\ncase \"$COMMAND\" in\n    stop)\n        stop_codx\n        ;;\n    help)\n        show_help\n        ;;\n    install)\n        install_app\n        ;;\n    start)\n        start_codx\n        ;;\n    status)\n        status\n        ;;\n    logs)\n        show_logs $@\n        ;;\n    supervisor)\n        run_supervisor\n        ;;\n    *)\n        echo \"Invalid command. Use 'help' to see available commands.\"\n        ;;\nesac\nThis shell script serves as a crucial Command Line Interface (CLI) router, acting as the centralized entry point for managing an application's full lifecycle. It standardizes how internal functionalities are exposed to operating system calls, enhancing the robustness and maintainability of the system.\n\nThe structure utilizes a robust `case` statement pattern to parse command-line arguments ($1), ensuring that only predefined functions can be executed. Key operational commands include 'start' an",
+          "output": "Search completed: 1 queries executed, 10 documents found, 0 files matched",
+          "duration_ms": 8553.171678446233,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_01_PLPUjmnPbl4E5JlWUWTT6693",
+          "status": "done",
+          "request": {
+            "path": "codx/junior/profiles"
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **codx**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **junior**/\n        \u2514\u2500\u2500 \ud83d\udcc1 **profiles**/\n            \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n            \u251c\u2500\u2500 \ud83d\udcdd agent-coding-task.md\n            \u251c\u2500\u2500 \ud83d\udcc4 analyst.profile\n            \u251c\u2500\u2500 \ud83d\udcdd arts.md\n            \u251c\u2500\u2500 \ud83d\udcc4 arts.profile\n            \u251c\u2500\u2500 \ud83d\udcc4 browser.profile\n            \u251c\u2500\u2500 \ud83d\udce6 coding_profiles.json\n            \u251c\u2500\u2500 \ud83d\udc0d profile_knowledge.py\n            \u251c\u2500\u2500 \ud83d\udc0d profile_manager.py\n            \u251c\u2500\u2500 \ud83d\udcc4 project.profile\n            \u251c\u2500\u2500 \ud83d\udcc4 software_developer.profile\n            \u251c\u2500\u2500 \ud83d\udcc4 teacher.profile\n            \u2514\u2500\u2500 \ud83d\udcc4 wiki.profile",
+          "output": null,
+          "duration_ms": 4662.832292728126,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_jWSZRanJuEKsLaw8W1JM5479",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/db.py",
+              "codx/junior/api/profiles.py"
+            ]
+          },
+          "response": "```py codx/junior/db.py\nimport os\nimport logging\nimport uuid\nfrom slugify import slugify\n\nfrom codx.junior.settings import CODXJuniorSettings\n\nfrom pydantic import BaseModel, Field, validator\nfrom typing import Optional, List, Any, Dict\n\nfrom datetime import datetime\nfrom enum import Enum\n\nfrom codx.junior.model.agent import CostInfo\n\nlogger = logging.getLogger(__name__)\n\n# ---------------------------------------------------------------------------\n# Constants\n# ---------------------------------------------------------------------------\nROLE_USER = \"user\"\nROLE_ASSISTANT = \"assistant\"\nMAX_IMAGE_SIZE_MB = 50\nMAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024\n\n# Attachments are not image-only: the chat composer records voice notes and\n# stores them as audio attachments (audio/webm, audio/ogg, audio/mp4 ...).\n# The generic constants keep the same limit that was previously image-only.\nMAX_ATTACHMENT_SIZE_MB = MAX_IMAGE_SIZE_MB\nMAX_ATTACHMENT_SIZE_BYTES = MAX_IMAGE_SIZE_BYTES\n\nALLOWED_IMAGE_TYPES = [\n    'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml'\n]\nALLOWED_AUDIO_TYPES = [\n    'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',\n    'audio/x-wav', 'audio/x-m4a', 'audio/m4a', 'audio/aac', 'audio/flac'\n]\nALLOWED_ATTACHMENT_TYPES = ALLOWED_IMAGE_TYPES + ALLOWED_AUDIO_TYPES\n\n\nclass ChatAttachment(BaseModel):\n    \"\"\"Represents a media file (image or audio note) attached to a chat or message,\n    with its metadata and base64 encoded data.\"\"\"\n    file_name: str = Field(description=\"Original file name of the attachment\")\n    file_type: str = Field(description=\"MIME type (e.g., 'image/png', 'audio/webm')\")\n    file_size: int = Field(description=\"File size in bytes\")\n    base64_data: str = Field(description=\"Base64 encoded file data\")\n    uploaded_at: str = Field(default_factory=lambda: str(datetime.now()), description=\"Timestamp when the attachment was uploaded\")\n    \n    @validator('file_size')\n    def validate_file_size(cls, v):\n        if v > MAX_ATTACHMENT_SIZE_BYTES:\n            raise ValueError(f\"Attachment size exceeds maximum allowed size of {MAX_ATTACHMENT_SIZE_MB}MB\")\n        return v\n    \n    @validator('file_type')\n    def validate_file_type(cls, v):\n        # `MediaRecorder` reports the recording type together with its codec list\n        # (\"audio/webm;codecs=opus\"). Attachments store the container type only,\n        # so the parameters are stripped before validating (and persisting).\n        media_type = (v or '').split(';')[0].strip().lower()\n        if media_type not in ALLOWED_ATTACHMENT_TYPES:\n            raise ValueError(\n                f\"Attachment type '{v}' not allowed. Allowed types: {', '.join(ALLOWED_ATTACHMENT_TYPES)}\"\n            )\n        return media_type\n\n\nclass KanbanColumn(BaseModel):\n    \"\"\"Represents a column in a Kanban board.\"\"\"\n    doc_id: Optional[str] = Field(default=None)\n    title: str = Field(default=None)\n    color: Optional[str] = Field(default=None)\n    index: int = Field(default=0)\n    chats: List[str] = Field(default=[])\n\n\nclass Kanban(BaseModel):\n    \"\"\"Represents a Kanban board with columns and chats.\"\"\"\n    doc_id: Optional[str] = Field(default=None)\n    title: str = Field(default=None)\n    description: Optional[str] = Field(default=None)\n    index: int = Field(default=0)\n    columns: Optional[List[KanbanColumn]] = Field(default=[])\n    created_at: str = Field(default_factory=lambda: str(datetime.now()))\n    updated_at: str = Field(default_factory=lambda: str(datetime.now()))\n\n\nclass MessageTaskItem(Enum):\n    \"\"\"Enum for message task item types.\"\"\"\n    SUMMARY = \"summary\"\n\n\nclass ToolEvent(BaseModel):\n    \"\"\"\n    Represents a tool execution event.\n    \n    Used to track tool calls, their execution status, and results.\n    Attached to the assistant response message that triggered the tool call.\n\n    Tool output handling\n    --------------------\n    ``output`` carries the tool's user-facing content (``ToolResponse.user_response``).\n    ",
+          "output": "Read 2 file(s) | Successfully read: codx/junior/db.py, codx/junior/api/profiles.py",
+          "duration_ms": 129.49558161199093,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_00_EU9Oba7fZjWnmiKqULpt2307",
+          "status": "done",
+          "request": {
+            "path": "codx/junior"
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **codx**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **junior**/\n        \u251c\u2500\u2500 \ud83d\udcdd README.md\n        \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **agents**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d base_agent.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d devops_agent.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d git_issues_agent.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **ai**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d ai.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d ai_logger.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udcc4 anthropic.py.disabled\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d cancellation.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d llmfactory.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udcc4 mistral_ai.py.disabled\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d ollama.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d raw_log_reader.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d raw_logger.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udcc1 **smol**/\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d constants.py\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d loop_guard.py\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d messages.py\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d smol_agent.py\n        \u2502   \u2502   \u251c\u2500\u2500 \ud83d\udc0d tool_cache.py\n        \u2502   \u2502   \u2514\u2500\u2500 \ud83d\udc0d tool_context.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d utils.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d vllm_cpu_ai.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d wallet_check.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **analytics**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d analytics.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d decision_model.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d model.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d storage.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d token_counter.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **api**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d analytics.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d analytics_model.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d api_logs.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d browser.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d browser_models.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chatGPTLikeApi.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d console.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d db_router.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d file_finder.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d files.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d git.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d global_settings.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d image.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d images.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d infra.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d knowledge.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d logs.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d management.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d meets.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d profiles.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d project_search.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d projects.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d teams.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d traefik.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d users.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d views.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d wiki.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d workspace_models.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d workspaces.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **api_logs**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d api_logs.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d model.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d storage.py\n        \u251c\u2500\u2500 \ud83d\udc0d app.py\n        \u251c\u2500\u2500 \ud83d\udc0d background.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **browser**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d browser.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d browser_manager.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d docker_firefox_manager.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d model.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **changes**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d change_manager.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d watch_project_file_changes.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **chat**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat_event_bridge.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat_export.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat_knowledge.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d chat_prompt_builder.py\n        \u251c\u2500\u2500 \ud83d\udc0d chat_manager.py\n        \u251c\u2500\u2500 \ud83d\udc0d chat_searcher.py\n        \u251c\u2500\u2500 \ud83d\udc0d console_manager.py\n        \u251c\u2500\u2500 \ud83d\udc0d context.py\n        \u251c\u2500\u2500 \ud83d\udc0d db.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **engine**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d chat_engine_actions.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d code_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d file_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d git_commit_message.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d git_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d git_graph.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d git_workspace.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d image_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d knowledge_engine.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d progress_callback.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d session.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d wiki_engine.py\n        \u251c\u2500\u2500 \ud83d\udc0d engine.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **events**/\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d event_manager.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **file_manager**/\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d __init__.py\n        \u251c\u2500\u2500 \ud83d\udc0d global_settings.py\n        \u251c\u2500\u2500 \ud83d\udc0d globals.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **guardrails**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d models.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d scope_detector.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d service.py\n        \u2502   \u2514\u2500\u2500 \ud83d\udc0d static_rules.py\n        \u251c\u2500\u2500 \ud83d\udc0d identity.py\n        \u251c\u2500\u2500 \ud83d\udcc1 **infra**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d __init__.py\n        \u2502   \u251c\u2500\u2500 \ud83d\udc0d",
+          "output": null,
+          "duration_ms": 7587.029853835702,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_Z3EjLQu3PTmjhUXEW9a34337",
+          "status": "done",
+          "request": {
+            "file_path": "[\"codx/junior/task_manager.py\", \"codx/junior/tools/project_manager_tools.py\"]"
+          },
+          "response": "error [[\"codx/junior/task_manager.py\", \"codx/junior/tools/project_manager_tools.py\"]]\nERROR: [\"codx/junior/task_manager.py\", \"codx/junior/tools/project_manager_tools.py\"] File not found",
+          "output": "Read 0 file(s) | Failed to read 1 file(s): [\"codx/junior/task_manager.py\", \"codx/junior/tools/project_manager_tools.py\"]",
+          "duration_ms": 85.46371012926102,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_DDSVaPTnXliiX3l9IEvg1783",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/task_manager.py"
+          },
+          "response": "```py codx/junior/task_manager.py\n\"\"\"\nCanonical task creation for codx-junior.\n\nA **task** is a :class:`~codx.junior.db.Chat` stored in\n``.codx/tasks/<board>/<column>/`` (kanban). This module is the only place where\na task is built and persisted, so the creation rules are enforced once and\nevery entry point behaves exactly the same.\n\nCreation rules\n--------------\n1. **Only two kinds of callers may create tasks**: the LLM tools\n   (``create_task`` and ``project_manager(action=\"create_task\")``) and the API\n   endpoints (``POST /api/chats/tasks``). Both delegate here.\n2. **All the information must come from the caller.** ``name`` and\n   ``description`` are mandatory: there is no AI step that expands, splits or\n   rewrites a task after creation.\n3. **Nothing is inherited from the parent chat.** ``profiles``, ``files``,\n   ``board``, ``column``, ``sprints``, ``tags`` and the first message come\n   exclusively from the arguments. Only the *linkage* (``parent_id``) and the\n   project scope are resolved from the parent chat, when one is given.\n4. **Every task knows its root.** :func:`codx.junior.identity.link_parent`\n   stamps ``root_id`` from the parent (``parent.root_id or parent.id``), so all\n   the tasks of a tree \u2014 no matter how deep \u2014 resolve to the same main task.\n   That invariant is what the long-running runner relies on to decide whether a\n   task belongs to a run.\n\nDeprecated entry points (removed by this module)\n------------------------------------------------\n* ``ChatEngineActions.generate_tasks`` \u2014 turned a conversation into a list of\n  sub-tasks and processed each one through the engine.\n* ``TaskManager.create_tasks_from_prompt`` \u2014 asked the model for a task list.\n\nCreating a task is now an explicit decision, never an inference.\n\n```mermaid\nflowchart TD\n    A[LLM tool: create_task] --> M[TaskManager.create_task]\n    B[LLM tool: project_manager create_task] --> M\n    C[API: POST /api/chats/tasks] --> M\n    M --> V{name and description?}\n    V -->|no| E[ValueError: information is mandatory]\n    V -->|yes| N[Normalize profiles / files / tags]\n    N --> R[link_parent: parent_id + root_id]\n    R --> K[Build Chat mode=task + first user message]\n    K --> S[ChatManager.save_chat]\n    S --> T[Return the saved task]\n```\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nfrom typing import Any, List, Optional\n\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.identity import link_parent\nfrom codx.junior.settings import CODXJuniorSettings\n\nlogger = logging.getLogger(__name__)\n\n# Default destination, matching ChatManager defaults.\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\nDEFAULT_MODE = \"chat\"\n\n\ndef to_list(value: Any) -> List[str]:\n    \"\"\"\n    Normalize a string, iterable or None into a clean list of strings.\n\n    Args:\n        value: A string, a list/tuple/set or None.\n\n    Returns:\n        List of non-empty, stripped strings (order preserved).\n\n    Example:\n        >>> to_list(\"ui\")\n        ['ui']\n        >>> to_list([\" ui \", \"\", None])\n        ['ui']\n    \"\"\"\n    if value is None:\n        return []\n    if isinstance(value, str):\n        value = [value]\n    try:\n        return [str(item).strip() for item in value if item and str(item).strip()]\n    except TypeError:\n        return []\n\n\ndef to_profile_names(value: Any) -> List[str]:\n    \"\"\"\n    Normalize a profile list: no duplicates, no leading ``@``.\n\n    The chat engine re-emits profiles as ``@name`` mentions, so a stored\n    ``@name`` (or ``@@name``) would never resolve to a profile. Only the values\n    received are used \u2014 profiles are never inherited from the parent chat.\n\n    Args:\n        value: A string, a list/tuple/set or None.\n\n    Returns:\n        De-duplicated profile names, order preserved.\n\n    Example:\n        >>> to_profile_names([\"@backend\", \"backend\", \" ui \"])\n        ['backend', 'ui']\n    \"\"\"\n    names: List[str] = []\n    for name in to_list(value):\n        clean = name.lstrip(\"@\").strip()\n        if ",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/task_manager.py",
+          "duration_ms": 184.52819343656301,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_jpeHQ0cac181on3ShmJg7467",
+          "status": "done",
+          "request": {
+            "file_path": ".codx/tasks/index.json"
+          },
+          "response": "```json .codx/tasks/index.json\n{\n  \"version\": 2,\n  \"boards\": [\n    {\n      \"id\": \"36000fec-cd2f-5043-b75c-63a43bc6b69d\",\n      \"title\": \"Task manager\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Task manager\",\n      \"order\": 0\n    },\n    {\n      \"id\": \"0fb8c88d-91b7-51f2-80aa-7e87a7092060\",\n      \"title\": \"OpenAI\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"OpenAI\",\n      \"order\": 1\n    },\n    {\n      \"id\": \"8eb68278-ed9a-5dd9-b69b-0f02337f1f68\",\n      \"title\": \"kanban\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"kanban\",\n      \"order\": 2\n    },\n    {\n      \"id\": \"e52cca48-df4a-5595-838d-982a62caa615\",\n      \"title\": \"Default\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Default\",\n      \"order\": 3\n    },\n    {\n      \"id\": \"9010b93f-018d-5a33-a518-1be93ae16307\",\n      \"title\": \"My board\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"My board\",\n      \"order\": 4\n    },\n    {\n      \"id\": \"5373ed15-ea04-5be4-b6c0-74fd04da16c9\",\n      \"title\": \"Browser\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Browser\",\n      \"order\": 5\n    },\n    {\n      \"id\": \"cfdffd09-6067-5328-a25c-0195e3abc420\",\n      \"title\": \"User management\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"User management\",\n      \"order\": 6\n    },\n    {\n      \"id\": \"8f97dc62-8278-5f5d-921a-36010e51cf43\",\n      \"title\": \"scripts\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"scripts\",\n      \"order\": 7\n    },\n    {\n      \"id\": \"a5b37f95-409d-552a-a237-91a67e4d13e7\",\n      \"title\": \"chatGPT API EndPoints\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"chatGPT API EndPoints\",\n      \"order\": 8\n    },\n    {\n      \"id\": \"22315885-3454-5b7b-a807-e368a0a77d5b\",\n      \"title\": \"Wiki manager\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Wiki manager\",\n      \"order\": 9\n    },\n    {\n      \"id\": \"d6a4532f-7ff3-53bf-abac-4d0a4f3b3da0\",\n      \"title\": \"Channels\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Channels\",\n      \"order\": 10\n    },\n    {\n      \"id\": \"ed82991b-7f98-5af9-bfef-3ebde3f332bc\",\n      \"title\": \"Profiles\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Profiles\",\n      \"order\": 11\n    },\n    {\n      \"id\": \"79ff162d-190a-59a0-a857-ff6c32be5d82\",\n      \"title\": \"workspaces\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"workspaces\",\n      \"order\": 12\n    },\n    {\n      \"id\": \"43219aa1-c5ac-58c9-99ed-69428fc333e2\",\n      \"title\": \"Project management\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Project management\",\n      \"order\": 13\n    },\n    {\n      \"id\": \"55d3fb78-a249-583c-82b4-f2f17aa82e4d\",\n      \"title\": \"codx-junior\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"codx-junior\",\n      \"order\": 14\n    },\n    {\n      \"id\": \"4f018a4e-ecb2-5fce-9357-91b277b7d83c\",\n      \"title\": \"Bugs\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Bugs\",\n      \"order\": 15\n    },\n    {\n      \"id\": \"8efa0a47-0721-5f8a-9080-5ba937603541\",\n      \"title\": \"Issue manager\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Issue manager\",\n      \"order\": 16\n    },\n    {\n      \"id\": \"dc3a9261-c1e7-53a0-a19e-eb34e2d281f6\",\n      \"title\": \"Knowledge\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Knowledge\",\n      \"order\": 17\n    },\n    {\n      \"id\": \"682bd0db-b414-54ab-94f5-1cf0aea294b6\",\n      \"title\": \"MCP Servers\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"MCP Servers\",\n      \"order\": 18\n    },\n    {\n      \"id\": \"b5bddf21-692c-54e3-a1f7-fbb06056340b\",\n      \"title\": \"Mentions\",\n      \"type\": \"kanban\",\n      \"parent_id\": null,\n      \"folder\": \"Mentions\",\n      \"order\": 19\n    },\n    {\n      \"id\": \"8327759d-a7dd-5434-be9a-8ffb4faec06b\",\n      \"title\": \"Engine\",\n      \"type\": \"kanban\",\n      \"parent_id\":",
+          "output": "Read 1 file(s) | Successfully read: .codx/tasks/index.json",
+          "duration_ms": 698.2347518205643,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_00_sFVe0b7vQ26huxUdzpiN9958",
+          "status": "done",
+          "request": {
+            "path": ".codx/tasks/codx-junior-agents",
+            "include_file_sizes": true
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n",
+          "output": null,
+          "duration_ms": 8286.34572867304,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_3IH7nxMIm2eCQDr5KloL5908",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/long_running/service.py"
+          },
+          "response": "error [codx/junior/long_running/service.py]\nERROR: codx/junior/long_running/service.py File not found",
+          "output": "Read 0 file(s) | Failed to read 1 file(s): codx/junior/long_running/service.py",
+          "duration_ms": 138.9988251030445,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_qjmKuJ6P3zWrs0ZFR1XW0467",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/planning_manager.py"
+          },
+          "response": "```py codx/junior/planning_manager.py\n\"\"\"\nPlanning manager.\n\nCentralises every dataset-wide task computation so the UI never aggregates\npaginated rows on the client:\n\n    * filtering     (boards, assignees, priorities, statuses, search, range...)\n    * derived flags (overdue / due_today / days_until_due / unassigned / stalled)\n    * sorting       (priority -> due_date -> sort_index, server-side)\n    * aggregation   (metrics, board progress, priority/status counts)\n    * attention queue (severity ordered)\n    * activity feed (event sourced, option C)\n\nThe unit of work is a *task*, which is the task-shaped projection of a\npersisted ``Chat`` (chats and tasks are the same entity).\n\nFlowchart:\n```mermaid\nflowchart TD\n    Q[PlanningQuery] --> F[filter_tasks]\n    F --> F1[range / boards / assignees / priorities / statuses / search]\n    F --> F2[derived flags + attention_reason]\n    F1 --> A[aggregate over ALL filtered tasks]\n    F2 --> A\n    A --> M[metrics / board_progress / group_counts]\n    A --> AT[attention queue severity-ordered]\n    ES[(planning/events.jsonl)] --> AC[activity feed]\n```\n\"\"\"\n\nimport json\nimport logging\nimport os\nimport uuid\n\nfrom datetime import date, datetime\nfrom typing import Any, Dict, List, Optional, Tuple\n\nfrom codx.junior.chat_manager import ChatManager, _parse_timestamp\nfrom codx.junior.db import Chat\nfrom codx.junior.model.planning import (\n    ActivityEvent,\n    AttentionItem,\n    BoardProgressItem,\n    PlanningDashboardResponse,\n    PlanningGroupCount,\n    PlanningMetrics,\n    PlanningQuery,\n    PlanningReorderRequest,\n    PlanningTask,\n    PlanningTaskQueryResponse,\n    PlanningTaskUpdate,\n)\nfrom codx.junior.project.project_discover import find_project_by_id\n\nlogger = logging.getLogger(__name__)\n\n# \u2500\u2500 Canonical orderings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nPRIORITY_ORDER = [\"high\", \"medium\", \"low\"]\nPRIORITY_LABELS = {\"high\": \"High\", \"medium\": \"Medium\", \"low\": \"Low\"}\n\nSTATUS_ORDER = [\"todo\", \"doing\", \"onhold\", \"done\", \"rejected\"]\nSTATUS_LABELS = {\n    \"todo\": \"To do\",\n    \"doing\": \"Doing\",\n    \"onhold\": \"On hold\",\n    \"done\": \"Done\",\n    \"rejected\": \"Rejected\",\n}\n\nDONE_STATUSES = {\"done\"}\nCLOSED_STATUSES = {\"done\", \"rejected\"}\nACTIVE_STATUSES = {\"todo\", \"doing\"}\nON_HOLD_STATUSES = {\"onhold\"}\n\nDEFAULT_PRIORITY = \"low\"\nDEFAULT_STATUS = \"todo\"\n\n# A \"doing\" task not touched for this many days is surfaced as stalled.\nSTALLED_AFTER_DAYS = 21\n\nATTENTION_LIMIT = 50\nACTIVITY_LIMIT = 30\n\n# Field -> emitted activity action, and action -> UI tone.\nACTION_BY_FIELD = {\n    \"priority\": \"priority_changed\",\n    \"due_date\": \"due_date_changed\",\n    \"status\": \"moved\",\n    \"progress\": \"progress_changed\",\n    \"assignees\": \"assigned\",\n    \"sort_index\": \"reordered\",\n}\nTONE_BY_ACTION = {\n    \"completed\": \"success\",\n    \"priority_changed\": \"warning\",\n    \"created\": \"primary\",\n    \"moved\": \"info\",\n    \"assigned\": \"info\",\n    \"due_date_changed\": \"warning\",\n    \"progress_changed\": \"info\",\n    \"reordered\": \"info\",\n}\n\n\nclass PlanningConflictError(Exception):\n    \"\"\"Raised when an optimistic-concurrency check fails.\"\"\"\n\n\n# \u2500\u2500 Small helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\ndef _now_iso() -> str:\n    \"\"\"Return the current local time as an ISO-8601 string.\"\"\"\n    return datetime.now().isoformat()\n\n\ndef _normalize_priority(value: Optional[str]) -> str:\n    value = (value or \"\").strip().lower()\n    return value if value in PRIORITY_ORDER else DEFAULT_PRIORITY\n\n\ndef _normalize_status(value: Optional[str]) -> str:\n    value = (value or \"\").strip().lower()\n    return value if value in STATUS_ORDER else DEFAULT_STATUS\n\n\ndef _parse_date(value: Optional[str]) -> Optional[date]:\n    \"\"\"Parse a date/datetime string into a ``date``, or ``None`` when invalid.\"\"\"\n    if not value:\n        return None\n    try:\n        return datetime.fromisoformat(str(value).replace(\"Z\", \"+00:00\")).date()\n    except ValueError:\n        try:\n            return date.fromisoformat(str(value)[:10])\n        except ValueE",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/planning_manager.py",
+          "duration_ms": 487.0141912251711,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_sUbEjTAa76IeiyYmE5S64953",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/tools/model.py"
+          },
+          "response": "```py codx/junior/tools/model.py\n\"\"\"\nData models for tools module.\n\nThis module contains data classes and models used by tools in the codx-junior API.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nfrom typing import Optional, List\nfrom datetime import datetime\nfrom pydantic import BaseModel, Field\n\n# Configure logging\nlogger = logging.getLogger(__name__)\n\n\nclass ToolResponse:\n    \"\"\"\n    Dual-return response for tools that produce both user-facing output\n    and LLM-context feedback, with optional forensic logging.\n\n    This allows tools like code_block_generator to generate formatted output\n    visible to the user while simultaneously providing feedback to the LLM\n    for continued processing. Tools can optionally include structured logs\n    for forensic audit trail.\n\n    Attributes:\n        user_response: Formatted content displayed to the user.\n        llm_response: Lightweight feedback for the LLM context.\n        logs: List of formatted log entries for forensic audit trail.\n              Format: \"[YYYY-MM-DD HH:MM:SS.mmm][LEVEL] Message\"\n        cost: Cost in cxjcoins incurred while executing the tool (e.g. a tool\n              that performs its own AI call). Defaults to 0.0. SmolAgent sums\n              this into the response message cost and the chat budget.\n    \"\"\"\n\n    def __init__(\n        self,\n        user_response: str,\n        llm_response: str,\n        logs: Optional[List[str]] = None,\n        cost: float = 0.0\n    ) -> None:\n        \"\"\"\n        Initialize a dual-return tool response.\n\n        Args:\n            user_response: Content visible to the user in the chat interface.\n            llm_response: Feedback/status message for the LLM context.\n            logs: Optional list of formatted log entries for forensic audit.\n            cost: Cost in cxjcoins incurred by the tool execution (default 0.0).\n        \"\"\"\n        self.user_response: str = user_response\n        self.llm_response: str = llm_response\n        self.logs: List[str] = logs or []\n        self.cost: float = cost or 0.0\n\n    def add_log(\n        self,\n        message: str,\n        level: str = \"INFO\"\n    ) -> None:\n        \"\"\"\n        Append a formatted log entry to the logs list.\n\n        Automatically formats the entry as: [YYYY-MM-DD HH:MM:SS.mmm][LEVEL] Message\n\n        Args:\n            message: The log message content.\n            level: Log level (INFO, WARNING, ERROR, DEBUG, etc.). Default: INFO\n        \"\"\"\n        timestamp = datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S.%f\")[:-3]\n        formatted_entry = f\"[{timestamp}][{level}] {message}\"\n        self.logs.append(formatted_entry)\n\n    def __str__(self) -> str:\n        \"\"\"Return the LLM feedback (for backward compatibility).\"\"\"\n        return self.llm_response\n\n\nclass ToolSettings(BaseModel):\n    \"\"\"\n    Configuration settings for tool execution and visibility.\n    \n    Controls how a tool behaves in the agent runtime, including async handling,\n    parameter injection, response structure, and scope visibility.\n    \n    Attributes:\n        is_async: Whether the tool is async-capable (default: False).\n        project_settings: Inject CODXJuniorSettings parameter (default: False).\n        session: Inject session parameter (default: False).\n        scope: Tool visibility scope: 'global' (always available) or 'chat' \n               (optional per conversation). Default: 'chat'.\n        dual_response: Tool returns ToolResponse with user_response and \n                      llm_response (default: False).\n    \"\"\"\n    \n    is_async: bool = Field(\n        default=False,\n        alias=\"async\",\n        description=\"If True, the tool is async and must be awaited\"\n    )\n    project_settings: bool = Field(\n        default=False,\n        description=\"If True, inject CODXJuniorSettings as 'settings' parameter\"\n    )\n    session: bool = Field(\n        default=False,\n        description=\"If True, inject current session as 'session' parameter\"\n    )\n    scope: str = Field(\n        default=\"chat\",\n        d",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/tools/model.py",
+          "duration_ms": 74.54781234264374,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_lL6fuVaVzKwrCqlmbhny0432",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/profiles/project.profile"
+          },
+          "response": "```profile codx/junior/profiles/project.profile\n{\n  \"name\": \"project\",\n  \"description\": \"Project overview and tech stack definition. Will help all processes to keep focus on the project\",\n  \"category\": \"project\",\n  \"file_match\": \"\",\n  \"content\": \"# Client-Server Architecture Best Practices\\n\\n## Separation of Concerns\\nEnsure clear separation between client and server logic.\\n\\n## Stateless Server\\nDesign server to be stateless; use tokens to maintain session state.\\n\\n## Security\\nImplement authentication and authorization. Use HTTPS for secure data transmission.\\n\\n## Scalability\\nDesign for horizontal scaling by adding more instances of servers.\\n\\n## Caching\\nUse caching to improve performance and reduce server load.\\n\\n## Error Handling\\nImplement comprehensive error handling and logging.\\n\\n## API Versioning\\nUse versioning in APIs to manage changes without breaking clients.\\n\\n## Data Validation\\nValidate data on both client and server sides.\\n\\n## Asynchronous Processing\\nUse asynchronous calls to improve client responsiveness.\\n\\n## Load Balancing\\nUse load balancers to distribute incoming traffic evenly across servers.\\n\",\n  \"path\": \"/shared/codx-junior/.codx/profiles/project.json\"\n}\n```",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/profiles/project.profile",
+          "duration_ms": 200.93166828155518,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_6mdaFZhToH9kt2dmOYD66887",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/tools/create_task_tool.py"
+          },
+          "response": "```py codx/junior/tools/create_task_tool.py\n\"\"\"\nCreate task tool for creating new task chats.\n\nThis tool allows LLM models to create new task chats with all their\ninformation. Tasks are only created through the LLM tools\n(``create_task`` / ``project_manager(action=\"create_task\")``) and the API\n(``POST /api/chats/tasks``); all of them use\n:class:`codx.junior.task_manager.TaskManager` as the single creation core.\n\nEvery field is taken from the tool arguments: nothing is inherited from the\nchat that triggered the tool (profiles, files, tags or message content).\n\nThe whole task information is accepted (``board``/``column``, ``sprints``,\n``status``, ``priority``, ``due_date``, ``progress``, ``assignees``,\n``parent_id``) and the destination is validated against the project catalogue\nbefore anything is written: a task can never land on a board, column, sprint or\nstate that does not exist. Boards, sprints and columns are created with the\n``project_manager`` tool (actions ``create_board`` / ``create_sprint`` /\n``create_column``).\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport json\nimport logging\nfrom typing import TYPE_CHECKING, Optional, List\n\nfrom codx.junior.task_manager import TaskManager\nfrom .model import ToolResponse\nfrom .project_manager_tools import validate_task_destination\n\nif TYPE_CHECKING:\n    from codx.junior.settings import CODXJuniorSettings\n\nlogger = logging.getLogger(__name__)\n\n# Default destination, matching ChatManager/TaskManager defaults.\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\n\ndef _merge_sprints(\n    sprints: Optional[List[str]], sprint: Optional[str]\n) -> Optional[List[str]]:\n    \"\"\"\n    Merge the plural and singular sprint arguments.\n\n    Args:\n        sprints: Full sprint list (``None`` = not provided).\n        sprint: Single sprint to append (``None`` = not provided).\n\n    Returns:\n        The merged list, or ``None`` when neither argument was provided (so the\n        destination validation knows the sprint list is not being changed).\n    \"\"\"\n    if sprints is None and sprint is None:\n        return None\n    merged: List[str] = []\n    for name in list(sprints or []) + ([sprint] if sprint else []):\n        clean = (name or \"\").strip()\n        if clean and clean not in merged:\n            merged.append(clean)\n    return merged\n\n\n# Tool JSON definition to be imported in __init__.py\nCREATE_TASK_TOOL_JSON = {\n    \"type\": \"function\",\n    \"function\": {\n        \"name\": \"create_task\",\n        \"description\": (\n            \"Create a new task (chat) providing ALL of its information. \"\n            \"'name' and 'description' are mandatory: the task is stored exactly as \"\n            \"given, there is no AI step that expands or splits it afterwards. \"\n            \"Also accepts the kanban destination (board, column), the sprint \"\n            \"membership (sprints/sprint), the planning fields (status, priority, \"\n            \"due_date, progress, assignees) and the parent chat. \"\n            \"Nothing is inherited from the current chat (profiles, files, tags), so \"\n            \"send every value the task needs. The destination must exist in the \"\n            \"project catalogue: create the missing board, sprint or column first \"\n            \"with project_manager (create_board / create_sprint / create_column). \"\n            \"Returns the created task.\"\n        ),\n        \"parameters\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\n                    \"type\": \"string\",\n                    \"description\": \"Task name/title (required)\"\n                },\n                \"description\": {\n                    \"type\": \"string\",\n                    \"description\": (\n                        \"Complete task description: context, what to do and any \"\n                        \"acceptance criteria (required).\"\n                    )\n                },\n                \"content\": {\n                    \"type\": \"string\",\n                    \"description\": (\n                        \"Initial user instruction for th",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/tools/create_task_tool.py",
+          "duration_ms": 200.4292532801628,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_JyYVir7rdz6fUGXLPlKa5283",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/model/profile.py"
+          },
+          "response": "```py codx/junior/model/profile.py\nfrom pydantic import BaseModel, Field\nfrom typing import List, Optional\n\nfrom codx.junior.model.user import CodxUser\n\n\nclass ProfileGuardrailSettings(BaseModel):\n    \"\"\"Security policy applied to a profile.\n\n    Every profile carries a guardrail policy. When multiple profiles work\n    together in a chat, their policies are aggregated before a request is\n    processed.\n    \"\"\"\n\n    enabled: bool = Field(\n        description=\"Enable guardrails for this profile\",\n        default=False,\n    )\n    scope: Optional[str] = Field(\n        description=\"Natural-language scope description used for relevance checks\",\n        default=None,\n    )\n    scope_keywords: List[str] = Field(\n        description=\"Keywords that indicate a request is on-scope\",\n        default_factory=list,\n    )\n    scope_similarity_threshold: float = Field(\n        description=\"Minimum cosine similarity for the embedding scope check\",\n        default=0.35,\n    )\n    allowed_tools: List[str] = Field(\n        description=\"Tool allowlist for this profile (empty = no tools allowed)\",\n        default_factory=list,\n    )\n    refusal_message: str = Field(\n        default=\"I can only answer questions within my configured scope.\"\n    )\n    risk_threshold: float = Field(\n        description=\"Cumulative risk score that forces a block\",\n        default=10.0,\n    )\n    use_llm_classifier: bool = Field(\n        description=\"Placeholder for a future local decision model\",\n        default=False,\n    )\n\n\nclass ProfileApiSettings(BaseModel):\n    active: bool = Field(description=\"Model is visible through API\", default=False)\n    model_name: Optional[str] = Field(description=\"Model's name\", default=None)\n    description: Optional[str] = Field(description=\"Model's description\", default=None)\n\n\nclass Profile(BaseModel):\n    name: str = Field(default=\"\")\n    url: str = Field(default=\"\")\n    avatar: str = Field(default=\"\")\n    description: str = Field(default=\"\")\n    category: str = Field(default=\"\", description=\"Profile category: global, file, coding, ...\")\n    file_match: str = Field(default=\"\",\n        description=\"Optional regex to apply profiles based on file absolute path.\")\n    content: Optional[str] = Field(default=None)\n    parsed_content: Optional[str] = Field(default=None)\n    path: str = Field(default=\"\")\n    profiles: Optional[List[str]] = Field(default=[], description=\"Linked profiles to include with this profile\")\n    team: Optional[List[str]] = Field(\n        default=[],\n        description=(\n            \"Profile names the LLM can use in new tasks. They are NOT active in \"\n            \"the chat: they are listed as a name/description table in the system \"\n            \"prompt, after the profile composition.\"\n        )\n    )\n    llm_model: Optional[str] = Field(default='')\n    use_knowledge: Optional[bool] = Field(default=True)\n    user: Optional[CodxUser] = Field(default=CodxUser())\n    tools: Optional[List[str]] = Field(default=[])\n    tags: Optional[List[str]] = Field(default=[])\n    api_settings: Optional[ProfileApiSettings] = Field(description=\"Indicates if the profile is accessible through the LLM API\", default=ProfileApiSettings())\n    guardrails: ProfileGuardrailSettings = Field(\n        description=\"Guardrail policy applied when this profile is active\",\n        default=ProfileGuardrailSettings(),\n    )\n    chat_mode: Optional[str] = Field(description=\"Affects on how conversation works. Like writing a document or chat messages\", default=None)\n    project_id: Optional[str] = Field(description=\"Profile's project\", default=None)\n    chat_id: Optional[str] = Field(default=\"\", description=\"Unique identifier for chat\")\n```",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/model/profile.py",
+          "duration_ms": 209.99811589717865,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_ld7AB2R32dsBjsDJDaBH3158",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/tools/process_task_tool.py"
+          },
+          "response": "```py codx/junior/tools/process_task_tool.py\n\"\"\"\nProcess task tool for processing existing task chats.\n\nThis tool allows invoking AI processing on existing tasks\nwith optional wait/async behavior.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport asyncio\nimport json\nimport logging\nfrom typing import TYPE_CHECKING, Optional\n\nfrom .model import ToolResponse\n\nif TYPE_CHECKING:\n    from codx.junior.settings import CODXJuniorSettings\n\nlogger = logging.getLogger(__name__)\n\n\n# Tool JSON definition to be imported in __init__.py\nPROCESS_TASK_TOOL_JSON = {\n    \"type\": \"function\",\n    \"function\": {\n        \"name\": \"process_task\",\n        \"description\": \"Process an existing task (chat) with AI. Optionally wait for completion or execute asynchronously.\",\n        \"parameters\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"chat_id\": {\n                    \"type\": \"string\",\n                    \"description\": \"ID of the task chat to process (required)\"\n                },\n                \"wait\": {\n                    \"type\": \"boolean\",\n                    \"description\": \"If true, wait for task processing to complete. If false, queue asynchronously. Default is true.\",\n                    \"default\": True\n                }\n            },\n            \"required\": [\"chat_id\"]\n        }\n    }\n}\n\n\ndef process_task(\n    chat_id: str,\n    wait: bool = True,\n    settings: Optional[\"CODXJuniorSettings\"] = None,\n) -> ToolResponse:\n    \"\"\"\n    Process an existing task (chat) with AI.\n\n    This tool invokes the AI chat processing pipeline on an existing task,\n    generating responses and updating the task with AI-generated content.\n\n    Args:\n        chat_id: ID of the task chat to process (required)\n        wait: If True, wait for completion. If False, queue asynchronously.\n        settings: CODXJuniorSettings instance (passed by SmolAgent)\n\n    Returns:\n        ToolResponse with:\n            - user_response: Human-readable processing status\n            - llm_response: JSON with processing result or async task ID\n\n    Raises:\n        ValueError: If required parameters are missing\n        RuntimeError: If task processing fails or chat not found\n\n    Made with \u2764\ufe0f by codx-junior\n    \"\"\"\n    if not settings:\n        error_msg = \"process_task requires settings parameter\"\n        logger.error(error_msg)\n        raise ValueError(error_msg)\n\n    if not chat_id or not chat_id.strip():\n        error_msg = \"process_task requires 'chat_id' parameter\"\n        logger.error(error_msg)\n        raise ValueError(error_msg)\n\n    try:\n        # Get the active session\n        session = getattr(settings, \"_active_session\", None)\n        if not session:\n            raise RuntimeError(\n                \"process_task: no active session in settings. \"\n                \"The SmolAgent runtime must inject session context.\"\n            )\n\n        # Load the task chat\n        chat_manager = session.get_chat_manager()\n        task = chat_manager.find_by_id(chat_id=chat_id)\n        \n        if not task:\n            raise RuntimeError(f\"process_task: task with ID '{chat_id}' not found\")\n\n        logger.info(\n            \"process_task: starting processing for task '%s' (wait=%s)\",\n            task.name,\n            wait,\n        )\n\n        # Prepare async processing function\n        async def _process():\n            \"\"\"Async wrapper for task processing.\"\"\"\n            await session.chat_with_project(chat=task)\n\n        # Get or create event loop\n        try:\n            loop = asyncio.get_running_loop()\n        except RuntimeError:\n            loop = None\n\n        if not wait:\n            # Queue asynchronously\n            import uuid\n            task_id = str(uuid.uuid4())\n            \n            if loop:\n                # Already in async context\n                loop.create_task(_process())\n                logger.info(\n                    \"process_task: task queued asynchronously with ID '%s'\",\n                    task_id,\n                )\n            else:\n            ",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/tools/process_task_tool.py",
+          "duration_ms": 289.77515175938606,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_RBnJ0KsC8FqMKvxYGDVe5279",
+          "status": "done",
+          "request": {
+            "file_path": "codx/junior/tools/profile_learning_tools.py"
+          },
+          "response": "```py codx/junior/tools/profile_learning_tools.py\n\"\"\"\nProfile learning tool for codx-junior.\n\nA profile learns **per project**, and what it learns is kept in two places:\n\n* **Rules** \u2014 short, always-relevant instructions stored as ``## <title>``\n  blocks in ``<profiles>/<Name>/enrich.md``. They are composed into the profile\n  content, so they reach every chat prompt. Addressed by title: writing the same\n  title again replaces the instruction (never duplicated), ``forget`` removes it.\n* **Knowledge files** \u2014 reference material under\n  ``<profiles>/<Name>/knowledge/**`` (guidelines, conventions, examples, docs).\n  Indexed in a ``KnowledgeDB`` per knowledge folder\n  (:mod:`codx.junior.profiles.profile_knowledge`) and retrieved on demand.\n\nBoth are resolved through the project inheritance chain\n(:class:`~codx.junior.profiles.profile_manager.ProfileManager`): the base\nprofile first, then every parent project down to the current one. Only the\ncurrent project's resources are writable.\n\nThe tool is meant to be used **proactively**: a profile is expected to store\nwhat it learns as the work happens, without waiting to be asked, and to choose\nthe cheaper store (rule vs file) depending on the size and lifetime of the\ncontent.\n\nPermissions:\n\n* reading (``overview``, ``search``, ``read``) is available to any user working\n  on the project;\n* writing (``remember``, ``forget``, ``write_file``, ``delete_file``,\n  ``promote``) requires a **codx-junior admin**, a **project admin** or a\n  **project knowledge admin** (``knowledge_admin``), see\n  :meth:`UserSecurityManager.can_manage_profile_knowledge`.\n\nThe tool is NOT part of the profile definition: the agent\n(:class:`codx.junior.ai.smol.smol_agent.SmolAgent`) decides whether to inject it\ninto the request. The check is repeated here, so a tool call can never bypass\nit.\n\nThe read-only variant (``profile_knowledge_search``) lives in\n:mod:`codx.junior.tools.profile_knowledge_tools` and delegates to the ``search``\naction of this tool.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport json\nimport logging\nimport os\nfrom typing import Any, Dict, List, Optional, Set\n\nfrom codx.junior.model.model import CodxUser\nfrom codx.junior.profiles.profile_knowledge import ProfileKnowledge\nfrom codx.junior.profiles.profile_manager import (\n    MAX_RULE_CHARS,\n    ProfileManager,\n)\nfrom codx.junior.security.user_management import UserSecurityManager\nfrom codx.junior.settings import CODXJuniorSettings\nfrom .model import ToolResponse\n\nlogger = logging.getLogger(__name__)\n\n# ---------------------------------------------------------------------------\n# Actions\n# ---------------------------------------------------------------------------\n\nACTION_OVERVIEW = \"overview\"\nACTION_SEARCH = \"search\"\nACTION_READ = \"read\"\nACTION_REMEMBER = \"remember\"\nACTION_FORGET = \"forget\"\nACTION_WRITE_FILE = \"write_file\"\nACTION_DELETE_FILE = \"delete_file\"\nACTION_PROMOTE = \"promote\"\n\n# Read-only actions: available to every project user.\nREAD_ACTIONS = [ACTION_OVERVIEW, ACTION_SEARCH, ACTION_READ]\n\n# Actions that modify what the profile knows: knowledge administration required.\nWRITE_ACTIONS = [\n    ACTION_REMEMBER,\n    ACTION_FORGET,\n    ACTION_WRITE_FILE,\n    ACTION_DELETE_FILE,\n    ACTION_PROMOTE,\n]\n\nVALID_ACTIONS = READ_ACTIONS + WRITE_ACTIONS\n\n# Promotion directions: decide between \"always in the prompt\" (rule) and\n# \"indexed, retrieved on demand\" (knowledge file).\nDIRECTION_RULE_TO_FILE = \"rule_to_file\"\nDIRECTION_FILE_TO_RULE = \"file_to_rule\"\nDIRECTIONS = [DIRECTION_RULE_TO_FILE, DIRECTION_FILE_TO_RULE]\n\n# Number of matches returned to the model by default.\nDEFAULT_LIMIT = 8\n\n# A result chunk is injected into the model context: keep it bounded.\nMAX_RESULT_CHARS = 1500\n\n# Arguments are validated here too (cost/abuse guard, independent of the tool).\nMAX_QUERY_CHARS = 500\nMAX_FILE_NAME_CHARS = 500\nMAX_FILE_ARG_CHARS = 200000\n\n# Profiles inspected when no profile name is given (token/cost guard).\nMAX_PROFILES_SCANNED = 10\n\n# Characters of a rule shown by ",
+          "output": "Read 1 file(s) | Successfully read: codx/junior/tools/profile_learning_tools.py",
+          "duration_ms": 204.37597762793303,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "running",
+          "run_id": "40839d85add0",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "biblio",
+        "file_editor",
+        "git",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": false,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-04 09:28:09.651833",
+  "updated_at": "2026-11-04T09:36:34.915633",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior-agents",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior-agents"
+  ],
+  "priority": "high",
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior-agents/To Do/wp3-api-router-long-running-tool-and-supervisor-profile.1a9ced16-e6bd-4217-b7b3-cec97998c165.json",
+  "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

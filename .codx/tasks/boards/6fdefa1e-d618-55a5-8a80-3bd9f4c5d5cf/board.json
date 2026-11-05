@@ -1,0 +1,21 @@
+{
+  "id": "6fdefa1e-d618-55a5-8a80-3bd9f4c5d5cf",
+  "title": "kanban-api",
+  "type": "kanban",
+  "parent_id": "API",
+  "folder": "kanban-api",
+  "order": 41,
+  "columns": [
+    {
+      "id": "98462670-74e0-4b9d-b469-a6382f2b141f",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2026-02-15T08:28:38.577Z",
+  "description": ""
+}

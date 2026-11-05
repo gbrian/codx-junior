@@ -1,0 +1,35 @@
+{
+  "id": "8efa0a47-0721-5f8a-9080-5ba937603541",
+  "title": "Issue manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Issue manager",
+  "order": 16,
+  "description": "Manage git issues",
+  "branch": "",
+  "columns": [
+    {
+      "id": "6cb4fd38-bc3f-416c-980d-344d16d58ecb",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "e177c50d-70a0-43bc-b4ad-7560fba678c7",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "51568f63-9bdb-4126-a93d-e5ffe0b001a4",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-05-29T05:52:25.507Z",
+  "active": false
+}

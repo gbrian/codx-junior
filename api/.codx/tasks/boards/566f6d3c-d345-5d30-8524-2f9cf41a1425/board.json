@@ -1,0 +1,20 @@
+{
+  "id": "566f6d3c-d345-5d30-8524-2f9cf41a1425",
+  "title": "Whisper",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Whisper",
+  "order": 27,
+  "description": "Audio / Video to text",
+  "columns": [
+    {
+      "id": "96e54576-8079-410d-949e-4be15b842e28",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-12T07:49:22.283Z",
+  "active": false
+}

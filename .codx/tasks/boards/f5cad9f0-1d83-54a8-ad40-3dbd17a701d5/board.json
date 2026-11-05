@@ -1,0 +1,29 @@
+{
+  "id": "f5cad9f0-1d83-54a8-ad40-3dbd17a701d5",
+  "title": "codx-junior management dashboard",
+  "type": "kanban",
+  "parent_id": "codx-junior maintenance",
+  "folder": "codx-junior management dashboard",
+  "order": 121,
+  "description": "codx-junior management dashboard",
+  "background": "https://www.range.co/cms/images/ca536473a7f168caf519593096978c9f5980a3d3-800x487.gif",
+  "project_id": null,
+  "users": [],
+  "columns": [
+    {
+      "id": "0f5eafa8-3978-4bb5-bc0b-27e0b98eca72",
+      "title": "Definition",
+      "color": "#6366f1",
+      "folder": "Definition",
+      "order": 0
+    },
+    {
+      "id": "92009e90-b0ee-4327-a04b-f4520d596527",
+      "title": "Messenger",
+      "color": "#6366f1",
+      "folder": "Messenger",
+      "order": 1
+    }
+  ],
+  "last_update": "2026-10-31T12:23:44.643Z"
+}

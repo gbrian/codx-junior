@@ -1,0 +1,35 @@
+{
+  "id": "13a17f49-02d1-5792-b1e2-6d3ddb95375e",
+  "title": "litellm",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "litellm",
+  "order": 19,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "ce65fc0e-d67c-4728-87cf-4191d07b825b",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "df75b434-2b6c-4b10-80a5-d2d42dfaf41e",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "5e60f91f-80e3-4712-b920-edf099d7616c",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-05-04T05:28:26.556Z",
+  "active": false
+}

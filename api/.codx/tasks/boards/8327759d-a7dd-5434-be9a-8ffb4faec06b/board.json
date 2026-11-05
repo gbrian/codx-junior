@@ -1,0 +1,34 @@
+{
+  "id": "8327759d-a7dd-5434-be9a-8ffb4faec06b",
+  "title": "Engine",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Engine",
+  "order": 20,
+  "description": "Manage \"engine\" code and modules",
+  "columns": [
+    {
+      "id": "a6a50740-a8ae-4738-9f90-5ef3672b9bdf",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "6a79f11a-6077-48f3-9616-f2a2b3d196bd",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "8e63a713-6a73-47b4-859a-ed02fb7df49a",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-07-13T11:09:33.481Z",
+  "active": false
+}

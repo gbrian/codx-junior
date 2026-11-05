@@ -1,0 +1,27 @@
+{
+  "id": "e33f1dc4-2a65-52be-963c-4b8ffb18fb2c",
+  "title": "File manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "File manager",
+  "order": 29,
+  "description": "",
+  "columns": [
+    {
+      "id": "af5b90a6-f51c-49ab-b760-6e9f72224de5",
+      "title": "To do",
+      "color": "#F2C511",
+      "folder": "To do",
+      "order": 0
+    },
+    {
+      "id": "8993f945-cce6-470b-bbd4-05b1bfe37f7f",
+      "title": "Active",
+      "color": "#F2C511",
+      "folder": "Active",
+      "order": 1
+    }
+  ],
+  "last_update": "2025-09-15T09:22:56.408Z",
+  "active": false
+}

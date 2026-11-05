@@ -1,0 +1,21 @@
+{
+  "id": "6d398487-4ead-5e7a-b4da-97ae4ba782c3",
+  "title": "MCP servers",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "MCP servers",
+  "order": 26,
+  "columns": [
+    {
+      "id": "3e9421bc-f539-44ba-9a40-22d89bf5f1e8",
+      "title": "Documentation",
+      "color": "#000000",
+      "folder": "Documentation",
+      "order": 0
+    }
+  ],
+  "background": "https://blog-cdn.skywork.ai/wp-content/uploads/2025/09/77484ffebe3440c995406ede9680d1a1.jpg",
+  "active": false,
+  "last_update": "2025-11-18T06:40:14.276Z",
+  "description": ""
+}

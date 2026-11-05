@@ -1,0 +1,21 @@
+{
+  "id": "95fdbaf0-0737-5b8f-ac0e-993a0f0f99e1",
+  "title": "AI Logs",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "AI Logs",
+  "order": 53,
+  "columns": [
+    {
+      "id": "addcce3b-df64-4846-8d90-4a85edbcb249",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "background": "https://framerusercontent.com/images/g0YTRh7uRHpbWQgSZz62bO050.png?width=1378&height=880",
+  "active": false,
+  "last_update": "2026-07-30T08:53:09.292Z",
+  "description": ""
+}

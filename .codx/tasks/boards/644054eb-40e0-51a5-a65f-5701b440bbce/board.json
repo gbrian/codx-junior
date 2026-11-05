@@ -1,0 +1,21 @@
+{
+  "id": "644054eb-40e0-51a5-a65f-5701b440bbce",
+  "title": "Logs",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Logs",
+  "order": 30,
+  "columns": [
+    {
+      "id": "0ad56524-e9a3-46c3-a002-d0f0a091bdc5",
+      "title": "Documentation",
+      "color": "#000000",
+      "folder": "Documentation",
+      "order": 0
+    }
+  ],
+  "background": "https://user-images.githubusercontent.com/8697942/186705175-d51db6ef-1615-4f94-aa1e-3ecbcb29ea24.png",
+  "active": false,
+  "last_update": "2026-07-30T08:52:52.254Z",
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "51cdfbb7-716b-5fe3-908a-cca16e732ba3",
+  "title": "airLLM",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "airLLM",
+  "order": 73,
+  "columns": [
+    {
+      "id": "307b9fdc-6cdb-41fc-8bd7-808b0dc0a310",
+      "title": "Notebooks",
+      "color": "#000000",
+      "folder": "Notebooks",
+      "order": 0
+    }
+  ],
+  "background": "https://www.revistainteligenciaartificial.com/wp-content/uploads/2026/02/airllm.webp",
+  "active": false,
+  "last_update": "2026-06-04T04:26:56.277Z",
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "6024adeb-7e26-5da4-b913-6a06c6368e39",
+  "title": "Events",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Events",
+  "order": 74,
+  "description": "",
+  "background": "https://helplama.com/wp-content/uploads/2021/03/pushnotification-03-03.png-theme-01-01-01.png",
+  "active": false,
+  "last_update": "2026-06-05T16:29:42.781Z",
+  "columns": [
+    {
+      "id": "0c328878-4194-4b47-a3ae-99bbd8172c39",
+      "title": "Chat Events",
+      "color": "#000000",
+      "folder": "Chat Events",
+      "order": 0
+    }
+  ]
+}

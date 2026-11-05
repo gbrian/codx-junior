@@ -1,0 +1,34 @@
+{
+  "id": "b5bddf21-692c-54e3-a1f7-fbb06056340b",
+  "title": "Mentions",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Mentions",
+  "order": 19,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "74e72a4b-05e8-4acb-a923-afc4f68a3032",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 0
+    },
+    {
+      "id": "d31b129b-385e-40c2-9651-29c0b6d5d194",
+      "title": "Tests",
+      "color": "#3357FF",
+      "folder": "Tests",
+      "order": 1
+    },
+    {
+      "id": "0b89daf9-5cd0-45a1-a644-dbfe1d7218bb",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-03-21T15:50:48.325Z",
+  "active": false
+}

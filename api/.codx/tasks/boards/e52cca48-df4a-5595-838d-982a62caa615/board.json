@@ -1,0 +1,68 @@
+{
+  "id": "e52cca48-df4a-5595-838d-982a62caa615",
+  "title": "Default",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Default",
+  "order": 3,
+  "columns": [
+    {
+      "id": "83716837-2917-4aa2-8020-45013bbcfff7",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 0
+    },
+    {
+      "id": "bd07a868-e394-44d7-aa0a-2594a60ddd5c",
+      "title": "on going",
+      "color": "",
+      "folder": "on going",
+      "order": 1
+    },
+    {
+      "id": "70b7ef59-b103-41c7-90a0-bf4c465f400d",
+      "title": "done",
+      "color": "",
+      "folder": "done",
+      "order": 2
+    },
+    {
+      "id": "cba5168f-99ae-4880-bb37-6750d64ff285",
+      "title": "To be tested",
+      "color": "",
+      "folder": "To be tested",
+      "order": 3
+    },
+    {
+      "id": "c20a4c74-0f3f-45a9-a83a-deded9d7adb5",
+      "title": "TO DO",
+      "color": "",
+      "folder": "TO DO",
+      "order": 4
+    },
+    {
+      "id": "66fdfefb-ea05-4903-ac28-ab558eaa5fa1",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 5
+    },
+    {
+      "id": "8230b682-02a3-470c-b77d-ae8d92e55849",
+      "title": "Requirements",
+      "color": "",
+      "folder": "Requirements",
+      "order": 6
+    },
+    {
+      "id": "427c666a-f537-40bf-99da-90427b4e18a9",
+      "title": "Tools",
+      "color": "",
+      "folder": "Tools",
+      "order": 7
+    }
+  ],
+  "active": false,
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "af35c22a-c31e-5001-859b-79434dc74e3a",
+  "title": "Models",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Models",
+  "order": 36,
+  "columns": [
+    {
+      "id": "b15cb926-b53c-46ca-a22e-1f3f0710f6ac",
+      "title": "Gemini",
+      "color": "#000000",
+      "folder": "Gemini",
+      "order": 0
+    }
+  ],
+  "background": "https://pixelplex.io/wp-content/uploads/2024/01/llm-applications-meta.jpg",
+  "active": false,
+  "last_update": "2026-08-14T05:54:48.220Z",
+  "description": ""
+}

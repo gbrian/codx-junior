@@ -1,0 +1,21 @@
+{
+  "id": "aad9a223-14f8-56a3-a5e5-4bc8d8f713f4",
+  "title": "Engine",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Engine",
+  "order": 64,
+  "description": "",
+  "background": "https://creator.nightcafe.studio/jobs/a0rnoc9BtqNhqt2GYESJ/a0rnoc9BtqNhqt2GYESJ--1--2jwoi.jpg",
+  "active": false,
+  "last_update": "2026-05-05T08:22:02.125Z",
+  "columns": [
+    {
+      "id": "91309b91-e1cf-46ae-955b-b5fa0c88b8d4",
+      "title": "Engine core",
+      "color": "#000000",
+      "folder": "Engine core",
+      "order": 0
+    }
+  ]
+}

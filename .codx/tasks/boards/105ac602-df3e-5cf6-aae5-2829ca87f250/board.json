@@ -1,0 +1,19 @@
+{
+  "id": "105ac602-df3e-5cf6-aae5-2829ca87f250",
+  "title": "SimplePod.AI",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "SimplePod.AI",
+  "order": 83,
+  "columns": [
+    {
+      "id": "3450fed9-f0a4-45b0-a06b-e6011b30c55d",
+      "title": "Project",
+      "color": "",
+      "folder": "Project",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "description": ""
+}

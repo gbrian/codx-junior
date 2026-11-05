@@ -1,0 +1,21 @@
+{
+  "id": "803c6ca2-85a0-517d-b8d9-9020abc32394",
+  "title": "Project Metrics",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Project Metrics",
+  "order": 42,
+  "columns": [
+    {
+      "id": "444cd662-767f-484f-9a06-1512817ea2c5",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2025-10-03T06:55:24.051Z",
+  "description": ""
+}

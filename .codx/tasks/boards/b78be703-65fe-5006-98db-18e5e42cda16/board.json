@@ -1,0 +1,20 @@
+{
+  "id": "b78be703-65fe-5006-98db-18e5e42cda16",
+  "title": "Plugin settings",
+  "type": "kanban",
+  "parent_id": "Plugins",
+  "folder": "Plugin settings",
+  "order": 48,
+  "columns": [
+    {
+      "id": "a7ed447d-779f-4371-979d-8add86d2296d",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-02-26T19:10:09.013Z",
+  "description": ""
+}

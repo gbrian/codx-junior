@@ -1,0 +1,28 @@
+{
+  "id": "4fdd23e2-70a4-5472-8cf1-d8651addd896",
+  "title": "Open To Collaboration",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Open To Collaboration",
+  "order": 103,
+  "description": "",
+  "background": "https://upload.wikimedia.org/wikipedia/en/2/2b/SpongeBob_SquarePants_Help_Wanted_title-card.jpg?utm_source=en.wikipedia.org&utm_campaign=index&utm_content=original",
+  "active": false,
+  "last_update": "2026-09-30T18:00:39.068Z",
+  "columns": [
+    {
+      "id": "71a37333-5c2d-44ef-865b-5644add24aea",
+      "title": "Website",
+      "color": "#000000",
+      "folder": "Website",
+      "order": 0
+    },
+    {
+      "id": "955d697d-14fc-425e-98ee-e8a90d293cff",
+      "title": "A column!",
+      "color": "#8b5cf6",
+      "folder": "A column!",
+      "order": 1
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "id": "2a9f1295-ed2c-5b12-84f3-2ec156e89a93",
+  "title": "codx-junior maintenance",
+  "type": "sprint",
+  "parent_id": null,
+  "folder": "codx-junior maintenance",
+  "order": 113,
+  "description": "codx-junior maintenance taska",
+  "background": "",
+  "project_id": null,
+  "columns": [
+    {
+      "id": "todo",
+      "title": "Backlog",
+      "color": "#6366f1",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "doing",
+      "title": "API",
+      "color": "#6366f1",
+      "folder": "API",
+      "order": 1
+    },
+    {
+      "id": "fe13343a-7868-4e58-b715-4b1d4e8065f0",
+      "title": "UI",
+      "color": "#6366f1",
+      "folder": "UI",
+      "order": 2
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3
+    },
+    {
+      "id": "onhold",
+      "title": "On Hold",
+      "color": "#6366f1",
+      "folder": "On Hold",
+      "order": 4
+    },
+    {
+      "id": "rejected",
+      "title": "Rejected",
+      "color": "",
+      "folder": "Rejected",
+      "order": 5
+    },
+    {
+      "id": "8aa58b64-fa10-48c9-ad2b-211df65a3637",
+      "title": "To Do",
+      "color": "",
+      "folder": "To Do",
+      "order": 6
+    },
+    {
+      "id": "c706fdab-efc3-477b-87a6-ce6f4174ddfa",
+      "title": "Doing",
+      "color": "#ef4444",
+      "folder": "Doing",
+      "order": 7
+    }
+  ],
+  "last_update": "2026-11-05T09:05:09.288Z",
+  "active": true,
+  "users": []
+}

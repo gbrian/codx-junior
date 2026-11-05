@@ -750,6 +750,11 @@
           "path": "/codx/junior/kanban/model.py",
           "slug": "model.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/docs/long-running-tasks-plan.md",
+          "slug": "long-running-tasks-plan.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/long-running-tasks-plan.md"
         }
       ],
       "id": "project-overview",

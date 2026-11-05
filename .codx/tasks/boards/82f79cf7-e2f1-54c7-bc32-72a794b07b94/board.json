@@ -1,0 +1,36 @@
+{
+  "id": "82f79cf7-e2f1-54c7-bc32-72a794b07b94",
+  "title": "Tutor",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Tutor",
+  "order": 18,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "156c8d22-80a4-4d1f-b7d0-15c1895567d6",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "44e4909f-5544-4c47-a058-c5db8ae88e86",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "63a81b6e-1b11-4f66-bc76-8f8952040e51",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-02-05T16:30:23.014Z",
+  "active": false,
+  "background": "https://i.guim.co.uk/img/static/sys-images/Guardian/Pix/pictures/2015/8/24/1440427602317/c4c4cf0a-81ae-4820-ad6b-29381b956af3-2060x1236.jpeg?width=465&dpr=1&s=none&crop=none"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "5c280c45-80c2-599b-9afd-1ed64a2b55c5",
+  "title": "Background Processes",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Background Processes",
+  "order": 44,
+  "columns": [
+    {
+      "id": "50ec07a2-5a17-478a-88ec-8b96d9ca8f96",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://c8.alamy.com/comp/2P5Y53G/technology-system-management-and-working-ai-process-concept-on-dark-blue-background-group-of-gears-with-technological-icons-connected-illustration-g-2P5Y53G.jpg",
+  "active": false,
+  "last_update": "2026-03-22T11:13:49.812Z",
+  "description": ""
+}

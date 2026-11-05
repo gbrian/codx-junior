@@ -1,0 +1,20 @@
+{
+  "id": "bbdf8a76-9ab8-519c-a0b0-928074884510",
+  "title": "View modes",
+  "type": "kanban",
+  "parent_id": "Teams",
+  "folder": "View modes",
+  "order": 89,
+  "columns": [
+    {
+      "id": "0dc11ae7-c7ee-4afc-8490-95b89897546d",
+      "title": "Vibe",
+      "color": "#000000",
+      "folder": "Vibe",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-23T13:44:52.612Z",
+  "description": ""
+}

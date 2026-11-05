@@ -1,0 +1,35 @@
+{
+  "id": "79ff162d-190a-59a0-a857-ff6c32be5d82",
+  "title": "workspaces",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "workspaces",
+  "order": 12,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "c4ad6bdd-f8f7-4ff6-8947-3d4e827686c1",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "a33cf789-f072-47e4-a99b-15b0a915309f",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "f7e9b94d-e45a-4ce2-9f7f-3c30576ce072",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-03-31T03:28:36.770Z",
+  "active": false
+}

@@ -1,0 +1,20 @@
+{
+  "id": "46885544-5b7c-5866-a3a5-d0ccb3404e8b",
+  "title": "Docker",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Docker",
+  "order": 43,
+  "columns": [
+    {
+      "id": "4e59b5c2-4398-4d17-be53-e8da8aef5423",
+      "title": "Images",
+      "color": "#2980B9",
+      "folder": "Images",
+      "order": 0
+    }
+  ],
+  "background": "https://cdn.shortpixel.ai/spai/q_lossy+ret_img+to_auto/linuxiac.com/wp-content/uploads/2021/06/docker.png",
+  "active": false,
+  "description": ""
+}

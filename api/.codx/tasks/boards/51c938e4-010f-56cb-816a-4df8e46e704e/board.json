@@ -1,0 +1,20 @@
+{
+  "id": "51c938e4-010f-56cb-816a-4df8e46e704e",
+  "title": "DB Manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "DB Manager",
+  "order": 32,
+  "description": "",
+  "columns": [
+    {
+      "id": "0663647f-5ed5-404c-9b28-2f8070028ebb",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-16T08:10:08.115Z",
+  "active": false
+}

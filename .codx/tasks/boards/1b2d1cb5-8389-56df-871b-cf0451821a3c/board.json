@@ -1,0 +1,21 @@
+{
+  "id": "1b2d1cb5-8389-56df-871b-cf0451821a3c",
+  "title": "llamacpp",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "llamacpp",
+  "order": 88,
+  "columns": [
+    {
+      "id": "112acbd3-a206-4970-89f6-ca3978e5f77a",
+      "title": "Server",
+      "color": "#000000",
+      "folder": "Server",
+      "order": 0
+    }
+  ],
+  "background": "https://llama-cpp.com/wp-content/uploads/2025/10/Llama-cpp-1024x369.jpg",
+  "active": false,
+  "last_update": "2026-06-29T18:40:58.576Z",
+  "description": ""
+}

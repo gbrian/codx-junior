@@ -1,0 +1,42 @@
+{
+  "id": "160ce6c0-7c42-5e91-88be-e299836e8d03",
+  "title": "User limits",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "User limits",
+  "order": 77,
+  "columns": [
+    {
+      "id": "2b2853d6-59ce-4fca-9af0-e047ae5122d0",
+      "title": "User limits controller",
+      "color": "#000000",
+      "folder": "User limits controller",
+      "order": 0
+    },
+    {
+      "id": "ef8eca02-986f-48e6-8f66-d5aa0a80037e",
+      "title": "Coins",
+      "color": "#000000",
+      "folder": "Coins",
+      "order": 1
+    },
+    {
+      "id": "30d11977-912e-40b1-a298-dbfb8d05c86b",
+      "title": "Wallet",
+      "color": "#000000",
+      "folder": "Wallet",
+      "order": 2
+    },
+    {
+      "id": "219691d6-726a-4050-911c-b2b3d111be86",
+      "title": "Front",
+      "color": "#000000",
+      "folder": "Front",
+      "order": 3
+    }
+  ],
+  "background": "https://us1.discourse-cdn.com/cursor1/original/3X/c/2/c2aa501cc0413244a14807a85e60953648079c80.png",
+  "active": false,
+  "last_update": "2026-06-11T04:54:43.348Z",
+  "description": ""
+}

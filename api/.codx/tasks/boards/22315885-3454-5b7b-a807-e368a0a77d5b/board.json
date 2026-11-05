@@ -1,0 +1,42 @@
+{
+  "id": "22315885-3454-5b7b-a807-e368a0a77d5b",
+  "title": "Wiki manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Wiki manager",
+  "order": 9,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "0061c692-350e-4a88-b098-f54ffe0312eb",
+      "title": "Requirements",
+      "color": "#FFC300",
+      "folder": "Requirements",
+      "order": 0
+    },
+    {
+      "id": "ad5317f9-e4ec-47c8-b62b-9956ce2345f6",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "a36030dc-34bd-4afd-9f36-4620fd4500f6",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    },
+    {
+      "id": "d873812b-3070-497b-b084-0c43a344743d",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 3
+    }
+  ],
+  "last_update": "2025-09-08T06:43:45.255Z",
+  "active": false
+}

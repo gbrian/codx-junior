@@ -1,0 +1,21 @@
+{
+  "id": "89d08314-74f9-53b1-9e21-ae5d807d7747",
+  "title": "Efficiency",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "Efficiency",
+  "order": 84,
+  "columns": [
+    {
+      "id": "92536512-9ac0-4717-9dc4-f1b376dc0f78",
+      "title": "Hot spots",
+      "color": "#000000",
+      "folder": "Hot spots",
+      "order": 0
+    }
+  ],
+  "description": "",
+  "background": "https://businessmapping.com/images/blog/bl138-the-real-world-difference-of-effectiveness-vs-efficiency.jpg",
+  "active": false,
+  "last_update": "2026-07-27T11:12:40.741Z"
+}

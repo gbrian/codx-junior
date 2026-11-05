@@ -1,0 +1,27 @@
+{
+  "id": "b80b41bc-4086-51c4-b047-f4977b3b0e27",
+  "title": "Refactor wiki",
+  "type": "kanban",
+  "parent_id": "Wiki manager",
+  "folder": "Refactor wiki",
+  "order": 30,
+  "description": "",
+  "columns": [
+    {
+      "id": "5062e263-9792-4fed-87b3-aaeb0bb13597",
+      "title": "To Do",
+      "color": "#222F3D",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "747af258-a0cd-44cf-8ba4-55fc6c8e7ba8",
+      "title": "Done",
+      "color": "#27AF60",
+      "folder": "Done",
+      "order": 1
+    }
+  ],
+  "last_update": "2025-08-23T06:58:36.352Z",
+  "active": false
+}

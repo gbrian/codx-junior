@@ -1,0 +1,13 @@
+{
+  "id": "3f8a1b06-0bd8-5d88-91c6-31ccf0df6233",
+  "title": "codx-agents",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-agents",
+  "order": 14,
+  "description": "Backlog board",
+  "columns": [],
+  "active": false,
+  "last_update": "2026-08-01T13:43:37.821Z",
+  "background": "https://prod-assets.cosmic.aws.dev/a/30Q2JH4IWetwfNRDxLO45a4H11x/agen.webp"
+}

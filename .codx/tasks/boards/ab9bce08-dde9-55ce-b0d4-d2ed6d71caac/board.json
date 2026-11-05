@@ -1,0 +1,21 @@
+{
+  "id": "ab9bce08-dde9-55ce-b0d4-d2ed6d71caac",
+  "title": "Document Viewer",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "Document Viewer",
+  "order": 46,
+  "columns": [
+    {
+      "id": "b54dd40f-1f01-4fbc-be23-1ab6b7f0693c",
+      "title": "Chat blocks",
+      "color": "#000000",
+      "folder": "Chat blocks",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2026-06-28T10:59:41.465Z",
+  "description": ""
+}

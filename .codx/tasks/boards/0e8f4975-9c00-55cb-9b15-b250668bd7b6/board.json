@@ -1,0 +1,62 @@
+{
+  "id": "0e8f4975-9c00-55cb-9b15-b250668bd7b6",
+  "title": "Quick chats",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Quick chats",
+  "order": 33,
+  "columns": [
+    {
+      "id": "e4564fcd-82bd-4af6-a34b-f601c16e0655",
+      "title": "20260505",
+      "color": "",
+      "folder": "20260505",
+      "order": 0
+    },
+    {
+      "id": "b976d869-28e6-4d00-aef5-9e6658e30dcb",
+      "title": "20260515",
+      "color": "",
+      "folder": "20260515",
+      "order": 1
+    },
+    {
+      "id": "d47b848e-1fa4-40c4-84d6-d8aaef0a3905",
+      "title": "20260519",
+      "color": "",
+      "folder": "20260519",
+      "order": 2
+    },
+    {
+      "id": "232578a1-f19d-44c8-a829-18a810659447",
+      "title": "20260603",
+      "color": "",
+      "folder": "20260603",
+      "order": 3
+    },
+    {
+      "id": "d8c7cc80-7602-422a-92d1-cbde93afd839",
+      "title": "20260604",
+      "color": "",
+      "folder": "20260604",
+      "order": 4
+    },
+    {
+      "id": "30c522f3-94dd-49a4-b4f9-b465453db6d7",
+      "title": "20260606",
+      "color": "",
+      "folder": "20260606",
+      "order": 5
+    },
+    {
+      "id": "c4b63a0a-708a-40a5-b52b-50d155a7260e",
+      "title": "20260607",
+      "color": "",
+      "folder": "20260607",
+      "order": 6
+    }
+  ],
+  "active": false,
+  "last_update": "2026-09-27T11:35:46.185Z",
+  "description": ""
+}

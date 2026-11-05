@@ -1,0 +1,21 @@
+{
+  "id": "aad66075-f7be-5134-b7ab-ba8c275c70dc",
+  "title": "Performance",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Performance",
+  "order": 4,
+  "description": "",
+  "background": "https://slidebazaar.com/wp-content/uploads/2023/12/Polar-Chart-PPT-Template.jpg",
+  "active": false,
+  "last_update": "2026-07-10T05:48:16.873Z",
+  "columns": [
+    {
+      "id": "78245092-c1fe-4795-bb50-190af8083f6d",
+      "title": "User Performance",
+      "color": "#000000",
+      "folder": "User Performance",
+      "order": 0
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "id": "00ec7356-c230-50cf-8ec1-20808c18405c",
+  "title": "Docker",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Docker",
+  "order": 13,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "65789154-ffa1-4dab-9165-0a78c760701a",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "75f4f713-3786-4582-b90d-b119ac4452c4",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "b2bd33f5-1442-4530-aa86-2ce04e29248f",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-12-07T07:07:28.684Z",
+  "active": false,
+  "background": "https://cdn.shortpixel.ai/spai/q_lossy+ret_img+to_auto/linuxiac.com/wp-content/uploads/2021/06/docker.png"
+}

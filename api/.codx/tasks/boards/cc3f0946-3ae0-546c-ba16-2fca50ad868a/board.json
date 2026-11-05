@@ -1,0 +1,20 @@
+{
+  "id": "cc3f0946-3ae0-546c-ba16-2fca50ad868a",
+  "title": "Desktop and VNC",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Desktop and VNC",
+  "order": 34,
+  "description": "Streaming and sharing",
+  "columns": [
+    {
+      "id": "acd3586b-a97e-49c4-bdf2-ed642fa4168e",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-19T06:59:09.720Z",
+  "active": false
+}

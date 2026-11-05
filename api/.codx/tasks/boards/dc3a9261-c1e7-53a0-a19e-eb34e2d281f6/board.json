@@ -1,0 +1,42 @@
+{
+  "id": "dc3a9261-c1e7-53a0-a19e-eb34e2d281f6",
+  "title": "Knowledge",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Knowledge",
+  "order": 17,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "ead63fe1-e812-4e18-9c47-922a5310afe2",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "08340c50-feba-4259-a103-786d36f88bbd",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "24fd1c8b-a733-4bf0-a89b-a5394a54979d",
+      "title": "Loader",
+      "color": "#3398DB",
+      "folder": "Loader",
+      "order": 2
+    },
+    {
+      "id": "74d2c566-9e79-4514-a4ba-0abcbc3d62a7",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 3
+    }
+  ],
+  "last_update": "2026-03-08T10:29:59.261Z",
+  "active": false,
+  "background": "https://saffroninteractive.com/wp-content/uploads/2014/09/Knowledge.png"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "354809ff-672c-58e0-a55f-9deaa3aab439",
+  "title": "Wiki Engine",
+  "type": "kanban",
+  "parent_id": "Wiki",
+  "folder": "Wiki Engine",
+  "order": 108,
+  "description": "",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-28T08:39:33.454Z",
+  "columns": [
+    {
+      "id": "c8c32549-b778-45a8-9380-9332f34254a0",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "1fa64444-053c-48a0-a342-225bfc3c18b6",
+  "title": "codx-junior-agents",
+  "description": "Sprint for the agents epic \u2014 long running tasks (LRT-1) and its preparation. Work packages WP0-WP4 run here in order.",
+  "branch": "",
+  "type": "sprint",
+  "parent_id": null,
+  "columns": [
+    {
+      "id": "534a20cd-d479-485c-85af-a6a6d9442618",
+      "title": "To Do",
+      "color": "",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "39efe89c-70e5-4cee-97cd-79edfb76ea72",
+      "title": "Doing",
+      "color": "",
+      "folder": "Doing",
+      "order": 1
+    },
+    {
+      "id": "5488d970-f106-4bc6-a454-184caf50ab21",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "active": false,
+  "last_update": "2026-11-04T09:27:40.359977",
+  "folder": "codx-junior-agents",
+  "order": 54
+}

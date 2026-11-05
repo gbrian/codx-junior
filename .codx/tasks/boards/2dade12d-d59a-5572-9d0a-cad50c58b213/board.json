@@ -1,0 +1,35 @@
+{
+  "id": "2dade12d-d59a-5572-9d0a-cad50c58b213",
+  "title": "AImages",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "AImages",
+  "order": 43,
+  "columns": [
+    {
+      "id": "e3c52b87-280b-4e04-94be-eee13c62c00a",
+      "title": "Doc",
+      "color": "#000000",
+      "folder": "Doc",
+      "order": 0
+    },
+    {
+      "id": "fbba71ce-1bef-4e53-ab5b-37f33f67118e",
+      "title": "Chat",
+      "color": "#000000",
+      "folder": "Chat",
+      "order": 1
+    },
+    {
+      "id": "3addaf96-34f3-4bdf-8b2f-88ffa8a846ca",
+      "title": "Api",
+      "color": "#000000",
+      "folder": "Api",
+      "order": 2
+    }
+  ],
+  "background": "https://miro.medium.com/1*hhb4eQSrCeksxDGYIMZT4A.png",
+  "active": false,
+  "last_update": "2026-05-27T12:28:30.626Z",
+  "description": ""
+}

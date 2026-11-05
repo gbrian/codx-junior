@@ -1,0 +1,35 @@
+{
+  "id": "b5603efa-0d61-5133-ad81-7d524239fbeb",
+  "title": "Mobile",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Mobile",
+  "order": 71,
+  "description": "",
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgcqDInTa8yJf45yszXq2KNP-JUm16JEAQuQ&s",
+  "active": false,
+  "last_update": "2026-08-09T08:58:57.703Z",
+  "columns": [
+    {
+      "id": "7efe4ac7-131f-49e0-bfe2-d759f3e1ee8a",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    },
+    {
+      "id": "a44d720e-c626-4aae-b19d-79493d89dd75",
+      "title": "Task manager",
+      "color": "#000000",
+      "folder": "Task manager",
+      "order": 1
+    },
+    {
+      "id": "fc979062-c86b-4aa0-a25f-037d841b7297",
+      "title": "Voice management",
+      "color": "#000000",
+      "folder": "Voice management",
+      "order": 2
+    }
+  ]
+}

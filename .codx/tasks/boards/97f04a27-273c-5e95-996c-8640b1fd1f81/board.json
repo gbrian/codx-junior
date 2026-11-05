@@ -1,0 +1,36 @@
+{
+  "id": "97f04a27-273c-5e95-996c-8640b1fd1f81",
+  "title": "Chat manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Chat manager",
+  "order": 23,
+  "description": "",
+  "columns": [
+    {
+      "id": "fb004639-f921-4d05-ac48-78cd55ce49e1",
+      "title": "To do",
+      "color": "#000000",
+      "folder": "To do",
+      "order": 0
+    },
+    {
+      "id": "f7f96d29-a3ec-474a-8bc2-f70ece32caab",
+      "title": "Doing",
+      "color": "#F39C19",
+      "folder": "Doing",
+      "order": 1
+    },
+    {
+      "id": "dd765be4-7806-4d1b-a911-ecd281346ade",
+      "title": "ChatDB",
+      "color": "#27AF60",
+      "folder": "ChatDB",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-06-29T18:40:50.146Z",
+  "active": false,
+  "background": "https://www.sikoraworks.com/static/41a73e3690446a8693919f431245402e/4353f/intro.png",
+  "view": "grid"
+}

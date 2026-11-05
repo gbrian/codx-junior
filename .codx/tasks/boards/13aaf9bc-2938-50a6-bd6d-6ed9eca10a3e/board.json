@@ -1,0 +1,28 @@
+{
+  "id": "13aaf9bc-2938-50a6-bd6d-6ed9eca10a3e",
+  "title": "Profile Manager",
+  "type": "kanban",
+  "parent_id": "Profiles",
+  "folder": "Profile Manager",
+  "order": 35,
+  "columns": [
+    {
+      "id": "c7b04436-8256-4616-8e8a-70cb929b9c06",
+      "title": "profile_manager",
+      "color": "#000000",
+      "folder": "profile_manager",
+      "order": 0
+    },
+    {
+      "id": "4ac4b0fe-bad2-4175-abfb-8495a2df243f",
+      "title": "Global Profiles",
+      "color": "#000000",
+      "folder": "Global Profiles",
+      "order": 1
+    }
+  ],
+  "background": "https://media.istockphoto.com/id/1830042746/photo/document-management-system-dms-with-arrange-folder-and-files-icons-man-setup-storage-backup.jpg?s=612x612&w=0&k=20&c=t8oAAO16j6fMhleAYJEXm5pSXFIDZrEG6sYJkv_Sdos=",
+  "active": false,
+  "last_update": "2026-06-06T11:27:58.399Z",
+  "description": ""
+}

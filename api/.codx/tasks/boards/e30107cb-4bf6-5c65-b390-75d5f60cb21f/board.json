@@ -1,0 +1,34 @@
+{
+  "id": "e30107cb-4bf6-5c65-b390-75d5f60cb21f",
+  "title": "Events",
+  "type": "kanban",
+  "parent_id": "Engine",
+  "folder": "Events",
+  "order": 21,
+  "description": "Event",
+  "columns": [
+    {
+      "id": "5a4d20c6-9297-46a5-855e-b71553585efd",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "ebcaec47-3226-44f5-bbf8-45f8a2729897",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "1edf3613-e173-43e1-a92f-0a30108d3903",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-07-13T11:09:43.324Z",
+  "active": false
+}

@@ -1,0 +1,35 @@
+{
+  "id": "8f97dc62-8278-5f5d-921a-36010e51cf43",
+  "title": "scripts",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "scripts",
+  "order": 7,
+  "description": "codx-api background processes",
+  "branch": "",
+  "columns": [
+    {
+      "id": "9ac4c42d-332f-4ee4-aad6-8d42889e0c97",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "b04d5ade-512c-4dee-9364-9d2b189a3a74",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "4662ea1f-14bd-4116-a9df-c50cdb536c11",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-03-16T14:40:51.185Z",
+  "active": false
+}

@@ -1,0 +1,21 @@
+{
+  "id": "2528cbc2-bdc6-503c-a2fb-6755a88e6119",
+  "title": "Global Settings",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Global Settings",
+  "order": 49,
+  "columns": [
+    {
+      "id": "de6e88df-ed7f-4ede-b7b8-d909935c95f5",
+      "title": "model",
+      "color": "#000000",
+      "folder": "model",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-07-01T03:59:00.081Z",
+  "description": "",
+  "background": "https://miro.medium.com/v2/resize:fit:1400/1*pv27v7m3RdS8GVPDE_PpJw.png"
+}

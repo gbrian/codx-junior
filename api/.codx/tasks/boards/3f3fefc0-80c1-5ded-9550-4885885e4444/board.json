@@ -1,0 +1,27 @@
+{
+  "id": "3f3fefc0-80c1-5ded-9550-4885885e4444",
+  "title": "Agents \ud83e\udd73",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Agents \ud83e\udd73",
+  "order": 28,
+  "description": "Time to introduce agents into codx-junior",
+  "columns": [
+    {
+      "id": "18e33411-a9d7-4130-a92d-b4965ad9f3a7",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "34ba18ea-cc19-4e5a-9520-b638b965ba02",
+      "title": "Knowledge",
+      "color": "#000000",
+      "folder": "Knowledge",
+      "order": 1
+    }
+  ],
+  "last_update": "2025-11-01T11:36:42.562Z",
+  "active": false
+}

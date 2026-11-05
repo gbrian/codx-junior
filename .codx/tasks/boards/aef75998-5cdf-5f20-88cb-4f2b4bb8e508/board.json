@@ -1,0 +1,51 @@
+{
+  "id": "aef75998-5cdf-5f20-88cb-4f2b4bb8e508",
+  "title": "Solopreneur board",
+  "type": "sprint",
+  "parent_id": "codx-junior-agents",
+  "folder": "Solopreneur board",
+  "order": 118,
+  "description": "A simplified board for soloproneurs",
+  "background": "https://www.comstocksmag.com/sites/main/files/imagecache/lightbox/main-images/0420_dept_buzzwords_marissalewis.png",
+  "project_id": null,
+  "users": [],
+  "columns": [
+    {
+      "id": "todo",
+      "title": "To Do",
+      "color": "",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "doing",
+      "title": "Doing",
+      "color": "#6366f1",
+      "folder": "Doing",
+      "order": 1
+    },
+    {
+      "id": "onhold",
+      "title": "On Hold",
+      "color": "",
+      "folder": "On Hold",
+      "order": 2
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3
+    },
+    {
+      "id": "rejected",
+      "title": "Rejected",
+      "color": "",
+      "folder": "Rejected",
+      "order": 4
+    }
+  ],
+  "last_update": "2026-10-21T05:30:25.266Z",
+  "active": false
+}

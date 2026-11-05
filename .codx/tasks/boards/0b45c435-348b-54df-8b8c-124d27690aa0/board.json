@@ -1,0 +1,22 @@
+{
+  "id": "0b45c435-348b-54df-8b8c-124d27690aa0",
+  "title": "Chats",
+  "type": "kanban",
+  "parent_id": "Teams",
+  "folder": "Chats",
+  "order": 102,
+  "description": "",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-07T11:35:56.133Z",
+  "columns": [
+    {
+      "id": "27f5c32b-f969-41a9-a121-f8d0d3e97fd2",
+      "title": "Team chat",
+      "color": "#000000",
+      "folder": "Team chat",
+      "order": 0
+    }
+  ]
+}

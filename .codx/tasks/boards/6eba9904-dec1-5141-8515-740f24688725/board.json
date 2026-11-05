@@ -1,0 +1,20 @@
+{
+  "id": "6eba9904-dec1-5141-8515-740f24688725",
+  "title": "Chat Modes",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "Chat Modes",
+  "order": 54,
+  "columns": [
+    {
+      "id": "002ad04d-b899-49f5-b557-c2038dfff7e6",
+      "title": "slides",
+      "color": "#000000",
+      "folder": "slides",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-26T18:23:08.286Z",
+  "description": ""
+}

@@ -32,7 +32,6 @@ from codx.junior.chat.chat_prompt_builder import (
 )
 from codx.junior.context import AICodeGenerator
 from codx.junior.db import Chat, Message, ChatHistoryEntry, ChatAttachment
-from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.model.agent import AgentRunResult
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -60,7 +59,6 @@ logger = logging.getLogger(__name__)
 
 # Chat mode constants
 CHAT_MODE_TASK = "task"
-CHAT_MODE_AGENT = "agent"
 CHAT_MODE_TUTORIAL = "tutorial"
 CHAT_MODE_VIBE = "vibe"
 TASK_ITEM_SEARCH = "search"
@@ -169,11 +167,9 @@ class ChatEngine:
         B -->|search| C
         C --> D[Build Context]
         B -->|task| E[Refine Document]
-        B -->|agent| F[Agent Iteration]
         B -->|chat| G[Standard Chat]
         D --> G
         E --> H{Add parent messages?}
-        F --> H
         G --> H
         H -->|ignore_parent_knowledge=False| H1[Prepend parent messages]
         H -->|ignore_parent_knowledge=True| H2[Skip parent messages]
@@ -313,29 +309,31 @@ class ChatEngine:
         """
         Resolve boolean flags that drive branching logic from the chat mode and task item.
 
+        The former ``agent`` mode is no longer special: the ``AGENT_DONE_WORD``
+        recursion was removed, so a chat with ``mode="agent"`` runs exactly like
+        ``mode="chat"`` (a single turn, no iteration).
+
         :param chat: The current chat object.
         :param chat_mode: Explicit mode override (may be None).
         :param task_item: Task item from the latest user message.
-        :return: Dict with keys: chat_mode, is_refine, is_agent, is_vibe,
-                 is_search, needs_pre_search.
+        :return: Dict with keys: chat_mode, is_refine, is_vibe, is_search,
+                 needs_pre_search.
         """
         resolved_mode = chat_mode or chat.mode or "chat"
         is_refine: bool = _is_refine(resolved_mode)
-        is_agent: bool = resolved_mode == CHAT_MODE_AGENT
         is_vibe: bool = resolved_mode == CHAT_MODE_VIBE
         is_search: bool = task_item == TASK_ITEM_SEARCH
         needs_pre_search: bool = False # Deprecatred, use tools
 
         logger.info(
-            "Resolved chat mode flags: mode=%s is_refine=%s is_agent=%s "
+            "Resolved chat mode flags: mode=%s is_refine=%s "
             "is_vibe=%s is_search=%s needs_pre_search=%s",
-            resolved_mode, is_refine, is_agent, is_vibe, is_search, needs_pre_search
+            resolved_mode, is_refine, is_vibe, is_search, needs_pre_search
         )
 
         return {
             "chat_mode": resolved_mode,
             "is_refine": is_refine,
-            "is_agent": is_agent,
             "is_vibe": is_vibe,
             "is_search": is_search,
             "needs_pre_search": needs_pre_search,
@@ -507,7 +505,6 @@ class ChatEngine:
         self,
         chat: Chat,
         chat_mode: str,
-        is_agent: bool,
         is_vibe: bool,
         query_mentions: QueryMentions,
         chat_tools: List[str],
@@ -531,7 +528,6 @@ class ChatEngine:
 
         :param chat: The chat being processed (for tag context).
         :param chat_mode: Resolved chat mode.
-        :param is_agent: Whether the turn runs in agent mode.
         :param is_vibe: Whether the turn runs in vibe mode.
         :param query_mentions: Resolved mentions (profile names go into the tags).
         :param chat_tools: Tool names available to the model.
@@ -539,8 +535,6 @@ class ChatEngine:
         :return: Header dict for the AI request.
         """
         tags = [f"{chat.mode}"] + [p.name for p in query_mentions.profiles]
-        if is_agent:
-            tags.append("agent")
         if is_vibe:
             tags.append(CHAT_MODE_VIBE)
 
@@ -2026,8 +2020,7 @@ class ChatEngine:
         """
         Main entry point for processing a chat interaction with a project.
 
-        Handles context gathering, knowledge search, AI response generation,
-        and agent iteration logic.
+        Handles context gathering, knowledge search and AI response generation.
 
         A CancellationToken is registered in the global CANCELLATION_REGISTRY
         for the duration of this call (keyed by ``chat.doc_id``).  Each token
@@ -2131,10 +2124,8 @@ class ChatEngine:
             H -->|No| J
             J --> K{chat_mode?}
             K -->|task| L[Refine document]
-            K -->|agent| M[Agent prompt]
             K -->|chat| N[Standard user message]
             L --> O[Record Chat Session START]
-            M --> O
             N --> O
             O --> P[Load chat files - per message project_id]
             P --> Q[Prepare vision content]
@@ -2149,9 +2140,7 @@ class ChatEngine:
             S -->|Yes| T[bridge.publish - state persisted immediately]
             T --> U[Record Chat Session END]
             S -->|No| V[Parse response + bridge.publish final state]
-            V --> W{Agent done?}
-            W -->|No, iterations left| X[Recurse]
-            W -->|Yes| U[Record Chat Session END success]
+            V --> U[Record Chat Session END success]
             U --> Y[Unregister CancellationToken]
             Y --> Z[Return chat + docs]
 
@@ -2159,8 +2148,9 @@ class ChatEngine:
         :param disable_knowledge: If True, skip knowledge base search.
         :param callback: Optional streaming callback for partial responses.
         :param append_references: Whether to append document references to the response.
-        :param chat_mode: Override for the chat mode ('chat', 'task', 'agent', 'vibe').
-        :param iteration: Current agent iteration count.
+        :param chat_mode: Override for the chat mode ('chat', 'task', 'vibe'; the
+                          former 'agent' mode now behaves exactly as 'chat').
+        :param iteration: Current iteration count (kept for analytics).
         :param system: Optional system prompt override.
         :return: Tuple of (updated Chat, list of Documents).
         """
@@ -2247,8 +2237,7 @@ class ChatEngine:
         Internal implementation of chat_with_project.
 
         Separated from the public entry-point so that the cancellation token
-        can be registered / unregistered exactly once around the full
-        (possibly recursive) call tree.
+        can be registered / unregistered exactly once around the full call tree.
 
         See ``chat_with_project`` for full parameter documentation.
         """
@@ -2302,16 +2291,18 @@ class ChatEngine:
             )
             chat_mode = mode_flags["chat_mode"]
             is_refine: bool = mode_flags["is_refine"]
-            is_agent: bool = mode_flags["is_agent"]
             is_vibe: bool = mode_flags["is_vibe"]
             is_search: bool = mode_flags["is_search"]
             needs_pre_search: bool = mode_flags["needs_pre_search"]
 
             # ------------------------------------------------------------------
-            # 4. Agent iteration accounting
+            # 4. Iteration accounting (analytics only)
+            #
+            #    The former agent loop (AGENT_DONE_WORD + recursion) has been
+            #    removed, so a turn is a single AI request; the iteration values
+            #    are still recorded in the chat session analytics.
             # ------------------------------------------------------------------
             max_iterations = self.settings.get_agent_max_iterations()
-            iterations_left = max_iterations - iteration
 
             # ------------------------------------------------------------------
             # 5. Resolve parent chat
@@ -2687,7 +2678,6 @@ class ChatEngine:
             ai_headers = self._build_ai_headers(
                 chat=chat,
                 chat_mode=chat_mode,
-                is_agent=is_agent,
                 is_vibe=is_vibe,
                 query_mentions=query_mentions,
                 chat_tools=chat_tools,
@@ -2812,9 +2802,7 @@ class ChatEngine:
                 last_ai_message=last_ai_message,
                 context=context,
                 chat_files_content=chat_files_content,
-                is_refine=is_refine,
-                is_agent=is_agent,
-                iterations_left=iterations_left
+                is_refine=is_refine
             )
 
             # ------------------------------------------------------------------
@@ -2985,24 +2973,9 @@ class ChatEngine:
                 if _is_refine(chat_mode) or is_vibe:
                     self._hide_non_answer_messages(chat=chat)
 
-            # ------------------------------------------------------------------
-            # 24. Agent iteration recursion
-            # ------------------------------------------------------------------
-            is_agent_done = AGENT_DONE_WORD in response_message.content
-            if is_agent and not is_agent_done and iterations_left:
-                self.event_manager.chat_event(
-                    chat=chat, message=f"Agent iteration {iteration + 1}"
-                )
-                return await self._chat_with_project_inner(
-                    chat=chat,
-                    disable_knowledge=disable_knowledge,
-                    callback=callback,
-                    append_references=append_references,
-                    chat_mode=chat_mode,
-                    iteration=iteration + 1,
-                    system=system,
-                    cancellation_token=cancellation_token,
-                )
+            # NOTE: the former agent iteration recursion (``AGENT_DONE_WORD`` +
+            # ``is_agent``) has been removed: a turn is exactly one AI request,
+            # and long running work is driven by the board budget instead.
 
             # ADDED: Record chat session END on success
             if iteration == 0:

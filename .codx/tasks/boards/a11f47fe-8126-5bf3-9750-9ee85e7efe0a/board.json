@@ -1,0 +1,21 @@
+{
+  "id": "a11f47fe-8126-5bf3-9750-9ee85e7efe0a",
+  "title": "vLLM",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "vLLM",
+  "order": 92,
+  "columns": [
+    {
+      "id": "5d6ec3db-8e0b-4925-8361-7c7508dbc86c",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "background": "https://web-assets.dd-static.net/42588/1776305344-vllm-integration-vllm-hero.png",
+  "active": false,
+  "last_update": "2026-06-29T19:00:29.671Z",
+  "description": ""
+}

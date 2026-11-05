@@ -1,0 +1,27 @@
+{
+  "id": "a5e81c3f-e614-5aa0-be66-f648b1607b25",
+  "title": "Change manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Change manager",
+  "order": 31,
+  "description": "",
+  "columns": [
+    {
+      "id": "2698c87d-55a2-4675-b7ce-91453d09974e",
+      "title": "chat engine",
+      "color": "#C0382B",
+      "folder": "chat engine",
+      "order": 0
+    },
+    {
+      "id": "4e4892a3-e28f-462e-adaa-6af528cbb61a",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 1
+    }
+  ],
+  "last_update": "2025-09-29T13:56:35.466Z",
+  "active": false
+}

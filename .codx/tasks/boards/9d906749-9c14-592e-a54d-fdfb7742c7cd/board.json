@@ -1,0 +1,21 @@
+{
+  "id": "9d906749-9c14-592e-a54d-fdfb7742c7cd",
+  "title": "ChatDB",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "ChatDB",
+  "order": 34,
+  "columns": [
+    {
+      "id": "ae4d49ed-7560-4320-9b8b-6dfa7bbf8988",
+      "title": "Doc",
+      "color": "#000000",
+      "folder": "Doc",
+      "order": 0
+    }
+  ],
+  "background": "https://media.gettyimages.com/id/1778530904/vector/ai-chat-concept-chatbot-customer-service.jpg?s=612x612&w=gi&k=20&c=Qcyw0rfRmG5YZtmK2SksOrKZn-rNOmz19ax8ozCv6xs=",
+  "active": false,
+  "last_update": "2026-02-03T20:33:26.273Z",
+  "description": ""
+}

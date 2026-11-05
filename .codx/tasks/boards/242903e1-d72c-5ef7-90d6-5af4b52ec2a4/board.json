@@ -1,0 +1,21 @@
+{
+  "id": "242903e1-d72c-5ef7-90d6-5af4b52ec2a4",
+  "title": "Neurons",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "Neurons",
+  "order": 72,
+  "columns": [
+    {
+      "id": "648f2371-77fe-4d74-b325-6b011f1318c2",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkPijG2J2F60kj78USYhRMFF6cGK8CJWU6fQ&s",
+  "active": false,
+  "last_update": "2026-06-05T15:31:59.063Z",
+  "description": ""
+}

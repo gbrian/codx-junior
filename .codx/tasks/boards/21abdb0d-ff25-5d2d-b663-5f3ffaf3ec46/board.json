@@ -1,0 +1,21 @@
+{
+  "id": "21abdb0d-ff25-5d2d-b663-5f3ffaf3ec46",
+  "title": "Project viewer",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Project viewer",
+  "order": 97,
+  "description": "",
+  "background": "https://images.ctfassets.net/wfutmusr1t3h/7LQUp7WKqyvLkcd04aRS93/b2395e7ee5442a7614c0d4f8e1d14ec8/features-copilot-hero-poster.png",
+  "active": false,
+  "last_update": "2026-07-21T15:04:21.817Z",
+  "columns": [
+    {
+      "id": "4464a465-c0d2-4b69-ab94-0d0d29343b20",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

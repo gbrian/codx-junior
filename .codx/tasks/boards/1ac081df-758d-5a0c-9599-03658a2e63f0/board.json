@@ -1,0 +1,26 @@
+{
+  "id": "1ac081df-758d-5a0c-9599-03658a2e63f0",
+  "title": "Default",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Default",
+  "order": 7,
+  "columns": [
+    {
+      "id": "9b6075ea-facc-4185-a554-16cb30fa5417",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 0
+    },
+    {
+      "id": "2cccf072-8830-4f01-91b0-8d5c41e62b0e",
+      "title": "Ideas",
+      "color": "",
+      "folder": "Ideas",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "description": ""
+}

@@ -1,0 +1,22 @@
+{
+  "id": "879c2131-ced6-5eda-9197-b14f3c4de065",
+  "title": "Findings",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Findings",
+  "order": 109,
+  "description": "We need money to continue developing codx-junior ",
+  "background": "",
+  "project_id": null,
+  "columns": [
+    {
+      "id": "756cd011-cd84-4f39-af07-273ede46593e",
+      "title": "Plan",
+      "color": "#6366f1",
+      "folder": "Plan",
+      "order": 0
+    }
+  ],
+  "last_update": "2026-10-02T07:23:59.375Z",
+  "active": false
+}

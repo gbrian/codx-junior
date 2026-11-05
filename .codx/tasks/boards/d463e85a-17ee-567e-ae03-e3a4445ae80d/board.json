@@ -1,0 +1,20 @@
+{
+  "id": "d463e85a-17ee-567e-ae03-e3a4445ae80d",
+  "title": "LLM Project Knowledge Cache",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "LLM Project Knowledge Cache",
+  "order": 52,
+  "columns": [
+    {
+      "id": "1be0f6a6-ca5d-4143-a2b5-91575ca726cb",
+      "title": "Todo",
+      "color": "#000000",
+      "folder": "Todo",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-05-06T09:52:17.917Z",
+  "description": ""
+}

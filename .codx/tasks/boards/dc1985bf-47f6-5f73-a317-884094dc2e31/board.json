@@ -1,0 +1,28 @@
+{
+  "id": "dc1985bf-47f6-5f73-a317-884094dc2e31",
+  "title": "API",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "API",
+  "order": 6,
+  "columns": [
+    {
+      "id": "d94bb16c-682d-4dd6-89a9-7118f7cd8426",
+      "title": "Client",
+      "color": "#000000",
+      "folder": "Client",
+      "order": 0
+    },
+    {
+      "id": "e24c0132-6da8-4b6f-980b-f20a346542e5",
+      "title": "Backend",
+      "color": "#000000",
+      "folder": "Backend",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-14T08:24:24.209Z",
+  "description": "",
+  "background": "https://blog.postman.com/wp-content/uploads/2021/03/APIs-in-Postman-e1616786230943.png"
+}

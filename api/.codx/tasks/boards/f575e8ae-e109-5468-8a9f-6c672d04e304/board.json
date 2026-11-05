@@ -1,0 +1,34 @@
+{
+  "id": "f575e8ae-e109-5468-8a9f-6c672d04e304",
+  "title": "Project changes",
+  "type": "kanban",
+  "parent_id": "Engine",
+  "folder": "Project changes",
+  "order": 23,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "ab086b3d-9894-4e9d-8a9a-1d36616171d3",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "ae3fd76e-5ae4-4cbd-b423-4e49e9fdaa32",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "c8be11f9-0640-4746-8e8d-219ad68592d3",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-07-16T10:27:08.796Z",
+  "active": false
+}

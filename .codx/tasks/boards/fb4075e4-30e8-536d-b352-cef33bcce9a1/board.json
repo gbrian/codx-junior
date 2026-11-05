@@ -1,0 +1,21 @@
+{
+  "id": "fb4075e4-30e8-536d-b352-cef33bcce9a1",
+  "title": "Plugins",
+  "type": "kanban",
+  "parent_id": "",
+  "folder": "Plugins",
+  "order": 47,
+  "columns": [
+    {
+      "id": "40c50f76-69ca-4b2e-a5ac-b3865bad0c8b",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "background": "https://cdn-icons-png.flaticon.com/512/5155/5155006.png",
+  "active": false,
+  "last_update": "2026-08-11T06:57:22.720Z",
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "5a45d331-cccd-560b-bbf4-7f39a29dd9f0",
+  "title": "CISO \ud83d\udedf\ud83d\udee1\ufe0f\ud83d\udd10",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "CISO \ud83d\udedf\ud83d\udee1\ufe0f\ud83d\udd10",
+  "order": 101,
+  "description": "",
+  "background": "https://media.licdn.com/dms/image/v2/D5612AQEuOBJxz28stA/article-cover_image-shrink_720_1280/B56ZahoxvUHsAU-/0/1746468544392?e=2147483647&v=beta&t=hKZ13KQlL2x2Q1Sz0qslaR_eI1A2jZ_lYY-matwmgvI",
+  "active": false,
+  "last_update": "2026-08-16T06:15:47.258Z",
+  "columns": [
+    {
+      "id": "c12e24ae-589f-4b80-a6b6-5c4847c74084",
+      "title": "Debian/Ubuntu",
+      "color": "#000000",
+      "folder": "Debian-Ubuntu",
+      "order": 0
+    }
+  ]
+}

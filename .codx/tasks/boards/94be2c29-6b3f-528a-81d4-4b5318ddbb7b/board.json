@@ -1,0 +1,20 @@
+{
+  "id": "94be2c29-6b3f-528a-81d4-4b5318ddbb7b",
+  "title": "KanbanGrid",
+  "type": "kanban",
+  "parent_id": "kanban",
+  "folder": "KanbanGrid",
+  "order": 82,
+  "columns": [
+    {
+      "id": "b4778b51-976f-4856-88b9-39877faafa11",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-14T07:59:36.173Z",
+  "description": ""
+}

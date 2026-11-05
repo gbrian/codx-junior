@@ -1,0 +1,20 @@
+{
+  "id": "a4009678-6644-572d-bfb9-38dd10a98514",
+  "title": "Process Manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Process Manager",
+  "order": 51,
+  "columns": [
+    {
+      "id": "3686ed78-d381-4910-9c25-359c48603fe3",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-03-07T07:49:59.429Z",
+  "description": ""
+}

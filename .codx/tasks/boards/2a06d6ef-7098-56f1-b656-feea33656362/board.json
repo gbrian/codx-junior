@@ -1,0 +1,36 @@
+{
+  "id": "2a06d6ef-7098-56f1-b656-feea33656362",
+  "title": "User security",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "User security",
+  "order": 15,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "b0f469b5-e216-4961-9b22-97a39e1dd412",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "a9908d66-023d-4ba8-bd4b-34b8741cdff3",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "7e6d245f-7b78-4096-acda-a86386669167",
+      "title": "AI Keys",
+      "color": "#C70039",
+      "folder": "AI Keys",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-12-26T07:21:24.306Z",
+  "active": false,
+  "background": "https://cdn.prod.website-files.com/61f9ac76ff42a5fbc75ee0e4/6201b98caefe392b5623c452_icon-infosec.svg"
+}

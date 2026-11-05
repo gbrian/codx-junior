@@ -1,0 +1,35 @@
+{
+  "id": "43219aa1-c5ac-58c9-99ed-69428fc333e2",
+  "title": "Project management",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Project management",
+  "order": 13,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "eaea667b-bb6d-4e55-86fd-95b2988be3c0",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "9fcd99a1-625c-46fe-bfdd-c821ef6bcba6",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "35be3d93-9140-469a-936c-674d233eea5c",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-12-01T16:55:04.733Z",
+  "active": false
+}

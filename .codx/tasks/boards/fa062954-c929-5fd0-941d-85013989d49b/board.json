@@ -1,0 +1,21 @@
+{
+  "id": "fa062954-c929-5fd0-941d-85013989d49b",
+  "title": "Architecture",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Architecture",
+  "order": 45,
+  "columns": [
+    {
+      "id": "76d3f3f6-9b8d-48dc-a3cb-549a6f6ec234",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    }
+  ],
+  "background": "https://i.ytimg.com/vi/Z3OEsK2fUl8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCND-POzY9OEpomELWoyrbCjV2J_g",
+  "active": false,
+  "last_update": "2026-08-11T06:57:16.364Z",
+  "description": ""
+}

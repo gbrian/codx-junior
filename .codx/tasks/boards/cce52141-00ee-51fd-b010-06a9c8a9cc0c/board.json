@@ -1,0 +1,21 @@
+{
+  "id": "cce52141-00ee-51fd-b010-06a9c8a9cc0c",
+  "title": "Profiles Engine",
+  "type": "kanban",
+  "parent_id": "Profiles",
+  "folder": "Profiles Engine",
+  "order": 90,
+  "columns": [
+    {
+      "id": "2b45f2af-c26a-4274-89c5-f80c8ff114ed",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-j1rmqiItIt5o-pq4crEsDczLSzkjWnyLjOytuTl7zH9o0ZWcPRmJmpQ&s=10",
+  "active": false,
+  "last_update": "2026-06-25T11:16:25.163Z",
+  "description": ""
+}

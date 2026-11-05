@@ -1,0 +1,14 @@
+{
+  "id": "794aad74-adda-54c8-b90f-c767612465fb",
+  "title": "Browser sessions",
+  "type": "sprint",
+  "parent_id": null,
+  "folder": "Browser sessions",
+  "order": 112,
+  "description": "Add browser sessions to codx-junior",
+  "background": "",
+  "project_id": null,
+  "columns": [],
+  "last_update": "2026-10-06T05:40:15.441Z",
+  "active": false
+}

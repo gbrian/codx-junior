@@ -1,0 +1,22 @@
+{
+  "id": "811105ea-3d06-5b49-9881-4b66221d770d",
+  "title": "Kanban rethink",
+  "type": "kanban",
+  "parent_id": "codx-junior maintenance",
+  "folder": "Kanban rethink",
+  "order": 119,
+  "description": "Kanabn and Sprint re-design",
+  "background": "",
+  "project_id": null,
+  "users": [],
+  "columns": [
+    {
+      "id": "982a558d-706f-4d0b-890f-bc3f50d32fc9",
+      "title": "Design",
+      "color": "#6366f1",
+      "folder": "Design",
+      "order": 0
+    }
+  ],
+  "last_update": "2026-10-28T06:21:25.794Z"
+}

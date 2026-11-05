@@ -1,0 +1,21 @@
+{
+  "id": "7859b12d-9cd3-55bb-afff-dcda1b28142e",
+  "title": "Pull Requests",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Pull Requests",
+  "order": 25,
+  "columns": [
+    {
+      "id": "940ad023-84ff-48e4-bec2-97df33844c1e",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://media.crystallize.com/crystallize_marketing/24/9/4/1/pull_requests_best_practices.jpg",
+  "active": false,
+  "last_update": "2026-06-24T09:58:44.332Z",
+  "description": ""
+}

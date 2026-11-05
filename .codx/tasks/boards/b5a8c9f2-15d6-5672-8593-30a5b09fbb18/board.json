@@ -1,0 +1,56 @@
+{
+  "id": "b5a8c9f2-15d6-5672-8593-30a5b09fbb18",
+  "title": "kanban",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "kanban",
+  "order": 2,
+  "columns": [
+    {
+      "id": "Docs",
+      "title": "Docs",
+      "color": "",
+      "folder": "Docs",
+      "order": 0
+    },
+    {
+      "id": "93949475-1d8b-47cb-b004-d3e33694b8db",
+      "title": "Todo",
+      "color": "#2980B9",
+      "folder": "Todo",
+      "order": 1
+    },
+    {
+      "id": "88e42fe1-4478-4717-97bb-2f23562512fe",
+      "title": "Kanban funcitonality",
+      "color": "#000000",
+      "folder": "Kanban funcitonality",
+      "order": 2
+    },
+    {
+      "id": "tasks",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 3
+    },
+    {
+      "id": "20260308",
+      "title": "20260308",
+      "color": "",
+      "folder": "20260308",
+      "order": 4
+    },
+    {
+      "id": "slides",
+      "title": "slides",
+      "color": "",
+      "folder": "slides",
+      "order": 5
+    }
+  ],
+  "active": false,
+  "last_update": "2026-09-30T16:47:41.268Z",
+  "description": "",
+  "background": "https://res.cloudinary.com/monday-blogs/fl_lossy,f_auto,q_auto/wp-blog/2025/04/monday-dev-kanban-board-1.jpg"
+}

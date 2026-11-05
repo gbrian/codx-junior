@@ -1,0 +1,28 @@
+{
+  "id": "ad9f777a-1ffb-578d-95a6-169a24e4de80",
+  "title": "Vision",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "Vision",
+  "order": 37,
+  "columns": [
+    {
+      "id": "ab6ae3d6-5e15-4c66-98c1-58bf39415911",
+      "title": "Chat engine",
+      "color": "#000000",
+      "folder": "Chat engine",
+      "order": 0
+    },
+    {
+      "id": "6b3e740a-d6a1-4dff-8283-0ccedbcc3eff",
+      "title": "Test",
+      "color": "#000000",
+      "folder": "Test",
+      "order": 1
+    }
+  ],
+  "background": "https://sm.ign.com/t/ign_ap/articlepage/a/avengers-2-paul-bettanys-vision-of-the-future/avengers-2-paul-bettanys-vision-of-the-future_95dz.1280.jpg",
+  "active": false,
+  "last_update": "2026-02-05T11:05:01.849Z",
+  "description": ""
+}

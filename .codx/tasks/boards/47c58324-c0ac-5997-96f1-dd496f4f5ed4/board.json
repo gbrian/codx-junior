@@ -1,0 +1,35 @@
+{
+  "id": "47c58324-c0ac-5997-96f1-dd496f4f5ed4",
+  "title": "VideDesign",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "VideDesign",
+  "order": 58,
+  "description": "",
+  "background": "https://media.licdn.com/dms/image/v2/D5612AQF7v2NNeWfXOA/article-cover_image-shrink_720_1280/B56ZX8FIyLGsAI-/0/1743690962942?e=2147483647&v=beta&t=jyWZdSbnJ3ovemmNggRBXGHSVCCqt7mjjpJ4rug29Tw",
+  "active": false,
+  "last_update": "2026-05-06T09:51:47.951Z",
+  "columns": [
+    {
+      "id": "5c25ab8b-fdb6-4f67-8064-286f22663488",
+      "title": "Analysis",
+      "color": "#000000",
+      "folder": "Analysis",
+      "order": 0
+    },
+    {
+      "id": "7915f7ee-2c92-4145-978d-e27028e6f0ac",
+      "title": "Chat",
+      "color": "#000000",
+      "folder": "Chat",
+      "order": 1
+    },
+    {
+      "id": "513928bb-280a-4a79-a378-1e76687cd526",
+      "title": "vibe_engine",
+      "color": "#000000",
+      "folder": "vibe_engine",
+      "order": 2
+    }
+  ]
+}

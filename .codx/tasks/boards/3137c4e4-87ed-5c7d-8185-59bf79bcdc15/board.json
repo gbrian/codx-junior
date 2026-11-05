@@ -1,0 +1,28 @@
+{
+  "id": "3137c4e4-87ed-5c7d-8185-59bf79bcdc15",
+  "title": "Profiles",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Profiles",
+  "order": 5,
+  "columns": [
+    {
+      "id": "3c079004-6532-481e-9fd6-4a375a259f5b",
+      "title": "Backlog",
+      "color": "#3D556E",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "ab8c71db-c7f8-498a-8970-f4929c6e7b13",
+      "title": "Vue Developer",
+      "color": "#27AF60",
+      "folder": "Vue Developer",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-07-27T11:12:18.002Z",
+  "background": "https://www.godaddy.com/resources/wp-content/uploads/2024/02/customer-personas-featured-27KrIn.tmp_.jpeg?size=3840x0",
+  "description": ""
+}

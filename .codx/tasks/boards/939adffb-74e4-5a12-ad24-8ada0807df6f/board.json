@@ -1,0 +1,21 @@
+{
+  "id": "939adffb-74e4-5a12-ad24-8ada0807df6f",
+  "title": "Teams",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Teams",
+  "order": 57,
+  "description": "",
+  "background": "https://i.ytimg.com/vi/SF66iB7L1wE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDNkTbtE6Hn7qn1dMwfQiMCy5fElA",
+  "active": false,
+  "last_update": "2026-08-07T11:34:32.606Z",
+  "columns": [
+    {
+      "id": "176d4f75-80be-4981-9af7-355317e78691",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

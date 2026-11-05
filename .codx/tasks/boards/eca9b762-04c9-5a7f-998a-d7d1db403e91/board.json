@@ -1,0 +1,21 @@
+{
+  "id": "eca9b762-04c9-5a7f-998a-d7d1db403e91",
+  "title": "Claude",
+  "type": "kanban",
+  "parent_id": "Plugins",
+  "folder": "Claude",
+  "order": 86,
+  "columns": [
+    {
+      "id": "d8800a8f-d006-4724-b8e8-98984ce6921e",
+      "title": "Claude Code",
+      "color": "#000000",
+      "folder": "Claude Code",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxcSBrF4tRCyyDN_5zdaa8u7uBtDvkh-sE8Q&s",
+  "active": false,
+  "last_update": "2026-06-19T13:22:16.460Z",
+  "description": ""
+}

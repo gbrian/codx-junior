@@ -1,0 +1,21 @@
+{
+  "id": "411b8c2d-e428-5386-a779-294ed208f64b",
+  "title": "DevOps Azure",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "DevOps Azure",
+  "order": 46,
+  "columns": [
+    {
+      "id": "7bec64ad-621e-4fce-bbea-ee8a9f5a7068",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJcJ87t0ZXaa47pth1vzcnpejJLGkXepYeVP83ILQwfHeexcCKD9SQIlKR&s=10",
+  "active": false,
+  "last_update": "2025-11-10T08:07:52.721Z",
+  "description": ""
+}

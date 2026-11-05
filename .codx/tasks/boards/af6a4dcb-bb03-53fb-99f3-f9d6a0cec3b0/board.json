@@ -1,0 +1,27 @@
+{
+  "id": "af6a4dcb-bb03-53fb-99f3-f9d6a0cec3b0",
+  "title": "mentions",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "mentions",
+  "order": 12,
+  "columns": [
+    {
+      "id": "dd0f726d-2742-48cd-80ea-7f1c5934ca13",
+      "title": "analysis",
+      "color": "",
+      "folder": "analysis",
+      "order": 0
+    },
+    {
+      "id": "f6249fab-a7d5-4b30-b062-c3096abcc7e2",
+      "title": "changes",
+      "color": "",
+      "folder": "changes",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-18T05:24:11.776Z",
+  "description": ""
+}

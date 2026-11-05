@@ -1,0 +1,21 @@
+{
+  "id": "64bae913-9a0e-5bcb-8ed7-6accab9eac33",
+  "title": "Chat engine",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Chat engine",
+  "order": 38,
+  "columns": [
+    {
+      "id": "b223ca4b-d889-4511-ae10-4dc657c0ef33",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-11-24T18:10:57.374Z",
+  "active": false,
+  "background": "https://docs.flowiseai.com/~gitbook/image?url=https%3A%2F%2F823733684-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252F00tYLwhz5RyR7fJEhrWy%252Fuploads%252Fgit-blob-f303c3dc94ff7a2e14506fe163eab25ab2785c36%252Fimage%2520%283%29%2520%281%29%2520%281%29%2520%281%29%2520%281%29%2520%281%29%2520%281%29%2520%282%29%2520%281%29%2520%281%29.png%3Falt%3Dmedia&width=400&dpr=3&quality=100&sign=c32efafb&sv=2",
+  "description": ""
+}

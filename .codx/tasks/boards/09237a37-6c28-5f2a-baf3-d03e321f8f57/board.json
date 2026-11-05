@@ -1,0 +1,22 @@
+{
+  "id": "09237a37-6c28-5f2a-baf3-d03e321f8f57",
+  "title": "The Profiles",
+  "type": "kanban",
+  "parent_id": "Profiles",
+  "folder": "The Profiles",
+  "order": 98,
+  "description": "",
+  "background": "https://techcrunch.com/wp-content/uploads/2022/07/facebook-profiles.jpg",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-07-27T07:29:22.574Z",
+  "columns": [
+    {
+      "id": "568fce00-4684-45e0-a2d7-fe26fdf5d244",
+      "title": "How To Guide",
+      "color": "#000000",
+      "folder": "How To Guide",
+      "order": 0
+    }
+  ]
+}

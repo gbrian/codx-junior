@@ -1,0 +1,20 @@
+{
+  "id": "a9b32140-4c36-516a-b985-c648dd01f556",
+  "title": "Knowledge RAG Generation",
+  "type": "kanban",
+  "parent_id": "Knowledge",
+  "folder": "Knowledge RAG Generation",
+  "order": 33,
+  "description": "",
+  "columns": [
+    {
+      "id": "d908a08f-5500-42d7-a2ce-9347eb968c2c",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-17T11:40:06.776Z",
+  "active": false
+}

@@ -1,0 +1,22 @@
+{
+  "id": "2829f4ad-6271-5d1c-b092-5fedc915c6fd",
+  "title": "AnythinLLM",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "AnythinLLM",
+  "order": 106,
+  "description": "",
+  "background": "https://repository-images.githubusercontent.com/649170660/c5b68040-7062-4d38-bf7f-f6e57c8d2396",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-13T11:51:24.739Z",
+  "columns": [
+    {
+      "id": "bef5cc2a-aff7-47b3-8412-7025092e558a",
+      "title": "Analysis",
+      "color": "#000000",
+      "folder": "Analysis",
+      "order": 0
+    }
+  ]
+}

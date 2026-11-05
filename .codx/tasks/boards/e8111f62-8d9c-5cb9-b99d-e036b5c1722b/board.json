@@ -1,0 +1,28 @@
+{
+  "id": "e8111f62-8d9c-5cb9-b99d-e036b5c1722b",
+  "title": "Tools",
+  "type": "kanban",
+  "parent_id": "codx-agents",
+  "folder": "Tools",
+  "order": 60,
+  "columns": [
+    {
+      "id": "fa7dd530-f764-4aab-8cca-2f68f668a062",
+      "title": "General",
+      "color": "#000000",
+      "folder": "General",
+      "order": 0
+    },
+    {
+      "id": "4e6c6eef-723f-44eb-b083-9ce33a7abae6",
+      "title": "Project Tools",
+      "color": "#000000",
+      "folder": "Project Tools",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-09-10T17:03:16.126Z",
+  "description": "",
+  "background": "https://attuneops.io/wp-content/uploads/2024/06/Script-Automation-Guide.webp"
+}

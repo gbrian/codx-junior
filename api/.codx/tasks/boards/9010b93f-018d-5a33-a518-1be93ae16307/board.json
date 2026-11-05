@@ -1,0 +1,20 @@
+{
+  "id": "9010b93f-018d-5a33-a518-1be93ae16307",
+  "title": "My board",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "My board",
+  "order": 4,
+  "columns": [
+    {
+      "id": "199811fe-7048-4859-acde-bd9b5979eef9",
+      "title": "Wiki",
+      "color": "#3398DB",
+      "folder": "Wiki",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2025-02-28T06:54:52.952Z",
+  "description": ""
+}

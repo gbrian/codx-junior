@@ -1,0 +1,35 @@
+{
+  "id": "7ae3736a-7beb-52de-bd40-0a66a86bbe8a",
+  "title": "scripts",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "scripts",
+  "order": 11,
+  "description": "codx-junior scripts",
+  "branch": "",
+  "columns": [
+    {
+      "id": "d1d8de70-25f8-47b1-ad08-013809004568",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "ed41fe41-3ead-4025-861a-ae5f3a23a812",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "1b4ce1ea-1f15-40a8-98da-3e01393dda83",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-03-16T14:41:59.187Z",
+  "active": false
+}

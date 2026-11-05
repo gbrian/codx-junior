@@ -1,0 +1,21 @@
+{
+  "id": "0ad61c15-957f-59d1-a204-4a19e5de1643",
+  "title": "Find-A-Maintainer",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Find-A-Maintainer",
+  "order": 27,
+  "columns": [
+    {
+      "id": "e8d10dc1-64e6-4bc2-b7ae-a35b5246bcf2",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS4GS_ukOOufIiRUuOjagPpGcVHZCjVnhIEGA&s",
+  "active": false,
+  "last_update": "2025-12-07T07:07:44.051Z",
+  "description": ""
+}

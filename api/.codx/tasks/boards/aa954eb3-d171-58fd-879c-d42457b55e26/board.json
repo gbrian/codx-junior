@@ -1,0 +1,35 @@
+{
+  "id": "aa954eb3-d171-58fd-879c-d42457b55e26",
+  "title": "Knowledge Wiki",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Knowledge Wiki",
+  "order": 51,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "27c100eb-1ec5-4a47-bd78-c84c4acebe06",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "85bd8c7d-1845-485a-8787-2bea20052fa6",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "39160ea2-c614-48b5-8daa-757bb27d6385",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-03-07T07:37:02.281Z",
+  "active": false
+}

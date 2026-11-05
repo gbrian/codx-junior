@@ -1,0 +1,21 @@
+{
+  "id": "954f506d-0af1-56fc-ad16-f2ffe01d8b00",
+  "title": "Settings",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Settings",
+  "order": 47,
+  "columns": [
+    {
+      "id": "70dfea6d-3b52-4f35-b000-4eb4180f3278",
+      "title": "Todo",
+      "color": "#000000",
+      "folder": "Todo",
+      "order": 0
+    }
+  ],
+  "background": "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/esupport/esupport-pages/windows-11-settings-system-display-scale-layout.png",
+  "active": false,
+  "last_update": "2025-11-14T06:50:17.754Z",
+  "description": ""
+}

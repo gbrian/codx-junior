@@ -1,0 +1,22 @@
+{
+  "id": "caad3de0-42c6-5dfe-a20b-988008784311",
+  "title": "Mobile Home",
+  "type": "kanban",
+  "parent_id": "Mobile",
+  "folder": "Mobile Home",
+  "order": 104,
+  "description": "",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-08-13T19:01:21.013Z",
+  "columns": [
+    {
+      "id": "8bec3a05-3fba-4e40-9b14-df4f0fedb7b7",
+      "title": "Design",
+      "color": "#000000",
+      "folder": "Design",
+      "order": 0
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "26570b9d-5911-59fb-bc88-cabeaac5c1d8",
+  "title": "Visualization",
+  "type": "kanban",
+  "parent_id": "Pul Requests",
+  "folder": "Visualization",
+  "order": 42,
+  "columns": [
+    {
+      "id": "b7ddac57-47ac-4bbf-93ec-c1d12f6e28ea",
+      "title": "PRView component",
+      "color": "#000000",
+      "folder": "PRView component",
+      "order": 0
+    }
+  ],
+  "background": "https://framerusercontent.com/images/4XOf98OxfgY2HrcW4ymZPQr8II.png",
+  "active": false,
+  "last_update": "2026-02-17T07:41:14.937Z",
+  "description": ""
+}

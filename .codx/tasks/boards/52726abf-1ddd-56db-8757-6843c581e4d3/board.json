@@ -1,0 +1,28 @@
+{
+  "id": "52726abf-1ddd-56db-8757-6843c581e4d3",
+  "title": "Ask codx-junior",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "Ask codx-junior",
+  "order": 55,
+  "columns": [
+    {
+      "id": "9a53e901-1bbb-4436-bf95-9a01c1fc65e2",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    },
+    {
+      "id": "cc0b42ce-1cd9-4e38-848e-bfb3f391d82d",
+      "title": "Discussions",
+      "color": "#000000",
+      "folder": "Discussions",
+      "order": 1
+    }
+  ],
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl95Rg49hUuvN0hfIgw977WaAIAZ6dwxqusA&s",
+  "active": false,
+  "last_update": "2026-06-27T17:30:27.997Z",
+  "description": ""
+}

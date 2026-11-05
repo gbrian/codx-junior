@@ -1,0 +1,21 @@
+{
+  "id": "ed82991b-7f98-5af9-bfef-3ebde3f332bc",
+  "title": "Profiles",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Profiles",
+  "order": 11,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "1120279b-7af2-4e44-9f21-6737ead713ea",
+      "title": "Profiles",
+      "color": "",
+      "folder": "Profiles",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-04-16T13:38:15.566Z",
+  "active": false
+}

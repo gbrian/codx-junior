@@ -1,0 +1,13 @@
+{
+  "id": "7c07ff05-7319-5296-b8b8-1bf3d57704cf",
+  "title": "Kanban history",
+  "type": "kanban",
+  "parent_id": "kanban",
+  "folder": "Kanban history",
+  "order": 69,
+  "columns": [],
+  "background": "https://static1.squarespace.com/static/5c62c09c4d546e27dc1016c7/t/5cdebde31a203100017741c8/1558101476347/backintime1.jpg?format=1500w",
+  "active": false,
+  "last_update": "2026-05-16T15:53:47.162Z",
+  "description": ""
+}

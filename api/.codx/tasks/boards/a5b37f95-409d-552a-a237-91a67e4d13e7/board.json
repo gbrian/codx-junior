@@ -1,0 +1,35 @@
+{
+  "id": "a5b37f95-409d-552a-a237-91a67e4d13e7",
+  "title": "chatGPT API EndPoints",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "chatGPT API EndPoints",
+  "order": 8,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "59fcc82c-d3b7-43d7-a0f7-8c244851471b",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "581233ad-28a3-4af9-a579-ce253de55db2",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "92bff602-60bd-4556-8c2c-ef4aab9d169d",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-03-26T12:30:13.593Z",
+  "active": false
+}

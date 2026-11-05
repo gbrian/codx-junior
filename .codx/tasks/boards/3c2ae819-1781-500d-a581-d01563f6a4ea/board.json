@@ -1,0 +1,51 @@
+{
+  "id": "3c2ae819-1781-500d-a581-d01563f6a4ea",
+  "title": "Project auto wiki and documentation",
+  "type": "sprint",
+  "parent_id": "codx-junior-agents",
+  "folder": "Project auto wiki and documentation",
+  "order": 117,
+  "description": "Tasks related with the auto wiki and project documenatation and support",
+  "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR-dAdE87EGP_E6TgDtQ2tB6oCap_Bo80yRGwJhBHPOYPrl6gUY3006BgQ&s=10",
+  "project_id": null,
+  "users": [],
+  "columns": [
+    {
+      "id": "todo",
+      "title": "To Do",
+      "color": "",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "doing",
+      "title": "Doing",
+      "color": "#6366f1",
+      "folder": "Doing",
+      "order": 1
+    },
+    {
+      "id": "onhold",
+      "title": "On Hold",
+      "color": "",
+      "folder": "On Hold",
+      "order": 2
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3
+    },
+    {
+      "id": "rejected",
+      "title": "Rejected",
+      "color": "",
+      "folder": "Rejected",
+      "order": 4
+    }
+  ],
+  "last_update": "2026-10-16T14:10:05.689Z",
+  "active": false
+}

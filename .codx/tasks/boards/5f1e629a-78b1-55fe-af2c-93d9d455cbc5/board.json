@@ -1,0 +1,21 @@
+{
+  "id": "5f1e629a-78b1-55fe-af2c-93d9d455cbc5",
+  "title": "Wiki",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Wiki",
+  "order": 31,
+  "columns": [
+    {
+      "id": "ffa4707e-2a6f-4017-8787-627e7b015879",
+      "title": "Documentation",
+      "color": "#000000",
+      "folder": "Documentation",
+      "order": 0
+    }
+  ],
+  "background": "https://www.dondominio.com/assets/images/products/domains/wiki.png",
+  "active": false,
+  "last_update": "2026-08-28T08:30:36.666Z",
+  "description": ""
+}

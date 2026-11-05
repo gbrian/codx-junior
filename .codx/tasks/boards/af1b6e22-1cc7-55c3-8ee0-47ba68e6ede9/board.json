@@ -1,0 +1,20 @@
+{
+  "id": "af1b6e22-1cc7-55c3-8ee0-47ba68e6ede9",
+  "title": "PR: Project changes review",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "PR: Project changes review",
+  "order": 24,
+  "description": "Allows to review project's repo changes AKA \"PR\"",
+  "columns": [
+    {
+      "id": "94dade8b-1dd8-419d-ad40-74e731abc9fa",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-09-16T07:47:20.399Z",
+  "active": false
+}

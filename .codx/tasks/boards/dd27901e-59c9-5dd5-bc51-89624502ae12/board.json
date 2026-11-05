@@ -1,0 +1,33 @@
+{
+  "id": "dd27901e-59c9-5dd5-bc51-89624502ae12",
+  "title": "Code to LLM",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Code to LLM",
+  "order": 9,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "9d5c811d-5cb7-4bb2-a3b9-a7d2226ebea1",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "b9d7498a-1014-4415-817e-495dc3a86860",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "eeba4bf2-07df-40bd-8cda-aafe6b1d5804",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "active": false
+}

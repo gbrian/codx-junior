@@ -1,0 +1,20 @@
+{
+  "id": "2fd1711a-c10c-578c-9e8a-5ff021c51757",
+  "title": "Knowledge Settings",
+  "type": "kanban",
+  "parent_id": "Knowledge management",
+  "folder": "Knowledge Settings",
+  "order": 62,
+  "columns": [
+    {
+      "id": "7d5b8421-f954-4408-88b2-d451f4e13f0f",
+      "title": "UI",
+      "color": "#000000",
+      "folder": "UI",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-21T15:24:18.822Z",
+  "description": ""
+}

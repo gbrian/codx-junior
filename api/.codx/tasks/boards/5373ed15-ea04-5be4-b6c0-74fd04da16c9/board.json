@@ -1,0 +1,19 @@
+{
+  "id": "5373ed15-ea04-5be4-b6c0-74fd04da16c9",
+  "title": "Browser",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Browser",
+  "order": 5,
+  "columns": [
+    {
+      "id": "d6f4687d-a0e9-4750-a9af-de6ffff54396",
+      "title": "def",
+      "color": "",
+      "folder": "def",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "description": ""
+}

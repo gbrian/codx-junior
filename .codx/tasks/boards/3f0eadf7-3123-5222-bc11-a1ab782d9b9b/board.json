@@ -1,0 +1,21 @@
+{
+  "id": "3f0eadf7-3123-5222-bc11-a1ab782d9b9b",
+  "title": "AI - Playground",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "AI - Playground",
+  "order": 10,
+  "description": "AI Plground to test different models",
+  "branch": "",
+  "columns": [
+    {
+      "id": "abb3810f-d941-4924-bbef-3a1a54e71c95",
+      "title": "TO DO",
+      "color": "#3D556E",
+      "folder": "TO DO",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-03-10T06:45:41.695Z",
+  "active": false
+}

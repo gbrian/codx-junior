@@ -1,0 +1,19 @@
+{
+  "id": "0fb8c88d-91b7-51f2-80aa-7e87a7092060",
+  "title": "OpenAI",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "OpenAI",
+  "order": 1,
+  "columns": [
+    {
+      "id": "702a4fa3-9bc8-473c-b752-1c9850bee781",
+      "title": "TO DO",
+      "color": "",
+      "folder": "TO DO",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "description": ""
+}

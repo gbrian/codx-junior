@@ -1,0 +1,20 @@
+{
+  "id": "4b54bd25-ac78-5079-9ef6-15f69898cb3b",
+  "title": "VueFinder",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "VueFinder",
+  "order": 49,
+  "columns": [
+    {
+      "id": "b849c33f-e815-4bfb-b0a4-3b8903c769e6",
+      "title": "Tasks",
+      "color": "#222F3D",
+      "folder": "Tasks",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-03-02T16:10:29.014Z",
+  "description": ""
+}

@@ -1,0 +1,34 @@
+{
+  "id": "682bd0db-b414-54ab-94f5-1cf0aea294b6",
+  "title": "MCP Servers",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "MCP Servers",
+  "order": 18,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "d50a4096-6d65-4492-80ad-2fe08b61b6a8",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "a8602d8c-9147-4a49-8c8e-be3d5e94b704",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "9a24c2de-d03e-4f2c-a291-70f915adf0c3",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-09-13T15:52:37.301Z",
+  "active": false
+}

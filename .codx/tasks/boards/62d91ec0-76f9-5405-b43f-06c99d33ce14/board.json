@@ -1,0 +1,20 @@
+{
+  "id": "62d91ec0-76f9-5405-b43f-06c99d33ce14",
+  "title": "Prices",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "Prices",
+  "order": 79,
+  "columns": [
+    {
+      "id": "70f96685-cb19-4fdc-b778-ab0308ed437a",
+      "title": "Providers",
+      "color": "#000000",
+      "folder": "Providers",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-27T07:47:38.182Z",
+  "description": ""
+}

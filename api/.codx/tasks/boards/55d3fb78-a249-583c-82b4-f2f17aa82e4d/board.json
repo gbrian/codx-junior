@@ -1,0 +1,41 @@
+{
+  "id": "55d3fb78-a249-583c-82b4-f2f17aa82e4d",
+  "title": "codx-junior",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-junior",
+  "order": 14,
+  "columns": [
+    {
+      "id": "5bb0fb15-7f80-40bf-9381-c29c13dd36aa",
+      "title": "2025-05-15",
+      "color": "",
+      "folder": "2025-05-15",
+      "order": 0
+    },
+    {
+      "id": "ffabf6ac-cdf2-48f0-9190-b94d1a045ae5",
+      "title": "2025-05-25",
+      "color": "",
+      "folder": "2025-05-25",
+      "order": 1
+    },
+    {
+      "id": "f81c79b7-2bf1-46cc-ab90-d9c3704d78ad",
+      "title": "2025-05-26",
+      "color": "",
+      "folder": "2025-05-26",
+      "order": 2
+    },
+    {
+      "id": "d507330d-a62b-4690-a7d5-01864d5dda9a",
+      "title": "2025-08-25",
+      "color": "",
+      "folder": "2025-08-25",
+      "order": 3
+    }
+  ],
+  "active": false,
+  "last_update": "2025-10-12T06:57:11.806Z",
+  "description": ""
+}

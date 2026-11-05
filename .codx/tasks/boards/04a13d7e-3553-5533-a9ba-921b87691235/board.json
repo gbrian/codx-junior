@@ -1,0 +1,22 @@
+{
+  "id": "04a13d7e-3553-5533-a9ba-921b87691235",
+  "title": "Project Workspace",
+  "type": "kanban",
+  "parent_id": "Workspaces",
+  "folder": "Project Workspace",
+  "order": 95,
+  "description": "",
+  "background": "",
+  "project_id": null,
+  "active": false,
+  "last_update": "2026-07-11T10:35:00.333Z",
+  "columns": [
+    {
+      "id": "7b5d588e-d282-41db-80ac-8ec32b8e9a41",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "d6a6f442-bac9-54c7-8533-7964ed86b0af",
+  "title": "dock-view",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "dock-view",
+  "order": 56,
+  "description": "",
+  "background": "https://github.com/mathuo/dockview/raw/master/packages/docs/static/img/splashscreen.gif",
+  "active": false,
+  "last_update": "2026-07-17T10:54:53.753Z",
+  "columns": [
+    {
+      "id": "38aae91a-c726-4b81-9247-45640034a7b5",
+      "title": "Dock-View",
+      "color": "#000000",
+      "folder": "Dock-View",
+      "order": 0
+    },
+    {
+      "id": "3232c99a-238d-461d-89c0-2a0ec4c00588",
+      "title": "Maintenance",
+      "color": "#000000",
+      "folder": "Maintenance",
+      "order": 1
+    },
+    {
+      "id": "c3c1049e-2bc9-4b71-a417-001a27d649e1",
+      "title": "Components",
+      "color": "#000000",
+      "folder": "Components",
+      "order": 2
+    }
+  ]
+}

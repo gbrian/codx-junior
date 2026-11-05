@@ -1,0 +1,49 @@
+{
+  "id": "a8741016-e85a-54c4-a0f9-9dfe92c0bb5e",
+  "title": "UI - Components",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "UI - Components",
+  "order": 65,
+  "columns": [
+    {
+      "id": "c7cd4e1d-e964-47b5-96f2-716b9d751dcf",
+      "title": "Document",
+      "color": "#000000",
+      "folder": "Document",
+      "order": 0
+    },
+    {
+      "id": "a908d62d-bf34-4522-96a0-fe143366eb92",
+      "title": "Mardown",
+      "color": "#000000",
+      "folder": "Mardown",
+      "order": 1
+    },
+    {
+      "id": "f05a9ab7-5f18-49d7-83ba-201b28b6df19",
+      "title": "Chat",
+      "color": "#000000",
+      "folder": "Chat",
+      "order": 2
+    },
+    {
+      "id": "575e6d21-1e25-4fd7-82fc-aecf465be0ca",
+      "title": "Service / Store",
+      "color": "#000000",
+      "folder": "Service - Store",
+      "order": 3
+    },
+    {
+      "id": "c2d415c6-b4bb-4ed0-b3cd-46f1191114d5",
+      "title": "ChatEntry",
+      "color": "#000000",
+      "folder": "ChatEntry",
+      "order": 4
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-29T08:56:57.378Z",
+  "view": "grid",
+  "description": ""
+}

@@ -1,0 +1,20 @@
+{
+  "id": "f11f82af-170c-5504-84ca-86f11d322aa3",
+  "title": "UI Components",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "UI Components",
+  "order": 78,
+  "columns": [
+    {
+      "id": "56c0a2ab-a46e-4616-95f0-16e301a1bf08",
+      "title": "Front",
+      "color": "#000000",
+      "folder": "Front",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-08-11T15:38:30.303Z",
+  "description": ""
+}

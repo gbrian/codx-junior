@@ -1,0 +1,35 @@
+{
+  "id": "b451317e-9828-5a17-b967-eb1c26a8fb58",
+  "title": "Metrics",
+  "type": "kanban",
+  "parent_id": "Models",
+  "folder": "Metrics",
+  "order": 75,
+  "columns": [
+    {
+      "id": "684c9a7f-8597-44e7-a439-eba9d4096296",
+      "title": "Metrics",
+      "color": "#000000",
+      "folder": "Metrics",
+      "order": 0
+    },
+    {
+      "id": "b977dbfc-3b38-4293-8352-de64524a8253",
+      "title": "Dashboard",
+      "color": "#000000",
+      "folder": "Dashboard",
+      "order": 1
+    },
+    {
+      "id": "aeced39f-af81-4583-bf9a-033500b31100",
+      "title": "Settings",
+      "color": "#000000",
+      "folder": "Settings",
+      "order": 2
+    }
+  ],
+  "background": "https://miro.medium.com/1*fH5RV6jPrr0JvCbYMoNbJA.png",
+  "active": false,
+  "last_update": "2026-07-30T08:52:34.178Z",
+  "description": ""
+}

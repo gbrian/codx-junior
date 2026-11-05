@@ -1,0 +1,20 @@
+{
+  "id": "f71aa0df-ae52-50f8-9d5f-5bf8fd53994a",
+  "title": "litgpt",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "litgpt",
+  "order": 35,
+  "columns": [
+    {
+      "id": "bae1e760-319e-435c-9a26-45450100af94",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-30T13:16:39.787Z",
+  "active": false,
+  "description": ""
+}

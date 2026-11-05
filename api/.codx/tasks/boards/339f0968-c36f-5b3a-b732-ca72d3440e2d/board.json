@@ -1,0 +1,21 @@
+{
+  "id": "339f0968-c36f-5b3a-b732-ca72d3440e2d",
+  "title": "Traefik",
+  "type": "kanban",
+  "parent_id": "workspaces",
+  "folder": "Traefik",
+  "order": 52,
+  "columns": [
+    {
+      "id": "f389d745-eba1-49d0-a937-a6ff2ebdde45",
+      "title": "API",
+      "color": "#000000",
+      "folder": "API",
+      "order": 0
+    }
+  ],
+  "background": "https://accesto.com/blog/static/ac161e7e67849151d78e7e6f73eebfd5/f3583/docker-reverse-proxy-cover.png",
+  "active": false,
+  "last_update": "2026-03-31T03:29:29.126Z",
+  "description": ""
+}

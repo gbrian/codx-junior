@@ -1,0 +1,35 @@
+{
+  "id": "91272e97-2a74-5b7b-9803-9b455bfe6698",
+  "title": "Chat Manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Chat Manager",
+  "order": 24,
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "9c632adf-d7c2-49e0-8482-612d5abcaf8d",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "b9221d8f-417e-40db-8b59-6c0305dd7222",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "9b70cdd7-7e1c-4ffa-aa99-6b77c558d659",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-11-23T09:48:24.291Z",
+  "active": false,
+  "background": "https://img.freepik.com/vector-gratis/burbujas-mensajes-establecen-varios-colores_78370-8184.jpg?semt=ais_hybrid&w=740&q=80"
+}

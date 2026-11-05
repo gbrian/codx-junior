@@ -1,0 +1,28 @@
+{
+  "id": "426a5fcb-4754-5ef9-bc2f-dc03e39676f2",
+  "title": "Watcher",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Watcher",
+  "order": 38,
+  "columns": [
+    {
+      "id": "5517744a-0357-4d1b-8318-9ac661fc85d6",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    },
+    {
+      "id": "5ce7d033-bb2e-4ea5-814a-dcb2a506e7a8",
+      "title": "ProjectFileWatcher",
+      "color": "#000000",
+      "folder": "ProjectFileWatcher",
+      "order": 1
+    }
+  ],
+  "background": "https://gaming-cdn.com/images/products/18995/616x353/rain-world-the-watcher-pc-juego-steam-cover.jpg?v=1743502389",
+  "active": false,
+  "last_update": "2026-02-06T09:51:35.909Z",
+  "description": ""
+}

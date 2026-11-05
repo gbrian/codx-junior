@@ -1,0 +1,20 @@
+{
+  "id": "6170244e-3bba-58ab-b287-4d653b18e6dd",
+  "title": "Chat Manager Agent Mode",
+  "type": "kanban",
+  "parent_id": "codx-agents",
+  "folder": "Chat Manager Agent Mode",
+  "order": 87,
+  "columns": [
+    {
+      "id": "82b34a7f-d889-46ed-ab18-0be4c2a20f0b",
+      "title": "Chat Manager Agent Features",
+      "color": "#000000",
+      "folder": "Chat Manager Agent Features",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-06-19T13:22:05.306Z",
+  "description": ""
+}

@@ -1,0 +1,35 @@
+{
+  "id": "257a9ac2-590f-58a5-998a-356a8338d78f",
+  "title": "Knowledge management",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Knowledge management",
+  "order": 39,
+  "columns": [
+    {
+      "id": "7254522d-8956-438d-91f3-4356450dedc9",
+      "title": "Docs",
+      "color": "#000000",
+      "folder": "Docs",
+      "order": 0
+    },
+    {
+      "id": "8ba19b9d-346e-49a7-a168-044d51d535ed",
+      "title": "Chat searcher",
+      "color": "#3398DB",
+      "folder": "Chat searcher",
+      "order": 1
+    },
+    {
+      "id": "949baff2-8508-4af4-8651-3cb820cf438e",
+      "title": "Background processes",
+      "color": "#000000",
+      "folder": "Background processes",
+      "order": 2
+    }
+  ],
+  "background": "https://images.datagraphs.com/F8Mvj5493/knowledge-graph-visualization-in-data-graphs-3.jpg",
+  "active": false,
+  "last_update": "2026-08-14T05:33:57.734Z",
+  "description": ""
+}

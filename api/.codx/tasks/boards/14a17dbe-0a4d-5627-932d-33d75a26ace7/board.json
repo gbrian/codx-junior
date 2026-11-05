@@ -1,0 +1,20 @@
+{
+  "id": "14a17dbe-0a4d-5627-932d-33d75a26ace7",
+  "title": "Code Reviews",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Code Reviews",
+  "order": 39,
+  "description": "Code reviews and code quality board",
+  "columns": [
+    {
+      "id": "f8b8dfe8-6460-44d9-b360-8c0283c4f0d7",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-10-09T04:40:30.384Z",
+  "active": false
+}

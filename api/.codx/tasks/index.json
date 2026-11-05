@@ -1,0 +1,446 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "36000fec-cd2f-5043-b75c-63a43bc6b69d",
+      "title": "Task manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Task manager",
+      "order": 0
+    },
+    {
+      "id": "0fb8c88d-91b7-51f2-80aa-7e87a7092060",
+      "title": "OpenAI",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "OpenAI",
+      "order": 1
+    },
+    {
+      "id": "8eb68278-ed9a-5dd9-b69b-0f02337f1f68",
+      "title": "kanban",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "kanban",
+      "order": 2
+    },
+    {
+      "id": "e52cca48-df4a-5595-838d-982a62caa615",
+      "title": "Default",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Default",
+      "order": 3
+    },
+    {
+      "id": "9010b93f-018d-5a33-a518-1be93ae16307",
+      "title": "My board",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "My board",
+      "order": 4
+    },
+    {
+      "id": "5373ed15-ea04-5be4-b6c0-74fd04da16c9",
+      "title": "Browser",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Browser",
+      "order": 5
+    },
+    {
+      "id": "cfdffd09-6067-5328-a25c-0195e3abc420",
+      "title": "User management",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "User management",
+      "order": 6
+    },
+    {
+      "id": "8f97dc62-8278-5f5d-921a-36010e51cf43",
+      "title": "scripts",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "scripts",
+      "order": 7
+    },
+    {
+      "id": "a5b37f95-409d-552a-a237-91a67e4d13e7",
+      "title": "chatGPT API EndPoints",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "chatGPT API EndPoints",
+      "order": 8
+    },
+    {
+      "id": "22315885-3454-5b7b-a807-e368a0a77d5b",
+      "title": "Wiki manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Wiki manager",
+      "order": 9
+    },
+    {
+      "id": "d6a4532f-7ff3-53bf-abac-4d0a4f3b3da0",
+      "title": "Channels",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Channels",
+      "order": 10
+    },
+    {
+      "id": "ed82991b-7f98-5af9-bfef-3ebde3f332bc",
+      "title": "Profiles",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Profiles",
+      "order": 11
+    },
+    {
+      "id": "79ff162d-190a-59a0-a857-ff6c32be5d82",
+      "title": "workspaces",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "workspaces",
+      "order": 12
+    },
+    {
+      "id": "43219aa1-c5ac-58c9-99ed-69428fc333e2",
+      "title": "Project management",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Project management",
+      "order": 13
+    },
+    {
+      "id": "55d3fb78-a249-583c-82b4-f2f17aa82e4d",
+      "title": "codx-junior",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "codx-junior",
+      "order": 14
+    },
+    {
+      "id": "4f018a4e-ecb2-5fce-9357-91b277b7d83c",
+      "title": "Bugs",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Bugs",
+      "order": 15
+    },
+    {
+      "id": "8efa0a47-0721-5f8a-9080-5ba937603541",
+      "title": "Issue manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Issue manager",
+      "order": 16
+    },
+    {
+      "id": "dc3a9261-c1e7-53a0-a19e-eb34e2d281f6",
+      "title": "Knowledge",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Knowledge",
+      "order": 17
+    },
+    {
+      "id": "682bd0db-b414-54ab-94f5-1cf0aea294b6",
+      "title": "MCP Servers",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "MCP Servers",
+      "order": 18
+    },
+    {
+      "id": "b5bddf21-692c-54e3-a1f7-fbb06056340b",
+      "title": "Mentions",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Mentions",
+      "order": 19
+    },
+    {
+      "id": "8327759d-a7dd-5434-be9a-8ffb4faec06b",
+      "title": "Engine",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Engine",
+      "order": 20
+    },
+    {
+      "id": "e30107cb-4bf6-5c65-b390-75d5f60cb21f",
+      "title": "Events",
+      "type": "kanban",
+      "parent_id": "Engine",
+      "folder": "Events",
+      "order": 21
+    },
+    {
+      "id": "8e87fe89-a0ac-52cd-bdb3-f977a7711e70",
+      "title": "Chat with project",
+      "type": "kanban",
+      "parent_id": "Engine",
+      "folder": "Chat with project",
+      "order": 22
+    },
+    {
+      "id": "f575e8ae-e109-5468-8a9f-6c672d04e304",
+      "title": "Project changes",
+      "type": "kanban",
+      "parent_id": "Engine",
+      "folder": "Project changes",
+      "order": 23
+    },
+    {
+      "id": "91272e97-2a74-5b7b-9803-9b455bfe6698",
+      "title": "Chat Manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Chat Manager",
+      "order": 24
+    },
+    {
+      "id": "dfc5ad86-0bbb-5105-b873-48d0db31da0e",
+      "title": "User chat",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "User chat",
+      "order": 25
+    },
+    {
+      "id": "a13cc050-8633-58d3-903d-65bedf665192",
+      "title": "File splitter",
+      "type": "kanban",
+      "parent_id": "Wiki manager",
+      "folder": "File splitter",
+      "order": 26
+    },
+    {
+      "id": "566f6d3c-d345-5d30-8524-2f9cf41a1425",
+      "title": "Whisper",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Whisper",
+      "order": 27
+    },
+    {
+      "id": "3f3fefc0-80c1-5ded-9550-4885885e4444",
+      "title": "Agents \ud83e\udd73",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Agents \ud83e\udd73",
+      "order": 28
+    },
+    {
+      "id": "e33f1dc4-2a65-52be-963c-4b8ffb18fb2c",
+      "title": "File manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "File manager",
+      "order": 29
+    },
+    {
+      "id": "b80b41bc-4086-51c4-b047-f4977b3b0e27",
+      "title": "Refactor wiki",
+      "type": "kanban",
+      "parent_id": "Wiki manager",
+      "folder": "Refactor wiki",
+      "order": 30
+    },
+    {
+      "id": "a5e81c3f-e614-5aa0-be66-f648b1607b25",
+      "title": "Change manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Change manager",
+      "order": 31
+    },
+    {
+      "id": "51c938e4-010f-56cb-816a-4df8e46e704e",
+      "title": "DB Manager",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "DB Manager",
+      "order": 32
+    },
+    {
+      "id": "a9b32140-4c36-516a-b985-c648dd01f556",
+      "title": "Knowledge RAG Generation",
+      "type": "kanban",
+      "parent_id": "Knowledge",
+      "folder": "Knowledge RAG Generation",
+      "order": 33
+    },
+    {
+      "id": "cc3f0946-3ae0-546c-ba16-2fca50ad868a",
+      "title": "Desktop and VNC",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Desktop and VNC",
+      "order": 34
+    },
+    {
+      "id": "f71aa0df-ae52-50f8-9d5f-5bf8fd53994a",
+      "title": "litgpt",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "litgpt",
+      "order": 35
+    },
+    {
+      "id": "c363669c-f148-5115-b4a7-5efb4d70d103",
+      "title": "OAuth",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "OAuth",
+      "order": 36
+    },
+    {
+      "id": "e67970f0-9d09-52a3-82b1-2cc49d8dfd38",
+      "title": "PR: Project changes review",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "PR: Project changes review",
+      "order": 37
+    },
+    {
+      "id": "64bae913-9a0e-5bcb-8ed7-6accab9eac33",
+      "title": "Chat engine",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Chat engine",
+      "order": 38
+    },
+    {
+      "id": "14a17dbe-0a4d-5627-932d-33d75a26ace7",
+      "title": "Code Reviews",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Code Reviews",
+      "order": 39
+    },
+    {
+      "id": "d420a46f-d8b9-56c0-aed5-f9d965d9d71a",
+      "title": "Tools",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Tools",
+      "order": 40
+    },
+    {
+      "id": "554c7b0f-a3b7-50f9-b60c-24b28a28b045",
+      "title": "Pull Requests",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Pull Requests",
+      "order": 41
+    },
+    {
+      "id": "803c6ca2-85a0-517d-b8d9-9020abc32394",
+      "title": "Project Metrics",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Project Metrics",
+      "order": 42
+    },
+    {
+      "id": "46885544-5b7c-5866-a3a5-d0ccb3404e8b",
+      "title": "Docker",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Docker",
+      "order": 43
+    },
+    {
+      "id": "5c280c45-80c2-599b-9afd-1ed64a2b55c5",
+      "title": "Background Processes",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Background Processes",
+      "order": 44
+    },
+    {
+      "id": "8c79e53a-0c0d-5eaf-b294-69717df991e0",
+      "title": "File change engine \u270f\ufe0f",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "File change engine \u270f\ufe0f",
+      "order": 45
+    },
+    {
+      "id": "411b8c2d-e428-5386-a779-294ed208f64b",
+      "title": "DevOps Azure",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "DevOps Azure",
+      "order": 46
+    },
+    {
+      "id": "954f506d-0af1-56fc-ad16-f2ffe01d8b00",
+      "title": "Settings",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Settings",
+      "order": 47
+    },
+    {
+      "id": "8770c276-f06f-5d74-ac85-06c74865b82f",
+      "title": "Proxy",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Proxy",
+      "order": 48
+    },
+    {
+      "id": "4b54bd25-ac78-5079-9ef6-15f69898cb3b",
+      "title": "VueFinder",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "VueFinder",
+      "order": 49
+    },
+    {
+      "id": "cc472fe2-2b0a-5f59-87f6-f14e577a57b5",
+      "title": "Quick chats",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Quick chats",
+      "order": 50
+    },
+    {
+      "id": "aa954eb3-d171-58fd-879c-d42457b55e26",
+      "title": "Knowledge Wiki",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Knowledge Wiki",
+      "order": 51
+    },
+    {
+      "id": "339f0968-c36f-5b3a-b732-ca72d3440e2d",
+      "title": "Traefik",
+      "type": "kanban",
+      "parent_id": "workspaces",
+      "folder": "Traefik",
+      "order": 52
+    },
+    {
+      "id": "9b75449e-9bd1-5528-889d-69fbd74c65dd",
+      "title": "Models",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Models",
+      "order": 53
+    },
+    {
+      "id": "1fa64444-053c-48a0-a342-225bfc3c18b6",
+      "title": "codx-junior-agents",
+      "type": "sprint",
+      "parent_id": null,
+      "folder": "codx-junior-agents",
+      "order": 54
+    }
+  ],
+  "tags": {}
+}

@@ -1,0 +1,20 @@
+{
+  "id": "86fec33a-3d1b-5d08-8ae9-20751e0a93e0",
+  "title": "Chat Engine",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "Chat Engine",
+  "order": 63,
+  "columns": [
+    {
+      "id": "e965e407-2e13-4230-8dc4-d77e318d54e7",
+      "title": "chat_engine",
+      "color": "#000000",
+      "folder": "chat_engine",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-08-26T08:53:46.493Z",
+  "description": ""
+}

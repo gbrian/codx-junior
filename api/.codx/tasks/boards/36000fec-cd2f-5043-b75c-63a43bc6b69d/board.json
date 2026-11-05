@@ -1,0 +1,20 @@
+{
+  "id": "36000fec-cd2f-5043-b75c-63a43bc6b69d",
+  "title": "Task manager",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Task manager",
+  "order": 0,
+  "columns": [
+    {
+      "id": "c8f3e6ec-a6d2-4ef6-8606-5819973ca1ef",
+      "title": "Todo",
+      "color": "#000000",
+      "folder": "Todo",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2025-02-22T11:19:40.682Z",
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "id": "4d4d7f0c-eeeb-55a5-9d34-fe2176a330a1",
+  "title": "Ollama",
+  "type": "kanban",
+  "parent_id": "Chat manager",
+  "folder": "Ollama",
+  "order": 68,
+  "columns": [
+    {
+      "id": "898eb112-9c14-4f86-8d6a-693043fa677c",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "background": "https://jermsmit.com/wp-content/uploads/2023/11/2023-11-20_23-09-46.png",
+  "active": false,
+  "last_update": "2026-05-14T13:55:50.569Z",
+  "description": ""
+}

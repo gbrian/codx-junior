@@ -1,0 +1,414 @@
+{
+  "id": "4566da71-2222-4f78-a4b7-1f57343ccd5b",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "2c347b3d-f71e-4e3a-a8b4-c733dce624c4",
+  "root_id": "2c347b3d-f71e-4e3a-a8b4-c733dce624c4",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "todo",
+  "status_history": [
+    {
+      "doc_id": "14c894ac-b9a1-4a93-aabe-0332228a3fe9",
+      "from_status": null,
+      "to_status": "todo",
+      "user": null,
+      "at": "2026-11-04T09:28:04.043341",
+      "meta_data": null
+    }
+  ],
+  "tags": [
+    "lrt",
+    "wp2",
+    "worker"
+  ],
+  "file_list": [
+    "docs/long-running-tasks.md",
+    "docs/long-running-tasks-plan.md",
+    "codx/junior/long_running/runner.py",
+    "codx/junior/long_running/service.py",
+    "codx/junior/background.py",
+    "codx/junior/ai/cancellation.py",
+    "codx/junior/planning_manager.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer",
+    "py_senior"
+  ],
+  "users": [],
+  "name": "WP2 \u2014 Runner tick and background worker (resumable, single worker, budget hard stop)",
+  "pinned": false,
+  "is_template": false,
+  "description": "Third work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP2. Depends on WP1.\n\nOBJECTIVE\nAdvance a run by exactly one durable step at a time, from the BACKGROUND process, and survive a restart without a manual resume.\n\nSCOPE\n1. codx/junior/long_running/runner.py \u2014 LongRunningRunner.tick(project, main_task_id):\n   - acquire the WP1 RunLock; refresh the heartbeat; do nothing if the lock is not ours;\n   - reload the main task from disk every tick (nothing kept in memory);\n   - stop conditions checked in this order: run_status != running -> exit; spent >= budget -> run_status=\"budget_exhausted\" + write the delivery report; remaining <= supervisor_reserve -> same;\n   - pick ONE actionable task: board == run board, root_id == main task id, status in (todo, doing), attempts < 3, order by priority, due_date, sort_index;\n   - before the turn set the task estimation_cost = min(per_task_budget, remaining - supervisor_reserve); run session.chat_with_project(chat=task);\n   - persist attempts/current_task_id/step_started_at/last_tick_at/ticks after every unit;\n   - recovery: current_task_id set + no CANCELLATION_REGISTRY token -> attempts += 1 and re-run; after 3 attempts set status=\"onhold\" and leave a request_help comment;\n   - nothing actionable -> one supervisor turn on the MAIN TASK using the run profile to create/move/verify tasks, or to call finish; a turn that neither creates nor moves a task increments stagnation; stagnation >= 3 -> run_status=\"stalled\".\n2. codx/junior/background.py \u2014 check_long_running_runs() + run_long_running_tick(), own daemon thread started in start_background_services() next to check_projects(), guarded by the same stop event, ~5s interval, one thread per run with asyncio.run(). This must only run in the process started with CODX_JUNIOR_API_BACKGROUND.\n3. Honoured cancellation: pause/stop read from disk before the turn AND CANCELLATION_REGISTRY.cancel(current_task_id) visible mid-turn.\n\nACCEPTANCE (evidence required in the task report)\n- Two simulated workers never process the same run twice (lock evidence).\n- Kill the worker mid-run and restart: the same tick resumes with no manual action and attempts is incremented by exactly 1.\n- pause before the turn -> nothing runs; stop during a turn -> the in-flight token is cancelled and run_status == \"stopped\".\n- A run can never exceed budget in the arithmetic of tick admission (show the numbers).\n- The API process (without CODX_JUNIOR_API_BACKGROUND) starts no long-running thread.\n\nRULES\n- One task turn at a time per run (no max_parallel yet).\n- Never block the request path; tick() is called only from the background loop (or the manual /tick endpoint added in WP3).\n- Use planning_manager constants for status vocabulary.",
+  "messages": [
+    {
+      "doc_id": "73d1a436-cf80-4105-8b79-fcb47203b2d9",
+      "role": "user",
+      "task_item": "",
+      "content": "Third work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP2. Depends on WP1.\n\nOBJECTIVE\nAdvance a run by exactly one durable step at a time, from the BACKGROUND process, and survive a restart without a manual resume.\n\nSCOPE\n1. codx/junior/long_running/runner.py \u2014 LongRunningRunner.tick(project, main_task_id):\n   - acquire the WP1 RunLock; refresh the heartbeat; do nothing if the lock is not ours;\n   - reload the main task from disk every tick (nothing kept in memory);\n   - stop conditions checked in this order: run_status != running -> exit; spent >= budget -> run_status=\"budget_exhausted\" + write the delivery report; remaining <= supervisor_reserve -> same;\n   - pick ONE actionable task: board == run board, root_id == main task id, status in (todo, doing), attempts < 3, order by priority, due_date, sort_index;\n   - before the turn set the task estimation_cost = min(per_task_budget, remaining - supervisor_reserve); run session.chat_with_project(chat=task);\n   - persist attempts/current_task_id/step_started_at/last_tick_at/ticks after every unit;\n   - recovery: current_task_id set + no CANCELLATION_REGISTRY token -> attempts += 1 and re-run; after 3 attempts set status=\"onhold\" and leave a request_help comment;\n   - nothing actionable -> one supervisor turn on the MAIN TASK using the run profile to create/move/verify tasks, or to call finish; a turn that neither creates nor moves a task increments stagnation; stagnation >= 3 -> run_status=\"stalled\".\n2. codx/junior/background.py \u2014 check_long_running_runs() + run_long_running_tick(), own daemon thread started in start_background_services() next to check_projects(), guarded by the same stop event, ~5s interval, one thread per run with asyncio.run(). This must only run in the process started with CODX_JUNIOR_API_BACKGROUND.\n3. Honoured cancellation: pause/stop read from disk before the turn AND CANCELLATION_REGISTRY.cancel(current_task_id) visible mid-turn.\n\nACCEPTANCE (evidence required in the task report)\n- Two simulated workers never process the same run twice (lock evidence).\n- Kill the worker mid-run and restart: the same tick resumes with no manual action and attempts is incremented by exactly 1.\n- pause before the turn -> nothing runs; stop during a turn -> the in-flight token is cancelled and run_status == \"stopped\".\n- A run can never exceed budget in the arithmetic of tick admission (show the numbers).\n- The API process (without CODX_JUNIOR_API_BACKGROUND) starts no long-running thread.\n\nRULES\n- One task turn at a time per run (no max_parallel yet).\n- Never block the request path; tick() is called only from the background loop (or the manual /tick endpoint added in WP3).\n- Use planning_manager constants for status vocabulary.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:28:03.964762",
+      "updated_at": "2026-11-04 09:28:03.964767",
+      "attachments": [],
+      "files": [
+        "docs/long-running-tasks.md",
+        "docs/long-running-tasks-plan.md",
+        "codx/junior/long_running/runner.py",
+        "codx/junior/long_running/service.py",
+        "codx/junior/background.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/planning_manager.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer",
+        "py_senior"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "489f628e-d71a-430d-894c-8516c6f8ca12",
+      "role": "user",
+      "task_item": "",
+      "content": "Third work package of LRT-1. Design contract: docs/long-running-tasks.md \u00b7 Plan: docs/long-running-tasks-plan.md \u00a72 WP2. Depends on WP1.\n\nOBJECTIVE\nAdvance a run by exactly one durable step at a time, from the BACKGROUND process, and survive a restart without a manual resume.\n\nSCOPE\n1. codx/junior/long_running/runner.py \u2014 LongRunningRunner.tick(project, main_task_id):\n   - acquire the WP1 RunLock; refresh the heartbeat; do nothing if the lock is not ours;\n   - reload the main task from disk every tick (nothing kept in memory);\n   - stop conditions checked in this order: run_status != running -> exit; spent >= budget -> run_status=\"budget_exhausted\" + write the delivery report; remaining <= supervisor_reserve -> same;\n   - pick ONE actionable task: board == run board, root_id == main task id, status in (todo, doing), attempts < 3, order by priority, due_date, sort_index;\n   - before the turn set the task estimation_cost = min(per_task_budget, remaining - supervisor_reserve); run session.chat_with_project(chat=task);\n   - persist attempts/current_task_id/step_started_at/last_tick_at/ticks after every unit;\n   - recovery: current_task_id set + no CANCELLATION_REGISTRY token -> attempts += 1 and re-run; after 3 attempts set status=\"onhold\" and leave a request_help comment;\n   - nothing actionable -> one supervisor turn on the MAIN TASK using the run profile to create/move/verify tasks, or to call finish; a turn that neither creates nor moves a task increments stagnation; stagnation >= 3 -> run_status=\"stalled\".\n2. codx/junior/background.py \u2014 check_long_running_runs() + run_long_running_tick(), own daemon thread started in start_background_services() next to check_projects(), guarded by the same stop event, ~5s interval, one thread per run with asyncio.run(). This must only run in the process started with CODX_JUNIOR_API_BACKGROUND.\n3. Honoured cancellation: pause/stop read from disk before the turn AND CANCELLATION_REGISTRY.cancel(current_task_id) visible mid-turn.\n\nACCEPTANCE (evidence required in the task report)\n- Two simulated workers never process the same run twice (lock evidence).\n- Kill the worker mid-run and restart: the same tick resumes with no manual action and attempts is incremented by exactly 1.\n- pause before the turn -> nothing runs; stop during a turn -> the in-flight token is cancelled and run_status == \"stopped\".\n- A run can never exceed budget in the arithmetic of tick admission (show the numbers).\n- The API process (without CODX_JUNIOR_API_BACKGROUND) starts no long-running thread.\n\nRULES\n- One task turn at a time per run (no max_parallel yet).\n- Never block the request path; tick() is called only from the background loop (or the manual /tick endpoint added in WP3).\n- Use planning_manager constants for status vocabulary.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:28:03.964762",
+      "updated_at": "2026-11-04 09:28:03.964767",
+      "attachments": [],
+      "files": [
+        "docs/long-running-tasks.md",
+        "docs/long-running-tasks-plan.md",
+        "codx/junior/long_running/runner.py",
+        "codx/junior/long_running/service.py",
+        "codx/junior/background.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/planning_manager.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer",
+        "py_senior"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "38dbaab9-f5aa-435e-a3d4-c12606bfb099",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll read the WP1 artifacts and the execution entry points before writing the runner.I reviewed the repo against the plan before writing. Two findings that change what I can hand over \u2014 both documented at the end.\n\n<file_change path=\"codx/junior/long_running/runner.py\" language=\"python\" change_type=\"new\" encoding=\"text\">\n\"\"\"\nLong-running runner \u2014 advances a run by **exactly one durable step per tick**.\n\nLRT-1 / work package 2. Design contract: ``docs/long-running-tasks.md`` \u00a75,\nplan: ``docs/long-running-tasks-plan.md`` \u00a72 (WP2).\n\nThe runner is the only place that *advances* a run. It is never called from a\nrequest path (the API has a 30s middleware timeout): the background loop in\n:mod:`codx.junior.background` calls :meth:`LongRunningRunner.tick`, or the manual\n``POST /api/long-running/{main_task_id}/tick`` endpoint added in WP3.\n\nShape of a tick\n---------------\n```mermaid\nflowchart TD\n    T[tick] --> L{RunLock acquired?}\n    L -->|no| X[skip: locked]\n    L -->|yes| S{run_status == running?}\n    S -->|no| X2[skip]\n    S -->|yes| B{budget configured?}\n    B -->|no| F[failed: budget_not_configured]\n    B -->|yes| D{remaining > reserve?}\n    D -->|no| BE[budget_exhausted + report]\n    D -->|yes| R[recover interrupted unit]\n    R --> E[reap exhausted tasks]\n    E --> A{actionable task?}\n    A -->|yes| C[claim task \u00b7 estimation_cost = min per_task, remaining-reserve<br/>chat_with_project \u00b7 attempts += 1]\n    C --> T2[next tick]\n    A -->|no| SUP[supervisor turn on the MAIN task]\n    SUP --> G{moved / created / finished?}\n    G -->|finished| CP[completed]\n    G -->|no| ST[stagnation += 1 \u00b7 stalled at 3]\n    G -->|yes| T2\n    ST --> T2\n```\n\nDurability rules (this is what makes a restart transparent)\n----------------------------------------------------------\n1. **Nothing is kept in memory between ticks.** The main task is reloaded from\n   disk at the start of every tick and before every unit.\n2. **The run state lives on the main task** (``Chat.run`` / ``Chat.run_status`` /\n   ``Chat.run_state``), which is persisted after *every* unit.\n3. **Only one worker advances a run at a time**: the WP1 ``RunLock`` (own file,\n   ``O_CREAT|O_EXCL`` + heartbeat + stale takeover) is acquired before anything\n   else. A second worker (another thread, another process) sees it and skips.\n4. **The in-flight unit is a single ``chat_with_project`` turn**, which is itself\n   persisted incrementally by ``ChatEventBridge``. If the process dies mid-turn,\n   ``run_state[\"current_task_id\"]`` survives and the next tick re-runs the same\n   task \u2014 no manual \"resume\" click.\n\nBudget arithmetic (hard stop, never exceeded)\n---------------------------------------------\nAdmission happens *before* a turn, using the values on disk::\n\n    budget        = main.estimation_cost          # declared on the MAIN task\n    spent         = max(main.cost, \u03a3 descendants) # cost rolls up into the root\n    remaining     = budget - spent\n    supervisor_reserve = run[\"supervisor_reserve\"]\n    turn_cap      = min(run[\"per_task_budget\"], remaining - supervisor_reserve)\n\n    # numbers: budget 10.0, spent 6.5, reserve 1.5, per_task 2.0\n    remaining = 3.5            ->  remaining > reserve (1.5)   -> run a turn\n    turn_cap  = min(2.0, 2.0)  = 2.0                           -> task capped at 2.0\n    # worst case after the turn: spent = 8.5, remaining = 1.5 == reserve\n    #   -> next tick stops as budget_exhausted and writes the report\n    #      WITHOUT paying for another LLM turn (template, no AI call)\n\n``spent`` is recomputed from the chats on every tick; the persisted counter is\nnever trusted (drift protection). The roll-up (WP1 / LRT-0.4) makes\n``main.cost`` the run total, and ``max()`` keeps the arithmetic conservative if\nthe roll-up ever fails for a child.\n\nContract consumed from WP1 (``codx/junior/long_running``)\n--------------------------------------------------------\n* ``models.LongRunStatus`` \u2014 ``running``/``paused``/``stopped``/``completed``/\n  ``budget_exhausted``/``failed``/``stalled``.\n* ``store.LongRunStore(settings)`` with ``lock(main_task_id)`` returning a\n  ``RunLock`` exposing ``acquire() -> bool``, ``heartbeat() -> None`` and\n  ``release() -> None`` (stale takeover handled inside the lock).\n* ``db.Chat`` fields ``run`` (config dict), ``run_status`` (str) and ``run_state``\n  (dict: ``attempts``, ``current_task_id``, ``step_started_at``, ``last_tick_at``,\n  ``ticks``, ``stagnation``, ``stop_reason``, ``finished``).\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport asyncio\nimport contextlib\nimport logging\nimport os\nfrom datetime import datetime\nfrom typing import Any, Dict, List, Optional, Tuple\n\nfrom codx.junior.ai.cancellation import CANCELLATION_REGISTRY\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.identity import is_descendant_of\nfrom codx.junior.long_running.models import LongRunStatus\nfrom codx.junior.long_running.store import LongRunStore\nfrom codx.junior.planning_manager import (\n    ACTIVE_STATUSES,\n    CLOSED_STATUSES,\n    PRIORITY_ORDER,\n)\n\nlogger = logging.getLogger(__name__)\n\n# --- Limits -----------------------------------------------------------------\n# Attempts a single task may consume before it is parked as \"onhold\".\nMAX_ATTEMPTS: int = 3\n# Consecutive supervisor turns that neither create nor move a task.\nSTAGNATION_TICKS: int = 3\n# Defaults, overridable through Chat.run (WP1 fills them when the run starts).\nDEFAULT_PER_TASK_BUDGET: float = 1.0\nDEFAULT_SUPERVISOR_RESERVE: float = 0.5\nDEFAULT_MAX_TASKS: int = 50\nDEFAULT_MAX_ITERATIONS: int = 300\n# Lock heartbeat before each long operation (the lock itself decides staleness).\nLOCK_HEARTBEAT_SECONDS: float = 30.0\n# How often a running turn re-reads the main task to honour pause/stop.\nSTATUS_POLL_SECONDS: float = 2.0\n# Suffix marker stored in meta_data of the messages this runner writes.\nRUN_MARKER: str = \"long_running\"\n\nREQUEST_HELP_MESSAGE = \"\"\"### Needs help \u2014 attempt limit reached\n\n`{name}` was processed **{attempts}** times (limit {limit}) without reaching a\nclosed state, so the run stopped touching it.\n\n* current status: `{status}`\n* column: `{column}`\n* run: `{run_name}` (`{main_task_id}`)\n\nReview the task (or split it into smaller ones) and resume the run with\n`POST /api/long-running/{main_task_id}/resume`.\n\"\"\"\n\nSUPERVISOR_PROMPT = \"\"\"<long_running_supervisor>\n<objective>\n{objective}\n</objective>\n\n<budget>\nbudget={budget:.4f} spent={spent:.4f} remaining={remaining:.4f} reserve={reserve:.4f}\n</budget>\n\n<tasks>\n{tasks}\n</tasks>\n\n<rules>\n* You are the manager of this run. Decide the next single step and make it happen.\n* Split the objective into tasks ONLY as deep as needed now. Every task must be\n  concrete, self-contained and verifiable.\n* Move tasks between columns as they progress; reopen a task that came back wrong.\n* Keep one \"how to test\" task in the plan: the run must end with something the\n  user can execute and review.\n* Never create tasks that would exceed the remaining budget.\n* When the objective is demonstrably achieved call\n  `long_running(action=\"finish\", summary=\"...\")`. Do not call it before.\n</rules>\n</long_running_supervisor>\n\"\"\"\n\n\ndef list_running_main_tasks(project) -> List[str]:\n    \"\"\"\n    Return the ids of the main tasks of *project* whose run is ``running``.\n\n    Used by the background loop to discover work. A main task is the **root**\n    of its tree (``root_id`` is itself) and it is the only chat that carries a\n    ``run`` configuration, so descendants are never mistaken for runs.\n\n    Args:\n        project: Project settings (``CODXJuniorSettings``).\n\n    Returns:\n        List of main task ids, newest first.\n\n    Example:\n        >>> list_running_main_tasks(project)\n        ['2c347b3d-f71e-4e3a-a8b4-c733dce624c4']\n    \"\"\"\n    try:\n        manager = ChatManager(settings=project)\n        chats = manager.list_chats()\n    except (OSError, ValueError) as ex:\n        logger.warning(\n            \"long running: cannot list chats of '%s': %s\",\n            getattr(project, \"project_name\", \"?\"),\n            ex,\n        )\n        return []\n\n    running: List[Tuple[str, str]] = []\n    for chat in chats:\n        if not isinstance(getattr(chat, \"run\", None), dict):\n            continue\n        status = LongRunningRunner._run_status(chat)\n        if status != LongRunStatus.RUNNING.value:\n            continue\n        if (getattr(chat, \"root_id\", None) or chat.id) != chat.id:\n            continue  # a descendant, not the main task\n        running.append((str(chat.updated_at or \"\"), chat.id or \"\"))\n\n    running.sort(reverse=True)\n    return [main_task_id for _, main_task_id in running if main_task_id]\n\n\nclass LongRunningRunner:\n    \"\"\"\n    Advances one long-running run by a single durable step.\n\n    Attributes:\n        project: Project settings of the run.\n        _session: Lazily built ``CODXJuniorSession`` (created on first use so a\n            pure discovery pass costs nothing).\n    \"\"\"\n\n    def __init__(self, project=None, session=None):\n        \"\"\"\n        Args:\n            project: Project settings; falls back to ``session.settings``.\n            session: Optional pre-built session (reused by the manual tick\n                endpoint in WP3).\n\n        Raises:\n            ValueError: When neither a project nor a session is given.\n        \"\"\"\n        self.project = project or getattr(session, \"settings\", None)\n        if self.project is None:\n            raise ValueError(\n                \"LongRunningRunner requires project settings or a session\"\n            )\n        self._session = session\n\n    # -------------------------------------------------------------------------\n    # Lazy collaborators\n    # -------------------------------------------------------------------------\n    @property\n    def session(self):\n        \"\"\"Return (and build on first use) the session used to run turns.\"\"\"\n        if self._session is None:\n            from codx.junior.engine import CODXJuniorSession\n\n            self._session = CODXJuniorSession(\n                settings=self.project,\n                codx_path=self.project.codx_path,\n            )\n        return self._session\n\n    @property\n    def chat_manager(self) -> ChatManager:\n        \"\"\"Return the chat manager of the run's project.\"\"\"\n        return self.session.get_chat_manager()\n\n    @property\n    def store(self) -> LongRunStore:\n        \"\"\"Return the WP1 run store (state files + cross-process lock).\"\"\"\n        return LongRunStore(settings=self.project)\n\n    @property\n    def events(self):\n        \"\"\"Return the event manager, when the session exposes one.\"\"\"\n        return getattr(self.session, \"event_manager\", None)\n\n    # -------------------------------------------------------------------------\n    # Public entry point\n    # -------------------------------------------------------------------------\n    async def tick(self, project=None, main_task_id: Optional[str] = None) -> Dict[str, Any]:\n        \"\"\"\n        Advance *main_task_id* by one step.\n\n        The tick is idempotent and crash-safe: it re-reads the main task from\n        disk, takes the run lock (skipping when another worker holds it) and\n        performs at most **one** unit of work \u2014 either one task turn or one\n        supervisor turn.\n\n        Args:\n            project: Project settings (overrides the instance project, so the\n                background loop can reuse a single runner).\n            main_task_id: Id of the main task (= the run).\n\n        Returns:\n            A small report of what happened (used by the manual endpoint and by\n            the demo/tests), e.g.::\n\n                {\"main_task_id\": \"...\", \"action\": \"task\", \"task_id\": \"...\",\n                 \"attempt\": 1, \"spent\": 6.5, \"remaining\": 3.5, \"ticks\": 12}\n\n        Raises:\n            ValueError: When *main_task_id* is missing.\n        \"\"\"\n        if project is not None and project is not self.project:\n            self.project = project\n            self._session = None\n\n        main_task_id = (main_task_id or \"\").strip()\n        if not main_task_id:\n            raise ValueError(\"tick() requires the main task id\")\n\n        result: Dict[str, Any] = {\n            \"main_task_id\": main_task_id,\n            \"action\": \"skipped\",\n            \"reason\": None,\n        }\n\n        lock = self.store.lock(main_task_id)\n        if not lock.acquire():\n            # Another worker owns this run: exactly what makes the two-worker\n            # case safe (see the acceptance evidence in the task report).\n            result[\"reason\"] = \"locked\"\n            logger.debug(\n                \"long running: run '%s' is locked by another worker, skipping\",\n                main_task_id,\n            )\n            return result\n\n        try:\n            lock.heartbeat()\n            return await self._tick_locked(\n                main_task_id=main_task_id, lock=lock, result=result\n            )\n        finally:\n            with contextlib.suppress(Exception):\n                lock.release()\n\n    # -------------------------------------------------------------------------\n    # Tick body\n    # -------------------------------------------------------------------------\n    async def _tick_locked(\n        self,\n        main_task_id: str,\n        lock,\n        result: Dict[str, Any],\n    ) -> Dict[str, Any]:\n        \"\"\"Run the body of a tick while holding the run lock.\"\"\"\n        # 1. Reload from disk: nothing survives between ticks in memory.\n        main = self._load_chat(main_task_id)\n        if main is None:\n            result.update(action=\"skipped\", reason=\"main_task_not_found\")\n            logger.warning(\"long running: main task '%s' not found\", main_task_id)\n            return result\n\n        run_status = self._run_status(main)\n        if run_status != LongRunStatus.RUNNING.value:\n            result.update(action=\"skipped\", reason=f\"run_status={run_status or 'none'}\")\n            return result\n\n        state = self._state(main)\n        state[\"ticks\"] = int(state.get(\"ticks\") or 0) + 1\n        state[\"last_tick_at\"] = self._now()\n        result[\"ticks\"] = state[\"ticks\"]\n\n        # 2. Budget admission (before anything is spent).\n        budget = self._budget(main)\n        if budget <= 0:\n            return self._stop(\n                main=main,\n                state=state,\n                status=LongRunStatus.FAILED,\n                reason=\"budget_not_configured\",\n                result=result,\n            )\n\n        chats = self._run_chats(main)\n        spent = self._spent(main, chats)\n        remaining = budget - spent\n        reserve = self._reserve(main)\n        result.update(spent=round(spent, 6), remaining=round(remaining, 6))\n\n        if remaining <= reserve:\n            return self._stop(\n                main=main,\n                state=state,\n                status=LongRunStatus.BUDGET_EXHAUSTED,\n                reason=(\n                    f\"budget spent ({spent:.4f}/{budget:.4f}); \"\n                    f\"remaining {remaining:.4f} <= reserve {reserve:.4f}\"\n                ),\n                result=result,\n            )\n\n        # 3. Recover an interrupted unit (crash / power-off mid-turn).\n        self._recover(main=main, state=state)\n\n        # 4. Park the tasks that exhausted their attempts.\n        self._reap_exhausted(main=main, chats=chats, state=state)\n\n        # 5. One unit of work: a task turn, or a supervisor turn.\n        task = self._next_task(main=main, chats=chats, state=state)\n        if task is not None:\n            return await self._advance_task(\n                main=main,\n                state=state,\n                task=task,\n                available=remaining - reserve,\n                lock=lock,\n                result=result,\n            )\n\n        return await self._supervisor_turn(\n            main=main,\n            state=state,\n            budget=budget,\n            spent=spent,\n            remaining=remaining,\n            reserve=reserve,\n            lock=lock,\n            result=result,\n        )\n\n    # -------------------------------------------------------------------------\n    # Unit 1 \u2014 a task turn\n    # -------------------------------------------------------------------------\n    async def _advance_task(\n        self,\n        main: Chat,\n        state: Dict[str, Any],\n        task: Chat,\n        available: float,\n        lock,\n        result: Dict[str, Any],\n    ) -> Dict[str, Any]:\n        \"\"\"Run one turn on *task*, bounded by the remaining budget.\"\"\"\n        turn_cap = min(self._per_task_budget(main), max(0.0, available))\n        if turn_cap <= 0:\n            return self._stop(\n                main=main,\n                state=state,\n                status=LongRunStatus.BUDGET_EXHAUSTED,\n                reason=\"no budget left for another task turn\",\n                result=result,\n            )\n\n        # Claim the unit BEFORE spending: a crash leaves a recoverable trace.\n        state[\"current_task_id\"] = task.id\n        state[\"step_started_at\"] = self._now()\n        state[\"stagnation\"] = 0\n        self._save_state(main, state)\n\n        task =",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 09:33:19.121210",
+      "updated_at": "2026-11-04T09:36:35.919954",
+      "attachments": [],
+      "files": [],
+      "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+      "meta_data": {
+        "start_time": 1793784798.9869041,
+        "cancellation_token_id": "80d32304-92c0-463d-ba43-225b37053d77",
+        "model": "deepseek-flash"
+      },
+      "tool_events": [
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_npY4WFPuTcy96vJJnZqU8025",
+          "status": "done",
+          "request": {
+            "search": [
+              "long_running",
+              "long-running",
+              "identity.py",
+              "**/long_running/*.py"
+            ]
+          },
+          "response": "> codx-api results for: 'long_running, long-running, identity.py, **/long_running/*.py'\n```md /home/codx-junior-projects/codx-junior/LICENSE.md\n/home/codx-junior-projects/codx-junior/LICENSE.md\nAll rights granted under this License are granted for the term of\ncopyright on the Program, and are irrevocable provided the stated\nconditions are met.  This License explicitly affirms your unlimited\npermission to run the unmodified Program.  The output from running a\ncovered work is covered by this License only if the output, given its\ncontent, constitutes a covered work.  This License acknowledges your\nrights of fair use or other equivalent, as provided by copyright law.\n\n  You may make, run and propagate covered works that you do not\nconvey, without conditions so long as your license otherwise remains\nin force.  You may convey covered works to others for the sole purpose\nof having them make modifications exclusively for you, or provide you\nwith facilities for running those works, provided that you comply with\nthe terms of this License in conveying all material for which you do\nnot control copyright.  Those thus making or running the covered works\nfor you must do so exclusively on your behalf, under your direction\nand control, on terms that prohibit them from making any copies of\nyour copyrighted material outside their relationship with you.\n\n  Conveying under any other circumstances is permitted solely under\nthe conditions stated below.  Sublicensing is not allowed; section 10\nmakes it unnecessary.\n\n  3. Protecting Users' Legal Rights From Anti-Circumvention Law.\n\n  No covered work shall be deemed part of an effective technological\nmeasure under any applicable law fulfilling obligations under article\n11 of the WIPO copyright treaty adopted on 20 December 1996, or\nsimilar laws prohibiting or restricting circumvention of such\nmeasures.\nThis document excerpt functions as a comprehensive legal license agreement covering software use and distribution.\nIt outlines broad permissions for covered works, including unlimited rights to run unmodified programs and rights acknowledging fair use.\nThe License permits propagation by means other than conveyance, ensuring freedom of operation for derived works.\nKey provisions detail rules for controlled transfer, allowing conveying only for modifications exclusively on the licensee's behalf, under strict control.\nIt explicitly prohibits sublicense agreements. Furthermore, Section 3 addresses legal protection against anti-circumvention laws (WIPO copyright treaty), assuring that the covered work does not qualify as an effective technological measure under relevant law. This structure aims to maximize developer freedom and interoperability while defining controlled limits on transfers.\n/home/codx-junior-projects/codx-junior/LICENSE.md\nb) Convey the object code in, or embodied in, a physical product\n    (including a physical distribution medium), accompanied by a\n    written offer, valid for at least three years and valid for as\n    long as you offer spare parts or customer support for that product\n    model, to give anyone who possesses the object code either (1) a\n    copy of the Corresponding Source for all the software in the\n    product that is covered by this License, on a durable physical\n    medium customarily used for software interchange, for a price no\n    more than your reasonable cost of physically performing this\n    conveying of source, or (2) access to copy the\n    Corresponding Source from a network server at no charge.\n\n    c) Convey individual copies of the object code with a copy of the\n    written offer to provide the Corresponding Source.  This\n    alternative is allowed only occasionally and noncommercially, and\n    only if you received the object code with such an offer, in accord\n    with subsection 6b.\n\n    d) Convey the object code by offering access from a designated\n    place (gratis or for a charge), and offer equivalent access to the\n    Corresponding Source in the same way ",
+          "output": "Search completed: 4 queries executed, 40 documents found, 0 files matched",
+          "duration_ms": 12139.497235417366,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_Gck8dDOhSMhvM1anHNOv1610",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/identity.py",
+              "codx/junior/db.py"
+            ]
+          },
+          "response": "```py codx/junior/identity.py\n\"\"\"\nIdentity primitives shared by the task / kanban / long-running machinery.\n\nThe project rule is: **ids are canonical, names and titles are only labels**.\n\n* every persisted element has an immutable ``id`` (uuid),\n* references between elements use ids (``Chat.parent_id``, ``Chat.root_id``,\n  ``Chat.kanban_id``, ``Chat.column_id``),\n* ``Chat.board`` / ``Chat.column`` / ``Chat.name`` are display labels.\n\nThis module owns the primitives the rest of the code must use to reason about\nthe ancestor chain of a task, so the invariant *\"every task of a run shares the\nsame ancestor (the main task)\"* is enforced in one place instead of being\nre-implemented (and diverging) by every caller:\n\n* :func:`resolve_root_id` - canonical root (main task) of a chat.\n* :func:`is_descendant_of` - guard used by the long-running runner.\n* :func:`link_parent` - creation helper used by ``TaskManager``.\n* :func:`attach_root_id` - backfill helper.\n\n``Chat.root_id`` is a CACHE of the walk: legacy chats have no value, so the walk\nhappens once and the result is backfilled on the in-memory chat; the caller\npersists it the next time the chat is saved. A cache that is not the chat's own\nid is returned without walking (cheap path for every tick of a run).\n\n```mermaid\nflowchart TD\n    A[chat] --> B{parent_id?}\n    B -->|no| C[root_id = chat.id]\n    B -->|yes| D{root_id cached?}\n    D -->|yes| E[return cache]\n    D -->|no| F[walk parent_id up]\n    F --> G{cycle or depth limit?}\n    G -->|yes| H[stop: log warning, use last chat]\n    G -->|no| I[topmost chat reached]\n    I --> J[root_id = topmost.id, backfill chat.root_id]\n    H --> J\n```\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport logging\nfrom typing import TYPE_CHECKING, Optional\n\nif TYPE_CHECKING:  # pragma: no cover - typing only\n    from codx.junior.chat_manager import ChatManager\n    from codx.junior.db import Chat\n\nlogger = logging.getLogger(__name__)\n\n# A corrupted parent chain must never make the process hang: the walk gives up\n# after this many levels (deeper hierarchies are not a realistic task tree).\nMAX_PARENT_DEPTH = 64\n\n\ndef attach_root_id(chat: Optional[\"Chat\"], parent_chat: Optional[\"Chat\"] = None) -> Optional[str]:\n    \"\"\"\n    Compute (and stamp) the ``root_id`` of *chat* from its parent.\n\n    Creation rules:\n\n    * a chat without a parent is its own root (``root_id = chat.id``),\n    * a child inherits ``parent.root_id`` when the parent already knows its\n      root, and falls back to the parent id otherwise,\n    * nothing is inherited from a parent that is not there.\n\n    The value is stamped on the chat itself, so a caller that persists the chat\n    right after creation stores the cache.\n\n    Args:\n        chat: The chat being created/updated (may be None).\n        parent_chat: The parent chat, when it is already loaded.\n\n    Returns:\n        The resolved root id, or None when it cannot be determined.\n\n    Example:\n        >>> attach_root_id(child, parent)          # parent is the main task\n        '<parent-id>'\n        >>> attach_root_id(main_task, None)        # no parent: it is the root\n        '<main-task-id>'\n    \"\"\"\n    if chat is None:\n        return None\n\n    if parent_chat is None:\n        root_id = chat.id or None\n    else:\n        root_id = getattr(parent_chat, \"root_id\", None) or parent_chat.id or None\n\n    if root_id and chat.root_id != root_id:\n        chat.root_id = root_id\n    return root_id\n\n\ndef resolve_root_id(\n    chat: Optional[\"Chat\"],\n    chat_manager: Optional[\"ChatManager\"] = None,\n) -> Optional[str]:\n    \"\"\"\n    Return the canonical root (main task) id of *chat*.\n\n    Resolution order:\n\n    1. ``chat.root_id`` when it is already cached and differs from the chat's\n       own id (a chat that is not a root has a foreign root id),\n    2. the chat id itself when the chat has no ``parent_id``,\n    3. a walk up ``parent_id`` (bounded by :data:`MAX_PARENT_DEPTH`, cycle safe)\n       when a ``chat_manager`` was provided. The result is backfilled into\n     ",
+          "output": "Read 2 file(s) | Successfully read: codx/junior/identity.py, codx/junior/db.py",
+          "duration_ms": 865.9546477720141,
+          "error": null
+        },
+        {
+          "tool": "project_structure",
+          "tool_call_id": "call_00_0ZIODGmCr6OQ4a6h8z8U7073",
+          "status": "done",
+          "request": {
+            "path": "codx/junior",
+            "max_depth": 1
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **codx**/ (262 files, 47 folders)",
+          "output": null,
+          "duration_ms": 16976.876579225063,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_XkJcfgc8e1bqUIsgqFzp7587",
+          "status": "done",
+          "request": {
+            "search": [
+              "long_running",
+              "RunLock",
+              "run_status",
+              "long running task runner"
+            ]
+          },
+          "response": "> codx-api results for: 'long_running, RunLock, run_status, long running task runner'\n```md /home/codx-junior-projects/codx-junior/LICENSE.md\n/home/codx-junior-projects/codx-junior/LICENSE.md\nAll rights granted under this License are granted for the term of\ncopyright on the Program, and are irrevocable provided the stated\nconditions are met.  This License explicitly affirms your unlimited\npermission to run the unmodified Program.  The output from running a\ncovered work is covered by this License only if the output, given its\ncontent, constitutes a covered work.  This License acknowledges your\nrights of fair use or other equivalent, as provided by copyright law.\n\n  You may make, run and propagate covered works that you do not\nconvey, without conditions so long as your license otherwise remains\nin force.  You may convey covered works to others for the sole purpose\nof having them make modifications exclusively for you, or provide you\nwith facilities for running those works, provided that you comply with\nthe terms of this License in conveying all material for which you do\nnot control copyright.  Those thus making or running the covered works\nfor you must do so exclusively on your behalf, under your direction\nand control, on terms that prohibit them from making any copies of\nyour copyrighted material outside their relationship with you.\n\n  Conveying under any other circumstances is permitted solely under\nthe conditions stated below.  Sublicensing is not allowed; section 10\nmakes it unnecessary.\n\n  3. Protecting Users' Legal Rights From Anti-Circumvention Law.\n\n  No covered work shall be deemed part of an effective technological\nmeasure under any applicable law fulfilling obligations under article\n11 of the WIPO copyright treaty adopted on 20 December 1996, or\nsimilar laws prohibiting or restricting circumvention of such\nmeasures.\nThis document excerpt functions as a comprehensive legal license agreement covering software use and distribution.\nIt outlines broad permissions for covered works, including unlimited rights to run unmodified programs and rights acknowledging fair use.\nThe License permits propagation by means other than conveyance, ensuring freedom of operation for derived works.\nKey provisions detail rules for controlled transfer, allowing conveying only for modifications exclusively on the licensee's behalf, under strict control.\nIt explicitly prohibits sublicense agreements. Furthermore, Section 3 addresses legal protection against anti-circumvention laws (WIPO copyright treaty), assuring that the covered work does not qualify as an effective technological measure under relevant law. This structure aims to maximize developer freedom and interoperability while defining controlled limits on transfers.\n/home/codx-junior-projects/codx-junior/LICENSE.md\nb) Convey the object code in, or embodied in, a physical product\n    (including a physical distribution medium), accompanied by a\n    written offer, valid for at least three years and valid for as\n    long as you offer spare parts or customer support for that product\n    model, to give anyone who possesses the object code either (1) a\n    copy of the Corresponding Source for all the software in the\n    product that is covered by this License, on a durable physical\n    medium customarily used for software interchange, for a price no\n    more than your reasonable cost of physically performing this\n    conveying of source, or (2) access to copy the\n    Corresponding Source from a network server at no charge.\n\n    c) Convey individual copies of the object code with a copy of the\n    written offer to provide the Corresponding Source.  This\n    alternative is allowed only occasionally and noncommercially, and\n    only if you received the object code with such an offer, in accord\n    with subsection 6b.\n\n    d) Convey the object code by offering access from a designated\n    place (gratis or for a charge), and offer equivalent access to the\n    Corresponding Source in the same way th",
+          "output": "Search completed: 3 queries executed, 30 documents found, 0 files matched",
+          "duration_ms": 9909.056283533573,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_nn7dQsrvVL29V5ovjVQ20541",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/long_running/__init__.py",
+              "codx/junior/long_running/models.py",
+              "codx/junior/long_running/store.py",
+              "codx/junior/long_running/service.py"
+            ]
+          },
+          "response": "error [codx/junior/long_running/__init__.py]\nERROR: codx/junior/long_running/__init__.py File not found\nerror [codx/junior/long_running/models.py]\nERROR: codx/junior/long_running/models.py File not found\nerror [codx/junior/long_running/store.py]\nERROR: codx/junior/long_running/store.py File not found\nerror [codx/junior/long_running/service.py]\nERROR: codx/junior/long_running/service.py File not found",
+          "output": "Read 0 file(s) | Failed to read 4 file(s): codx/junior/long_running/__init__.py, codx/junior/long_running/models.py, codx/junior/long_running/store.py, codx/junior/long_running/service.py",
+          "duration_ms": 314.6548802033067,
+          "error": null
+        },
+        {
+          "tool": "project_structure",
+          "tool_call_id": "call_01_KGWiVi3ZOTEj679vFQxn5118",
+          "status": "done",
+          "request": {
+            "path": "codx/junior/long_running"
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/api`\n",
+          "output": null,
+          "duration_ms": 10292.441211640835,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_dPRk0K0KOwLLEcDL0jJB8331",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/chat_manager.py",
+              "codx/junior/task_manager.py",
+              "codx/junior/kanban/__init__.py",
+              "codx/junior/kanban/catalogue.py"
+            ]
+          },
+          "response": "```py codx/junior/chat_manager.py\n\"\"\"\nChat + AI\nThis module is responsible for chat persistence and management.\n\nBesides the classic full-chat ``save_chat``, this module now exposes granular,\nmerge-safe message operations (``add_message``, ``update_message``,\n``remove_message``) used to persist chat changes *during* an AI turn (e.g.\ntool-usage notification messages, streamed partial responses) without\noverwriting concurrent updates.\n\nIt also provides full-text search capabilities via the ``search_chats`` method,\ndelegating to the ``ChatSearcher`` class for filtering by time frame, keyword\nmatching, and pagination.\n\nMerge strategy (per message, keyed by ``doc_id``):\n\n    ```mermaid\n    flowchart TD\n        A[Incoming chat messages] --> C{doc_id exists in stored chat?}\n        B[Stored chat messages] --> C\n        C -->|No| D[Keep message]\n        C -->|Yes| E{parse incoming.updated_at >= parse stored.updated_at?}\n        E -->|Yes| F[Keep incoming]\n        E -->|No| G[Keep stored]\n        D --> H[Merged message list]\n        F --> H\n        G --> H\n    ```\n\nCHANGED \u2014 kanban storage v2:\n    ``load_kanban`` / ``save_kanban`` / ``delete_kanban`` delegate to\n    :class:`codx.junior.kanban.store.KanbanStore`, which keeps one file per board\n    behind an ``fcntl`` lock and migrates the legacy single ``kanban.json``.\n    Board/column **folders are immutable**: :meth:`ChatManager.get_chat_file`\n    resolves the folder from the catalogue (``resolve_folders``) instead of\n    using ``Chat.board``/``Chat.column`` directly, so renaming a board no longer\n    moves a folder nor rewrites every task.\n\nCHANGED \u2014 chat file discovery:\n    :meth:`ChatManager.chat_paths` only returns real chat files\n    (``<board>/<column>/<name>.<id>.json``). The storage files (``index.json``,\n    ``kanban.json``, ``boards/<id>/board.json``) live in the same tree and must\n    never be parsed as chats.\n\nCHANGED \u2014 exact chat lookup:\n    :meth:`ChatManager.find_by_id` matches the ``.<chat_id>.json`` suffix\n    instead of ``chat_id in path``. The substring match returned the wrong chat\n    whenever two ids shared a prefix, which broke ancestor resolution.\n\nCHANGED \u2014 timestamp normalisation:\n    ``updated_at`` values historically exist in TWO formats:\n    ``str(datetime.now())`` (space separator, Message default) and\n    ``datetime.isoformat()`` (T separator, stamped by add/update_message).\n    Comparing them as raw strings is WRONG (\"...T...\" always beats \"... ...\"\n    lexicographically for the same day). :func:`_parse_timestamp` parses both\n    formats so the last-writer-wins decision uses real datetimes.\n\nCHANGED \u2014 persist hot-path:\n    The granular operations are now called frequently mid-run (tool events,\n    throttled stream persists). :meth:`ChatManager._load_stored_chat` reads\n    the chat directly from ``chat.file_path`` when possible instead of\n    scanning the whole tasks tree via ``find_by_id``.\n\nNEW \u2014 chat search:\n    The :meth:`ChatManager.search_chats` method provides full-text search\n    across all chat data with optional time-frame filtering, user filtering,\n    and pagination, delegating to :class:`codx.junior.chat_searcher.ChatSearcher`.\n\nNEW \u2014 chat filtering:\n    The :meth:`ChatManager.get_recent_chats` method now supports filtering by\n    user_id, board, column, and chat_type (task or chat).\n\nCHANGED \u2014 project_ids filtering:\n    The :meth:`ChatManager.search_chats` method now supports filtering by\n    project_ids list. When no query is provided, returns latest chats from\n    accessible user projects.\n\nCHANGED \u2014 chat ID validation:\n    The :meth:`ChatManager.load_chat_from_path` method now ensures all loaded\n    chats have a valid ID. Missing IDs are extracted from the filename or\n    generated fresh, guaranteeing no chat is returned without an ID.\n\nCHANGED \u2014 time-range filtering:\n    :meth:`ChatManager.chat_paths` and :meth:`ChatManager.list_chats` now\n    accept an optional **upper bound** (``before_update`` / ``to_date``) in\n    addition to the ex",
+          "output": "Read 3 file(s) | Successfully read: codx/junior/chat_manager.py, codx/junior/task_manager.py, codx/junior/kanban/__init__.py | Failed to read 1 file(s): codx/junior/kanban/catalogue.py",
+          "duration_ms": 196.11181039363146,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_moM5WGA2xs1uKDqDDvVp1935",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/kanban/model.py",
+              "codx/junior/kanban/store.py",
+              "codx/junior/globals.py"
+            ]
+          },
+          "response": "```py codx/junior/kanban/model.py\n\"\"\"\nShared constants and helpers of the kanban storage.\n\nThe kanban catalogue lives in ``<codx_path>/tasks`` and is stored in **v2\nformat** (see :mod:`codx.junior.kanban.store`):\n\n```\n.codx/tasks/\n  index.json                       { version: 2, boards: [ {id,title,type,parent_id,folder,order} ], tags }\n  boards/<board_id>/board.json     { id,title,description,type,parent_id,folder,columns:[{id,title,color,folder,order}] }\n  <folder>/<column_folder>/<slug>.<chat_id>.json\n```\n\n``folder`` is **immutable**: it is the name of the directory that holds the\nboard/column chats. ``title`` is only a label, so renaming a board or a column\nchanges nothing on disk and no task has to be rewritten.\n\nThis module must stay dependency free (no imports from the rest of codx-junior)\nbecause both the store and the migration import it.\n\nMade with \u2764\ufe0f by codx-junior\n\"\"\"\n\nimport os\nimport re\n\n# Bumped whenever the on-disk layout changes in a breaking way.\nSTORE_VERSION = 2\n\n# Version reported by the legacy (v1) single-file layout.\nLEGACY_VERSION = 0.1\n\nINDEX_FILE = \"index.json\"\nBOARDS_DIR = \"boards\"\nBOARD_FILE = \"board.json\"\nLEGACY_FILE = \"kanban.json\"\nBACKUP_FILE = \"kanban.v1.backup.json\"\nLOCK_FILE = \".kanban.lock\"\n\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\nBOARD_TYPE_KANBAN = \"kanban\"\nBOARD_TYPE_SPRINT = \"sprint\"\n\n# Characters that can never appear in a directory name used as a folder.\n_INVALID_FOLDER_CHARS = re.compile(r'[/\\\\\\x00-\\x1f]')\n\n\ndef safe_folder(name: str, default: str = \"board\") -> str:\n    \"\"\"\n    Convert a board/column *title* into a directory name.\n\n    The original case and spaces are preserved on purpose: existing projects\n    already have folders such as ``To do`` or ``tasks``, and changing them would\n    orphan every stored chat.\n\n    Args:\n        name: Board or column title.\n        default: Value used when the title has no usable characters.\n\n    Returns:\n        A path separator free folder name.\n\n    Example:\n        >>> safe_folder(\"To do\")\n        'To do'\n        >>> safe_folder(\"api/ui\")\n        'api-ui'\n    \"\"\"\n    folder = _INVALID_FOLDER_CHARS.sub(\"-\", str(name or \"\")).strip()\n    folder = folder.strip(\".\").strip()\n    return folder or default\n\n\ndef is_store_file(file_path: str) -> bool:\n    \"\"\"\n    Tell whether *file_path* is part of the storage itself (not a chat).\n\n    ``.codx/tasks`` holds both the chats and the catalogue, so any code that\n    walks the tree for chats must skip ``index.json``, the legacy\n    ``kanban.json`` and everything under ``boards/``.\n\n    Args:\n        file_path: Absolute or relative file path.\n\n    Returns:\n        True when the path belongs to the kanban storage.\n    \"\"\"\n    base = os.path.basename(file_path)\n    if base in (INDEX_FILE, LEGACY_FILE, BACKUP_FILE, LOCK_FILE):\n        return True\n    parts = os.path.normpath(file_path).split(os.sep)\n    return BOARDS_DIR in parts\n\n# Made with \u2764\ufe0f by codx-junior\n```\n```py codx/junior/kanban/store.py\n\"\"\"\nKanban storage v2: one file per board, atomic writes, cross-process lock.\n\nProblem solved\n--------------\nv1 kept every board of a project in a single ``tasks/kanban.json`` written with\nread\u2011modify\u2011write and no lock, by the UI *and* by the tools. A concurrent write\ndropped boards. v2 keeps:\n\n* ``tasks/index.json`` - the board list (id, title, type, parent, folder, order)\n  plus the project tags,\n* ``tasks/boards/<board_id>/board.json`` - the full definition of one board\n  (description, columns, parents...).\n\nBoth are written atomically (``tmp`` + ``os.replace``) while holding a project\nlevel ``fcntl`` lock, so the API process and the background process can write\nthe same catalogue without losing data.\n\nIdentity\n--------\n``id`` and ``folder`` are immutable. ``title`` is a label: renaming a board or a\ncolumn changes nothing on disk, so **no task is moved or rewritten**.\n\nCompatibility\n-------------\n:meth:`KanbanStore.load` returns the *assembled* legacy shape::\n\n    {\"version\": 2, \"boards\": {\"<title>\": {...}",
+          "output": "Read 3 file(s) | Successfully read: codx/junior/kanban/model.py, codx/junior/kanban/store.py, codx/junior/globals.py",
+          "duration_ms": 265.20846504718065,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_JVOhT4GuBgjeS9hYhv2e0262",
+          "status": "done",
+          "request": {
+            "search": [
+              "async def chat_with_project",
+              "class CODXJuniorSession",
+              "def get_chat_manager"
+            ],
+            "validation": "chat_with_project session chat manager"
+          },
+          "response": "> codx-api results for: 'async def chat_with_project, class CODXJuniorSession, def get_chat_manager'\n```py codx/junior/engine/session.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/engine/session.py\nasync def excute_bash_code(self, chat: Chat, code_block_info: dict) -> None:\n        \"\"\"Execute a bash code block.\"\"\"\n        return await self._code_engine.excute_bash_code(chat=chat, code_block_info=code_block_info)\n\n    async def generate_code(self, chat: Chat, code_block_info: dict) -> None:\n        \"\"\"Generate or apply code from a code block.\"\"\"\n        return await self._code_engine.generate_code(chat=chat, code_block_info=code_block_info)\n\n    async def improve_existing_code_patch(\n        self, chat: Chat, code_generator: AICodeGenerator\n    ) -> tuple:\n        \"\"\"Apply a patch-based code improvement.\"\"\"\n        return await self._code_engine.improve_existing_code_patch(\n            chat=chat, code_generator=code_generator\n        )\n\n    @profile_function\n    async def improve_existing_code(\n        self, chat: Chat, apply_changes: bool = None\n    ) -> AICodeGenerator:\n        \"\"\"Improve existing code using AI.\"\"\"\n        return await self._code_engine.improve_existing_code(\n            chat=chat, apply_changes=apply_changes\n        )\n\n    def get_ai_code_generator_changes(self, response: str) -> AICodeGenerator:\n        \"\"\"Parse AI response into a code generator object.\"\"\"\n        return self._code_engine.get_ai_code_generator_changes(response=response)\n\n    @profile_function\n    async def apply_improve_code_changes(\n        self, code_generator: AICodeGenerator, chat: Chat = None\n    ) -> None:\n        \"\"\"Apply AI-generated code changes to files.\"\"\"\n        return await self._code_engine.apply_improve_code_changes(\n            code_generator=code_generator, chat=chat\n        )\n\n    async def change_file_with_instructions(\n        self, instruction_list: list, file_path: str, content: str\n    ) -> str:\n        \"\"\"Rewrite a file applying a list of instructions.\"\"\"\n        return await self._code_engine.change_file_with_instructions(\n            instruction_list=instruction_list, file_path=file_path, content=content\n        )\n/home/codx-junior-projects/codx-junior/api/codx/junior/engine/session.py\n@profile_function\n    async def chat_with_project(\n        self,\n        chat: Chat,\n        disable_knowledge: bool = False,\n        callback=None,\n        append_references: bool = True,\n        chat_mode: str = None,\n        iteration: int = 0,\n    ) -> tuple:\n        \"\"\"Core method: chat with the project using AI and knowledge.\"\"\"\n        return await self._chat_engine_actions.chat_with_project(\n            chat=chat,\n            disable_knowledge=disable_knowledge,\n            callback=callback,\n            append_references=append_references,\n            chat_mode=chat_mode,\n            iteration=iteration,\n        )\n\n    @profile_function\n    async def summarize_chat(\n        self, chat: Chat, instructions: str = \"\"\n    ) -> Message:\n        \"\"\"Summarize a chat conversation.\"\"\"\n        return await self._chat_engine_actions.summarize_chat(\n            chat=chat, instructions=instructions\n        )\n\n    @profile_function\n    async def generate_tasks(self, chat: Chat, instructions: str = \"\") -> None:\n        \"\"\"Generate sub-tasks from a chat.\"\"\"\n        return await self._chat_engine_actions.generate_tasks(\n            chat=chat, instructions=instructions\n        )\n\n    def get_chat_analysis_parents(self, chat: Chat) -> str:\n        \"\"\"Collect parent chat messages for context analysis.\"\"\"\n        return self._chat_engine_actions.get_chat_analysis_parents(chat=chat)\n\n    def convert_message(self, m: Message) -> object:\n        \"\"\"Convert a DB Message to a LangChain message object.\"\"\"\n        return self._chat_engine_actions.convert_message(m=m)\n\n    # -------------------------------------------------------------------------\n    # File operations (delegated)\n    # ------------------------------------------------------",
+          "output": "Search completed: 3 queries executed, 30 documents found, 0 files matched",
+          "duration_ms": 9021.60766068846,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_So97D36m3O42XRxIsUw59362",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "codx/junior/events/event_manager.py",
+              "codx/junior/api/__init__.py"
+            ]
+          },
+          "response": "```py codx/junior/events/event_manager.py\nfrom codx.junior.sio.session_channel import SessionChannel\nfrom codx.junior.db import Chat, Message\n\nclass EventManager:\n    def __init__(self,\n            codx_path: str,\n            channel: SessionChannel = None):\n        if not channel:\n            from codx.junior.sio.sio import sio\n            channel = SessionChannel(sio=sio)\n\n        self.codx_path = codx_path\n        self.channel = channel\n\n    def event_data(self, data: dict):\n        data['codx_path'] = self.codx_path\n        return data\n\n    def send_notification(self, **kwargs):\n        if not kwargs.get(\"type\"):\n            kwargs[\"type\"] = \"notification\"\n        self.channel.send_event('codx-junior', self.event_data(kwargs))\n\n    def send_event(self, message: str):\n        self.channel.send_event('codx-junior', self.event_data({ 'text': message, \"type\": \"event\" }))\n        # self.log_info(f\"Sending event {message}- SENT!\")\n    def send_knowled_event(self, **kwargs):\n        self.channel.send_event('knowledge-event', self.event_data(kwargs))\n\n    def chat_event(self, chat: Chat, message: str = None, event_type: str = None):\n        self.channel.send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id, 'owner_project_id': chat.owner_project_id }, 'text': message, 'type': event_type }))\n        # self.log_info(f\"SEND MESSAGE {message}- SENT!\")\n\n    def message_event(self, chat: Chat, message: Message):\n        self.channel.send_event('message-event', self.event_data({ 'chat': { 'id': chat.id, 'owner_project_id': chat.owner_project_id }, 'message': message.model_dump() }))\n        # self.log_info(f\"SEND MESSAGE {message.role} {message.doc_id}- SENT!\")\n\n    def wiki_event(self, message: str):\n        self.channel.send_event('wiki-event', self.event_data({ \"info\": message }))\n        # self.log_info(f\"SEND MESSAGE {message.role} {message.doc_id}- SENT!\")\n\n```\n```py codx/junior/api/__init__.py\n\"\"\"\nShared API utilities used across multiple routers.\n\"\"\"\n\nimport logging\nimport os\nimport importlib\nfrom pathlib import Path\nfrom typing import List\n\nfrom fastapi import Depends, HTTPException, Request\n\nfrom codx.junior.model.model import CodxUser\nfrom codx.junior.security.user_management import get_authenticated_user\nfrom codx.junior.engine import CODXJuniorSession\n\nlogger = logging.getLogger(__name__)\n\n\ndef require_admin(user: CodxUser = Depends(get_authenticated_user)) -> CodxUser:\n    \"\"\"Dependency that raises 403 unless the authenticated user is an admin.\"\"\"\n    if not user or user.role != \"admin\":\n        logger.error(\"Access denied for user: %s\", user.username if user else \"anonymous\")\n        raise HTTPException(status_code=403, detail=\"Access denied. Admins only.\")\n    return user\n\ndef get_current_session(request: Request) -> CODXJuniorSession:\n    \"\"\"\n    Extract the active CODXJuniorSession from the incoming request state.\n\n    This mirrors the pattern used in the wiki router where the session is\n    injected into ``request.state`` by middleware before reaching the endpoint.\n\n    Args:\n        request: The incoming HTTP request.\n\n    Returns:\n        The active ``CODXJuniorSession`` attached to the request state.\n    \"\"\"\n    return request.state.codx_junior_session\n\n\ndef discover_routers() -> List[dict]:\n    \"\"\"\n    Dynamically discover all routers in the api package.\n    Each router module should export a 'router' attribute.\n    \n    Returns:\n        List of dicts with 'router', 'prefix', and 'module' keys.\n    \"\"\"\n    routers = []\n    api_package_path = Path(__file__).parent\n    \n    # Get all Python files in the api directory (excluding __init__.py and test files)\n    router_files = [\n        f.stem for f in api_package_path.glob('*.py')\n        if f.is_file() and f.stem not in ['__init__', '__pycache__']\n        and not f.name.startswith('test_')\n    ]\n    \n    for module_name in sorted(router_files):\n        try:\n            # Import the module dynamically\n            module = importlib.import_module(f'codx.jun",
+          "output": "Read 2 file(s) | Successfully read: codx/junior/events/event_manager.py, codx/junior/api/__init__.py",
+          "duration_ms": 186.52660492807627,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_Rwi2aNpcge9p9qEvr5QI0789",
+          "status": "done",
+          "request": {
+            "search": [
+              "def get_current_session",
+              "start_background_services(",
+              "SessionChannel("
+            ],
+            "validation": "session creation channel event manager"
+          },
+          "response": "> codx-api results for: 'def get_current_session, start_background_services(, SessionChannel('\n```py codx/junior/api/knowledge.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/api/knowledge.py\n@router.delete(\"/delete\")\ndef api_knowledge_reload_all(request: Request):\n    \"\"\"\n    Delete all knowledge documents for the current project.\n\n    Returns:\n        Result of the full-delete operation.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge()\n\n\n@router.post(\"/reload-search\")\nasync def api_knowledge_search_endpoint(\n    knowledge_search_params: KnowledgeSearch,\n    request: Request,\n):\n    \"\"\"\n    Search the knowledge base using the provided parameters.\n\n    Args:\n        knowledge_search_params: Query and options for the knowledge search.\n        request: Incoming HTTP request carrying the session.\n\n    Returns:\n        List of matching knowledge documents.\n    \"\"\"\n    logger.info(\"API:knowledge_search_endpoint\")\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.knowledge_search(\n        knowledge_search=knowledge_search_params\n    )\n\n\n@router.get(\"/status\")\ndef api_knowledge_status(request: Request):\n    \"\"\"\n    Return the current knowledge base status for the project.\n\n    Returns:\n        Knowledge status dict.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.check_knowledge_status()\n\n@router.get(\"/files\")\ndef api_knowledge_files(request: Request):\n    \"\"\"\n    Return the current knowledge base status for the project.\n\n    Returns:\n        Knowledge status dict.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_knowledge_files()\n\n\n@router.get(\"/keywords\")\ndef api_get_keywords(request: Request):\n    \"\"\"\n    Retrieve knowledge-base keywords matching an optional query string.\n\n    Query params:\n        query (str): Optional search term to filter keywords.\n\n    Returns:\n        List of matching keyword strings.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    query = request.query_params.get(\"query\")\n    return codx_junior_session.get_keywords(query=query)\n```\n```py codx/junior/engine/knowledge_engine.py\n/home/codx-junior-projects/codx-junior/api/codx/junior/engine/knowledge_engine.py\nReturns:\n            Dict with status information.\n        \"\"\"\n        knowledge = self.session.get_knowledge()\n        return list(knowledge.get_db().get_all_sources().keys())\n        \n    def check_knowledge_status(self) -> dict:\n        \"\"\"\n        Return detailed knowledge status including pending files and metrics.\n\n        Returns:\n            Dict with status information.\n        \"\"\"\n        knowledge = self.session.get_knowledge()\n        status = knowledge.status()\n        current_sources_and_updates = knowledge.get_db().get_all_sources()\n        \n        pending_files , _ = knowledge.detect_changes(\n            current_sources_and_updates=current_sources_and_updates\n        )\n            \n        total_pending = len(pending_files)\n\n        # Cap the list for display\n        if total_pending > 1000:\n            pending_files = pending_files[:1000]\n\n        pending_files = [\n            f for f in pending_files if f not in list(current_sources_and_updates.keys())\n        ]\n        collection_metrics = knowledge.get_db().get_collection_metrics()\n\n        return {\n            \"current_sources_and_updates\": current_sources_and_updates,\n            \"pending_files\": pending_files,\n            \"total_pending_changes\": len(pending_files),\n            \"total_pending\": total_pending,\n            \"collection_metrics\": collection_metrics,\n            **status,\n        }\n\n    @profile_function\n    def find_project_documents(self, query: str) -> list:\n        \"\"\"\n        Find project documents relevant to a query.\n\n        Args:\n            query: Free text query.\n\n        Returns:\n            List of matching ",
+          "output": "Search completed: 3 queries executed, 30 documents found, 0 files matched",
+          "duration_ms": 7489.544279873371,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "running",
+          "run_id": "e6fdf8797fe1",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "biblio",
+        "file_editor",
+        "git",
+        "project",
+        "py_senior",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": false,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "6cfab779-dfea-4437-a4b3-c83c1e4779c4",
+      "role": "user",
+      "task_item": "",
+      "content": "Finish this task",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-04 13:50:59.898254",
+      "updated_at": "2026-11-04T13:50:59.898317",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-04 09:28:03.964706",
+  "updated_at": "2026-11-04T13:50:59.898950",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior-agents",
+  "column": "To Do",
+  "sprints": [
+    "codx-junior-agents"
+  ],
+  "priority": "high",
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior-agents/To Do/wp2-runner-tick-and-background-worker-resumable-single-worker-budget-hard-stop.4566da71-2222-4f78-a4b7-1f57343ccd5b.json",
+  "llm_model": "",
+  "estimation_cost": null,
+  "cost": 0.0,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false
+}

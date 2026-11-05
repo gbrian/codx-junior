@@ -1,0 +1,27 @@
+{
+  "id": "cb719ce7-8fb4-5c3c-9e05-428da6a42544",
+  "title": "codx-junior-1.0",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-junior-1.0",
+  "order": 3,
+  "columns": [
+    {
+      "id": "8cb55173-75a7-459c-98fc-5ecb835b749b",
+      "title": "Proposals",
+      "color": "#F39C19",
+      "folder": "Proposals",
+      "order": 0
+    },
+    {
+      "id": "bab95b72-4e3a-4932-a413-bed38064fc89",
+      "title": "Ideas",
+      "color": "",
+      "folder": "Ideas",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2025-05-24T05:35:59.188Z",
+  "description": ""
+}

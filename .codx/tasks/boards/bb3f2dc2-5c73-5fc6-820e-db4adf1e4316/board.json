@@ -1,0 +1,36 @@
+{
+  "id": "bb3f2dc2-5c73-5fc6-820e-db4adf1e4316",
+  "title": "Bug Fixing",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Bug Fixing",
+  "order": 17,
+  "description": "Backlog board",
+  "branch": "",
+  "columns": [
+    {
+      "id": "8db2a747-9694-4ca3-9006-aa48ed8fc895",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "9ee6dd2d-79df-41f5-b041-1fba0f63ab31",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "2578cef7-5225-49c5-a6f4-ccd2d1c1b6f6",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-12-26T08:32:15.283Z",
+  "active": false,
+  "background": "https://res.cloudinary.com/upwork-cloud/image/upload/c_scale,w_1000/v1709864357/catalog/1407760858362458112/v1msdlkkzuw94mijzv0f.webp"
+}

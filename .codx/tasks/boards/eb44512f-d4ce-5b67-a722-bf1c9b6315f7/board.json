@@ -1,0 +1,14 @@
+{
+  "id": "eb44512f-d4ce-5b67-a722-bf1c9b6315f7",
+  "title": "Add meet calls",
+  "type": "sprint",
+  "parent_id": null,
+  "folder": "Add meet calls",
+  "order": 111,
+  "description": "Allow to have meetings with internal and external users",
+  "background": "",
+  "project_id": null,
+  "columns": [],
+  "last_update": "2026-10-05T15:19:18.867Z",
+  "active": false
+}
