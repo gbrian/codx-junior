@@ -1,13 +1,18 @@
-# DSH <-> codx-junior bridge. The bridge secret is generated at
-# <workspace>/.dsh-codx-junior/secret on first load and read by codx-junior.
+# DSH -> codx-junior outbound agent channel.
+#
+# The plugin registers with the codx-junior API, sends heartbeats, long-polls
+# commands and posts task events. No inbound DSH route is required.
+# The agent token is generated in codx-junior's Global Settings -> DSH Harness
+# and written to <workspace>/.dsh-codx-junior/token, or set below.
 - insert:
     - id: codx-junior-sync
-      name: '@local/codx-junior-task-bridge'
+      name: '@local/codx-junior-outbound'
       config:
         codxApiUrl: !!js process.env.CODX_JUNIOR_API_URL ?? 'http://127.0.0.1:19980'
-        codxPath: !!js process.env.CODX_JUNIOR_CODX_PATH ?? ''
-        board: DSH
-        defaultColumn: Todo
+        token: !!js process.env.DSH_CODX_JUNIOR_AGENT_TOKEN ?? ''
+        agentEnabled: true
+        bridgeEnabled: false
+        heartbeatMs: 5000
+        pollWaitMs: 25000
         syncOnStart: true
-        webhookEnabled: true
         uiUrlTemplate: !!js process.env.DSH_WEB_URL ?? 'http://127.0.0.1:3080/?session={sessionId}'

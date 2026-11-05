@@ -10,7 +10,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
       <i class="fa-solid text-[11px] shrink-0" :class="[fileIcon, fileColor]"></i>
       <button
         class="font-mono text-xs font-semibold truncate max-w-[45%] hover:underline"
-        :title="`${file.path} — open in editor`"
+        :title="`${file.path} — open in FileViewer`"
         @click="openFile"
       >{{ fileName }}</button>
       <span class="font-mono text-[10px] opacity-40 truncate hidden sm:inline" :title="file.path">{{ fileDir }}</span>
@@ -46,7 +46,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
           <i class="fa-solid fa-rotate-left text-[10px]"></i> Rollback
         </button>
       </template>
-      <button class="btn btn-xs btn-ghost" title="Open file in editor" aria-label="Open file in editor" @click="openFile">
+      <button class="btn btn-xs btn-ghost" title="Open in FileViewer" aria-label="Open in FileViewer" @click="openFile">
         <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Close diff" aria-label="Close diff" @click="$emit('close')">
@@ -275,9 +275,14 @@ export default {
       }
     },
 
+    /**
+     * Open the file in the in-app FileViewer tab (not the external code editor).
+     * `openFileInViewer` routes through the unified app opener, so it lands as a
+     * dockview panel on desktop and as a route in single/mobile mode.
+     */
     openFile() {
-      if (!this.file?.path || !this.$ui?.openProjectFile) return
-      this.$ui.openProjectFile(this.file.path)
+      if (!this.file?.path || !this.$ui?.openFileInViewer) return
+      this.$ui.openFileInViewer(this.file.path)
     }
   }
 }

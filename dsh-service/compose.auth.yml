@@ -1,0 +1,18 @@
+# Optional overlay: HTTP Basic auth in front of the DSH router.
+#
+#   ./scripts/set-basic-auth.sh admin
+#   docker compose -f docker-compose.yml -f compose.auth.yml up -d
+#
+# DSH itself has no user accounts: the launch-token exchange makes every
+# browser the owner, and the session cookie lasts 30 days. Put an edge gate in
+# front of it when the hostname is reachable from an untrusted network.
+#
+# The hash lives in .env as DSH_BASIC_AUTH_USERS (with $ doubled for Compose
+# interpolation). Keeping it in a label avoids mounting a file into the
+# Traefik container, which this Compose project does not control.
+services:
+  dsh:
+    labels:
+      traefik.http.routers.dsh.middlewares: dsh-headers,dsh-auth
+      traefik.http.middlewares.dsh-auth.basicauth.users: "${DSH_BASIC_AUTH_USERS:?Run ./scripts/set-basic-auth.sh first}"
+      traefik.http.middlewares.dsh-auth.basicauth.realm: DSH

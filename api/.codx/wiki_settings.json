@@ -810,6 +810,36 @@
           "path": "/codx/junior/traefik/__init__.py",
           "slug": "init.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/api/dsh_agent.py",
+          "slug": "dsh-agent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/dsh-agent.md"
+        },
+        {
+          "path": "/codx/junior/integrations/dsh_agent.py",
+          "slug": "dsh-agent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/dsh-agent.md"
+        },
+        {
+          "path": "/tests/test_dsh_agent.py",
+          "slug": "test-dsh-agent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-dsh-agent.md"
+        },
+        {
+          "path": "/api/codx/junior/infra/manager.py",
+          "slug": "manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/manager.md"
+        },
+        {
+          "path": "/api/codx/junior/api/infra.py",
+          "slug": "infra.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/infra.md"
+        },
+        {
+          "path": "/codx/junior/infra/compose.py",
+          "slug": "compose.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/compose.md"
         }
       ],
       "id": "project-overview",

@@ -705,10 +705,34 @@ def api_list_chats(request: Request):
                 # conversation. Hydration is an in-memory read: nothing is
                 # written back to the task JSON.
                 try:
-                    from codx.junior.integrations.dsh import DshSync
-                    DshSync(codx_junior_session.settings).for_chat_manager(
-                        chat_manager
-                    ).hydrate_chat(chat)
+                    from codx.junior.integrations.dsh import DshConfig, DshSync
+                    from codx.junior.integrations.dsh_agent import (
+                        DshAgentClient,
+                        get_dsh_agent_registry,
+                    )
+                    config = DshConfig.from_settings(codx_junior_session.settings)
+                    registry = get_dsh_agent_registry()
+                    chat_instance_id = getattr(chat, "external_instance_id", None)
+                    instance = (
+                        registry.get(chat_instance_id)
+                        if chat_instance_id
+                        else registry.default_instance(
+                            getattr(codx_junior_session.settings, "project_id", None),
+                            config.default_instance_id,
+                        )
+                    )
+                    if instance is not None:
+                        client = DshAgentClient(
+                            registry,
+                            instance.id,
+                            timeout=max(config.timeout, 20),
+                        )
+                        DshSync(
+                            codx_junior_session.settings,
+                            config=config,
+                            client=client,
+                            instance_id=instance.id,
+                        ).for_chat_manager(chat_manager).hydrate_chat(chat)
                 except Exception as ex:
                     logger.warning("api_list_chats: cannot hydrate DSH chat %s: %s", chat_id, ex)
             return chat

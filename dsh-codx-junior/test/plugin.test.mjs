@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { createServer } from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createHmac } from "node:crypto";
 import { apply } from "../index.js";
 
@@ -154,6 +157,8 @@ test("bridge lists tasks and rejects missing auth", async () => {
   const services = fakeServices();
   const ctx = fakeContext(services);
   apply(ctx, {
+    bridgeEnabled: true,
+    agentEnabled: false,
     sharedSecret: "test-secret",
     codxApiUrl: "http://127.0.0.1:1",
     projectPath: "/project",
@@ -179,6 +184,8 @@ test("bridge gets live messages and creates/prompts a session", async () => {
   const services = fakeServices();
   const ctx = fakeContext(services);
   apply(ctx, {
+    bridgeEnabled: true,
+    agentEnabled: false,
     sharedSecret: "test-secret",
     codxApiUrl: "http://127.0.0.1:1",
     webhookEnabled: false,
@@ -228,6 +235,8 @@ test("bridge posts signed task webhooks to codx-junior", async () => {
     const services = fakeServices();
     const ctx = fakeContext(services);
     apply(ctx, {
+      bridgeEnabled: true,
+      agentEnabled: false,
       sharedSecret: "hook-secret",
       codxApiUrl: `http://127.0.0.1:${port}`,
       codxPath: "/project/.codx",
@@ -282,6 +291,8 @@ test("bridge suppresses blank session creation notifications", async () => {
       sessionTitle: { get() { return undefined; } },
     });
     apply(ctx, {
+      bridgeEnabled: true,
+      agentEnabled: false,
       sharedSecret: "hook-secret",
       codxApiUrl: `http://127.0.0.1:${port}`,
       webhookEnabled: true,
@@ -301,5 +312,108 @@ test("bridge suppresses blank session creation notifications", async () => {
     for (const dispose of ctx.disposers) dispose();
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+async function waitFor(predicate, timeoutMs = 4000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("timed out waiting for condition");
+}
+
+test("agent mode registers, heartbeats, executes a command and posts events", async () => {
+  const workspace = mkdtempSync(join(tmpdir(), "dsh-agent-"));
+  const received = [];
+  let commandDelivered = false;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => {
+      const url = new URL(req.url, "http://localhost");
+      received.push({ path: url.pathname, search: url.search, headers: req.headers, body });
+      const send = (status, payload) => {
+        res.statusCode = status;
+        res.setHeader("content-type", "application/json");
+        res.end(payload === undefined ? "" : JSON.stringify(payload));
+      };
+      if (url.pathname === "/api/dsh/agent/register") {
+        return send(200, {
+          ok: true,
+          instance: { id: "inst-test", name: "Test Host", status: "online" },
+          conf: { board: "DSH" },
+        });
+      }
+      if (url.pathname === "/api/dsh/agent/heartbeat") {
+        return send(200, { ok: true });
+      }
+      if (url.pathname === "/api/dsh/agent/commands") {
+        if (!commandDelivered) {
+          commandDelivered = true;
+          return send(200, {
+            ok: true,
+            commands: [{ id: "cmd-ping", type: "ping", payload: {} }],
+          });
+        }
+        return send(204);
+      }
+      if (url.pathname.startsWith("/api/dsh/agent/commands/") && url.pathname.endsWith("/result")) {
+        return send(200, { ok: true, accepted: true });
+      }
+      if (url.pathname === "/api/dsh/agent/events") {
+        return send(200, { ok: true });
+      }
+      return send(404, { detail: "unknown" });
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  try {
+    const services = fakeServices();
+    const ctx = fakeContext(services);
+    apply(ctx, {
+      agentEnabled: true,
+      bridgeEnabled: false,
+      token: "agent-secret",
+      instanceId: "inst-test",
+      workspaceDir: workspace,
+      codxPath: join(workspace, ".codx"),
+      codxApiUrl: `http://127.0.0.1:${port}`,
+      heartbeatMs: 1000,
+      pollWaitMs: 500,
+      debounceMs: 10,
+      syncOnStart: false,
+    });
+
+    await waitFor(() => received.some((request) => request.path === "/api/dsh/agent/register"));
+    await waitFor(() => received.some((request) => request.path.endsWith("/result")));
+    const register = received.find((request) => request.path === "/api/dsh/agent/register");
+    assert.equal(register.headers.authorization, "Bearer agent-secret");
+    assert.match(register.search, /codx_path=/);
+    assert.equal(JSON.parse(register.body).instance_id, "inst-test");
+    const result = received.find((request) => request.path.endsWith("/result"));
+    assert.equal(JSON.parse(result.body).ok, true);
+    assert.equal(JSON.parse(result.body).instance_id, "inst-test");
+
+    const session = {
+      id: "session-agent",
+      seq: 3,
+      header: { version: 4, id: "session-agent", createdAt: 1_000, isSeeded: false },
+      snapshotEvents() { return []; },
+      eventAt() { return { time: 1_200 }; },
+    };
+    for (const listener of ctx.listeners.get("session/created") ?? []) listener(session);
+    await waitFor(() => received.some((request) => request.path === "/api/dsh/agent/events"));
+    const event = received.find((request) => request.path === "/api/dsh/agent/events");
+    const eventPayload = JSON.parse(event.body);
+    assert.equal(eventPayload.instance_id, "inst-test");
+    assert.equal(eventPayload.task.id, "session-agent");
+    for (const dispose of ctx.disposers) dispose();
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(workspace, { recursive: true, force: true });
   }
 });

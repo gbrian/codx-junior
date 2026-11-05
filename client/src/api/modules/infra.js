@@ -287,6 +287,23 @@
  */
 
 /**
+ * @typedef {Object} InfraStack
+ * One docker compose project (a compose file with N services).
+ *
+ * The command surface mirrors `docker compose <action>`:
+ * `up` (labelled "Start" in the UI — it is the only action that CREATES the
+ * missing containers), `stop`, `restart`, `build`, `pull` and `down`
+ * (containers + networks removed, named volumes kept).
+ *
+ * @property {string}  name           Compose project name (defaults to the folder).
+ * @property {string}  path           Compose file path on the host.
+ * @property {'running'|'degraded'|'stopped'} status
+ * @property {number}  running        Services currently running.
+ * @property {number}  total          Services declared by the compose file.
+ * @property {InfraContainer[]} services  One entry per service (container subset).
+ */
+
+/**
  * @typedef {Object} InfraStats
  * @property {{cpu_pct:number, mem_used:number, mem_limit:number, net_rx:number, net_tx:number, block_read:number, block_write:number, pids:number}} current
  * @property {{t:string, cpu:number, mem:number}[]} series  Time series (ISO ts + values).
@@ -322,6 +339,8 @@ export const INFRA_ENDPOINTS = [
   { method: 'POST',   path: '/api/infra/containers',         desc: 'Create & run a container.',                        body: '{ name, image, ports[]{host,container,proto}, env[]{k,v}, cmd, stack, host_id }', response: 'InfraContainer' },
   { method: 'DELETE', path: '/api/infra/containers/:id',     desc: 'Remove a container.',                              response: '{ ok: true }' },
   { method: 'GET',    path: '/api/infra/stacks',             desc: 'Compose projects.',                                query: 'host', response: '{ stacks: { name, path, status, running, total, services[] }[] }' },
+  { method: 'POST',   path: '/api/infra/stacks/:name/actions', desc: 'Run a compose command: up | stop | restart | build | pull | down.', body: '{ action, host_id }', response: 'InfraStack' },
+  { method: 'GET',    path: '/api/infra/stacks/:name/logs',  desc: 'Aggregated compose logs (every service of the stack).', query: 'tail, host', response: '{ name, lines: { ts, level, msg }[] }' },
   { method: 'GET',    path: '/api/infra/images',             desc: 'Images on the host.',                              query: 'host', response: '{ images: { repo, tag, id, size, created, containers, dangling }[] }' },
   { method: 'GET',    path: '/api/infra/volumes',            desc: 'Volumes on the host.',                             query: 'host', response: '{ volumes: { name, driver, scope, mountpoint, size, stack, in_use, anonymous }[] }' },
   { method: 'GET',    path: '/api/infra/networks',           desc: 'Networks on the host.',                            query: 'host', response: '{ networks: { id, name, driver, scope, subnet, internal, containers[] }[] }' },
@@ -492,6 +511,39 @@ export function infraModule(API) {
     remove: (id) => del('/api/infra/containers/' + slug(id)),
 
     stacks: (host = 'host-local') => get('/api/infra/stacks?' + hostQs(host)),
+
+    /**
+     * Runs ONE compose command against a stack (`docker compose <action>`).
+     *
+     * `up` is what the UI labels "Start": it is the only action that CREATES
+     * the missing containers, which is why a stack that was brought `down` is
+     * revived with `up` and not with `start`. `down` removes the containers and
+     * the networks — named volumes are KEPT (no `--volumes` flag is sent), so
+     * the equivalent of `down -v` is deliberately not exposed.
+     *
+     * Long running on purpose (build, pull, down): the request resolves once
+     * the command settles, and the caller reloads the host snapshot afterwards.
+     *
+     * @param {string} name   Compose project name.
+     * @param {'up'|'stop'|'restart'|'build'|'pull'|'down'} action
+     * @param {string} [host='host-local'] InfraHost.id the stack lives on.
+     * @returns {Promise<InfraStack|{ok: true}>} refreshed stack (or `{ok:true}`
+     *          when the project is gone after `down`).
+     */
+    stackAction: (name, action, host = 'host-local') =>
+      post('/api/infra/stacks/' + slug(name) + '/actions', { action, host_id: host }),
+
+    /**
+     * Aggregated logs of every service in the stack. Compose prefixes each line
+     * with its service name in `msg`, so the UI can keep rendering 3 columns.
+     * @param {string} name
+     * @param {number} [tail=200]
+     * @param {string} [host='host-local']
+     * @returns {Promise<{name:string, lines:{ts:string,level:string,msg:string}[]}>}
+     */
+    stackLogs: (name, tail = 200, host = 'host-local') =>
+      get('/api/infra/stacks/' + slug(name) + '/logs?tail=' + tail + '&' + hostQs(host)),
+
     images: (host = 'host-local') => get('/api/infra/images?' + hostQs(host)),
     volumes: (host = 'host-local') => get('/api/infra/volumes?' + hostQs(host)),
     networks: (host = 'host-local') => get('/api/infra/networks?' + hostQs(host)),

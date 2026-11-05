@@ -984,6 +984,14 @@
       "parent_id": "codx-junior management dashboard",
       "folder": "External connectors",
       "order": 122
+    },
+    {
+      "id": "97e34e25-a877-426d-b346-81bf9a818d50",
+      "title": "DSH",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "DSH",
+      "order": 123
     }
   ],
   "tags": {}

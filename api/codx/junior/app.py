@@ -198,8 +198,7 @@ app = FastAPI(
     version="1.0",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    ssl_context='adhoc'
+    redoc_url="/api/redoc"
 )
 
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")

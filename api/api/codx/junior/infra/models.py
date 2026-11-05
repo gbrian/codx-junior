@@ -309,6 +309,31 @@ class InfraStackList(BaseModel):
     stacks: List[InfraStack] = Field(default_factory=list)
 
 
+class InfraStackLogs(BaseModel):
+    """Response of ``GET /api/infra/stacks/{name}/logs``.
+
+    One chronological stream with every service of the project. Each ``msg`` is
+    already prefixed with its service name (what ``docker compose logs``
+    prints), so the UI keeps rendering a single monospace table.
+    """
+
+    name: str = Field(default="", description="Compose project name")
+    lines: List[InfraLogLine] = Field(default_factory=list)
+
+
+class InfraStackActionRequest(BaseModel):
+    """Body of ``POST /api/infra/stacks/{name}/actions``.
+
+    ``action`` is the ``docker compose`` sub-command to run. ``up`` is what the
+    UI labels "Start": it is the only command that CREATES the missing
+    containers, so a project brought ``down`` is revived with ``up``. ``down``
+    removes containers and networks but KEEPS named volumes.
+    """
+
+    action: str = Field(description="up | stop | restart | build | pull | down")
+    host_id: Optional[str] = Field(default=None, description="Target host id")
+
+
 # ── Images, volumes, networks, events ─────────────────────────────────────────
 
 

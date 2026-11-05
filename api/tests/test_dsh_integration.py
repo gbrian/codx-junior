@@ -416,7 +416,8 @@ def test_router_create_task_endpoint(project, monkeypatch):
         request.state.codx_junior_session = FakeSession()
         return await call_next(request)
 
-    monkeypatch.setattr(dsh_api, "_sync", lambda request: FakeSync())
+    monkeypatch.setattr(dsh_api, "_resolve_instance_id", lambda request, preferred=None, session_id=None: "inst-1")
+    monkeypatch.setattr(dsh_api, "_sync_for_instance", lambda request, instance_id: FakeSync())
     client = TestClient(app)
     response = client.post(
         "/api/dsh/tasks",
@@ -425,5 +426,126 @@ def test_router_create_task_endpoint(project, monkeypatch):
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["session_id"] == "created-session"
+    assert data["instance_id"] == "inst-1"
     assert data["chat"]["name"] == "Triggered"
     assert data["chat"]["column"] == "Doing"
+
+
+def test_config_prefers_dashboard_settings_over_file(project, monkeypatch, tmp_path):
+    root, settings, manager = project
+    secret_file = os.path.join(root, ".dsh-codx-junior", "secret")
+    os.makedirs(os.path.dirname(secret_file), exist_ok=True)
+    with open(secret_file, "w", encoding="utf-8") as handle:
+        handle.write("file-secret\n")
+
+    class DashboardDsh:
+        url = "http://dashboard-dsh:3080/"
+        secret = "dashboard-secret"
+        board = "Dashboard board"
+        enabled = True
+        only_project = False
+
+    monkeypatch.setattr(
+        "codx.junior.integrations.dsh._global_dsh_settings",
+        lambda: DashboardDsh(),
+    )
+    config = DshConfig.from_settings(settings)
+    assert config.url == "http://dashboard-dsh:3080"
+    assert config.board == "Dashboard board"
+    assert config.secret == "dashboard-secret"
+    assert config.secret_source == "settings"
+    assert config.only_project is False
+
+
+def test_router_saves_dashboard_settings(project, monkeypatch):
+    from fastapi import FastAPI, Request
+    from fastapi.testclient import TestClient
+    from codx.junior.model.model import CodxUser, DshSettings
+
+    root, settings, manager = project
+    dsh_api = _import_dsh_router()
+    saved = {}
+
+    class FakeSession:
+        def __init__(self):
+            self.settings = settings
+
+        def get_chat_manager(self):
+            return manager
+
+    monkeypatch.setattr(
+        dsh_api,
+        "read_global_settings",
+        lambda: type("Global", (), {"dsh": DshSettings()})(),
+    )
+    monkeypatch.setattr(
+        dsh_api,
+        "write_settings_section",
+        lambda section, data: saved.update({"section": section, "data": data}),
+    )
+    monkeypatch.setattr(
+        dsh_api,
+        "_config",
+        lambda project_settings: DshConfig(
+            url="http://dsh-new:3080",
+            secret="new-secret",
+            board="DSH",
+        ),
+    )
+
+    app = FastAPI()
+    app.include_router(dsh_api.router, prefix="/api")
+    app.dependency_overrides[dsh_api.get_authenticated_user] = lambda: CodxUser(
+        username="admin", role="admin"
+    )
+
+    @app.middleware("http")
+    async def attach_session(request: Request, call_next):
+        request.state.codx_junior_session = FakeSession()
+        return await call_next(request)
+
+    client = TestClient(app)
+    response = client.put(
+        "/api/dsh/settings",
+        json={
+            "url": "http://dsh-new:3080/",
+            "board": "DSH",
+            "secret": "new-secret",
+            "enabled": True,
+            "only_project": False,
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert saved["section"] == "dsh"
+    assert saved["data"]["url"] == "http://dsh-new:3080"
+    assert saved["data"]["secret"] == "new-secret"
+    assert saved["data"]["only_project"] is False
+    assert response.json()["config"]["secret_source"] == "missing"
+
+
+def test_router_settings_requires_admin(project, monkeypatch):
+    from fastapi import FastAPI, Request
+    from fastapi.testclient import TestClient
+
+    root, settings, manager = project
+    dsh_api = _import_dsh_router()
+
+    class FakeSession:
+        def __init__(self):
+            self.settings = settings
+
+        def get_chat_manager(self):
+            return manager
+
+    app = FastAPI()
+    app.include_router(dsh_api.router, prefix="/api")
+    app.dependency_overrides[dsh_api.get_authenticated_user] = lambda: None
+
+    @app.middleware("http")
+    async def attach_session(request: Request, call_next):
+        request.state.codx_junior_session = FakeSession()
+        return await call_next(request)
+
+    client = TestClient(app)
+    response = client.put("/api/dsh/settings", json={"url": "http://dsh:3080"})
+    assert response.status_code == 403

@@ -252,6 +252,9 @@
     <!-- ── Container detail drawer ──────────────────────────────────────── -->
     <ContainerDrawer />
 
+    <!-- ── Compose logs overlay (every service of one stack) ────────────── -->
+    <StackLogsModal />
+
     <!-- ── Host definition dialog (create / edit / test) ────────────────── -->
     <HostSettingsModal />
 
@@ -376,6 +379,7 @@ import { layout, observePanelWidth, observePanelVisibility } from './useInfraLay
 import MonitoringPanel from './MonitoringPanel.vue'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
+import StackLogsModal from './StackLogsModal.vue'
 import HostSettingsModal from './HostSettingsModal.vue'
 import CloudServerModal from './CloudServerModal.vue'
 import StacksPanel from './StacksPanel.vue'

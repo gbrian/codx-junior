@@ -18,6 +18,8 @@ POST   /api/infra/containers/{cid}/actions   – start|stop|restart|pause|unpaus
 POST   /api/infra/containers                 – create & run a container
 DELETE /api/infra/containers/{cid}           – remove a container
 GET    /api/infra/stacks                     – compose projects
+POST   /api/infra/stacks/{name}/actions      – up|stop|restart|build|pull|down
+GET    /api/infra/stacks/{name}/logs         – aggregated compose logs
 GET    /api/infra/images                     – images
 GET    /api/infra/volumes                    – volumes
 GET    /api/infra/networks                   – networks
@@ -26,6 +28,11 @@ DELETE /api/infra/images/{id}                – remove one image
 DELETE /api/infra/volumes/{name}             – remove one volume
 DELETE /api/infra/networks/{id}              – remove one network
 POST   /api/infra/maintenance/prune          – prune images|volumes|networks|build_cache|system
+
+Note that container actions and stack actions are **different** operations: a
+container action talks to the Engine API, a stack action shells out to
+``docker compose`` (see `codx/junior/infra/compose.py`), because compose has no
+Engine API equivalent.
 
 Example
 -------
@@ -37,6 +44,12 @@ curl -b "auth=…" "https://codx.local/api/infra/containers?host=host-local&stat
 curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
      -d '{"action":"restart"}' \
      "https://codx.local/api/infra/containers/codx-junior/actions"
+
+# Bring a compose project up (creates the missing containers) and tail its logs
+curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
+     -d '{"action":"up","host_id":"host-local"}' \
+     "https://codx.local/api/infra/stacks/codx-junior/actions"
+curl -b "auth=…" "https://codx.local/api/infra/stacks/codx-junior/logs?tail=200"
 
 # Reclaim space: dangling images older than 7 days
 curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
@@ -51,10 +64,12 @@ flowchart LR
     B -->|require_admin| C[InfraManager]
     C --> D[DockerClient]
     D --> E[(Docker daemon)]
+    B -->|stack actions| F[compose.py]
+    F -->|docker compose CLI| E
 """
 
 import logging
-from typing import Any, Dict, NoReturn, Optional
+from typing import Any, Dict, NoReturn, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -64,6 +79,7 @@ from codx.junior.infra import (
     DockerUnavailable,
     get_infra_manager,
 )
+from codx.junior.infra import compose as compose_stacks
 from codx.junior.infra.models import (
     InfraActionRequest,
     InfraContainer,
@@ -77,7 +93,10 @@ from codx.junior.infra.models import (
     InfraOk,
     InfraPruneRequest,
     InfraPruneResult,
+    InfraStack,
+    InfraStackActionRequest,
     InfraStackList,
+    InfraStackLogs,
     InfraStats,
     InfraSummary,
     InfraVolumeList,
@@ -97,10 +116,11 @@ def _raise_http(ex: Exception) -> NoReturn:
     Translate infrastructure exceptions into HTTP errors.
 
     Mapping:
-      * ``DockerUnavailable`` → 503 (daemon/socket not reachable)
+      * ``DockerUnavailable`` → 503 (daemon/socket/compose CLI not available)
       * ``DockerAPIError`` 403/404/409 → forwarded with the same status
-        (predefined network, missing resource, resource still in use)
-      * other ``DockerAPIError`` → 502 (daemon rejected the operation)
+        (predefined network, missing resource/stack, resource still in use)
+      * ``DockerAPIError`` 504 → forwarded (a compose command timed out)
+      * other ``DockerAPIError`` → 502 (daemon or compose rejected the operation)
       * ``KeyError`` → 404 (unknown host id)
       * ``ValueError`` → 400 (invalid request)
       * anything else → 500
@@ -109,7 +129,7 @@ def _raise_http(ex: Exception) -> NoReturn:
         raise HTTPException(status_code=503, detail=str(ex)) from ex
 
     if isinstance(ex, DockerAPIError):
-        if ex.status_code in (403, 404, 409):
+        if ex.status_code in (403, 404, 409, 504):
             raise HTTPException(status_code=ex.status_code, detail=ex.message) from ex
         raise HTTPException(
             status_code=502, detail=f"Docker error: {ex.message}"
@@ -371,6 +391,82 @@ def list_stacks(
     """
     try:
         return get_infra_manager().stacks(host_id=host)
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.post(
+    "/stacks/{name}/actions",
+    response_model=None,
+    summary="[Admin] Run a compose command on a stack",
+)
+def stack_action(
+    name: str,
+    request: InfraStackActionRequest,
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> Union[InfraStack, InfraOk]:
+    """
+    Run ONE ``docker compose`` command against a project and refresh it.
+
+    | action    | equivalent                  | notes                                    |
+    | :-------- | :-------------------------- | :--------------------------------------- |
+    | `up`      | `docker compose up -d`      | labelled "Start": CREATES the containers |
+    | `stop`    | `docker compose stop`       | containers are kept                      |
+    | `restart` | `docker compose restart`    |                                          |
+    | `build`   | `docker compose build`      | images only, idempotent                  |
+    | `pull`    | `docker compose pull`       | images only, idempotent                  |
+    | `down`    | `docker compose down`       | containers + networks removed            |
+
+    The project is located through the labels of its containers, an in-process
+    cache (so ``up`` still works right after ``down``) and finally
+    ``docker compose ls``. Named volumes are never removed (no ``down -v``), so
+    a stack brought down can be brought back up with its data intact.
+
+    The call is synchronous and answers once the command settled, so ``build``
+    and ``pull`` may take minutes (``CODX_JUNIOR_COMPOSE_TIMEOUT``, 600s).
+
+    Returns the refreshed stack, or ``{"ok": true}`` when the project has no
+    container left (``down``). Answers **404** when the project is unknown on
+    that host, **503** when no compose CLI is installed and **504** when the
+    command exceeds the timeout.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return compose_stacks.stack_action(
+            get_infra_manager(), name, request, host_id=host
+        )
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.get(
+    "/stacks/{name}/logs",
+    response_model=InfraStackLogs,
+    summary="[Admin] Aggregated compose logs of a stack",
+)
+def get_stack_logs(
+    name: str,
+    tail: int = Query(200, ge=1, le=2000, description="Lines per service"),
+    host: Optional[str] = Query(None, description="Host id"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraStackLogs:
+    """
+    Return the logs of every service of a compose project as one chronological
+    stream, each line prefixed with its service name (what ``docker compose
+    logs`` prints).
+
+    ``tail`` applies PER service, so the response holds at most
+    ``tail × services`` lines. Answers **404** when the project has no container
+    on that host.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        return compose_stacks.stack_logs(
+            get_infra_manager(), name, tail=tail, host_id=host
+        )
     except Exception as ex:
         _raise_http(ex)
 

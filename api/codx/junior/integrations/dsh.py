@@ -80,6 +80,16 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() not in {"0", "false", "no", "off"}
 
 
+def _global_dsh_settings() -> Any:
+    """Read the dashboard-managed DSH section, tolerating an early import."""
+    try:
+        from codx.junior.global_settings import get_global_settings
+
+        return getattr(get_global_settings(), "dsh", None)
+    except Exception:  # pragma: no cover - settings may not be loaded yet
+        return None
+
+
 def _read_secret_file(path: str) -> Optional[str]:
     try:
         with open(path, "r", encoding="utf-8") as handle:
@@ -102,17 +112,46 @@ class DshConfig:
     timeout: float = 15.0
     enabled: bool = True
     only_project: bool = True
+    secret_source: str = "missing"
+    agent_token: Optional[str] = None
+    agent_token_source: str = "missing"
+    default_instance_id: Optional[str] = None
 
     @classmethod
     def from_settings(cls, settings: Any) -> "DshConfig":
-        """Build the config from env + the project settings."""
+        """Build the config from env, dashboard settings and the secret file.
+
+        Precedence is deliberately env -> Global Settings ``dsh`` -> workspace
+        secret file -> built-in default. Environment variables remain available
+        for container deployments, while the dashboard is the normal path.
+        """
         codx_path = getattr(settings, "codx_path", None)
         project_root = (
             os.environ.get("CODX_JUNIOR_DSH_PROJECT_ROOT")
             or getattr(settings, "abs_project_path", None)
             or (os.path.dirname(codx_path) if codx_path else None)
         )
+        dsh = _global_dsh_settings()
+
+        def configured(env_name: str, attr: str, default: Any) -> Any:
+            value = os.environ.get(env_name)
+            if value not in (None, ""):
+                return value
+            value = getattr(dsh, attr, None) if dsh is not None else None
+            if value not in (None, ""):
+                return value
+            return default
+
+        url = str(configured("CODX_JUNIOR_DSH_URL", "url", DEFAULT_URL)).strip().rstrip("/")
+        board = str(configured("CODX_JUNIOR_DSH_BOARD", "board", DEFAULT_BOARD)).strip() or DEFAULT_BOARD
+
         secret = (os.environ.get("CODX_JUNIOR_DSH_SECRET") or "").strip() or None
+        secret_source = "env" if secret else "missing"
+        if not secret and dsh is not None:
+            stored = (getattr(dsh, "secret", "") or "").strip()
+            if stored:
+                secret = stored
+                secret_source = "settings"
         if not secret:
             secret_file = (
                 os.environ.get("CODX_JUNIOR_DSH_SECRET_FILE")
@@ -120,24 +159,62 @@ class DshConfig:
             )
             if secret_file:
                 secret = _read_secret_file(secret_file)
+                if secret:
+                    secret_source = "file"
+
+        agent_token = (os.environ.get("CODX_JUNIOR_DSH_AGENT_TOKEN") or "").strip() or None
+        agent_token_source = "env" if agent_token else "missing"
+        if not agent_token and dsh is not None:
+            stored_token = (getattr(dsh, "agent_token", "") or "").strip()
+            if stored_token:
+                agent_token = stored_token
+                agent_token_source = "settings"
+        if not agent_token:
+            token_file = (
+                os.environ.get("CODX_JUNIOR_DSH_TOKEN_FILE")
+                or (os.path.join(project_root, ".dsh-codx-junior", "token") if project_root else "")
+            )
+            if token_file:
+                try:
+                    with open(token_file, "r", encoding="utf-8") as handle:
+                        file_token = handle.read().strip()
+                except OSError:
+                    file_token = ""
+                if file_token:
+                    agent_token = file_token
+                    agent_token_source = "file"
+
+        default_instance_id = (
+            os.environ.get("CODX_JUNIOR_DSH_DEFAULT_INSTANCE")
+            or (getattr(dsh, "default_instance_id", "") if dsh is not None else "")
+            or None
+        )
+
         return cls(
-            url=(os.environ.get("CODX_JUNIOR_DSH_URL") or DEFAULT_URL).rstrip("/"),
+            url=url or DEFAULT_URL,
             secret=secret,
             codx_path=codx_path,
             project_root=project_root,
-            board=(os.environ.get("CODX_JUNIOR_DSH_BOARD") or DEFAULT_BOARD).strip() or DEFAULT_BOARD,
+            board=board,
             timeout=float(os.environ.get("CODX_JUNIOR_DSH_TIMEOUT", "15") or 15),
-            enabled=_env_bool("CODX_JUNIOR_DSH_ENABLED", True),
-            only_project=_env_bool("CODX_JUNIOR_DSH_ONLY_PROJECT", True),
+            enabled=_env_bool("CODX_JUNIOR_DSH_ENABLED", bool(getattr(dsh, "enabled", True))),
+            only_project=_env_bool(
+                "CODX_JUNIOR_DSH_ONLY_PROJECT",
+                bool(getattr(dsh, "only_project", True)),
+            ),
+            secret_source=secret_source,
+            agent_token=agent_token,
+            agent_token_source=agent_token_source,
+            default_instance_id=str(default_instance_id).strip() if default_instance_id else None,
         )
 
     def require_secret(self) -> str:
         """Return the shared secret or raise a useful configuration error."""
         if not self.secret:
             raise DshError(
-                "DSH bridge secret is missing. Start the DSH codx-junior plugin "
-                "once (it writes .dsh-codx-junior/secret) or set "
-                "CODX_JUNIOR_DSH_SECRET."
+                "DSH bridge secret is missing. Open Global Settings → DSH Harness "
+                "and paste the secret, or start the DSH plugin once so it writes "
+                ".dsh-codx-junior/secret, or set CODX_JUNIOR_DSH_SECRET."
             )
         return self.secret
 
@@ -360,11 +437,13 @@ class DshSync:
         self,
         settings: Any,
         config: Optional[DshConfig] = None,
-        client: Optional[DshClient] = None,
+        client: Optional[Any] = None,
+        instance_id: Optional[str] = None,
     ):
         self.settings = settings
         self.config = config or DshConfig.from_settings(settings)
         self.client = client or DshClient(self.config)
+        self.instance_id = instance_id
         self.chat_manager = None
         self._parent_cache: Dict[str, Chat] = {}
 
@@ -373,6 +452,15 @@ class DshSync:
     def for_chat_manager(self, chat_manager: Any) -> "DshSync":
         self.chat_manager = chat_manager
         return self
+
+    def client_for(self, instance_id: Optional[str] = None):
+        """Return the client bound to *instance_id* when one is available."""
+        target = instance_id or self.instance_id
+        if target and getattr(self.client, "instance_id", None) != target:
+            for_instance = getattr(self.client, "for_instance", None)
+            if callable(for_instance):
+                return for_instance(target)
+        return self.client
 
     def _manager(self, chat_manager: Any = None) -> Any:
         manager = chat_manager or self.chat_manager
@@ -450,9 +538,11 @@ class DshSync:
         force_board: Optional[str] = None,
         force_column: Optional[str] = None,
         allow_create: bool = True,
+        instance_id: Optional[str] = None,
     ) -> Tuple[Optional[Chat], bool]:
         """Create or update the linked chat for one DSH task."""
         manager = self._manager(chat_manager)
+        instance = instance_id or self.instance_id
         if not self._accepts(task):
             return None, False
         if task.blank and not (task.description or task.last_message):
@@ -488,6 +578,7 @@ class DshSync:
                 external_source=DSH_SOURCE,
                 external_id=task.id,
                 external_parent_id=task.parent_id,
+                external_instance_id=instance,
                 external_status=task.status,
                 external_url=task.web_url,
                 external_updated_at=_iso(task.updated_at or task.created_at),
@@ -507,6 +598,7 @@ class DshSync:
             ("external_source", DSH_SOURCE),
             ("external_id", task.id),
             ("external_parent_id", task.parent_id),
+            ("external_instance_id", instance or existing.external_instance_id),
             ("external_status", task.status),
             ("external_url", task.web_url or existing.external_url),
             ("external_updated_at", _iso(task.updated_at or task.created_at)),
@@ -575,15 +667,23 @@ class DshSync:
 
     # -- event entry points -------------------------------------------------
 
-    def handle_event(self, payload: Mapping[str, Any]) -> Dict[str, Any]:
-        """Handle one webhook payload from the DSH plugin."""
+    def handle_event(
+        self,
+        payload: Mapping[str, Any],
+        instance_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Handle one event or snapshot from the DSH plugin."""
         event = str(payload.get("event") or "")
         manager = self._manager()
         created = updated = skipped = 0
         if event == "sync.snapshot":
             tasks = [DshTask.from_payload(item) for item in payload.get("tasks") or []]
             for task in tasks:
-                chat, was_created = self.upsert_task(task, chat_manager=manager)
+                chat, was_created = self.upsert_task(
+                    task,
+                    chat_manager=manager,
+                    instance_id=instance_id,
+                )
                 if chat is None:
                     skipped += 1
                 elif was_created:
@@ -595,7 +695,11 @@ class DshSync:
         task = DshTask.from_payload(payload.get("task") or {})
         if event == "session.disposed":
             task.status = "closed"
-        chat, was_created = self.upsert_task(task, chat_manager=manager)
+        chat, was_created = self.upsert_task(
+            task,
+            chat_manager=manager,
+            instance_id=instance_id,
+        )
         if chat is None:
             skipped += 1
         elif was_created:
@@ -614,10 +718,16 @@ class DshSync:
     def sync_all(self, cwd: Optional[str] = None) -> Dict[str, Any]:
         """Pull every DSH task and upsert it. Idempotent."""
         manager = self._manager()
+        # Make the destination visible even when DSH has no tasks yet.
+        self.ensure_board(manager)
         tasks = self.client.list_tasks(cwd=cwd or self._project_root(), limit=1000)
         created = updated = skipped = 0
         for task in tasks:
-            chat, was_created = self.upsert_task(task, chat_manager=manager)
+            chat, was_created = self.upsert_task(
+                task,
+                chat_manager=manager,
+                instance_id=self.instance_id,
+            )
             if chat is None:
                 skipped += 1
             elif was_created:
@@ -670,6 +780,7 @@ class DshSync:
             parent_chat=parent_chat,
             force_board=board,
             force_column=column,
+            instance_id=self.instance_id,
         )
         if chat is None:
             raise DshError(f"DSH created session {task.id} but it was not mirrored")
@@ -709,7 +820,9 @@ class DshSync:
         if not getattr(chat, "external_id", None):
             return chat
         try:
-            payload = self.client.get_task(chat.external_id)
+            payload = self.client_for(getattr(chat, "external_instance_id", None)).get_task(
+                chat.external_id
+            )
         except DshError as error:
             logger.warning("dsh: cannot hydrate chat %s: %s", chat.id, error)
             return chat

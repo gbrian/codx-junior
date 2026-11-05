@@ -14,6 +14,7 @@ import { infraModule } from './modules/infra'
 import { repoModule } from './modules/repo'
 import { consoleModule } from './modules/console'
 import { traefikModule } from './modules/traefik'
+import { dshModule } from './modules/dsh'
 import { RequestCache, hashBody } from './requestCache'
 import { requestQueues } from './requestQueue'
 
@@ -576,6 +577,17 @@ const initializeAPI = ({ project, user } = {}) => {
           return await API.get(`/api/github/issues/ai/process?issue_url=${encodeURIComponent(issueUrl)}`)
         }
       }
+    },
+
+    /**
+     * DSH Harness bridge: connection settings, health, sync and task triggers.
+     * See `api/modules/dsh.js`.
+     */
+    get dsh() {
+      if (!API._dshModule) {
+        API._dshModule = dshModule(API)
+      }
+      return API._dshModule
     },
 
     /**

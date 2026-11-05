@@ -1,101 +1,77 @@
-# DSH ↔ codx-junior task sync
+# DSH → codx-junior agent channel
 
-This DSH Host plugin keeps codx-junior boards aware of DSH chats without
-copying the conversation. A DSH Session is the source of truth; the mirrored
-codx-junior task stores only identity, hierarchy and board placement.
+This DSH Host plugin connects **outbound** to a codx-junior instance. It
+registers itself, sends heartbeats, long-polls commands and posts task events.
+codx-junior never needs to reach DSH, so DSH can stay behind its normal
+security boundary.
+
+The DSH Session remains the single copy of the conversation. A mirrored
+codx-junior task stores only its identity, parent/child relationship and board
+placement; messages are read on demand through the command channel and are not
+persisted by codx-junior.
 
 ## What it does
 
-- Mirrors every non-blank DSH Session (including subagent Sessions) as a task on
-  the codx-junior `DSH` board.
-- Sends `session.created`, `session.updated` and `session.disposed` webhooks to
-  `POST /api/dsh/events` on codx-junior.
-- Exposes a token-protected bridge under `/codx-junior/*` so codx-junior
-  can list tasks, read the live message surface, create a Session and prompt
-  it, send follow-up prompts, rename and cancel.
-- Creates `<workspace>/.dsh-codx-junior/secret` on first load. codx-junior reads
-  the same file, so no secret has to be copied into configuration.
-
-## Bridge API
-
-All routes require `Authorization: Bearer <secret>` (or `x-dsh-secret`).
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/codx-junior/health` | bridge status |
-| `GET` | `/codx-junior/tasks` | list tasks (`cwd`, `includeBlank`, `limit`) |
-| `GET` | `/codx-junior/tasks/{sessionId}` | task + live messages + `lastSeq` |
-| `POST` | `/codx-junior/tasks` | create Session and prompt it |
-| `POST` | `/codx-junior/tasks/{sessionId}/prompt` | queue or steer a prompt |
-| `POST` | `/codx-junior/tasks/{sessionId}/cancel` | cancel the active turn |
-| `POST` | `/codx-junior/tasks/{sessionId}/title` | rename the Session |
-
-`POST /codx-junior/tasks` body:
-
-```json
-{
-  "title": "Fix the login timeout",
-  "prompt": "Investigate and fix the timeout",
-  "cwd": "/home/me/project",
-  "agentPreset": "default",
-  "codxTaskId": "optional-codx-chat-id",
-  "parentSessionId": "optional-parent-session"
-}
-```
-
-Prompt bodies accept `{ "text": "...", "mode": "queue" | "steer" }`.
-
-## Webhooks
-
-The plugin posts a JSON body signed with HMAC-SHA256:
-
-- `Authorization: Bearer <secret>`
-- `x-dsh-secret: <secret>`
-- `x-dsh-signature: sha256=<hex hmac of the exact request body>`
-
-Task payloads contain `id`, `title`, `parentId`, `origin`, `isSubagent`,
-`depth`, `cwd`, `agentPreset`, `createdAt`, `updatedAt`, `running`, `status`,
-`webUrl`, `description` and `lastMessage`. No full message history is sent.
+- `POST /api/dsh/agent/register` on startup (and after token rotation).
+- `POST /api/dsh/agent/heartbeat` every few seconds with session/running counts.
+- `GET /api/dsh/agent/commands` long-poll; executes `create_task`, `prompt`,
+  `cancel`, `rename`, `get_task`, `list_tasks` and posts each result.
+- `POST /api/dsh/agent/events` for `session.created`, `session.updated` and
+  `session.disposed`, including subagent sessions.
+- Registers once per Host; the `instance_id` is persisted in
+  `.dsh-codx-junior/instance.json`.
 
 ## Configuration
 
-The bundle patch sets sensible defaults. Override them in the plugin row:
+The plugin row accepts:
 
 | Field | Default | Meaning |
 |---|---|---|
-| `codxApiUrl` | `http://127.0.0.1:19980` | codx-junior API origin |
-| `codxPath` | `<cwd>/.codx` | codx-junior project scope for webhooks |
-| `board` | `DSH` | codx-junior board title |
-| `defaultColumn` | `Todo` | column for new idle tasks |
-| `uiUrlTemplate` | `http://127.0.0.1:3080/?session={sessionId}` | deep link stored on the task |
-| `webhookEnabled` | `true` | push task changes |
-| `syncOnStart` | `true` | send an initial `sync.snapshot` |
-| `debounceMs` | `900` | per-session webhook debounce |
-| `requestTimeoutMs` | `15000` | bridge/webhook timeout |
-| `projectPath` | empty | optional `cwd` filter for task listing |
+| `codxApiUrl` | `http://127.0.0.1:19980` | codx-junior API origin reachable **from DSH** |
+| `token` | empty | Agent token generated in codx-junior Global Settings |
+| `agentEnabled` | `true` | Enable the outbound channel |
+| `bridgeEnabled` | `false` | Legacy inbound bridge; leave off unless debugging locally |
+| `heartbeatMs` | `5000` | Heartbeat interval |
+| `pollWaitMs` | `25000` | Command long-poll window |
+| `syncOnStart` | `true` | Send an initial task snapshot after registration |
+| `instanceName` | host + project | Display name in the codx-junior dashboard |
+| `instanceId` | generated | Stable instance identity |
 
-`DSH_CODX_JUNIOR_SECRET` overrides the generated secret.
+If `token` is empty, the plugin reads
+`<workspace>/.dsh-codx-junior/token`. The codx-junior dashboard writes that
+file when it generates a token on the same filesystem. For remote DSH, paste
+the token into the plugin row.
 
-## Install
+## Quick start
 
-From this workspace:
+1. Rebuild/restart codx-junior so the **DSH Harness** tab and
+   `/api/dsh/agent/*` routes are deployed.
+2. In codx-junior open **Global Settings → DSH Harness**.
+3. Click **Generate token**.
+4. In DSH set `codxApiUrl` to the codx-junior API and paste the token (or let
+   the plugin read the token file).
+5. Start/reload DSH. The instance appears in the dashboard within a few
+   seconds.
+6. Save the board and click **Sync from instance**.
+7. Open the board; use **Trigger a DSH task** to create a Session from
+   codx-junior.
 
-```text
-plugin_manager install_bundle target=/absolute/path/to/dsh-codx-junior
-```
+## Agent protocol (called by DSH)
 
-Then start (or reload) DSH. Inspect `/codx-junior/health` with the secret:
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/dsh/agent/register` | register/refresh an instance |
+| `POST` | `/api/dsh/agent/heartbeat` | liveness and load |
+| `GET` | `/api/dsh/agent/commands` | long-poll commands |
+| `POST` | `/api/dsh/agent/commands/{id}/result` | command result |
+| `POST` | `/api/dsh/agent/events` | task events/snapshot |
+| `POST` | `/api/dsh/agent/unregister` | clean shutdown |
 
-```bash
-curl -H "Authorization: Bearer $(cat .dsh-codx-junior/secret)" \
-  http://127.0.0.1:3080/codx-junior/health
-```
+Every call carries `Authorization: Bearer <agent-token>` and the project
+`codx_path` query. codx-junior verifies the token before touching the registry.
 
-## Notes
+## Legacy direct bridge
 
-- A blank Session is not mirrored until its first prompt, unless codx-junior
-  created it explicitly through `POST /codx-junior/tasks`.
-- Session messages are projected at request time from the durable log. The
-  bridge never writes a second conversation copy.
-- The codx-junior counterpart lives in
-  `api/codx/junior/integrations/dsh.py` and `api/codx/junior/api/dsh.py`.
+`bridgeEnabled: true` keeps the old token-protected `/codx-junior/*` HTTP route
+for local debugging. It is disabled by default and is not used by the
+dashboard.

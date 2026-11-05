@@ -11,6 +11,7 @@ import EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.
 import GeneralSettings from '@/components/global_settings/GeneralSettings.vue'
 import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vue'
 import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
+import DshIntegrationPanel from '@/components/global_settings/DshIntegrationPanel.vue'
 </script>
 
 <template>
@@ -94,6 +95,7 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
               scope="global"
               v-model:rules="settings.traefik_rules"
             />
+            <DshIntegrationPanel v-if="activeTab === 'dsh'" :settings="settings" />
           </div>
 
           <!-- Mobile Footer Actions -->
@@ -173,6 +175,7 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
             scope="global"
             v-model:rules="settings.traefik_rules"
           />
+          <DshIntegrationPanel v-if="activeTab === 'dsh'" :settings="settings" />
         </div>
       </main>
     </div>
@@ -194,6 +197,7 @@ export default {
         { id: 'plugins', label: 'Plugins', icon: 'fa-puzzle-piece' },
         { id: 'workspaces', label: 'Workspaces', icon: 'fa-cube' },
         { id: 'traefik', label: 'Traefik', icon: 'fa-route' },
+        { id: 'dsh', label: 'DSH Harness', icon: 'fa-diagram-project' },
         { id: 'users', label: 'Users', icon: 'fa-users' },
         { id: 'scripts', label: 'Scripts', icon: 'fa-code' },
         { id: 'oauth', label: 'OAuth', icon: 'fa-key' },
@@ -209,6 +213,15 @@ export default {
       const data = await this.$storex.api.settings.global.read()
       if (data && !Array.isArray(data.traefik_rules)) {
         data.traefik_rules = []
+      }
+      if (data && (!data.dsh || typeof data.dsh !== 'object')) {
+        data.dsh = {
+          enabled: true,
+          agent_token: '',
+          default_instance_id: '',
+          board: 'DSH',
+          only_project: true,
+        }
       }
       this.settings = data
     },
@@ -248,6 +261,7 @@ export default {
         plugins: 'Install and manage plugins',
         workspaces: 'Organize and manage workspaces',
         traefik: 'Manage global Traefik routes and review workspace/project routes',
+        dsh: 'Connect a DeepSeek Harness and mirror its tasks on the board',
         users: 'Control user access and permissions',
         scripts: 'Create and manage project scripts',
         oauth: 'Configure OAuth providers',

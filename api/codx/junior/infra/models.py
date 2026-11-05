@@ -235,6 +235,43 @@ class InfraStackList(BaseModel):
     stacks: List[InfraStack] = Field(default_factory=list)
 
 
+class InfraStackActionRequest(BaseModel):
+    """Body of ``POST /api/infra/stacks/{name}/actions``.
+
+    ``action`` is the ``docker compose`` sub-command to run:
+
+    ==========  ============================  =================================
+    ``action``  CLI                           effect
+    ==========  ============================  =================================
+    ``up``      ``docker compose up -d``       CREATES the missing containers
+    ``stop``    ``docker compose stop``        containers are kept
+    ``restart`` ``docker compose restart``     --
+    ``build``   ``docker compose build``       images only, idempotent
+    ``pull``    ``docker compose pull``        images only, idempotent
+    ``down``    ``docker compose down``        containers + networks removed
+    ==========  ============================  =================================
+
+    ``up`` is what the UI labels "Start": only it CREATES containers, so a
+    project brought ``down`` is revived with ``up`` and never with ``start``.
+    ``down`` KEEPS the named volumes (no ``-v`` flag), so data survives.
+    """
+
+    action: str = Field(description="up | stop | restart | build | pull | down")
+    host_id: Optional[str] = Field(default=None, description="Target host id")
+
+
+class InfraStackLogs(BaseModel):
+    """Response of ``GET /api/infra/stacks/{name}/logs``.
+
+    One chronological stream with every service of the project. Each ``msg`` is
+    already prefixed with its service name (what ``docker compose logs``
+    prints), so the UI keeps rendering a single monospace table.
+    """
+
+    name: str = Field(default="", description="Compose project name")
+    lines: List[InfraLogLine] = Field(default_factory=list)
+
+
 # ── Images, volumes, networks, events ─────────────────────────────────────────
 
 

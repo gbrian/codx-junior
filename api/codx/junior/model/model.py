@@ -211,6 +211,41 @@ class Plugin(BaseModel):
     async_: bool = Field(default=False, alias="async")  # Use alias for async
 
 
+class DshSettings(BaseModel):
+    """Settings for the outbound DSH agent channel and its board mirror.
+
+    DSH connects to codx-junior (never the reverse). ``agent_token`` is the
+    credential the DSH plugin presents on registration, heartbeat, command and
+    event requests. ``url``/``secret`` remain for the legacy direct bridge.
+    """
+
+    enabled: bool = Field(default=True, description="Enable DSH task mirroring")
+    agent_token: str = Field(
+        default="",
+        description="Token the DSH plugin uses to register and poll commands",
+    )
+    default_instance_id: str = Field(
+        default="",
+        description="Preferred DSH instance for new tasks and syncs",
+    )
+    board: str = Field(default="DSH", description="codx-junior board that mirrors DSH tasks")
+    only_project: bool = Field(
+        default=True,
+        description="Ignore DSH sessions whose cwd is outside this project",
+    )
+
+    # Legacy direct-DSH bridge configuration. Kept so existing installations do
+    # not lose their values; the dashboard uses the outbound agent channel.
+    url: str = Field(
+        default="http://127.0.0.1:3080",
+        description="Legacy direct DSH web origin",
+    )
+    secret: str = Field(
+        default="",
+        description="Legacy direct bridge secret",
+    )
+
+
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)
     
@@ -285,6 +320,11 @@ class GlobalSettings(BaseModel):
     # project's `.codx/project.json` instead, so the same UI component can
     # target either storage.
     traefik_rules: List[TraefikRule] = Field(default_factory=list)
+
+    # DSH Harness task bridge. The DSH plugin owns the conversation; these are
+    # connection settings only, so they can be changed from Global Settings
+    # without restarting the API or editing environment variables.
+    dsh: DshSettings = Field(default_factory=DshSettings)
 
     oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
 

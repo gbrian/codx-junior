@@ -47,6 +47,35 @@ We are raising our seed round and onboarding early partners at **[join@codx-juni
 | **AI providers** | Any OpenAI-compatible provider (OpenAI, Ollama, LocalAI, LiteLLM, vLLM, …) with per-purpose models: chat, RAG, embeddings, wiki, vision and image generation. MCP servers can be attached per project. |
 | **Plugins** | Python plugins (Azure DevOps pull requests, image editor, …) that extend the UI and the API. |
 
+## DSH task sync — quick start
+
+Connect a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+instance and its chats/subagent sessions appear as live tasks on a codx-junior
+board. DSH owns the conversation and connects outbound; codx-junior keeps only
+the task identity and board placement.
+
+1. **Deploy this version.** Rebuild/restart codx-junior so the `DSH Harness`
+   tab and `/api/dsh/agent/*` routes are served. Install the
+   [`dsh-codx-junior/`](dsh-codx-junior/) bundle in DSH once.
+2. **Generate the token.** In codx-junior open **Global Settings → DSH
+   Harness** and click **Generate token**. On a shared filesystem the token is
+   written to `<project>/.dsh-codx-junior/token`.
+3. **Point DSH at codx-junior.** The plugin defaults to
+   `http://127.0.0.1:19980`; paste the token in the plugin row only when DSH is
+   remote. It reads the token file automatically otherwise.
+
+   > This bundle has no DSH-side settings form: `codxApiUrl`/`token` live in
+   > the plugin row (or the profile patch). On a shared filesystem the defaults
+   > plus the generated token file are enough.
+
+4. **Start/reload DSH.** The instance registers and appears in the dashboard.
+5. **Sync and open the board.** Save the board, click **Sync from instance**,
+   then open the board. Use **Trigger a DSH task** to create a Session from
+   codx-junior.
+
+Details: [DSH task sync guide](docs/features/dsh-sync.md) and
+[plugin README](dsh-codx-junior/README.md).
+
 ## Architecture at a glance
 
 ```

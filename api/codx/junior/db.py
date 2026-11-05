@@ -481,6 +481,10 @@ class Chat(BaseModel):
         default=None,
         description="Parent task id in the external system, when it is known there."
     )
+    external_instance_id: Optional[str] = Field(
+        default=None,
+        description="DSH instance that owns the external session, when applicable."
+    )
     external_status: Optional[str] = Field(
         default=None,
         description="Last status reported by the external system (idle/running/error/closed)."

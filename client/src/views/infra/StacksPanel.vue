@@ -19,6 +19,10 @@
               <div class="font-bold truncate">{{ s.name }}</div>
               <div class="text-[11px] opacity-50 font-mono truncate">{{ s.path }}</div>
             </div>
+            <!-- A compose command is running on this stack: `up`, `build` and
+                 `down` are long enough that the card must say so. -->
+            <span v-if="stackActionBusy(s.name)" class="loading loading-spinner loading-xs mt-1 shrink-0"
+                  title="A compose command is running"></span>
             <span class="badge badge-sm" :class="statusBadge(s.status)">{{ s.status }}</span>
           </div>
 
@@ -46,6 +50,64 @@
             </li>
           </ul>
 
+          <!-- ── Compose commands ──────────────────────────────────────────
+               Same vocabulary as the container rows: ONE labelled primary
+               action that matches the current state (`up` when stopped, `stop`
+               when running), then square icon buttons for the rest.
+               Every button is disabled while a command runs on this stack and
+               stops the click locally (the card has no row click today, but the
+               pattern keeps the actions safe if one is ever added). -->
+          <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-base-300">
+            <button v-if="s.running" class="btn btn-xs btn-error btn-outline grow"
+                    :disabled="stackActionBusy(s.name)"
+                    title="Stop every service"
+                    @click.stop="askStackAction(s, 'stop')">
+              <i class="fas fa-stop"></i> Stop
+            </button>
+            <button v-else class="btn btn-xs btn-success grow"
+                    :disabled="stackActionBusy(s.name)"
+                    title="Run docker compose up -d"
+                    @click.stop="askStackAction(s, 'up')">
+              <i class="fas fa-play"></i> Start
+            </button>
+
+            <button v-if="s.running" class="btn btn-xs btn-square"
+                    title="Restart every service" aria-label="Restart every service"
+                    :disabled="stackActionBusy(s.name)"
+                    @click.stop="askStackAction(s, 'restart')">
+              <i class="fas fa-rotate-right" :class="{ 'animate-spin': stackActionBusy(s.name, 'restart') }"></i>
+            </button>
+
+            <!-- build / pull need no confirmation: they are idempotent, so the
+                 icon only reports the command through its own animation. -->
+            <button class="btn btn-xs btn-square btn-ghost"
+                    title="Build images" aria-label="Build images"
+                    :disabled="stackActionBusy(s.name)"
+                    @click.stop="askStackAction(s, 'build')">
+              <i class="fas fa-hammer" :class="{ 'animate-pulse': stackActionBusy(s.name, 'build') }"></i>
+            </button>
+            <button class="btn btn-xs btn-square btn-ghost"
+                    title="Pull images" aria-label="Pull images"
+                    :disabled="stackActionBusy(s.name)"
+                    @click.stop="askStackAction(s, 'pull')">
+              <i class="fas fa-download" :class="{ 'animate-pulse': stackActionBusy(s.name, 'pull') }"></i>
+            </button>
+
+            <button class="btn btn-xs btn-square btn-ghost"
+                    title="Compose logs (all services)" aria-label="Compose logs"
+                    @click.stop="openStackLogs(s)">
+              <i class="fas fa-file-lines"></i>
+            </button>
+
+            <button class="btn btn-xs btn-square btn-ghost text-error"
+                    title="Compose down (removes containers)"
+                    aria-label="Compose down"
+                    :disabled="stackActionBusy(s.name)"
+                    @click.stop="askStackAction(s, 'down')">
+              <i class="fas fa-power-off" :class="{ 'animate-pulse': stackActionBusy(s.name, 'down') }"></i>
+            </button>
+          </div>
+
           <div class="card-actions justify-end">
             <button class="btn btn-xs btn-ghost" @click="showJson(s.name, s)">
               <i class="fas fa-code"></i> Inspect
@@ -65,6 +127,7 @@ import {
   filteredList, stateTone, dotClass, healthTone,
   openContainer, showJson, setRoute, setFilter
 } from './useInfra'
+import { askStackAction, openStackLogs, stackActionBusy } from './useInfraStacks'
 import { layout } from './useInfraLayout'
 
 function statusBadge(status) {

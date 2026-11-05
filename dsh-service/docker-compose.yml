@@ -1,0 +1,95 @@
+name: dsh-service
+
+services:
+  dsh:
+    build:
+      context: .
+      args:
+        DSH_VERSION: ${DSH_VERSION:-0.2.1-rc.5}
+        DSH_UID: ${DSH_UID:-1000}
+        DSH_GID: ${DSH_GID:-1000}
+    image: dsh-service:${DSH_VERSION:-0.2.1-rc.5}
+    container_name: dsh
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+    environment:
+      DSH_HOME: /home/dsh/.dsh
+      DSH_PORT: ${DSH_PORT:-3080}
+      # DSH advertises this URL and prints it with the per-process launch token.
+      DSH_PUBLIC_URL: https://${CODX_JUNIOR_DOMAIN:?Set CODX_JUNIOR_DOMAIN in .env}/
+      # Traefik forwards the browser's Host header unchanged; DSH rejects any
+      # /api or WebSocket request whose authority is not trusted.
+      DSH_TRUSTED_HOSTS: ${CODX_JUNIOR_DOMAIN:?Set CODX_JUNIOR_DOMAIN in .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      TZ: ${TZ:-UTC}
+
+    volumes:
+      # Persists the browser-cookie signing secret, sessions, credentials, and
+      # profiles. The launch token changes on restart; the 30-day cookie does
+      # not, as long as this volume survives.
+      - dsh-home:/home/dsh/.dsh
+      # The agent's project directory. Must be writable by DSH_UID:DSH_GID.
+      - ${DSH_WORKSPACE:-./workspace}:/workspace
+
+    working_dir: /workspace
+
+    # Do NOT publish this port. Traefik is the only intended client; the DSH
+    # listener is plain HTTP and its browser-trust fence is host-based.
+    expose:
+      - "${DSH_PORT:-3080}"
+
+    networks:
+      - traefik
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/dsh-healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-codx-junior_default}
+
+      # HTTPS router.
+      traefik.http.routers.dsh.rule: "Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/codx-junior-dsh`)"
+      traefik.http.routers.dsh.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.dsh.tls.certresolver: ${TRAEFIK_CERT_RESOLVER:-sslresolver}
+      traefik.http.routers.dsh.service: dsh
+      # DSH sees plain HTTP from Traefik, so its session cookie is not marked
+      # Secure. HSTS keeps browsers on HTTPS after the first visit.
+      traefik.http.routers.dsh.middlewares: dsh-headers
+      traefik.http.middlewares.dsh-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.dsh-headers.headers.stsIncludeSubdomains: "true"
+      traefik.http.services.dsh.loadbalancer.server.port: "${DSH_PORT:-3080}"
+      # The Host/Origin fence needs the browser's authority, so keep it.
+      traefik.http.services.dsh.loadbalancer.passhostheader: "true"
+
+      # Plain HTTP redirects to HTTPS. Traefik answers ACME HTTP-01 challenges
+      # on the web entrypoint before these routers apply.
+      traefik.http.routers.dsh-http.rule: "Host(`${CODX_JUNIOR_DOMAIN}`)"
+      traefik.http.routers.dsh-http.entrypoints: ${TRAEFIK_HTTP_ENTRYPOINT:-web}
+      traefik.http.routers.dsh-http.middlewares: dsh-https-redirect
+      traefik.http.middlewares.dsh-https-redirect.redirectscheme.scheme: https
+      traefik.http.middlewares.dsh-https-redirect.redirectscheme.permanent: "true"
+
+volumes:
+  dsh-home:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-codx-junior_default}

@@ -16,8 +16,10 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
-import { dirname, isAbsolute, join } from "node:path";
+import { randomBytes, randomUUID } from "node:crypto";
+import { basename, dirname, isAbsolute, join } from "node:path";
+import { hostname } from "node:os";
+import { fileURLToPath } from "node:url";
 import {
   constantTimeEqual,
   fallbackTitle,
@@ -93,6 +95,58 @@ async function readJson(req, limit = MAX_BODY_BYTES) {
 
 function iso(ms) {
   return ms ? new Date(ms).toISOString() : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readJsonFile(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonFile(file, value) {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+}
+
+function ensureAgentState(config, log) {
+  const stateDir = join(config.workspaceDir, ".dsh-codx-junior");
+  const tokenFile = config.tokenFile || join(stateDir, "token");
+  let token = config.token || String(process.env.DSH_CODX_JUNIOR_AGENT_TOKEN ?? "").trim();
+  if (!token) {
+    try {
+      token = readFileSync(tokenFile, "utf8").trim();
+    } catch {
+      token = "";
+    }
+  }
+  const instanceFile = join(stateDir, "instance.json");
+  const stored = readJsonFile(instanceFile) || {};
+  const instanceId = config.instanceId || stored.instance_id || randomUUID();
+  const instanceName = config.instanceName
+    || stored.name
+    || `${hostname()} · ${basename(config.workspaceDir) || "dsh"}`;
+  try {
+    writeJsonFile(instanceFile, {
+      instance_id: instanceId,
+      name: instanceName,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    log.warn(`codx-junior-sync: cannot persist ${instanceFile}: ${String(error)}`);
+  }
+  return {
+    enabled: Boolean(config.agentEnabled && token),
+    token,
+    tokenFile,
+    instanceId,
+    instanceName,
+  };
 }
 
 function ensureSecret(config, log) {
@@ -223,34 +277,50 @@ async function listTasks(ctx, config, options = {}) {
   });
 }
 
-function createWebhookQueue(ctx, config, log) {
-  const secret = ensureSecret(config, log);
+function createWebhookQueue(ctx, config, log, agent) {
+  const secret = config.bridgeEnabled ? ensureSecret(config, log) : "";
   const queue = new Map();
   let disposed = false;
 
   function post(payload) {
-    if (!config.webhookEnabled) return Promise.resolve(false);
-    if (!secret) {
-      log.warn("codx-junior-sync: webhook skipped because no bridge secret is configured");
-      return Promise.resolve(false);
-    }
+    const useAgent = Boolean(agent.enabled && agent.token);
+    const useLegacy = Boolean(config.bridgeEnabled && config.webhookEnabled && secret);
+    if (!useAgent && !useLegacy) return Promise.resolve(false);
     if (!config.codxApiUrl) {
-      log.warn("codx-junior-sync: webhook skipped because codxApiUrl is empty");
+      log.warn("codx-junior-sync: event skipped because codxApiUrl is empty");
       return Promise.resolve(false);
     }
-    const body = JSON.stringify(payload);
-    const url = new URL(`${config.codxApiUrl}/api/dsh/events`);
+    const agentPayload = useAgent
+      ? { ...payload, instance_id: agent.instanceId }
+      : payload;
+    const body = JSON.stringify(agentPayload);
+    const url = new URL(
+      useAgent
+        ? `${config.codxApiUrl}/api/dsh/agent/events`
+        : `${config.codxApiUrl}/api/dsh/events`,
+    );
     if (config.codxPath) url.searchParams.set("codx_path", config.codxPath);
+    if (useAgent) url.searchParams.set("instance_id", agent.instanceId);
+    const headers = useAgent
+      ? {
+          "content-type": "application/json",
+          accept: "application/json",
+          authorization: `Bearer ${agent.token}`,
+          "x-dsh-agent-token": agent.token,
+          "x-dsh-instance": agent.instanceId,
+          "x-dsh-source": "dsh-agent",
+        }
+      : {
+          "content-type": "application/json",
+          accept: "application/json",
+          authorization: `Bearer ${secret}`,
+          "x-dsh-secret": secret,
+          "x-dsh-signature": `sha256=${signBody(secret, body)}`,
+          "x-dsh-source": "dsh",
+        };
     return fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json",
-        authorization: `Bearer ${secret}`,
-        "x-dsh-secret": secret,
-        "x-dsh-signature": `sha256=${signBody(secret, body)}`,
-        "x-dsh-source": "dsh",
-      },
+      headers,
       body,
       signal: AbortSignal.timeout(config.requestTimeoutMs),
     }).then(async (response) => {
@@ -275,7 +345,7 @@ function createWebhookQueue(ctx, config, log) {
         const nextAttempts = current.attempts + 1;
         if (nextAttempts > config.webhookRetries || disposed) {
           queue.delete(key);
-          log.warn(`codx-junior-sync: webhook failed permanently for ${key}: ${String(error)}`);
+          log.warn(`codx-junior-sync: event failed permanently for ${key}: ${String(error)}`);
           return;
         }
         queue.set(key, {
@@ -286,7 +356,7 @@ function createWebhookQueue(ctx, config, log) {
             if (latest) schedule(key, latest.payload, 1500 * nextAttempts);
           }, 0),
         });
-        log.warn(`codx-junior-sync: webhook retry ${nextAttempts}/${config.webhookRetries} for ${key}: ${String(error)}`);
+        log.warn(`codx-junior-sync: event retry ${nextAttempts}/${config.webhookRetries} for ${key}: ${String(error)}`);
       }
     }, delay);
     timer.unref?.();
@@ -295,13 +365,14 @@ function createWebhookQueue(ctx, config, log) {
 
   function notify(kind, task, extra = {}) {
     if (!task?.id) return;
-    schedule(`task:${task.id}`, webhookPayload(kind, task, extra));
+    schedule(`task:${agent.instanceId}:${task.id}`, webhookPayload(kind, task, extra));
   }
 
   function snapshot(tasks) {
-    if (!config.webhookEnabled || !tasks.length) return;
+    if (!agent.enabled && !(config.bridgeEnabled && config.webhookEnabled)) return;
+    if (!tasks.length) return;
     schedule(
-      "snapshot",
+      `snapshot:${agent.instanceId}`,
       {
         version: 1,
         event: "sync.snapshot",
@@ -334,27 +405,369 @@ export function apply(ctx, rawConfig = {}) {
   // next to the project the user is actually working on.
   let resolvedConfig = rawConfig;
   if (!resolvedConfig.workspaceDir) {
-    // The Host cwd is often the profile directory. Prefer a registered
-    // workspace that actually owns a codx-junior `.codx` folder.
+    // The plugin lives inside the workspace; derive it from the module path
+    // first so activation order cannot make the profile directory win.
     let detected;
     try {
-      const workspaces = service(ctx, "workspaceRegistry")?.list?.() ?? [];
-      const owners = workspaces
-        .filter((workspace) => workspace?.path && existsSync(join(workspace.path, ".codx")))
-        .sort((left, right) => left.path.length - right.path.length);
-      detected = owners[0]?.path ?? workspaces[0]?.path;
+      const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+      if (existsSync(join(pluginRoot, ".codx"))) detected = pluginRoot;
     } catch {
       detected = undefined;
+    }
+    if (!detected) {
+      // Fallback for a package installed outside the workspace: prefer the
+      // shortest registered workspace that actually owns a `.codx` folder.
+      try {
+        const workspaces = service(ctx, "workspaceRegistry")?.list?.() ?? [];
+        const owners = workspaces
+          .filter((workspace) => workspace?.path && existsSync(join(workspace.path, ".codx")))
+          .sort((left, right) => left.path.length - right.path.length);
+        detected = owners[0]?.path ?? workspaces[0]?.path;
+      } catch {
+        detected = undefined;
+      }
     }
     detected ||= service(ctx, "workingDirectory")?.defaultDirectory;
     if (detected) resolvedConfig = { ...resolvedConfig, workspaceDir: detected };
   }
   const config = normalizeConfig(resolvedConfig);
   if (!config.codxPath) config.codxPath = join(config.workspaceDir, ".codx");
-  const queue = createWebhookQueue(ctx, config, log);
+  const agent = ensureAgentState(config, log);
+  const queue = createWebhookQueue(ctx, config, log, agent);
 
-  // The bridge routes and webhooks share one secret. Requests without it are
-  // rejected before any session data is read.
+  let stopped = false;
+  let registered = false;
+  let registration = null;
+  let registrationPromise = null;
+
+  function refreshAgentToken(force = false) {
+    if (agent.token && !force) return true;
+    try {
+      const value = readFileSync(agent.tokenFile, "utf8").trim();
+      if (value && value !== agent.token) {
+        agent.token = value;
+        agent.enabled = true;
+        log.info("codx-junior-sync: picked up the agent token from the workspace file");
+      }
+    } catch {
+      // The dashboard has not generated the token yet.
+    }
+    return Boolean(agent.token);
+  }
+
+  /** Make one request to the codx-junior agent API. */
+  async function agentRequest(path, { method = "GET", body, timeout } = {}) {
+    if (!agent.token) return null;
+    const url = new URL(`${config.codxApiUrl.replace(/\/+$/, "")}${path}`);
+    if (config.codxPath) url.searchParams.set("codx_path", config.codxPath);
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        authorization: `Bearer ${agent.token}`,
+        "x-dsh-agent-token": agent.token,
+        "x-dsh-instance": agent.instanceId,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeout ?? config.requestTimeoutMs),
+    });
+    if (response.status === 204) return null;
+    const text = await response.text().catch(() => "");
+    let parsed = {};
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { message: text };
+      }
+    }
+    if (!response.ok) {
+      const detail = parsed?.detail || parsed?.message || text || response.statusText;
+      const error = new Error(`codx-junior agent API ${response.status}: ${shortText(detail, 300)}`);
+      error.status = response.status;
+      throw error;
+    }
+    return parsed;
+  }
+
+  /** Register this Host; retry forever with a bounded backoff. */
+  async function registerAgent() {
+    let delay = 1000;
+    while (!stopped) {
+      if (!refreshAgentToken()) {
+        await sleep(delay);
+        delay = Math.min(delay * 2, 30000);
+        continue;
+      }
+      try {
+        const result = await agentRequest("/api/dsh/agent/register", {
+          method: "POST",
+          body: {
+            instance_id: agent.instanceId,
+            name: agent.instanceName,
+            cwd: config.workspaceDir,
+            version: "1",
+            capabilities: ["sessions", "subagents", "commands", "live-context"],
+            meta: {
+              pid: process.pid,
+              platform: process.platform,
+              node: process.version,
+              workspace: config.workspaceDir,
+            },
+          },
+        });
+        if (result?.ok) {
+          registered = true;
+          registration = result;
+          if (result.instance?.id) agent.instanceId = result.instance.id;
+          log.info(
+            `codx-junior-sync: registered as ${agent.instanceName} (${agent.instanceId})`,
+          );
+          return result;
+        }
+      } catch (error) {
+        if (error?.status === 401) {
+          agent.token = "";
+          registered = false;
+          refreshAgentToken(true);
+          log.warn("codx-junior-sync: agent token was rejected; waiting for a rotated token");
+        } else {
+          log.warn(`codx-junior-sync: registration failed: ${String(error)}`);
+        }
+      }
+      await sleep(delay);
+      delay = Math.min(delay * 2, 30000);
+    }
+    return null;
+  }
+
+  async function ensureRegistered() {
+    if (registered) return registration;
+    if (!registrationPromise) {
+      registrationPromise = registerAgent().finally(() => {
+        registrationPromise = null;
+      });
+    }
+    return registrationPromise;
+  }
+
+  async function sendHeartbeat() {
+    if (!registered) return;
+    const sessions = service(ctx, "sessions")?.list?.() ?? [];
+    const running = sessions.filter(
+      (session) => service(ctx, "agents")?.get(session.id)?.status === "running",
+    ).length;
+    try {
+      const result = await agentRequest("/api/dsh/agent/heartbeat", {
+        method: "POST",
+        body: {
+          instance_id: agent.instanceId,
+          running,
+          sessions: sessions.length,
+          queue_depth: 0,
+          uptime_seconds: process.uptime(),
+          version: "1",
+        },
+      });
+      if (result?.reregister) {
+        registered = false;
+      }
+    } catch (error) {
+      if (error?.status === 401) {
+        agent.token = "";
+        registered = false;
+        refreshAgentToken(true);
+      }
+      log.warn(`codx-junior-sync: heartbeat failed: ${String(error)}`);
+    }
+  }
+
+  function taskView(sessionId, task, messages, events) {
+    task.webUrl = taskWebUrl(config.uiUrlTemplate, sessionId);
+    return {
+      task,
+      messages,
+      lastSeq: events?.at(-1)?.seq ?? messages.at(-1)?.meta_data?.dsh?.seq ?? null,
+    };
+  }
+
+  async function executeCommand(command) {
+    const payload = command.payload || {};
+    const controller = service(ctx, "sessionController");
+    switch (command.type) {
+      case "ping":
+        return { ok: true, instance_id: agent.instanceId };
+      case "list_tasks": {
+        const tasks = await listTasks(ctx, config, {
+          cwd: payload.cwd || config.projectPath || undefined,
+          includeBlank: Boolean(payload.include_blank),
+          limit: Number(payload.limit) || config.syncLimit,
+        });
+        return { tasks };
+      }
+      case "get_task": {
+        const sessionId = String(payload.session_id || "");
+        if (!sessionId) throw new Error("get_task requires session_id");
+        const { task, messages, events } = await taskFromStoredSession(
+          ctx,
+          sessionId,
+          AbortSignal.timeout(config.requestTimeoutMs),
+        );
+        return taskView(sessionId, task, messages, events);
+      }
+      case "create_task": {
+        if (!controller) throw new Error("sessionController is unavailable");
+        const prompt = String(payload.prompt || "").trim();
+        const title = shortText(payload.title || payload.name || "", 200)
+          || shortText(prompt, 80)
+          || "DSH task";
+        const cwd = String(payload.cwd || config.projectPath || "").trim();
+        if (cwd && !isAbsolute(cwd)) throw new Error("cwd must be absolute");
+        const created = await controller.create({
+          cwd: cwd || undefined,
+          agentPreset: payload.agent_preset ? String(payload.agent_preset) : undefined,
+        });
+        const sessionId = String(created.sessionId);
+        try {
+          await controller.rename({ sessionId, title });
+        } catch (error) {
+          log.warn(`codx-junior-sync: created ${sessionId} but could not rename it: ${String(error)}`);
+        }
+        let promptAccepted = false;
+        if (prompt) {
+          await controller.prompt({
+            sessionId,
+            requestId: `codx-${randomBytes(12).toString("hex")}`,
+            mode: "queue",
+            content: [{ type: "text", text: prompt }],
+            clientTimeZone: "UTC",
+          });
+          promptAccepted = true;
+        }
+        const { task } = await taskFromStoredSession(
+          ctx,
+          sessionId,
+          AbortSignal.timeout(config.requestTimeoutMs),
+        );
+        task.webUrl = taskWebUrl(config.uiUrlTemplate, sessionId);
+        task.blank = false;
+        if (payload.codx_task_id) task.codxTaskId = String(payload.codx_task_id);
+        return { sessionId, promptAccepted, task };
+      }
+      case "prompt": {
+        if (!controller) throw new Error("sessionController is unavailable");
+        const text = String(payload.text || payload.prompt || "").trim();
+        if (!text) throw new Error("text is required");
+        await controller.prompt({
+          sessionId: String(payload.session_id || ""),
+          requestId: `codx-${randomBytes(12).toString("hex")}`,
+          mode: payload.mode === "steer" ? "steer" : "queue",
+          content: [{ type: "text", text }],
+          clientTimeZone: "UTC",
+        });
+        return { accepted: true };
+      }
+      case "cancel": {
+        if (!controller) throw new Error("sessionController is unavailable");
+        controller.cancel({ sessionId: String(payload.session_id || "") });
+        return { cancelled: true };
+      }
+      case "rename": {
+        if (!controller) throw new Error("sessionController is unavailable");
+        const title = shortText(payload.title || payload.name || "", 200);
+        if (!title) throw new Error("title is required");
+        return await controller.rename({
+          sessionId: String(payload.session_id || ""),
+          title,
+        });
+      }
+      default:
+        throw new Error(`unknown command type: ${command.type}`);
+    }
+  }
+
+  async function postCommandResult(command, ok, result, error) {
+    try {
+      await agentRequest(
+        `/api/dsh/agent/commands/${encodeURIComponent(command.id)}/result`,
+        {
+          method: "POST",
+          body: {
+            instance_id: agent.instanceId,
+            ok,
+            result: result ?? null,
+            error: error ? String(error) : null,
+          },
+        },
+      );
+    } catch (postError) {
+      log.warn(`codx-junior-sync: cannot post result for ${command.id}: ${String(postError)}`);
+    }
+  }
+
+  async function handleCommand(command) {
+    try {
+      const result = await executeCommand(command);
+      await postCommandResult(command, true, result, null);
+    } catch (error) {
+      log.warn(`codx-junior-sync: command ${command.type} failed: ${String(error)}`);
+      await postCommandResult(command, false, null, error?.message || error);
+    }
+  }
+
+  async function pollCommands() {
+    while (!stopped) {
+      if (!registered) {
+        await ensureRegistered();
+        if (!registered) {
+          await sleep(1000);
+          continue;
+        }
+      }
+      try {
+        const waitSeconds = Math.max(1, Math.round(config.pollWaitMs / 1000));
+        const response = await agentRequest(
+          `/api/dsh/agent/commands?instance_id=${encodeURIComponent(agent.instanceId)}&wait=${waitSeconds}&limit=20`,
+          { timeout: config.pollWaitMs + 10000 },
+        );
+        for (const command of response?.commands ?? []) {
+          if (!stopped) await handleCommand(command);
+        }
+      } catch (error) {
+        if (error?.status === 401) {
+          agent.token = "";
+          registered = false;
+          refreshAgentToken(true);
+          log.warn("codx-junior-sync: command poll rejected the token; re-registering after rotation");
+        } else {
+          log.warn(`codx-junior-sync: command poll failed: ${String(error)}`);
+        }
+        await sleep(2000);
+      }
+    }
+  }
+
+  async function heartbeatLoop() {
+    while (!stopped) {
+      await sleep(config.heartbeatMs);
+      if (stopped) return;
+      await sendHeartbeat();
+    }
+  }
+
+  async function sendInitialSnapshot() {
+    if (!config.syncOnStart) return;
+    try {
+      const tasks = await listTasks(ctx, config, { limit: config.syncLimit });
+      queue.snapshot(tasks);
+    } catch (error) {
+      log.warn(`codx-junior-sync: initial snapshot failed: ${String(error)}`);
+    }
+  }
+
+  // The bridge routes and legacy webhooks share one secret. Agent mode uses
+  // the agent token and never exposes an inbound DSH route.
   const authorized = (req) =>
     Boolean(queue.secret) && constantTimeEqual(presentedSecret(req.headers), queue.secret);
 
@@ -401,7 +814,26 @@ export function apply(ctx, rawConfig = {}) {
     }),
   );
 
-  if (config.syncOnStart) {
+  ctx.effect(() => () => {
+    stopped = true;
+    queue.close();
+  });
+
+  if (config.agentEnabled) {
+    if (!agent.token) {
+      log.warn(
+        `codx-junior-sync: agent mode is enabled but no token is configured yet. `
+          + `Waiting for Global Settings → DSH Harness to write `
+          + `${join(config.workspaceDir, ".dsh-codx-junior", "token")}.`,
+      );
+    }
+    void ensureRegistered().then(() => {
+      if (registered && !stopped) void sendInitialSnapshot();
+    });
+    void pollCommands();
+    void heartbeatLoop();
+  } else if (config.bridgeEnabled && config.syncOnStart) {
+    // Legacy direct-bridge installations keep their old snapshot behavior.
     const timer = setTimeout(async () => {
       try {
         const tasks = await listTasks(ctx, config, { limit: config.syncLimit });
@@ -413,8 +845,6 @@ export function apply(ctx, rawConfig = {}) {
     timer.unref?.();
     ctx.effect(() => () => clearTimeout(timer));
   }
-
-  ctx.effect(() => () => queue.close());
 
   // -------------------------------------------------------------------------
   // HTTP bridge.
@@ -553,26 +983,30 @@ export function apply(ctx, rawConfig = {}) {
     return sendError(res, 404, "not-found", "unknown route");
   }
 
-  ctx.effect(() =>
-    ctx.webServer.register({
-      kind: "prefix",
-      path: ROUTE_PREFIX,
-      handler: async (req, res) => {
-        try {
-          await route(req, res);
-        } catch (error) {
-          const status = error?.code === "payload-too-large" ? 413
-            : error?.code === "bad-request" ? 400
-            : /not found/i.test(String(error?.message)) ? 404
-            : 500;
-          log.warn(`codx-junior-sync: ${req.method} ${req.url} failed: ${String(error)}`);
-          sendError(res, status, status === 500 ? "internal" : "bad-request", String(error?.message ?? error));
-        }
-      },
-    }),
-  );
+  if (config.bridgeEnabled) {
+    ctx.effect(() =>
+      ctx.webServer.register({
+        kind: "prefix",
+        path: ROUTE_PREFIX,
+        handler: async (req, res) => {
+          try {
+            await route(req, res);
+          } catch (error) {
+            const status = error?.code === "payload-too-large" ? 413
+              : error?.code === "bad-request" ? 400
+              : /not found/i.test(String(error?.message)) ? 404
+              : 500;
+            log.warn(`codx-junior-sync: ${req.method} ${req.url} failed: ${String(error)}`);
+            sendError(res, status, status === 500 ? "internal" : "bad-request", String(error?.message ?? error));
+          }
+        },
+      }),
+    );
+  }
 
   log.info(
-    `codx-junior-sync: bridge at ${ROUTE_PREFIX}, codx-junior ${config.codxApiUrl}${config.codxPath ? ` (${config.codxPath})` : ""}`,
+    `codx-junior-sync: agent=${agent.enabled ? "on" : "off"} instance=${agent.instanceId} `
+      + `codx-junior=${config.codxApiUrl}${config.codxPath ? ` (${config.codxPath})` : ""}`
+      + ` legacyBridge=${config.bridgeEnabled ? "on" : "off"}`,
   );
 }
