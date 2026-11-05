@@ -464,5 +464,35 @@ class Chat(BaseModel):
         description="When True, excludes parent chat file list from the working context"
     )
 
+    # ── External task mirrors ──────────────────────────────────────────────
+    # A chat may mirror a task that lives in another system (currently DSH).
+    # The mirror stores only identity + board placement; the conversation is
+    # fetched live from the external system when the chat is opened, so no
+    # message content is duplicated in codx-junior's task files.
+    external_source: Optional[str] = Field(
+        default=None,
+        description="External system owning this task (e.g. 'dsh'). None for native chats."
+    )
+    external_id: Optional[str] = Field(
+        default=None,
+        description="Task/session id in the external system."
+    )
+    external_parent_id: Optional[str] = Field(
+        default=None,
+        description="Parent task id in the external system, when it is known there."
+    )
+    external_status: Optional[str] = Field(
+        default=None,
+        description="Last status reported by the external system (idle/running/error/closed)."
+    )
+    external_url: Optional[str] = Field(
+        default=None,
+        description="Deep link to open the task in the external system."
+    )
+    external_updated_at: Optional[str] = Field(
+        default=None,
+        description="ISO timestamp of the last external update."
+    )
+
 
 # Made with ❤️ by codx-junior

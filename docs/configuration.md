@@ -7,6 +7,7 @@ Most settings are edited in the app (**Global settings** and **Project settings*
 | Variable | Description |
 | --- | --- |
 | `CODX_JUNIOR_DOMAIN` | Host name Traefik routes on, for example `localhost` or `dev.example.com`. |
+| `CODX_JUNIOR_TRAEFIK_AUTH_MIDDLEWARE` | Traefik auth middleware used by HTTP-provider routes. Defaults to `codx-junior-auth@docker`; set it to an empty value to disable it. |
 | `ACME_EMAIL` | Email for Let's Encrypt certificates. |
 | `USER_ID`, `GROUP_ID` | Host user and group ids used for file permissions. |
 | `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY` | Keys for the optional LiteLLM model manager. |

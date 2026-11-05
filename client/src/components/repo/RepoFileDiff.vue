@@ -1,5 +1,5 @@
 <script setup>
-import DiffViewer from '@/components/DiffViewer.vue'
+import CodeViewer from '@/components/CodeViewer.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 </script>
 
@@ -15,14 +15,10 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
       >{{ fileName }}</button>
       <span class="font-mono text-[10px] opacity-40 truncate hidden sm:inline" :title="file.path">{{ fileDir }}</span>
       <span class="badge badge-xs badge-ghost shrink-0">{{ fileLabel }}</span>
-      <span v-if="additions || deletions" class="text-[10px] font-mono shrink-0">
-        <span class="text-success">+{{ additions }}</span>
-        <span class="text-error">-{{ deletions }}</span>
-      </span>
 
       <div class="grow"></div>
 
-      <template v-if="!selectedCommit">
+      <template v-if="!viewingCommit">
         <button
           v-if="file.group === 'changes'"
           class="btn btn-xs btn-ghost gap-1"
@@ -58,125 +54,32 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
       </button>
     </div>
 
-    <!-- ── Tabs ─────────────────────────────────────────────────────────── -->
-    <div class="flex items-center gap-1 px-2 py-1 border-b border-base-content/10 shrink-0">
-      <div class="join">
-        <button
-          class="join-item btn btn-xs"
-          :class="view === 'changes' ? 'btn-primary' : 'btn-ghost'"
-          @click="backToWorkingChanges"
-        >
-          <i class="fa-solid fa-code-compare"></i> Changes
-        </button>
-        <button
-          class="join-item btn btn-xs"
-          :class="view === 'history' ? 'btn-primary' : 'btn-ghost'"
-          @click="showHistory"
-        >
-          <i class="fa-solid fa-clock-rotate-left"></i> History
-          <span v-if="history.length" class="badge badge-xs badge-ghost ml-1">{{ history.length }}</span>
-        </button>
-      </div>
-
-      <div class="grow"></div>
-
-      <span
-        v-if="selectedCommit"
-        class="text-[10px] opacity-60 truncate max-w-[45%]"
-        :title="selectedCommit.message"
-      >
-        {{ selectedCommit.short_commit }} · {{ selectedCommit.relative }}
-      </span>
-      <button
-        v-if="selectedCommit"
-        class="btn btn-xs btn-ghost"
-        title="Back to the working tree diff"
-        aria-label="Back to the working tree diff"
-        @click="backToWorkingChanges"
-      >
-        <i class="fa-solid fa-arrow-left text-[10px]"></i>
-      </button>
-      <button
-        class="btn btn-xs btn-ghost"
-        :disabled="loading || historyLoading"
-        title="Reload"
-        aria-label="Reload"
-        @click="reload"
-      >
-        <i
-          class="fa-solid fa-rotate-right text-[10px]"
-          :class="{ 'animate-spin': loading || historyLoading }"
-        ></i>
-      </button>
-    </div>
-
-    <!-- ── Feedback ─────────────────────────────────────────────────────── -->
-    <div v-if="error" class="alert alert-error rounded-none py-1 px-2 text-[11px] flex items-start gap-2 shrink-0">
+    <!-- ── File load feedback ───────────────────────────────────────────── -->
+    <div v-if="fileError" class="alert alert-error rounded-none py-1 px-2 text-[11px] flex items-start gap-2 shrink-0">
       <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-      <div class="grow min-w-0">
-        <div class="break-words">{{ error }}</div>
-        <div v-if="errorHint" class="opacity-80 mt-0.5 break-words">{{ errorHint }}</div>
-      </div>
-      <button class="btn btn-ghost btn-xs" title="Retry" aria-label="Retry" @click="reload">
+      <span class="grow break-words">{{ fileError }}</span>
+      <button class="btn btn-ghost btn-xs" title="Retry" aria-label="Retry" @click="loadFileContent(true)">
         <i class="fa-solid fa-rotate-right"></i>
       </button>
     </div>
 
-    <!-- ── History ──────────────────────────────────────────────────────── -->
-    <div v-if="view === 'history'" class="grow min-h-0 overflow-auto">
-      <div v-if="historyLoading" class="p-3 text-xs opacity-50 flex items-center gap-2">
-        <i class="fa-solid fa-spinner animate-spin"></i> Loading history...
-      </div>
-      <div v-else-if="!history.length" class="p-3 text-xs opacity-40">No commits for this file</div>
-      <button
-        v-for="commit in history"
-        :key="commit.commit"
-        class="w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors"
-        :class="selectedCommit?.commit === commit.commit ? 'bg-primary/15 text-primary' : 'hover:bg-base-200'"
-        :title="`${commit.short_commit} · ${commit.message}`"
-        @click="openCommit(commit)"
-      >
-        <i class="fa-solid fa-code-commit text-warning text-[11px] shrink-0"></i>
-        <span class="font-mono text-[10px] opacity-60 shrink-0">{{ commit.short_commit }}</span>
-        <span class="text-[11px] truncate grow">{{ commit.message }}</span>
-        <span class="text-[10px] opacity-40 shrink-0 hidden sm:inline">{{ commit.author }}</span>
-        <span class="badge badge-xs badge-ghost shrink-0">{{ commit.relative }}</span>
-      </button>
-    </div>
-
-    <!-- ── Diff ─────────────────────────────────────────────────────────── -->
-    <div v-else class="grow min-h-0 flex flex-col overflow-hidden">
-      <div v-if="loading" class="p-3 text-xs opacity-50 flex items-center gap-2">
-        <i class="fa-solid fa-spinner animate-spin"></i> Loading diff...
-      </div>
-
-      <div v-else-if="!hasDiff" class="p-3 flex flex-col gap-2 text-xs opacity-50">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-circle-info"></i>
-          <span v-if="selectedCommit">This commit did not change this file</span>
-          <span v-else>No changes to show for this file</span>
-        </div>
-        <pre v-if="header" class="font-mono text-[10px] whitespace-pre-wrap opacity-70">{{ header }}</pre>
-        <button class="btn btn-xs btn-ghost self-start gap-1" @click="reload">
-          <i class="fa-solid fa-rotate-right text-[10px]"></i> Reload
-        </button>
-      </div>
-
-      <!-- Same renderer used by the Review panel (PRViewer / CodeViewer) -->
-      <template v-else>
-        <pre
-          v-if="header"
-          class="m-0 px-2 py-1 font-mono text-[10px] leading-4 opacity-50 border-b border-base-content/10 whitespace-pre-wrap shrink-0"
-        >{{ header }}</pre>
-        <DiffViewer
-          :key="viewerKey"
-          class="flex-1 min-h-0 overflow-hidden"
-          :diff="diff"
-          :file="fileName"
-          :language="language"
-        />
-      </template>
-    </div>
+    <!-- Diff, code, inline edit and file history all live in CodeViewer -->
+    <CodeViewer
+      ref="codeViewer"
+      :key="codeViewerKey"
+      class="grow min-h-0"
+      :code="fileContent"
+      :language="language"
+      :file="file.path"
+      :project="project"
+      :git-mode="mode"
+      :read-only="!canEdit"
+      :finished="true"
+      :diff-option="true"
+      :show-code-opened="true"
+      @save-file="onSaveFile"
+      @commit-view="viewingCommit = $event"
+    />
 
     <!-- ── Rollback confirmation (replaces window.confirm) ──────────────── -->
     <ConfirmDialog
@@ -202,29 +105,26 @@ export default {
   props: {
     // Project API instance (the diff is scoped by the project codx_path)
     api: { type: Object, required: true },
+    // Project owning the file: CodeViewer resolves its API/project from it
+    project: { type: Object, default: null },
     // Working tree file: { path, group: 'staged' | 'changes', code, label, icon, color }
     file: { type: Object, required: true }
   },
   emits: ['close', 'changed'],
   data() {
     return {
-      view: 'changes',
-      // Unified patch only: the renderer must not receive commit metadata
-      diff: '',
-      header: '',
-      additions: 0,
-      deletions: 0,
-      loading: false,
-      error: null,
-      errorHint: '',
-      history: [],
-      historyLoading: false,
-      selectedCommit: null,
+      // Working tree content passed to CodeViewer (its code view / editor)
+      fileContent: '',
+      fileError: null,
       busy: false,
+      // Commit currently inspected from CodeViewer's history (read-only)
+      viewingCommit: null,
       // Rollback confirmation dialog visibility
       confirmRollback: false,
-      // Guards against an out-of-order response overwriting the current file
-      requestToken: 0
+      // Guards against an out-of-order read overwriting a newer selection
+      fileRequestToken: 0,
+      // Remounts CodeViewer after a write so its git diff is reloaded
+      contentRevision: 0
     }
   },
   computed: {
@@ -245,190 +145,76 @@ export default {
     fileLabel() {
       return this.file?.label || 'Changed'
     },
-    /** Mode sent to the API: the staged list diffs the index, the rest the worktree */
-    mode() {
-      if (this.selectedCommit) return 'commit'
-      return this.file?.group === 'staged' ? 'staged' : 'worktree'
-    },
     language() {
       const extension = (this.file?.path || '').split('.').pop()
       return extension && extension !== this.file?.path ? extension : ''
     },
-    hasDiff() {
-      return !!this.diff && this.diff.trim().length > 0
+    /** Diff source for CodeViewer: index for staged files, worktree otherwise */
+    mode() {
+      return this.file?.group === 'staged' ? 'staged' : 'worktree'
     },
-    /** Remount the renderer whenever the shown content changes */
-    viewerKey() {
-      return `${this.file?.path || ''}:${this.mode}:${this.selectedCommit?.commit || ''}`
+    /** A deleted file has no content to edit (its patch is still shown) */
+    canEdit() {
+      return (this.file?.code || '').toUpperCase() !== 'D'
+    },
+    /** Remount the viewer whenever the file or its content is refreshed */
+    codeViewerKey() {
+      return `${this.file?.path || ''}:${this.file?.group || ''}:${this.contentRevision}`
     }
   },
   watch: {
-    'file.path'() {
-      this.reset()
-    },
-    'file.group'() {
-      this.reset()
+    // The parent creates a new `file` object after every repository reload, so
+    // this refreshes both the content and the git diff of an open file.
+    file() {
+      this.loadFileContent(true)
     }
   },
   created() {
-    this.reset()
+    this.loadFileContent()
   },
   methods: {
     // ── Loading ─────────────────────────────────────────────────────────
-    reset() {
-      this.selectedCommit = null
-      this.view = 'changes'
-      this.diff = ''
-      this.header = ''
-      this.additions = 0
-      this.deletions = 0
-      this.history = []
-      this.error = null
-      this.errorHint = ''
-      this.confirmRollback = false
-      this.loadDiff()
-    },
-
-    reload() {
-      return this.view === 'history' ? this.loadHistory() : this.loadDiff()
-    },
-
-    /** Working tree / index / commit diff of the current file */
-    async loadDiff() {
-      if (!this.api || !this.file?.path) return
-
-      const token = ++this.requestToken
-      this.loading = true
-      this.error = null
-      this.errorHint = ''
-
-      try {
-        const query = [
-          `path=${encodeURIComponent(this.file.path)}`,
-          `mode=${encodeURIComponent(this.mode)}`
-        ]
-        if (this.selectedCommit?.commit) {
-          query.push(`commit=${encodeURIComponent(this.selectedCommit.commit)}`)
-        }
-        const response = await this.api.get(`/api/git/repo/file/diff?${query.join('&')}`)
-        if (token !== this.requestToken) return
-        this.applyDiff(this.unwrap(response))
-      } catch (ex) {
-        if (token !== this.requestToken) return
-        this.diff = ''
-        this.header = ''
-        this.additions = 0
-        this.deletions = 0
-        this.setError(ex)
-      } finally {
-        if (token === this.requestToken) this.loading = false
-      }
-    },
-
-    async showHistory() {
-      this.view = 'history'
-      if (!this.history.length) await this.loadHistory()
-    },
-
-    async loadHistory() {
-      if (!this.api || !this.file?.path) return
-      this.historyLoading = true
-      this.error = null
-      this.errorHint = ''
-      try {
-        const result = this.unwrap(await this.api.get(
-          `/api/git/repo/file/history?path=${encodeURIComponent(this.file.path)}&limit=25`
-        ))
-        this.history = (result?.commits || []).map(commit => ({
-          ...commit,
-          relative: this.relativeDate(commit.date)
-        }))
-      } catch (ex) {
-        this.history = []
-        this.setError(ex)
-      } finally {
-        this.historyLoading = false
-      }
-    },
-
-    /** Show the changes introduced by a single commit */
-    async openCommit(commit) {
-      if (!this.api || !commit?.commit) return
-      this.selectedCommit = commit
-      this.view = 'changes'
-      await this.loadDiff()
-    },
-
-    backToWorkingChanges() {
-      this.view = 'changes'
-      if (!this.selectedCommit) {
-        return this.loadDiff()
-      }
-      this.selectedCommit = null
-      return this.loadDiff()
-    },
-
-    // ── Response handling ───────────────────────────────────────────────
     /**
-     * The API layer resolves with the payload, but some clients (and the
-     * `del` helper) resolve with the raw axios response. Unwrap `data` so both
-     * shapes work and the diff is never `undefined`.
+     * Read the working tree version of the file for CodeViewer.
+     *
+     * @param {boolean} [force] - Bypass the short-lived files cache.
+     * @returns {Promise<void>}
      */
-    unwrap(response) {
-      if (!response || typeof response !== 'object') return {}
-      if (!('diff' in response) && response.data && typeof response.data === 'object') {
-        return response.data
+    async loadFileContent(force = false) {
+      if (!this.api || !this.file?.path) return
+      if (force) this.viewingCommit = null
+      if (!this.canEdit) {
+        this.fileContent = ''
+        this.fileError = null
+        return
       }
-      return response
-    },
 
-    applyDiff(payload) {
-      this.diff = payload?.diff || ''
-      this.header = payload?.header || ''
-      this.additions = payload?.additions || 0
-      this.deletions = payload?.deletions || 0
-    },
-
-    setError(ex) {
-      const detail = ex?.response?.data?.detail || ex?.message || String(ex)
-      this.error = detail
-      const status = ex?.response?.status
-      if (status === 404 || /not found/i.test(detail)) {
-        this.errorHint = 'The git diff endpoint (/api/git/repo/file/diff) is not available on the running API. Restart the codx-junior API so the repository routes are loaded, then retry.'
-      } else {
-        this.errorHint = ''
+      const token = ++this.fileRequestToken
+      this.fileError = null
+      try {
+        const result = await this.api.files.read(this.file.path, { force })
+        if (token !== this.fileRequestToken) return
+        this.fileContent = result?.content ?? ''
+        // A forced read follows a write/git action: remount CodeViewer so both
+        // the code and the git diff are reloaded from scratch.
+        if (force) this.contentRevision += 1
+      } catch (ex) {
+        if (token !== this.fileRequestToken) return
+        this.fileError = ex?.response?.data?.detail || ex?.message || String(ex)
       }
-    },
-
-    /** Relative time without pulling a date library into this component */
-    relativeDate(date) {
-      if (!date) return ''
-      const value = new Date(date)
-      if (isNaN(value.getTime())) return date
-
-      const minutes = Math.round((Date.now() - value.getTime()) / 60000)
-      const abs = Math.abs(minutes)
-      if (abs < 1) return 'just now'
-      if (abs < 60) return `${minutes}m ago`
-      const hours = Math.round(minutes / 60)
-      if (Math.abs(hours) < 24) return `${hours}h ago`
-      const days = Math.round(hours / 24)
-      if (Math.abs(days) < 30) return `${days}d ago`
-      return value.toISOString().slice(0, 10)
     },
 
     // ── Actions ─────────────────────────────────────────────────────────
     async runAction(fn) {
       if (!this.api || this.busy) return
       this.busy = true
-      this.error = null
-      this.errorHint = ''
+      this.fileError = null
       try {
         await fn()
         this.$emit('changed')
-        await this.loadDiff()
+        await this.loadFileContent(true)
       } catch (ex) {
-        this.setError(ex)
+        this.fileError = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
         this.busy = false
       }
@@ -460,6 +246,33 @@ export default {
         paths: [this.file.path],
         include_staged: true
       }))
+    },
+
+    /**
+     * Persist the content edited in CodeViewer.
+     *
+     * @param {Object} payload - CodeViewer `save-file` event.
+     * @param {string} payload.file - File path.
+     * @param {string} payload.content - New file content.
+     * @returns {Promise<void>}
+     */
+    async onSaveFile({ file, content } = {}) {
+      const path = file || this.file?.path
+      if (!this.api || !path || content == null || this.busy) return
+
+      this.busy = true
+      this.fileError = null
+      try {
+        await this.api.files.write(path, content)
+        this.fileContent = content
+        this.contentRevision += 1
+        this.$ui?.addNotification?.({ text: `${this.fileName} saved`, type: 'success' })
+        this.$emit('changed')
+      } catch (ex) {
+        this.fileError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        this.busy = false
+      }
     },
 
     openFile() {

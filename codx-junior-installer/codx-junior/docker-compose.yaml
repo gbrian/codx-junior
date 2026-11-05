@@ -212,6 +212,8 @@ services:
     command:
       - "--configFile=/config/traefik.yaml"
       # HTTP provider: polls codx-junior-api for workspace external-URL routes
+      # and custom rules. Use the internal Docker service name here: the public
+      # CODX_JUNIOR_DOMAIN does not expose the API port from inside Traefik.
       - "--providers.http.endpoint=http://codx-junior-api:19980/api/traefik/config"
       - "--providers.http.pollInterval=10s"
       - "--providers.http.pollTimeout=5s"

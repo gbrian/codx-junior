@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "codx-junior task sync",
+    "description": "Mirrors DSH chats and subagent sessions as live codx-junior board tasks and exposes a token-protected bridge API for creating and prompting DSH sessions."
+  }
+}

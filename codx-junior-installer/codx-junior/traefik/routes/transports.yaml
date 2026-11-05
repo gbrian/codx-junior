@@ -23,3 +23,4 @@ http:
         servers:
           # Replace with the actual IP address or container hostname accessible by Traefik
           - url: "http://codx-junior-it-web-release"
+    

@@ -1,0 +1,13 @@
+# DSH <-> codx-junior bridge. The bridge secret is generated at
+# <workspace>/.dsh-codx-junior/secret on first load and read by codx-junior.
+- insert:
+    - id: codx-junior-sync
+      name: '@local/codx-junior-task-bridge'
+      config:
+        codxApiUrl: !!js process.env.CODX_JUNIOR_API_URL ?? 'http://127.0.0.1:19980'
+        codxPath: !!js process.env.CODX_JUNIOR_CODX_PATH ?? ''
+        board: DSH
+        defaultColumn: Todo
+        syncOnStart: true
+        webhookEnabled: true
+        uiUrlTemplate: !!js process.env.DSH_WEB_URL ?? 'http://127.0.0.1:3080/?session={sessionId}'

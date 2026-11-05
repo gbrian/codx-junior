@@ -65,6 +65,17 @@
       <span>Move to… {{ isMultiSelect ? `(${selectionCount})` : '' }}</span>
     </button>
 
+    <!-- Jump to the folder that contains the selection (useful from search results) -->
+    <button
+      v-if="hasSelection"
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleGoToFolder"
+      title="Open the folder that contains this item"
+    >
+      <i class="fa-solid fa-folder-open w-4"></i>
+      <span>Go to folder</span>
+    </button>
+
     <div class="divider my-1"></div>
 
     <!-- Copy the absolute path (selection, or the current folder on blank area) -->
@@ -137,6 +148,9 @@ export default {
     },
     handleMove() {
       this.$emit('move')
+    },
+    handleGoToFolder() {
+      this.$emit('go-to-folder')
     },
     handleCopyPath() {
       this.$emit('copy-path')

@@ -26,7 +26,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :class="showHandle
         ? 'group bg-base-200 hover:bg-primary/10 active:bg-primary/20'
         : 'border-r border-base-100 hover:bg-slate-600'"
-      v-if="$slots.left && $slots.right"
+      v-if="$slots.left && showRight && $slots.right"
     >
       <span
         v-if="showHandle"
@@ -44,7 +44,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :style="panels?.right?.style"
       style="overflow: auto !important"
       :order="2"
-      v-if="$slots.right"
+      v-if="showRight && $slots.right"
     >
       <slot name="right"></slot>
     </SplitterPanel>
@@ -56,7 +56,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       <slot name="left"></slot>
     </div>
     <div
-      v-if="$slots.right"
+      v-if="showRight && $slots.right"
       class="flex-1 min-w-0 min-h-0 overflow-hidden"
     >
       <slot name="right"></slot>
@@ -93,6 +93,9 @@ export default {
     // Render the splitter. Set to false (e.g. on mobile) to render the slots
     // inside a plain container instead of a resizable SplitterGroup.
     split: { type: Boolean, default: true },
+    // When false, the right panel and its resize handle are not rendered and
+    // the left panel takes the full width (used by panels that open on demand).
+    showRight: { type: Boolean, default: true },
     // Make the resize dragger clearly visible (grip + hover) so it is discoverable.
     showHandle: { type: Boolean, default: false },
     // When set, the last panel layout (sizes) is persisted in localStorage under
@@ -114,8 +117,10 @@ export default {
     }
   },
   computed: {
-    // Left panel size: the remembered value wins, then the configured default.
+    // Left panel size: with no right panel it owns the whole width; otherwise
+    // the remembered value wins, then the configured default.
     leftSize() {
+      if (!this.showRight) return 100
       const saved = this.seededLayout?.[0]
       return saved != null ? saved : (this.panels?.left?.defaultSize || 20)
     },

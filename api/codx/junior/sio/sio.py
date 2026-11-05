@@ -157,6 +157,16 @@ def io_login(sid, data: dict):
 async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
+    existing = codxjunior_session.get_chat_manager().find_by_id(data.chat.id)
+    if getattr(existing, "external_source", None) == "dsh":
+        codxjunior_session.event_manager.chat_event(
+            chat=existing,
+            message=(
+                "This task mirrors a DSH session. Continue it in DSH or use "
+                f"POST /api/dsh/tasks/{existing.external_id}/prompt."
+            ),
+        )
+        return
     codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat_id=data.chat.id, owner_project_id=data.chat.owner_project_id)
 

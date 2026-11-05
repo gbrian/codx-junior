@@ -1,6 +1,7 @@
 <script setup>
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 import MCPServerListEditor from '@/components/project_settings/MCPServerListEditor.vue'
+import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
 </script>
 
 <template>
@@ -15,7 +16,7 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
 
         <nav class="flex-1 overflow-y-auto p-4 space-y-2">
           <button
-            v-for="item in navItems"
+            v-for="item in visibleNavItems"
             :key="item.id"
             @click="activeTab = item.id"
             :class="[
@@ -288,6 +289,15 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
               </div>
             </div>
 
+            <div v-if="activeTab === 'traefik' && isAdmin">
+              <TraefikRulesPanel
+                scope="project"
+                :project-id="settings.project_id"
+                :project-name="settings.project_name"
+                v-model:rules="settings.traefik_rules"
+              />
+            </div>
+
             <div v-if="activeTab === 'miscellaneous'">
               <div class="font-bold mb-4">Miscellaneous</div>
               <div>
@@ -343,7 +353,7 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-2">
               <button
-                v-for="item in navItems"
+                v-for="item in visibleNavItems"
                 :key="item.id"
                 @click="selectTab(item.id)"
                 :class="[
@@ -368,7 +378,7 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
         <div class="hidden @lg:flex border-b border-base-100 bg-base-100">
           <div class="flex-1 flex items-center overflow-x-auto px-8">
             <button
-              v-for="item in navItems"
+              v-for="item in visibleNavItems"
               :key="item.id"
               @click="activeTab = item.id"
               :class="[
@@ -770,6 +780,15 @@ import MCPServerListEditor from '@/components/project_settings/MCPServerListEdit
             </div>
           </div>
 
+          <div v-if="activeTab === 'traefik' && isAdmin">
+            <TraefikRulesPanel
+              scope="project"
+              :project-id="settings.project_id"
+              :project-name="settings.project_name"
+              v-model:rules="settings.traefik_rules"
+            />
+          </div>
+
           <div v-if="activeTab === 'miscellaneous'">
             <div class="space-y-6">
               <div class="flex justify-between items-start gap-6">
@@ -823,6 +842,7 @@ export default {
         { id: 'ai', label: 'AI Models', icon: 'fa-brain' },
         { id: 'mcp', label: 'MCP Servers', icon: 'fa-server' },
         { id: 'knowledge', label: 'Knowledge', icon: 'fa-lightbulb' },
+        { id: 'traefik', label: 'Traefik', icon: 'fa-route' },
         { id: 'miscellaneous', label: 'Miscellaneous', icon: 'fa-ellipsis' },
         { id: 'danger', label: 'Danger Zone', icon: 'fa-exclamation-triangle' }
       ]
@@ -834,6 +854,17 @@ export default {
   computed: {
     project() {
       return this.$project
+    },
+    isAdmin() {
+      return Boolean(
+        this.$users?.isAdmin ||
+        this.$storex?.api?.permissions?.isAdmin
+      )
+    },
+    visibleNavItems() {
+      // The Traefik endpoints are admin-only; project admins still see the
+      // rest of the project settings but not a tab that would return 403.
+      return (this.navItems || []).filter(item => item.id !== 'traefik' || this.isAdmin)
     },
     defaultWorktreesPath() {
       const repoPath = (this.settings?.abs_project_path || this.project?.abs_project_path || '').replace(/\/+$/, '')
@@ -854,6 +885,9 @@ export default {
       this.settings = await this.$project?.$api.settings.read()
       if (this.settings && !this.settings.mcp_servers) {
         this.settings.mcp_servers = []
+      }
+      if (this.settings && !Array.isArray(this.settings.traefik_rules)) {
+        this.settings.traefik_rules = []
       }
       if (this.settings && this.settings.git_pr_branch_prefix === undefined) {
         this.settings.git_pr_branch_prefix = ''
@@ -910,6 +944,7 @@ export default {
         ai: 'Select AI models for different project tasks',
         mcp: 'Configure Model Context Protocol servers',
         knowledge: 'Configure knowledge base and RAG settings',
+        traefik: 'Manage this project\'s Traefik routes. Rules are stored with the project.',
         miscellaneous: 'Other project settings and preferences',
         danger: 'Irreversible actions for this project'
       }

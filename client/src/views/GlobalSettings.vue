@@ -10,6 +10,7 @@ import PluginsEditor from '@/components/global_settings/plugins/PluginsEditor.vu
 import EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.vue'
 import GeneralSettings from '@/components/global_settings/GeneralSettings.vue'
 import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vue'
+import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
 </script>
 
 <template>
@@ -88,6 +89,11 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
             <AgentSettings v-if="activeTab === 'agents'" />
             <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
             <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
+            <TraefikRulesPanel
+              v-if="activeTab === 'traefik'"
+              scope="global"
+              v-model:rules="settings.traefik_rules"
+            />
           </div>
 
           <!-- Mobile Footer Actions -->
@@ -162,6 +168,11 @@ import ChatGlobalPrompts from '@/components/global_settings/ChatGlobalPrompts.vu
           <AgentSettings v-if="activeTab === 'agents'" />
           <EnvVariablesEditor :settings="settings" v-if="activeTab === 'env'" />
           <ChatGlobalPrompts :settings="settings" v-if="activeTab === 'chat'" />
+          <TraefikRulesPanel
+            v-if="activeTab === 'traefik'"
+            scope="global"
+            v-model:rules="settings.traefik_rules"
+          />
         </div>
       </main>
     </div>
@@ -182,6 +193,7 @@ export default {
         { id: 'chat', label: 'Chat Prompts', icon: 'fa-comments' },
         { id: 'plugins', label: 'Plugins', icon: 'fa-puzzle-piece' },
         { id: 'workspaces', label: 'Workspaces', icon: 'fa-cube' },
+        { id: 'traefik', label: 'Traefik', icon: 'fa-route' },
         { id: 'users', label: 'Users', icon: 'fa-users' },
         { id: 'scripts', label: 'Scripts', icon: 'fa-code' },
         { id: 'oauth', label: 'OAuth', icon: 'fa-key' },
@@ -195,6 +207,9 @@ export default {
   methods: {
     async loadSettings() {
       const data = await this.$storex.api.settings.global.read()
+      if (data && !Array.isArray(data.traefik_rules)) {
+        data.traefik_rules = []
+      }
       this.settings = data
     },
     async saveSettings() {
@@ -232,6 +247,7 @@ export default {
         chat: 'Set global prompts for all chat interactions',
         plugins: 'Install and manage plugins',
         workspaces: 'Organize and manage workspaces',
+        traefik: 'Manage global Traefik routes and review workspace/project routes',
         users: 'Control user access and permissions',
         scripts: 'Create and manage project scripts',
         oauth: 'Configure OAuth providers',

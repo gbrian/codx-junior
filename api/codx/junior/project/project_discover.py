@@ -110,6 +110,33 @@ def find_all_projects(force: bool = False) -> Dict[str, CODXJuniorSettings]:
     return _ALL_PROJECTS
 
 
+def get_all_projects_snapshot() -> Optional[Dict[str, CODXJuniorSettings]]:
+    """
+    Return the current discovery cache **without** starting or waiting for a scan.
+
+    This is the safe entry point for request paths that must never block (for
+    example the Traefik HTTP provider, which Traefik polls every 10 seconds
+    with a 5 second timeout).  Callers that need fresh data should use
+    :func:`find_all_projects` or schedule it in a background thread.
+    """
+    return _ALL_PROJECTS
+
+
+def update_project_snapshot(settings: CODXJuniorSettings) -> None:
+    """
+    Insert or replace one project in the discovery cache.
+
+    Used after a project's settings are saved so the Traefik route builder sees
+    the new rules immediately, without waiting for a full discovery scan.
+    """
+    global _ALL_PROJECTS
+    if settings is None or not getattr(settings, "project_id", None):
+        return
+    if _ALL_PROJECTS is None:
+        _ALL_PROJECTS = {}
+    _ALL_PROJECTS[settings.project_id] = settings
+
+
 def find_project_from_file_path(file_path: str) -> Optional[CODXJuniorSettings]:
     """
     Given an absolute file path, return the most-specific project that contains it.

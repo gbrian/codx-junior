@@ -25,6 +25,7 @@ from codx.junior.model.model import (
     AISettings,
     MCPServer
 )
+from codx.junior.traefik.model import TraefikRule
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,14 @@ class CODXJuniorSettings(BaseModel):
     repo_url: Optional[str] = Field(default=None)
 
     mcp_servers: Optional[List[MCPServer]] = Field(default=[], description="List of MCP servers configured for this project")
+
+    # Custom Traefik routers stored with the project (they travel with the
+    # project's .codx/project.json to other codx-junior instances). Global rules
+    # live in GlobalSettings.traefik_rules instead.
+    traefik_rules: List[TraefikRule] = Field(
+        default_factory=list,
+        description="Custom Traefik rules owned by this project",
+    )
 
     is_git_root: Optional[bool] = Field(default=False)
 

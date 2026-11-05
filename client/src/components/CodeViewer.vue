@@ -49,12 +49,23 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
           <!-- Quick icons (always visible on desktop, mobile shows less) -->
           <div class="flex gap-1 shrink-0" v-if="finished">
             <div
+              v-if="canEditFile"
               class="hover:text-info cursor-pointer text-sm"
               :class="editMode && 'text-warning'"
               @click.stop="onEdit"
               title="Edit code"
             >
               <i class="fa-solid fa-edit"></i>
+            </div>
+
+            <div
+              v-if="canLoadHistory"
+              class="hover:text-info cursor-pointer text-sm"
+              :class="showHistory && 'text-info'"
+              @click.stop="toggleHistory"
+              :title="showHistory ? 'Hide file history' : 'File history'"
+            >
+              <i class="fa-solid fa-clock-rotate-left"></i>
             </div>
 
             <div
@@ -67,7 +78,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
             </div>
 
             <div class="hover:text-info cursor-pointer text-sm" @click.stop="showDiffInfo" title="Refresh diff stats">
-              <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats }"></i>
+              <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loadingStats || gitDiffLoading }"></i>
             </div>
           </div>
         </div>
@@ -103,7 +114,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
           </span>
 
           <!-- Change stats bar (wrap on mobile) -->
-          <div v-if="stats && !editMode && !isNoChange && !isMarkdown && !showPreviousDiff" class="flex items-center gap-2">
+          <div v-if="stats && !isGitDiffView && !editMode && !isNoChange && !isMarkdown && !showPreviousDiff" class="flex items-center gap-2">
             <div
               class="flex h-2 rounded-full overflow-hidden bg-base-200 w-16 md:w-24 relative transition-all duration-300"
               :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
@@ -136,7 +147,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
         <!-- Save Button -->
         <button class="btn btn-sm btn-success btn-outline snap-start shrink-0"
           @click.stop="saveToFile"
-          v-if="!isNoChange && file && finished && (showCode || showDiff)"
+          v-if="canEditFile && !isNoChange && file && finished && (showCode || showDiff)"
           :class="{ 'blink-save': actionFeedback.save }"
           title="Save to file">
           <i class="fa-solid fa-check animate-bounce" v-if="actionFeedback.save"></i>
@@ -211,7 +222,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
         <!-- Reset Button -->
         <button class="btn btn-sm btn-ghost btn-outline snap-start shrink-0"
           @click.stop="resetLocalChanges"
-          v-if="hasLocalChanges"
+          v-if="hasLocalChanges && canEditFile"
           title="Reset to original AI-generated code">
           <i class="fa-solid fa-rotate-left"></i>
           <span class="hidden sm:inline">Reset</span>
@@ -220,7 +231,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
         <!-- Rollback Button -->
         <button class="btn btn-sm btn-error btn-outline snap-start shrink-0"
           @click.stop="confirmRollback"
-          v-if="!editMode && finished && file && !isNewFile"
+          v-if="canEditFile && !isGitDiffView && !editMode && finished && file && !isNewFile"
           title="Rollback file to previous state">
           <i class="fa-solid fa-history"></i>
           <span class="hidden sm:inline">Rollback</span>
@@ -274,7 +285,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
     </template>
 
-    <div class="p-2 flex flex-col gap-2"
+    <div class="p-2 flex flex-col gap-2 h-full min-h-0"
       :class="{ 'bg-error/40 rounded': isContentOutdated, 'bg-success/20 rounded': isNoChange }"
     >
 
@@ -283,7 +294,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
 
       <div
-        v-if="isContentOutdated"
+        v-if="isContentOutdated && !isGitDiffView"
         class="flex items-center gap-1.5 px-2 py-1 rounded bg-error/10 text-error text-xs"
         :title="`Base file has changed: This content was generated ${moment(contentCreatedAt).fromNow()}, but the file was last modified ${moment(last_modification).fromNow()}. Consider refreshing the diff to ensure accuracy.`"
       >
@@ -294,7 +305,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
 
       <div
-        v-if="!isNewFile && !diff"
+        v-if="!isGitDiffView && !isNewFile && !diff"
         class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
         :title="`Old changes detected`"
       >
@@ -305,7 +316,7 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
       </div>
 
       <div
-        v-if="isDangerousChange && !editMode && !showDiff && !isMarkdown"
+        v-if="isDangerousChange && !isGitDiffView && !editMode && !showDiff && !isMarkdown"
         class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/10 text-warning text-xs"
         :title="`Heavy modification detected: ${changeRiskMessage}`"
       >
@@ -338,15 +349,101 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
         </span>
       </div>
 
+      <!-- Git: inspecting a commit from the history panel -->
+      <div
+        v-if="selectedGitCommit"
+        class="flex items-center gap-1.5 px-2 py-1 rounded bg-info/10 text-info text-xs"
+      >
+        <i class="fa-solid fa-clock-rotate-left shrink-0"></i>
+        <span class="truncate grow">
+          Viewing commit <span class="font-mono">{{ selectedGitCommit.short_commit }}</span>
+          <span v-if="selectedGitCommit.message"> · {{ selectedGitCommit.message }}</span>
+        </span>
+        <button class="btn btn-xs btn-ghost gap-1 shrink-0" @click.stop="backToGitWorkingChanges">
+          <i class="fa-solid fa-arrow-left text-[10px]"></i> Current file
+        </button>
+      </div>
+
+      <div
+        v-if="isGitDiffView && gitDiffError"
+        class="flex items-start gap-2 px-2 py-1 rounded bg-error/10 text-error text-xs"
+      >
+        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
+        <span class="grow break-words">{{ gitDiffError }}</span>
+        <button class="btn btn-xs btn-ghost shrink-0" title="Retry diff" aria-label="Retry diff" @click.stop="loadGitDiff">
+          <i class="fa-solid fa-rotate-right text-[10px]"></i>
+        </button>
+      </div>
+
+      <div v-if="isGitDiffView && gitDiffLoading" class="flex items-center gap-2 px-2 py-1 text-xs opacity-60">
+        <i class="fa-solid fa-spinner animate-spin"></i> Loading diff...
+      </div>
+
+      <!-- File history (git log of the current file) -->
+      <div v-if="showHistory" class="flex flex-col gap-1 grow min-h-0 overflow-auto">
+        <div class="flex items-center gap-2 px-1 py-0.5 text-xs font-medium">
+          <i class="fa-solid fa-clock-rotate-left text-info"></i>
+          <span class="grow">File history</span>
+          <button
+            class="btn btn-xs btn-ghost btn-square"
+            :disabled="gitHistoryLoading"
+            title="Reload history"
+            aria-label="Reload history"
+            @click.stop="loadGitHistory"
+          >
+            <i class="fa-solid fa-rotate-right text-[10px]" :class="{ 'animate-spin': gitHistoryLoading }"></i>
+          </button>
+          <button class="btn btn-xs btn-ghost btn-square" title="Close history" aria-label="Close history" @click.stop="showHistory = false">
+            <i class="fa-solid fa-xmark text-[10px]"></i>
+          </button>
+        </div>
+
+        <div v-if="gitHistoryLoading" class="p-2 text-xs opacity-50 flex items-center gap-2">
+          <i class="fa-solid fa-spinner animate-spin"></i> Loading history...
+        </div>
+        <div v-else-if="gitHistoryError" class="p-2 flex flex-col gap-1 text-xs">
+          <span class="text-error break-words">{{ gitHistoryError }}</span>
+          <button class="btn btn-xs btn-ghost self-start" @click.stop="loadGitHistory">Retry</button>
+        </div>
+        <div v-else-if="!gitHistory.length" class="p-2 text-xs opacity-40">No commits for this file</div>
+        <div v-else class="flex flex-col gap-0.5">
+          <button
+            v-if="gitMode"
+            class="flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-colors"
+            :class="!selectedGitCommit ? 'bg-primary/10 text-primary' : 'hover:bg-base-300/60'"
+            title="Show the current working changes"
+            @click.stop="backToGitWorkingChanges"
+          >
+            <i class="fa-solid fa-code-compare text-[11px] shrink-0"></i>
+            <span class="grow truncate">Current changes</span>
+          </button>
+          <button
+            v-for="commit in gitHistory"
+            :key="commit.commit"
+            class="flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-colors"
+            :class="selectedGitCommit?.commit === commit.commit ? 'bg-primary/10 text-primary' : 'hover:bg-base-300/60'"
+            :title="`${commit.short_commit} · ${commit.message}`"
+            @click.stop="selectGitCommit(commit)"
+          >
+            <i class="fa-solid fa-code-commit text-warning text-[11px] shrink-0"></i>
+            <span class="font-mono text-[10px] opacity-70 shrink-0">{{ commit.short_commit }}</span>
+            <span class="truncate grow">{{ commit.message }}</span>
+            <span class="text-[10px] opacity-50 shrink-0 hidden sm:inline">{{ commit.author }}</span>
+            <span class="badge badge-xs badge-ghost shrink-0">{{ commit.relative }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Main content area with diff or code views -->
-      <div class="view-code grow overflow-auto">
-        <div :style="{ height: `${editorHeight}px` }">
+      <div v-else class="view-code grow min-h-0 overflow-auto">
+        <div :style="contentStyle" :class="{ 'h-full': isGitDiffView || editMode }">
 
           <!-- DiffViewer with edit mode toggle (Monaco DiffEditor when in edit mode) -->
           <DiffViewer
-            v-if="showDiff && comparisonOrgContent"
-            :org-content="comparisonOrgContent"
-            :new-content="diffEditContent || effectiveCode"
+            v-if="showDiff && (comparisonOrgContent || isGitDiffView)"
+            :org-content="isGitDiffView ? null : comparisonOrgContent"
+            :new-content="isGitDiffView ? null : (diffEditContent || effectiveCode)"
+            :diff="isGitDiffView ? diff : null"
             :file="file"
             :language="fileLanguage"
             class="h-full"
@@ -462,8 +559,8 @@ const Document = defineAsyncComponent(() => import('./document/Document.vue'))
 import { v4 as uuidv4 } from 'uuid'
 
 export default {
-  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch'],
-  emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
+  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened', 'message', 'fromBranch', 'toBranch', 'git-mode', 'read-only', 'history-limit'],
+  emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task', 'commit-view'],
   data() {
     return {
       id: uuidv4(),
@@ -512,12 +609,68 @@ export default {
         copy: false,
         save: false,
         patch: false
-      }
+      },
+      // ── Git diff / history ─────────────────────────────────────────────
+      // Raw patch of the working tree, index or a commit (git mode only).
+      gitHeader: '',
+      gitDiffLoading: false,
+      gitDiffError: null,
+      // File history panel
+      showHistory: false,
+      gitHistory: [],
+      gitHistoryLoading: false,
+      gitHistoryError: null,
+      // Commit being inspected from the history panel (read-only)
+      selectedGitCommit: null,
+      gitCommitContent: null,
+      // State saved while a commit is open, restored when going back
+      gitStateSnapshot: null,
+      gitRequestToken: 0
     }
   },
   computed: {
     effectiveCode() {
+      // A commit opened from the history panel is read-only: show the content
+      // stored in that commit instead of the working tree version.
+      if (this.selectedGitCommit && this.gitCommitContent !== null) {
+        return this.gitCommitContent
+      }
       return this.localCode !== null ? this.localCode : this.code
+    },
+
+    /** Render a git patch instead of a content-to-content diff */
+    isGitDiffView() {
+      return !!this.gitMode || !!this.selectedGitCommit
+    },
+
+    /** Git source currently shown: the requested mode or the selected commit */
+    currentGitMode() {
+      return this.selectedGitCommit ? 'commit' : this.gitMode
+    },
+
+    /** Editing is disabled for deleted files and while inspecting a commit */
+    canEditFile() {
+      return !this.readOnly && !this.selectedGitCommit
+    },
+
+    canLoadHistory() {
+      return !!this.file && !!this.$api?.repo?.fileHistory
+    },
+
+    /**
+     * Height of the content area.
+     *
+     * Monaco and git diffs must fill the panel: their parent gives them a real
+     * height (`h-full`). Plain read-only blocks keep the line-based estimate so
+     * they do not stretch inside a chat message.
+     */
+    contentStyle() {
+      if (this.isGitDiffView || this.editMode) {
+        // Fill the panel, but never collapse to 0 in contexts where the
+        // CodeViewer is rendered with an auto height (e.g. a chat message).
+        return { height: '100%', minHeight: '320px' }
+      }
+      return { height: `${this.editorHeight}px` }
     },
 
     /**
@@ -625,7 +778,7 @@ export default {
     },
 
     isNoChange() {
-      return this.orgContent === this.code
+      return !this.isGitDiffView && this.orgContent === this.code
     },
 
     fileLanguage() {
@@ -736,7 +889,9 @@ export default {
         this.isUserScrolledUp = false
         this.shouldForceScrollToBottom = false
 
-        if (this.canAutoLoadDiff) {
+        if (this.gitMode) {
+          await this.loadGitDiff()
+        } else if (this.canAutoLoadDiff) {
           await this.loadDiffInfo()
         }
       }
@@ -744,6 +899,20 @@ export default {
         // Automatic save in vibe mode - bypass heavy change prompt
         this.saveToFile(true)
       }
+    },
+    file() {
+      this.resetGitCommit()
+      this.gitHistory = []
+      this.gitHistoryError = null
+      this.showHistory = false
+      if (this.gitMode) this.loadGitDiff()
+    },
+    gitMode() {
+      this.resetGitCommit()
+      this.gitHistory = []
+      this.gitHistoryError = null
+      this.showHistory = false
+      if (this.gitMode) this.loadGitDiff()
     },
     last_modification() {
       this.$forceUpdate()
@@ -780,7 +949,9 @@ export default {
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
-    if (this.finished && this.showCode && this.canAutoLoadDiff) {
+    if (this.gitMode) {
+      this.loadGitDiff()
+    } else if (this.finished && this.showCode && this.canAutoLoadDiff) {
       this.loadDiffInfo()
     }
     this.detectPatchPattern()
@@ -802,6 +973,183 @@ export default {
         hash |= 0
       }
       return Math.abs(hash)
+    },
+
+    // ── Git diff / history ───────────────────────────────────────────────
+    /** Load the raw patch of the current git mode (worktree / staged / commit) */
+    async loadGitDiff() {
+      const mode = this.currentGitMode
+      if (!mode || !this.file || !this.$api?.repo?.fileDiff) return
+
+      const token = ++this.gitRequestToken
+      this.gitDiffLoading = true
+      this.gitDiffError = null
+      try {
+        const payload = await this.$api.repo.fileDiff({
+          path: this.file,
+          mode,
+          commit: this.selectedGitCommit?.commit
+        })
+        if (token !== this.gitRequestToken) return
+        this.diff = payload?.diff || ''
+        this.gitHeader = payload?.header || ''
+        this.stats = this.formatGitStats(payload) || (this.diff ? 'File changes' : 'No changes')
+        this.orgContent = null
+        this.diffEditContent = null
+        this.diffBaseContent = null
+        this.isNewFile = false
+        this.showDiff = true
+      } catch (ex) {
+        if (token !== this.gitRequestToken) return
+        this.diff = ''
+        this.gitHeader = ''
+        this.stats = ''
+        this.gitDiffError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        if (token === this.gitRequestToken) this.gitDiffLoading = false
+      }
+    },
+
+    /** Human-readable stats for the header (same shape as files.diff stats) */
+    formatGitStats(payload) {
+      const additions = payload?.additions || 0
+      const deletions = payload?.deletions || 0
+      if (!additions && !deletions) return ''
+      const insertionLabel = additions === 1 ? 'insertion' : 'insertions'
+      const deletionLabel = deletions === 1 ? 'deletion' : 'deletions'
+      return `${additions} ${insertionLabel}, ${deletions} ${deletionLabel}`
+    },
+
+    /** Load the commits that touched the current file */
+    async loadGitHistory() {
+      if (!this.canLoadHistory) {
+        this.gitHistory = []
+        this.gitHistoryError = 'File history is not available for this project'
+        return
+      }
+
+      this.gitHistoryLoading = true
+      this.gitHistoryError = null
+      try {
+        const result = await this.$api.repo.fileHistory({
+          path: this.file,
+          limit: this.historyLimit || 25
+        })
+        const commits = Array.isArray(result) ? result : (result?.commits || [])
+        this.gitHistory = commits.map((commit) => ({
+          ...commit,
+          relative: this.relativeGitDate(commit.date)
+        }))
+      } catch (ex) {
+        this.gitHistory = []
+        this.gitHistoryError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        this.gitHistoryLoading = false
+      }
+    },
+
+    /** Show / hide the file history list */
+    toggleHistory() {
+      if (this.showHistory) {
+        this.showHistory = false
+        return
+      }
+      this.showHistory = true
+      if (!this.gitHistory.length && !this.gitHistoryLoading) {
+        this.loadGitHistory()
+      }
+    },
+
+    /** Open a commit from the history panel (read-only view) */
+    async selectGitCommit(commit) {
+      if (!commit?.commit || !this.file) return
+      if (!this.selectedGitCommit) this.saveGitState()
+
+      this.selectedGitCommit = commit
+      this.gitCommitContent = null
+      this.showHistory = false
+      this.editMode = false
+      this.showPreviousDiff = false
+      this.$emit('commit-view', commit)
+
+      try {
+        this.gitCommitContent = await this.$api.repo.readFromBranch(this.file, commit.commit)
+      } catch {
+        this.gitCommitContent = ''
+      }
+      await this.loadGitDiff()
+    },
+
+    /** Leave the commit view and show the current working tree/index again */
+    async backToGitWorkingChanges() {
+      if (!this.selectedGitCommit) return
+      this.selectedGitCommit = null
+      this.gitCommitContent = null
+      this.gitHeader = ''
+      this.showHistory = false
+      this.$emit('commit-view', null)
+
+      if (this.gitMode) {
+        this.gitStateSnapshot = null
+        await this.loadGitDiff()
+        return
+      }
+      this.restoreGitState()
+    },
+
+    /** Snapshot the non-git diff state before opening a historical commit */
+    saveGitState() {
+      this.gitStateSnapshot = {
+        showDiff: this.showDiff,
+        diff: this.diff,
+        orgContent: this.orgContent,
+        stats: this.stats,
+        isNewFile: this.isNewFile,
+        showPreviousDiff: this.showPreviousDiff,
+        selectedPreviousId: this.selectedPreviousId,
+        diffEditContent: this.diffEditContent,
+        diffBaseContent: this.diffBaseContent,
+        localCode: this.localCode,
+        editMode: this.editMode
+      }
+    },
+
+    /** Restore the state saved by `saveGitState` */
+    restoreGitState() {
+      const state = this.gitStateSnapshot
+      this.gitStateSnapshot = null
+      if (!state) {
+        this.showDiff = !!this.orgContent
+        return
+      }
+      this.showDiff = state.showDiff
+      this.diff = state.diff
+      this.orgContent = state.orgContent
+      this.stats = state.stats
+      this.isNewFile = state.isNewFile
+      this.showPreviousDiff = state.showPreviousDiff
+      this.selectedPreviousId = state.selectedPreviousId
+      this.diffEditContent = state.diffEditContent
+      this.diffBaseContent = state.diffBaseContent
+      this.localCode = state.localCode
+      this.editMode = state.editMode
+    },
+
+    /** Drop the commit currently inspected and any saved state */
+    resetGitCommit() {
+      const hadCommit = !!this.selectedGitCommit
+      this.selectedGitCommit = null
+      this.gitCommitContent = null
+      this.gitStateSnapshot = null
+      this.gitHeader = ''
+      if (hadCommit) this.$emit('commit-view', null)
+    },
+
+    /** Relative time without pulling a date library into the diff code */
+    relativeGitDate(date) {
+      if (!date) return ''
+      const value = moment(date)
+      return value.isValid() ? value.fromNow() : date
     },
 
     detectPatchPattern() {
@@ -994,6 +1342,12 @@ export default {
      *   new/empty files and unchanged files fall back to the content view.
      */
     applyDefaultDiffView() {
+      // Git patches always start in diff view: they do not have two contents
+      // to decide from, and the patch is exactly what the user opened.
+      if (this.isGitDiffView) {
+        this.showDiff = true
+        return
+      }
       if (this.diffOption != undefined) {
         this.showDiff = this.diffOption
         return
@@ -1002,6 +1356,12 @@ export default {
     },
 
     async loadDiffInfo() {
+      // In git mode the diff comes from the repository, not from comparing the
+      // provided content against the file on disk.
+      if (this.isGitDiffView) {
+        return this.loadGitDiff()
+      }
+
       const diffRequest = {
         path: this.file,
         content: this.effectiveCode
@@ -1050,11 +1410,11 @@ export default {
       try {
         this.loadingStats = true
         this.showCode = true
-        
+
         if (this.file) {
           await this.loadDiffInfo()
 
-          if (this.isJSONChangeset) {
+          if (!this.isGitDiffView && this.isJSONChangeset) {
             this.applyChangeset()
           }
         }
@@ -1064,6 +1424,7 @@ export default {
     },
 
     onEdit() {
+      if (!this.canEditFile) return
       if (this.editMode) {
         this.cancelEdit()
         return
@@ -1146,7 +1507,11 @@ export default {
         this.$ui.notify({ type: 'success', message: `${this.fileName} rolled back to previous state` })
         this.showRollbackModal = false
         this.localCode = null
-        await this.loadDiffInfo()
+        if (this.gitMode) {
+          await this.loadGitDiff()
+        } else {
+          await this.loadDiffInfo()
+        }
         this.showDiff = true
       } catch (error) {
         console.error('Rollback failed:', error)
@@ -1162,6 +1527,7 @@ export default {
      * Pass `skipConfirm = true` for automated flows (e.g. vibe mode).
      */
     saveToFile(skipConfirm = false) {
+      if (!this.canEditFile) return
       if (!skipConfirm && this.isDangerousChange) {
         this.showHeavyChangeConfirmModal = true
         return
@@ -1170,6 +1536,7 @@ export default {
     },
 
     async performSave() {
+      if (!this.canEditFile) return
       this.triggerActionFeedback('save')
       let content
       if (this.editMode && this.editContent) {
@@ -1195,7 +1562,11 @@ export default {
       this.localCode = null
       this.diffEditContent = null
       this.diffBaseContent = null
-      await this.loadDiffInfo()
+      if (this.gitMode) {
+        await this.loadGitDiff()
+      } else {
+        await this.loadDiffInfo()
+      }
     },
 
     confirmHeavyChangeSave() {

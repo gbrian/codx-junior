@@ -2,7 +2,7 @@
 Prompt and message construction for chat interactions.
 
 Extracted from ``ChatEngine`` to keep prompt-building logic (history
-rendering, refine/agent prompts, current-request wrapping, and response file
+rendering, refine prompts, current-request wrapping, and response file
 extraction) in one place and reduce the size of the engine module.
 
 The key idea is to demote prior conversation turns to inert *context* so the
@@ -74,7 +74,6 @@ from typing import Any, Dict, List
 from langchain.messages import AIMessage, HumanMessage
 
 from codx.junior.db import ChatAttachment, Message
-from codx.junior.globals import AGENT_DONE_WORD
 
 logger = logging.getLogger(__name__)
 
@@ -960,8 +959,6 @@ class ChatPromptBuilder:
         context,
         chat_files_content,
         is_refine,
-        is_agent,
-        iterations_left,
     ):
         """
         Assemble the final list of LangChain messages to send to the AI.
@@ -1006,13 +1003,6 @@ class ChatPromptBuilder:
                 messages=messages,
                 user_message=user_message,
                 last_ai_message=last_ai_message,
-            )
-        elif is_agent:
-            messages = self.append_agent_message(
-                chat=chat,
-                messages=messages,
-                user_message=user_message,
-                iterations_left=iterations_left,
             )
         else:
             messages.append(self.convert_message(user_message))
@@ -1117,42 +1107,6 @@ class ChatPromptBuilder:
 
         refine_message = new_chat_message(role="user", content=task_content)
         messages.append(self.convert_message(refine_message))
-        return messages
-
-    def append_agent_message(self, chat, messages, user_message, iterations_left):
-        """
-        Append an agent-style prompt that instructs the model to complete a task.
-
-        Attachments are no longer copied here: they are collected from every
-        visible message (including the original one) and appended to the request
-        message by :meth:`build_ai_prompt_messages`, so they stay visible across
-        agent iterations.
-        """
-        parent_context = ""
-
-        if not chat.ignore_parent_knowledge:
-            parent_context = self._get_chat_analysis_parents(chat=chat)
-
-        agent_content = (
-            f"You are responsible to end this task.\n"
-            f"Follow instructions and try to solve it with the minimum iterations needed.\n"
-            f"<task>\n{chat.name}\n</task>\n\n"
-        )
-
-        if parent_context:
-            agent_content += (
-                f"You are writing a child document based on prior context:\n"
-                f"<parent_context>\n{parent_context}\n</parent_context>\n\n"
-            )
-
-        agent_content += (
-            f"<user_request>\n{user_message.content}\n</user_request>\n\n"
-            f"You still have {iterations_left} attempts more to finish the task.\n"
-            f"Return {AGENT_DONE_WORD} when the task is done.\n"
-        )
-
-        agent_message = new_chat_message(role="user", content=agent_content)
-        messages.append(self.convert_message(agent_message))
         return messages
 
     # ------------------------------------------------------------------

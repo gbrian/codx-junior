@@ -13,6 +13,7 @@ import { meetsModule } from './modules/meets'
 import { infraModule } from './modules/infra'
 import { repoModule } from './modules/repo'
 import { consoleModule } from './modules/console'
+import { traefikModule } from './modules/traefik'
 import { RequestCache, hashBody } from './requestCache'
 import { requestQueues } from './requestQueue'
 
@@ -549,6 +550,17 @@ const initializeAPI = ({ project, user } = {}) => {
         }
         return API._workspaceModule
       },
+    },
+
+    /**
+     * Traefik maintenance: merged routes, target catalog and the global /
+     * per-project custom rule stores. See api/modules/traefik.js.
+     */
+    get traefik() {
+      if (!API._traefikModule) {
+        API._traefikModule = traefikModule(API)
+      }
+      return API._traefikModule
     },
 
     github: {

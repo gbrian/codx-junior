@@ -37,3 +37,5 @@ codx-junior-installer/vllm/.cache
 ciso/scripts/vuln-reports
 ciso/scripts/security-scripts/scanwatch_*
 localai-models
+# Local DSH bridge secret
+.dsh-codx-junior/

@@ -755,6 +755,61 @@
           "path": "/docs/long-running-tasks-plan.md",
           "slug": "long-running-tasks-plan.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/long-running-tasks-plan.md"
+        },
+        {
+          "path": "/codx/junior/integrations/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
+        },
+        {
+          "path": "/codx/junior/integrations/dsh.py",
+          "slug": "dsh.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/dsh.md"
+        },
+        {
+          "path": "/tests/test_dsh_integration.py",
+          "slug": "test-dsh-integration.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-dsh-integration.md"
+        },
+        {
+          "path": "/codx/junior/api/dsh.py",
+          "slug": "dsh.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/dsh.md"
+        },
+        {
+          "path": "/codx/junior/traefik/model.py",
+          "slug": "model.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/model.md"
+        },
+        {
+          "path": "/codx/junior/traefik/manager.py",
+          "slug": "manager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/manager.md"
+        },
+        {
+          "path": "/codx/junior/traefik/builder.py",
+          "slug": "builder.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/builder.md"
+        },
+        {
+          "path": "/codx/junior/traefik/docker.py",
+          "slug": "docker.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/docker.md"
+        },
+        {
+          "path": "/tests/test_traefik_builder.py",
+          "slug": "test-traefik-builder.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/test-traefik-builder.md"
+        },
+        {
+          "path": "/codx/junior/traefik/project_cache.py",
+          "slug": "project-cache.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/project-cache.md"
+        },
+        {
+          "path": "/codx/junior/traefik/__init__.py",
+          "slug": "init.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/init.md"
         }
       ],
       "id": "project-overview",

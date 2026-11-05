@@ -28,6 +28,14 @@ accessLog:
       defaultMode: keep
 
 providers:
+  # codx-junior's Traefik HTTP provider. The API publishes workspace
+  # external-URL routes and the custom rules defined in the Traefik settings
+  # tabs. Use the internal Docker service name: the public domain may not
+  # resolve or expose the API port from inside this container.
+  http:
+    endpoint: "http://codx-junior-api:19980/api/traefik/config"
+    pollInterval: "10s"
+    pollTimeout: "5s"
   file:
     directory: /config/routes
     watch: true

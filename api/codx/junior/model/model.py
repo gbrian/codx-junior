@@ -61,6 +61,12 @@ from codx.junior.model.image_model import (
     ImageAnalysisResponse,
 )
 
+# ---------------------------------------------------------------------------
+# Traefik custom rules (global settings live here; project rules live in
+# CODXJuniorSettings). The storage location is the rule scope.
+# ---------------------------------------------------------------------------
+from codx.junior.traefik.model import TraefikRule
+
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -274,6 +280,11 @@ class GlobalSettings(BaseModel):
     workspace_start_port: Optional[int] = Field(default=16000)
     workspace_end_port: Optional[int] = Field(default=17000)
     workspace_docker_settings: Optional[dict] = Field(default={})
+
+    # Custom Traefik routers defined by an admin. Project rules live in each
+    # project's `.codx/project.json` instead, so the same UI component can
+    # target either storage.
+    traefik_rules: List[TraefikRule] = Field(default_factory=list)
 
     oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
 

@@ -1,199 +1,217 @@
 """
-Traefik dynamic configuration provider endpoint.
+Traefik dynamic configuration provider + custom-rule maintenance API.
 
 Traefik's ``providers.http`` polls ``GET /api/traefik/config`` every
-``pollInterval`` seconds. This endpoint builds a Traefik-compatible dynamic
-configuration JSON object from all workspace apps.
+``pollInterval`` seconds.  That endpoint is intentionally unauthenticated (it
+must be reachable by the Traefik container on the internal network) and is
+served from the project-rules snapshot, so it never waits for project
+discovery.
 
-App routing logic
------------------
-- If ``app.path`` starts with ``http://`` or ``https://``, it is treated as
-  an **external service URL** (e.g. ``http://194.93.48.9:8080/app``).
-  The public route prefix is derived as: ``/ws/{workspace_slug}/{app_id}``.
-  Traefik proxies requests to the external URL, stripping the public prefix
-  and forwarding to the external host + any sub-path it contains.
+The maintenance endpoints (``/traefik/routes``, ``/traefik/targets`` and the
+global/project rule stores) are admin-only.
 
-- Otherwise ``app.path`` is the standard public path prefix and ``app.port``
-  is the container port (workspace-network routing, managed via docker labels).
-  These are skipped here — docker label provider handles them.
+Storage
+-------
+* global rules -> ``GlobalSettings.traefik_rules``
+* project rules -> ``CODXJuniorSettings.traefik_rules`` (``.codx/project.json``)
 
-Auth middleware (``codx-junior-auth``) is applied to all generated routes.
+Both stores use the same ``TraefikRule`` model and the same UI component.
 
 Endpoints
 ---------
-GET /api/traefik/config   – Traefik HTTP provider (no auth, internal network)
-GET /api/traefik/routes   – Admin summary of active dynamic routes
+GET    /api/traefik/config                       – HTTP provider (no auth)
+GET    /api/traefik/routes                       – merged route read model
+GET    /api/traefik/targets                      – workspace apps + containers
+GET    /api/traefik/global/rules                 – global custom rules
+PUT    /api/traefik/global/rules                 – replace global custom rules
+GET    /api/traefik/projects/{project_id}/rules  – project custom rules
+PUT    /api/traefik/projects/{project_id}/rules  – replace project custom rules
+GET    /api/traefik/preview                      – generated config preview
 """
 
 import logging
-import os
-from typing import Any, Dict
-from urllib.parse import urlparse
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
-from codx.junior.global_settings import read_global_settings
-from codx.junior.model.model import CodxUser
 from codx.junior.api import require_admin
+from codx.junior.model.model import CodxUser
+from codx.junior.traefik import manager
+from codx.junior.traefik.model import TraefikRule
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["traefik"])
 
-CODX_JUNIOR_DOMAIN = os.environ.get("CODX_JUNIOR_DOMAIN", "localhost")
+
+class TraefikRulesRequest(BaseModel):
+    """Body for the bulk rule-save endpoints."""
+
+    rules: List[TraefikRule] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _is_external_url(path: str) -> bool:
-    """Return True when path is an absolute HTTP/HTTPS URL (external service)."""
-    return path.startswith("http://") or path.startswith("https://")
+
+def _rules_payload(rules: List[TraefikRule]) -> dict:
+    return {"rules": [rule.model_dump(mode="json") for rule in rules]}
 
 
-def _router_id(workspace_slug: str, app_id: str) -> str:
-    """Stable, Traefik-safe router/service/middleware ID for a workspace app."""
-    safe_app = (app_id or "app").lower().replace(" ", "-").replace("_", "-")
-    return f"codx-ws-{workspace_slug}-{safe_app}"
-
-
-def _public_path(workspace_slug: str, app_id: str) -> str:
-    """Public path prefix exposed by Traefik for an external-URL app."""
-    safe_app = (app_id or "app").lower().replace(" ", "-").replace("_", "-")
-    return f"/ws/{workspace_slug}/{safe_app}"
-
-
-def _build_dynamic_config() -> Dict[str, Any]:
-    """
-    Iterate all workspaces and build a Traefik dynamic config dict.
-
-    Only apps whose ``path`` is an external URL are included — container-port
-    apps are already handled by Traefik's docker label provider.
-    """
-    global_settings = read_global_settings()
-
-    routers: Dict[str, Any] = {}
-    services: Dict[str, Any] = {}
-    middlewares: Dict[str, Any] = {}
-
-    for workspace in (global_settings.workspaces or []):
-        slug = (workspace.folder_path or workspace.id or "").strip()
-        if not slug:
-            continue
-
-        for app in (workspace.apps or []):
-            if not _is_external_url(app.path):
-                # Container-port apps are handled by docker label provider
-                continue
-
-            service_url = app.path  # e.g. http://194.93.48.9:8080/app
-            rid = _router_id(slug, app.id or app.name)
-            public_path = _public_path(slug, app.id or app.name)
-
-            parsed = urlparse(service_url)
-            scheme = parsed.scheme                        # http | https
-            host = parsed.hostname or ""
-            port = parsed.port or (443 if scheme == "https" else 80)
-            ext_subpath = parsed.path.rstrip("/")         # e.g. /app  (may be empty)
-
-            # Base URL for the Traefik load-balancer (no sub-path)
-            lb_url = f"{scheme}://{host}:{port}"
-
-            # -- Strip-prefix middleware: remove the public prefix before forwarding
-            strip_mid = f"{rid}-strip"
-            middlewares[strip_mid] = {
-                "replacePathRegex": {
-                    "regex": f"^{public_path}(/.*)?$",
-                    "replacement": f"{ext_subpath}/${{1}}",  # prepend external sub-path
-                }
-            }
-
-            applied_middlewares = [strip_mid, "codx-junior-auth"]
-
-            # -- Router
-            routers[rid] = {
-                "rule": f"Host(`{CODX_JUNIOR_DOMAIN}`) && PathPrefix(`{public_path}`)",
-                "service": rid,
-                "middlewares": applied_middlewares,
-                "entryPoints": ["web", "websecure"],
-            }
-
-            # -- Service
-            services[rid] = {
-                "loadBalancer": {
-                    "servers": [{"url": lb_url}],
-                    "passHostHeader": False,
-                }
-            }
-
-            logger.debug(
-                "Traefik dynamic config: %s  %s  →  %s",
-                rid, public_path, service_url,
-            )
-
-    return {
-        "http": {
-            **({"routers": routers} if routers else {}),
-            **({"services": services} if services else {}),
-            **({"middlewares": middlewares} if middlewares else {}),
-        }
-    }
+def _value_error(ex: ValueError) -> HTTPException:
+    message = str(ex)
+    status = 404 if "not found" in message.lower() else 400
+    return HTTPException(status_code=status, detail=message)
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# HTTP provider
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/traefik/config",
     summary="Traefik HTTP provider – dynamic configuration",
-    include_in_schema=False,   # internal endpoint, exclude from public docs
+    include_in_schema=False,
 )
 def traefik_dynamic_config():
     """
     Polled by Traefik's ``providers.http`` every ``pollInterval``.
 
-    Returns a Traefik-compatible dynamic configuration JSON built from all
-    workspace apps whose ``path`` is an external HTTP/HTTPS URL.
+    Returns a Traefik-compatible dynamic configuration built from:
 
-    No authentication — must be reachable by the Traefik container on the
-    internal Docker network only.
+    * external-URL workspace apps;
+    * global custom rules;
+    * every project's custom rules (through a non-blocking snapshot).
     """
     try:
-        config = _build_dynamic_config()
-        return JSONResponse(content=config)
+        return JSONResponse(content=manager.build_config())
     except Exception as ex:
         logger.exception("Error building Traefik dynamic config: %s", ex)
         # Return an empty-but-valid config so Traefik doesn't error out
         return JSONResponse(content={"http": {}})
 
 
+# ---------------------------------------------------------------------------
+# Maintenance UI
+# ---------------------------------------------------------------------------
+
+
 @router.get(
     "/traefik/routes",
-    summary="[Admin] List active Traefik dynamic routes from workspace apps",
+    summary="[Admin] Merged workspace and custom Traefik routes",
 )
-def list_traefik_routes(user: CodxUser = Depends(require_admin)):
+def list_traefik_routes(
+    project_id: Optional[str] = None,
+    refresh: bool = False,
+    user: CodxUser = Depends(require_admin),
+):
     """
-    Human-readable summary of all routes currently injected into Traefik
-    via the HTTP provider.  Requires admin role.
+    Human-readable, merged view of every route Traefik can see.
+
+    ``project_id`` scopes the view to one project: its rules become editable,
+    global rules are inherited read-only, and workspace routes are filtered to
+    the workspaces that mount the project.
     """
-    config = _build_dynamic_config()
-    http = config.get("http", {})
-    routers = http.get("routers", {})
-    services = http.get("services", {})
+    try:
+        view = manager.build_view(project_id=project_id, refresh=refresh)
+    except ValueError as ex:
+        raise _value_error(ex)
+    # The route list does not need the full dynamic config; keep the payload
+    # small. `preview` returns it for the debug modal.
+    view.pop("config", None)
+    return view
 
-    routes = []
-    for rid, rconf in routers.items():
-        svc = services.get(rid, {})
-        servers = svc.get("loadBalancer", {}).get("servers", [])
-        routes.append({
-            "id": rid,
-            "rule": rconf.get("rule"),
-            "target_url": servers[0].get("url") if servers else None,
-            "middlewares": rconf.get("middlewares", []),
-            "entryPoints": rconf.get("entryPoints", []),
-        })
 
-    return {"routes": routes, "total": len(routes)}
+@router.get(
+    "/traefik/targets",
+    summary="[Admin] Targets available to a custom Traefik rule",
+)
+def list_traefik_targets(user: CodxUser = Depends(require_admin)):
+    """Workspace apps, running containers and defaults for the rule editor."""
+    return manager.target_catalog()
+
+
+@router.get(
+    "/traefik/preview",
+    summary="[Admin] Preview the generated Traefik dynamic configuration",
+)
+def preview_traefik_config(
+    project_id: Optional[str] = None,
+    refresh: bool = False,
+    user: CodxUser = Depends(require_admin),
+):
+    """Return the generated config, the route list and the issue list."""
+    try:
+        return manager.preview(project_id=project_id, refresh=refresh)
+    except ValueError as ex:
+        raise _value_error(ex)
+
+
+# ---------------------------------------------------------------------------
+# Rule stores
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/traefik/global/rules",
+    summary="[Admin] List global custom Traefik rules",
+)
+def get_global_traefik_rules(user: CodxUser = Depends(require_admin)):
+    return _rules_payload(manager.get_global_rules())
+
+
+@router.put(
+    "/traefik/global/rules",
+    summary="[Admin] Replace global custom Traefik rules",
+)
+def save_global_traefik_rules(
+    body: TraefikRulesRequest,
+    user: CodxUser = Depends(require_admin),
+):
+    try:
+        rules = manager.save_global_rules(body.rules)
+    except ValueError as ex:
+        raise _value_error(ex)
+    logger.info("Admin '%s' saved %d global Traefik rule(s)", user.username, len(rules))
+    return _rules_payload(rules)
+
+
+@router.get(
+    "/traefik/projects/{project_id}/rules",
+    summary="[Admin] List a project's custom Traefik rules",
+)
+def get_project_traefik_rules(
+    project_id: str,
+    user: CodxUser = Depends(require_admin),
+):
+    try:
+        rules = manager.get_project_rules(project_id)
+    except ValueError as ex:
+        raise _value_error(ex)
+    return _rules_payload(rules)
+
+
+@router.put(
+    "/traefik/projects/{project_id}/rules",
+    summary="[Admin] Replace a project's custom Traefik rules",
+)
+def save_project_traefik_rules(
+    project_id: str,
+    body: TraefikRulesRequest,
+    user: CodxUser = Depends(require_admin),
+):
+    try:
+        rules = manager.save_project_rules(project_id, body.rules)
+    except ValueError as ex:
+        raise _value_error(ex)
+    logger.info(
+        "Admin '%s' saved %d Traefik rule(s) for project %s",
+        user.username,
+        len(rules),
+        project_id,
+    )
+    return _rules_payload(rules)

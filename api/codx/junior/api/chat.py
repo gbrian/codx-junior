@@ -495,11 +495,22 @@ async def api_add_message(request: Request):
         if not chat:
             logger.error("api_add_message: chat not found: %s", chat_id)
             return {"error": f"chat '{chat_id}' not found"}
-        
+        if getattr(chat, "external_source", None):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This task is a live mirror of an external DSH session: "
+                    "its messages are read-only. Reply in DSH or use "
+                    f"POST /api/dsh/tasks/{chat.external_id}/prompt."
+                ),
+            )
+
         message = Message(**message_data)
         updated_chat = chat_manager.add_message(chat=chat, message=message)
         
         return updated_chat
+    except HTTPException:
+        raise
     except Exception as ex:
         logger.error("api_add_message: unexpected error: %s", ex)
         return {"error": f"Failed to add message: {str(ex)}"}
@@ -545,10 +556,18 @@ async def api_update_message(request: Request):
             logger.error("api_update_message: chat not found: %s", chat_id)
             return {"error": f"chat '{chat_id}' not found"}
         
+        if getattr(chat, "external_source", None):
+            raise HTTPException(
+                status_code=409,
+                detail="Messages of a live external DSH task are read-only.",
+            )
+
         message = Message(**message_data)
         updated_chat = chat_manager.update_message(chat=chat, message=message)
         
         return updated_chat
+    except HTTPException:
+        raise
     except Exception as ex:
         logger.error("api_update_message: unexpected error: %s", ex)
         return {"error": f"Failed to update message: {str(ex)}"}
@@ -681,6 +700,17 @@ def api_list_chats(request: Request):
             chat = chat_manager.find_by_id(chat_id=chat_id)
             if not chat:
                 logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
+            elif getattr(chat, "external_source", None) == "dsh":
+                # The DSH Session log remains the only copy of the
+                # conversation. Hydration is an in-memory read: nothing is
+                # written back to the task JSON.
+                try:
+                    from codx.junior.integrations.dsh import DshSync
+                    DshSync(codx_junior_session.settings).for_chat_manager(
+                        chat_manager
+                    ).hydrate_chat(chat)
+                except Exception as ex:
+                    logger.warning("api_list_chats: cannot hydrate DSH chat %s: %s", chat_id, ex)
             return chat
 
         if file_path:
@@ -839,12 +869,25 @@ async def api_chat(request: Request):
         data = await request.json()
         chat = Chat(**data)
         codx_junior_session = request.state.codx_junior_session
+        if chat.id:
+            existing = codx_junior_session.get_chat_manager().find_by_id(chat.id)
+            if getattr(existing, "external_source", None):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "This is a live DSH mirror task. Use "
+                        f"POST /api/dsh/tasks/{existing.external_id}/prompt "
+                        "to continue the conversation in DSH."
+                    ),
+                )
         
         codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
         await codx_junior_session.chat_with_project(chat=chat)
         await codx_junior_session.save_chat(chat)
         
         return chat
+    except HTTPException:
+        raise
     except Exception as ex:
         logger.error("api_chat: unexpected error: %s", ex)
         # ADDED: Return error response with proper structure so frontend
@@ -999,6 +1042,18 @@ async def api_save_chat(request: Request):
         chat_manager = codx_junior_session.get_chat_manager()
         
         chat_only = request.query_params.get("chat_only") == "1"
+        existing = chat_manager.find_by_id(chat.id) if chat.id else None
+        if getattr(existing, "external_source", None):
+            # The mirror must never persist a conversation copy: keep the
+            # stored (empty) message list and only accept metadata edits.
+            chat.messages = existing.messages
+            for field in (
+                "external_source", "external_id", "external_parent_id",
+                "external_status", "external_url", "external_updated_at",
+            ):
+                if not getattr(chat, field, None):
+                    setattr(chat, field, getattr(existing, field, None))
+            chat_only = True
         saved_chat = chat_manager.save_chat(chat=chat, chat_only=chat_only)
         
         return saved_chat

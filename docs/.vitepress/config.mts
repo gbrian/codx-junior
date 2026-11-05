@@ -41,6 +41,7 @@ export default defineConfig({
             { text: 'Overview', link: '/features/' },
             { text: 'Chats and agents', link: '/features/chats-and-agents' },
             { text: 'Kanban and tasks', link: '/features/kanban' },
+            { text: 'DSH task sync', link: '/features/dsh-sync' },
             { text: 'Vibe coding', link: '/features/vibe-coding' },
             { text: 'Workspaces', link: '/features/workspaces' },
             { text: 'Teams and messenger', link: '/features/teams' },

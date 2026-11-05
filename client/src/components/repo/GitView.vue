@@ -4,8 +4,8 @@ import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import { onFileEvent } from '@/utils/fileEvents'
-import moment from 'moment'
 
 // 50/72 rule: maximum subject length and maximum body line width
 const COMMIT_SUBJECT_LIMIT = 50
@@ -15,7 +15,7 @@ const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, ConfirmDialog },
+  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, ConfirmDialog, VerticalSplitter },
   props: {
     params: { type: Object, default: () => ({}) }
   },
@@ -32,8 +32,6 @@ export default {
       repoTree: [],
       selectedBranch: null,
       branchFilter: '',
-      rawCommits: [],
-      commitsLoading: false,
       collapsedSections: {},
       // graph
       selectedCommit: null,
@@ -48,6 +46,12 @@ export default {
       // Anchor for shift+click range selection: { group, path }
       selectionAnchor: null,
       selectedFile: null,
+      // Working tree presentation: flat list or folder tree, plus a filter
+      treeView: true,
+      fileFilter: '',
+      // Folder expansion in the tree view, keyed by `group:folderPath`.
+      // Undefined means expanded: the tree opens fully by default.
+      expandedFolders: {},
       // create branch (modal, shared by the sidebar and the headers)
       showNewBranch: false,
       newBranchName: '',
@@ -67,7 +71,13 @@ export default {
       merging: false,
       // Pending confirmation: { title, message, details, hint, icon, iconClass,
       // confirmLabel, confirmIcon, confirmClass, resolve }
-      confirmRequest: null
+      confirmRequest: null,
+      // Working tree / diff split. The diff is the right panel so the file list
+      // stays visible (and usable) while a file is being reviewed or edited.
+      splitterConfig: {
+        left: { minSize: 20, defaultSize: 28, collapsible: true },
+        right: { minSize: 30, defaultSize: 72, collapsible: true }
+      }
     }
   },
   computed: {
@@ -105,20 +115,6 @@ export default {
       const filter = this.branchFilter.trim().toLowerCase()
       if (!filter) return this.branches
       return this.branches.filter(b => b.toLowerCase().includes(filter))
-    },
-    selectedTree() {
-      return this.repoTree.find(b => this.sameBranch(b.branch_name, this.selectedBranch)) || null
-    },
-    commits() {
-      if (this.selectedTree?.commits?.length) {
-        return this.selectedTree.commits.map(c => this.normalizeCommit({
-          commit: c.commit_id,
-          author: c.author,
-          date: c.date,
-          message: c.comment
-        }))
-      }
-      return this.rawCommits
     },
     /** Working tree files split into staged / not staged */
     statusFiles() {
@@ -168,11 +164,44 @@ export default {
     workingTreeCount() {
       return this.stagedFiles.length + this.unstagedFiles.length
     },
+    /** Whether the working tree filter has any term */
+    hasFileFilter() {
+      return !!this.fileFilter.trim()
+    },
+    filteredStagedFiles() {
+      return this.stagedFiles.filter(file => this.matchesFileFilter(file))
+    },
+    filteredUnstagedFiles() {
+      return this.unstagedFiles.filter(file => this.matchesFileFilter(file))
+    },
+    filteredWorkingTreeCount() {
+      return this.filteredStagedFiles.length + this.filteredUnstagedFiles.length
+    },
     workingTreeGroups() {
       return [
-        { key: 'staged', label: 'Staged', empty: 'No staged changes', files: this.stagedFiles },
-        { key: 'changes', label: 'Changes', empty: 'No unstaged changes', files: this.unstagedFiles }
+        {
+          key: 'staged',
+          label: 'Staged',
+          empty: 'No staged changes',
+          files: this.filteredStagedFiles,
+          total: this.stagedFiles.length
+        },
+        {
+          key: 'changes',
+          label: 'Changes',
+          empty: 'No unstaged changes',
+          files: this.filteredUnstagedFiles,
+          total: this.unstagedFiles.length
+        }
       ]
+    },
+    /** With a filter active, empty groups are hidden */
+    visibleWorkingTreeGroups() {
+      if (!this.hasFileFilter) return this.workingTreeGroups
+      return this.workingTreeGroups.filter(group => group.files.length > 0)
+    },
+    noFilterMatches() {
+      return this.hasFileFilter && this.filteredWorkingTreeCount === 0
     },
     stagedSelection() {
       return this.selectedPaths('staged')
@@ -237,6 +266,13 @@ export default {
       return `${this.selectedFile.group}:${this.selectedFile.path}`
     }
   },
+  watch: {
+    // Hidden files must not stay selected: a staging action would otherwise
+    // affect files the filter is not showing.
+    fileFilter() {
+      this.clearSelection()
+    }
+  },
   created() {
     this.loadRepo()
   },
@@ -257,26 +293,6 @@ export default {
     sameBranch(a, b) {
       const clean = value => (value || '').replace(/^[*+\s]+/, '').trim()
       return !!a && !!b && clean(a) === clean(b)
-    },
-
-    normalizeCommit(commit) {
-      const id = commit.commit || commit.commit_id || commit.hash || ''
-      const author = typeof commit.author === 'object'
-        ? (commit.author?.name || '')
-        : (commit.author || '')
-      return {
-        id,
-        short: commit.short_commit || (id || '').slice(0, 8),
-        author,
-        date: commit.date || '',
-        message: commit.message || commit.comment || '',
-        relative: commit.date ? this.relativeDate(commit.date) : ''
-      }
-    },
-
-    relativeDate(date) {
-      const m = moment(date)
-      return m.isValid() ? m.fromNow() : date
     },
 
     branchCommitCount(branch) {
@@ -468,9 +484,16 @@ export default {
       return !!this.selection[this.fileKey(group, path)]
     },
 
-    /** Index of a file inside its group, -1 when it is not there anymore */
+    /** Files currently rendered as rows (respects tree folder collapse) */
+    visibleRowFiles(group) {
+      return this.rowsForGroup(group)
+        .filter(row => row.type === 'file')
+        .map(row => row.file)
+    },
+
+    /** Index of a visible file row inside its group, -1 when it is not shown */
     fileIndex(group, path) {
-      return this.groupFiles(group).findIndex(file => file.path === path)
+      return this.visibleRowFiles(group).findIndex(file => file.path === path)
     },
 
     /** Replace the whole selection with the given keys */
@@ -515,11 +538,15 @@ export default {
         ? [anchorIndex, targetIndex]
         : [targetIndex, anchorIndex]
 
-      const files = this.groupFiles(group).slice(start, end + 1)
+      const files = this.visibleRowFiles(group).slice(start, end + 1)
       this.setSelection(files.map(file => this.fileKey(group, file.path)))
     },
 
-    /** Row click: plain = single selection + diff, ctrl = toggle, shift = range */
+    /**
+     * Plain click selects the file and opens its diff. Ctrl/Cmd and Shift only
+     * manage the selection so multi-file actions stay possible without
+     * replacing the right panel for every click.
+     */
     onRowClick(event, group, file) {
       if (!file?.path) return
 
@@ -530,25 +557,187 @@ export default {
 
       if (event?.ctrlKey || event?.metaKey) {
         this.toggleSelect(group, file.path)
-      } else {
-        this.setSelection([this.fileKey(group, file.path)])
+        this.selectionAnchor = { group, path: file.path }
+        return
       }
 
+      this.setSelection([this.fileKey(group, file.path)])
       this.selectionAnchor = { group, path: file.path }
       this.openDiff(group, file)
     },
 
-    /** Checkbox click: plain = toggle, shift = select the range */
-    onCheckboxClick(event, group, file) {
-      if (!file?.path) return
+    /** Row highlight: open diff first, then selection, then hover */
+    rowClass(group, file) {
+      if (!file?.path) return ''
+      if (this.isFileOpen(group, file.path)) {
+        return 'bg-primary/20 ring-1 ring-inset ring-primary/40'
+      }
+      if (this.isSelected(group, file.path)) {
+        return 'bg-primary/15 text-primary'
+      }
+      return 'hover:bg-base-200'
+    },
 
-      if (event?.shiftKey) {
-        this.selectRange(group, file.path)
-        return
+    // ── Filtering / tree view ───────────────────────────────────────────
+    /** Files of a group that pass the current filter */
+    visibleGroupFiles(group) {
+      return group === 'staged' ? this.filteredStagedFiles : this.filteredUnstagedFiles
+    },
+
+    /**
+     * Match a change against the filter.
+     *
+     * Supported terms (space separated, all must match):
+     * - plain text: path or file name contains it, or the extension matches
+     * - `ext:js` / `.js`: exact extension
+     * - `name:controller`: file name contains it
+     * - `folder:components`: folder path contains it
+     *
+     * @param {Object} file - Change entry with a `path`.
+     * @returns {boolean}
+     */
+    matchesFileFilter(file) {
+      const terms = this.fileFilter.trim().toLowerCase().split(/\s+/).filter(Boolean)
+      if (!terms.length) return true
+      return terms.every(term => this.matchesFilterTerm(file, term))
+    },
+
+    /** Match one filter term against a file path */
+    matchesFilterTerm(file, term) {
+      const path = (file?.path || '').toLowerCase()
+      const name = path.split('/').pop() || ''
+      const slashIndex = path.lastIndexOf('/')
+      const folder = slashIndex >= 0 ? path.slice(0, slashIndex) : ''
+      const ext = name.includes('.') ? name.split('.').pop() : ''
+      const value = (term || '').toLowerCase()
+
+      if (value.startsWith('ext:')) {
+        const wanted = value.slice(4).replace(/^\./, '')
+        return !!wanted && ext === wanted
+      }
+      if (value.startsWith('folder:')) {
+        const wanted = value.slice(7)
+        return !!wanted && folder.includes(wanted)
+      }
+      if (value.startsWith('name:')) {
+        const wanted = value.slice(5)
+        return !!wanted && name.includes(wanted)
+      }
+      if (value.startsWith('.')) {
+        return !!ext && ext === value.slice(1)
       }
 
-      this.toggleSelect(group, file.path)
-      this.selectionAnchor = { group, path: file.path }
+      return path.includes(value) || name.includes(value) || (!!ext && ext === value)
+    },
+
+    /** Folder expansion state; filtering always shows the matching tree */
+    isFolderExpanded(group, path) {
+      if (this.hasFileFilter) return true
+      return this.expandedFolders[`${group}:${path}`] !== false
+    },
+
+    /** Collapse / expand a folder in the tree view */
+    toggleFolder(group, path) {
+      // While filtering, all matching folders stay open so results are visible.
+      if (this.hasFileFilter) return
+      const key = `${group}:${path}`
+      this.expandedFolders = {
+        ...this.expandedFolders,
+        [key]: !this.isFolderExpanded(group, path)
+      }
+    },
+
+    /**
+     * Rows rendered for a group: flat files in list mode, folder/file rows in
+     * tree mode. Both shapes drive the same file-row markup.
+     */
+    rowsForGroup(group) {
+      const files = this.visibleGroupFiles(group)
+      if (!this.treeView) {
+        return files.map(file => ({
+          type: 'file',
+          depth: 0,
+          file,
+          path: file.path,
+          name: this.fileName(file.path)
+        }))
+      }
+      return this.buildTreeRows(group, files)
+    },
+
+    /** Build and flatten a folder tree of the given files */
+    buildTreeRows(group, files) {
+      const root = { children: [], folders: new Map(), fileCount: 0 }
+
+      files.forEach(file => {
+        const parts = (file.path || '').split('/').filter(Boolean)
+        if (!parts.length) return
+        root.fileCount++
+        let node = root
+
+        parts.forEach((part, index) => {
+          const isFile = index === parts.length - 1
+          if (isFile) {
+            node.children.push({ type: 'file', name: part, path: file.path, file })
+            return
+          }
+
+          let folder = node.folders.get(part)
+          if (!folder) {
+            folder = {
+              type: 'folder',
+              name: part,
+              path: parts.slice(0, index + 1).join('/'),
+              children: [],
+              folders: new Map(),
+              fileCount: 0
+            }
+            node.folders.set(part, folder)
+            node.children.push(folder)
+          }
+          folder.fileCount++
+          node = folder
+        })
+      })
+
+      const sortNodes = nodes => {
+        nodes.sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
+          return a.name.localeCompare(b.name)
+        })
+        nodes.forEach(node => {
+          if (node.type === 'folder') sortNodes(node.children)
+        })
+      }
+      sortNodes(root.children)
+
+      const rows = []
+      const walk = (nodes, depth) => {
+        nodes.forEach(node => {
+          if (node.type === 'folder') {
+            rows.push({
+              type: 'folder',
+              depth,
+              name: node.name,
+              path: node.path,
+              count: node.fileCount
+            })
+            if (this.isFolderExpanded(group, node.path)) {
+              walk(node.children, depth + 1)
+            }
+          } else {
+            rows.push({
+              type: 'file',
+              depth,
+              name: node.name,
+              path: node.path,
+              file: node.file
+            })
+          }
+        })
+      }
+      walk(root.children, 0)
+      return rows
     },
 
     /** Paths of the current selection belonging to a group */
@@ -564,20 +753,19 @@ export default {
     },
 
     groupAllSelected(group) {
-      const files = this.groupFiles(group)
+      const files = this.visibleGroupFiles(group)
       return files.length > 0 && files.every(file => this.isSelected(group, file.path))
     },
 
-    toggleGroupSelection(group) {
-      const files = this.groupFiles(group)
-      const allSelected = this.groupAllSelected(group)
+    /** Select / clear every file of a group from the header button state */
+    setGroupSelection(group, checked) {
       const next = { ...this.selection }
-      files.forEach(file => {
+      this.visibleGroupFiles(group).forEach(file => {
         const key = this.fileKey(group, file.path)
-        if (allSelected) {
-          delete next[key]
-        } else {
+        if (checked) {
           next[key] = true
+        } else {
+          delete next[key]
         }
       })
       this.selection = next
@@ -832,7 +1020,6 @@ export default {
         }
         this.pruneSelection()
         this.syncSelectedFile()
-        await this.loadCommitsForBranch(this.selectedBranch)
       } catch (ex) {
         this.error = `Unable to load repository: ${ex?.message || ex}`
       } finally {
@@ -843,47 +1030,6 @@ export default {
     selectBranch(branch) {
       if (!branch) return
       this.selectedBranch = branch
-      this.rawCommits = []
-      this.loadCommitsForBranch(branch)
-    },
-
-    async loadCommitsForBranch(branch) {
-      if (!this.api || !branch) return
-      const tree = this.repoTree.find(b => this.sameBranch(b.branch_name, branch))
-      if (tree?.commits?.length) {
-        this.rawCommits = []
-        return
-      }
-      this.commitsLoading = true
-      try {
-        const res = await this.api.repo.commits(branch)
-        this.rawCommits = this.parseRawCommits(res)
-      } catch {
-        this.rawCommits = []
-      } finally {
-        this.commitsLoading = false
-      }
-    },
-
-    /** Fallback parser for `git log` output when repo_tree is not available */
-    parseRawCommits(res) {
-      const raw = res?.commits ?? res
-      if (Array.isArray(raw)) return raw.map(c => this.normalizeCommit(c))
-      if (typeof raw !== 'string' || !raw.trim()) return []
-      return raw.split(/^commit /m).filter(Boolean).map(block => {
-        const lines = block.split('\n')
-        const id = lines[0].trim().split(' ')[0]
-        const authorLine = lines.find(l => l.startsWith('Author:')) || ''
-        const dateLine = lines.find(l => l.startsWith('Date:')) || ''
-        const blankIndex = lines.findIndex(l => l.trim() === '')
-        const message = (blankIndex > -1 ? lines.slice(blankIndex + 1).join(' ') : '').trim()
-        return this.normalizeCommit({
-          commit: id,
-          author: authorLine.replace('Author:', '').trim(),
-          date: dateLine.replace('Date:', '').trim(),
-          message
-        })
-      })
     },
 
     // ── Shared operation runner ─────────────────────────────────────────
@@ -964,7 +1110,6 @@ export default {
       if (!this.error) {
         this.closeNewBranch()
         this.selectedBranch = name
-        this.loadCommitsForBranch(name)
       }
     },
 
@@ -1154,7 +1299,7 @@ export default {
           class="join-item btn btn-xs"
           :class="activeTab === 'repository' ? 'btn-primary' : 'btn-ghost'"
           @click="activeTab = 'repository'"
-          title="Working tree, branches and commits"
+          title="Working tree, branches and diffs"
         >
           <i class="fa-solid fa-code-branch"></i> Repository
         </button>
@@ -1248,7 +1393,7 @@ export default {
         />
       </div>
 
-      <!-- ── Repository: working tree + branches + diff/commits ─────────── -->
+      <!-- ── Repository: branches + working tree + on-demand diff panel ─── -->
       <div v-show="activeTab === 'repository'" class="grow flex overflow-hidden">
         <!-- Branches sidebar -->
         <aside class="hidden lg:flex lg:w-52 shrink-0 border-r border-base-content/10 flex-col overflow-hidden">
@@ -1287,16 +1432,89 @@ export default {
           </div>
         </aside>
 
-        <!-- Working tree -->
-        <section class="w-full md:w-80 shrink-0 border-r border-base-content/10 flex flex-col overflow-hidden">
+        <!-- Working tree (left) + on-demand diff (right).
+             The right panel only exists while a file is open for diff; the
+             branch header lives on the left so the diff panel can stay hidden. -->
+        <VerticalSplitter
+          class="grow min-w-0 min-h-0"
+          :panels="splitterConfig"
+          persist-key="git-view-repository"
+          show-handle
+          :show-right="!!selectedFile"
+        >
+          <template #left>
+            <div class="h-full w-full flex flex-col overflow-hidden">
+            <!-- Branch header (moved here so the right panel can stay hidden
+                 until a file diff is opened) -->
+            <div class="flex items-center gap-2 px-2 py-1.5 border-b border-base-content/10 shrink-0 flex-wrap">
+              <i class="fa-solid fa-code-commit text-warning text-xs"></i>
+              <span class="font-mono text-sm font-semibold truncate min-w-0" :title="selectedBranch">{{ selectedBranch || 'Select a branch' }}</span>
+              <span v-if="sameBranch(selectedBranch, currentBranch)" class="badge badge-xs badge-success">current</span>
+              <div class="grow"></div>
+
+              <button
+                class="btn btn-xs btn-ghost gap-1"
+                @click="openNewBranch(selectedBranch)"
+                :disabled="busy || !selectedBranch"
+                title="Create a branch from the selected branch"
+              >
+                <i class="fa-solid fa-code-branch"></i> New branch
+              </button>
+              <button class="btn btn-xs btn-ghost gap-1" @click="openMerge" :disabled="!branches.length || busy" title="Merge a branch into another">
+                <i class="fa-solid fa-code-merge"></i> Merge
+              </button>
+              <button
+                class="btn btn-xs btn-ghost gap-1"
+                @click="onCheckout(selectedBranch)"
+                :disabled="busy || !selectedBranch || sameBranch(selectedBranch, currentBranch)"
+                title="Checkout branch"
+              >
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Checkout
+              </button>
+              <button
+                class="btn btn-xs btn-ghost text-error gap-1"
+                @click="deleteBranch(selectedBranch)"
+                :disabled="busy || !selectedBranch || sameBranch(selectedBranch, currentBranch)"
+                title="Delete the selected branch"
+              >
+                <i class="fa-solid fa-trash"></i> Delete branch
+              </button>
+            </div>
+
+            <!-- Working tree -->
+            <section class="grow w-full flex flex-col overflow-hidden min-h-0">
           <div class="flex items-center gap-1 px-2 py-1.5 border-b border-base-content/10 shrink-0">
             <i class="fa-solid fa-file-pen text-warning text-xs"></i>
             <span class="text-xs font-bold uppercase tracking-wide opacity-50 grow">Working tree</span>
             <span
               class="badge badge-xs"
-              :class="workingTreeCount ? 'badge-warning badge-outline' : 'badge-ghost'"
-              :title="`${workingTreeCount} changed file(s)`"
-            >{{ workingTreeCount }}</span>
+              :class="filteredWorkingTreeCount ? 'badge-warning badge-outline' : 'badge-ghost'"
+              :title="hasFileFilter
+                ? `${filteredWorkingTreeCount} of ${workingTreeCount} changed file(s) match the filter`
+                : `${workingTreeCount} changed file(s)`"
+            >{{ hasFileFilter ? `${filteredWorkingTreeCount}/${workingTreeCount}` : workingTreeCount }}</span>
+            <div class="join">
+              <button
+                class="join-item btn btn-xs"
+                :class="!treeView ? 'btn-primary' : 'btn-ghost'"
+                title="List view"
+                aria-label="List view"
+                :aria-pressed="!treeView"
+                @click="treeView = false"
+              >
+                <i class="fa-solid fa-list text-[10px]"></i>
+              </button>
+              <button
+                class="join-item btn btn-xs"
+                :class="treeView ? 'btn-primary' : 'btn-ghost'"
+                title="Tree view"
+                aria-label="Tree view"
+                :aria-pressed="treeView"
+                @click="treeView = true"
+              >
+                <i class="fa-solid fa-folder-tree text-[10px]"></i>
+              </button>
+            </div>
             <button
               class="btn btn-xs btn-ghost"
               @click="openNewBranch(currentBranch)"
@@ -1315,6 +1533,30 @@ export default {
             >
               <i class="fa-solid fa-rotate-right text-[10px]" :class="{ 'animate-spin': loading }"></i>
             </button>
+          </div>
+
+          <!-- File filter: plain text, ext:, folder: and name: terms -->
+          <div class="px-2 py-1.5 border-b border-base-content/10 shrink-0">
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-[10px] opacity-40 pointer-events-none"></i>
+              <input
+                v-model="fileFilter"
+                type="text"
+                class="input input-xs input-bordered w-full pl-6 pr-7"
+                placeholder="Filter files (ext:js, folder:src, name:foo)"
+                aria-label="Filter changed files"
+                @keydown.esc.prevent="fileFilter = ''"
+              />
+              <button
+                v-if="hasFileFilter"
+                class="btn btn-xs btn-ghost btn-square absolute right-0.5 top-1/2 -translate-y-1/2"
+                title="Clear filter"
+                aria-label="Clear filter"
+                @click="fileFilter = ''"
+              >
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+              </button>
+            </div>
           </div>
 
           <!-- Commit composer -->
@@ -1401,7 +1643,16 @@ export default {
           <!-- Staged / Changes -->
           <div class="grow overflow-y-auto">
             <div
-              v-for="group in workingTreeGroups"
+              v-if="noFilterMatches"
+              class="flex flex-col items-center justify-center gap-2 p-6 text-center text-base-content/40"
+            >
+              <i class="fa-solid fa-filter text-2xl"></i>
+              <span class="text-xs">No changed files match "<span class="font-mono">{{ fileFilter }}</span>"</span>
+              <button class="btn btn-xs btn-ghost" @click="fileFilter = ''">Clear filter</button>
+            </div>
+
+            <div
+              v-for="group in visibleWorkingTreeGroups"
               :key="group.key"
               class="border-b border-base-content/5 last:border-b-0"
             >
@@ -1419,22 +1670,28 @@ export default {
                   <span
                     class="badge badge-xs"
                     :class="group.files.length ? 'badge-primary badge-outline' : 'badge-ghost'"
-                  >{{ group.files.length }}</span>
+                  >{{ hasFileFilter ? `${group.files.length}/${group.total}` : group.files.length }}</span>
                 </button>
-                <input
+                <button
                   v-if="group.files.length"
-                  type="checkbox"
-                  class="checkbox checkbox-xs shrink-0"
-                  :checked="groupAllSelected(group.key)"
-                  :aria-label="`Select all ${group.label}`"
-                  @change="toggleGroupSelection(group.key)"
-                />
+                  class="btn btn-xs btn-ghost btn-square shrink-0"
+                  :class="groupAllSelected(group.key) ? 'text-primary' : ''"
+                  :title="groupAllSelected(group.key)
+                    ? `Clear ${group.label} selection`
+                    : `Select ${hasFileFilter ? 'visible ' : 'all '}${group.label}`"
+                  :aria-label="groupAllSelected(group.key)
+                    ? `Clear ${group.label} selection`
+                    : `Select ${hasFileFilter ? 'visible ' : 'all '}${group.label}`"
+                  @click="setGroupSelection(group.key, !groupAllSelected(group.key))"
+                >
+                  <i class="fa-solid fa-check-double text-[10px]"></i>
+                </button>
                 <button
                   v-if="group.files.length"
                   class="btn btn-xs btn-ghost btn-square shrink-0"
                   :disabled="busy"
-                  :title="group.key === 'staged' ? 'Unstage all' : 'Stage all'"
-                  :aria-label="group.key === 'staged' ? 'Unstage all' : 'Stage all'"
+                  :title="`${group.key === 'staged' ? 'Unstage' : 'Stage'} ${hasFileFilter ? 'visible ' : 'all '}files`"
+                  :aria-label="`${group.key === 'staged' ? 'Unstage' : 'Stage'} ${hasFileFilter ? 'visible ' : 'all '}files`"
                   @click="group.key === 'staged'
                     ? unstagePaths(group.files.map(file => file.path))
                     : stagePaths(group.files.map(file => file.path))"
@@ -1445,129 +1702,96 @@ export default {
 
               <template v-if="!isSectionCollapsed(group.key)">
                 <p v-if="!group.files.length" class="px-4 pb-2 text-[11px] opacity-40">{{ group.empty }}</p>
-                <div
-                  v-for="file in group.files"
-                  :key="`${group.key}-${file.path}`"
-                  class="group flex items-center gap-1.5 pl-2 pr-1 py-0.5 cursor-pointer transition-colors"
-                  :class="[
-                    isFileOpen(group.key, file.path) ? 'bg-primary/15' : 'hover:bg-base-200',
-                    isSelected(group.key, file.path) ? 'bg-primary/5' : ''
-                  ]"
-                  :title="`${file.label}: ${file.path} — click to view the diff, Shift+click to select a range`"
-                  @click="onRowClick($event, group.key, file)"
+                <template
+                  v-for="row in rowsForGroup(group.key)"
+                  :key="`${group.key}-${row.type}-${row.path}`"
                 >
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-xs shrink-0"
-                    :checked="isSelected(group.key, file.path)"
-                    :aria-label="`Select ${file.path}`"
-                    @click.stop.prevent="onCheckboxClick($event, group.key, file)"
-                  />
-                  <i class="fa-solid text-[11px] shrink-0" :class="[file.icon, file.color]"></i>
-                  <span class="font-mono text-[11px] truncate shrink-0 max-w-[55%]">{{ fileName(file.path) }}</span>
-                  <span class="font-mono text-[10px] opacity-40 truncate grow text-right">{{ fileDir(file.path) }}</span>
-                  <button
-                    class="btn btn-xs btn-ghost btn-square shrink-0"
-                    :class="isFileOpen(group.key, file.path) ? 'text-primary' : 'opacity-60 hover:opacity-100'"
-                    title="View diff"
-                    aria-label="View diff"
-                    @click.stop="openDiff(group.key, file)"
+                  <!-- Folder row (tree mode only) -->
+                  <div
+                    v-if="row.type === 'folder'"
+                    class="flex items-center gap-1.5 pr-1 py-0.5 cursor-pointer text-[11px] hover:bg-base-200/60 transition-colors"
+                    :style="{ paddingLeft: `${8 + row.depth * 14}px` }"
+                    :title="row.path"
+                    @click="toggleFolder(group.key, row.path)"
                   >
-                    <i class="fa-solid fa-code-compare text-[10px]"></i>
-                  </button>
-                  <div class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    <button
-                      class="btn btn-xs btn-ghost btn-square"
-                      :disabled="busy"
-                      :title="group.key === 'staged' ? 'Unstage file' : 'Stage file'"
-                      :aria-label="group.key === 'staged' ? 'Unstage file' : 'Stage file'"
-                      @click.stop="group.key === 'staged' ? unstagePaths([file.path]) : stagePaths([file.path])"
-                    >
-                      <i class="fa-solid text-[10px]" :class="group.key === 'staged' ? 'fa-minus' : 'fa-plus'"></i>
-                    </button>
-                    <button
-                      class="btn btn-xs btn-ghost btn-square text-error"
-                      :disabled="busy"
-                      title="Roll back file"
-                      aria-label="Roll back file"
-                      @click.stop="discardPaths([file.path])"
-                    >
-                      <i class="fa-solid fa-rotate-left text-[10px]"></i>
-                    </button>
+                    <i
+                      class="fa-solid text-[9px] opacity-50 shrink-0"
+                      :class="isFolderExpanded(group.key, row.path) ? 'fa-chevron-down' : 'fa-chevron-right'"
+                    ></i>
+                    <i class="fa-solid fa-folder text-warning/70 text-[11px] shrink-0"></i>
+                    <span class="font-mono truncate grow">{{ row.name }}</span>
+                    <span class="badge badge-xs badge-ghost shrink-0">{{ row.count }}</span>
                   </div>
-                </div>
+
+                  <!-- File row (list and tree mode) -->
+                  <div
+                    v-else
+                    class="group flex items-center gap-1.5 pr-1 py-0.5 cursor-pointer transition-colors"
+                    :class="rowClass(group.key, row.file)"
+                    :style="{ paddingLeft: `${8 + row.depth * 14}px` }"
+                    :title="`${row.file.label}: ${row.file.path} — click to open the diff, Ctrl/Shift+click to select multiple.`"
+                    @click="onRowClick($event, group.key, row.file)"
+                  >
+                    <span
+                      class="w-0.5 self-stretch rounded-full shrink-0"
+                      :class="isSelected(group.key, row.file.path) ? 'bg-primary' : 'bg-transparent'"
+                    ></span>
+                    <i class="fa-solid text-[11px] shrink-0" :class="[row.file.icon, row.file.color]"></i>
+                    <span class="font-mono text-[11px] truncate shrink-0 max-w-[55%]">{{ fileName(row.file.path) }}</span>
+                    <span
+                      v-if="!treeView"
+                      class="font-mono text-[10px] opacity-40 truncate grow text-right"
+                    >{{ fileDir(row.file.path) }}</span>
+                    <span v-else class="grow"></span>
+                    <div class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button
+                        class="btn btn-xs btn-ghost btn-square"
+                        :disabled="busy"
+                        :title="group.key === 'staged' ? 'Unstage file' : 'Stage file'"
+                        :aria-label="group.key === 'staged' ? 'Unstage file' : 'Stage file'"
+                        @click.stop="group.key === 'staged' ? unstagePaths([row.file.path]) : stagePaths([row.file.path])"
+                      >
+                        <i class="fa-solid text-[10px]" :class="group.key === 'staged' ? 'fa-minus' : 'fa-plus'"></i>
+                      </button>
+                      <button
+                        class="btn btn-xs btn-ghost btn-square text-error"
+                        :disabled="busy"
+                        title="Roll back file"
+                        aria-label="Roll back file"
+                        @click.stop="discardPaths([row.file.path])"
+                      >
+                        <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </template>
             </div>
           </div>
-        </section>
-
-        <!-- Diff / commits -->
-        <div class="grow flex flex-col overflow-hidden min-w-0">
-          <div class="flex items-center gap-2 px-3 py-1.5 border-b border-base-content/10 shrink-0 flex-wrap">
-            <i class="fa-solid fa-code-commit text-warning text-xs"></i>
-            <span class="font-mono text-sm font-semibold truncate min-w-0 max-w-[40%]" :title="selectedBranch">{{ selectedBranch || 'Select a branch' }}</span>
-            <span v-if="sameBranch(selectedBranch, currentBranch)" class="badge badge-xs badge-success">current</span>
-            <div class="grow"></div>
-
-            <button
-              class="btn btn-xs btn-ghost gap-1"
-              @click="openNewBranch(selectedBranch)"
-              :disabled="busy || !selectedBranch"
-              title="Create a branch from the selected branch"
-            >
-              <i class="fa-solid fa-code-branch"></i> New branch
-            </button>
-            <button class="btn btn-xs btn-ghost gap-1" @click="openMerge" :disabled="!branches.length || busy" title="Merge a branch into another">
-              <i class="fa-solid fa-code-merge"></i> Merge
-            </button>
-            <button
-              class="btn btn-xs btn-ghost"
-              @click="onCheckout(selectedBranch)"
-              :disabled="busy || !selectedBranch || sameBranch(selectedBranch, currentBranch)"
-              title="Checkout branch"
-            >
-              <i class="fa-solid fa-arrow-right-to-bracket"></i>
-            </button>
-            <button
-              class="btn btn-xs btn-ghost text-error"
-              @click="deleteBranch(selectedBranch)"
-              :disabled="busy || !selectedBranch || sameBranch(selectedBranch, currentBranch)"
-              title="Delete branch"
-            >
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-
-          <!-- File diff (open from the working tree or the commits list) -->
-          <RepoFileDiff
-            v-if="selectedFile && api"
-            :key="diffKey"
-            :api="api"
-            :file="selectedFile"
-            class="flex-1 min-h-0"
-            @close="closeDiff"
-            @changed="onFileChanged"
-          />
-
-          <!-- Commits -->
-          <div v-else class="flex-1 min-h-0 overflow-auto p-3 flex flex-col gap-2">
-            <div v-if="commitsLoading" class="flex items-center gap-2 text-base-content/50 text-sm">
-              <i class="fa-solid fa-spinner animate-spin"></i> Loading commits...
+            </section>
             </div>
-            <div v-else-if="!commits.length" class="text-base-content/40 text-sm">No commits</div>
-            <div v-for="commit in commits" :key="commit.id" class="card bg-base-200">
-              <div class="card-body p-3 gap-1">
-                <div class="flex items-center gap-2">
-                  <i class="fa-solid fa-code-commit text-warning text-xs"></i>
-                  <span class="font-mono text-xs opacity-60">{{ commit.short }}</span>
-                  <span class="text-xs font-semibold truncate">{{ commit.message }}</span>
-                  <span class="badge badge-xs badge-ghost ml-auto shrink-0">{{ commit.relative }}</span>
-                </div>
-                <div class="text-[10px] opacity-50">{{ commit.author }}</div>
+          </template>
+
+          <template #right>
+            <div class="h-full flex flex-col overflow-hidden min-w-0">
+              <!-- The right panel only exists while a file is selected for diff.
+                   RepoFileDiff wraps the shared CodeViewer (patch, edit, history). -->
+              <RepoFileDiff
+                v-if="selectedFile && api"
+                :key="diffKey"
+                :api="api"
+                :project="project"
+                :file="selectedFile"
+                class="flex-1 min-h-0"
+                @close="closeDiff"
+                @changed="onFileChanged"
+              />
+              <div v-else class="grow flex items-center justify-center text-xs text-base-content/40">
+                No project API available
               </div>
             </div>
-          </div>
-        </div>
+          </template>
+        </VerticalSplitter>
       </div>
     </template>
 

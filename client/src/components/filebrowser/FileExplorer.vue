@@ -391,6 +391,7 @@ import FileSlideShow from './FileSlideShow.vue'
       @create="handleContextCreate"
       @rename="handleContextRename"
       @move="handleContextMove"
+      @go-to-folder="handleContextGoToFolder"
       @copy-path="handleContextCopyPath"
       @copy-relative-path="handleContextCopyRelativePath"
       @delete="handleContextDelete"
@@ -1237,6 +1238,35 @@ export default {
       if (!this.selectedEntries.length) return
       this.moveSources = this.selectedEntries.map(entry => this.entryPath(entry))
       this.showMoveDialog = true
+    },
+    /**
+     * Jump to the folder that contains the (first) selected entry.
+     *
+     * Search results point to files living anywhere in the tree, so this is the
+     * quick way back to their location: the explorer loads the parent folder and
+     * leaves the entry selected to make the landing obvious.
+     */
+    async handleContextGoToFolder() {
+      this.closeContextMenu()
+      const entry = this.selectedEntries[0]
+      if (!entry) return
+
+      const targetPath = this.parentFolderPath(this.entryPath(entry))
+      this.clearSelection()
+      await this.loadDir(targetPath)
+
+      const landed = this.entries.find(item => this.entryPath(item) === this.entryPath(entry))
+      if (!landed) return
+      this.selectedEntries = [landed]
+      this.lastSelectedIndex = this.visibleEntries.indexOf(landed)
+    },
+    // Folder that contains `path`, never above the project root
+    parentFolderPath(path) {
+      const normalized = this.normalizePath(path)
+      const index = normalized.lastIndexOf('/')
+      if (index <= 0) return this.basePath
+      const parent = normalized.substring(0, index)
+      return parent.startsWith(this.basePath) ? parent : this.basePath
     },
     // Copy the absolute path(s) of the selection to the clipboard
     handleContextCopyPath() {

@@ -353,6 +353,13 @@ async def api_save_settings(request: Request):
     settings = await request.json()
     settings = CODXJuniorSettings.from_json(settings).save_project()
     find_all_projects()
+    # Keep the Traefik project-rules snapshot in sync immediately; otherwise the
+    # HTTP provider would only see the new rules after the next discovery scan.
+    try:
+        from codx.junior.traefik.project_cache import update_project_rules
+        update_project_rules(settings)
+    except Exception as ex:  # never break a settings save because of the cache
+        logger.warning("Cannot update Traefik project-rules cache: %s", ex)
     return api_settings_check(request)
 
 @app.get("/api/profiles")
