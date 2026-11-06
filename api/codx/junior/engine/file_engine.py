@@ -445,6 +445,7 @@ class FileEngine:
         FE --> upload_file
         FE --> upload_files
         FE --> diff_file
+        FE --> _git_diff_no_index
         FE --> create_file
         FE --> delete_file
         FE --> rename_file
@@ -1065,6 +1066,14 @@ class FileEngine:
         maximum command-line length (ARG_MAX) - which is what happened when
         the content was passed through an ``os.popen`` shell heredoc.
 
+        The existence of the file is checked explicitly: ``git diff --no-index``
+        reports an inaccessible path on stderr, exits with 128 and writes
+        nothing to stdout, so a file that is not there used to produce exactly
+        the same answer as a file without changes (an empty diff). A missing
+        file is now diffed against ``/dev/null`` - every provided line is
+        reported as added, a new file - and the ``exists`` flag tells the caller
+        which of the two situations it received.
+
         Args:
             path: File path.
             content: New content to diff against.
@@ -1072,29 +1081,79 @@ class FileEngine:
             to_branch: Reserved for future use.
 
         Returns:
-            Dict with 'diff', 'stats', 'last_modification', and 'size'.
+            Dict with 'diff', 'stats', 'exists', 'last_modification', and 'size'.
+
+        Raises:
+            RuntimeError: If git cannot compute the diff.
         """
         abs_path, _file_project, _rel_path = self.resolve_file_target(path)
 
-        # Full diff: compare the working-tree file against the provided content.
+        # An existing file is compared against its working-tree content, a
+        # missing one against /dev/null so its content is reported as a new file
+        # instead of git failing on stderr and returning an empty diff.
+        exists = os.path.isfile(abs_path)
+        left_path = abs_path if exists else os.devnull
+
+        # Full diff: compare the file (or /dev/null) against the provided content.
         # Content is piped through stdin so large files never hit ARG_MAX.
-        cmd = ["git", "diff", "--no-index", abs_path, "-"]
-        result = subprocess.run(cmd, input=content, text=True, capture_output=True)
-        diff_out = result.stdout
+        diff_out = self._git_diff_no_index(left_path, content)
 
         # Short stats: same piping strategy, no shell heredoc.
-        stats_cmd = ["git", "diff", "--shortstat", "--no-index", abs_path, "-"]
-        stats_result = subprocess.run(
-            stats_cmd, input=content, text=True, capture_output=True
-        )
-        diff_stats_out = stats_result.stdout
+        diff_stats_out = self._git_diff_no_index(left_path, content, shortstat=True)
 
         info = self.get_file_info(abs_path)
         return {
             "diff": diff_out.strip(),
             "stats": diff_stats_out.strip(),
+            "exists": exists,
             **info,
         }
+
+    def _git_diff_no_index(
+        self, left_path: str, content: str, shortstat: bool = False
+    ) -> str:
+        """
+        Run ``git diff --no-index <left_path> -`` and return its stdout.
+
+        The right side is read from stdin (``-``), so the diffed content never
+        goes through the kernel's command-line length limit (ARG_MAX).
+
+        ``git diff --no-index`` imitates ``diff(1)`` exit codes: 0 means no
+        changes, 1 means differences and anything else is an error (the path
+        cannot be accessed, git is not available...). Only 0 and 1 are accepted:
+        a failure is propagated instead of being silently reported as "no
+        changes", which is what made an existing file look undetected.
+
+        Args:
+            left_path: Absolute path of the file, or ``os.devnull`` for a file
+                that does not exist yet.
+            content: Content to compare against, streamed through stdin.
+            shortstat: Return the ``--shortstat`` summary instead of the patch.
+
+        Returns:
+            Captured diff (or shortstat) output.
+
+        Raises:
+            RuntimeError: If git cannot compute the diff.
+        """
+        cmd = ["git", "diff"]
+        if shortstat:
+            cmd.append("--shortstat")
+        cmd += ["--no-index", left_path, "-"]
+
+        result = subprocess.run(
+            cmd, input=content or "", text=True, capture_output=True
+        )
+        if result.returncode not in (0, 1):
+            logger.error(
+                "git diff --no-index failed for %s: %s",
+                left_path,
+                result.stderr.strip(),
+            )
+            raise RuntimeError(
+                "Could not diff '%s': %s" % (left_path, result.stderr.strip())
+            )
+        return result.stdout
 
     def diff_file_comments(
         self, path: str, content: str, comments: dict = None

@@ -267,7 +267,16 @@ async def diff_file(request: Request):
     - to_branch: Optional git branch for comparison (default null)
 
     Returns:
-        Dict with 'diff' (unified diff output) and 'stats' (shortstat output)
+        Dict with 'diff' (unified diff output), 'stats' (shortstat output) and
+        'exists' (whether the file is present on disk).
+
+        A file that does not exist is diffed against ``/dev/null``, so its
+        content comes back as a "new file" diff instead of an empty one, and
+        the caller can tell both situations apart through 'exists'.
+
+        A git failure is reported as 500 with the git error message: an empty
+        'diff' always means "the content matches the file", never "the file
+        could not be read".
 
     Non-blocking alternative:
     - For large files use the ``codx-junior-file-diff`` Socket.IO event and
