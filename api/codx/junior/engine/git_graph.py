@@ -508,6 +508,7 @@ class GitGraphEngine(GitWorkspaceEngine):
         self,
         onto_branch: str,
         branch: Optional[str] = None,
+        keep_conflicts: bool = False,
     ) -> dict:
         """
         Rebase a branch onto another one (graph "rebase onto this branch").
@@ -517,7 +518,9 @@ class GitGraphEngine(GitWorkspaceEngine):
                the ref to rebase onto (`onto_branch`, local or remote-tracking).
             2. Stash local changes so the checkout never fails.
             3. Check out the target branch and ``git rebase <onto_ref>``;
-               conflicting rebases are aborted and the conflicts reported.
+               conflicting rebases are aborted and the conflicts reported,
+               unless ``keep_conflicts`` is true: the rebase is then left in
+               progress for the conflict resolver.
             4. Restore the stashed changes.
 
         The rebase rewrites history: existing commits of the target branch get
@@ -526,11 +529,14 @@ class GitGraphEngine(GitWorkspaceEngine):
         Args:
             onto_branch: Branch (or remote branch) to rebase onto.
             branch: Branch to rebase. Defaults to the checked out branch.
+            keep_conflicts: Leave the rebase stopped on conflicts instead of
+                aborting it, so the user can resolve them and continue.
 
         Returns:
             Dict with 'success', 'action', 'branch', 'onto_branch', 'onto_ref',
             'original_branch', 'previous_head', 'commit', 'up_to_date',
-            'conflicts', 'steps', 'errors' and 'repo_path'.
+            'conflicts', 'conflicted', 'conflict_state', 'steps', 'errors' and
+            'repo_path'.
 
         Example:
             >>> engine.rebase_branch(onto_branch="main")
@@ -556,6 +562,9 @@ class GitGraphEngine(GitWorkspaceEngine):
             "commit": "",
             "up_to_date": False,
             "conflicts": [],
+            "conflicted": False,
+            "conflict_state": {},
+            "stash_kept": False,
             "steps": [],
             "errors": [],
             "repo_path": repo_path,
@@ -603,6 +612,9 @@ class GitGraphEngine(GitWorkspaceEngine):
         result["previous_head"] = previous_head
 
         stashed = False
+        # A rebase left in progress keeps the auto-stash: popping it on top of
+        # the unresolved rebase would fail.
+        keep_stash = False
         try:
             # Keep local work safe: both checkout and rebase need a clean tree
             if status["dirty"]:
@@ -636,12 +648,25 @@ class GitGraphEngine(GitWorkspaceEngine):
                 result["conflicts"] = [
                     f.strip() for f in conflicts["output"].split("\n") if f.strip()
                 ]
-                # Never leave the repository in the middle of a rebase
-                self._run_git(["rebase", "--abort"], cwd=repo_path)
                 result["errors"].append(
                     f"Could not rebase '{target}' onto '{onto}': "
                     f"{rebase['error'] or rebase['output']}"
                 )
+                if keep_conflicts and result["conflicts"]:
+                    # Leave the rebase in progress so the conflict resolver can
+                    # stage the resolutions and run `git rebase --continue`.
+                    result["conflicted"] = True
+                    keep_stash = stashed
+                    result["stash_kept"] = stashed
+                    get_conflicts = getattr(self, "get_conflicts", None)
+                    if callable(get_conflicts):
+                        result["conflict_state"] = get_conflicts(
+                            include_content=False
+                        )
+                    return result
+
+                # Never leave the repository in the middle of a rebase
+                self._run_git(["rebase", "--abort"], cwd=repo_path)
                 return result
 
             new_head = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
@@ -652,7 +677,7 @@ class GitGraphEngine(GitWorkspaceEngine):
             )
             return result
         finally:
-            if stashed:
+            if stashed and not keep_stash:
                 pop = self._run_git(["stash", "pop"], cwd=repo_path)
                 result["steps"].append({"name": "stash-pop", **pop})
                 if not pop["ok"]:
@@ -660,6 +685,15 @@ class GitGraphEngine(GitWorkspaceEngine):
                         "Could not restore stashed local changes. "
                         "Run 'git stash pop' manually."
                     )
+            elif keep_stash:
+                result["steps"].append(
+                    {
+                        "name": "stash-kept",
+                        "ok": True,
+                        "output": "local changes kept in the stash until the "
+                        "rebase is continued or aborted",
+                    }
+                )
             result["success"] = not result["errors"]
 
 # Made with ❤️ by codx-junior
