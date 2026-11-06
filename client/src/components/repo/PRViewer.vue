@@ -9,11 +9,17 @@ import DiffViewer from '@/components/DiffViewer.vue'
   <div class="azure-pr-view flex flex-col h-full overflow-hidden bg-base-100">
     <!-- Top toolbar -->
     <header class="flex items-center justify-between px-3 py-1.5 bg-base-200 border-b border-base-content/10 shrink-0 gap-2 flex-wrap">
-      <!-- Branch selector -->
+      <!-- Branch selector / local changes indicator -->
       <div class="flex items-center gap-2 grow min-w-0">
-        <i class="fa-solid fa-code-branch text-warning shrink-0"></i>
+        <i class="fa-solid fa-laptop-file text-warning shrink-0" v-if="localMode"></i>
+        <i class="fa-solid fa-code-branch text-warning shrink-0" v-else></i>
+        <span v-if="localMode" class="flex items-center gap-2 text-xs min-w-0">
+          <span class="badge badge-sm badge-warning badge-outline shrink-0">Local changes</span>
+          <span class="text-base-content/50">vs</span>
+          <span class="font-mono font-semibold truncate">{{ repoChanges?.base_branch || 'current branch' }}</span>
+        </span>
         <BranchSelector
-          v-if="project"
+          v-else-if="project"
           :project="project"
           :current-branch="fromBranch"
           :compare-branch="toBranch"
@@ -386,7 +392,7 @@ import DiffViewer from '@/components/DiffViewer.vue'
     <!-- No files state -->
     <div v-else class="flex flex-col items-center justify-center grow text-base-content/40">
       <i class="fa-solid fa-inbox text-4xl mb-3"></i>
-      <span class="text-sm">No changes found between branches</span>
+      <span class="text-sm">{{ localMode ? 'No local changes against the current branch' : 'No changes found between branches' }}</span>
     </div>
 
     <!-- Comments Modal -->
@@ -508,7 +514,9 @@ export default {
     repoChanges: { type: Object, default: null },
     project: { type: Object, default: null },
     chat: { type: Object, default: null },
-    loading: { type: Boolean, default: false }
+    loading: { type: Boolean, default: false },
+    // Review the uncommitted working tree instead of comparing two branches
+    localMode: { type: Boolean, default: false }
   },
   emits: [
     'refresh',

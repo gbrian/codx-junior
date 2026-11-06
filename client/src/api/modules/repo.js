@@ -16,6 +16,7 @@
  *   GET    /api/git/repo/worktrees
  *   GET    /api/git/repo/branch/commits
  *   GET    /api/git/repo/changes
+ *   GET    /api/git/repo/validate/context
  *   GET    /api/git/repo/commit/changes
  *   GET    /api/git/repo/commit/detail
  *   GET    /api/git/repo/file/diff
@@ -23,6 +24,7 @@
  *   GET    /api/git/repo/lock
  *   GET    /api/git/repo/staged
  *   GET    /api/git/files/content
+ *   POST   /api/git/repo/validate
  *   POST   /api/git/repo/stage | unstage | discard | commit | commit/message
  *   POST   /api/git/repo/fetch | pull | push
  *   POST   /api/git/repo/lock/release
@@ -99,7 +101,7 @@ export const repoModule = (API) => ({
     return API.get('/api/git/repo/status')
   },
 
-  /** Local + remote branches (plus `repo_tree` when provided). */
+  /** Local + remote branches (plus `active_branch`, `default_branch` and `repo_tree`). */
   branches() {
     return API.get('/api/git/repo/branches')
   },
@@ -115,12 +117,19 @@ export const repoModule = (API) => ({
   },
 
   /**
-   * Registered worktrees.
+   * Registered worktrees with their file changes.
    *
-   * @returns {Promise<Array>} `[{ path, branch }]`.
+   * The backend reads `git status` inside every worktree, so each entry carries
+   * the staged / unstaged files changed in that checkout.
+   *
+   * @param {Object} [params] - Options.
+   * @param {boolean} [params.includeChanges] - Read each worktree status.
+   * @returns {Promise<Array>} `[{ path, branch, changes: { staged, unstaged, file_count } }]`.
    */
-  async worktrees() {
-    const payload = await API.get('/api/git/repo/worktrees')
+  async worktrees({ includeChanges = true } = {}) {
+    const payload = await API.get(
+      `/api/git/repo/worktrees${toQuery({ include_changes: includeChanges ? 1 : 0 })}`
+    )
     return Array.isArray(payload) ? payload : payload?.worktrees || []
   },
 
@@ -260,6 +269,71 @@ export const repoModule = (API) => ({
    */
   changes({ from_branch, to_branch } = {}) {
     return API.get(`/api/git/repo/changes${toQuery({ from_branch, to_branch })}`)
+  },
+
+  // ── Validator (AI review) ─────────────────────────────────────────────────
+
+  /**
+   * Validator context: changed files and the profiles associated with them.
+   *
+   * The backend matches every changed file against the profile `file_match`
+   * rules (`ProfileManager.get_file_profiles_by_file_path`) and returns them as
+   * `default_profiles`, so the UI starts with the relevant reviewer profiles.
+   *
+   * @param {Object} [params] - Options.
+   * @param {'local'|'branch'} [params.source] - Change source.
+   * @param {string} [params.from_branch] - Base (local) or source branch.
+   * @param {string} [params.to_branch] - Target branch.
+   * @param {string[]} [params.paths] - Local files to restrict the review to.
+   * @returns {Promise<Object>} `{ files, profiles, default_profiles, ... }`.
+   *
+   * @example
+   * const ctx = await api.repo.validateContext({ source: 'local' })
+   * ctx.default_profiles // ['reviewer', 'VueDeveloper']
+   */
+  validateContext({ source = 'local', from_branch, to_branch, paths } = {}) {
+    const search = new URLSearchParams()
+    search.append('source', source)
+    if (from_branch) search.append('from_branch', from_branch)
+    if (to_branch) search.append('to_branch', to_branch)
+    ;(paths || []).forEach((path) => search.append('paths', path))
+    return API.get(`/api/git/repo/validate/context?${search.toString()}`)
+  },
+
+  /**
+   * Run an AI review of the selected changes (Validator section).
+   *
+   * @param {Object} [params] - Options.
+   * @param {string[]} [params.profiles] - Reviewer profile names.
+   * @param {'local'|'branch'} [params.source] - Change source.
+   * @param {string} [params.from_branch] - Base (local) or source branch.
+   * @param {string} [params.to_branch] - Target branch.
+   * @param {string[]} [params.paths] - Local files to restrict the review to.
+   * @param {string} [params.instructions] - Extra reviewer instructions.
+   * @param {number} [params.max_diff_chars] - Patch budget.
+   * @returns {Promise<Object>} `{ success, review, files, profiles, ... }`.
+   *
+   * @example
+   * const { review } = await api.repo.validate({ profiles: ['reviewer'] })
+   */
+  validate({
+    profiles = [],
+    source = 'local',
+    from_branch,
+    to_branch,
+    paths,
+    instructions,
+    max_diff_chars
+  } = {}) {
+    return API.post('/api/git/repo/validate', {
+      profiles,
+      source,
+      from_branch: from_branch || null,
+      to_branch: to_branch || null,
+      paths: paths || null,
+      instructions: instructions || null,
+      max_diff_chars
+    })
   },
 
   // ── Commit graph ──────────────────────────────────────────────────────────

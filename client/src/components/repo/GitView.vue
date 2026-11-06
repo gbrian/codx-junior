@@ -3,6 +3,7 @@ import ChangesPanel from '@/components/vibe/panels/ChangesPanel.vue'
 import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
+import GitValidator from '@/components/repo/GitValidator.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import { onFileEvent } from '@/utils/fileEvents'
@@ -15,7 +16,7 @@ const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, ConfirmDialog, VerticalSplitter },
+  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, ConfirmDialog, VerticalSplitter },
   props: {
     params: { type: Object, default: () => ({}) }
   },
@@ -30,6 +31,10 @@ export default {
       info: {},
       branches: [],
       repoTree: [],
+      // Registered worktrees with the changes inside each checkout
+      worktrees: [],
+      // Worktree expansion, keyed by worktree path (undefined = expanded)
+      expandedWorktrees: {},
       selectedBranch: null,
       branchFilter: '',
       collapsedSections: {},
@@ -77,6 +82,16 @@ export default {
       splitterConfig: {
         left: { minSize: 20, defaultSize: 28, collapsible: true },
         right: { minSize: 30, defaultSize: 72, collapsible: true }
+      },
+      // Graph / commit detail split. Resizable like the working tree split.
+      graphSplitterConfig: {
+        left: { minSize: 35, defaultSize: 58, collapsible: true },
+        right: { minSize: 25, defaultSize: 42, collapsible: true }
+      },
+      // Branch sidebar + working tree split
+      branchesSplitterConfig: {
+        left: { minSize: 10, defaultSize: 15, collapsible: true },
+        right: { minSize: 40, defaultSize: 85, collapsible: true }
       }
     }
   },
@@ -199,6 +214,53 @@ export default {
     visibleWorkingTreeGroups() {
       if (!this.hasFileFilter) return this.workingTreeGroups
       return this.workingTreeGroups.filter(group => group.files.length > 0)
+    },
+    /**
+     * Worktrees with their changed files in one list.
+     *
+     * The backend reads `git status` inside every worktree, so each entry knows
+     * exactly which files changed in that checkout. Staged and unstaged entries
+     * of the same path are merged into one row (with both flags).
+     */
+    worktreeList() {
+      // The main checkout is the working tree shown above: list only the
+      // additional worktrees so its files are not rendered twice.
+      return (this.worktrees || [])
+        .filter(worktree => !worktree.is_main)
+        .map(worktree => {
+          const changes = worktree.changes || {}
+          const byPath = new Map()
+
+          const add = (entry, staged) => {
+            const file = this.buildStatusFile(
+              this.codeFor(entry),
+              entry.path || entry.file_name
+            )
+            if (!file) return
+            const current = byPath.get(file.path)
+            if (current) {
+              current.staged = current.staged || staged
+              current.unstaged = current.unstaged || !staged
+              return
+            }
+            byPath.set(file.path, {
+              ...file,
+              staged,
+              unstaged: !staged
+            })
+          }
+
+          ;(changes.staged || []).forEach(entry => add(entry, true))
+          ;(changes.unstaged || []).forEach(entry => add(entry, false))
+
+          const files = Array.from(byPath.values())
+          return {
+            ...worktree,
+            files,
+            changeCount: files.length,
+            label: worktree.branch || (worktree.detached ? 'detached HEAD' : 'worktree')
+          }
+        })
     },
     noFilterMatches() {
       return this.hasFileFilter && this.filteredWorkingTreeCount === 0
@@ -380,6 +442,50 @@ export default {
       this.loadRepo()
       // Branches, hashes and lanes changed: reload the graph too
       this.graphRefreshToken += 1
+      // The validator may be showing the files that just changed on disk
+      if (this.activeTab === 'validator') {
+        this.$refs.gitValidator?.refresh()
+      }
+    },
+
+    // ── Local changes review ────────────────────────────────────────────
+    /**
+     * Open the Review tab directly on the uncommitted changes against the
+     * current branch (the ChangesPanel local mode).
+     */
+    reviewLocalChanges() {
+      this.activeTab = 'review'
+      this.$nextTick(() => this.$refs.changesPanel?.enableLocalReview())
+    },
+
+    /** Open the Validator tab (AI review of the project changes). */
+    openValidator() {
+      if (this.activeTab === 'validator') {
+        this.$refs.gitValidator?.refresh()
+        return
+      }
+      // The GitValidator `active` prop loads its context when it becomes visible
+      this.activeTab = 'validator'
+    },
+
+    // ── Worktrees ───────────────────────────────────────────────────────
+    isWorktreeExpanded(path) {
+      return this.expandedWorktrees[path] !== false
+    },
+
+    toggleWorktree(path) {
+      this.expandedWorktrees = {
+        ...this.expandedWorktrees,
+        [path]: !this.isWorktreeExpanded(path)
+      }
+    },
+
+    /** Open a worktree file in the editor (absolute path from its checkout) */
+    openWorktreeFile(worktree, file) {
+      if (!worktree?.path || !file?.path) return
+      const relative = file.path.replace(/^[/\\]+/, '')
+      const absolute = `${worktree.path.replace(/[/\\]+$/, '')}/${relative}`
+      this.$ui.openFile(absolute)
     },
 
     // ── Working tree ────────────────────────────────────────────────────
@@ -1014,6 +1120,8 @@ export default {
         this.info = info || {}
         this.branches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.branches || [])
         this.repoTree = branchesRes?.repo_tree || []
+        // Repository info carries every worktree with the files changed inside it
+        this.worktrees = Array.isArray(this.info.worktrees) ? this.info.worktrees : []
 
         if (!this.selectedBranch || !this.branches.includes(this.selectedBranch)) {
           this.selectedBranch = this.currentBranch || this.branches[0] || null
@@ -1319,6 +1427,14 @@ export default {
         >
           <i class="fa-solid fa-code-compare"></i> Review
         </button>
+        <button
+          class="join-item btn btn-xs"
+          :class="activeTab === 'validator' ? 'btn-primary' : 'btn-ghost'"
+          @click="openValidator"
+          title="AI review of the project changes"
+        >
+          <i class="fa-solid fa-shield-halved"></i> Validator
+        </button>
       </div>
     </header>
 
@@ -1360,43 +1476,78 @@ export default {
       <!-- v-show keeps the panel mounted so the branch selection survives tab switching -->
       <ChangesPanel
         v-show="activeTab === 'review'"
+        ref="changesPanel"
         :project="project"
         class="grow min-h-0 overflow-hidden"
       />
 
-      <!-- ── Graph: commit graph + commit details ────────────────────────── -->
-      <div v-show="activeTab === 'graph'" class="grow flex overflow-hidden">
-        <GitGraph
-          v-if="api"
-          :api="api"
-          :branches="branches"
-          :current-branch="currentBranch || ''"
-          :default-branch="info.default_branch || ''"
-          :refresh-token="graphRefreshToken"
-          class="grow min-w-0"
-          @select-commit="onSelectCommit"
-        />
-        <div v-else class="grow flex items-center justify-center text-sm text-base-content/40">
-          No project API available
-        </div>
+      <!-- ── Validator: AI review of local changes / a branch comparison ─── -->
+      <GitValidator
+        v-show="activeTab === 'validator'"
+        ref="gitValidator"
+        :project="project"
+        :api="api"
+        :branches="branches"
+        :current-branch="currentBranch || ''"
+        :active="activeTab === 'validator'"
+        class="grow min-h-0 overflow-hidden"
+      />
 
-        <CommitDetail
-          v-if="selectedCommit && api"
-          :key="selectedCommit.hash"
-          :api="api"
-          :commit="selectedCommit"
-          :current-branch="currentBranch || ''"
-          :busy="busy"
-          class="w-full md:w-[46%] md:max-w-[720px] shrink-0 border-l border-base-content/10"
-          @close="closeCommit"
-          @branch-action="onCommitBranchAction"
-        />
+      <!-- ── Graph: commit graph + commit details ────────────────────────── -->
+      <!-- Resizable vertical split so the commit panel can be widened when
+           reading a diff and the graph can take the full width when closed. -->
+      <div v-show="activeTab === 'graph'" class="grow flex overflow-hidden min-h-0">
+        <VerticalSplitter
+          class="grow min-w-0 min-h-0"
+          :panels="graphSplitterConfig"
+          persist-key="git-view-graph"
+          show-handle
+          :show-right="!!selectedCommit"
+        >
+          <template #left>
+            <GitGraph
+              v-if="api"
+              :api="api"
+              :branches="branches"
+              :current-branch="currentBranch || ''"
+              :default-branch="info.default_branch || ''"
+              :refresh-token="graphRefreshToken"
+              class="h-full w-full"
+              @select-commit="onSelectCommit"
+            />
+            <div v-else class="h-full flex items-center justify-center text-sm text-base-content/40">
+              No project API available
+            </div>
+          </template>
+
+          <template #right>
+            <CommitDetail
+              v-if="selectedCommit && api"
+              :key="selectedCommit.hash"
+              :api="api"
+              :commit="selectedCommit"
+              :current-branch="currentBranch || ''"
+              :busy="busy"
+              class="h-full w-full"
+              @close="closeCommit"
+              @branch-action="onCommitBranchAction"
+            />
+          </template>
+        </VerticalSplitter>
       </div>
 
       <!-- ── Repository: branches + working tree + on-demand diff panel ─── -->
       <div v-show="activeTab === 'repository'" class="grow flex overflow-hidden">
-        <!-- Branches sidebar -->
-        <aside class="hidden lg:flex lg:w-52 shrink-0 border-r border-base-content/10 flex-col overflow-hidden">
+        <!-- Branches sidebar + working tree, in a resizable vertical split -->
+        <VerticalSplitter
+          class="grow min-w-0 min-h-0"
+          :panels="branchesSplitterConfig"
+          persist-key="git-view-branches"
+          show-handle
+          :show-left="!$ui.isMobile"
+        >
+          <template #left>
+            <aside class="h-full w-full flex flex-col overflow-hidden border-r border-base-content/10">
           <div class="flex items-center gap-1 px-2 py-1.5 border-b border-base-content/10 shrink-0">
             <span class="text-xs font-bold uppercase tracking-wide opacity-50 grow">Branches</span>
             <button class="btn btn-xs btn-ghost" @click="openNewBranch(selectedBranch || currentBranch)" title="New branch" aria-label="New branch">
@@ -1431,12 +1582,14 @@ export default {
             </button>
           </div>
         </aside>
+          </template>
 
+          <template #right>
         <!-- Working tree (left) + on-demand diff (right).
              The right panel only exists while a file is open for diff; the
              branch header lives on the left so the diff panel can stay hidden. -->
         <VerticalSplitter
-          class="grow min-w-0 min-h-0"
+          class="h-full w-full min-w-0 min-h-0"
           :panels="splitterConfig"
           persist-key="git-view-repository"
           show-handle
@@ -1462,6 +1615,14 @@ export default {
               </button>
               <button class="btn btn-xs btn-ghost gap-1" @click="openMerge" :disabled="!branches.length || busy" title="Merge a branch into another">
                 <i class="fa-solid fa-code-merge"></i> Merge
+              </button>
+              <button
+                class="btn btn-xs btn-ghost gap-1"
+                @click="reviewLocalChanges"
+                :disabled="!workingTreeCount"
+                title="Review the uncommitted changes against the current branch"
+              >
+                <i class="fa-solid fa-laptop-file"></i> Local changes
               </button>
               <button
                 class="btn btn-xs btn-ghost gap-1"
@@ -1767,6 +1928,58 @@ export default {
                 </template>
               </template>
             </div>
+
+            <!-- Worktrees: every checkout with the files changed inside it -->
+            <div v-if="worktreeList.length" class="border-t border-base-content/10">
+              <div class="flex items-center gap-1.5 px-2 py-1.5 bg-base-200/40">
+                <i class="fa-solid fa-folder-tree text-info text-[10px]"></i>
+                <span class="text-[11px] font-bold uppercase tracking-wide opacity-60 grow">Worktrees</span>
+                <span class="badge badge-xs badge-ghost">{{ worktreeList.length }}</span>
+              </div>
+
+              <div
+                v-for="worktree in worktreeList"
+                :key="`worktree-${worktree.path}`"
+                class="border-t border-base-content/5 first:border-t-0"
+              >
+                <div class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-base-200/50">
+                  <button
+                    class="flex items-center gap-1.5 grow min-w-0 text-left"
+                    :aria-expanded="isWorktreeExpanded(worktree.path)"
+                    :title="worktree.path"
+                    @click="toggleWorktree(worktree.path)"
+                  >
+                    <i
+                      class="fa-solid text-[9px] opacity-50 shrink-0"
+                      :class="isWorktreeExpanded(worktree.path) ? 'fa-chevron-down' : 'fa-chevron-right'"
+                    ></i>
+                    <i class="fa-solid fa-code-branch text-info text-[10px] shrink-0"></i>
+                    <span class="font-mono text-[11px] truncate">{{ worktree.label }}</span>
+                    <span v-if="worktree.is_main" class="badge badge-xs badge-ghost shrink-0">main</span>
+                    <span
+                      class="badge badge-xs shrink-0"
+                      :class="worktree.changeCount ? 'badge-warning badge-outline' : 'badge-ghost'"
+                    >{{ worktree.changeCount }}</span>
+                  </button>
+                  <span class="text-[9px] opacity-40 truncate max-w-[42%]" :title="worktree.path">{{ worktree.path }}</span>
+                </div>
+
+                <div v-if="isWorktreeExpanded(worktree.path)">
+                  <p v-if="!worktree.files.length" class="pl-8 pr-2 pb-1.5 text-[10px] opacity-40">No changes</p>
+                  <div
+                    v-for="file in worktree.files"
+                    :key="`worktree-file-${worktree.path}-${file.path}`"
+                    class="flex items-center gap-1.5 pl-8 pr-2 py-0.5 cursor-pointer hover:bg-base-200/60 transition-colors"
+                    :title="`${file.label}: ${file.path} — open in the editor`"
+                    @click="openWorktreeFile(worktree, file)"
+                  >
+                    <i class="fa-solid text-[10px] shrink-0" :class="[file.icon, file.color]"></i>
+                    <span class="font-mono text-[10px] truncate grow">{{ file.path }}</span>
+                    <span v-if="file.staged" class="badge badge-xs badge-ghost shrink-0">staged</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
             </section>
             </div>
@@ -1790,6 +2003,8 @@ export default {
                 No project API available
               </div>
             </div>
+          </template>
+        </VerticalSplitter>
           </template>
         </VerticalSplitter>
       </div>

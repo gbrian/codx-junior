@@ -1191,8 +1191,23 @@ class ProfileManager:
         except:
             return False
 
-    def get_file_profiles_by_file_path(self, file_path: str):
-        file_profiles = [profile for profile in self.list_all_profiles() \
+    def get_file_profiles_by_file_path(
+        self, file_path: str, profiles: Optional[List[Profile]] = None
+    ):
+        """
+        Return the profiles whose ``file_match`` regex matches *file_path*.
+
+        Args:
+            file_path: Absolute or project path used for the match.
+            profiles: Optional pre-loaded profile list. Callers matching many
+                files pass :meth:`list_all_profiles` once instead of making this
+                method re-read the profile chain for every file.
+
+        Returns:
+            Matching profiles (linked duplicates reduced).
+        """
+        candidates = profiles if profiles is not None else self.list_all_profiles()
+        file_profiles = [profile for profile in candidates \
           if self.is_profile_match(profile=profile, file_path=file_path)]
         return self.reduce_linked_profiles(profiles=file_profiles)
 

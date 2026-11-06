@@ -14,7 +14,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :style="panels?.left?.style"
       style="overflow: auto !important"
       :order="1"
-      v-if="$slots.left"
+      v-if="showLeft && $slots.left"
     >
       <slot name="left"></slot>
     </SplitterPanel>
@@ -26,7 +26,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :class="showHandle
         ? 'group bg-base-200 hover:bg-primary/10 active:bg-primary/20'
         : 'border-r border-base-100 hover:bg-slate-600'"
-      v-if="$slots.left && showRight && $slots.right"
+      v-if="showLeft && $slots.left && showRight && $slots.right"
     >
       <span
         v-if="showHandle"
@@ -43,7 +43,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :class="panels?.right?.class"
       :style="panels?.right?.style"
       style="overflow: auto !important"
-      :order="2"
+      :order="showLeft ? 2 : 1"
       v-if="showRight && $slots.right"
     >
       <slot name="right"></slot>
@@ -52,7 +52,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 
   <!-- Non-split fallback (mobile): plain, non-resizable container (no SplitterGroup) -->
   <div v-else class="flex h-full w-full min-h-0 overflow-hidden">
-    <div class="flex-1 min-w-0 min-h-0 overflow-hidden">
+    <div class="flex-1 min-w-0 min-h-0 overflow-hidden" v-if="showLeft">
       <slot name="left"></slot>
     </div>
     <div
@@ -93,6 +93,9 @@ export default {
     // Render the splitter. Set to false (e.g. on mobile) to render the slots
     // inside a plain container instead of a resizable SplitterGroup.
     split: { type: Boolean, default: true },
+    // When false, the left panel (and its handle) is not rendered and the right
+    // panel takes the full width. Used by optional sidebars on mobile.
+    showLeft: { type: Boolean, default: true },
     // When false, the right panel and its resize handle are not rendered and
     // the left panel takes the full width (used by panels that open on demand).
     showRight: { type: Boolean, default: true },
@@ -120,12 +123,13 @@ export default {
     // Left panel size: with no right panel it owns the whole width; otherwise
     // the remembered value wins, then the configured default.
     leftSize() {
-      if (!this.showRight) return 100
+      if (!this.showRight || !this.showLeft) return 100
       const saved = this.seededLayout?.[0]
       return saved != null ? saved : (this.panels?.left?.defaultSize || 20)
     },
     // Right panel size: the remembered value wins, then the configured default.
     rightSize() {
+      if (!this.showLeft) return 100
       const saved = this.seededLayout?.[1]
       return saved != null ? saved : (this.panels?.right?.defaultSize || 20)
     }
@@ -205,7 +209,7 @@ export default {
       // Only meaningful while BOTH panels are present: closing the side panel
       // collapses the layout to a single [100] entry and must not wipe the
       // remembered split.
-      if (!this.$slots.left || !this.$slots.right) return
+      if (!this.showLeft || !this.$slots.left || !this.$slots.right) return
       if (!Array.isArray(sizes) || sizes.length < 2) return
 
       const state = this.dragState()

@@ -41,6 +41,13 @@ logger = logging.getLogger(__name__)
 # First line of a unified patch: anything before it is command metadata
 PATCH_START_PATTERN = re.compile(r"^(diff --git |--- )", re.MULTILINE)
 
+# Untracked files are reviewed from their content. Binary and very large files
+# are skipped: they cannot be meaningfully reviewed and would flood the prompt.
+MAX_UNTRACKED_FILE_BYTES = 512 * 1024
+
+# Total patch budget for the synthetic untracked diffs of one review.
+MAX_UNTRACKED_PATCH_CHARS = 2_000_000
+
 
 class GitWorkspaceEngine(GitEngine):
     """
@@ -485,6 +492,251 @@ class GitWorkspaceEngine(GitEngine):
             "additions": counts["additions"],
             "deletions": counts["deletions"],
             "error": "",
+        }
+
+    def _local_file_patch(self, path: str, base_ref: str) -> str:
+        """
+        Return the patch of one working tree file against *base_ref*.
+
+        Tracked files are diffed with ``git diff <base_ref> -- <path>``: the
+        comparison includes both the index and the working tree, so a file with
+        staged changes only (or staged plus unstaged changes) is reported with
+        its complete change set. Untracked files have no git diff against a
+        ref, so they get the synthetic "new file" patch built by
+        :meth:`get_file_diff`.
+
+        Args:
+            path: Repo-relative file path.
+            base_ref: Ref the working tree is compared against.
+
+        Returns:
+            Unified patch (empty when the file has nothing to show).
+        """
+        if self._is_untracked(path):
+            diff = self.get_file_diff(path=path, mode="worktree")
+            return (diff.get("diff") or "").strip()
+
+        result = self._run_git(
+            ["diff", "--no-color", base_ref, "--", path], cwd=self._get_repo_root()
+        )
+        return (result["output"] or "").strip()
+
+    def _untracked_patch(self, path: str) -> str:
+        """
+        Build a synthetic "new file" patch for an untracked file.
+
+        Binary and oversized files return an empty patch: they still appear in
+        the file list (the UI shows their status) but are not sent to the AI.
+        Reading the file directly avoids spawning one git process per untracked
+        file, which is what made reviewing a working tree with a generated
+        folder (browser profiles, caches...) extremely slow.
+
+        Args:
+            path: Repo-relative path.
+
+        Returns:
+            Unified patch, or an empty string when the file cannot be reviewed.
+        """
+        repo_root = self._get_repo_root()
+        absolute = os.path.join(repo_root, path)
+        try:
+            size = os.path.getsize(absolute)
+            if size > MAX_UNTRACKED_FILE_BYTES:
+                logger.info(
+                    "Skipping untracked file %s in the local review: %s bytes",
+                    path,
+                    size,
+                )
+                return ""
+            with open(absolute, "rb") as handle:
+                raw = handle.read()
+        except (OSError, IOError):
+            return ""
+
+        # NUL bytes mean binary content: a text diff would be meaningless
+        if b"\0" in raw[:8000]:
+            return ""
+
+        text = raw.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        hunk_size = len(lines)
+        patch_lines = [
+            f"diff --git a/{path} b/{path}",
+            "new file mode 100644",
+            "index 0000000..0000000",
+            "--- /dev/null",
+            f"+++ b/{path}",
+            f"@@ -0,0 +1,{max(hunk_size, 0)} @@",
+        ]
+        patch_lines.extend(f"+{line}" for line in lines)
+        if text and not text.endswith("\n"):
+            patch_lines.append("\\ No newline at end of file")
+        return "\n".join(patch_lines)
+
+    def get_local_changes(
+        self, base_ref: Optional[str] = None, paths: Optional[List[str]] = None
+    ) -> dict:
+        """
+        Return the uncommitted changes of the project compared to a ref.
+
+        This is the "local changes vs current branch" review payload: every
+        staged, unstaged and untracked file is listed with its patch against
+        *base_ref* (defaults to ``HEAD``, i.e. the checked out branch tip). It
+        has the same shape as :meth:`get_repo_changes`, so the PR viewer can
+        render it without a special case.
+
+        Args:
+            base_ref: Branch/ref the working tree is compared against. Defaults
+                to ``HEAD``.
+            paths: Optional file paths to restrict the result to.
+
+        Returns:
+            Dict with 'diff', 'stat', 'repo_path', 'pr_details', 'commits',
+            'branch_file_and_commits', 'local_changes', 'compare_type'
+            ('local'), 'base_ref' and 'base_branch'.
+
+        Example:
+            >>> result = engine.get_local_changes()
+            >>> result["compare_type"]
+            'local'
+            >>> list(result["branch_file_and_commits"])
+            ['app.py', 'new.json']
+        """
+        repo_root = self._get_repo_root()
+        base_ref = (base_ref or "").strip() or "HEAD"
+        if not self._ref_exists(base_ref):
+            # A deleted/renamed branch must not hide the working tree changes
+            logger.warning("Local review base ref %s not found: using HEAD", base_ref)
+            base_ref = "HEAD"
+
+        status = self.get_working_tree_status()
+        changes = self.get_status_changes(status["files"])
+
+        selected = set(self._clean_paths(paths)) if paths else None
+        entries: Dict[str, dict] = {}
+        order: List[str] = []
+
+        def add_entry(entry: dict, staged: bool) -> None:
+            path = self._to_repo_path(entry.get("path"))
+            if not path:
+                return
+            if selected is not None and path not in selected:
+                return
+            current = entries.get(path)
+            if current is None:
+                current = {
+                    "path": path,
+                    "code": entry.get("code") or "M",
+                    "status": entry.get("status") or "modified",
+                    "staged": False,
+                    "unstaged": False,
+                }
+                entries[path] = current
+                order.append(path)
+            if staged:
+                current["staged"] = True
+            else:
+                current["unstaged"] = True
+
+        for entry in changes["staged"]:
+            add_entry(entry, staged=True)
+        for entry in changes["unstaged"]:
+            add_entry(entry, staged=False)
+
+        # One diff for every tracked file, split per-file in memory. Spawning a
+        # git process per changed file is what made the local review slow on
+        # large working trees.
+        tracked = self._run_git(
+            ["diff", "--no-color", base_ref], cwd=repo_root
+        )
+        tracked_diff = tracked["output"] or ""
+        tracked_patches = self._split_file_patches(tracked_diff)
+
+        untracked_diffs: List[str] = []
+        untracked_patch_chars = 0
+        local_changes: Dict[str, dict] = {}
+        branch_file_and_commits: Dict[str, dict] = {}
+        pr_details: List[dict] = []
+
+        for path in order:
+            entry = entries[path]
+            if entry["code"] == "?":
+                # Untracked files are not part of `git diff`: build their
+                # synthetic patch from the file content (bounded).
+                remaining = MAX_UNTRACKED_PATCH_CHARS - untracked_patch_chars
+                patch = self._untracked_patch(path) if remaining > 0 else ""
+                if patch and len(patch) > remaining:
+                    patch = patch[:remaining].rstrip() + "\n... (truncated)"
+                if patch:
+                    untracked_patch_chars += len(patch)
+                    untracked_diffs.append(patch)
+            else:
+                patch = tracked_patches.get(path)
+                if patch is None:
+                    # Rare (quoted path / rename header): fall back to one diff
+                    patch = self._local_file_patch(path, base_ref)
+
+            last_modification = self._get_file_last_modification(path)
+            local_changes[path] = {
+                "diff": patch,
+                "last_modification": last_modification,
+                "code": entry["code"],
+                "status": entry["status"],
+                "staged": entry["staged"],
+                "unstaged": entry["unstaged"],
+            }
+            branch_file_and_commits[path] = {
+                "commits": [],
+                "diff": patch,
+                "last_modification": last_modification,
+                "code": entry["code"],
+                "status": entry["status"],
+                "staged": entry["staged"],
+                "unstaged": entry["unstaged"],
+            }
+            pr_details.append({
+                "file_name": path,
+                "status": (
+                    "new" if entry["code"] in ("?", "A")
+                    else "deleted" if entry["code"] == "D"
+                    else "renamed" if entry["code"] == "R"
+                    else "modified"
+                ),
+                "diff": patch,
+                "commits": [],
+                "last_modification": last_modification,
+                "code": entry["code"],
+            })
+
+        # Whole-change patch: tracked changes against the base plus the
+        # untracked files, which `git diff` never includes.
+        diff_parts = [tracked_diff] if tracked_diff else []
+        diff_parts += untracked_diffs
+        combined_diff = "\n".join(part for part in diff_parts if part)
+
+        stat_result = self._run_git(
+            ["diff", "--shortstat", base_ref], cwd=repo_root
+        )
+        stat = stat_result["output"] if stat_result["ok"] else ""
+        untracked_count = sum(1 for entry in entries.values() if entry["code"] == "?")
+        if untracked_count:
+            suffix = f"{untracked_count} untracked file(s)"
+            stat = f"{stat}, {suffix}" if stat else suffix
+
+        return {
+            "diff": combined_diff,
+            "stat": stat,
+            "git_diff_cmd": f"git diff {base_ref}",
+            "local_changes": local_changes,
+            "repo_path": repo_root,
+            "pr_details": pr_details,
+            "commits": [],
+            "branch_file_and_commits": branch_file_and_commits,
+            "compare_type": "local",
+            "base_ref": base_ref,
+            "base_branch": base_ref,
+            "from_branch": "local",
+            "to_branch": base_ref,
         }
 
     def get_file_history(self, path: str, limit: int = 25) -> list:

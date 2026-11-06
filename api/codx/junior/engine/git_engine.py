@@ -6,6 +6,7 @@ Made with ❤️ by codx-junior
 """
 
 import base64
+import codecs
 import json
 import logging
 import os
@@ -83,6 +84,15 @@ PORCELAIN_STATUS = {
 # git, it is reported as a single ``?? folder/`` entry and dropped by
 # ``_filter_nested_repos``: those files belong to the nested repository.
 STATUS_ARGS = ("status", "--porcelain", "--untracked-files=all")
+
+# Start of one file patch inside a multi-file diff
+DIFF_SPLIT_PATTERN = re.compile(r"(?m)^(?=diff --git )")
+
+# `diff --git a/<old> b/<new>` header (git quotes paths with special chars)
+DIFF_HEADER_PATH_PATTERN = re.compile(r'^diff --git "?a/(.+?)"? "?b/(.+?)"?$')
+
+# Record separator used to delimit commits while reading `git log --name-only`
+LOG_COMMIT_SEPARATOR = "\x01"
 
 
 class GitEngine:
@@ -168,6 +178,101 @@ class GitEngine:
             cleaned = cleaned.split()[-1]
         
         return cleaned
+
+    @staticmethod
+    def _unquote_git_path(value: str) -> str:
+        """Decode the quoting git applies to paths with special characters."""
+        value = (value or "").strip()
+        if value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+            try:
+                return codecs.escape_decode(value.encode("utf-8"))[0].decode(
+                    "utf-8", errors="replace"
+                )
+            except Exception:
+                return value
+        return value
+
+    def _split_file_patches(self, diff: str) -> Dict[str, str]:
+        """
+        Split a multi-file diff into one patch per file.
+
+        A single ``git diff`` plus this split is much faster than one ``git
+        diff`` per file, which matters on large change sets (a branch with
+        hundreds of files, a working tree with generated folders...).
+
+        Args:
+            diff: Output of ``git diff`` (possibly empty).
+
+        Returns:
+            Dict mapping the repo-relative new path to its patch.
+
+        Example:
+            >>> patches = engine._split_file_patches(diff)
+            >>> patches["app.py"].startswith("diff --git")
+            True
+        """
+        patches: Dict[str, str] = {}
+        for chunk in DIFF_SPLIT_PATTERN.split(diff or ""):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            header = chunk.split("\n", 1)[0]
+            match = DIFF_HEADER_PATH_PATTERN.match(header)
+            if not match:
+                continue
+            path = self._unquote_git_path(match.group(2))
+            if path:
+                patches[path] = chunk
+        return patches
+
+    def _commits_by_file(self, to_ref: str, from_ref: str) -> Dict[str, list]:
+        """
+        Return the commits in ``to_ref..from_ref`` grouped by changed file.
+
+        One ``git log --name-only`` gives the full map, replacing one ``git
+        log`` per changed file (the expensive part of a branch comparison).
+
+        Args:
+            to_ref: Base ref (exclusive).
+            from_ref: Source ref (inclusive).
+
+        Returns:
+            Dict mapping file path to the list of commits that touched it.
+        """
+        pretty = (
+            f'{LOG_COMMIT_SEPARATOR}{{ "commit": "%H", "author": "%an", '
+            '"date": "%as", "message": "%f" }'
+        )
+        result = self._run_git([
+            "log",
+            f"--pretty=format:{pretty}",
+            "--name-only",
+            f"{to_ref}..{from_ref}",
+        ])
+        if not result["ok"]:
+            logger.warning(
+                "Could not read the commits between %s and %s: %s",
+                to_ref,
+                from_ref,
+                result["error"],
+            )
+            return {}
+
+        commits_by_file: Dict[str, list] = {}
+        current = None
+        for line in result["output"].splitlines():
+            if line.startswith(LOG_COMMIT_SEPARATOR):
+                try:
+                    current = json.loads(line[len(LOG_COMMIT_SEPARATOR):])
+                except Exception:
+                    current = None
+                continue
+            path = line.strip()
+            if not path or current is None:
+                continue
+            commits_by_file.setdefault(path, []).append(current)
+        return commits_by_file
 
     def _get_repo_root(self) -> str:
         """
@@ -710,9 +815,14 @@ class GitEngine:
         """
         if not os.path.isabs(file_path):
             file_path = os.path.join(self.settings.abs_project_path, file_path)
-        if not os.path.isfile(file_path):
+        try:
+            if not os.path.isfile(file_path):
+                return None
+            mtime = os.path.getmtime(file_path)
+        except (OSError, IOError):
+            # The file may be removed between the status read and the stat
+            # (working trees with generated folders change while being read).
             return None
-        mtime = os.path.getmtime(file_path)
         return datetime.fromtimestamp(mtime).isoformat()
 
     def _get_git_root_for_file(self, file_path: str) -> str:
@@ -832,24 +942,94 @@ class GitEngine:
 
     def get_repo_branches(self) -> list:
         """
-        Return all git branches (local and remote) for the project.
-        Sanitizes branch names by removing prefixes.
-        """
-        def get_branches(cmd: str) -> list:
-            stdout, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            branches = [s.strip() for s in stdout.split("\n") if s.strip()]
-            return [self._sanitize_branch_name(b) for b in branches]
+        Return all git branches (local and remote) ordered by latest activity.
 
-        branches = list(set(get_branches("git branch") + get_branches("git branch -r")))
-        branches.sort()
+        The list is sorted by the committer date of the branch tip, newest
+        first, so the branch with the most recent changes is always at the top
+        of the git view. The ref name is used as a stable tie-breaker.
+
+        Remote symbolic refs (``origin/HEAD``) are skipped: they are aliases of
+        another branch and would appear twice in the list.
+
+        Returns:
+            Sanitized branch names, newest commit first.
+
+        Example:
+            >>> engine.get_repo_branches()
+            ['feature/login', 'main', 'origin/main']
+        """
+        # ``for-each-ref`` resolves every branch (local + remote) in one call and
+        # exposes the commit date used for sorting. Tab separators keep names
+        # with slashes readable.
+        result = self._run_git(
+            [
+                "for-each-ref",
+                "--sort=-committerdate",
+                "--format=%(committerdate:unix)%09%(refname:short)",
+                "refs/heads",
+                "refs/remotes",
+            ]
+        )
+
+        entries: List[tuple] = []
+        if result["ok"]:
+            for line in result["output"].splitlines():
+                timestamp, separator, raw_name = line.partition("\t")
+                if not separator or not raw_name.strip():
+                    continue
+                name = self._sanitize_branch_name(raw_name)
+                # Symbolic remote refs are aliases: origin/HEAD -> origin/main
+                if not name or name.endswith("/HEAD"):
+                    continue
+                try:
+                    date = int(timestamp)
+                except (TypeError, ValueError):
+                    date = 0
+                entries.append((date, name))
+
+        if not entries:
+            # Very old git versions (or a repository without refs): keep the
+            # previous behaviour as a fallback instead of returning nothing.
+            def get_branches(cmd: str) -> list:
+                stdout, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
+                branches = [s.strip() for s in stdout.split("\n") if s.strip()]
+                return [self._sanitize_branch_name(b) for b in branches]
+
+            branches = list(
+                set(get_branches("git branch") + get_branches("git branch -r"))
+            )
+            branches.sort()
+            return branches
+
+        # Newest first; refname keeps equal dates deterministic.
+        entries.sort(key=lambda item: (-item[0], item[1]))
+
+        branches: List[str] = []
+        seen = set()
+        for _date, name in entries:
+            if name in seen:
+                continue
+            seen.add(name)
+            branches.append(name)
         return branches
 
     def get_project_branches(self) -> dict:
         """
-        Return branches and full repo tree.
+        Return branches, the checked out branch and the full repo tree.
+
+        ``active_branch`` lets the review panel pre-select the branch the local
+        changes belong to instead of the first (latest) branch of the list.
+
+        Returns:
+            Dict with 'branches', 'active_branch', 'default_branch' and
+            'repo_tree'.
         """
         return {
             "branches": self.get_repo_branches(),
+            "active_branch": self._sanitize_branch_name(
+                self.get_project_current_branch()
+            ),
+            "default_branch": self.get_default_branch(),
             "repo_tree": self.get_repo_tree(),
         }
 
@@ -1027,114 +1207,126 @@ class GitEngine:
     def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:
         """
         Return file changes, diffs and PR details between two branches.
+
+        The ``local`` sentinel compares the uncommitted working tree against
+        the other side of the comparison, which is how the git view reviews
+        local changes against the current branch:
+
+        - ``to_branch="local"`` compares the working tree against *from_branch*.
+        - ``from_branch="local"`` compares the working tree against *to_branch*.
+
         Each file entry includes a 'last_modification' datetime (ISO 8601).
         """
         # Sanitize branch names
         from_branch = self._sanitize_branch_name(from_branch)
         to_branch = self._sanitize_branch_name(to_branch)
-        
-        is_current_branch = from_branch != to_branch  # Simplified check after sanitization
 
-        # Get list of changed files
-        git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
+        # Local changes are compared against the other side of the pair. This is
+        # the branch the working tree is based on, defaulting to the checked out
+        # one when the caller did not name it.
+        local_sentinel = "local"
+        from_local = (from_branch or "").lower() == local_sentinel
+        to_local = (to_branch or "").lower() == local_sentinel
+        if from_local or to_local:
+            base_branch = to_branch if from_local else from_branch
+            if not base_branch or base_branch.lower() == local_sentinel:
+                base_branch = (
+                    self._sanitize_branch_name(self.get_project_current_branch())
+                    or "HEAD"
+                )
+            result = self.get_local_changes(base_ref=base_branch)
+            result.update({
+                "from_branch": from_branch,
+                "to_branch": to_branch,
+                "base_branch": base_branch,
+            })
+            return result
+
+        # Get list of changed files (and their status) in one command
+        git_branch_file_changed = f"git diff --name-status {to_branch}...{from_branch}"
         branch_files_output, _ = exec_command(
             git_branch_file_changed, cwd=self.settings.abs_project_path
         )
-        branch_files = [f.strip() for f in branch_files_output.strip().split("\n") if f.strip()]
+        status_by_file: Dict[str, str] = {}
+        for line in branch_files_output.split("\n"):
+            if not line.strip() or "\t" not in line:
+                continue
+            parts = line.split("\t")
+            code = (parts[0] or "").strip()[:1]
+            path = (parts[-1] or "").strip()
+            if not path:
+                continue
+            status_by_file[path] = (
+                "new" if code == "A"
+                else "deleted" if code == "D"
+                else "renamed" if code == "R"
+                else "copied" if code == "C"
+                else "typechange" if code == "T"
+                else "modified"
+            )
+        branch_files = list(status_by_file)
 
-        def get_git_file_diff(file_path: str) -> str:
-            """Get diff for a specific file between branches."""
-            cmd = f"git diff {to_branch}...{from_branch} -- {file_path}"
-            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            return git_cmd_out.strip()
-
-        def get_git_file_commits(file_path: str) -> list:
-            """Get commits that touched a specific file between branches."""
-            pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
-            cmd = f"git log --pretty=format:'{pretty}' {to_branch}..{from_branch} -- {file_path}"
-            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
-            
-            results = []
-            for line in git_cmd_out.strip().split("\n"):
-                if not line.strip():
-                    continue
-                try:
-                    results.append(json.loads(line))
-                except Exception as ex:
-                    logger.warning("Could not parse commit line for %s: %s", file_path, ex)
-            return results
+        # One diff and one log for the whole comparison: spawning git per file
+        # made a 700-file comparison take minutes.
+        git_diff_cmd = f"git diff --no-color {to_branch}...{from_branch}"
+        git_diff_cmd_out, _ = exec_command(
+            git_diff_cmd, cwd=self.settings.abs_project_path
+        )
+        patches = self._split_file_patches(git_diff_cmd_out)
+        commits_by_file = self._commits_by_file(
+            to_ref=to_branch, from_ref=from_branch
+        )
 
         # Build per-file metadata
         branch_file_and_commits = {}
         for file_path in branch_files:
             if not file_path:
                 continue
-            
+            patch = patches.get(file_path)
+            if patch is None:
+                # Fallback for quoted paths the split could not map
+                patch, _ = exec_command(
+                    f"git diff {to_branch}...{from_branch} -- {file_path}",
+                    cwd=self.settings.abs_project_path,
+                )
+                patch = (patch or "").strip()
             branch_file_and_commits[file_path] = {
-                "commits": get_git_file_commits(file_path),
-                "diff": get_git_file_diff(file_path),
+                "commits": commits_by_file.get(file_path, []),
+                "diff": patch or "",
                 "last_modification": self._get_file_last_modification(file_path),
             }
 
-        # Get overall diff stats
-        git_diff_cmd = (
-            f"git diff {to_branch} {from_branch}"
-            if from_branch != "local"
-            else f"git diff {to_branch}"
-        )
-
-        git_diff_cmd_out, _ = exec_command(
-            git_diff_cmd, cwd=self.settings.abs_project_path
-        )
+        # Get overall diff stats (from the same command run above)
         git_diff_cmd_stat_out, _ = exec_command(
-            git_diff_cmd.replace("git diff", "git diff --shortstat"),
+            f"git diff --shortstat {to_branch}...{from_branch}",
             cwd=self.settings.abs_project_path,
         )
 
-        # Handle local changes if comparing against current branch
-        local_changes: dict = {}
-        if is_current_branch:
-            git_local, _ = exec_command(
-                "git status -s", cwd=self.settings.abs_project_path
-            )
-            local_files = [f.strip().split(" ")[-1] for f in git_local.split("\n") if f.strip()]
-            
-            for file in local_files:
-                full_path = os.path.join(self.settings.abs_project_path, file)
-                if os.path.isfile(full_path):
-                    git_diff_local_out, _ = exec_command(
-                        f"git diff {to_branch} {file}",
-                        cwd=self.settings.abs_project_path,
-                    )
-                    local_changes[file] = {
-                        "diff": git_diff_local_out or (
-                            f"diff --git a/ b/{file}\nnew file mode"
-                        ),
-                        "last_modification": self._get_file_last_modification(file),
-                    }
-
-            # Merge local changes into branch changes
-            for local_file, local_file_info in local_changes.items():
-                if local_file in branch_file_and_commits:
-                    branch_file_and_commits[local_file]["diff"] = local_file_info["diff"]
-                    branch_file_and_commits[local_file]["last_modification"] = (
-                        local_file_info["last_modification"]
-                    )
-                else:
-                    branch_file_and_commits[local_file] = local_file_info
-
-        pr_details = self.get_pr_review_details(from_branch, to_branch)
+        # Reuse the per-file data already loaded instead of running one diff
+        # and one log per file again.
+        pr_details = [
+            {
+                "file_name": file_path,
+                "status": status_by_file.get(file_path, "modified"),
+                "diff": entry["diff"],
+                "commits": entry["commits"],
+                "last_modification": entry["last_modification"],
+            }
+            for file_path, entry in branch_file_and_commits.items()
+        ]
 
         return {
             "diff": git_diff_cmd_out,
             "stat": git_diff_cmd_stat_out,
             "git_diff_cmd": git_diff_cmd,
-            "local_changes": local_changes,
+            "local_changes": {},
             "repo_path": self.find_git_root_path(),
             "pr_details": pr_details,
             "commits": [],
             "branch_file_and_commits": branch_file_and_commits,
             "compare_type": "branch",
+            "from_branch": from_branch,
+            "to_branch": to_branch,
         }
 
     def get_branch_commits(self, from_branch: str, repo_path: str) -> list:
@@ -1760,33 +1952,103 @@ class GitEngine:
             os.path.dirname(repo_path), f"{os.path.basename(repo_path)}-worktrees"
         )
 
-    def list_worktrees(self) -> list:
+    def _worktree_changes(self, worktree_path: str) -> dict:
+        """
+        Return the working tree changes of one worktree.
+
+        The status is read inside the worktree itself (``git status`` with the
+        worktree as cwd), so it reports the files changed in that checkout and
+        never the files of the main repository.
+
+        Args:
+            worktree_path: Absolute worktree path.
+
+        Returns:
+            Dict with 'ok', 'dirty', 'files', 'staged', 'unstaged',
+            'file_count' and 'errors'.
+
+        Example:
+            >>> engine._worktree_changes("/repo-worktrees/feature")["file_count"]
+            2
+        """
+        if not worktree_path or not os.path.isdir(worktree_path):
+            return {
+                "ok": False,
+                "dirty": False,
+                "files": [],
+                "staged": [],
+                "unstaged": [],
+                "file_count": 0,
+                "errors": [f"Worktree path does not exist: {worktree_path}"],
+            }
+
+        result = self._run_git(STATUS_ARGS, cwd=worktree_path, strip_output=False)
+        raw_files = [line for line in result["output"].split("\n") if line.strip()]
+        files = self._filter_nested_repos(raw_files, cwd=worktree_path)
+        changes = self.get_status_changes(files)
+        return {
+            "ok": result["ok"],
+            "dirty": bool(files),
+            "files": files,
+            "staged": changes["staged"],
+            "unstaged": changes["unstaged"],
+            "file_count": len(files),
+            "errors": [] if result["ok"] else [result["error"]],
+        }
+
+    def list_worktrees(self, include_changes: bool = True) -> list:
         """
         Return the repository's registered worktrees.
 
+        Args:
+            include_changes: Read the working tree status of every worktree and
+                include it under 'changes'. Disable it when only the path /
+                branch mapping is needed (the git view needs the changes).
+
         Returns:
-            List of dicts with 'path' and 'branch' keys.
+            List of dicts with 'path', 'branch', 'head', 'bare', 'detached' and,
+            when *include_changes* is true, 'changes' (staged / unstaged file
+            lists, dirty flag and file count).
         """
         result = self._run_git(["worktree", "list", "--porcelain"])
         worktrees = []
         current: Dict[str, str] = {}
+
+        def flush_worktree() -> None:
+            if not current:
+                return
+            entry = dict(current)
+            path = entry.get("path", "")
+            entry["name"] = os.path.basename(os.path.normpath(path)) if path else ""
+            entry["branch"] = self._sanitize_branch_name(entry.get("branch", ""))
+            entry["head"] = entry.get("head", "")
+            entry["bare"] = entry.get("bare") == "bare"
+            entry["detached"] = entry.get("detached") == "detached"
+            entry["is_main"] = os.path.normpath(path) == os.path.normpath(
+                self._get_repo_root()
+            )
+            if include_changes:
+                entry["changes"] = self._worktree_changes(path)
+            worktrees.append(entry)
 
         for line in result["output"].split("\n"):
             line = line.strip()
             if not line:
                 continue
             if line.startswith("worktree "):
-                if current:
-                    worktrees.append(current)
+                flush_worktree()
                 current = {"path": line[len("worktree "):].strip()}
+            elif line.startswith("HEAD ") and current is not None:
+                current["head"] = line[len("HEAD "):].strip()
             elif line.startswith("branch ") and current is not None:
                 branch = line[len("branch "):].strip()
-                current["branch"] = self._sanitize_branch_name(
-                    branch.replace("refs/heads/", "")
-                )
+                current["branch"] = branch.replace("refs/heads/", "")
+            elif line == "bare" and current is not None:
+                current["bare"] = "bare"
+            elif line == "detached" and current is not None:
+                current["detached"] = "detached"
 
-        if current:
-            worktrees.append(current)
+        flush_worktree()
         return worktrees
 
     def get_worktree_path_for_branch(self, branch_name: str) -> str:
@@ -1800,7 +2062,8 @@ class GitEngine:
             Absolute worktree path, or an empty string when none exists.
         """
         branch_name = self._sanitize_branch_name(branch_name)
-        for worktree in self.list_worktrees():
+        # Only the path/branch mapping is needed here: skip the status scan.
+        for worktree in self.list_worktrees(include_changes=False):
             if worktree.get("branch") == branch_name:
                 return worktree.get("path", "")
         return ""
@@ -2642,6 +2905,26 @@ class GitEngine:
         lock = self.get_lock_info()
         identity = self.get_git_identity()
 
+        # Worktree change lists. The main worktree reuses the status already
+        # read above instead of running `git status` on the same folder twice
+        # (a large working tree makes that duplicate scan expensive).
+        main_changes = {
+            "ok": status["ok"],
+            "dirty": status["dirty"],
+            "files": status["files"],
+            "staged": changes["staged"],
+            "unstaged": changes["unstaged"],
+            "file_count": len(status["files"]),
+            "errors": [] if status["ok"] else [status["error"]],
+        }
+        worktrees = self.list_worktrees(include_changes=False)
+        for worktree in worktrees:
+            worktree["changes"] = (
+                main_changes
+                if worktree.get("is_main")
+                else self._worktree_changes(worktree["path"])
+            )
+
         return {
             "repo_path": self._get_repo_root(),
             "project_path": self.settings.abs_project_path,
@@ -2657,7 +2940,7 @@ class GitEngine:
             "unstaged": changes["unstaged"],
             "locked": lock["locked"],
             "lock_path": lock["path"],
-            "worktrees": self.list_worktrees(),
+            "worktrees": worktrees,
             "git_identity": identity,
             "git_token": self.get_git_token_info(),
             "last_commit": commits[0] if commits else None,

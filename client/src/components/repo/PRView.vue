@@ -161,7 +161,9 @@ export default {
     'chat',
     'project',
     'availableBranches',
-    'repoChanges'
+    'repoChanges',
+    // Uncommitted working tree compared against the current branch
+    'localMode'
   ],
   data() {
     return {

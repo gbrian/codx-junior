@@ -21,6 +21,15 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
       <button class="btn btn-xs btn-ghost" @click="loadAllProjects" :disabled="loadingChanges" title="Reload branches & changes">
         <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': loadingChanges }"></i>
       </button>
+      <button
+        class="btn btn-xs gap-1"
+        :class="localReview ? 'btn-warning' : 'btn-ghost'"
+        :aria-pressed="localReview"
+        title="Review the uncommitted changes against the current branch"
+        @click="toggleLocalReview"
+      >
+        <i class="fa-solid fa-laptop-file text-[10px]"></i> Local
+      </button>
       <button class="btn btn-xs btn-ghost" @click="$emit('refresh')" title="Refresh changes">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
@@ -123,7 +132,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             <!-- Branch selector: left = source (from_branch), right = target (to_branch) -->
             <div class="grow min-h-0">
               <BranchSelector
-                v-if="selectedProject"
+                v-if="selectedProject && !localReview"
                 :project="selectedProject"
                 :current-branch="fromBranch"
                 :compare-branch="toBranch"
@@ -132,6 +141,10 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
                 @branch-changed="onFromBranchChanged"
                 @compare-branch-changed="onToBranchChanged"
               />
+              <div v-else-if="localReview" class="flex items-center gap-2 text-xs opacity-60">
+                <i class="fa-solid fa-laptop-file text-warning"></i>
+                <span>Reviewing uncommitted changes against the current branch</span>
+              </div>
             </div>
           </div>
         </div>
@@ -148,6 +161,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             :project="selectedProject"
             :available-branches="selectedBranches"
             :repo-changes="cachedRepoChanges"
+            :local-mode="localReview"
             class="h-full"
             @select-branch="onBranchSelected"
             @comment="$emit('comment', $event)"
@@ -168,6 +182,7 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             :available-branches="selectedBranches"
             :repo-changes="cachedRepoChanges"
             :loading="loadingChanges"
+            :local-mode="localReview"
             class="h-full"
             @refresh="loadChangesForProject(selectedProjectId, true)"
             @branch-changed="onFromBranchChanged"
@@ -212,6 +227,9 @@ export default {
       //   from = source branch (from_branch, left selector) - the branch that will be merged
       //   to   = target branch (to_branch, right selector) - where the source is merged into
       branchSelectionByProject: {},
+      // Review the uncommitted working tree against the current branch instead
+      // of comparing two branches.
+      localReview: false,
       showAddProjectdropdown: false
     }
   },
@@ -292,6 +310,8 @@ export default {
 
     cacheKey() {
       if (!this.selectedProjectId) return null
+      // Local review: the working tree against the current branch
+      if (this.localReview) return `${this.selectedProjectId}:local`
       return `${this.selectedProjectId}:${this.fromBranch}:${this.toBranch}`
     },
 
@@ -318,6 +338,9 @@ export default {
     },
     toBranch() {
       this.loadChangesForProject(this.selectedProjectId)
+    },
+    localReview() {
+      this.loadChangesForProject(this.selectedProjectId, true)
     }
   },
   mounted() {
@@ -361,10 +384,10 @@ export default {
       if (!id) return false
 
       try {
-        const { branches } = await project.$api.repo.branches()
+        const { branches, active_branch: activeBranch } = await project.$api.repo.branches()
         if (Array.isArray(branches) && branches.length > 0) {
           this.setBranches(id, branches)
-          this.initBranchSelection(id, branches)
+          this.initBranchSelection(id, branches, activeBranch)
           return true
         }
         return false
@@ -489,13 +512,16 @@ export default {
       }
     },
 
-    initBranchSelection(projectId, branches) {
+    initBranchSelection(projectId, branches, activeBranch = '') {
       const prConfig = this.chat?.pr_view?.pull_requests?.[projectId]
+      const current = activeBranch && branches.includes(activeBranch)
+        ? activeBranch
+        : (branches[0] || 'main')
       this.branchSelectionByProject = {
         ...this.branchSelectionByProject,
         [projectId]: {
           // from = source (left selector), to = target (right selector)
-          from: prConfig?.fromBranch || branches[0] || 'main',
+          from: prConfig?.fromBranch || current,
           to: prConfig?.toBranch || 'local'
         }
       }
@@ -509,15 +535,27 @@ export default {
       const sel = this.branchSelectionByProject[projectId] || {}
       const from = sel.from || 'main'
       const to = sel.to || 'local'
-      const key = `${projectId}:${from}:${to}`
+      const local = this.localReview
+      const key = local ? `${projectId}:local` : `${projectId}:${from}:${to}`
 
       if (!force && this.changesByProject[key]) return
 
       try {
-        const changes = await project.$api.repo.changes({
-          from_branch: from,
-          to_branch: to
-        })
+        let changes
+        if (local) {
+          // `local` on both sides makes the backend resolve the changes
+          // against the checked out branch, without an extra repository info
+          // request (which reads every worktree status).
+          changes = await project.$api.repo.changes({
+            from_branch: 'local',
+            to_branch: 'local'
+          })
+        } else {
+          changes = await project.$api.repo.changes({
+            from_branch: from,
+            to_branch: to
+          })
+        }
         this.setChangesCache(key, changes)
         const count = Object.keys(changes?.branch_file_and_commits || {}).length
         this.setChangeCount(projectId, count)
@@ -527,10 +565,35 @@ export default {
         console.warn('Unable to load branch changes:', ex)
         this.setChangesCache(key, {
           repo_path: project.abs_project_path || '',
-          branch_file_and_commits: {}
+          branch_file_and_commits: {},
+          compare_type: local ? 'local' : 'branch'
         })
         this.setChangeCount(projectId, 0)
       }
+    },
+
+    /**
+     * Switch the panel to "local changes vs current branch".
+     *
+     * Used by the git view's "Local changes" action: the Review tab can be
+     * opened directly on the uncommitted changes without touching the branch
+     * selectors.
+     */
+    enableLocalReview() {
+      if (this.localReview) {
+        // Already in local mode: just refresh the working tree snapshot
+        if (this.selectedProjectId) {
+          this.loadChangesForProject(this.selectedProjectId, true)
+        }
+        return
+      }
+      // The `localReview` watcher loads the changes
+      this.localReview = true
+    },
+
+    /** Toggle between the branch comparison and the local changes review */
+    toggleLocalReview() {
+      this.localReview = !this.localReview
     },
 
     /** Left selector changed: source branch (from_branch) */

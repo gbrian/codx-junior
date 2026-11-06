@@ -4,11 +4,14 @@ Git repository API.
 Exposes the repository management endpoints consumed by the git view:
 
 - Read: repository info, branches, commits, the commit graph, remotes,
-  worktrees, working tree status, the staged changes summary, two-branch
-  comparison (PR review), commit details and single file diff/history/content.
+  worktrees (with the files changed inside each checkout), working tree status,
+  the staged changes summary, two-branch comparison (PR review), local changes
+  review, commit details and single file diff/history/content.
 - Write: fetch, pull, push, create/checkout/delete branch, stage/unstage/
   discard files, commit, merge, rebase, commit message generation and the local
   PR lifecycle (create, close, abandon).
+- AI: the Validator section reviews the selected changes with the project LLM
+  using the profiles associated with the changed files (or a user selection).
 
 All operations are delegated to
 :class:`codx.junior.engine.git_commit_message.GitCommitMessageEngine` (a
@@ -101,7 +104,10 @@ from pydantic import BaseModel
 
 from codx.junior.engine.git_commit_message import (
     COMMIT_MESSAGE_MAX_DIFF_CHARS,
-    GitCommitMessageEngine,
+)
+from codx.junior.engine.git_validator import (
+    VALIDATOR_MAX_DIFF_CHARS,
+    GitValidatorEngine,
 )
 from codx.junior.model.model import CodxUser
 from codx.junior.security.user_management import get_authenticated_user
@@ -199,14 +205,26 @@ class AbandonPRRequest(BaseModel):
     delete_branch: bool = True
 
 
+class ValidateChangesRequest(BaseModel):
+    """Payload for the Validator section: AI review of project changes."""
+
+    profiles: List[str] = []
+    source: str = "local"
+    from_branch: Optional[str] = None
+    to_branch: Optional[str] = None
+    paths: Optional[List[str]] = None
+    instructions: Optional[str] = None
+    max_diff_chars: int = VALIDATOR_MAX_DIFF_CHARS
+
+
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
 
 
-def _git_engine(request: Request) -> GitCommitMessageEngine:
+def _git_engine(request: Request) -> GitValidatorEngine:
     """
-    Build the git engine (graph + commit message) for the active session.
+    Build the git engine (graph + commit message + validator) for the session.
 
     Args:
         request: Incoming HTTP request holding the session in its state.
@@ -223,7 +241,7 @@ def _git_engine(request: Request) -> GitCommitMessageEngine:
             status_code=400,
             detail="CODXJuniorSession not found in request state.",
         )
-    return GitCommitMessageEngine(session=session)
+    return GitValidatorEngine(session=session)
 
 
 def _ensure_success(result: dict) -> dict:
@@ -341,10 +359,25 @@ def api_git_repo_remotes(
 
 @router.get("/git/repo/worktrees")
 def api_git_repo_worktrees(
-    request: Request, user: CodxUser = Depends(get_authenticated_user)
+    request: Request,
+    include_changes: bool = Query(
+        True,
+        description="Read the working tree status of every worktree",
+    ),
+    user: CodxUser = Depends(get_authenticated_user),
 ):
-    """Return the repository's registered worktrees (path and branch)."""
-    return {"worktrees": _git_engine(request).list_worktrees()}
+    """
+    Return the repository's registered worktrees.
+
+    Each worktree carries its branch and, unless ``include_changes`` is false,
+    the files changed inside that worktree (staged and unstaged lists), so the
+    git view can show every worktree's change list in one request.
+    """
+    return {
+        "worktrees": _git_engine(request).list_worktrees(
+            include_changes=include_changes
+        )
+    }
 
 
 @router.get("/git/repo/branch/commits")
@@ -384,15 +417,123 @@ def api_git_repo_changes(
     user: CodxUser = Depends(get_authenticated_user),
 ):
     """
-    Compare two branches and return the PR review payload.
+    Compare two branches (or the working tree) and return the review payload.
+
+    Use the ``local`` sentinel on one side to review the uncommitted working
+    tree against the other side:
+    ``?from_branch=main&to_branch=local`` shows the local changes against
+    ``main``. The review panel uses it for "local changes vs current branch".
 
     Args:
-        from_branch: Source branch.
-        to_branch: Target/base branch.
+        from_branch: Source branch (or ``local``).
+        to_branch: Target/base branch (or ``local``).
     """
     return _git_engine(request).get_repo_changes(
         from_branch=from_branch, to_branch=to_branch
     )
+
+
+@router.get("/git/repo/validate/context")
+def api_git_repo_validate_context(
+    request: Request,
+    source: str = Query(
+        "local",
+        description="Change source: 'local' (uncommitted) or 'branch' (two refs)",
+    ),
+    from_branch: Optional[str] = Query(
+        None, description="Base branch (local) or source branch (branch)"
+    ),
+    to_branch: Optional[str] = Query(
+        None, description="Target branch for a branch comparison"
+    ),
+    paths: Optional[List[str]] = Query(
+        None, description="Optional local file paths to restrict the review to"
+    ),
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Return the Validator context: files changed plus the profile selection.
+
+    The default profiles are the ones associated with the changed files by the
+    profile manager (``file_match``), so a Vue change starts with the Vue
+    profile instead of an arbitrary one.
+
+    Args:
+        source: ``local`` for uncommitted changes or ``branch`` for two refs.
+        from_branch: Base branch for local changes, or source branch.
+        to_branch: Target branch for a branch comparison.
+        paths: Optional local file paths to restrict the review to.
+
+    Returns:
+        Dict with 'success', 'source', branch labels, 'stat', 'files',
+        'profiles' (lightweight entries) and 'default_profiles'.
+    """
+    source = (source or "local").strip().lower()
+    if source not in ("local", "branch"):
+        raise HTTPException(
+            status_code=400, detail="source must be 'local' or 'branch'"
+        )
+
+    try:
+        return _git_engine(request).get_validation_context(
+            source=source,
+            from_branch=from_branch,
+            to_branch=to_branch,
+            paths=paths,
+        )
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+
+@router.post("/git/repo/validate")
+async def api_git_repo_validate(
+    request: Request,
+    payload: ValidateChangesRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Run an AI review of the selected project changes (Validator section).
+
+    The selected profiles (or the defaults inferred from the changed files) are
+    added to the prompt together with the patch, and the model returns a
+    Markdown report. Nothing is committed or written: the review is read-only.
+
+    Args:
+        payload: Profiles, source (local/branch), branch pair, optional paths,
+            extra instructions and the patch budget.
+
+    Returns:
+        Dict with 'success', 'review' (Markdown), 'files', 'profiles',
+        'profile_details', 'source', 'base_branch' and 'diff_truncated'.
+
+    Raises:
+        HTTPException: 400 when there are no changes or the AI fails.
+    """
+    source = (payload.source or "local").strip().lower()
+    if source not in ("local", "branch"):
+        raise HTTPException(
+            status_code=400, detail="source must be 'local' or 'branch'"
+        )
+
+    try:
+        result = await _git_engine(request).validate_changes(
+            profiles=payload.profiles,
+            source=source,
+            from_branch=payload.from_branch,
+            to_branch=payload.to_branch,
+            paths=payload.paths,
+            instructions=payload.instructions or "",
+            max_diff_chars=payload.max_diff_chars,
+        )
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex))
+
+    if not result.get("success"):
+        detail = "; ".join(
+            str(error) for error in (result.get("errors") or []) if error
+        ) or "Validation failed"
+        raise HTTPException(status_code=400, detail=detail)
+    return result
 
 
 @router.get("/git/repo/commit/changes")
